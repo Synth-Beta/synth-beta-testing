@@ -341,6 +341,9 @@ export function ReviewDetailView({
     ] as const;
   }, [isOwner]);
 
+  // Must be declared before any early returns so the hook order is stable
+  const [useFallbackThumb, setUseFallbackThumb] = useState(false);
+
   const handleMenuAction = async (key: 'edit' | 'delete' | 'report' | 'block') => {
     setOptionsMenuOpen(false);
     if (!reviewData) return;
@@ -465,7 +468,6 @@ export function ReviewDetailView({
   ].filter(cat => cat.rating > 0);
 
   const { derivedUrl: derivedThumbUrl, fallbackUrl: fallbackThumbUrl } = getPreferredReviewThumbnailUrls(reviewData);
-  const [useFallbackThumb, setUseFallbackThumb] = useState(false);
   const mainImage = (useFallbackThumb ? fallbackThumbUrl : derivedThumbUrl) || fallbackThumbUrl;
 
   const openArtistDetail = () => {

@@ -439,9 +439,9 @@ class AppleMusicService {
               genre: typeof genre === 'string' ? genre : genre.genre || '',
               count: typeof genre === 'string' ? 1 : genre.count || 1
             })),
-            total_tracks: profileData.totalTracks || 0,
+            total_tracks: profileData.topTracks?.length ?? 0,
             unique_artists: topArtists.length,
-            total_listening_hours: profileData.totalListeningHours || 0
+            total_listening_hours: profileData.listeningTime ?? 0
           };
 
           // Database table removed - stats are no longer persisted

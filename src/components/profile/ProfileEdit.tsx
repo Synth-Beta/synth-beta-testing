@@ -20,6 +20,7 @@ import {
   getUsernameSuggestions 
 } from '@/services/usernameService';
 import { sanitizeUsername, validateUsernameFormat } from '@/utils/usernameUtils';
+import { spotifyService } from '@/services/spotifyService';
 
 interface ProfileEditProps {
   currentUserId: string;
@@ -580,6 +581,27 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
                   }
                   maxLength={200}
                 />
+              )}
+              {formData.music_streaming_service === 'spotify' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => {
+                    if (spotifyService.isConfigured()) {
+                      spotifyService.authenticate();
+                    } else {
+                      toast({
+                        title: 'Spotify not configured',
+                        description: 'Spotify linking is not available right now.',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                >
+                  Link Spotify account to sync your taste
+                </Button>
               )}
               <p className="text-xs text-muted-foreground">
                 Share your Spotify, Apple Music, or other streaming profile link. Will display as a clickable link on your profile.

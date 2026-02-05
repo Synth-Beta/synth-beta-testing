@@ -579,14 +579,16 @@ export class NotificationService {
         }
       }
 
-      // Filter out processed friend request notifications
+      // Filter out processed friend request notifications and chat notifications
+      // Chat (message, group_chat_invite) uses the chat icon indicator instead
+      const chatTypes = ['message', 'group_chat_invite'];
       const validNotifications = notifications.filter((notif) => {
+        if (chatTypes.includes(notif.type)) return false;
         if (notif.type === 'friend_request' && notif.data?.request_id) {
           const requestId = notif.data.request_id;
-          // Exclude if this is a processed friend request
           return !processedRequestIds.has(requestId);
         }
-        return true; // Include all non-friend-request notifications
+        return true;
       });
 
       const count = validNotifications.length;

@@ -12,8 +12,11 @@ export default defineConfig(({ mode }) => {
   const ticketmasterProxyTarget = env.VITE_TICKETMASTER_PROXY_TARGET || 'http://localhost:3001';
   const isProduction = mode === 'production';
 
+  // Use '/' for web so script URLs are absolute (fixes MIME error after OAuth redirect to /auth/spotify/callback).
+  // For Capacitor, set VITE_APP_BASE=./ when building the native app if you need relative paths.
+  const base = env.VITE_APP_BASE ?? '/';
   return {
-    base: './', // Use relative paths for Capacitor
+    base,
     server: {
       host: "localhost",
       port: 5174,

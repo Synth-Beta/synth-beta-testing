@@ -76,12 +76,13 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
 
     fetchUnreadMessages();
 
-    // Set up real-time subscription for new messages
+    // Set up real-time subscriptions only when user is loaded
+    if (!user) return;
+
     const channel = supabase
       .channel('bottom-nav-messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-        fetchUnreadMessages();
-      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, fetchUnreadMessages)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${user.id}` }, fetchUnreadMessages)
       .subscribe();
 
     return () => {
@@ -150,8 +151,8 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
         onViewChange('chat');
       },
       isActive: isMessages,
-      // Hide badge when already on Messages tab; show total unread messages otherwise
-      badgeCount: isMessages ? 0 : unreadMessagesCount,
+      // Red dot when unread (Instagram/WhatsApp style); hide when on Messages tab or all read
+      hasUnread: !isMessages && unreadMessagesCount > 0,
     },
     {
       id: 'profile',
@@ -197,26 +198,11 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
               style={{ position: 'relative' }}
             >
               <Icon name={item.icon as any} size={24} alt="" />
-              {typeof item.badgeCount === 'number' && item.badgeCount > 0 && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: -9,
-                    right: -7,
-                    backgroundColor: '#CC2486',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: 20,
-                    height: 20,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 10,
-                    fontWeight: 600,
-                  }}
-                >
-                  {item.badgeCount > 99 ? '99+' : item.badgeCount}
-                </div>
+              {item.hasUnread && (
+                <span
+                  className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full ring-2 ring-white"
+                  aria-label="Unread messages"
+                />
               )}
             </button>
           );

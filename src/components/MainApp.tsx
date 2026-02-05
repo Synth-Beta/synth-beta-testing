@@ -890,7 +890,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToProfile={handleNavigateToProfile}
             onNavigateToChat={handleNavigateToChat}
             onNavigateToNotifications={handleNavigateToNotifications}
-            onNavigateToDiscover={profileUserId ? () => setCurrentView('search') : undefined}
+            onNavigateToDiscover={profileUserId ? () => setProfileUserId(undefined) : undefined}
             menuOpen={menuOpen}
             onMenuClick={handleMenuToggle}
             hideHeader={

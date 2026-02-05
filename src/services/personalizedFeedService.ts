@@ -1101,7 +1101,7 @@ export class PersonalizedFeedService {
     try {
       const { data, error } = await supabase
         .from('user_preferences')
-        .select('music_preference_signals')
+        .select('genre_preference_scores, artist_preference_scores, top_genres')
         .eq('user_id', userId)
         .maybeSingle();
       
@@ -1115,7 +1115,7 @@ export class PersonalizedFeedService {
           code === 'PGRST204' // view or table not found
         ) {
           logger.warn(
-            '⚠️ user_preferences table or music_preference_signals not available; disabling music‑based personalization.',
+            '⚠️ user_preferences table or preference score columns not available; disabling music‑based personalization.',
             { code, status, message: (error as any).message }
           );
           this.userPreferencesAvailable = false;
@@ -1125,8 +1125,17 @@ export class PersonalizedFeedService {
         throw error;
       }
 
-      const signals = (data as any)?.music_preference_signals || [];
-      return Array.isArray(signals) && signals.length > 0;
+      const genreScores = (data as any)?.genre_preference_scores || {};
+      const artistScores = (data as any)?.artist_preference_scores || {};
+      const topGenres = (data as any)?.top_genres || [];
+
+      const hasGenreScores =
+        genreScores && typeof genreScores === 'object' && Object.keys(genreScores).length > 0;
+      const hasArtistScores =
+        artistScores && typeof artistScores === 'object' && Object.keys(artistScores).length > 0;
+      const hasTopGenres = Array.isArray(topGenres) && topGenres.length > 0;
+
+      return hasGenreScores || hasArtistScores || hasTopGenres;
     } catch (error) {
       logger.error('❌ Error checking music data:', error);
       return false;

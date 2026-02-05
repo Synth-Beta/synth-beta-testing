@@ -22,7 +22,10 @@ export class SpotifyService {
 
   private constructor() {
     const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
-    const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : '');
+    // Set VITE_SPOTIFY_REDIRECT_URI in production (e.g. Vercel) to your app URL, e.g. https://yourapp.vercel.app/auth/spotify/callback
+    const redirectUri =
+      import.meta.env.VITE_SPOTIFY_REDIRECT_URI ||
+      (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : '');
     
     // Debug logging
     console.log('🔍 Spotify Config Debug:', {
@@ -224,6 +227,13 @@ export class SpotifyService {
    */
   public async syncUserMusicPreferences(): Promise<void> {
     try {
+      // If we have a refresh token in localStorage, save it to the server so the backfill
+      // script can sync without the app. No need for users to "reconnect" — just Refresh Stats once.
+      const refreshToken = typeof localStorage !== 'undefined' ? localStorage.getItem('spotify_refresh_token') : null;
+      if (refreshToken) {
+        await this.saveRefreshTokenToServer(refreshToken);
+      }
+
       // Fetch multiple ranges for stronger signal
       const [topArtistsShort, topArtistsMed, topArtistsLong] = await Promise.all([
         this.getTopArtists('short_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopArtistsResponse)),
@@ -418,6 +428,30 @@ export class SpotifyService {
     } catch (error) {
       console.error('Spotify sync error:', error);
       // Best-effort logging, do not throw
+    }
+  }
+
+  /**
+   * Save refresh token to Supabase so server-side backfill can sync without the app.
+   * Only the row for the current user is written; client cannot read tokens back.
+   */
+  private async saveRefreshTokenToServer(refreshToken: string): Promise<void> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from('spotify_user_tokens')
+        .upsert(
+          { user_id: user.id, refresh_token: refreshToken, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+      if (error) {
+        console.warn('Could not save Spotify refresh token for backfill:', error.message);
+      } else {
+        console.log('✅ Spotify refresh token saved for server-side sync');
+      }
+    } catch (e) {
+      console.warn('Save refresh token to server failed:', e);
     }
   }
 
@@ -623,7 +657,7 @@ export class SpotifyService {
     }
   }
 
-  public logout(): void {
+  public async logout(): Promise<void> {
     console.log('🚪 Logging out from Spotify...');
     this.accessToken = null;
     localStorage.removeItem('spotify_access_token');
@@ -631,6 +665,14 @@ export class SpotifyService {
     localStorage.removeItem('spotify_refresh_token');
     localStorage.removeItem('spotify_auth_state');
     localStorage.removeItem('spotify_code_verifier');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('spotify_user_tokens').delete().eq('user_id', user.id);
+      }
+    } catch {
+      // ignore
+    }
     console.log('✅ Spotify logout completed');
   }
 
@@ -738,6 +780,7 @@ export class SpotifyService {
       if (data.refresh_token) {
         localStorage.setItem('spotify_refresh_token', data.refresh_token);
         console.log('🔄 Refresh token saved');
+        await this.saveRefreshTokenToServer(data.refresh_token);
       }
     } else {
       throw new Error('No access token received');

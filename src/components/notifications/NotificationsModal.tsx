@@ -48,7 +48,11 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       };
 
       const result = await NotificationService.getNotifications(filters);
-      setNotifications(result.notifications);
+      // Exclude chat notifications - those use the chat icon indicator instead
+      const nonChat = result.notifications.filter(
+        n => n.type !== 'message' && n.type !== 'group_chat_invite'
+      );
+      setNotifications(nonChat);
     } catch (error) {
       console.error('Error loading notifications:', error);
       toast({

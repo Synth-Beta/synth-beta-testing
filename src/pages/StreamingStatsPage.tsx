@@ -124,10 +124,11 @@ export const StreamingStatsPage = () => {
       return;
     }
 
-    // Database table has been removed - stats are no longer persisted
-    // Always show connection screen since we can't load from database
+    // Stats are stored in streaming_profiles (not a separate stats table). When user
+    // has already connected (music_streaming_profile set), show the stats view so they
+    // can click "Refresh Stats" to pull from Spotify/Apple Music and backfill preferences.
     setLoading(false);
-    setNeedsConnection(true);
+    setNeedsConnection(false);
   };
 
   const handleConnectSpotify = async () => {
@@ -253,9 +254,9 @@ export const StreamingStatsPage = () => {
               genre: typeof genre === 'string' ? genre : genre.genre || '',
               count: typeof genre === 'string' ? 1 : genre.count || 1
             })),
-            total_tracks: profileData.totalTracks || 0,
+            total_tracks: profileData.topTracks?.length ?? 0,
             unique_artists: topArtists.length,
-            total_listening_hours: profileData.totalListeningHours || 0
+            total_listening_hours: profileData.listeningTime ?? 0
           };
 
           // Database table removed - stats are no longer persisted
@@ -268,7 +269,7 @@ export const StreamingStatsPage = () => {
 
       toast({
         title: "Sync Complete",
-        description: "Your streaming stats have been synced from your music service. Note: Stats are not stored permanently.",
+        description: "Your streaming data is saved and used to personalize your feed and recommendations.",
       });
     } catch (error) {
       console.error('Error syncing stats:', error);
@@ -749,7 +750,8 @@ export const StreamingStatsPage = () => {
           ) : (
             <Card>
               <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground mb-4">No stats available yet.</p>
+                <p className="text-muted-foreground mb-2">No stats available yet.</p>
+                <p className="text-sm text-muted-foreground mb-4">Sync to pull your data from {serviceType === 'spotify' ? 'Spotify' : 'Apple Music'} and update your music preferences for recommendations.</p>
                 <Button onClick={handleSync} disabled={syncing}>
                   <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
                   {syncing ? 'Syncing...' : 'Sync Your Stats'}

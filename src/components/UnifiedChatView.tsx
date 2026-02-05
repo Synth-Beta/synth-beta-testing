@@ -1861,9 +1861,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                             <p
                               style={{
                                 fontFamily: 'var(--font-family)',
-                                fontSize: 'var(--typography-body-size, 20px)',
-                                fontWeight: 'var(--typography-body-weight, 500)',
-                                lineHeight: 'var(--typography-body-line-height, 1.5)',
+                                fontSize: '14px',
+                                fontWeight: 400,
+                                lineHeight: 1.4,
                                 margin: 0,
                                 color: message.sender_id === currentUserId ? 'var(--neutral-50)' : 'var(--neutral-900)'
                               }}
@@ -1878,10 +1878,10 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
                           <p
                             style={{
                               fontFamily: 'var(--font-family)',
-                              fontSize: 'var(--typography-meta-size, 16px)',
-                              fontWeight: 'var(--typography-meta-weight, 500)',
+                              fontSize: '12px',
+                              fontWeight: 400,
                               color: 'var(--neutral-600)',
-                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                              lineHeight: 1.4,
                               textAlign: isSent ? 'right' : 'left',
                               margin: 0
                             }}

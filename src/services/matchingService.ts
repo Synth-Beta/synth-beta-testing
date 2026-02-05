@@ -291,39 +291,33 @@ export class MatchingService {
     user2_id: string
   ): Promise<number> {
     try {
-      // Get both users' music preference data from user_preferences table
+      // Get both users' aggregated music preference data from user_preferences table
       const [user1Prefs, user2Prefs] = await Promise.all([
         supabase
           .from('user_preferences')
-          .select('music_preference_signals')
+          .select('genre_preference_scores, artist_preference_scores')
           .eq('user_id', user1_id)
           .single(),
         supabase
           .from('user_preferences')
-          .select('music_preference_signals')
+          .select('genre_preference_scores, artist_preference_scores')
           .eq('user_id', user2_id)
           .single(),
       ]);
 
-      const user1Signals = user1Prefs.data?.music_preference_signals || [];
-      const user2Signals = user2Prefs.data?.music_preference_signals || [];
+      const user1GenresObj = (user1Prefs.data as any)?.genre_preference_scores || {};
+      const user1ArtistsObj = (user1Prefs.data as any)?.artist_preference_scores || {};
+      const user2GenresObj = (user2Prefs.data as any)?.genre_preference_scores || {};
+      const user2ArtistsObj = (user2Prefs.data as any)?.artist_preference_scores || {};
 
-      if (!user1Signals.length || !user2Signals.length) return 50; // Default score
+      const user1Genres = Object.keys(user1GenresObj || {}).map((g) => g.toLowerCase());
+      const user2Genres = Object.keys(user2GenresObj || {}).map((g) => g.toLowerCase());
+      const user1Artists = Object.keys(user1ArtistsObj || {}).map((id) => id.toLowerCase());
+      const user2Artists = Object.keys(user2ArtistsObj || {}).map((id) => id.toLowerCase());
 
-      // Separate artists and genres
-      const user1Artists = user1Signals
-        .filter((p: any) => p.preference_type === 'artist')
-        .map((p: any) => p.preference_value.toLowerCase());
-      const user1Genres = user1Signals
-        .filter((p: any) => p.preference_type === 'genre')
-        .map((p: any) => p.preference_value.toLowerCase());
-      
-      const user2Artists = user2Signals
-        .filter((p: any) => p.preference_type === 'artist')
-        .map((p: any) => p.preference_value.toLowerCase());
-      const user2Genres = user2Signals
-        .filter((p: any) => p.preference_type === 'genre')
-        .map((p: any) => p.preference_value.toLowerCase());
+      if ((!user1Genres.length && !user1Artists.length) || (!user2Genres.length && !user2Artists.length)) {
+        return 50; // Default score if we don't have enough data
+      }
 
       // Calculate overlap
       const sharedArtists = this.calculateOverlap(user1Artists, user2Artists);
@@ -357,51 +351,52 @@ export class MatchingService {
     user2_id: string
   ): Promise<{ artists: string[]; genres: string[] }> {
     try {
+      // Read aggregated preferences from user_preferences instead of legacy music_preference_signals
       const [user1Prefs, user2Prefs] = await Promise.all([
         supabase
           .from('user_preferences')
-          .select('music_preference_signals')
+          .select('genre_preference_scores, artist_preference_scores')
           .eq('user_id', user1_id)
           .single(),
         supabase
           .from('user_preferences')
-          .select('music_preference_signals')
+          .select('genre_preference_scores, artist_preference_scores')
           .eq('user_id', user2_id)
           .single(),
       ]);
 
-      const user1Signals = user1Prefs.data?.music_preference_signals || [];
-      const user2Signals = user2Prefs.data?.music_preference_signals || [];
+      const user1GenresObj = (user1Prefs.data as any)?.genre_preference_scores || {};
+      const user1ArtistsObj = (user1Prefs.data as any)?.artist_preference_scores || {};
+      const user2GenresObj = (user2Prefs.data as any)?.genre_preference_scores || {};
+      const user2ArtistsObj = (user2Prefs.data as any)?.artist_preference_scores || {};
 
-      if (!user1Signals.length || !user2Signals.length) {
-        return { artists: [], genres: [] };
+      const user1GenreKeys = Object.keys(user1GenresObj || {});
+      const user2GenreKeys = Object.keys(user2GenresObj || {});
+      const sharedGenreKeys = user1GenreKeys.filter((g) =>
+        user2GenreKeys.some((h) => h.toLowerCase() === g.toLowerCase())
+      );
+
+      const user1ArtistIds = Object.keys(user1ArtistsObj || {});
+      const user2ArtistIds = Object.keys(user2ArtistsObj || {});
+      const sharedArtistIds = user1ArtistIds.filter((id) => user2ArtistIds.includes(id));
+
+      let sharedArtistNames: string[] = [];
+      if (sharedArtistIds.length > 0) {
+        const { data: artistRows, error: artistError } = await supabase
+          .from('artists')
+          .select('id, name')
+          .in('id', sharedArtistIds);
+
+        if (!artistError && Array.isArray(artistRows)) {
+          sharedArtistNames = artistRows
+            .map((row: any) => row.name as string | null)
+            .filter((name): name is string => !!name);
+        }
       }
 
-      const user1Artists = user1Signals
-        .filter((p: any) => p.preference_type === 'artist')
-        .map((p: any) => p.preference_value);
-      const user1Genres = user1Signals
-        .filter((p: any) => p.preference_type === 'genre')
-        .map((p: any) => p.preference_value);
-      
-      const user2Artists = user2Signals
-        .filter((p: any) => p.preference_type === 'artist')
-        .map((p: any) => p.preference_value);
-      const user2Genres = user2Signals
-        .filter((p: any) => p.preference_type === 'genre')
-        .map((p: any) => p.preference_value);
-
-      // Find intersections
-      const sharedArtists = user1Artists.filter(artist => 
-        user2Artists.some(a => a.toLowerCase() === artist.toLowerCase())
-      );
-      const sharedGenres = user1Genres.filter(genre => 
-        user2Genres.some(g => g.toLowerCase() === genre.toLowerCase())
-      );
-
       return {
-        artists: sharedArtists.slice(0, 5), // Limit to top 5
-        genres: sharedGenres.slice(0, 3), // Limit to top 3
+        artists: sharedArtistNames.slice(0, 5),
+        genres: sharedGenreKeys.slice(0, 3),
       };
     } catch (error) {
       console.error('Error getting shared preferences:', error);

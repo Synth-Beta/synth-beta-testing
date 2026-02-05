@@ -454,32 +454,15 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       
       // Refresh friends list
       fetchFriends();
-
-      toast({
-        title: "Friend Request Accepted! 🎉",
-        description: "You're now friends!",
-      });
     } catch (error: any) {
       console.error('Error accepting friend request:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to accept friend request. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
   const handleDeclineFriendRequest = async (requestId: string) => {
     console.log('❌ Declining friend request:', requestId);
     
-    if (!requestId) {
-      toast({
-        title: "Error",
-        description: "Invalid friend request. Please refresh and try again.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!requestId) return;
 
     try {
       console.log('🔍 Debug: Declining friend request with ID:', requestId);

@@ -85,12 +85,17 @@ export const NotificationsPage = ({
         NotificationService.getUnreadCount()
       ]);
       
+      // Always exclude chat notifications - unread messages are shown via the chat icon indicator (Instagram/WhatsApp style)
+      const nonChatNotifications = result.notifications.filter(
+        n => n.type !== 'message' && n.type !== 'group_chat_invite'
+      );
+
       // Apply filter based on prop
-      let filteredNotifications = result.notifications;
+      let filteredNotifications = nonChatNotifications;
       if (filter === 'friends_only') {
-        filteredNotifications = result.notifications.filter(n => n.type === 'friend_request');
+        filteredNotifications = nonChatNotifications.filter(n => n.type === 'friend_request');
       } else if (filter === 'exclude_friends') {
-        filteredNotifications = result.notifications.filter(n => n.type !== 'friend_request');
+        filteredNotifications = nonChatNotifications.filter(n => n.type !== 'friend_request');
       }
       
       setNotifications(filteredNotifications);
@@ -120,7 +125,7 @@ export const NotificationsPage = ({
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
       
-      // Refresh unread count
+      // Refresh unread count (excludes chat notifications; those use the chat icon)
       const count = await NotificationService.getUnreadCount();
       setUnreadCount(count);
     } catch (error) {
@@ -398,32 +403,15 @@ export const NotificationsPage = ({
       // Small delay to ensure deletion completes, then refresh
       await new Promise(resolve => setTimeout(resolve, 500));
       await fetchNotifications();
-      
-      toast({
-        title: "Friend Request Accepted! 🎉",
-        description: "You're now friends!",
-      });
     } catch (error: any) {
       console.error('Error accepting friend request:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to accept friend request. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
   const handleDeclineFriendRequest = async (requestId: string) => {
     console.log('❌ Declining friend request:', requestId);
     
-    if (!requestId) {
-      toast({
-        title: "Error",
-        description: "Invalid friend request. Please refresh and try again.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!requestId) return;
 
     console.log('🔍 Debug: Declining friend request with ID:', requestId);
 

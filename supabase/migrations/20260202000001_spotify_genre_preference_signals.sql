@@ -71,7 +71,8 @@ BEGIN
         FOR v_artist IN SELECT jsonb_array_elements(NEW.profile_data->'topArtistsByTimeRange'->v_time_range) LOOP
           IF v_artist ? 'genres' AND jsonb_typeof(v_artist->'genres') = 'array' THEN
             FOR v_genre IN SELECT jsonb_array_elements_text(v_artist->'genres') LOOP
-              v_canonical := public.resolve_genre_to_canonical(v_genre);
+              -- Use canonical when in public.genres; otherwise keep raw (trimmed) so we still create signals
+              v_canonical := COALESCE(NULLIF(trim(public.resolve_genre_to_canonical(v_genre)), ''), trim(v_genre));
               IF v_canonical IS NOT NULL AND v_canonical != '' THEN
                 v_count := COALESCE((genre_counts->>v_canonical)::INT, 0) + 1;
                 genre_counts := genre_counts || jsonb_build_object(v_canonical, v_count);
@@ -92,7 +93,7 @@ BEGIN
     FOR v_artist IN SELECT jsonb_array_elements(NEW.profile_data->'topArtists') LOOP
       IF v_artist ? 'genres' AND jsonb_typeof(v_artist->'genres') = 'array' THEN
         FOR v_genre IN SELECT jsonb_array_elements_text(v_artist->'genres') LOOP
-          v_canonical := public.resolve_genre_to_canonical(v_genre);
+          v_canonical := COALESCE(NULLIF(trim(public.resolve_genre_to_canonical(v_genre)), ''), trim(v_genre));
           IF v_canonical IS NOT NULL AND v_canonical != '' THEN
             v_count := COALESCE((genre_counts->>v_canonical)::INT, 0) + 1;
             genre_counts := genre_counts || jsonb_build_object(v_canonical, v_count);
@@ -132,9 +133,7 @@ BEGIN
       v_occurred_at,
       NOW(),
       NOW()
-    )
-    ON CONFLICT (user_id, signal_type, entity_type, entity_id, occurred_at) DO UPDATE
-    SET signal_weight = EXCLUDED.signal_weight, genre = EXCLUDED.genre, context = EXCLUDED.context, updated_at = NOW();
+    );
   END LOOP;
 
   -- Refresh user preferences so feed V5 picks up new genre scores
