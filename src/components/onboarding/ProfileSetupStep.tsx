@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
 import { calculateAge } from '@/utils/calculateAge';
 import { SinglePhotoUpload } from '@/components/ui/photo-upload';
 import { supabase } from '@/integrations/supabase/client';
@@ -68,9 +67,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const { user } = useAuth();
-  const { toast } = useToast();
-  
-  // Auto-suggest username from name when component mounts, name changes, or username is cleared
+// Auto-suggest username from name when component mounts, name changes, or username is cleared
   // Use a ref to track if we've already suggested to prevent infinite loops
   const hasSuggestedRef = React.useRef(false);
   const isGeneratingRef = React.useRef(false);

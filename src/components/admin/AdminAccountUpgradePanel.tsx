@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, XCircle, Clock, User, Building2, Music } from 'lucide-react';
 
 interface UpgradeRequest {
@@ -26,9 +25,7 @@ export const AdminAccountUpgradePanel = () => {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [denialReason, setDenialReason] = useState<Record<string, string>>({});
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     loadRequests();
   }, []);
 
@@ -62,12 +59,7 @@ export const AdminAccountUpgradePanel = () => {
       setRequests(requestsWithEmails as UpgradeRequest[]);
     } catch (error) {
       console.error('Error loading upgrade requests:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load account upgrade requests',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -82,20 +74,10 @@ export const AdminAccountUpgradePanel = () => {
 
       if (error) throw error;
 
-      toast({
-        title: 'Request Approved',
-        description: 'The account has been upgraded successfully.',
-      });
-
       loadRequests();
     } catch (error: any) {
       console.error('Error approving request:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to approve request',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setProcessingId(null);
     }
   };
@@ -103,11 +85,6 @@ export const AdminAccountUpgradePanel = () => {
   const handleDeny = async (requestId: string) => {
     const reason = denialReason[requestId]?.trim();
     if (!reason) {
-      toast({
-        title: 'Denial Reason Required',
-        description: 'Please provide a reason for denying the request.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -121,21 +98,11 @@ export const AdminAccountUpgradePanel = () => {
 
       if (error) throw error;
 
-      toast({
-        title: 'Request Denied',
-        description: 'The upgrade request has been denied.',
-      });
-
       setDenialReason({ ...denialReason, [requestId]: '' });
       loadRequests();
     } catch (error: any) {
       console.error('Error denying request:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to deny request',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setProcessingId(null);
     }
   };

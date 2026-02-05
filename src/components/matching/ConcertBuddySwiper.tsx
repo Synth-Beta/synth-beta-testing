@@ -8,7 +8,6 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { Heart, X, Music, MapPin, Calendar, Sparkles, Loader2, MessageCircle } from 'lucide-react';
 import MatchingService, { PotentialMatch } from '@/services/matchingService';
 import { supabase } from '@/integrations/supabase/client';
@@ -35,8 +34,7 @@ export function ConcertBuddySwiper({
   onMatchCreated,
   onNavigateToProfile,
 }: ConcertBuddySwiperProps) {
-  const { toast } = useToast();
-  const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
+const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
@@ -54,12 +52,7 @@ export function ConcertBuddySwiper({
       setCurrentIndex(0);
     } catch (error) {
       console.error('Error loading potential matches:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load potential concert buddies',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -100,11 +93,6 @@ export function ConcertBuddySwiper({
         );
 
         if (existingMatch) {
-          toast({
-            title: '🎉 It\'s a Match!',
-            description: `You and ${currentUser.name} both want to meet up!`,
-          });
-          
           // Show push notification
           PushNotificationService.showMatchNotification({
             userName: currentUser.name,
@@ -115,11 +103,7 @@ export function ConcertBuddySwiper({
             onMatchCreated(currentUser);
           }
         } else {
-          toast({
-            title: '💖 Sent!',
-            description: `If ${currentUser.name} swipes right too, you'll match!`,
-          });
-        }
+          }
       }
 
       // Wait for animation
@@ -130,11 +114,6 @@ export function ConcertBuddySwiper({
       }, 300);
     } catch (error) {
       console.error('Error swiping:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to record swipe',
-        variant: 'destructive',
-      });
       setSwipeDirection(null);
       setSwiping(false);
     }

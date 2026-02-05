@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { spotifyService } from '@/services/spotifyService';
-import { useToast } from '@/hooks/use-toast';
 import { streamingSyncService } from '@/services/streamingSyncService';
 
 const SpotifyCallback = () => {
-  const { toast } = useToast();
-  const [status, setStatus] = useState<'connecting' | 'complete' | 'error'>('connecting');
+const [status, setStatus] = useState<'connecting' | 'complete' | 'error'>('connecting');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
@@ -27,11 +25,6 @@ const SpotifyCallback = () => {
           });
           
           setStatus('complete');
-          toast({
-            title: "Connected to Spotify",
-            description: "Your stats are syncing in the background. You'll be notified when ready!",
-          });
-          
           // Redirect immediately to home so user can continue using app
           setTimeout(() => {
             window.location.href = '/';
@@ -40,12 +33,6 @@ const SpotifyCallback = () => {
         } else {
           setStatus('error');
           setErrorMessage("Authentication was not successful. Please try again.");
-          toast({
-            title: "Connection Failed",
-            description: "Failed to connect to Spotify. Please try again.",
-            variant: "destructive",
-          });
-          
           setTimeout(() => {
             window.location.href = '/';
           }, 2000);
@@ -67,12 +54,6 @@ const SpotifyCallback = () => {
         }
         
         setErrorMessage(errorMsg);
-        toast({
-          title: "Connection Failed",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        
         // Clear any stored auth data to ensure clean retry
         spotifyService.clearStoredData();
         
@@ -83,7 +64,7 @@ const SpotifyCallback = () => {
     };
 
     handleCallback();
-  }, [toast]);
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-beige-50">

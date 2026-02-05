@@ -22,7 +22,6 @@ import {
   UserX
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { ContentModerationService } from '@/services/contentModerationService';
 import { fetchUserChats, sendEncryptedMessage, decryptChatMessage } from '@/services/chatService';
@@ -75,9 +74,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
   const [friends, setFriends] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-  
-  // Settings menu state
+// Settings menu state
   const [isMuted, setIsMuted] = useState(false);
   const [linkedEvent, setLinkedEvent] = useState<any>(null);
   const [mutedChats, setMutedChats] = useState<Set<string>>(new Set());
@@ -150,11 +147,6 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       if (error) {
         console.error('Error creating direct chat:', error.message || error);
-        toast({
-          title: "Error",
-          description: "Failed to start chat. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -203,12 +195,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
     } catch (error) {
       console.error('Error in createOrFindDirectChat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start chat. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const fetchChats = async () => {
@@ -464,11 +451,6 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         console.error('Error sending message:', error);
         // Restore message text on error
         setNewMessage(messageText);
-        toast({
-          title: "Error",
-          description: "Failed to send message. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -478,12 +460,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       console.error('Error sending message:', error);
       // Restore message text on error
       setNewMessage(messageText);
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const createDirectChat = async (friendId: string) => {
@@ -496,48 +473,24 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       if (error) {
         console.error('Error creating direct chat:', error);
-        toast({
-          title: "Error",
-          description: "Failed to create chat. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
       // Refresh chats to get the new chat
       fetchChats();
       
-      toast({
-        title: "Chat Created! 💬",
-        description: "You can now start chatting!",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error creating direct chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create chat. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const createGroupChat = async () => {
     // Group chats are temporarily disabled
-    toast({
-      title: "Coming Soon",
-      description: "Group chats are still in development and will be available soon.",
-      variant: "default",
-    });
     return;
     
     // Disabled code below - keeping for reference
     /*
     if (!groupName.trim() || selectedFriends.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please enter a group name and select at least one friend.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -551,11 +504,6 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       if (error) {
         console.error('Error creating group chat:', error);
-        toast({
-          title: "Error",
-          description: "Failed to create group chat. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -567,18 +515,9 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       // Refresh chats
       fetchChats();
       
-      toast({
-        title: "Group Created! 🎉",
-        description: `"${groupName}" group chat is ready!`,
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error creating group chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create group chat. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
     */
   };
 
@@ -681,11 +620,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
     if (selectedChat && selectedChat.type === 'group') {
       setShowUsersModal(true);
     } else {
-      toast({
-        title: 'View Users',
-        description: 'This feature is only available for group chats',
-      });
-    }
+      }
   };
 
   const handleViewProfile = () => {
@@ -701,11 +636,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         window.dispatchEvent(event);
       }
     } else {
-      toast({
-        title: 'View Profile',
-        description: 'No user profile to view',
-      });
-    }
+      }
   };
 
   const handleBlockUser = async () => {
@@ -717,27 +648,13 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           block_reason: 'Blocked from chat'
         });
         
-        toast({
-          title: 'User Blocked',
-          description: `You won't see content from ${otherUser.name} anymore`,
-        });
-        
         // Navigate back to chat list after blocking
         setSelectedChat(null);
       } catch (error) {
         console.error('Error blocking user:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to block user. Please try again.',
-          variant: 'destructive',
-        });
-      }
+        }
     } else {
-      toast({
-        title: 'Block User',
-        description: 'No user to block',
-      });
-    }
+      }
   };
 
   const handleMuteNotifications = () => {
@@ -752,20 +669,12 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       }
       setMutedChats(newMutedChats);
       
-      toast({
-        title: isMuted ? 'Notifications Unmuted' : 'Notifications Muted',
-        description: isMuted ? 'You will receive notifications for this chat' : 'You will not receive notifications for this chat',
-      });
-    }
+      }
   };
 
   const handleViewEvent = () => {
     if (linkedEvent) {
-      toast({
-        title: 'View Event',
-        description: 'Event view functionality will be implemented soon',
-      });
-    }
+      }
   };
 
   // Block user from users modal
@@ -776,21 +685,11 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         block_reason: 'Blocked from group chat'
       });
       
-      toast({
-        title: 'User Blocked',
-        description: `You won't see content from ${userName} anymore`,
-      });
-      
       // Close the modal
       setShowUsersModal(false);
     } catch (error) {
       console.error('Error blocking user:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to block user. Please try again.',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   // Edit group info handler
@@ -817,11 +716,6 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
 
       if (error) {
         console.error('Error updating group info:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to update group info. Please try again.',
-          variant: 'destructive',
-        });
         return;
       }
 
@@ -840,20 +734,10 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         )
       );
 
-      toast({
-        title: 'Group Updated',
-        description: 'Group information has been updated successfully.',
-      });
-
       setShowEditGroupModal(false);
     } catch (error) {
       console.error('Error saving group info:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save group info. Please try again.',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   if (loading) {

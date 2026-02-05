@@ -9,15 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Plus, RefreshCw, MapPin, Clock, Users, Loader2, Edit, Trash2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
 import EventManagementService from '@/services/eventManagementService';
 import { EventCreationModal } from './EventCreationModal';
 
 export function MyEventsManagementPanel() {
   const { user } = useAccountType();
-  const { toast } = useToast();
-  const [createdEvents, setCreatedEvents] = useState<any[]>([]);
+const [createdEvents, setCreatedEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [canCreateEvents, setCanCreateEvents] = useState(false);
@@ -36,12 +34,7 @@ export function MyEventsManagementPanel() {
       setCreatedEvents(events);
     } catch (error) {
       console.error('Error loading events:', error);
-      toast({
-        title: 'Error loading events',
-        description: 'Failed to load your created events.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -68,18 +61,9 @@ export function MyEventsManagementPanel() {
     try {
       await EventManagementService.deleteEvent(eventId);
       setCreatedEvents(prev => prev.filter(event => event.id !== eventId));
-      toast({
-        title: 'Event deleted',
-        description: 'The event has been deleted successfully.',
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error deleting event:', error);
-      toast({
-        title: 'Delete failed',
-        description: error instanceof Error ? error.message : 'Failed to delete event',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   const formatDate = (dateString: string) => {
@@ -120,11 +104,7 @@ export function MyEventsManagementPanel() {
               variant="outline"
               size="sm"
               onClick={() => {
-                toast({
-                  title: 'Edit Event',
-                  description: 'Event editing features coming soon!',
-                });
-              }}
+                }}
             >
               <Edit className="h-4 w-4" />
             </Button>

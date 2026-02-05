@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { Calendar, MapPin, Loader2, Music, Users, Clock } from 'lucide-react';
 import EventManagementService, { CreateEventData } from '@/services/eventManagementService';
 
@@ -52,10 +51,7 @@ export function EventCreationModal({
     media_urls: [],
     ...prefilledData,
   });
-
-  const { toast } = useToast();
-
-  const handleInputChange = (field: keyof CreateEventData, value: any) => {
+const handleInputChange = (field: keyof CreateEventData, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -66,11 +62,6 @@ export function EventCreationModal({
     e.preventDefault();
     
     if (!formData.title.trim()) {
-      toast({
-        title: 'Title required',
-        description: 'Please enter an event title.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -78,21 +69,11 @@ export function EventCreationModal({
     try {
       const event = await EventManagementService.createEvent(formData);
       
-      toast({
-        title: 'Event created!',
-        description: 'Your event has been created successfully.',
-      });
-
       onEventCreated?.(event);
       handleClose();
     } catch (error) {
       console.error('Error creating event:', error);
-      toast({
-        title: 'Creation failed',
-        description: error instanceof Error ? error.message : 'Failed to create event',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

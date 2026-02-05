@@ -15,7 +15,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { AlertCircle, Flag, Loader2 } from 'lucide-react';
 import ContentModerationService, {
   ContentType,
@@ -40,8 +39,7 @@ export function ReportContentModal({
   contentTitle,
   onReportSubmitted,
 }: ReportContentModalProps) {
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedReason, setSelectedReason] = useState<FlagReason | ''>('');
   const [details, setDetails] = useState('');
 
@@ -49,11 +47,6 @@ export function ReportContentModal({
     e.preventDefault();
 
     if (!selectedReason) {
-      toast({
-        title: 'Please select a reason',
-        description: 'Select why you\'re reporting this content',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -67,22 +60,11 @@ export function ReportContentModal({
         flag_details: details.trim() || undefined,
       });
 
-      toast({
-        title: 'Report Submitted',
-        description: 'Thank you for helping keep our community safe. We\'ll review this report shortly.',
-      });
-
       onReportSubmitted?.();
       handleClose();
     } catch (error) {
       console.error('Error submitting report:', error);
-      toast({
-        title: 'Error',
-        description:
-          error instanceof Error ? error.message : 'Failed to submit report',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsSubmitting(false);
     }
   };

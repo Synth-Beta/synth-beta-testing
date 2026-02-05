@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { Users, Loader2, Lock, Globe, Calendar } from 'lucide-react';
 import EventGroupService from '@/services/eventGroupService';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -39,8 +38,7 @@ export function CreateEventGroupModal({
   event,
   onGroupCreated,
 }: CreateEventGroupModalProps) {
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -59,11 +57,6 @@ export function CreateEventGroupModal({
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      toast({
-        title: 'Group name required',
-        description: 'Please enter a name for your group',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -89,21 +82,11 @@ export function CreateEventGroupModal({
         console.error('Error tracking group creation:', error);
       }
 
-      toast({
-        title: 'Group Created! 🎉',
-        description: `${formData.name} is ready for members`,
-      });
-
       onGroupCreated?.(groupId);
       handleClose();
     } catch (error) {
       console.error('Error creating group:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create group',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsSubmitting(false);
     }
   };

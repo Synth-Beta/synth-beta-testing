@@ -6,8 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Music, ExternalLink, Calendar, MapPin, X, Loader2 } from 'lucide-react';
 import { SetlistService, type SetlistData } from '@/services/setlistService';
-import { useToast } from '@/hooks/use-toast';
-
 interface SetlistModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -25,7 +23,6 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<SetlistErrorType>('none');
   const [selectedSetlist, setSelectedSetlist] = useState<SetlistData | null>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen && artistName) {
@@ -52,6 +49,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
             allResults = [...allResults, ...results];
           }
         } catch (error) {
+          if (error instanceof Error && error.name === 'SetlistServiceOfflineError') throw error;
           console.warn('⚠️ Venue+date search failed:', error);
         }
       }
@@ -74,6 +72,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
             allResults = [...allResults, ...results];
           }
         } catch (error) {
+          if (error instanceof Error && error.name === 'SetlistServiceOfflineError') throw error;
           console.warn('⚠️ Artist+date search failed:', error);
         }
       }
@@ -95,6 +94,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
           allResults = [...allResults, ...results];
         }
       } catch (error) {
+        if (error instanceof Error && error.name === 'SetlistServiceOfflineError') throw error;
         console.warn('⚠️ Artist-only search failed:', error);
       }
       
@@ -173,32 +173,15 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
       
       if (sortedResults.length === 0) {
         setErrorType('not-found');
-        setError('We couldn’t find official setlists for this artist. Feel free to add the songs manually below.');
+        setError('We couldn’t find a setlist for this show. Add the songs manually below or try again later.');
       }
     } catch (err) {
-      console.error('Error fetching setlists:', err);
       if (err instanceof Error && err.name === 'SetlistServiceOfflineError') {
-        const isLocalhost = typeof window !== 'undefined' && 
-          (window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.'));
         setErrorType('offline');
-        setError(isLocalhost
-          ? 'Setlist import is offline. Start the local proxy or add the setlist manually in the form.'
-          : 'The setlist service is temporarily unavailable. Please try again in a moment, or add the songs manually below.');
-        toast({
-          title: 'Setlist import unavailable',
-          description: isLocalhost
-            ? 'Run `npm run backend:dev` in another terminal or enter the songs manually.'
-            : 'The service may be temporarily overloaded. Try again shortly or add the songs manually.',
-          variant: 'destructive'
-        });
+        setError('We couldn’t find a setlist for this show. Add the songs manually below or try again later.');
       } else {
         setErrorType('generic');
-        setError('Failed to fetch setlists. Please try again.');
-        toast({
-          title: "Error",
-          description: "Failed to fetch setlists. Please try again.",
-          variant: "destructive"
-        });
+        setError("We couldn't find a setlist for this show. Add the songs manually below or try again later.");
       }
     } finally {
       setLoading(false);
@@ -294,29 +277,11 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
             <div className="text-center py-12">
               <Music className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">
-                {errorType === 'offline'
-                  ? 'Setlist Import Offline'
-                  : errorType === 'not-found'
-                    ? 'No Setlists Found'
-                    : 'Something Went Wrong'}
+                {errorType === 'generic' ? 'Something Went Wrong' : 'Setlist not found'}
               </h3>
-              <p className="text-gray-600 mb-4 max-w-lg mx-auto whitespace-pre-wrap">
+              <p className="text-gray-600 mb-6 max-w-lg mx-auto whitespace-pre-wrap">
                 {error}
               </p>
-
-              {errorType === 'offline' && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.startsWith('127.'))) && (
-                <div className="bg-pink-50 border border-pink-100 rounded-lg p-4 text-left max-w-md mx-auto mb-6 text-sm text-pink-900">
-                  <p className="font-medium mb-2">To import from setlist.fm locally:</p>
-                  <ol className="list-decimal list-inside space-y-1">
-                    <li>Open a new terminal window</li>
-                    <li>Run <code className="px-1 py-0.5 bg-white rounded border border-pink-200 text-xs">npm run backend:dev</code></li>
-                    <li>Keep it running while you use the import</li>
-                  </ol>
-                  <p className="mt-3">
-                    Or close this modal and add the songs manually using the “Add your own setlist” section in the form.
-                  </p>
-                </div>
-              )}
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Button onClick={fetchSetlists} variant="outline">
@@ -453,12 +418,6 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                               if (onSetlistSelect) {
                                 onSetlistSelect(setlist);
                               }
-                              // Show success toast and close modal
-                              toast({
-                                title: "Setlist Selected",
-                                description: `Selected setlist from ${setlist.venue.name} on ${formatDate(setlist.eventDate)}`,
-                              });
-                              // Close modal after a brief delay to show the toast
                               setTimeout(() => {
                                 onClose();
                               }, 1000);

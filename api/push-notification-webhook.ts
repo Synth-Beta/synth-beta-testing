@@ -19,6 +19,7 @@ interface WebhookPayload {
   record: {
     id: string;
     user_id: string;
+    type?: string;
     title: string;
     message: string;
     data?: Record<string, unknown>;
@@ -112,6 +113,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, skipped: reason });
   }
 
+  // Skip friend_accepted - no push for this type
+  if (record.type === 'friend_accepted') {
+    const reason = 'friend_accepted (push disabled)';
+    console.log(`[push-webhook] skipped: ${reason}`, { user_id: record.user_id });
+    return res.status(200).json({ ok: true, skipped: reason });
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -171,7 +179,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   apnNotification.badge = 1;
   apnNotification.sound = 'default';
   apnNotification.topic = bundleId;
-  apnNotification.payload = record.data || {};
+  // Include type in payload so app can route notification taps correctly
+  apnNotification.payload = { ...(record.data || {}), type: record.type };
   apnNotification.expiry = Math.floor(Date.now() / 1000) + 3600;
   apnNotification.priority = 10;
 

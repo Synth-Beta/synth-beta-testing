@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { TrendingUp, Loader2, Check, Sparkles } from 'lucide-react';
 import PromotionService, { PROMOTION_TIERS } from '@/services/promotionService';
 
@@ -37,17 +36,11 @@ export function EventPromotionModal({
   event,
   onPromotionRequested,
 }: EventPromotionModalProps) {
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedTier, setSelectedTier] = useState<'basic' | 'premium' | 'featured' | ''>('');
 
   const handleSubmit = async () => {
     if (!selectedTier) {
-      toast({
-        title: 'Select a promotion tier',
-        description: 'Choose a promotion level for your event',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -66,22 +59,11 @@ export function EventPromotionModal({
         expires_at: expiresAt.toISOString(),
       });
 
-      toast({
-        title: 'Promotion Request Submitted! 🚀',
-        description: 'Your promotion request will be reviewed by our team shortly.',
-      });
-
       onPromotionRequested?.();
       handleClose();
     } catch (error) {
       console.error('Error requesting promotion:', error);
-      toast({
-        title: 'Error',
-        description:
-          error instanceof Error ? error.message : 'Failed to submit promotion request',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsSubmitting(false);
     }
   };

@@ -4,7 +4,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
 import { ShareService } from '@/services/shareService';
 import { ReviewService, ReviewWithEngagement } from '@/services/reviewService';
-import { useToast } from '@/hooks/use-toast';
 import { Users } from 'lucide-react';
 
 interface ReviewShareModalProps {
@@ -28,8 +27,7 @@ export function ReviewShareModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const { toast } = useToast();
-  const modalRef = useRef<HTMLDivElement>(null);
+const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   const reviewTitle = review.artist_name 
@@ -106,12 +104,7 @@ export function ReviewShareModal({
       setChats(targets);
     } catch (error) {
       console.error('Error loading share targets:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chats",
-        variant: "destructive"
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -139,11 +132,6 @@ export function ReviewShareModal({
 
   const handleShare = async () => {
     if (selectedTargets.size === 0) {
-      toast({
-        title: "No contacts selected",
-        description: "Please select at least one contact to share with",
-        variant: "destructive"
-      });
       return;
     }
 
@@ -198,29 +186,15 @@ export function ReviewShareModal({
           console.warn('Failed to record share in analytics:', shareError);
         }
         
-        toast({
-          title: "Shared! 🎉",
-          description: `Successfully shared to ${result.successCount} contact${result.successCount > 1 ? 's' : ''}`,
-        });
         setSelectedTargets(new Set());
         onClose();
       }
 
       if (result.errors.length > 0) {
-        toast({
-          title: "Partial Success",
-          description: `${result.errors.length} share${result.errors.length > 1 ? 's' : ''} failed`,
-          variant: "destructive"
-        });
-      }
+        }
     } catch (error) {
       console.error('Error sharing review:', error);
-      toast({
-        title: "Error",
-        description: "Failed to share review",
-        variant: "destructive"
-      });
-    } finally {
+      } finally {
       setSharing(false);
     }
   };
@@ -229,18 +203,9 @@ export function ReviewShareModal({
     try {
       const url = await ShareService.shareReview(review.id, reviewTitle, review.review_text || undefined);
       await navigator.clipboard.writeText(url);
-      toast({
-        title: "Link Copied!",
-        description: "Review link copied to clipboard",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error copying link:', error);
-      toast({
-        title: "Error",
-        description: "Failed to copy link",
-        variant: "destructive"
-      });
-    }
+      }
   };
 
   const handleTextMessage = async () => {
@@ -276,11 +241,7 @@ export function ReviewShareModal({
         });
       } else {
         await navigator.clipboard.writeText(url);
-        toast({
-          title: "Link Copied!",
-          description: "Review link copied to clipboard",
-        });
-      }
+        }
     } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error('Error sharing:', error);

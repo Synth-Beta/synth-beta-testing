@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, MessageCircle, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink, X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 
 interface MatchesViewProps {
@@ -86,9 +85,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
   const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [showRequests, setShowRequests] = useState(false);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-
-  // Helper functions to handle event data display
+// Helper functions to handle event data display
   const getEventName = (event: any) => {
     return event.title || event.event_name || 'Unknown Event';
   };
@@ -191,12 +188,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
       setMatches(matchesWithProfiles.filter(Boolean) as MatchWithChat[]);
     } catch (error) {
       console.error('Error fetching matches:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load matches",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -299,22 +291,12 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
       if (swipeError) throw swipeError;
 
       // The match and chat will be created automatically by the trigger
-      toast({
-        title: "Invitation accepted! 🎉",
-        description: `You and ${invitation.swiper_user.name} are now matched for ${invitation.event.event_name}!`,
-      });
-
       // Refresh data
       fetchMatches();
       fetchPendingInvitations();
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to accept invitation",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const handleRejectInvitation = async (invitation: PendingInvitation) => {
@@ -331,21 +313,11 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
 
       if (swipeError) throw swipeError;
 
-      toast({
-        title: "Invitation declined",
-        description: "You've declined this invitation",
-      });
-
       // Refresh data
       fetchPendingInvitations();
     } catch (error) {
       console.error('Error rejecting invitation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to reject invitation",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   if (loading) {

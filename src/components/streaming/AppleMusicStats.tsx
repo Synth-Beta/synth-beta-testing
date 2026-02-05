@@ -19,7 +19,6 @@ import {
   Activity
 } from 'lucide-react';
 import { appleMusicService } from '@/services/appleMusicService';
-import { useToast } from '@/hooks/use-toast';
 import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -48,8 +47,7 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
   const [listeningStats, setListeningStats] = useState<AppleMusicListeningStats | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<AppleMusicTimeRange>('last-week');
   const [loadedFromDB, setLoadedFromDB] = useState(false);
-  const { toast } = useToast();
-  const { user } = useAuth();
+const { user } = useAuth();
 
   useEffect(() => {
     initializeAppleMusic();
@@ -71,12 +69,7 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
       }
     } catch (error) {
       console.error('Apple Music initialization error:', error);
-      toast({
-        title: "Apple Music Connection Error",
-        description: "Failed to connect to Apple Music. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -88,18 +81,9 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
       setIsAuthenticated(true);
       await loadUserProfile();
       
-      toast({
-        title: "Connected!",
-        description: "Successfully connected to Apple Music.",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Apple Music authentication error:', error);
-      toast({
-        title: "Connection Failed",
-        description: "Failed to connect to Apple Music. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setAuthenticating(false);
     }
   };
@@ -114,11 +98,7 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
     setRecentTracks([]);
     setListeningStats(null);
     
-    toast({
-      title: "Disconnected",
-      description: "Successfully disconnected from Apple Music.",
-    });
-  };
+    };
 
   const loadUserProfile = async () => {
     try {
@@ -126,12 +106,7 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
       setUserStorefront(storefront);
     } catch (error) {
       console.error('Error loading user profile:', error);
-      toast({
-        title: "Profile Error",
-        description: "Failed to load Apple Music profile.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const loadStats = async () => {
@@ -183,12 +158,7 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
 
     } catch (error) {
       console.error('Error loading stats:', error);
-      toast({
-        title: "Stats Error",
-        description: "Failed to load Apple Music statistics.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

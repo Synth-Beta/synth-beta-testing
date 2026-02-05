@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
 import {
   getCurrentUserEmailPreferences,
   updateCurrentUserEmailPreferences,
@@ -24,9 +23,7 @@ export const EmailPreferencesSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const { toast } = useToast();
-
-  // Load preferences on mount
+// Load preferences on mount
   useEffect(() => {
     loadPreferences();
   }, []);
@@ -40,12 +37,7 @@ export const EmailPreferencesSettings = () => {
       }
     } catch (error) {
       console.error('Failed to load email preferences:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load email preferences. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
@@ -67,19 +59,10 @@ export const EmailPreferencesSettings = () => {
       if (updated) {
         setPreferences(updated);
         setHasChanges(false);
-        toast({
-          title: 'Preferences saved',
-          description: 'Your email preferences have been updated successfully.',
-        });
-      }
+        }
     } catch (error) {
       console.error('Failed to save email preferences:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save preferences. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsSaving(false);
     }
   };

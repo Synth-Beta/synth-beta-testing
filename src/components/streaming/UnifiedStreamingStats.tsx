@@ -7,8 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Music, CheckCircle, AlertCircle } from 'lucide-react';
 import { appleMusicService } from '@/services/appleMusicService';
 import { spotifyService } from '@/services/spotifyService';
-import { useToast } from '@/hooks/use-toast';
-
 interface UnifiedStreamingStatsProps {
   className?: string;
   musicStreamingProfile?: string | null;
@@ -27,9 +25,7 @@ export const UnifiedStreamingStats = ({
   const [showServiceSelector, setShowServiceSelector] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     detectStreamingService();
     checkLastSyncTime();
   }, [musicStreamingProfile]);
@@ -72,11 +68,6 @@ export const UnifiedStreamingStats = ({
 
   const handleManualSync = async () => {
     if (detectedService !== 'apple-music') {
-      toast({
-        title: 'Sync Not Available',
-        description: 'Manual sync is currently only available for Apple Music.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -90,11 +81,6 @@ export const UnifiedStreamingStats = ({
         appleMusicService.markSyncCompleted();
         setLastSyncTime(new Date().toISOString());
         
-        toast({
-          title: 'Sync Successful',
-          description: 'Your Apple Music profile data has been updated.',
-        });
-        
         // Reset status after 3 seconds
         setTimeout(() => setSyncStatus('idle'), 3000);
       } else {
@@ -102,12 +88,6 @@ export const UnifiedStreamingStats = ({
       }
     } catch (error) {
       setSyncStatus('error');
-      
-      toast({
-        title: 'Sync Failed',
-        description: 'Failed to sync your Apple Music profile data. Please try again.',
-        variant: 'destructive',
-      });
       
       // Reset status after 3 seconds
       setTimeout(() => setSyncStatus('idle'), 3000);

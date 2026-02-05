@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { useReviewForm, REVIEW_FORM_TOTAL_STEPS, getTotalSteps } from '@/hooks/useReviewForm';
 import { ReviewService, type ReviewData, type UserReview, type PublicReviewWithProfile } from '@/services/reviewService';
@@ -107,7 +106,6 @@ interface EventReviewFormProps {
 }
 
 export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose }: EventReviewFormProps) {
-  const { toast } = useToast();
   const { user } = useAuth();
   const {
     formData,
@@ -366,10 +364,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             },
           });
           console.log('📝 Submitted request for missing event:', insertPayload.title);
-          toast({
-            title: "Event Request Submitted",
-            description: "Your event request has been submitted for review. You can still write your review, but the event will need to be approved first.",
-          });
         } catch (error) {
           console.error('❌ Error submitting event request:', error);
           // Don't throw - allow user to continue with review
@@ -594,19 +588,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     setIsSaving(true);
     try {
       await manualSave();
-      toast({
-        title: "Draft Saved",
-        description: "Your draft has been saved! (Auto-save is also active)",
-        variant: "default",
-      });
       setLastSaveTime(new Date());
     } catch (error) {
       console.error('❌ Error in manual save:', error);
-      toast({
-        title: "Save Failed",
-        description: "Failed to save draft. Auto-save will retry automatically.",
-        variant: "destructive",
-      });
     } finally {
       setIsSaving(false);
     }
@@ -614,7 +598,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
   const handleSubmit = async () => {
     if (!userId) {
-      toast({ title: 'Authentication Required', description: 'Please log in to submit a review.', variant: 'destructive' });
       return;
     }
 
@@ -720,16 +703,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
     // If there are validation errors, show them and don't submit
     if (validationErrors.length > 0) {
-      const errorMessage = validationErrors.length === 1 
-        ? validationErrors[0]
-        : `Please complete the following:\n• ${validationErrors.join('\n• ')}`;
-      
-      toast({ 
-        title: 'Incomplete Review', 
-        description: errorMessage, 
-        variant: 'destructive',
-        duration: 6000 // Show longer for multiple errors
-      });
       return;
     }
 
@@ -1262,7 +1235,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         // Track form submission with review entity type
         trackInteraction.formSubmit('review', reviewEntityId, true, formSubmitMetadata, reviewEntityUuid);
       } catch {}
-      toast({ title: existingReview ? 'Review Updated' : 'Review Submitted! 🎉', description: existingReview ? 'Your review has been updated.' : 'Thanks for sharing your concert experience!' });
       
       // Check if we should show ranking modal (only for new reviews, not edits)
       if (!existingReview) {
@@ -1316,10 +1288,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
       console.error('Error submitting review:', e);
-      toast({ title: 'Error', description: `Failed to submit review: ${msg}`, variant: 'destructive' });
-      // Reset submission flag on error so auto-save can work again
       setIsReviewSubmitted(false);
     } finally {
       setLoading(false);

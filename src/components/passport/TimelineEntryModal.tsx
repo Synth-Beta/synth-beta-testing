@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PassportService } from '@/services/passportService';
-import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 
@@ -63,9 +62,7 @@ export const TimelineEntryModal: React.FC<TimelineEntryModalProps> = ({
   const [customMilestoneName, setCustomMilestoneName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     if (isOpen) {
       loadReviews();
       
@@ -100,23 +97,13 @@ export const TimelineEntryModal: React.FC<TimelineEntryModalProps> = ({
       setReviews(data as Review[]);
     } catch (error) {
       console.error('Error loading reviews:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load reviews',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoadingReviews(false);
     }
   };
 
   const handleSubmit = async () => {
     if (!existingReviewId && !selectedReviewId) {
-      toast({
-        title: 'Selection required',
-        description: 'Please select a review',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -143,11 +130,6 @@ export const TimelineEntryModal: React.FC<TimelineEntryModalProps> = ({
       descriptionText = significance.trim() || null;
     } else if (milestoneType === 'custom') {
       if (!customMilestoneName.trim()) {
-        toast({
-          title: 'Milestone name required',
-          description: 'Please name your custom milestone',
-          variant: 'destructive',
-        });
         return;
       }
       finalSignificance = customMilestoneName.trim();
@@ -180,21 +162,11 @@ export const TimelineEntryModal: React.FC<TimelineEntryModalProps> = ({
         );
       }
 
-      toast({
-        title: 'Success',
-        description: 'Timeline milestone added successfully',
-      });
-
       onSuccess();
       handleClose();
     } catch (error) {
       console.error('Error saving timeline milestone:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save timeline milestone',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

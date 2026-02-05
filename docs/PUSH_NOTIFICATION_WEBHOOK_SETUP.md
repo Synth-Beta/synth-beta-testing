@@ -86,3 +86,24 @@ Redeploy the project so the new env vars and API route are applied.
 | APNs errors | Key ID, Team ID, Bundle ID correct? Using production for App Store builds? |
 
 For a full step-by-step verification runbook, see [PUSH_NOTIFICATION_VERIFICATION_RUNBOOK.md](PUSH_NOTIFICATION_VERIFICATION_RUNBOOK.md).
+
+## Daily Event Summary Notifications
+
+The app sends **summary** push notifications instead of individual "new event" notifications:
+
+- **follows_new_events_summary**: "Artists and venues you follow announced X new events today"
+- **friends_event_interest_summary**: "Your friends expressed interest in X new events today - don't let them go alone!"
+- **bucket_list_new_events_summary**: "Your bucket list artist/venue has a new event!" (or "X new events")
+
+To schedule daily runs (9:00 AM UTC):
+
+1. Enable `pg_cron` in Supabase Dashboard → Database → Extensions
+2. Run in SQL Editor:
+   ```sql
+   SELECT cron.schedule('daily-event-summary-notifications', '0 9 * * *', 'SELECT public.send_daily_event_summary_notifications();');
+   ```
+
+To test manually:
+```sql
+SELECT public.send_daily_event_summary_notifications();
+```

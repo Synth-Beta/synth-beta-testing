@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { Users, MessageCircle, Lock, Globe, UserPlus, UserMinus, Loader2 } from 'lucide-react';
 import EventGroupService, { EventGroup } from '@/services/eventGroupService';
 
@@ -18,8 +17,7 @@ interface EventGroupCardProps {
 }
 
 export function EventGroupCard({ group, onJoinLeave, onChatClick }: EventGroupCardProps) {
-  const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
+const [isProcessing, setIsProcessing] = useState(false);
   const [isMember, setIsMember] = useState(group.is_member);
 
   const handleJoinLeave = async () => {
@@ -27,28 +25,15 @@ export function EventGroupCard({ group, onJoinLeave, onChatClick }: EventGroupCa
     try {
       if (isMember) {
         await EventGroupService.leaveGroup(group.id);
-        toast({
-          title: 'Left Group',
-          description: `You left ${group.name}`,
-        });
         setIsMember(false);
       } else {
         await EventGroupService.joinGroup(group.id);
-        toast({
-          title: 'Joined Group! 🎉',
-          description: `Welcome to ${group.name}`,
-        });
         setIsMember(true);
       }
       onJoinLeave?.();
     } catch (error) {
       console.error('Error join/leave group:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update membership',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsProcessing(false);
     }
   };

@@ -15,7 +15,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { Ban, Loader2, UserX, AlertCircle } from 'lucide-react';
 import ContentModerationService from '@/services/contentModerationService';
 
@@ -38,8 +37,7 @@ export function BlockUserModal({
   isBlocked = false,
   onBlockToggled,
 }: BlockUserModalProps) {
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
   const [blockReason, setBlockReason] = useState('');
 
   const handleToggleBlock = async () => {
@@ -50,34 +48,20 @@ export function BlockUserModal({
         // Unblock user
         await ContentModerationService.unblockUser(user.id);
         
-        toast({
-          title: 'User Unblocked',
-          description: `You can now see content from ${user.name}`,
-        });
-      } else {
+        } else {
         // Block user
         await ContentModerationService.blockUser({
           blocked_user_id: user.id,
           block_reason: blockReason.trim() || undefined,
         });
 
-        toast({
-          title: 'User Blocked',
-          description: `You won't see content from ${user.name} anymore`,
-        });
-      }
+        }
 
       onBlockToggled?.();
       handleClose();
     } catch (error) {
       console.error('Error toggling block:', error);
-      toast({
-        title: 'Error',
-        description:
-          error instanceof Error ? error.message : 'Failed to update block status',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsSubmitting(false);
     }
   };

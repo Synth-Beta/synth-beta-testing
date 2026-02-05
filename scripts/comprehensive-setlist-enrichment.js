@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Configuration
-const SETLIST_FM_API_KEY = 'QxGjjwxk0MUyxyCJa2FADnFRwEqFUy__7wpt';
+// Configuration – load from .env.local when running: node --env-file=.env.local scripts/comprehensive-setlist-enrichment.js
+const SETLIST_FM_API_KEY = process.env.SETLIST_FM_API_KEY;
+if (!SETLIST_FM_API_KEY) {
+  console.error('SETLIST_FM_API_KEY is not set. Add it to .env.local or run with: node --env-file=.env.local scripts/comprehensive-setlist-enrichment.js');
+  process.exit(1);
+}
 const SETLIST_FM_BASE_URL = 'https://api.setlist.fm/rest/1.0';
 const SUPABASE_URL = 'https://glpiolbrafqikqhnseto.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkzNzgyNCwiZXhwIjoyMDcyNTEzODI0fQ.cS0y6dQiw2VvGD7tKfKADKqM8whaopJ716G4dexBRGI';

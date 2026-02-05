@@ -3,7 +3,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { handleAppleSignInFromNative, setupAppleSignInListeners } from '@/services/appleAuthService';
 import { Capacitor } from '@capacitor/core';
@@ -42,7 +41,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [signupEmailAlreadyRegistered, setSignupEmailAlreadyRegistered] = useState(false);
   const signInEmailInputRef = useRef<HTMLInputElement | null>(null);
-  const { toast } = useToast();
 
   const handleEmailChange = (value: string) => {
     setEmail(value);
@@ -191,19 +189,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       }
 
       if (!session) {
-        toast({
-          title: 'Sign up incomplete',
-          description: 'Your account was created, but we could not start a session. Please try signing in.',
-          variant: 'destructive',
-          duration: 10000,
-        });
         return;
       }
 
-      toast({
-        title: 'Welcome to Synth!',
-        description: "Your account is ready. Let's finish setting up your profile.",
-      });
       onAuthSuccess();
     } catch (error: any) {
       logSupabaseAuthError('signUp', error);
@@ -219,15 +207,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         return;
       }
 
-      const errorDescription = getSupabaseAuthErrorDescription(error);
-      const errorMsg = errorDescription || error?.message || error?.toString() || 'Sign up failed. Please try again.';
-      const errorStatus = error?.status ? ` (Status: ${error.status})` : '';
-      toast({
-        title: "Sign up failed",
-        description: `${errorMsg}${errorStatus}`,
-        variant: "destructive",
-        duration: 10000, // Show for 10 seconds
-      });
     } finally {
       setLoading(false);
     }
@@ -299,31 +278,11 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         console.log('✅ Sign in successful, session created');
         console.log('User ID:', data.user?.id);
       }
-      toast({
-        title: "Welcome back!",
-        description: "You're now signed in.",
-      });
       onAuthSuccess();
     } catch (error: any) {
       if (import.meta.env.DEV) {
         console.error('❌ Sign in failed:', error);
       }
-      
-      // Show FULL error details in toast for debugging (especially for TestFlight)
-      const errorMessage =
-        getSupabaseAuthErrorDescription(error) ||
-        error?.message ||
-        error?.msg ||
-        'Unknown error occurred. Please try again.';
-      const errorStatus = error?.status ? ` (Status: ${error.status})` : '';
-      const fullErrorMessage = `${errorMessage}${errorStatus}`;
-      
-      toast({
-        title: "Sign in failed",
-        description: fullErrorMessage,
-        variant: "destructive",
-        duration: 10000, // Show for 10 seconds so user can read it
-      });
     } finally {
       setLoading(false);
     }
@@ -335,11 +294,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       // Focus the email field for quick correction
       requestAnimationFrame(() => {
         signInEmailInputRef.current?.focus();
-      });
-      toast({
-        title: 'Email required',
-        description: 'Please enter your email address first.',
-        variant: 'destructive',
       });
       return;
     }
@@ -366,23 +320,10 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         
         throw new Error(errorMessage);
       }
-
-      toast({
-        title: 'Password reset email sent',
-        description: 'Check your email for instructions to reset your password.',
-      });
     } catch (error: any) {
       if (import.meta.env.DEV) {
         console.error('❌ Password reset failed:', error);
       }
-      const errorMsg = error?.message || error?.toString() || 'Failed to send password reset email.';
-      const errorStatus = error?.status ? ` (Status: ${error.status})` : '';
-      toast({
-        title: 'Password Reset Failed',
-        description: `${errorMsg}${errorStatus}`,
-        variant: 'destructive',
-        duration: 10000, // Show for 10 seconds
-      });
     } finally {
       setIsResettingPassword(false);
     }
@@ -390,11 +331,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
   const handleAppleSignIn = async () => {
     if (!isIOS) {
-      toast({
-        title: "Not available",
-        description: "Apple Sign In is only available on iOS devices.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -411,33 +347,12 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         if (import.meta.env.DEV) {
           console.log('✅ Apple Sign In successful');
         }
-        toast({
-          title: "Welcome!",
-          description: "You're now signed in with Apple.",
-        });
         onAuthSuccess();
-      } else {
-        if (import.meta.env.DEV) {
-          console.error('❌ Apple Sign In failed:', result.error);
-        }
-        toast({
-          title: "Apple Sign In failed",
-          description: result.error || "Failed to sign in with Apple. Please try again.",
-          variant: "destructive",
-          duration: 10000, // Show for 10 seconds
-        });
       }
     } catch (error: any) {
       if (import.meta.env.DEV) {
         console.error('❌ Apple Sign In exception:', error);
       }
-      const errorMsg = error?.message || error?.toString() || "An unexpected error occurred. Please try again.";
-      toast({
-        title: "Apple Sign In failed",
-        description: errorMsg,
-        variant: "destructive",
-        duration: 10000, // Show for 10 seconds
-      });
     } finally {
       setAppleSignInLoading(false);
     }

@@ -50,7 +50,6 @@ import {
   Ticket
 } from 'lucide-react';
 import { CityService } from '@/services/cityService';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { SynthSLogo } from '@/components/SynthSLogo';
@@ -218,7 +217,6 @@ export const UnifiedFeed = ({
   const [showUnifiedChat, setShowUnifiedChat] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_MAP_CENTER);
   const [isMapDialogOpen, setIsMapDialogOpen] = useState(false);
-  const { toast } = useToast();
   const { sessionExpired } = useAuth();
   const navigate = useNavigate();
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -417,19 +415,8 @@ export const UnifiedFeed = ({
       
       const personalizedCount = articles.filter(a => (a.relevance_score || 0) > 0).length;
       
-      toast({
-        title: 'News updated',
-        description: personalizedCount > 0 
-          ? `Loaded ${articles.length} articles (${personalizedCount} personalized for you)`
-          : `Loaded ${articles.length} articles`
-      });
     } catch (error) {
       console.error('Error fetching news:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load news articles',
-        variant: 'destructive'
-      });
     } finally {
       setNewsLoading(false);
     }
@@ -473,17 +460,8 @@ export const UnifiedFeed = ({
 
       if (error) throw error;
 
-      toast({
-        title: 'Friend Request Sent! 🎉',
-        description: 'Your friend request has been sent.',
-      });
     } catch (error: any) {
       console.error('Error sending friend request:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to send friend request. Please try again.',
-        variant: 'destructive',
-      });
       throw error;
     }
   };
@@ -1214,11 +1192,6 @@ export const UnifiedFeed = ({
         }
       }
       
-      toast({
-        title: "Error",
-        description: "Failed to load feed data. Please try again.",
-        variant: "destructive",
-      });
     } finally {
       console.log('🔄 Setting loading to false');
       setLoading(false);
@@ -1277,10 +1250,6 @@ export const UnifiedFeed = ({
         )
       );
       
-      toast({
-        title: "Like Updated",
-        description: "Your like has been updated!",
-      });
     } catch (error) {
       console.error('Error liking item:', error);
     }
@@ -1341,10 +1310,6 @@ export const UnifiedFeed = ({
         const shareText = `Check out this ${item.type}: ${item.title}`;
         await navigator.clipboard.writeText(shareText);
         
-        toast({
-          title: "Shared!",
-          description: "Link copied to clipboard",
-        });
       }
     } catch (error) {
       console.error('Error sharing item:', error);
@@ -1373,13 +1338,6 @@ export const UnifiedFeed = ({
         item.event_data.id,
         newInterestState
       );
-      
-      toast({
-        title: newInterestState ? "You're interested!" : "Interest removed",
-        description: newInterestState 
-          ? "We'll notify you about this event" 
-          : "You'll no longer receive notifications for this event",
-      });
     } catch (error) {
       console.error('Error toggling interest:', error);
       // Revert optimistic update
@@ -1389,12 +1347,6 @@ export const UnifiedFeed = ({
         interestedEvents.add(item.event_data.id);
       }
       setInterestedEvents(new Set(interestedEvents));
-      
-      toast({
-        title: "Error",
-        description: "Failed to update interest",
-        variant: "destructive",
-      });
     }
   };
 
@@ -1567,17 +1519,8 @@ export const UnifiedFeed = ({
       // Reload from offset 0 with isRefresh flag
       await loadFeedData(0, true);
       
-      toast({
-        title: "Feed Refreshed",
-        description: "Loaded fresh personalized events for you",
-      });
     } catch (error) {
       console.error('Error refreshing feed:', error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh feed",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -2937,17 +2880,8 @@ export const UnifiedFeed = ({
                       try {
                         await ReviewService.deleteEventReview(currentUserId, reviewId);
                         loadFeedData(0); // Refresh feed
-                                toast({ 
-                          title: "Review Deleted",
-                          description: "Your review has been deleted.",
-                        });
                               } catch (error) {
                         console.error('Error deleting review:', error);
-                                toast({
-                                  title: "Error",
-                          description: "Failed to delete review.",
-                                  variant: "destructive",
-                                });
                               }
                             }}
                     onReport={() => setOpenReportFor(item.id)}
@@ -3110,17 +3044,8 @@ export const UnifiedFeed = ({
                             try {
                               await ReviewService.deleteEventReview(currentUserId, reviewId);
                               loadFeedData(0);
-                              toast({ 
-                                title: "Review Deleted",
-                                description: "Your review has been deleted.",
-                              });
                             } catch (error) {
                               console.error('Error deleting review:', error);
-                              toast({
-                                title: "Error",
-                                description: "Failed to delete review.",
-                                variant: "destructive",
-                              });
                             }
                           }}
                           onReport={() => setOpenReportFor(item.id)}
@@ -3300,19 +3225,8 @@ export const UnifiedFeed = ({
               loadFeedData(0, false);
             }, 500);
             
-            toast({
-              title: interested ? "Event Added!" : "Event Removed",
-              description: interested 
-                ? "You're now interested in this event" 
-                : "You're no longer interested in this event",
-            });
           } catch (e) {
             console.error('Failed to toggle interest from feed modal', e);
-            toast({
-              title: "Error",
-              description: "Failed to update your interest. Please try again.",
-              variant: "destructive",
-            });
           }
         }}
         onAttendanceChange={(eventId, attended) => {

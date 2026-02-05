@@ -19,7 +19,6 @@ import {
   Activity
 } from 'lucide-react';
 import { spotifyService } from '@/services/spotifyService';
-import { useToast } from '@/hooks/use-toast';
 import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -47,8 +46,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   const [listeningStats, setListeningStats] = useState<SpotifyListeningStats | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<SpotifyTimeRange>('short_term');
   const [loadedFromDB, setLoadedFromDB] = useState(false);
-  const { toast } = useToast();
-  const { user } = useAuth();
+const { user } = useAuth();
 
   useEffect(() => {
     initializeSpotify();
@@ -116,12 +114,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       }
     } catch (error) {
       console.error('Spotify initialization error:', error);
-      toast({
-        title: "Spotify Connection Error",
-        description: "Failed to connect to Spotify. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -129,11 +122,6 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   const handleConnect = () => {
     // Check if Spotify is configured before attempting authentication
     if (!spotifyService.isConfigured()) {
-      toast({
-        title: "Spotify Not Configured",
-        description: "Spotify integration is not available. This feature is optional and doesn't affect core functionality.",
-        variant: "default",
-      });
       return;
     }
 
@@ -143,22 +131,12 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     } catch (error) {
       console.error('Authentication error:', error);
       setAuthenticating(false);
-      toast({
-        title: "Authentication Error",
-        description: error instanceof Error ? error.message : "Failed to start Spotify authentication. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const handleReconnect = () => {
     // Check if Spotify is configured before attempting reconnection
     if (!spotifyService.isConfigured()) {
-      toast({
-        title: "Spotify Not Configured",
-        description: "Spotify integration is not available. This feature is optional and doesn't affect core functionality.",
-        variant: "default",
-      });
       return;
     }
 
@@ -168,12 +146,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     } catch (error) {
       console.error('Reconnection error:', error);
       setAuthenticating(false);
-      toast({
-        title: "Reconnection Error",
-        description: error instanceof Error ? error.message : "Failed to reconnect to Spotify. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const handleClearData = () => {
@@ -186,11 +159,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     setListeningStats(null);
     setHasPermissionError(false);
     
-    toast({
-      title: "Data Cleared",
-      description: "All Spotify data has been cleared. Please reconnect.",
-    });
-  };
+    };
 
   const handleForceReconnect = () => {
     spotifyService.forceClearAndReauth();
@@ -211,11 +180,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     setRecentTracks([]);
     setListeningStats(null);
     
-    toast({
-      title: "Disconnected",
-      description: "Successfully disconnected from Spotify.",
-    });
-  };
+    };
 
   const loadUserProfile = async () => {
     // Don't try to load profile if not authenticated
@@ -244,21 +209,10 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       console.error('Error loading user profile:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load Spotify profile.';
       
-      toast({
-        title: "Profile Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      
       // If it's a permission error, suggest reconnecting
       if (errorMessage.includes('permissions') || errorMessage.includes('403')) {
         setHasPermissionError(true);
-        toast({
-          title: "Permission Issue",
-          description: "Please disconnect and reconnect to Spotify to grant proper permissions.",
-          variant: "destructive",
-        });
-      }
+        }
     }
   };
 
@@ -324,23 +278,13 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
 
       // Show helpful message if no data
       if (topTracks.length === 0 && topArtists.length === 0) {
-        toast({
-          title: "No Listening Data",
-          description: "No top tracks or artists found. Try listening to more music on Spotify and check back later.",
-          variant: "default",
-        });
-      }
+        }
 
     } catch (error) {
       console.error('Error loading stats:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load Spotify statistics.';
       
-      toast({
-        title: "Stats Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

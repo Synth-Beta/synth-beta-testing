@@ -20,7 +20,6 @@ import {
   Palette
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { MusicTagsService, MusicTag } from '@/services/musicTagsService';
 import { MUSIC_GENRES } from '@/data/musicGenres';
@@ -44,9 +43,7 @@ interface UserProfile {
 
 export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferencesSettingsProps) => {
   const { user } = useAuth();
-  const { toast } = useToast();
-  
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+const [profile, setProfile] = useState<UserProfile | null>(null);
   const [musicTags, setMusicTags] = useState<MusicTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -114,12 +111,7 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
 
     } catch (error) {
       console.error('Error fetching user data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load your preferences",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -169,12 +161,7 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
 
     } catch (error) {
       console.error('Error updating music tag:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update music preferences",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const handleSave = async () => {
@@ -199,23 +186,13 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
         throw profileError;
       }
 
-      toast({
-        title: "Success",
-        description: "Your preferences have been saved",
-      });
-
       if (onClose) {
         onClose();
       }
 
     } catch (error) {
       console.error('Error saving preferences:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save preferences",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setSaving(false);
     }
   };

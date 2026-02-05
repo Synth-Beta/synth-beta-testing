@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MessageSquare, Users, Loader2 } from 'lucide-react';
 import { VerifiedChatService, type EntityType, type VerifiedChatInfo } from '@/services/verifiedChatService';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -29,9 +28,7 @@ export function VerifiedChatBadge({
   const [chatInfo, setChatInfo] = useState<VerifiedChatInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const { toast } = useToast();
-
-  // Load chat info on mount
+// Load chat info on mount
   useEffect(() => {
     console.log('🟢 VerifiedChatBadge: Component mounted/updated', {
       entityType,
@@ -90,11 +87,6 @@ export function VerifiedChatBadge({
 
     if (!currentUserId) {
       console.log('🟡 VerifiedChatBadge: No currentUserId, showing sign in toast');
-      toast({
-        title: 'Please sign in',
-        description: 'You need to be signed in to join chats',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -119,20 +111,11 @@ export function VerifiedChatBadge({
         onChatOpen(chatId);
       } else {
         console.log('🟢 VerifiedChatBadge: No onChatOpen callback, showing toast');
-        toast({
-          title: 'Chat opened',
-          description: 'You can now participate in the chat',
-        });
-      }
+        }
       console.log('🟢 VerifiedChatBadge: handleJoinOrOpen completed successfully');
     } catch (error) {
       console.error('❌ VerifiedChatBadge: Error joining/opening chat:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to join chat. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsJoining(false);
     }
   };

@@ -101,12 +101,6 @@ export class SetlistService {
       // Check content-type before parsing JSON
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('⚠️ Backend returned non-JSON response:', {
-          status: response.status,
-          contentType,
-          preview: text.substring(0, 200)
-        });
         throw new Error(`Backend returned HTML instead of JSON. Is the backend server running on ${backendUrl}?`);
       }
       
@@ -129,17 +123,7 @@ export class SetlistService {
       return data.setlist;
       
     } catch (error: any) {
-      // Handle different error types
-      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('ERR_CONNECTION_REFUSED')) {
-        // Backend not running - expected in dev, don't spam console
-        // Error will be caught by caller and handled gracefully
-      } else if (error?.message?.includes('Unexpected token') || error?.message?.includes('is not valid JSON')) {
-        // JSON parsing error - backend returned HTML or invalid JSON
-        console.warn('⚠️ Setlist service error: Backend returned invalid JSON. Make sure the backend server is running:', backendUrl);
-        console.warn('   Start it with: npm run backend:dev');
-      } else {
-        console.warn('⚠️ Setlist service error:', error?.message || error);
-      }
+      // Caller handles UX (toast, error state); no console output for expected offline/503 cases
       const offlineError = new Error('setlist-service-offline');
       offlineError.name = 'SetlistServiceOfflineError';
       throw offlineError;

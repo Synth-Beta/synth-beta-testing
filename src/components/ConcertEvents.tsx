@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 
@@ -43,9 +42,7 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [cities, setCities] = useState<string[]>([]);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     loadConcerts();
     loadInterestedEvents();
   }, [currentUserId]);
@@ -73,12 +70,7 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
       setConcerts(data || []);
     } catch (error) {
       console.error('Error loading concerts:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load concerts",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -125,11 +117,7 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
           return newSet;
         });
 
-        toast({
-          title: "Removed from Interested",
-          description: "Event removed from your interested list",
-        });
-      } else {
+        } else {
         // Add to interested
         const { error } = await supabase
           .from('user_event_relationships')
@@ -143,19 +131,10 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
 
         setInterestedEvents(prev => new Set([...prev, eventId]));
 
-        toast({
-          title: "Added to Interested!",
-          description: "Event added to your interested list",
-        });
-      }
+        }
     } catch (error) {
       console.error('Error toggling interest:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update your interest",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const filteredConcerts = concerts.filter(concert => {

@@ -485,9 +485,7 @@ export class NotificationService {
           event_attendance_reminder: 0,
           artist_followed: 0,
           artist_new_event: 0,
-          artist_profile_updated: 0,
           venue_new_event: 0,
-          venue_profile_updated: 0,
           event_share: 0,
           friend_rsvp_going: 0,
           friend_rsvp_changed: 0,
@@ -866,6 +864,7 @@ export class NotificationService {
       case 'match':
         return '🎯';
       case 'message':
+      case 'chat_message':
         return '📨';
       case 'event_interest':
         return '🎵';
@@ -874,13 +873,15 @@ export class NotificationService {
       case 'artist_followed':
         return '🎤';
       case 'artist_new_event':
+      case 'follows_new_events_summary':
         return '🎸';
-      case 'artist_profile_updated':
-        return '✨';
+      case 'friends_event_interest_summary':
+        return '🎉';
+      case 'bucket_list_new_event':
+      case 'bucket_list_new_events_summary':
+        return '⭐';
       case 'venue_new_event':
         return '🏛️';
-      case 'venue_profile_updated':
-        return '🎭';
       default:
         return '🔔';
     }
@@ -904,6 +905,7 @@ export class NotificationService {
       case 'match':
         return 'bg-pink-100 text-pink-800 border-pink-200';
       case 'message':
+      case 'chat_message':
         return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'event_interest':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
@@ -913,12 +915,12 @@ export class NotificationService {
         return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'artist_new_event':
         return 'bg-pink-100 text-pink-800 border-pink-200';
-      case 'artist_profile_updated':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'venue_new_event':
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'venue_profile_updated':
-        return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      case 'follows_new_events_summary':
+      case 'friends_event_interest_summary':
+      case 'bucket_list_new_events_summary':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }

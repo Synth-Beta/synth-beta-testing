@@ -217,9 +217,10 @@ export class PushTokenService {
           break;
           
         case 'message':
+        case 'chat_message':
           // Navigate to chat
-          if (chat_id) {
-            window.location.href = `/chat/${chat_id}`;
+          if (chat_id || data?.chat_id) {
+            window.location.href = `/chat/${chat_id || data.chat_id}`;
           }
           break;
           
@@ -230,9 +231,14 @@ export class PushTokenService {
         case 'event_reminder_day_after':
         case 'artist_new_event':
         case 'venue_new_event':
-          // Navigate to event
-          if (event_id || data.event_id) {
+        case 'follows_new_events_summary':
+        case 'friends_event_interest_summary':
+        case 'bucket_list_new_events_summary':
+          // Navigate to event or feed
+          if (event_id || data?.event_id) {
             window.location.href = `/event/${event_id || data.event_id}`;
+          } else {
+            window.location.href = '/discover';
           }
           break;
           

@@ -7,8 +7,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Music, Loader2, X, AlertCircle } from 'lucide-react';
 import { MissingEntityRequestService } from '@/services/missingEntityRequestService';
-import { useToast } from '@/hooks/use-toast';
-
 interface ManualArtistFormProps {
   open: boolean;
   onClose: () => void;
@@ -25,9 +23,7 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
     imageUrl: '',
   });
   const [genreTags, setGenreTags] = useState<string[]>([]);
-  const { toast } = useToast();
-
-  // Update form data when initialQuery changes
+// Update form data when initialQuery changes
   React.useEffect(() => {
     if (open && initialQuery) {
       setFormData(prev => ({ ...prev, name: initialQuery }));
@@ -62,11 +58,6 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
     e.preventDefault();
     
     if (!formData.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Artist name is required",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -84,22 +75,12 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
         },
       });
 
-      toast({
-        title: "Request Submitted! 🎵",
-        description: `Your request for "${formData.name}" has been submitted. We'll review it and add it to the database if approved.`,
-      });
-
       // Don't call onArtistCreated since we're not creating an artist
       // The user will need to wait for admin approval
       handleClose();
     } catch (error) {
       console.error('Error submitting artist request:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit request",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setIsSubmitting(false);
     }
   };

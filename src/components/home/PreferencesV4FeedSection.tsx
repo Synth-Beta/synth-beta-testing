@@ -10,7 +10,6 @@ import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
-import { useToast } from '@/hooks/use-toast';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 
 interface PreferencesV4FeedSectionProps {
@@ -40,8 +39,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
   const [selectedEventForShare, setSelectedEventForShare] = useState<PersonalizedEvent | null>(null);
   const [flagModalOpen, setFlagModalOpen] = useState(false);
   const [flaggedEvent, setFlaggedEvent] = useState<PersonalizedEvent | null>(null);
-  const { toast } = useToast();
-  const feedRef = useRef<HTMLDivElement>(null);
+const feedRef = useRef<HTMLDivElement>(null);
 
   const pageSize = 20;
 
@@ -211,13 +209,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
         return event;
       }));
 
-      toast({
-        title: newInterestState ? "You're interested!" : "Interest removed",
-        description: newInterestState 
-          ? "We'll notify you about this event" 
-          : "You'll no longer receive notifications for this event",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error toggling interest:', error);
       // Revert optimistic update
       setInterestedEvents(prev => {
@@ -229,12 +221,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
         }
         return next;
       });
-      toast({
-        title: "Error",
-        description: "Failed to update interest",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   // Handle share click
@@ -723,11 +710,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
             console.log('Report submitted');
             setFlagModalOpen(false);
             setFlaggedEvent(null);
-            toast({
-              title: 'Report Submitted',
-              description: 'Thank you for helping keep our community safe',
-            });
-          }}
+            }}
         />
       )}
     </div>

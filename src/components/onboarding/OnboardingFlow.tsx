@@ -5,7 +5,6 @@ import { MusicTagsStep } from './MusicTagsStep';
 import { OnboardingService, ProfileSetupData } from '@/services/onboardingService';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -22,8 +21,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
   const { user, session } = useAuth();
-  const { toast } = useToast();
-  const exitInProgressRef = useRef(false);
+const exitInProgressRef = useRef(false);
 
   const [profileData, setProfileData] = useState<ProfileSetupData>({});
   const [prefillLoading, setPrefillLoading] = useState(true);
@@ -129,11 +127,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const handleCompleteSetup = async () => {
     // Never call /auth/v1/user or profile/account queries unless we have a session.
     if (!session || !user) {
-      toast({
-        title: 'Please sign in again',
-        description: 'Your session is not available yet. Please try again.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -143,11 +136,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       undefined;
     const finalName = (nameFromAuth ?? '').trim();
     if (!finalName) {
-      toast({
-        title: 'Name required',
-        description: 'Please add your name before completing onboarding.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -156,30 +144,15 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     if (!profileResult?.valid || !profileResult.data) {
       if (profileResult?.errors && Object.keys(profileResult.errors).length > 0) {
         const firstError = Object.values(profileResult.errors)[0];
-        toast({
-          title: 'Profile incomplete',
-          description: firstError,
-          variant: 'destructive',
-        });
-      }
+        }
       return;
     }
 
     // Validate music (≥3 genres, ≥3 artists)
     if (musicData.genres.length < 3) {
-      toast({
-        title: 'Music taste required',
-        description: 'Please select at least 3 genres.',
-        variant: 'destructive',
-      });
       return;
     }
     if (musicData.artists.length < 3) {
-      toast({
-        title: 'Music taste required',
-        description: 'Please add at least 3 artists.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -197,11 +170,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       };
       const profileSuccess = await OnboardingService.saveProfileSetup(user.id, profilePayload);
       if (!profileSuccess) {
-        toast({
-          title: 'Error',
-          description: 'Failed to save profile data. Please try again.',
-          variant: 'destructive',
-        });
         return;
       }
 
@@ -245,11 +213,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
           console.warn('Some preferences already exist, continuing...');
         } else {
           const errorMessage = error?.message || 'Failed to save music preferences. Please try again.';
-          toast({
-            title: 'Error',
-            description: errorMessage,
-            variant: 'destructive',
-          });
           return;
         }
       }
@@ -268,21 +231,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         total_steps: 1,
       });
 
-      toast({
-        title: 'Welcome to Synth!',
-        description: "Your profile is all set up. Let's explore the app!",
-      });
-
       beginExit();
       onComplete();
     } catch (error) {
       console.error('Error in handleCompleteSetup:', error);
-      toast({
-        title: 'Error',
-          description: error?.message || 'An error occurred. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       if (!exitInProgressRef.current) {
         setLoading(false);
       }

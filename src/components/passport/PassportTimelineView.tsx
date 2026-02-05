@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { PassportService } from '@/services/passportService';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { TimelineEntryModal } from './TimelineEntryModal';
@@ -46,9 +45,7 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
   const [pinnedCount, setPinnedCount] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimelineEntry | null>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     loadTimeline();
   }, [userId]);
 
@@ -74,39 +71,21 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
         // Only unpin if it's a real timeline entry ID (not a generated review-* ID)
         if (!timelineId.startsWith('review-')) {
           await PassportService.unpinTimelineEvent(userId, timelineId);
-          toast({
-            title: 'Unpinned',
-            description: 'Event removed from pinned timeline',
-          });
-        }
+          }
       } else {
         if (pinnedCount >= 5) {
-          toast({
-            title: 'Maximum pins reached',
-            description: 'You can pin a maximum of 5 timeline events',
-            variant: 'destructive',
-          });
           return;
         }
         // Find the timeline entry and pin it
         const entry = timeline.find(t => t.id === timelineId);
         if (entry?.review_id) {
           await PassportService.pinTimelineEvent(userId, entry.review_id);
-          toast({
-            title: 'Pinned',
-            description: 'Event pinned to timeline',
-          });
-        }
+          }
       }
       await loadTimeline();
     } catch (error) {
       console.error('Error toggling pin:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update pin status',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   // Get icon and styling based on significance text
@@ -178,19 +157,10 @@ export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ user
   const handleDeleteEntry = async (entryId: string) => {
     try {
       await PassportService.deleteTimelineEntry(userId, entryId);
-      toast({
-        title: 'Deleted',
-        description: 'Timeline entry removed',
-      });
       await loadTimeline();
     } catch (error) {
       console.error('Error deleting timeline entry:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete timeline entry',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   if (timeline.length === 0) {
