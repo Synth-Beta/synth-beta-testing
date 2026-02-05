@@ -74,22 +74,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const payload = req.body as WebhookPayload;
   if (!payload || payload.type !== 'INSERT' || payload.table !== 'notifications') {
-    return res.status(200).json({ ok: true, skipped: 'not an INSERT on notifications' });
+    const reason = 'not an INSERT on notifications';
+    console.log(`[push-webhook] skipped: ${reason}`);
+    return res.status(200).json({ ok: true, skipped: reason });
   }
 
   const record = payload.record;
   if (!record?.user_id || !record?.title || !record?.message) {
-    return res.status(200).json({ ok: true, skipped: 'missing required fields' });
+    const reason = 'missing required fields';
+    console.log(`[push-webhook] skipped: ${reason}`, { user_id: record?.user_id });
+    return res.status(200).json({ ok: true, skipped: reason });
   }
 
   if (record.is_read === true) {
-    return res.status(200).json({ ok: true, skipped: 'notification already read' });
+    const reason = 'notification already read';
+    console.log(`[push-webhook] skipped: ${reason}`, { notification_id: record?.id });
+    return res.status(200).json({ ok: true, skipped: reason });
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('Push webhook: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
+    console.error('[push-webhook] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
@@ -103,7 +109,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .single();
 
   if (prefs?.enable_push_notifications === false) {
-    return res.status(200).json({ ok: true, skipped: 'push disabled by user' });
+    const reason = 'push disabled by user';
+    console.log(`[push-webhook] skipped: ${reason}`, { user_id: record.user_id });
+    return res.status(200).json({ ok: true, skipped: reason });
   }
 
   // Fetch active iOS device tokens
@@ -114,17 +122,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .eq('platform', 'ios')
     .eq('is_active', true);
 
-  if (devicesError || !devices?.length) {
+  if (devicesError) {
+    const reason = 'error fetching device tokens';
+    console.error('[push-webhook] skipped:', reason, devicesError);
+    return res.status(200).json({ ok: true, skipped: reason, sent: 0 });
+  }
+
+  if (!devices?.length) {
+    const reason = 'no active iOS device tokens';
+    console.log(`[push-webhook] skipped: ${reason}`, { user_id: record.user_id });
     return res.status(200).json({
       ok: true,
-      skipped: 'no active iOS device tokens',
+      skipped: reason,
       sent: 0,
     });
   }
 
   const provider = getApnProvider();
   if (!provider) {
-    console.error('Push webhook: APNs not configured (APNS_KEY_CONTENT/APNS_KEY_PATH, APNS_KEY_ID, APNS_TEAM_ID)');
+    console.error('[push-webhook] APNs not configured (APNS_KEY_CONTENT/APNS_KEY_PATH, APNS_KEY_ID, APNS_TEAM_ID)');
     return res.status(500).json({ error: 'APNs not configured' });
   }
 
@@ -154,6 +170,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   provider.shutdown();
+
+  if (sent > 0) {
+    console.log(`[push-webhook] sent ${sent}/${devices.length}`, {
+      user_id: record.user_id,
+      notification_id: record.id,
+      errors: errors.length ? errors : undefined,
+    });
+  } else if (errors.length > 0) {
+    console.error('[push-webhook] send failed', {
+      user_id: record.user_id,
+      notification_id: record.id,
+      errors,
+    });
+  }
 
   return res.status(200).json({
     ok: true,

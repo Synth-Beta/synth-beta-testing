@@ -84,3 +84,5 @@ Redeploy the project so the new env vars and API route are applied.
 | Webhook returns 500 | Vercel logs; env vars set? APNS_KEY_CONTENT or APNS_KEY_PATH valid? |
 | Webhook returns 200 but skipped | User has no device tokens, or push disabled in preferences |
 | APNs errors | Key ID, Team ID, Bundle ID correct? Using production for App Store builds? |
+
+For a full step-by-step verification runbook, see [PUSH_NOTIFICATION_VERIFICATION_RUNBOOK.md](PUSH_NOTIFICATION_VERIFICATION_RUNBOOK.md).
