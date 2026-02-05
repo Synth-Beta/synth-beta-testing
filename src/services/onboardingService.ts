@@ -7,6 +7,7 @@ export interface OnboardingStatus {
 }
 
 export interface ProfileSetupData {
+  name?: string;
   username?: string;
   location_city?: string;
   birthday?: string;
@@ -26,7 +27,7 @@ export class OnboardingService {
         .from('users')
         .select('onboarding_completed, onboarding_skipped, tour_completed')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         // If columns don't exist, return default values
@@ -39,6 +40,15 @@ export class OnboardingService {
           };
         }
         throw error;
+      }
+
+      // No row yet (new user): return defaults without logging noisy "no rows" errors.
+      if (!data) {
+        return {
+          onboarding_completed: false,
+          onboarding_skipped: false,
+          tour_completed: false,
+        };
       }
 
       // If data exists but fields are null, return defaults
@@ -73,6 +83,9 @@ export class OnboardingService {
       };
 
       // Only include fields that are provided and exist in the schema
+      if (data.name !== undefined) {
+        updateData.name = String(data.name).trim();
+      }
       if (data.username !== undefined) {
         // Username should be lowercase and trimmed, stored as TEXT
         updateData.username = String(data.username).toLowerCase().trim();
@@ -199,7 +212,7 @@ export class OnboardingService {
         })
         .eq('user_id', userId)
         .select('onboarding_completed,onboarding_skipped,tour_completed')
-        .single();
+        .maybeSingle();
 
       if (error) {
         // If column doesn't exist, just log and return true (graceful degradation)
@@ -248,7 +261,7 @@ export class OnboardingService {
         })
         .eq('user_id', userId)
         .select('onboarding_completed,onboarding_skipped,tour_completed')
-        .single();
+        .maybeSingle();
 
       if (error) {
         // If column doesn't exist, just log and return true (graceful degradation)
@@ -340,17 +353,23 @@ export class OnboardingService {
         .from('users')
         .select('id, username')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (existingUser) {
         return true;
       }
 
-      // Only generate username on true first-time insert (i.e., user row does not exist).
-      // If we got some other error (RLS/network/etc), don't attempt username generation/insert here.
-      if (checkError && checkError.code !== 'PGRST116') {
+      // If we got some error (RLS/network/etc), don't attempt username generation/insert here.
+      if (checkError) {
         console.warn('Error checking user existence:', checkError);
         throw checkError;
+      }
+
+      // Don't call /auth/v1/user unless a session exists (prevents 403 noise).
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!sessionData?.session) {
+        throw new Error('No session available');
       }
 
       // Get auth user info to create public.users row

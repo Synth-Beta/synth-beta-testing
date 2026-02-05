@@ -289,7 +289,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold">Welcome to Synth!</h2>
+        <h2 className="text-[24px] font-bold leading-[1.3]">Welcome to Synth!</h2>
         <p className="text-muted-foreground">
           Let's set up your profile to personalize your experience
         </p>
@@ -338,14 +338,14 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
             )}
           </div>
           {errors.username && (
-            <p className="text-sm text-destructive">{errors.username}</p>
+            <p className="text-[16px] font-medium leading-[1.5] text-destructive">{errors.username}</p>
           )}
           {formData.username && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
               Preview: <span className="font-medium">@{formData.username}</span>
             </p>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
             Your unique username (3-30 characters, lowercase letters, numbers, underscores, and periods only)
           </p>
         </div>
@@ -364,7 +364,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
             disabled={!user}
             aspectRatio="circle"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
             You can add a photo now or skip and add it later
           </p>
         </div>
@@ -385,9 +385,9 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
             className={`bg-white ${errors.location_city ? 'border-destructive' : ''}`}
           />
           {errors.location_city && (
-            <p className="text-sm text-destructive">{errors.location_city}</p>
+            <p className="text-[16px] font-medium leading-[1.5] text-destructive">{errors.location_city}</p>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
             We'll show you events happening near you
           </p>
         </div>
@@ -408,9 +408,9 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
             className={`bg-white ${errors.birthday ? 'border-destructive' : ''}`}
           />
           {errors.birthday && (
-            <p className="text-sm text-destructive">{errors.birthday}</p>
+            <p className="text-[16px] font-medium leading-[1.5] text-destructive">{errors.birthday}</p>
           )}
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
             Your age will be displayed to other users, but not your exact birthday
           </p>
         </div>
@@ -448,11 +448,11 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
             maxLength={120}
             className={`bg-white ${errors.bio ? 'border-destructive' : ''}`}
           />
-          <p className="text-xs text-muted-foreground text-right">
+          <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground text-right">
             {formData.bio.length}/120 characters
           </p>
           {errors.bio && (
-            <p className="text-sm text-destructive">{errors.bio}</p>
+            <p className="text-[16px] font-medium leading-[1.5] text-destructive">{errors.bio}</p>
           )}
         </div>
 

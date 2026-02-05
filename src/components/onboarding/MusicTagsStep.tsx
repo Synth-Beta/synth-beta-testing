@@ -176,7 +176,7 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold">Tell us about your music taste</h2>
+        <h2 className="text-[24px] font-bold leading-[1.3]">Tell us about your music taste</h2>
         <p className="text-muted-foreground">
           This helps us recommend events and connect you with like-minded people
         </p>
@@ -190,7 +190,7 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
             Favorite Genres
             <span className="text-destructive">*</span>
           </Label>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
             {selectedGenres.length}/7 (min 3)
           </span>
         </div>
@@ -275,13 +275,13 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
           </div>
         )}
         {selectedGenres.length > 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
             Your top 3 genres get higher weight in recommendations
           </p>
         )}
 
         {errors.genres && (
-          <p className="text-sm text-destructive">{errors.genres}</p>
+          <p className="text-[16px] font-medium leading-[1.5] text-destructive">{errors.genres}</p>
         )}
       </div>
 
@@ -293,7 +293,7 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
             Favorite Artists
             <span className="text-destructive">*</span>
           </Label>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
             {selectedArtists.length}/15 (min 3)
           </span>
         </div>
@@ -353,7 +353,7 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
                 >
                   <span className="flex-1">{artist.name}</span>
                   {artist.genres && artist.genres.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
                       {artist.genres[0]}
                     </span>
                   )}
@@ -396,17 +396,17 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
           </div>
         )}
         {selectedArtists.length > 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
             Your top 3 artists get higher weight in recommendations
           </p>
         )}
 
         {errors.artists && (
-          <p className="text-sm text-destructive">{errors.artists}</p>
+          <p className="text-[16px] font-medium leading-[1.5] text-destructive">{errors.artists}</p>
         )}
       </div>
 
-      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm">
+      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-[16px] font-medium leading-[1.5]">
         <p className="text-blue-700 dark:text-blue-300">
           💡 <strong>Tip:</strong> You can also connect your Spotify account later to
           automatically sync your music preferences!

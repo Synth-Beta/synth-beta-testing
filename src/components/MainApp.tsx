@@ -45,6 +45,7 @@ import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal'
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { ShareService } from '@/services/shareService';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 type ViewType =
   | 'feed'
@@ -98,6 +99,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const { accountInfo } = useAccountType();
+  const navigate = useNavigate();
+  const location = useLocation();
   
   // Guard to prevent redirecting back into onboarding after skip/complete
   const onboardingExitInProgressRef = useRef(false);
@@ -257,21 +260,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     };
   }, [user, loading]);
 
+  // Handle hash-based entry (e.g. /#onboarding) without hard navigation
   useEffect(() => {
-    // MainApp useEffect starting
-    loadEvents();
-
-    // Check for URL fragment to determine initial view
-    const hash = window.location.hash;
+    const hash = location.hash;
     if (hash === '#onboarding') {
       setCurrentView('onboarding');
       // Clear the hash to prevent re-triggering on refresh
-      window.history.replaceState(null, '', window.location.pathname);
+      navigate(`${location.pathname}${location.search}`, { replace: true });
     } else if (hash === '#profile') {
       setCurrentView('profile');
       // Clear the hash to prevent re-triggering on refresh
-      window.history.replaceState(null, '', window.location.pathname);
+      navigate(`${location.pathname}${location.search}`, { replace: true });
     }
+  }, [location.hash, location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    // MainApp useEffect starting
+    loadEvents();
 
     // Check for intended view from localStorage (for navigation from other pages)
     const intendedView = localStorage.getItem('intendedView');
@@ -789,6 +794,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     
     setCurrentView('feed');
     setShowOnboardingReminder(false);
+    // Ensure we're on home route without full reload (also clears any lingering hash)
+    navigate('/', { replace: true });
     
     // Check if user should see the tour (works for both completed and skipped)
     if (user) {
