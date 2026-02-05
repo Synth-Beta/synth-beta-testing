@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,9 +39,16 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const [appleSignInLoading, setAppleSignInLoading] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [signupEmailAlreadyRegistered, setSignupEmailAlreadyRegistered] = useState(false);
+  const signInEmailInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
 
-  const isEmailSignUpTemporarilyUnavailable = true;
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    if (emailError) setEmailError(null);
+    if (signupEmailAlreadyRegistered) setSignupEmailAlreadyRegistered(false);
+  };
 
   useEffect(() => {
     // Check if iOS
@@ -71,6 +78,12 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   }, []);
 
   useEffect(() => {
+    // Don't carry sign-in email errors across tabs
+    setEmailError(null);
+    setSignupEmailAlreadyRegistered(false);
+  }, [activeTab]);
+
+  useEffect(() => {
     let cleanup: (() => void) | null = null;
     
     if (isIOS) {
@@ -85,37 +98,61 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     };
   }, [isIOS]);
 
-  // Helper function to get redirect URL based on platform
-  const getRedirectUrl = (path: string): string => {
-    const isMobile = Capacitor.isNativePlatform();
-    if (isMobile) {
-      // Use custom URL scheme for mobile deep links
-      // Remove leading slash and hash for mobile URLs
-      // Supabase will append #access_token=... so we need synth://onboarding not synth://#onboarding
-      let mobilePath = path.startsWith('/') ? path.substring(1) : path;
-      mobilePath = mobilePath.startsWith('#') ? mobilePath.substring(1) : mobilePath;
-      return `synth://${mobilePath}`;
+  const getSiteOrigin = (): string => {
+    // Prefer an explicit deploy-time URL that is also allowlisted in Supabase Auth redirect URLs.
+    const envUrlRaw = (import.meta.env.VITE_SITE_URL as string | undefined)?.trim();
+    const envUrl = envUrlRaw
+      ? /^https?:\/\//i.test(envUrlRaw)
+        ? envUrlRaw
+        : `https://${envUrlRaw}`
+      : null;
+
+    // Only accept http(s) origins as safe web redirect targets.
+    const windowOriginRaw = typeof window !== 'undefined' ? window.location.origin : null;
+    const windowOrigin =
+      windowOriginRaw && /^https?:\/\//i.test(windowOriginRaw) ? windowOriginRaw : null;
+    const fallback = 'https://synth-beta-testing.vercel.app';
+
+    const candidate = envUrl ?? windowOrigin ?? fallback;
+    try {
+      // Ensure we always return a clean origin (no path/query/hash).
+      return new URL(candidate).origin;
+    } catch {
+      return fallback;
     }
-    // Use current origin for web (works in dev, staging, production)
-    // Fallback to production URL if window is not available (SSR)
-    const baseUrl = typeof window !== 'undefined' 
-      ? window.location.origin 
-      : 'https://synth-beta-testing.vercel.app';
-    return `${baseUrl}${path}`;
+  };
+
+  // Helper function to get redirect URLs for Supabase emails.
+  // IMPORTANT: Supabase rejects redirectTo/emailRedirectTo that isn't allowlisted.
+  const getRedirectUrl = (path: string): string => {
+    const origin = getSiteOrigin();
+    try {
+      return new URL(path, origin).toString();
+    } catch {
+      // Last-resort fallback to just the origin.
+      return origin;
+    }
+  };
+
+  const logSupabaseAuthError = (context: string, error: any) => {
+    console.error(`❌ Supabase auth error (${context}):`, {
+      name: error?.name,
+      status: error?.status,
+      message: error?.message,
+      error_description: error?.error_description,
+    });
+  };
+
+  const getSupabaseAuthErrorDescription = (error: any): string | null => {
+    const desc = error?.error_description ?? error?.description ?? null;
+    if (typeof desc === 'string' && desc.trim().length > 0) return desc.trim();
+    return null;
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isEmailSignUpTemporarilyUnavailable) {
-      toast({
-        title: 'Email sign up unavailable',
-        description: 'Sign up with email is temporarily unavailable. Please sign up with Apple to continue.',
-        variant: 'destructive',
-        duration: 8000,
-      });
-      return;
-    }
     setLoading(true);
+    setSignupEmailAlreadyRegistered(false);
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -131,14 +168,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
       if (error) throw error;
 
-      // Supabase does not return an error when the email already exists; it returns success with empty identities.
+      // Supabase may return success with empty identities when the email already exists.
       if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
-        toast({
-          title: "Email already registered",
-          description: "This email is already in use. Try signing in or use a different email.",
-          variant: "destructive",
-          duration: 10000,
-        });
+        setSignupEmailAlreadyRegistered(true);
         setLoading(false);
         return;
       }
@@ -147,12 +179,48 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         console.log("Sign-up success: user id:", data.user.id, "email confirmed:", !!data.user.email_confirmed_at);
       }
 
+      // Confirmations are OFF in this app: we must have a real session before proceeding.
+      let session = data?.session ?? null;
+      if (!session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+        session = signInData?.session ?? null;
+      }
+
+      if (!session) {
+        toast({
+          title: 'Sign up incomplete',
+          description: 'Your account was created, but we could not start a session. Please try signing in.',
+          variant: 'destructive',
+          duration: 10000,
+        });
+        return;
+      }
+
       toast({
-        title: "Check your email!",
-        description: "We sent you a confirmation link. You must click that link to verify your email before you can sign in.",
+        title: 'Welcome to Synth!',
+        description: "Your account is ready. Let's finish setting up your profile.",
       });
+      onAuthSuccess();
     } catch (error: any) {
-      const errorMsg = error?.message || error?.toString() || 'Sign up failed. Please try again.';
+      logSupabaseAuthError('signUp', error);
+
+      // Inline error for "email already registered" (Supabase AuthApiError 422)
+      const isUserAlreadyRegisteredError =
+        error?.status === 422 &&
+        typeof error?.message === 'string' &&
+        error.message.toLowerCase().includes('user already registered');
+
+      if (isUserAlreadyRegisteredError) {
+        setSignupEmailAlreadyRegistered(true);
+        return;
+      }
+
+      const errorDescription = getSupabaseAuthErrorDescription(error);
+      const errorMsg = errorDescription || error?.message || error?.toString() || 'Sign up failed. Please try again.';
       const errorStatus = error?.status ? ` (Status: ${error.status})` : '';
       toast({
         title: "Sign up failed",
@@ -189,16 +257,16 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
       if (error) {
         // Always log errors in production for debugging
-        console.error('❌ Sign in error:', error);
-        console.error('Error status:', error.status);
-        console.error('Error message:', error.message);
-        console.error('Error name:', error.name);
+        logSupabaseAuthError('signInWithPassword', error);
         if (import.meta.env.DEV) {
           console.error('Full error object:', JSON.stringify(error, null, 2));
         }
         
         // Provide more helpful error messages
-        let userMessage = error.message || 'Sign in failed. Please try again.';
+        let userMessage =
+          getSupabaseAuthErrorDescription(error) ||
+          error.message ||
+          'Sign in failed. Please try again.';
         
         // Only show network error for actual network failures (no response from server)
         const isNetworkError = error.status === 0 && (
@@ -242,7 +310,11 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       }
       
       // Show FULL error details in toast for debugging (especially for TestFlight)
-      const errorMessage = error?.message || error?.msg || 'Unknown error occurred. Please try again.';
+      const errorMessage =
+        getSupabaseAuthErrorDescription(error) ||
+        error?.message ||
+        error?.msg ||
+        'Unknown error occurred. Please try again.';
       const errorStatus = error?.status ? ` (Status: ${error.status})` : '';
       const fullErrorMessage = `${errorMessage}${errorStatus}`;
       
@@ -258,7 +330,12 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   };
 
   const handleForgotPassword = async () => {
-    if (!email) {
+    if (!email.trim()) {
+      setEmailError('Please enter your email address.');
+      // Focus the email field for quick correction
+      requestAnimationFrame(() => {
+        signInEmailInputRef.current?.focus();
+      });
       toast({
         title: 'Email required',
         description: 'Please enter your email address first.',
@@ -274,14 +351,13 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       });
 
       if (error) {
-        if (import.meta.env.DEV) {
-          console.error('❌ Password reset error:', error);
-          console.error('Error status:', error.status);
-          console.error('Error message:', error.message);
-        }
+        logSupabaseAuthError('resetPasswordForEmail', error);
         
         // Provide better error messages
-        let errorMessage = error.message || 'Failed to send password reset email.';
+        let errorMessage =
+          getSupabaseAuthErrorDescription(error) ||
+          error.message ||
+          'Failed to send password reset email.';
         if (error.status === 429) {
           errorMessage = 'Too many attempts. Please wait a moment and try again.';
         } else if (error.status === 0) {
@@ -402,10 +478,10 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
               className="w-20 h-20 rounded-2xl"
             />
           </div>
-          <CardTitle className="text-3xl font-bold text-black mb-2" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+          <CardTitle className="text-[35px] font-bold leading-[1.2] text-black mb-2" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
             Synth
           </CardTitle>
-          <CardDescription className="text-[#666666] text-base" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+          <CardDescription className="text-[#666666] text-[20px] font-medium leading-[1.5]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
             Connect with people at events you love
           </CardDescription>
         </CardHeader>
@@ -430,32 +506,49 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             
             <TabsContent value="signin" className="mt-6">
               <div className="space-y-4">
-                <p className="text-body font-bold text-left">
-                  Sign in with email is temporarily unavailable. Please sign in with Apple to continue.
-                </p>
                 <AppleAuthButton />
                 {!isIOS && (
-                  <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                  <p className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
                     Apple Sign In is available on iOS devices.
                   </p>
                 )}
               </div>
 
-              {/* Keep existing email/password auth logic intact, but hide the UI */}
-              <div className="hidden" aria-hidden="true">
+              <div className="py-4">
+                <div className="flex items-center gap-3 pb-4">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <span className="text-[16px] font-medium leading-[1.5] text-[#666666]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    or
+                  </span>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
                 <form onSubmit={handleSignIn} className="space-y-6">
                   <div>
                     <Input
+                      ref={signInEmailInputRef}
                       id="signin-email"
                       name="signinEmail"
                       type="email"
                       placeholder="Email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => handleEmailChange(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
+                      aria-invalid={!!emailError}
+                      aria-describedby={emailError ? 'signin-email-error' : undefined}
+                      className={`w-full px-4 py-3 border rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all ${
+                        emailError ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     />
+                    {emailError && (
+                      <p
+                        id="signin-email-error"
+                        className="mt-2 text-[16px] font-medium leading-[1.5] text-red-600"
+                        style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                      >
+                        {emailError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Input
@@ -475,7 +568,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       type="button"
                       onClick={handleForgotPassword}
                       disabled={isResettingPassword}
-                      className="text-sm text-[#FF3399] hover:text-[#E6007A] transition-colors disabled:opacity-50"
+                      className="text-[16px] font-medium leading-[1.5] text-[#FF3399] hover:text-[#E6007A] transition-colors disabled:opacity-50"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     >
                       {isResettingPassword ? 'Sending...' : 'Forgot password?'}
@@ -489,8 +582,11 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                   >
                     {loading ? 'Signing in...' : 'Sign In'}
                   </Button>
-                  <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    Can't sign in? Make sure you've clicked the verification link we sent to your email.
+                  <p
+                    className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                  >
+                    Trouble signing in? Double-check your email and password, or use “Forgot password”.
                   </p>
                 </form>
               </div>
@@ -498,20 +594,36 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             
             <TabsContent value="signup" className="mt-6">
               <div className="space-y-4">
-                <p className="text-body font-bold text-left">
-                  Sign up with email is temporarily unavailable. Please sign up with Apple to continue.
-                </p>
                 <AppleAuthButton />
                 {!isIOS && (
-                  <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                  <p className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
                     Apple Sign In is available on iOS devices.
                   </p>
                 )}
               </div>
 
-              {/* Keep existing email/password + name auth logic intact, but hide the UI */}
-              <div className="hidden" aria-hidden="true">
+              <div className="py-4">
+                <div className="flex items-center gap-3 pb-4">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <span className="text-[16px] font-medium leading-[1.5] text-[#666666]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    or
+                  </span>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
                 <form onSubmit={handleSignUp} className="space-y-6">
+                  {signupEmailAlreadyRegistered && (
+                    <p
+                      style={{
+                        color: 'var(--status-error-500)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        fontFamily: 'var(--font-family)',
+                      }}
+                    >
+                      Email already associated with an account
+                    </p>
+                  )}
                   <div>
                     <Input
                       id="signup-name"
@@ -532,7 +644,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       type="email"
                       placeholder="Email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => handleEmailChange(e.target.value)}
                       required
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
@@ -552,9 +664,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     />
                   </div>
-                  <p className="text-xs text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    By signing up, you'll need to verify your email before you can sign in.
-                  </p>
                   <Button
                     type="submit"
                     disabled={loading}

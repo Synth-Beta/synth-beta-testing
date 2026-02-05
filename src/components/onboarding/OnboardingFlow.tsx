@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -20,11 +21,12 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const [loading, setLoading] = useState(false);
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { toast } = useToast();
   const exitInProgressRef = useRef(false);
 
   const [profileData, setProfileData] = useState<ProfileSetupData>({});
+  const [prefillLoading, setPrefillLoading] = useState(true);
 
   const beginExit = useCallback(() => {
     exitInProgressRef.current = true;
@@ -74,8 +76,80 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     step: 'onboarding_single_page',
   });
 
+  // Prefill profile fields if a public.users row already exists.
+  // IMPORTANT:
+  // - Only query when a session exists (prevents 403).
+  // - Use maybeSingle() so "no row yet" is treated as a new user (no noisy 406/PGRST116 logs).
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!session?.user?.id) {
+        setPrefillLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('username, location_city, birthday, gender, bio, avatar_url')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (cancelled) return;
+        if (error) {
+          console.warn('OnboardingFlow: failed to prefill profile data (continuing):', error);
+          setPrefillLoading(false);
+          return;
+        }
+
+        if (data) {
+          setProfileData({
+            username: data.username ?? undefined,
+            location_city: (data as any).location_city ?? undefined,
+            birthday: (data as any).birthday ?? undefined,
+            gender: (data as any).gender ?? undefined,
+            bio: (data as any).bio ?? undefined,
+            avatar_url: (data as any).avatar_url ?? undefined,
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setPrefillLoading(false);
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
   const handleCompleteSetup = async () => {
-    if (!user) return;
+    // Never call /auth/v1/user or profile/account queries unless we have a session.
+    if (!session || !user) {
+      toast({
+        title: 'Please sign in again',
+        description: 'Your session is not available yet. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const nameFromAuth =
+      (user.user_metadata?.name as string | undefined) ??
+      (user.user_metadata?.full_name as string | undefined) ??
+      undefined;
+    const finalName = (nameFromAuth ?? '').trim();
+    if (!finalName) {
+      toast({
+        title: 'Name required',
+        description: 'Please add your name before completing onboarding.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     // Validate profile via ref
     const profileResult = await profileStepRef.current?.validateAndGetData();
@@ -113,6 +187,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     try {
       // Save profile
       const profilePayload: ProfileSetupData = {
+        name: finalName,
         username: profileResult.data.username,
         location_city: profileResult.data.location_city,
         birthday: profileResult.data.birthday,
@@ -127,7 +202,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
           description: 'Failed to save profile data. Please try again.',
           variant: 'destructive',
         });
-        setLoading(false);
         return;
       }
 
@@ -176,7 +250,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
             description: errorMessage,
             variant: 'destructive',
           });
-          setLoading(false);
           return;
         }
       }
@@ -206,7 +279,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       console.error('Error in handleCompleteSetup:', error);
       toast({
         title: 'Error',
-        description: 'An error occurred. Please try again.',
+          description: error?.message || 'An error occurred. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -233,11 +306,13 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
             <div className="w-11" />
           </div>
 
-          {loading ? (
+          {loading || prefillLoading || !session ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center space-y-4">
                 <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-                <p className="text-muted-foreground">Saving your information...</p>
+                <p className="text-muted-foreground">
+                  {loading ? 'Saving your information...' : 'Preparing your account...'}
+                </p>
               </div>
             </div>
           ) : (
