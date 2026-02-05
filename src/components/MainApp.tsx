@@ -20,7 +20,6 @@ import { ShareWithFriendsBanner, isShareBannerDismissed } from './share/ShareWit
 import { OnboardingTour } from './onboarding/OnboardingTour';
 import { OnboardingFlow } from './onboarding/OnboardingFlow';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useActivityTracker } from '@/hooks/useActivityTracker';
 import { useAccountType } from '@/hooks/useAccountType';
@@ -33,7 +32,6 @@ import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
 import { HomeFeed } from './home/HomeFeed';
 import { streamingSyncService } from '@/services/streamingSyncService';
-import { ToastAction } from '@/components/ui/toast';
 import { EventReviewModal } from './EventReviewModal';
 import { FriendTaggedReviewInviteModal, type PrefillEvent } from './reviews/FriendTaggedReviewInviteModal';
 import { NotificationService } from '@/services/notificationService';
@@ -96,7 +94,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [runTour, setRunTour] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
-  const { toast } = useToast();
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const { accountInfo } = useAccountType();
   const navigate = useNavigate();
@@ -115,45 +112,17 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
     const unsubscribe = streamingSyncService.subscribe((syncState) => {
       if (syncState.status === 'completed' && syncState.serviceType) {
-        const serviceName = syncState.serviceType === 'spotify' ? 'Spotify' : 'Apple Music';
-        
-        toast({
-          title: "🎵 Stats Ready!",
-          description: `Your ${serviceName} streaming stats have been synced and are ready to view.`,
-          action: (
-            <ToastAction
-              altText="View stats"
-              onClick={() => {
-                window.location.href = '/streaming-stats';
-                localStorage.setItem('intendedView', 'profile');
-              }}
-              className=""
-              style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
-            >
-              View Stats
-            </ToastAction>
-          ),
-        });
-
-        // Clear sync state after showing notification
+        // Clear sync state after completion
         setTimeout(() => {
           streamingSyncService.clearSync();
         }, 1000);
-      } else if (syncState.status === 'error') {
-        toast({
-          title: "Sync Error",
-          description: `Failed to sync your ${syncState.serviceType === 'spotify' ? 'Spotify' : 'Apple Music'} stats: ${syncState.error || 'Unknown error'}`,
-          variant: "destructive",
-        });
       }
     });
 
     return () => {
       unsubscribe();
     };
-  }, [toast]);
+  }, []);
 
   // Check onboarding status on mount
   useEffect(() => {
@@ -345,35 +314,22 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   // Handle session expiration
   useEffect(() => {
     if (sessionExpired) {
-      // Session expired, redirecting to login
-      toast({
-        title: "Session Expired",
-        description: "Your session has expired. Please sign in again.",
-        variant: "destructive",
-      });
-      // Clear any local state and show auth
       setCurrentView('feed');
       setShowAuth(true); // Force show auth modal
     }
-  }, [sessionExpired, toast]);
+  }, [sessionExpired]);
 
   // Handle API key errors as session expiration
   useEffect(() => {
     const handleApiError = (event: CustomEvent) => {
       if (event.detail?.message?.includes('Invalid API key')) {
-        // API key error detected, treating as session expiration
         setShowAuth(true);
-        toast({
-          title: "Configuration Error",
-          description: "Please check your Supabase configuration and sign in again.",
-          variant: "destructive",
-        });
       }
     };
 
     window.addEventListener('api-error', handleApiError as EventListener);
     return () => window.removeEventListener('api-error', handleApiError as EventListener);
-  }, [toast]);
+  }, []);
 
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -563,11 +519,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       setEvents(transformedEvents);
     } catch (error) {
       // Error loading events
-      toast({
-        title: "Error",
-        description: "Failed to load events",
-        variant: "destructive",
-      });
     }
   };
 
@@ -576,21 +527,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
     try {
       if (direction === 'like') {
-        // Add to user's interested events
         await UserEventService.setEventInterest(user.id, eventId, true);
-
-        toast({
-          title: "Event Added!",
-          description: "You've shown interest in this event",
-        });
       }
     } catch (error) {
       // Error handling event swipe
-      toast({
-        title: "Error",
-        description: "Failed to process your action",
-        variant: "destructive",
-      });
     }
   };
 
@@ -641,17 +581,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       await signOut();
       setShowAuth(false); // Hide auth modal
       setShowSettings(false); // Hide settings modal
-      toast({
-        title: "Signed out",
-        description: "You've been successfully signed out.",
-      });
     } catch (error: any) {
       // Error signing out
-      toast({
-        title: "Error",
-        description: "Failed to sign out. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -698,38 +629,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
       if (error) {
         console.error('Error fetching event:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load event details",
-          variant: "destructive",
-        });
         return;
       }
 
       if (eventData) {
-        // Normalize the event data to include artist_name and venue_name from JOINed data
         const normalizedEvent = {
           ...eventData,
           artist_name: (eventData.artists?.name) || null,
           venue_name: (eventData.venues?.name) || null,
         };
-        // Store the event data in localStorage for the feed to pick up
         localStorage.setItem('selectedEvent', JSON.stringify(normalizedEvent));
-        // Navigate to feed where the event modal will open
-        // The HomeFeed useEffect will detect this and open the modal
         setCurrentView('feed');
-        // Also dispatch custom event as backup mechanism
-        window.dispatchEvent(new CustomEvent('open-event-details', { 
-          detail: { event: normalizedEvent } 
+        window.dispatchEvent(new CustomEvent('open-event-details', {
+          detail: { event: normalizedEvent }
         }));
       }
     } catch (error) {
       console.error('Error navigating to event:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load event",
-        variant: "destructive",
-      });
     }
   };
 
@@ -918,6 +834,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToEvent={handleNavigateToEvent}
             onNavigateToArtist={handleNavigateToArtist}
             onNavigateToVenue={handleNavigateToVenue}
+            onNavigateToChat={handleNavigateToChat}
+            onNavigateToDiscover={() => setCurrentView('search')}
             filter={notificationFilter}
           />
         );

@@ -17,8 +17,6 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { SynthSLogo } from '@/components/SynthSLogo';
-import { useToast } from '@/hooks/use-toast';
-
 interface SearchMapProps {
   userId: string;
 }
@@ -33,9 +31,7 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
   const [radiusMiles, setRadiusMiles] = useState(25);
   const [initialMapCenter, setInitialMapCenter] = useState<[number, number] | null>(null);
   const [isSearchingArea, setIsSearchingArea] = useState(false);
-  const { toast } = useToast();
-
-  // Initialize user location and load events
+// Initialize user location and load events
   useEffect(() => {
     console.log('🗺️ SearchMap: Initializing map component');
     
@@ -83,30 +79,16 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
             });
             
             setUpcomingEvents(sortedEvents);
-            toast({
-              title: "Events Near You",
-              description: `Showing ${sortedEvents.length} upcoming events within 50 miles`,
-            });
             console.log(`✅ Found ${sortedEvents.length} events near your location`);
           } else {
             console.log('📭 No events found near user location, trying broader search...');
             // Fallback to regular database search
             await loadUpcomingEvents();
-            toast({
-              title: "No Local Events",
-              description: "No events found near your location. Showing general upcoming events.",
-              variant: "default",
-            });
-          }
+            }
         } catch (error) {
           console.error('Error loading nearby events:', error);
           await loadUpcomingEvents();
-          toast({
-            title: "Location Search Failed",
-            description: "Could not load events near your location. Showing general upcoming events.",
-            variant: "destructive",
-          });
-        }
+          }
       })
       .catch((error: any) => {
         // Only log unexpected errors, not permission denials (code 1)
@@ -121,12 +103,7 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
         // Permission denials are silent since user intentionally denied access
         if (error?.code !== 1) {
           const errorMessage = LocationService.getLocationErrorMessage(error);
-          toast({
-            title: errorMessage.title,
-            description: errorMessage.description,
-            variant: "default",
-          });
-        }
+          }
       });
   }, [userId]);
 
@@ -233,10 +210,6 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
         setMapZoom(eventMapConfig.zoom);
         setUpcomingEvents(events);
         
-        toast({
-          title: "Events Found",
-          description: `Found ${events.length} events within ${radiusMiles} miles of ${mapLocation}`,
-        });
         console.log(`✅ Found ${events.length} events within ${radiusMiles} miles of ${mapLocation}`);
       } else {
         // Center on the searched location even if no events found
@@ -246,30 +219,15 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
         }
         setUpcomingEvents([]);
         
-        toast({
-          title: "No Events Found",
-          description: `No events found within ${radiusMiles} miles of ${mapLocation}. Try a different location or increase the radius.`,
-          variant: "default",
-        });
         console.log(`📭 No events found within ${radiusMiles} miles of ${mapLocation}`);
       }
     } catch (error) {
       console.error('Error searching location:', error);
-      toast({
-        title: "Search Error",
-        description: "Failed to search for location. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const handleRefreshEvents = async () => {
     if (!userLocation) {
-      toast({
-        title: "No Location",
-        description: "Please allow location access to refresh events",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -290,27 +248,13 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
         setMapZoom(mapConfig.zoom);
         setUpcomingEvents(events);
         
-        toast({
-          title: "Events Refreshed",
-          description: `Found ${events.length} events within ${radiusMiles} miles of your location`,
-        });
         console.log(`✅ Refreshed ${events.length} events within ${radiusMiles} miles`);
       } else {
-        toast({
-          title: "No New Events",
-          description: `No events found within ${radiusMiles} miles of your location`,
-          variant: "default",
-        });
         console.log(`📭 No events found within ${radiusMiles} miles after refresh`);
       }
     } catch (error) {
       console.error('Error refreshing events:', error);
-      toast({
-        title: "Refresh Failed",
-        description: "Failed to refresh events. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setIsRefreshing(false);
     }
   };
@@ -362,28 +306,14 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
         });
         
         setUpcomingEvents(sortedEvents);
-        toast({
-          title: "Events Found",
-          description: `Found ${sortedEvents.length} events within ${radiusMiles} miles of this area`,
-        });
         console.log(`✅ Found ${sortedEvents.length} events in the selected area`);
       } else {
         setUpcomingEvents([]);
-        toast({
-          title: "No Events Found",
-          description: `No events found within ${radiusMiles} miles of this area. Try increasing the radius.`,
-          variant: "default",
-        });
         console.log(`📭 No events found in the selected area`);
       }
     } catch (error) {
       console.error('Error searching area:', error);
-      toast({
-        title: "Search Failed",
-        description: "Failed to search this area. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setIsSearchingArea(false);
     }
   };

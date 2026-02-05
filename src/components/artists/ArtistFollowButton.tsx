@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { UserPlus, UserCheck, Loader2 } from 'lucide-react';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { trackInteraction } from '@/services/interactionTrackingService';
 
@@ -39,9 +38,7 @@ export function ArtistFollowButton({
   const [loading, setLoading] = useState(false);
   const [artistId, setArtistId] = useState<string | null>(propArtistId || null);
   const [resolvedArtistId, setResolvedArtistId] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  // Resolve artist UUID from jambaseArtistId or name if needed
+// Resolve artist UUID from jambaseArtistId or name if needed
   useEffect(() => {
     const resolveArtistId = async () => {
       if (propArtistId) {
@@ -144,11 +141,6 @@ export function ArtistFollowButton({
     e.stopPropagation();
 
     if (!userId) {
-      toast({
-        title: 'Error',
-        description: 'Please log in to follow artists.',
-        variant: 'destructive'
-      });
       return;
     }
 
@@ -221,22 +213,10 @@ export function ArtistFollowButton({
         }
       }
 
-      toast({
-        title: newIsFollowing ? 'Following!' : 'Unfollowed',
-        description: newIsFollowing
-          ? `You'll receive notifications when ${artistName || 'this artist'} has new events or updates`
-          : `You won't receive notifications from ${artistName || 'this artist'} anymore`
-      });
-
       onFollowChange?.(newIsFollowing);
     } catch (error) {
       console.error('Error toggling follow:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to ${isFollowing ? 'unfollow' : 'follow'} artist`,
-        variant: 'destructive'
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

@@ -25,7 +25,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsService } from '@/services/friendsService';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchUserNotifications } from '@/utils/notificationUtils';
 import { format, parseISO } from 'date-fns';
@@ -78,8 +77,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
   const [showChatView, setShowChatView] = useState(false);
   const [showUnifiedChat, setShowUnifiedChat] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const { toast } = useToast();
-  const { sessionExpired } = useAuth();
+const { sessionExpired } = useAuth();
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -221,7 +219,6 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     }
   };
 
-
   const handleLike = async (reviewId: string) => {
     try {
       // Toggle like status
@@ -237,11 +234,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         )
       );
       
-      toast({
-        title: "Like Updated",
-        description: "Your like has been updated!",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error liking review:', error);
     }
   };
@@ -252,11 +245,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       const shareText = `Check out this concert review: ${review.event.event_name} by ${review.user.name}`;
       await navigator.clipboard.writeText(shareText);
       
-      toast({
-        title: "Shared!",
-        description: "Review link copied to clipboard",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error sharing review:', error);
     }
   };
@@ -285,24 +274,14 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
       if (error) {
         console.error('Error searching users:', error);
-        toast({
-          title: "Search Error",
-          description: "Failed to search users. Please try again.",
-          variant: "destructive",
-        });
-        return;
+        teturn;
       }
 
       setSearchResults(profiles || []);
       console.log('🔍 Set search results:', profiles || []);
     } catch (error) {
       console.error('Error searching users:', error);
-      toast({
-        title: "Search Error",
-        description: "Failed to search users. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      t finally {
       setSearchLoading(false);
     }
   };
@@ -356,19 +335,9 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       setSearchResults(prev => prev.filter(user => user.id !== userId));
       setUserSearchQuery(''); // Clear search
 
-      toast({
-        title: "Friend Request Sent! 🎉",
-        description: "Your friend request has been sent and they'll be notified.",
-      });
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error sending friend request:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send friend request. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+      t  };
 
   const checkFriendRequestStatus = async (requestId: string) => {
     try {
@@ -397,12 +366,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     console.log('🤝 Request ID value:', JSON.stringify(requestId));
     
     if (!requestId) {
-      toast({
-        title: "Error",
-        description: "Invalid friend request. Please refresh and try again.",
-        variant: "destructive",
-      });
-      return;
+      teturn;
     }
 
     // First check if the request is still valid
@@ -410,12 +374,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     console.log('🔍 Request status:', requestStatus);
 
     if (requestStatus === 'not_found' || requestStatus === 'accepted' || requestStatus === 'declined') {
-      toast({
-        title: "Request Already Processed",
-        description: "This friend request has already been handled. Refreshing notifications...",
-        variant: "destructive",
-      });
-      // Refresh notifications to remove the processed request
+      t/ Refresh notifications to remove the processed request
       fetchNotifications();
       return;
     }
@@ -436,12 +395,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         
         // Handle specific error cases
         if (error.message.includes('not found') || error.message.includes('already processed')) {
-          toast({
-            title: "Request Already Processed",
-            description: "This friend request has already been handled. Refreshing notifications...",
-            variant: "destructive",
-          });
-          // Refresh notifications to remove the processed request
+          t/ Refresh notifications to remove the processed request
           fetchNotifications();
           return;
         }
@@ -506,12 +460,7 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
         
         // Handle specific error cases
         if (error.message.includes('not found') || error.message.includes('already processed')) {
-          toast({
-            title: "Request Already Processed",
-            description: "This friend request has already been handled. Refreshing notifications...",
-            variant: "destructive",
-          });
-          // Refresh notifications to remove the processed request
+          t/ Refresh notifications to remove the processed request
           fetchNotifications();
           return;
         }
@@ -522,19 +471,9 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
       // Remove the notification from UI immediately
       setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
 
-      toast({
-        title: "Friend Request Declined",
-        description: "The friend request has been declined.",
-      });
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error declining friend request:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to decline friend request. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+      t  };
 
   const getRatingText = (rating: number | 'good' | 'okay' | 'bad') => {
     if (typeof rating === 'number') {
@@ -614,19 +553,9 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
     try {
       await ReviewService.deleteEventReview(currentUserId, reviewId);
       fetchReviews(); // Refresh the list
-      toast({
-        title: "Review Deleted",
-        description: "Your review has been deleted.",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error deleting review:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete review. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+      t  };
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => {
@@ -801,7 +730,6 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
             </div>
           </TabsContent>
-
 
           <TabsContent value="news" className="mt-6">
             <div className="space-y-3">
@@ -1300,29 +1228,15 @@ export const ConcertFeed = ({ currentUserId, onBack, onNavigateToChat, onNavigat
 
                             if (error) {
                               console.error('Error creating direct chat:', error);
-                              toast({
-                                title: "Error",
-                                description: "Failed to create chat. Please try again.",
-                                variant: "destructive",
-                              });
-                              return;
+                              toturn;
                             }
 
                             setShowFriendsChatModal(false);
                             setShowChatView(true);
                             
-                            toast({
-                              title: "Chat Created! 💬",
-                              description: `You can now chat with ${friend.name}!`,
-                            });
-                          } catch (error) {
+                            tocatch (error) {
                             console.error('Error creating direct chat:', error);
-                            toast({
-                              title: "Error",
-                              description: "Failed to create chat. Please try again.",
-                              variant: "destructive",
-                            });
-                          }
+                            }
                         }}
                         className="bg-blue-500 hover:bg-blue-600 text-white"
                       >

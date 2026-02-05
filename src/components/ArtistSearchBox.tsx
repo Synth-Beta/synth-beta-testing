@@ -295,12 +295,26 @@ export function ArtistSearchBox({
               )}
             </div>
           ) : (
-            <div className="px-6 py-12 text-center text-gray-500">
+            <div className="px-6 py-8 text-center text-gray-500">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                 <Music className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No artists found</h3>
-              <p className="text-sm text-gray-600">Try a different search term</p>
+              <p className="text-sm text-gray-600 mb-4">Try a different search term or add this artist:</p>
+              {query.trim() && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleArtistSelect({ name: query.trim() } as Artist);
+                  }}
+                >
+                  Use &quot;{query.trim()}&quot; as artist
+                </Button>
+              )}
             </div>
           )}
         </div>

@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, XCircle, RefreshCw, TrendingUp, Search, Filter, Download } from 'lucide-react';
 import { VerificationService } from '@/services/verificationService';
-import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 interface UserNearVerification {
@@ -34,9 +33,7 @@ export function VerificationManagement({ currentUserId }: VerificationManagement
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'verified' | 'unverified'>('all');
   const [sortBy, setSortBy] = useState<'score' | 'date'>('score');
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     fetchUsersNearVerification();
   }, []);
 
@@ -77,12 +74,7 @@ export function VerificationManagement({ currentUserId }: VerificationManagement
       setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load users near verification.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -92,21 +84,11 @@ export function VerificationManagement({ currentUserId }: VerificationManagement
       setActionLoading(userId);
       await VerificationService.manuallyVerifyUser(userId, currentUserId, verify);
       
-      toast({
-        title: 'Success',
-        description: `User ${verify ? 'verified' : 'unverified'} successfully.`,
-      });
-
       // Refresh the list
       await fetchUsersNearVerification();
     } catch (error) {
       console.error('Error verifying user:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update user verification status.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setActionLoading(null);
     }
   };

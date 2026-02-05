@@ -29,7 +29,8 @@
     "ios:upload": "./scripts/build-and-upload-ios.sh",
     "android:build": "npm run build && npx cap sync android",
     "sync-admin": "./scripts/sync-admin-to-getsynth.sh",
-    "push:worker": "node backend/push-notification-worker.js"
+    "push:worker": "node backend/push-notification-worker.js",
+    "push:test": "node backend/test-apns-connection.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
@@ -102,7 +103,8 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
     "vaul": "^0.9.9",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "apn": "^2.2.0"
   },
   "devDependencies": {
     "@babel/generator": "^7.28.6",

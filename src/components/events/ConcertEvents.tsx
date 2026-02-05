@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { UserEventService } from '@/services/userEventService';
-import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
@@ -47,9 +46,7 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [selectedEvent, setSelectedEvent] = useState<ConcertEvent | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     loadConcerts();
     loadInterestedEvents();
   }, [currentUserId]);
@@ -77,12 +74,7 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
       setConcerts(data || []);
     } catch (error) {
       console.error('Error loading concerts:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load concerts",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -107,24 +99,11 @@ export const ConcertEvents = ({ currentUserId, onBack, onNavigateToProfile, onNa
       await loadInterestedEvents();
 
       if (isCurrentlyInterested) {
-        toast({
-          title: "Removed from Interested",
-          description: "Event removed from your interested list",
-        });
-      } else {
-        toast({
-          title: "Added to Interested!",
-          description: "Event added to your interested list",
-        });
-      }
+        } else {
+        }
     } catch (error) {
       console.error('Error toggling interest:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update your interest",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const filteredConcerts = concerts.filter(concert => {

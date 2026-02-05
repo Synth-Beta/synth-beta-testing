@@ -18,7 +18,6 @@ import {
   LogIn
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UserStreamingStatsService, type UserStreamingStatsSummary, type TimeRange } from '@/services/userStreamingStatsService';
 import { spotifyService } from '@/services/spotifyService';
@@ -26,11 +25,11 @@ import { appleMusicService } from '@/services/appleMusicService';
 import { detectStreamingServiceType } from '@/components/streaming/UnifiedStreamingStats';
 import { format } from 'date-fns';
 import { streamingSyncService } from '@/services/streamingSyncService';
+import { toast } from '@/hooks/use-toast';
 
 export const StreamingStatsPage = () => {
   const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [streamingProfile, setStreamingProfile] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStreamingStatsSummary | null>(null);
@@ -134,41 +133,21 @@ export const StreamingStatsPage = () => {
   const handleConnectSpotify = async () => {
     try {
       if (!spotifyService.isConfigured()) {
-        toast({
-          title: "Spotify Not Configured",
-          description: "Spotify integration is not available.",
-          variant: "destructive",
-        });
         return;
       }
       await spotifyService.authenticate();
     } catch (error) {
       console.error('Error connecting Spotify:', error);
-      toast({
-        title: "Connection Failed",
-        description: "Failed to connect to Spotify. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const handleConnectAppleMusic = async () => {
     try {
       setSyncing(true);
-      toast({
-        title: "Connecting to Apple Music",
-        description: "Please authorize in the popup window...",
-      });
-      
       await appleMusicService.authenticate();
       
       // Start background sync tracking
       streamingSyncService.startSync('apple-music');
-      
-      toast({
-        title: "Connected!",
-        description: "Your stats are syncing in the background. You'll be notified when ready!",
-      });
       
       // Trigger sync in background (don't await)
       appleMusicService.syncProfileData().then(() => {
@@ -189,11 +168,6 @@ export const StreamingStatsPage = () => {
     } catch (error) {
       console.error('Error connecting Apple Music:', error);
       streamingSyncService.errorSync(error instanceof Error ? error.message : 'Connection failed');
-      toast({
-        title: "Connection Failed",
-        description: "Failed to connect to Apple Music. Please try again.",
-        variant: "destructive",
-      });
       setSyncing(false);
     }
   };
@@ -203,21 +177,11 @@ export const StreamingStatsPage = () => {
 
     try {
       setSyncing(true);
-      toast({
-        title: "Syncing Stats",
-        description: "Fetching comprehensive streaming data... This may take a moment.",
-      });
-      
       // Don't track this sync in the sync service (user is already on stats page)
       // This prevents showing a notification when they're already viewing stats
       
       if (serviceType === 'spotify') {
         if (!spotifyService.isAuthenticated()) {
-          toast({
-            title: "Not Connected",
-            description: "Please connect your Spotify account first.",
-            variant: "destructive",
-          });
           setNeedsConnection(true);
           return;
         }
@@ -226,11 +190,6 @@ export const StreamingStatsPage = () => {
         await spotifyService.syncUserMusicPreferences();
       } else if (serviceType === 'apple-music') {
         if (!appleMusicService.checkStoredToken()) {
-          toast({
-            title: "Not Connected",
-            description: "Please connect your Apple Music account first.",
-            variant: "destructive",
-          });
           setNeedsConnection(true);
           return;
         }
@@ -273,11 +232,6 @@ export const StreamingStatsPage = () => {
       });
     } catch (error) {
       console.error('Error syncing stats:', error);
-      toast({
-        title: "Sync Failed",
-        description: "Failed to sync streaming stats. Please try again.",
-        variant: "destructive",
-      });
     } finally {
       setSyncing(false);
     }

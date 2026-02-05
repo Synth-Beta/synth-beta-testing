@@ -7,7 +7,6 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Heart, MessageCircle, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
@@ -21,8 +20,7 @@ interface EventPhotoGalleryProps {
 
 export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: EventPhotoGalleryProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [photos, setPhotos] = useState<EventPhoto[]>([]);
+const [photos, setPhotos] = useState<EventPhoto[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,19 +43,11 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
 
   const handleLike = async (photo: EventPhoto) => {
     // Photos in reviews don't have separate likes - they use review likes
-    toast({
-      title: 'Info',
-      description: 'Photos are part of reviews. Like the review instead.',
-    });
-  };
+    };
 
   const handleDelete = async (photo: EventPhoto) => {
     // Photos are part of reviews - users should edit the review to remove photos
-    toast({
-      title: 'Info',
-      description: 'Photos are part of reviews. Please edit the review to remove photos.',
-    });
-  };
+    };
 
   const PhotoCard = ({ photo }: { photo: EventPhoto }) => (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -117,11 +107,7 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
             variant="ghost"
             size="sm"
             onClick={() => {
-              toast({
-                title: 'Info',
-                description: 'Photos are part of reviews. Comment on the review instead.',
-              });
-            }}
+              }}
             className="text-gray-600"
           >
             <MessageCircle className="h-4 w-4 mr-1" />
@@ -166,11 +152,7 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
         {canUpload && (
           <Button 
             onClick={() => {
-              toast({
-                title: 'Info',
-                description: 'Photos are added through reviews. Please create or edit a review to add photos.',
-              });
-            }} 
+              }} 
             size="sm"
           >
             <Upload className="h-4 w-4 mr-2" />
@@ -192,11 +174,7 @@ export function EventPhotoGallery({ eventId, eventTitle, canUpload = true }: Eve
             </p>
             {canUpload && (
               <Button onClick={() => {
-                toast({
-                  title: 'Info',
-                  description: 'Photos are added through reviews. Please create or edit a review to add photos.',
-                });
-              }}>
+                }}>
                 <Upload className="h-4 w-4 mr-2" />
                 Upload First Photo
               </Button>

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Bell, CheckCircle, XCircle, AlertCircle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
 import { PushNotificationService } from '@/services/pushNotificationService';
 
 interface PushNotificationsSettingsProps {
@@ -12,9 +11,7 @@ interface PushNotificationsSettingsProps {
 export const PushNotificationsSettings = ({ onClose }: PushNotificationsSettingsProps) => {
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermission>('default');
   const [isRequesting, setIsRequesting] = useState(false);
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     // Check current permission status
     if ('Notification' in window) {
       setPermissionStatus(Notification.permission);
@@ -23,11 +20,6 @@ export const PushNotificationsSettings = ({ onClose }: PushNotificationsSettings
 
   const handleRequestPermission = async () => {
     if (!('Notification' in window)) {
-      toast({
-        title: 'Not Supported',
-        description: 'Push notifications are not supported in this browser.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -37,26 +29,12 @@ export const PushNotificationsSettings = ({ onClose }: PushNotificationsSettings
       
       if (granted) {
         setPermissionStatus('granted');
-        toast({
-          title: 'Notifications Enabled',
-          description: 'You will now receive push notifications.',
-        });
-      } else {
+        } else {
         setPermissionStatus('denied');
-        toast({
-          title: 'Permission Denied',
-          description: 'Push notifications have been blocked. You can enable them in your browser settings.',
-          variant: 'destructive',
-        });
-      }
+        }
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to request notification permission.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsRequesting(false);
     }
   };

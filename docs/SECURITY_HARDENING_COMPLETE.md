@@ -249,7 +249,7 @@ Run these commands to verify security:
 
 ```bash
 # Check for hardcoded keys
-grep -r "pk.eyJ\|QxGjjwxk0MUyxyCJa2FADnFRwEqFUy" src/ backend/
+grep -r "pk.eyJ\|SETLIST_FM_API_KEY=\|api[Kk]ey.*=" src/ backend/
 
 # Check rate limiting coverage
 grep -r "createRateLimiter" backend/ | wc -l

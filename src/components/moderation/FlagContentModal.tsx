@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
 import { ModerationService } from '@/services/moderationService';
 import { Flag } from 'lucide-react';
 
@@ -39,9 +38,7 @@ export const FlagContentModal: React.FC<FlagContentModalProps> = ({
   const [flagReason, setFlagReason] = useState<string>('');
   const [additionalDetails, setAdditionalDetails] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
-
-  const flagCategories = [
+const flagCategories = [
     { value: 'spam', label: 'Spam' },
     { value: 'harassment', label: 'Harassment' },
     { value: 'inappropriate_content', label: 'Inappropriate Content' },
@@ -53,11 +50,6 @@ export const FlagContentModal: React.FC<FlagContentModalProps> = ({
 
   const handleSubmit = async () => {
     if (!flagCategory || !flagReason.trim()) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please select a category and provide a reason for flagging.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -71,11 +63,6 @@ export const FlagContentModal: React.FC<FlagContentModalProps> = ({
         additional_details: additionalDetails.trim() || undefined,
       });
 
-      toast({
-        title: 'Content Flagged',
-        description: 'Thank you for reporting this. Our team will review it shortly.',
-      });
-
       // Reset form
       setFlagCategory('');
       setFlagReason('');
@@ -83,12 +70,7 @@ export const FlagContentModal: React.FC<FlagContentModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('Error flagging content:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to flag content. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsSubmitting(false);
     }
   };

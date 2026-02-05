@@ -12,7 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Loader2, Users, MessageCircle, Sparkles, Calendar, MapPin, Bell, UserPlus, Star, Heart, Share2, Bookmark, Images, Play, X, UserCheck } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { PageActions } from '@/components/PageActions';
 import { fetchUserChats } from '@/services/chatService';
@@ -145,8 +144,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   onNavigateToNotifications,
 }) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  // Bug 2 fix: Track which chats are currently being opened to prevent concurrent requests
+// Bug 2 fix: Track which chats are currently being opened to prevent concurrent requests
   const openingChatsRef = useRef<Set<string>>(new Set());
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewItems, setReviewItems] = useState<UnifiedFeedItem[]>([]);
@@ -799,24 +797,12 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
                             if (error) throw error;
 
-                            toast({
-                              title: 'Friend Request Sent! 🎉',
-                              description: 'Your friend request has been sent.',
-                            });
-
                             setRecommendedUsers((prev) =>
                               prev.filter((u) => u.recommended_user_id !== user.recommended_user_id)
                             );
                           } catch (error: any) {
                             console.error('Error sending friend request:', error);
-                            toast({
-                              title: 'Error',
-                              description:
-                                error.message ||
-                                'Failed to send friend request. Please try again.',
-                              variant: 'destructive',
-                            });
-                          } finally {
+                            } finally {
                             setSendingFriendRequest(false);
                           }
                         }}
@@ -844,7 +830,6 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       </Card>
     );
   };
-
 
   const renderReviewsSection = () => {
     if (reviewsLoading) {
@@ -1128,28 +1113,13 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
               if (error) {
                 console.error('Error creating chat:', error);
-                toast({
-                  title: "Error",
-                  description: "Failed to start chat. Please try again.",
-                  variant: "destructive",
-                });
-                return;
+                teturn;
               }
 
               onNavigateToChat(interest.userId);
-              toast({
-                title: "Chat Started! 💬",
-                description: `You can now chat with ${interest.userName} about this event!`,
-              });
-            } catch (error) {
+              } catch (error) {
               console.error('Error starting chat:', error);
-              toast({
-                title: "Error",
-                description: "Failed to start chat. Please try again.",
-                variant: "destructive",
-              });
-            }
-          };
+              t          };
 
           return (
             <Card key={interest.id} className="hover:shadow-md transition-shadow">
@@ -1432,12 +1402,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                 
                 if (error) {
                   console.error('Error fetching chat participants:', error);
-                  toast({
-                    title: "Error",
-                    description: "Unable to open chat. Please try again.",
-                    variant: "destructive"
-                  });
-                  return; // Early return is fine here - finally will still execute
+                  teturn; // Early return is fine here - finally will still execute
                 }
                 
                 const otherUserId = participants?.[0]?.user_id || null;
@@ -1445,13 +1410,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                   onNavigateToChat(otherUserId);
                 } else {
                   console.warn('No other participant found for direct chat:', chat.id);
-                  toast({
-                    title: "Chat unavailable",
-                    description: "Unable to find the other participant in this chat.",
-                    variant: "destructive"
-                  });
-                }
-              } finally {
+                  t              } finally {
                 // Remove from set after operation completes (always executes, even on early returns)
                 openingChatsRef.current.delete(chat.id);
               }
@@ -1535,30 +1494,13 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
               if (error) {
                 console.error('Error creating chat:', error);
-                toast({
-                  title: "Error",
-                  description: "Failed to start chat. Please try again.",
-                  variant: "destructive",
-                });
-                return;
+                teturn;
               }
 
               onNavigateToChat(friend.user_id);
-              toast({
-                title: "Chat Started! 💬",
-                description: friend.shared_event_title 
-                  ? `You can now chat with ${friend.name} about ${friend.shared_event_artist || 'this event'}!`
-                  : `You can now chat with ${friend.name}!`,
-              });
-            } catch (error) {
+              } catch (error) {
               console.error('Error starting chat:', error);
-              toast({
-                title: "Error",
-                description: "Failed to start chat. Please try again.",
-                variant: "destructive",
-              });
-            }
-          };
+              t          };
 
           return (
             <Card key={friend.user_id} className="border cursor-pointer hover:bg-muted/50 transition-colors">
@@ -1731,12 +1673,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                         
                         if (error) throw error;
                         
-                        toast({
-                          title: "Friend Request Sent! 🎉",
-                          description: "Your friend request has been sent.",
-                        });
-                        
-                        // Update connection to show pending status
+                        t/ Update connection to show pending status
                         setReviewAuthorConnection({
                           ...reviewAuthorConnection,
                           label: 'Request Sent',
@@ -1744,12 +1681,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                         });
                       } catch (error: any) {
                         console.error('Error sending friend request:', error);
-                        toast({
-                          title: "Error",
-                          description: error.message || "Failed to send friend request. Please try again.",
-                          variant: "destructive",
-                        });
-                      } finally {
+                        } finally {
                         setSendingFriendRequest(false);
                       }
                     }}

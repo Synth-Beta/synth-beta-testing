@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Send, Loader2 } from 'lucide-react';
 import EventPhotoService, { EventPhoto, PhotoComment } from '@/services/eventPhotoService';
 
@@ -29,8 +28,7 @@ export function PhotoCommentsModal({
   photo,
   onCommentAdded,
 }: PhotoCommentsModalProps) {
-  const { toast } = useToast();
-  const [comments, setComments] = useState<PhotoComment[]>([]);
+const [comments, setComments] = useState<PhotoComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,12 +64,7 @@ export function PhotoCommentsModal({
       onCommentAdded?.();
     } catch (error) {
       console.error('Error adding comment:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to add comment',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsSubmitting(false);
     }
   };

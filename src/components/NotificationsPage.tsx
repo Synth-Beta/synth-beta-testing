@@ -17,7 +17,6 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { NotificationService } from '@/services/notificationService';
 import type { NotificationWithDetails } from '@/types/notifications';
@@ -40,6 +39,8 @@ interface NotificationsPageProps {
   onNavigateToEvent?: (eventId: string) => void;
   onNavigateToArtist?: (artistId: string) => void;
   onNavigateToVenue?: (venueName: string) => void;
+  onNavigateToChat?: (chatId: string) => void;
+  onNavigateToDiscover?: () => void;
   filter?: 'friends_only' | 'exclude_friends';
 }
 
@@ -50,6 +51,8 @@ export const NotificationsPage = ({
   onNavigateToEvent,
   onNavigateToArtist,
   onNavigateToVenue,
+  onNavigateToChat,
+  onNavigateToDiscover,
   filter,
 }: NotificationsPageProps) => {
   // Track notifications view
@@ -58,7 +61,6 @@ export const NotificationsPage = ({
   const [notifications, setNotifications] = useState<NotificationWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
-  const { toast } = useToast();
   const { sessionExpired } = useAuth();
 
   useEffect(() => {
@@ -105,11 +107,6 @@ export const NotificationsPage = ({
       setUnreadCount(filteredUnread);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load notifications. Please try again.",
-        variant: "destructive",
-      });
       setNotifications([]);
       setUnreadCount(0);
     } finally {
@@ -130,11 +127,6 @@ export const NotificationsPage = ({
       setUnreadCount(count);
     } catch (error) {
       console.error('Error marking notification as read:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mark notification as read",
-        variant: "destructive",
-      });
     }
   };
 
@@ -145,17 +137,8 @@ export const NotificationsPage = ({
       // Refresh notifications to get updated state
       await fetchNotifications();
       
-      toast({
-        title: "All notifications marked as read",
-        description: "You're all caught up!",
-      });
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mark all notifications as read",
-        variant: "destructive",
-      });
     }
   };
 
@@ -283,11 +266,6 @@ export const NotificationsPage = ({
     console.log('🤝 Accepting friend request:', requestId);
     
     if (!requestId) {
-      toast({
-        title: "Error",
-        description: "Invalid friend request. Please refresh and try again.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -332,10 +310,6 @@ export const NotificationsPage = ({
           await new Promise(resolve => setTimeout(resolve, 500));
           await fetchNotifications();
           
-          toast({
-            title: "Already Friends! ✅",
-            description: "You're already friends with this person.",
-          });
           return;
         }
         
@@ -344,15 +318,6 @@ export const NotificationsPage = ({
           // Check if they're already friends (request was already accepted)
           const requestStatus = await checkFriendRequestStatus(requestId);
           if (requestStatus === 'accepted') {
-            toast({
-              title: "Already Friends! ✅",
-              description: "You're already friends with this person.",
-            });
-          } else {
-            toast({
-              title: "Request Already Processed",
-              description: "This friend request has already been handled.",
-            });
           }
           
           // Immediately remove from UI
@@ -427,12 +392,6 @@ export const NotificationsPage = ({
         
         // Handle specific error cases (use optional chaining for consistency)
         if (error.message?.includes('not found') || error.message?.includes('already processed')) {
-          toast({
-            title: "Request Already Processed",
-            description: "This friend request has already been handled.",
-            variant: "destructive",
-          });
-          
           // Immediately remove from UI (consistent with handleAcceptFriendRequest)
           setNotifications(prev => prev.filter(n => {
             const notifRequestId = (n.data as any)?.request_id;
@@ -483,17 +442,8 @@ export const NotificationsPage = ({
       await new Promise(resolve => setTimeout(resolve, 500));
       await fetchNotifications();
 
-      toast({
-        title: "Friend Request Declined",
-        description: "The friend request has been declined.",
-      });
     } catch (error: any) {
       console.error('Error declining friend request:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to decline friend request. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -560,7 +510,6 @@ export const NotificationsPage = ({
     // Navigate based on notification type and available data
     switch (notification.type) {
       case 'artist_new_event':
-      case 'artist_profile_updated':
         // Prioritize navigating to event if available (more specific)
         if (data?.event_id && onNavigateToEvent) {
           onNavigateToEvent(data.event_id);
@@ -575,7 +524,6 @@ export const NotificationsPage = ({
         break;
 
       case 'venue_new_event':
-      case 'venue_profile_updated':
         // Navigate to venue if venue name is available
         if (notification.venue_name && onNavigateToVenue) {
           onNavigateToVenue(notification.venue_name);
@@ -616,12 +564,23 @@ export const NotificationsPage = ({
       case 'friend_rsvp_changed':
       case 'friend_review_posted':
       case 'friend_attended_same_event':
-        // Navigate to event
+      case 'follows_new_events_summary':
+      case 'friends_event_interest_summary':
+      case 'bucket_list_new_events_summary':
+        // Navigate to event or discover feed
         if (data?.event_id && onNavigateToEvent) {
           onNavigateToEvent(data.event_id);
+        } else if (onNavigateToDiscover) {
+          onNavigateToDiscover();
         } else if (notification.event_title) {
-          // Try to find event by title or other identifier
           console.log('Navigate to event:', notification.event_title);
+        }
+        break;
+
+      case 'chat_message':
+        // Navigate to chat
+        if (data?.chat_id && onNavigateToChat) {
+          onNavigateToChat(data.chat_id);
         }
         break;
 

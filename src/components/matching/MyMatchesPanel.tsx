@@ -7,7 +7,6 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { Heart, MessageCircle, Calendar, MapPin, Loader2, Users } from 'lucide-react';
 import MatchingService, { Match } from '@/services/matchingService';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
@@ -17,8 +16,7 @@ interface MyMatchesPanelProps {
 }
 
 export function MyMatchesPanel({ onChatWithMatch }: MyMatchesPanelProps) {
-  const { toast } = useToast();
-  const [matches, setMatches] = useState<Match[]>([]);
+const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,12 +30,7 @@ export function MyMatchesPanel({ onChatWithMatch }: MyMatchesPanelProps) {
       setMatches(matchesData);
     } catch (error) {
       console.error('Error loading matches:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load your matches',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

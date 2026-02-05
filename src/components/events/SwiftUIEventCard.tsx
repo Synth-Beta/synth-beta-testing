@@ -20,7 +20,6 @@ import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { UserEventService } from '@/services/userEventService';
 import { ShareService } from '@/services/shareService';
-import { useToast } from '@/hooks/use-toast';
 import { replaceJambasePlaceholder, getFallbackEventImage } from '@/utils/eventImageFallbacks';
 import { formatPrice } from '@/utils/currencyUtils';
 import { glassCard, glassCardLight, textStyles, badge, statusBadge, animations, combineStyles } from '@/styles/glassmorphism';
@@ -116,8 +115,7 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
   commentsCount,
   compact = false,
 }) => {
-  const { toast } = useToast();
-  const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
+const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
   const [isAttended, setIsAttended] = useState(false);
   const [interestLoading, setInterestLoading] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
@@ -322,11 +320,9 @@ export const SwiftUIEventCard: React.FC<SwiftUIEventCardProps> = ({
         await navigator.share({ title: event.title, url });
       } else {
         await navigator.clipboard.writeText(url);
-        toast({ title: 'Link copied!' });
-      }
+        }
     } catch {
-      toast({ title: 'Failed to share', variant: 'destructive' });
-    }
+      }
   };
 
   // Get ticket link

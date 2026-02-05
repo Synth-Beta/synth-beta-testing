@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Camera, Upload, X, Loader2, Image, Smartphone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ProfilePictureUploadProps {
@@ -26,8 +25,7 @@ export const ProfilePictureUpload = ({
   const [showUploadOptions, setShowUploadOptions] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-  const { user } = useAuth();
+const { user } = useAuth();
 
   const sizeClasses = {
     sm: 'w-16 h-16',
@@ -70,22 +68,12 @@ export const ProfilePictureUpload = ({
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
     if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Invalid file type",
-        description: "Please select a JPEG, PNG, WebP, or HEIC image.",
-        variant: "destructive",
-      });
       return;
     }
 
     // Validate file size (10MB limit)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      toast({
-        title: "File too large",
-        description: "Please select an image smaller than 10MB.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -102,11 +90,6 @@ export const ProfilePictureUpload = ({
 
   const uploadFile = async (file: File) => {
     if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to upload a profile picture.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -152,21 +135,11 @@ export const ProfilePictureUpload = ({
       setPreviewUrl(null);
       onUploadSuccess(publicUrl);
       
-      toast({
-        title: "Profile picture updated! 🎉",
-        description: "Your new profile picture has been saved.",
-      });
-
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error uploading profile picture:', error);
       setPreviewUrl(null);
       
-      toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload profile picture. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setIsUploading(false);
       // Reset file input
       if (fileInputRef.current) {
@@ -209,20 +182,10 @@ export const ProfilePictureUpload = ({
 
       onUploadSuccess('');
       
-      toast({
-        title: "Profile picture removed",
-        description: "Your profile picture has been removed.",
-      });
-
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error removing profile picture:', error);
       
-      toast({
-        title: "Remove failed",
-        description: error.message || "Failed to remove profile picture. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setIsUploading(false);
     }
   };

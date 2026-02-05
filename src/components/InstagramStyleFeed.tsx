@@ -29,7 +29,6 @@ import {
   X
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format, parseISO } from 'date-fns';
 import { SynthSLogo } from '@/components/SynthSLogo';
@@ -80,8 +79,7 @@ export const InstagramStyleFeed = ({
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<UnifiedFeedItem | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const { toast } = useToast();
-  const { user } = useAuth();
+const { user } = useAuth();
 
   // Media carousel state
   const [currentMediaIndex, setCurrentMediaIndex] = useState<{ [key: string]: number }>({});
@@ -105,12 +103,7 @@ export const InstagramStyleFeed = ({
       setFeedItems(items);
     } catch (error) {
       console.error('Error fetching feed items:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load feed",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

@@ -7,8 +7,6 @@ import { CheckCircle, Circle, RefreshCw, Sparkles } from 'lucide-react';
 import { useTrustScoreBreakdown } from '@/hooks/useVerification';
 import { getCriterionDescription } from '@/utils/verificationUtils';
 import { VerificationService } from '@/services/verificationService';
-import { useToast } from '@/hooks/use-toast';
-
 interface VerificationStatusCardProps {
   userId: string;
   accountType: 'user' | 'creator' | 'business' | 'admin';
@@ -22,9 +20,7 @@ export function VerificationStatusCard({
 }: VerificationStatusCardProps) {
   const { breakdown, loading, error } = useTrustScoreBreakdown(userId);
   const [refreshing, setRefreshing] = useState(false);
-  const { toast } = useToast();
-
-  // For non-user accounts, show verified card if applicable, otherwise show a placeholder card
+// For non-user accounts, show verified card if applicable, otherwise show a placeholder card
   if (accountType !== 'user') {
     if (verified) {
       return (
@@ -62,17 +58,8 @@ export function VerificationStatusCard({
     try {
       setRefreshing(true);
       await VerificationService.refreshVerificationStatus(userId);
-      toast({
-        title: 'Status Updated',
-        description: 'Your verification status has been refreshed.',
-      });
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'Failed to refresh verification status.',
-        variant: 'destructive',
-      });
-    } finally {
+      } catch (err) {
+      } finally {
       setRefreshing(false);
     }
   };

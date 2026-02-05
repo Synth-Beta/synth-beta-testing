@@ -12,8 +12,6 @@ import { Card } from '@/components/ui/card';
 import { GripVertical, Star, Calendar, MapPin, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ReviewService, type UserReview } from '@/services/reviewService';
-import { useToast } from '@/hooks/use-toast';
-
 interface ReviewWithEventData extends UserReview {
   event_title?: string;
   artist_name?: string;
@@ -49,9 +47,7 @@ export function PostSubmitRankingModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const { toast } = useToast();
-
-  // Round rating to 1 decimal place (never round to 0.5, always show actual decimal)
+// Round rating to 1 decimal place (never round to 0.5, always show actual decimal)
   const displayRating = Math.round(rating * 10) / 10;
 
   useEffect(() => {
@@ -113,12 +109,7 @@ export function PostSubmitRankingModal({
       setOrderedReviewIds(matchingReviews.map(r => r.id));
     } catch (error) {
       console.error('❌ Error loading reviews with same rating:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load reviews for ranking',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
@@ -203,19 +194,10 @@ export function PostSubmitRankingModal({
         orderedReviewIds
       );
       
-      toast({
-        title: 'Rankings Saved! 🎉',
-        description: `Your ${displayRating.toFixed(1)}★ reviews have been ranked.`,
-      });
       onClose();
     } catch (error) {
       console.error('Error saving rankings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to save rankings. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsSaving(false);
     }
   };

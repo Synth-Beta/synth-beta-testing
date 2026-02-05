@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { useReviewForm, REVIEW_FORM_TOTAL_STEPS, getTotalSteps } from '@/hooks/useReviewForm';
 import { ReviewService, type ReviewData, type UserReview, type PublicReviewWithProfile } from '@/services/reviewService';
@@ -69,6 +68,19 @@ const VALUE_SUGGESTIONS: CategoryConfig['suggestions'] = [
   { id: 'value-hidden-fees', label: 'Too many fees', description: 'Fees and merch prices added up fast.', sentiment: 'negative' },
 ];
 
+// Infer original review flow (1/3/5 min) from saved review data for edit mode
+function inferReviewDuration(review: any): '1min' | '3min' | '5min' {
+  const has = (key: string) => {
+    const v = review[key];
+    return v != null && Number(v) > 0;
+  };
+  const five = has('artist_performance_rating') && has('production_rating') && has('venue_rating') && has('location_rating') && has('value_rating');
+  if (five) return '5min';
+  const two = has('artist_performance_rating') && has('venue_rating');
+  if (two) return '3min';
+  return '1min';
+}
+
 // Helper to get step labels based on flow
 const getStepLabels = (flow: 'quick' | 'standard' | 'detailed' | null): string[] => {
   if (!flow) return ['Select time'];
@@ -94,7 +106,6 @@ interface EventReviewFormProps {
 }
 
 export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose }: EventReviewFormProps) {
-  const { toast } = useToast();
   const { user } = useAuth();
   const {
     formData,
@@ -406,7 +417,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
         if (review) {
           setExistingReview(review);
-          
+          // Preserve original flow when editing: infer 1/3/5 min and skip time-selection step
+          const reviewDuration = inferReviewDuration(review);
+
           // Use event data from props instead of querying database
           // This avoids 406 errors from RLS policies
           // The event prop already has all the data we need
@@ -443,6 +456,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             : [];
 
           setFormData({
+            reviewDuration, // Use original flow so we skip time-selection step
             selectedArtist: null,
             selectedVenue: null,
             eventDate: eventDateFromReview,
@@ -560,6 +574,13 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     // run strictly on event.id change
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event?.id, userId]);
+
+  // When editing, we already have reviewDuration from the loaded review — skip time-selection (step 1) and go to event details (step 2)
+  useEffect(() => {
+    if (existingReview && formData.reviewDuration != null && currentStep === 1) {
+      setStep(2);
+    }
+  }, [existingReview, formData.reviewDuration, currentStep, setStep]);
 
   const handleSaveDraft = async () => {
     // Manual save trigger - auto-save is already happening, but this forces immediate save
@@ -1002,9 +1023,29 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
       const safeVenueId = venueId && isValidUUID(venueId) ? venueId : undefined;
       const safeArtistId = artistProfileId && isValidUUID(artistProfileId) ? artistProfileId : undefined;
-      
-      if (!safeArtistId || !safeVenueId) {
-        throw new Error('Artist and venue must be selected from the database to submit a review.');
+
+      // When artist is not in the catalog, create a user-created artist so the review can be saved
+      let userCreatedArtistId: string | undefined;
+      if (!safeArtistId && formData.selectedArtist?.name?.trim()) {
+        userCreatedArtistId = await ReviewService.createUserCreatedArtist(
+          userId,
+          formData.selectedArtist.name.trim(),
+          (formData.selectedArtist as any)?.image_url
+        );
+      }
+
+      // When venue is not in the catalog, create a user-created venue so the review can be saved
+      let userCreatedVenueId: string | undefined;
+      if (!safeVenueId && formData.selectedVenue?.name?.trim()) {
+        userCreatedVenueId = await ReviewService.createUserCreatedVenue(
+          userId,
+          formData.selectedVenue.name.trim(),
+          (formData.selectedVenue as any)?.image_url
+        );
+      }
+
+      if ((!safeArtistId && !userCreatedArtistId) || (!safeVenueId && !userCreatedVenueId)) {
+        throw new Error('Artist and venue are required. Use the search to select from the list or type a name to add a custom artist or venue.');
       }
 
       // Event_date is required (NOT NULL) - always include from first page (EventDetailsStep)
@@ -1025,7 +1066,15 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         Event_date: eventDateForReview,
       };
       
-      const review = await ReviewService.setEventReview(userId, undefined, reviewDataWithEventDate, safeVenueId, safeArtistId);
+      const review = await ReviewService.setEventReview(
+        userId,
+        undefined,
+        reviewDataWithEventDate,
+        safeVenueId,
+        safeArtistId,
+        userCreatedArtistId,
+        userCreatedVenueId
+      );
 
       // Attempt to upload a review thumbnail to storage (no DB fields).
       // Path: `${reviewId}/thumbnail.jpg` in bucket `review-photos`.
@@ -1071,58 +1120,46 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         }
       }
       setPendingReviewThumbnailBlob(null);
-      
-      // Clear localStorage draft after successful submission (use draft key based on artist+venue)
-      const draftKey = safeArtistId && safeVenueId ? `artist_${safeArtistId}_venue_${safeVenueId}` : 'new';
+
+      const resolvedArtistId = safeArtistId ?? userCreatedArtistId;
+      const resolvedVenueId = safeVenueId ?? userCreatedVenueId;
+      const draftKey = resolvedArtistId && resolvedVenueId ? `artist_${resolvedArtistId}_venue_${resolvedVenueId}` : 'new';
       clearDraft(draftKey);
       
-      // Delete drafts for this artist+venue combination
+      // Delete drafts for this artist+venue: fetch by user_id + is_draft, filter by draft_data (avoids schema-dependent artist_id/venue_id columns)
       try {
-        console.log('🗑️ EventReviewForm: Deleting drafts for artist+venue:', { artistId: safeArtistId, venueId: safeVenueId });
-        
-        const { error: deleteError, data: deletedData } = await supabase
+        const { data: allDrafts, error: fetchError } = await supabase
           .from('reviews')
-          .delete()
+          .select('id, draft_data')
           .eq('user_id', userId)
-          .eq('artist_id', safeArtistId)
-          .eq('venue_id', safeVenueId)
-          .eq('is_draft', true)
-          .select('id');
-        
-        if (deleteError) {
-          console.error('❌ EventReviewForm: Draft deletion failed:', deleteError);
-        } else {
-          const deletedCount = deletedData?.length || 0;
-          console.log(`🧹 EventReviewForm: Deleted ${deletedCount} draft(s)`);
-        }
-        
-        // Also delete drafts that match by artist/venue/date from draft_data (handles drafts with different IDs)
-        if (formData.selectedArtist?.name && formData.selectedVenue?.name && formData.eventDate) {
-          const { data: allDrafts } = await supabase
-            .from('reviews')
-            .select('id, draft_data')
-            .eq('user_id', userId)
-            .eq('is_draft', true);
-          
-          if (allDrafts) {
-            const matchingDrafts = allDrafts.filter(draft => {
-              if (!draft.draft_data) return false;
-              const draftData = draft.draft_data as any;
-              const draftArtist = draftData?.selectedArtist?.name || draftData?.artist_name;
-              const draftVenue = draftData?.selectedVenue?.name || draftData?.venue_name;
-              const draftDate = draftData?.eventDate;
-              return draftArtist === formData.selectedArtist?.name &&
-                     draftVenue === formData.selectedVenue?.name &&
-                     draftDate === formData.eventDate;
-            });
-            
-            for (const draft of matchingDrafts) {
-              await supabase.from('reviews').delete().eq('id', draft.id);
+          .eq('is_draft', true);
+
+        if (fetchError) {
+          console.warn('⚠️ EventReviewForm: Could not fetch drafts for cleanup:', fetchError);
+        } else if (allDrafts?.length) {
+          const artistName = formData.selectedArtist?.name;
+          const venueName = formData.selectedVenue?.name;
+          const eventDate = formData.eventDate;
+          const matchingDrafts = allDrafts.filter((draft) => {
+            const draftData = (draft.draft_data as any) || {};
+            const draftArtist = draftData?.selectedArtist?.name || draftData?.artist_name;
+            const draftVenue = draftData?.selectedVenue?.name || draftData?.venue_name;
+            const draftDate = draftData?.eventDate;
+            if (artistName && venueName && eventDate) {
+              return draftArtist === artistName && draftVenue === venueName && draftDate === eventDate;
             }
+            if (artistName && venueName) return draftArtist === artistName && draftVenue === venueName;
+            return true;
+          });
+          for (const draft of matchingDrafts) {
+            await supabase.from('reviews').delete().eq('id', draft.id);
+          }
+          if (matchingDrafts.length > 0) {
+            console.log(`🧹 EventReviewForm: Deleted ${matchingDrafts.length} draft(s)`);
           }
         }
       } catch (error) {
-        console.error('❌ EventReviewForm: Error during draft deletion:', error);
+        console.warn('⚠️ EventReviewForm: Error during draft deletion:', error);
       }
       
       // Update events table with API setlist data ONLY (not custom setlist)
@@ -1249,7 +1286,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
       console.error('Error submitting review:', e);
       // Reset submission flag on error so auto-save can work again
       setIsReviewSubmitted(false);

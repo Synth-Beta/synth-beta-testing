@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Camera, X, Loader2, Image as ImageIcon, Video, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { storageService, type BucketName } from '@/services/storageService';
-import { useToast } from '@/hooks/use-toast';
 import Cropper, { type Area } from 'react-easy-crop';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
@@ -152,9 +151,7 @@ export function PhotoUpload(props: PhotoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-
-  const enableReviewThumbnail = props.enableReviewThumbnail === true;
+const enableReviewThumbnail = props.enableReviewThumbnail === true;
   const thumbnailIndex = props.thumbnailIndex ?? 0;
   const thumbnailCrop = props.thumbnailCrop ?? null;
 
@@ -216,11 +213,6 @@ export function PhotoUpload(props: PhotoUploadProps) {
 
     // Check if adding these files would exceed max
     if (value.length + files.length > maxPhotos) {
-      toast({
-        title: 'Too many photos',
-        description: `You can only upload up to ${maxPhotos} photos`,
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -228,11 +220,6 @@ export function PhotoUpload(props: PhotoUploadProps) {
     for (const file of files) {
       const validation = storageService.validateImage(file, { maxSizeMB });
       if (!validation.valid) {
-        toast({
-          title: 'Invalid file',
-          description: validation.error,
-          variant: 'destructive',
-        });
         return;
       }
     }
@@ -253,18 +240,9 @@ export function PhotoUpload(props: PhotoUploadProps) {
 
       onChange([...value, ...uploadedUrls]);
       
-      toast({
-        title: 'Upload successful',
-        description: `${files.length} photo${files.length > 1 ? 's' : ''} uploaded`,
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Upload error:', error);
-      toast({
-        title: 'Upload failed',
-        description: error instanceof Error ? error.message : 'Failed to upload photos',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setUploading(false);
       setUploadProgress(0);
       if (fileInputRef.current) {
@@ -285,18 +263,9 @@ export function PhotoUpload(props: PhotoUploadProps) {
       const newValue = value.filter((_, i) => i !== index);
       onChange(newValue);
 
-      toast({
-        title: 'Photo removed',
-        description: 'Photo deleted successfully',
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Delete error:', error);
-      toast({
-        title: 'Delete failed',
-        description: 'Failed to delete photo',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   const openFilePicker = () => {
@@ -592,9 +561,7 @@ export function SinglePhotoUpload({
   const [showUploadOptions, setShowUploadOptions] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-
-  const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
+const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
   const [isCropOpen, setIsCropOpen] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -645,11 +612,6 @@ export function SinglePhotoUpload({
     // Validate file
     const validation = storageService.validateImage(file, { maxSizeMB });
     if (!validation.valid) {
-      toast({
-        title: 'Invalid file',
-        description: validation.error,
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -657,11 +619,6 @@ export function SinglePhotoUpload({
     reader.onload = () => {
       const src = reader.result as string | null;
       if (!src) {
-        toast({
-          title: 'Upload failed',
-          description: 'Failed to read image',
-          variant: 'destructive',
-        });
         resetCropState();
         return;
       }
@@ -669,11 +626,6 @@ export function SinglePhotoUpload({
       setIsCropOpen(true);
     };
     reader.onerror = () => {
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to read image',
-        variant: 'destructive',
-      });
       resetCropState();
     };
     reader.readAsDataURL(file);
@@ -689,18 +641,9 @@ export function SinglePhotoUpload({
       }
       onChange(null);
 
-      toast({
-        title: 'Photo removed',
-        description: 'Photo deleted successfully',
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Delete error:', error);
-      toast({
-        title: 'Delete failed',
-        description: 'Failed to delete photo',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   const handleCropSave = async () => {
@@ -727,20 +670,10 @@ export function SinglePhotoUpload({
         }
       }
 
-      toast({
-        title: 'Upload successful',
-        description: 'Photo uploaded successfully',
-      });
-
       resetCropState();
     } catch (error) {
       console.error('Upload error:', error);
-      toast({
-        title: 'Upload failed',
-        description: error instanceof Error ? error.message : 'Failed to upload photo',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setUploading(false);
     }
   };
@@ -985,19 +918,12 @@ export function VideoUpload({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
     // Check if adding these files would exceed max
     if (value.length + files.length > maxVideos) {
-      toast({
-        title: 'Too many videos',
-        description: `You can only upload up to ${maxVideos} videos`,
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -1005,11 +931,6 @@ export function VideoUpload({
     for (const file of files) {
       const validation = storageService.validateVideo(file, { maxSizeMB });
       if (!validation.valid) {
-        toast({
-          title: 'Invalid file',
-          description: validation.error,
-          variant: 'destructive',
-        });
         return;
       }
     }
@@ -1030,18 +951,9 @@ export function VideoUpload({
 
       onChange([...value, ...uploadedUrls]);
       
-      toast({
-        title: 'Upload successful',
-        description: `${files.length} video${files.length > 1 ? 's' : ''} uploaded`,
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Upload error:', error);
-      toast({
-        title: 'Upload failed',
-        description: error instanceof Error ? error.message : 'Failed to upload videos',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setUploading(false);
       setUploadProgress(0);
       if (fileInputRef.current) {
@@ -1062,18 +974,9 @@ export function VideoUpload({
       const newValue = value.filter((_, i) => i !== index);
       onChange(newValue);
 
-      toast({
-        title: 'Video removed',
-        description: 'Video deleted successfully',
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Delete error:', error);
-      toast({
-        title: 'Delete failed',
-        description: 'Failed to delete video',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   const openFilePicker = () => {

@@ -23,8 +23,6 @@ import { safeFormatEventDateTime } from '@/lib/dateUtils';
 import { formatPrice } from '@/utils/currencyUtils';
 import { cn } from '@/lib/utils';
 import { ManualArtistForm } from '@/components/search/ManualArtistForm';
-import { useToast } from '@/hooks/use-toast';
-
 interface EventSearchProps {
   userId: string;
   onEventSelect?: (event: Event) => void;
@@ -45,9 +43,7 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
   const [isOpen, setIsOpen] = useState(false);
   const [showManualArtistForm, setShowManualArtistForm] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-
-  const eventsPerPage = 10;
+const eventsPerPage = 10;
 
   // Debounced artist search (optional - can be triggered by button)
   useEffect(() => {
@@ -330,11 +326,7 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
 
   const handleManualArtistCreated = (artist: Artist) => {
     handleArtistSelect(artist);
-    toast({
-      title: "Artist Created! 🎵",
-      description: `${artist.name} has been added. You can now browse their events.`,
-    });
-  };
+    };
 
   const renderEventCard = (event: Event) => {
     const isUpcoming = new Date(event.event_date) > new Date();

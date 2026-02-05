@@ -19,7 +19,6 @@ import {
   Activity
 } from 'lucide-react';
 import { spotifyService } from '@/services/spotifyService';
-import { useToast } from '@/hooks/use-toast';
 import {
   SpotifyUser,
   SpotifyTrack,
@@ -43,9 +42,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   const [recentTracks, setRecentTracks] = useState<SpotifyPlayHistoryObject[]>([]);
   const [listeningStats, setListeningStats] = useState<SpotifyListeningStats | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<SpotifyTimeRange>('short_term');
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     initializeSpotify();
   }, []);
 
@@ -73,12 +70,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       }
     } catch (error) {
       console.error('Spotify initialization error:', error);
-      toast({
-        title: "Spotify Connection Error",
-        description: "Failed to connect to Spotify. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -86,11 +78,6 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   const handleConnect = () => {
     // Check if Spotify is configured before attempting authentication
     if (!spotifyService.isConfigured()) {
-      toast({
-        title: "Spotify Not Configured",
-        description: "Spotify integration is not available. This feature is optional and doesn't affect core functionality.",
-        variant: "default",
-      });
       return;
     }
 
@@ -100,12 +87,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     } catch (error) {
       console.error('Authentication error:', error);
       setAuthenticating(false);
-      toast({
-        title: "Authentication Error",
-        description: error instanceof Error ? error.message : "Failed to start Spotify authentication.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const handleLogout = () => {
@@ -117,11 +99,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
     setRecentTracks([]);
     setListeningStats(null);
     
-    toast({
-      title: "Disconnected",
-      description: "Successfully disconnected from Spotify.",
-    });
-  };
+    };
 
   const loadUserProfile = async () => {
     try {
@@ -129,12 +107,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       setUserProfile(profile);
     } catch (error) {
       console.error('Error loading user profile:', error);
-      toast({
-        title: "Profile Error",
-        description: "Failed to load Spotify profile.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const loadStats = async () => {
@@ -159,12 +132,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
 
     } catch (error) {
       console.error('Error loading stats:', error);
-      toast({
-        title: "Stats Error",
-        description: "Failed to load Spotify statistics.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

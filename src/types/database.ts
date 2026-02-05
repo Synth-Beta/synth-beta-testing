@@ -298,6 +298,30 @@ export interface EventGenre {
 }
 
 // ============================================
+// 5b. USER_CREATED_ARTISTS TABLE (user-supplied when artist not in catalog)
+// ============================================
+export interface UserCreatedArtist {
+  id: string; // UUID
+  user_id: string; // UUID - references auth.users(id)
+  name: string;
+  image_url: string | null;
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
+// 5c. USER_CREATED_VENUES TABLE (user-supplied when venue not in catalog)
+// ============================================
+export interface UserCreatedVenue {
+  id: string; // UUID
+  user_id: string; // UUID - references auth.users(id)
+  name: string;
+  image_url: string | null;
+  created_at: string; // TIMESTAMPTZ
+  updated_at: string; // TIMESTAMPTZ
+}
+
+// ============================================
 // 6. REVIEWS TABLE (from reviews)
 // ============================================
 export interface Review {
@@ -305,7 +329,9 @@ export interface Review {
   user_id: string; // UUID - references users(user_id)
   event_id: string; // UUID - references events(id)
   artist_id: string | null; // UUID - references artists(id)
+  user_created_artist_id: string | null; // UUID - references user_created_artists(id), when artist not in catalog
   venue_id: string | null; // UUID - references venues(id)
+  user_created_venue_id: string | null; // UUID - references user_created_venues(id), when venue not in catalog
   // Core Rating & Reaction
   rating: number; // 1-5
   artist_rating: number | null; // 1-5

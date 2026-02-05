@@ -340,7 +340,7 @@ export class ReviewService {
         artist_name: artistName,
         venue_id: venueId,
         venue_name: venueName,
-        event_date: eventDate,
+        Event_date: eventDate,
         actor_user_id: actorUserId,
         actor_name: actorName,
         attendees: userAttendees,
@@ -356,15 +356,53 @@ export class ReviewService {
   }
 
   /**
+   * Create a user-created artist when the artist is not in the catalog.
+   * Call this when the user enters a custom artist name, then pass the returned id
+   * to setEventReview as userCreatedArtistId.
+   */
+  static async createUserCreatedArtist(
+    userId: string,
+    name: string,
+    imageUrl?: string | null
+  ): Promise<string> {
+    const { data, error } = await supabase
+      .from('user_created_artists')
+      .insert({ user_id: userId, name: name.trim(), image_url: imageUrl ?? null })
+      .select('id')
+      .single();
+    if (error) throw error;
+    if (!data?.id) throw new Error('Failed to create user-created artist');
+    return data.id;
+  }
+
+  static async createUserCreatedVenue(
+    userId: string,
+    name: string,
+    imageUrl?: string | null
+  ): Promise<string> {
+    const { data, error } = await supabase
+      .from('user_created_venues')
+      .insert({ user_id: userId, name: name.trim(), image_url: imageUrl ?? null })
+      .select('id')
+      .single();
+    if (error) throw error;
+    if (!data?.id) throw new Error('Failed to create user-created venue');
+    return data.id;
+  }
+
+  /**
    * Create or update a review - identified by artist_id + venue_id only.
    * event_id is not used in the review submission flow.
+   * Use artistId for catalog artists or userCreatedArtistId when the artist was created via createUserCreatedArtist.
    */
   static async setEventReview(
     userId: string,
     _eventId: string | undefined, // Deprecated - kept for API compatibility, never used
     reviewData: ReviewData,
     venueId?: string,
-    artistId?: string
+    artistId?: string,
+    userCreatedArtistId?: string,
+    userCreatedVenueId?: string
   ): Promise<UserReview> {
     try {
       // Event_date is required (NOT NULL) - from reviewData or fallback to today
@@ -414,46 +452,65 @@ export class ReviewService {
         return 3;
       };
 
-      // Check if user already has ANY review (draft OR published) by artist_id + venue_id
       const normalizedVenueId = isValidUuid(venueId) ? venueId : undefined;
       const normalizedArtistId = isValidUuid(artistId) ? artistId : undefined;
-      
+      const normalizedUserCreatedArtistId = isValidUuid(userCreatedArtistId) ? userCreatedArtistId : undefined;
+      const normalizedUserCreatedVenueId = isValidUuid(userCreatedVenueId) ? userCreatedVenueId : undefined;
+
       if (venueId && !normalizedVenueId) {
         console.warn('⚠️ ReviewService: Received non-UUID venueId parameter, ignoring', venueId);
       }
       if (artistId && !normalizedArtistId) {
         console.warn('⚠️ ReviewService: Received non-UUID artistId parameter, ignoring', artistId);
       }
-      
-      if (!normalizedArtistId || !normalizedVenueId) {
-        throw new Error('Both artistId and venueId must be provided');
+      if (userCreatedArtistId && !normalizedUserCreatedArtistId) {
+        console.warn('⚠️ ReviewService: Received non-UUID userCreatedArtistId parameter, ignoring', userCreatedArtistId);
       }
-      
+      if (userCreatedVenueId && !normalizedUserCreatedVenueId) {
+        console.warn('⚠️ ReviewService: Received non-UUID userCreatedVenueId parameter, ignoring', userCreatedVenueId);
+      }
+
+      const hasCatalogArtist = !!normalizedArtistId;
+      const hasUserCreatedArtist = !!normalizedUserCreatedArtistId;
+      const hasCatalogVenue = !!normalizedVenueId;
+      const hasUserCreatedVenue = !!normalizedUserCreatedVenueId;
+      if (
+        !(hasCatalogArtist || hasUserCreatedArtist) || (hasCatalogArtist && hasUserCreatedArtist) ||
+        !(hasCatalogVenue || hasUserCreatedVenue) || (hasCatalogVenue && hasUserCreatedVenue)
+      ) {
+        throw new Error('Provide exactly one of artistId or userCreatedArtistId, and exactly one of venueId or userCreatedVenueId.');
+      }
+
+      const artistOrFilter = normalizedArtistId
+        ? `artist_id.eq.${normalizedArtistId}`
+        : `user_created_artist_id.eq.${normalizedUserCreatedArtistId}`;
+      const venueOrFilter = normalizedVenueId
+        ? `venue_id.eq.${normalizedVenueId}`
+        : `user_created_venue_id.eq.${normalizedUserCreatedVenueId}`;
+
       let existingReview: any = null;
       let checkError: any = null;
-      
+
       {
-        // Check by artist_id + venue_id (when event_id is not provided)
-        // First, check for a published review
+        // Check by artist (catalog or user-created) + venue_id when event_id is not provided
         const publishedResult = await (supabase as any)
           .from('reviews')
           .select('id, is_draft')
           .eq('user_id', userId)
-          .eq('artist_id', normalizedArtistId)
-          .eq('venue_id', normalizedVenueId)
           .is('event_id', null)
           .eq('is_draft', false)
+          .or(artistOrFilter)
+          .or(venueOrFilter)
           .maybeSingle();
-        
-        // Then, check for any drafts
+
         const draftResult = await (supabase as any)
           .from('reviews')
           .select('id, is_draft')
           .eq('user_id', userId)
-          .eq('artist_id', normalizedArtistId)
-          .eq('venue_id', normalizedVenueId)
           .is('event_id', null)
           .eq('is_draft', true)
+          .or(artistOrFilter)
+          .or(venueOrFilter)
           .maybeSingle();
         
         const publishedReview = publishedResult.data;
@@ -521,9 +578,9 @@ export class ReviewService {
               .from('reviews')
               .delete()
               .eq('user_id', userId)
-              .eq('artist_id', normalizedArtistId)
-              .eq('venue_id', normalizedVenueId)
-              .eq('is_draft', true);
+              .eq('is_draft', true)
+              .or(artistOrFilter)
+              .or(venueOrFilter);
             
             if (deleteError) {
               console.error('❌ Failed to delete draft before creating published review:', deleteError);
@@ -546,9 +603,9 @@ export class ReviewService {
               .from('reviews')
               .delete()
               .eq('user_id', userId)
-              .eq('artist_id', normalizedArtistId)
-              .eq('venue_id', normalizedVenueId)
-              .eq('is_draft', true);
+              .eq('is_draft', true)
+              .or(artistOrFilter)
+              .or(venueOrFilter);
               
               if (!deleteError) {
                 console.log('✅ Deleted all drafts before updating published review');
@@ -566,25 +623,29 @@ export class ReviewService {
         } else {
           // Update the existing published review
           console.log('🔄 ReviewService: Updating existing published review:', existingReview.id);
-          // Fetch existing review to preserve fields that weren't explicitly changed
-          const { data: existingReviewData } = await supabase
+          // Fetch existing setlist to preserve if not changed (select only setlist; custom_setlist may not exist on all deployments)
+          let existingReviewData: { setlist?: any; custom_setlist?: any } | null = null;
+          const { data: setlistData, error: setlistFetchError } = await supabase
             .from('reviews')
-            .select('setlist, custom_setlist')
+            .select('setlist')
             .eq('id', existingReview.id)
             .maybeSingle();
-          
+          if (!setlistFetchError && setlistData) existingReviewData = setlistData;
+
           // Update existing review
           // Save all 5 category ratings and feedback directly to database
           const fullUpdate: any = {
             ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
+            ...(normalizedUserCreatedVenueId ? { user_created_venue_id: normalizedUserCreatedVenueId } : {}),
             ...(normalizedArtistId ? { artist_id: normalizedArtistId } : {}),
+            ...(normalizedUserCreatedArtistId ? { user_created_artist_id: normalizedUserCreatedArtistId } : {}),
           // rating will be calculated by database trigger from category ratings
           review_text: reviewData.review_text,
           is_public: reviewData.is_public,
           is_draft: false, // Mark as published (not a draft)
           draft_data: null, // Clear draft data when publishing
           last_saved_at: null, // Clear last_saved_at when publishing
-          Event_date: eventDate, // Always set - required (NOT NULL)
+          Event_date: eventDate, // Always set - required (NOT NULL); column is case-sensitive "Event_date"
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal) - MUST be included
           // Only set if value is > 0, otherwise undefined (NULL in database)
           artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -608,8 +669,7 @@ export class ReviewService {
           // Preserve setlist if not explicitly provided, otherwise use the new value
           // setlist is JSONB - store the object directly (Supabase will handle JSONB conversion)
           setlist: reviewData.setlist !== undefined ? reviewData.setlist : (existingReviewData?.setlist || null),
-          // Preserve custom_setlist if not explicitly provided
-          custom_setlist: reviewData.custom_setlist !== undefined ? reviewData.custom_setlist : (existingReviewData?.custom_setlist || null),
+          // custom_setlist omitted: column may not exist on all deployments (e.g. reviews without 20260131100000)
           attendees: attendeesForDb, // Add attendees field
           was_there: true, // If someone writes a review, they obviously attended
           updated_at: new Date().toISOString()
@@ -663,25 +723,30 @@ export class ReviewService {
           });
           }
 
-          if (error) {
-            // Retry with legacy-only columns on any 4xx schema error
-            // Unknown columns: retry with legacy-only columns
-            const legacyUpdate: any = {
-              ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
-              rating: typeof reviewData.rating === 'number' ? Number(reviewData.rating.toFixed(1)) : deriveRating(reviewData),
+          if (error && ((error as any)?.status === 400 || (error as any)?.code === '42703')) {
+            // Retry without setlist/custom_setlist (and other optional columns) when DB returns 400/undefined column
+            const fallbackUpdate: any = {
               review_text: reviewData.review_text,
               is_public: reviewData.is_public,
-              is_draft: false, // Mark as published (not a draft)
-              draft_data: null, // Clear draft data when publishing
-              last_saved_at: null, // Clear last_saved_at when publishing
-              photos: reviewData.photos, // Add photos field to legacy update
-              was_there: true, // If someone writes a review, they obviously attended
+              is_draft: false,
+              draft_data: null,
+              last_saved_at: null,
+              Event_date: eventDate,
+              rating: typeof reviewData.rating === 'number' ? Number(reviewData.rating.toFixed(1)) : deriveRating(reviewData),
+              artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
+              production_rating: typeof reviewData.production_rating === 'number' && !isNaN(reviewData.production_rating) ? Number(Math.max(0.5, Math.min(5.0, reviewData.production_rating)).toFixed(1)) : undefined,
+              venue_rating: typeof reviewData.venue_rating === 'number' && !isNaN(reviewData.venue_rating) ? Number(Math.max(0.5, Math.min(5.0, reviewData.venue_rating)).toFixed(1)) : undefined,
+              location_rating: typeof reviewData.location_rating === 'number' && !isNaN(reviewData.location_rating) ? Number(Math.max(0.5, Math.min(5.0, reviewData.location_rating)).toFixed(1)) : undefined,
+              value_rating: typeof reviewData.value_rating === 'number' && !isNaN(reviewData.value_rating) ? Number(Math.max(0.5, Math.min(5.0, reviewData.value_rating)).toFixed(1)) : undefined,
+              photos: reviewData.photos,
+              setlist: reviewData.setlist !== undefined ? reviewData.setlist : (existingReviewData?.setlist ?? null),
+              was_there: true,
               updated_at: new Date().toISOString()
             };
 
             const retry = await supabase
               .from('reviews')
-              .update(legacyUpdate)
+              .update(fallbackUpdate)
               .eq('id', existingReview.id)
               .select()
               .single();
@@ -722,9 +787,9 @@ export class ReviewService {
               .from('reviews')
               .delete()
               .eq('user_id', userId)
-              .eq('artist_id', normalizedArtistId)
-              .eq('venue_id', normalizedVenueId)
-              .eq('is_draft', true);
+              .eq('is_draft', true)
+              .or(artistOrFilter)
+              .or(venueOrFilter);
             
             const deleteResult = await deleteQuery;
             
@@ -743,9 +808,9 @@ export class ReviewService {
                 .from('reviews')
                 .select('id, is_draft')
                 .eq('user_id', userId)
-                .eq('artist_id', normalizedArtistId)
-                .eq('venue_id', normalizedVenueId)
-                .eq('is_draft', true);
+                .eq('is_draft', true)
+                .or(artistOrFilter)
+                .or(venueOrFilter);
               
               if (remainingDrafts.data && remainingDrafts.data.length > 0) {
                 console.warn(`⚠️ ReviewService: WARNING - ${remainingDrafts.data.length} draft(s) still exist after cleanup for artist+venue`);
@@ -762,18 +827,18 @@ export class ReviewService {
           // If this is a public review with photos, promote the first photo to artist/venue image_url
           // when the current image is missing or a placeholder.
           await ReviewService.promoteReviewPhotoToEntityImage({
-            artistId: (data as any)?.artist_id || normalizedArtistId,
-            venueId: (data as any)?.venue_id || normalizedVenueId,
+            artistId: (data as any)?.artist_id ?? normalizedArtistId,
+            venueId: (data as any)?.venue_id ?? normalizedVenueId,
             photoUrl: Array.isArray((data as any)?.photos) ? (data as any).photos[0] : undefined,
             isPublic: (data as any)?.is_public,
           });
 
-          // Notify tagged friends so they can write their own review with artist, venue, date, and friends pre-filled
+          const resolvedArtistId = (data as any)?.artist_id ?? (data as any)?.user_created_artist_id ?? normalizedArtistId ?? normalizedUserCreatedArtistId;
           ReviewService.notifyTaggedFriendsInReview({
             actorUserId: userId,
             reviewData,
             savedReview: data,
-            artistId: normalizedArtistId,
+            artistId: resolvedArtistId,
             venueId: normalizedVenueId,
             eventDate,
           }).catch((err) => console.warn('Failed to notify tagged friends:', err));
@@ -790,12 +855,15 @@ export class ReviewService {
         user_id: userId,
         ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
         ...(normalizedArtistId ? { artist_id: normalizedArtistId } : {}),
+        ...(normalizedUserCreatedArtistId ? { user_created_artist_id: normalizedUserCreatedArtistId } : {}),
+        ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
+        ...(normalizedUserCreatedVenueId ? { user_created_venue_id: normalizedUserCreatedVenueId } : {}),
         // rating will be calculated by ensure_draft_no_rating trigger from category ratings
         reaction_emoji: reviewData.reaction_emoji,
         review_text: reviewData.review_text,
         is_public: reviewData.is_public ?? true,
         is_draft: false, // Explicitly mark as published (not a draft)
-        Event_date: eventDate, // Always set - required (NOT NULL)
+        Event_date: eventDate, // Always set - required (NOT NULL); column is case-sensitive "Event_date"
         // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
         // Only set if value is > 0, otherwise undefined (NULL in database)
         artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -836,12 +904,17 @@ export class ReviewService {
         value_feedback: insertPayload.value_feedback,
       });
 
-      // Use provided artistId and venueId - event_id is not used
       if (normalizedArtistId) {
         (insertPayload as any).artist_id = normalizedArtistId;
       }
+      if (normalizedUserCreatedArtistId) {
+        (insertPayload as any).user_created_artist_id = normalizedUserCreatedArtistId;
+      }
       if (normalizedVenueId) {
         (insertPayload as any).venue_id = normalizedVenueId;
+      }
+      if (normalizedUserCreatedVenueId) {
+        (insertPayload as any).user_created_venue_id = normalizedUserCreatedVenueId;
       }
       
       // Debug: Log the final insert payload with all category data
@@ -878,8 +951,8 @@ export class ReviewService {
             .from('reviews')
             .update(insertPayload as any)
             .eq('user_id', userId)
-            .eq('artist_id', normalizedArtistId)
-            .eq('venue_id', normalizedVenueId)
+            .or(artistOrFilter)
+            .or(venueOrFilter)
             .select()
             .maybeSingle();
           data = upd.data as any;
@@ -893,12 +966,14 @@ export class ReviewService {
         const minimalInsert: any = {
           user_id: userId,
           ...(normalizedArtistId ? { artist_id: normalizedArtistId } : {}),
+          ...(normalizedUserCreatedArtistId ? { user_created_artist_id: normalizedUserCreatedArtistId } : {}),
           ...(normalizedVenueId ? { venue_id: normalizedVenueId } : {}),
+          ...(normalizedUserCreatedVenueId ? { user_created_venue_id: normalizedUserCreatedVenueId } : {}),
           // rating will be calculated by database trigger from category ratings
           review_text: reviewData.review_text,
           is_public: reviewData.is_public ?? true,
           is_draft: false, // Explicitly mark as published
-          Event_date: eventDate, // Always set - required (NOT NULL)
+          Event_date: eventDate, // Always set - required (NOT NULL); column is case-sensitive "Event_date"
           // All 5 category ratings (0.5-5.0, rounded to 1 decimal)
           // Only set if value is > 0, otherwise undefined (NULL in database)
           artist_performance_rating: typeof reviewData.artist_performance_rating === 'number' && !isNaN(reviewData.artist_performance_rating) && reviewData.artist_performance_rating > 0 ? Number(Math.max(0.5, Math.min(5.0, reviewData.artist_performance_rating)).toFixed(1)) : undefined,
@@ -953,19 +1028,19 @@ export class ReviewService {
       // If this is a public review with photos, promote the first photo to artist/venue image_url
       // when the current image is missing or a placeholder.
       await ReviewService.promoteReviewPhotoToEntityImage({
-        artistId: (data as any)?.artist_id || normalizedArtistId,
-        venueId: (data as any)?.venue_id || normalizedVenueId,
+        artistId: (data as any)?.artist_id ?? normalizedArtistId,
+        venueId: (data as any)?.venue_id ?? normalizedVenueId, // catalog only for image promotion
         photoUrl: Array.isArray((data as any)?.photos) ? (data as any).photos[0] : undefined,
         isPublic: (data as any)?.is_public,
       });
 
-      // Notify tagged friends so they can write their own review with artist, venue, date, and friends pre-filled
+      const resolvedArtistId = (data as any)?.artist_id ?? (data as any)?.user_created_artist_id ?? normalizedArtistId ?? normalizedUserCreatedArtistId;
       ReviewService.notifyTaggedFriendsInReview({
         actorUserId: userId,
         reviewData,
         savedReview: data,
-        artistId: normalizedArtistId,
-        venueId: normalizedVenueId,
+        artistId: resolvedArtistId,
+        venueId: (data as any)?.venue_id ?? (data as any)?.user_created_venue_id ?? normalizedVenueId ?? normalizedUserCreatedVenueId,
         eventDate,
       }).catch((err) => console.warn('Failed to notify tagged friends:', err));
       
@@ -1339,9 +1414,11 @@ export class ReviewService {
       console.log('🔍 ReviewService: Event IDs to fetch:', eventIds.length, eventIds);
       let eventsMap: Record<string, any> = {};
       
-      // Also collect artist_id and venue_id from reviews table directly (as fallback)
+      // Collect artist/venue IDs from reviews (catalog + user-created)
       const reviewArtistIds = [...new Set((reviewsData || []).map((r: any) => r.artist_id).filter(Boolean))];
       const reviewVenueIds = [...new Set((reviewsData || []).map((r: any) => r.venue_id).filter(Boolean))];
+      const reviewUserCreatedArtistIds = [...new Set((reviewsData || []).map((r: any) => r.user_created_artist_id).filter(Boolean))];
+      const reviewUserCreatedVenueIds = [...new Set((reviewsData || []).map((r: any) => r.user_created_venue_id).filter(Boolean))];
       
       if (eventIds.length > 0) {
         // Query events table
@@ -1450,6 +1527,34 @@ export class ReviewService {
         }
       }
 
+      // Fetch user-created artist and venue names for reviews that use them
+      let userCreatedArtistsMap: Record<string, any> = {};
+      let userCreatedVenuesMap: Record<string, any> = {};
+      if (reviewUserCreatedArtistIds.length > 0) {
+        const { data: ucaData } = await supabase
+          .from('user_created_artists')
+          .select('id, name, image_url')
+          .in('id', reviewUserCreatedArtistIds);
+        if (ucaData) {
+          userCreatedArtistsMap = ucaData.reduce((acc: Record<string, any>, row: any) => {
+            acc[row.id] = row;
+            return acc;
+          }, {});
+        }
+      }
+      if (reviewUserCreatedVenueIds.length > 0) {
+        const { data: ucvData } = await supabase
+          .from('user_created_venues')
+          .select('id, name, image_url')
+          .in('id', reviewUserCreatedVenueIds);
+        if (ucvData) {
+          userCreatedVenuesMap = ucvData.reduce((acc: Record<string, any>, row: any) => {
+            acc[row.id] = row;
+            return acc;
+          }, {});
+        }
+      }
+
       const data = reviewsData;
 
       // Filter reviews: include those where user either attended or wrote a review
@@ -1484,29 +1589,37 @@ export class ReviewService {
           // Get event data if event_id exists
           const eventData = item.event_id ? (eventsMap[item.event_id] || null) : null;
           
-          // If no event data but review has artist_id/venue_id, create event-like object
+          // Resolve artist name from catalog or user-created
+          const resolvedArtistName = item.artist_id
+            ? (artistsMap[item.artist_id]?.name ?? null)
+            : (item.user_created_artist_id ? (userCreatedArtistsMap[item.user_created_artist_id]?.name ?? null) : null);
+          const resolvedVenueName = item.venue_id
+            ? (venuesMap[item.venue_id]?.name ?? null)
+            : (item.user_created_venue_id ? (userCreatedVenuesMap[item.user_created_venue_id]?.name ?? null) : null);
+
+          // If no event data but review has artist/venue (catalog or user-created), create event-like object
           let event = eventData;
-          if (!event && (item.artist_id || item.venue_id)) {
+          if (!event && (item.artist_id || item.user_created_artist_id || item.venue_id || item.user_created_venue_id)) {
             event = {
               id: null,
               title: null,
-              artist_name: item.artist_id ? (artistsMap[item.artist_id]?.name || null) : null,
-              venue_name: item.venue_id ? (venuesMap[item.venue_id]?.name || null) : null,
+              artist_name: resolvedArtistName,
+              venue_name: resolvedVenueName,
               artist_id: item.artist_id,
               venue_id: item.venue_id,
               event_date: null,
             };
           }
-          
-          // If event exists but missing artist/venue names, try to get from review's artist_id/venue_id
+
+          // If event exists but missing artist/venue names, fill from review (catalog or user-created)
           if (event && (!event.artist_name || !event.venue_name)) {
-            if (!event.artist_name && item.artist_id && artistsMap[item.artist_id]) {
-              event.artist_name = artistsMap[item.artist_id].name;
-              event.artist_id = item.artist_id;
+            if (!event.artist_name) {
+              event.artist_name = resolvedArtistName;
+              event.artist_id = item.artist_id ?? item.user_created_artist_id ?? event.artist_id;
             }
-            if (!event.venue_name && item.venue_id && venuesMap[item.venue_id]) {
-              event.venue_name = venuesMap[item.venue_id].name;
-              event.venue_id = item.venue_id;
+            if (!event.venue_name) {
+              event.venue_name = resolvedVenueName;
+              event.venue_id = item.venue_id ?? item.user_created_venue_id ?? event.venue_id;
             }
           }
           

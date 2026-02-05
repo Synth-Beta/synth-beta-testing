@@ -5,8 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MapPin, Loader2 } from 'lucide-react';
 import { MissingEntityRequestService } from '@/services/missingEntityRequestService';
-import { useToast } from '@/hooks/use-toast';
-
 interface ManualVenueFormProps {
   open: boolean;
   onClose: () => void;
@@ -26,18 +24,10 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
       setName('');
     }
   }, [open, initialQuery]);
-  
-  const { toast } = useToast();
-
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
-      toast({
-        title: "Error",
-        description: "Venue name is required",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -50,22 +40,12 @@ export function ManualVenueForm({ open, onClose, onVenueCreated, initialQuery = 
         entity_name: name.trim(),
       });
 
-      toast({
-        title: "Request Submitted! 📍",
-        description: `Your request for "${name.trim()}" has been submitted. We'll review it and add it to the database if approved.`,
-      });
-
       // Don't call onVenueCreated since we're not creating a venue
       // The user will need to wait for admin approval
       handleClose();
     } catch (error) {
       console.error('Error submitting venue request:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit request",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setIsSubmitting(false);
     }
   };

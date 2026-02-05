@@ -3,7 +3,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { 
   Heart, 
   MessageCircle, 
@@ -33,8 +32,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   onViewReview,
   onViewProfile
 }) => {
-  const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
+const [isProcessing, setIsProcessing] = useState(false);
 
   const getNotificationIcon = () => {
     switch (notification.type) {
@@ -98,26 +96,13 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
       );
 
       // Show success message
-      toast({
-        title: attended ? 'Attendance Marked ✅' : 'Got it!',
-        description: attended 
-          ? 'Your attendance has been recorded. You can add a review anytime!'
-          : 'We\'ve noted you didn\'t attend this event.',
-        variant: 'default'
-      });
-
       // Mark as read (notification will remain visible but marked as read)
       if (onMarkAsRead) {
         onMarkAsRead(notification.id);
       }
     } catch (error) {
       console.error('Error handling attendance action:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to mark attendance. Please try again.',
-        variant: 'destructive'
-      });
-    } finally {
+      } finally {
       setIsProcessing(false);
     }
   };

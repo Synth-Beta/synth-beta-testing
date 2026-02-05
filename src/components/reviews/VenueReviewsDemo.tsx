@@ -7,7 +7,6 @@ import { ReviewService, VenueStats, TagCount, ReviewWithEngagement } from '@/ser
 import { SwiftUIReviewCard } from './SwiftUIReviewCard';
 import { EventReviewModal } from './EventReviewModal';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
 import type { PublicReviewWithProfile } from '@/services/reviewService';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 
@@ -18,8 +17,7 @@ interface VenueReviewsDemoProps {
 
 export function VenueReviewsDemo({ venue, className }: VenueReviewsDemoProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
+const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
   const [stats, setStats] = useState<VenueStats | null>(null);
   const [popularTags, setPopularTags] = useState<TagCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,12 +57,7 @@ export function VenueReviewsDemo({ venue, className }: VenueReviewsDemoProps) {
       }
     } catch (error) {
       console.error('Error loading venue data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load venue reviews. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };

@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { MapPin, MapPinned, Loader2 } from 'lucide-react';
 import { VenueFollowService } from '@/services/venueFollowService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { trackInteraction } from '@/services/interactionTrackingService';
 
@@ -38,9 +37,7 @@ export function VenueFollowButton({
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-
-  // Load follow status and stats
+// Load follow status and stats
   useEffect(() => {
     const loadFollowStatus = async () => {
       if (!userId || !venueName) return;
@@ -94,20 +91,10 @@ export function VenueFollowButton({
     e.stopPropagation();
 
     if (!userId) {
-      toast({
-        title: 'Error',
-        description: 'Please log in to follow venues.',
-        variant: 'destructive'
-      });
       return;
     }
 
     if (!venueName) {
-      toast({
-        title: 'Error',
-        description: 'Venue name is required.',
-        variant: 'destructive'
-      });
       return;
     }
 
@@ -177,22 +164,10 @@ export function VenueFollowButton({
           ? ` in ${venueCity}`
           : '';
 
-      toast({
-        title: newIsFollowing ? 'Following!' : 'Unfollowed',
-        description: newIsFollowing
-          ? `You'll receive notifications when ${venueName}${locationStr} has new events`
-          : `You won't receive notifications from ${venueName}${locationStr} anymore`
-      });
-
       onFollowChange?.(newIsFollowing);
     } catch (error) {
       console.error('Error toggling venue follow:', error);
-      toast({
-        title: 'Error',
-        description: `Failed to ${isFollowing ? 'unfollow' : 'follow'} venue`,
-        variant: 'destructive'
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

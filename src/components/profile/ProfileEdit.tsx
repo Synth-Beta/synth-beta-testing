@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, Save, Instagram, User, Music, Users, Calendar, CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 // Note: Types will need to be regenerated after migration
 type Tables<T extends string> = any;
 import { SinglePhotoUpload } from '@/components/ui/photo-upload';
@@ -53,9 +52,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     daysRemaining?: number;
   }>({ allowed: true });
   const usernameCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
+useEffect(() => {
     fetchProfile();
   }, [currentUserId]);
 
@@ -142,12 +139,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load profile",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -157,11 +149,6 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     
     // Validation
     if (!formData.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Name is required",
-        variant: "destructive",
-      });
       return;
     }
     
@@ -176,51 +163,26 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       // Check format
       const formatCheck = validateUsernameFormat(sanitizedUsername);
       if (!formatCheck.valid) {
-        toast({
-          title: "Invalid Username",
-          description: formatCheck.error || "Username format is invalid",
-          variant: "destructive",
-        });
         return;
       }
       
       // Check availability
       if (usernameValidation.checking) {
-        toast({
-          title: "Please Wait",
-          description: "Still checking username availability...",
-          variant: "destructive",
-        });
         return;
       }
       
       if (usernameValidation.available === false) {
-        toast({
-          title: "Username Not Available",
-          description: usernameValidation.error || "This username is not available",
-          variant: "destructive",
-        });
         return;
       }
       
       // Ensure validation has completed and username is available
       if (usernameValidation.available !== true) {
-        toast({
-          title: "Please Wait",
-          description: "Username validation is still in progress. Please wait a moment and try again.",
-          variant: "destructive",
-        });
         return;
       }
       
       // Update username with rate limiting (this already updates the database)
       const usernameResult = await updateUsernameService(currentUserId, sanitizedUsername);
       if (!usernameResult.success) {
-        toast({
-          title: "Error",
-          description: usernameResult.error || "Failed to update username",
-          variant: "destructive",
-        });
         return;
       }
       
@@ -264,11 +226,6 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       } else {
         // Create new profile - username is required for new profiles
         if (!sanitizedUsername) {
-          toast({
-            title: "Username Required",
-            description: "Username is required for new profiles",
-            variant: "destructive",
-          });
           setSaving(false);
           return;
         }
@@ -287,11 +244,6 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       }
 
       console.log('Profile saved successfully:', result.data);
-      toast({
-        title: "Success",
-        description: "Profile saved successfully",
-      });
-      
       // Refresh can change username state
       const canChange = await canChangeUsername(currentUserId);
       setCanChangeUsernameState(canChange);
@@ -299,12 +251,7 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
       onSave();
     } catch (error: any) {
       console.error('Error saving profile:', error);
-      toast({
-        title: "Error",
-        description: `Failed to save profile: ${error.message || 'Unknown error'}`,
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setSaving(false);
     }
   };

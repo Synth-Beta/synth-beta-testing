@@ -1,0 +1,28 @@
+---
+description: After app updates, run build and sync Capacitor to iOS so Xcode has latest web assets
+alwaysApply: true
+---
+
+# Build and sync iOS after updates
+
+This project uses Capacitor to run the web app inside the iOS native shell. After making changes to the app (especially under `src/`, `index.html`, `vite.config`, or `capacitor.config`):
+
+1. **Run build**: `npm run build`
+2. **Sync to iOS**: `npx cap sync ios`
+
+Run both in the project root:
+```bash
+npm run build && npx cap sync ios
+```
+
+**When to run:**
+- After editing any frontend code, styles, or config that affects the built output
+- Before opening or testing in Xcode so the iOS app serves the latest bundle
+
+**When updates don’t appear in Xcode:** Run a forced clean update so the iOS app gets a fresh bundle:
+```bash
+npm run force-ios-update
+```
+Then in Xcode: **Product > Clean Build Folder (Shift+Cmd+K)**, then Build & Run. Each build injects a unique timestamp into `index.html` (meta `synth-build`) so the bundle is distinct.
+
+**Optional:** To sync both platforms use `npx cap sync` (no `ios` argument).

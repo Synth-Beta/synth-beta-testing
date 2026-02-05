@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
 import AdminService from '@/services/adminService';
 import ContentModerationService, { FLAG_REASONS } from '@/services/contentModerationService';
@@ -18,9 +17,7 @@ import { Flag, Trash2, AlertTriangle, X, Loader2, ExternalLink, Eye } from 'luci
 
 export function AdminModerationPanel() {
   const { isAdmin, accountInfo, loading: accountLoading } = useAccountType();
-  const { toast } = useToast();
-  
-  const [loading, setLoading] = useState(true);
+const [loading, setLoading] = useState(true);
   const [pendingFlags, setPendingFlags] = useState<any[]>([]);
   const [reviewedFlags, setReviewedFlags] = useState<any[]>([]);
   const [selectedFlag, setSelectedFlag] = useState<any | null>(null);
@@ -156,12 +153,7 @@ export function AdminModerationPanel() {
     } catch (error) {
       console.error('❌ AdminModerationPanel: Error loading flags:', error);
       console.error('❌ AdminModerationPanel: Error details:', JSON.stringify(error, null, 2));
-      toast({
-        title: 'Error',
-        description: 'Failed to load moderation flags',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
       console.log('🔍 AdminModerationPanel: Loading completed');
     }
@@ -199,23 +191,13 @@ export function AdminModerationPanel() {
       );
 
       const actionText = action === 'remove' ? 'removed' : action === 'warn' ? 'warned about' : 'dismissed';
-      toast({
-        title: 'Content Moderated',
-        description: `Successfully ${actionText} the flagged content`,
-      });
-
       setSelectedFlag(null);
       setContentPreview(null);
       setReviewNotes('');
       loadFlags(); // Refresh list
     } catch (error) {
       console.error('Error moderating content:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to moderate content',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsProcessing(false);
     }
   };

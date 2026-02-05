@@ -61,12 +61,10 @@ Set these in your Vercel project settings:
 - Vercel serverless function
 - Handles CORS for all origins (sets `Access-Control-Allow-Origin: *`)
 - Handles OPTIONS preflight requests
-- Uses `SETLIST_FM_API_KEY` environment variable
-- Falls back to hardcoded key if env var not set
+- Uses `SETLIST_FM_API_KEY` environment variable (returns 503 if not set; no hardcoded key)
 
 ### 2. `backend/setlist-routes.js` (UPDATED)
-- Updated to use environment variables
-- Falls back to hardcoded key if env var not set
+- Uses `SETLIST_FM_API_KEY` via config (returns 503 if not set; no hardcoded key)
 - Enhanced CORS for mobile apps
 
 ### 3. `src/services/setlistService.ts` (UPDATED)

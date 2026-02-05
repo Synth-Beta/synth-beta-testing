@@ -8,8 +8,6 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, MapPin, Music, Trash2, Edit, Clock } from 'lucide-react';
 import { DraftReviewService, DraftReview } from '@/services/draftReviewService';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-
 interface DraftToggleProps {
   userId: string;
   onSelectDraft: (draft: DraftReview) => void;
@@ -22,21 +20,14 @@ export function DraftToggle({ userId, onSelectDraft, onNewReview, currentMode, c
   const [drafts, setDrafts] = useState<DraftReview[]>([]);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
-
-  const loadDrafts = async () => {
+const loadDrafts = async () => {
     setLoading(true);
     try {
       const userDrafts = await DraftReviewService.getUserDrafts(userId);
       setDrafts(userDrafts);
     } catch (error) {
       console.error('Error loading drafts:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load draft reviews",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -52,25 +43,11 @@ export function DraftToggle({ userId, onSelectDraft, onNewReview, currentMode, c
       const success = await DraftReviewService.deleteDraft(draftId, userId);
       if (success) {
         setDrafts(prev => prev.filter(d => d.id !== draftId));
-        toast({
-          title: "Draft Deleted",
-          description: "Draft review has been deleted",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to delete draft",
-          variant: "destructive",
-        });
-      }
+        } else {
+        }
     } catch (error) {
       console.error('Error deleting draft:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete draft",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const handleSelectDraft = (draft: DraftReview) => {

@@ -292,12 +292,31 @@ export function VenueSearchBox({
               ))}
             </div>
           ) : (
-            <div className="px-6 py-12 text-center text-gray-500">
+            <div className="px-6 py-8 text-center text-gray-500">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                 <MapPin className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No venues found</h3>
-              <p className="text-sm text-gray-600">Try a different search term</p>
+              <p className="text-sm text-gray-600 mb-4">Try a different search term or add this venue:</p>
+              {query.trim() && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const customVenue = { name: query.trim(), is_from_database: false } as VenueSearchResult;
+                    onVenueSelect(customVenue);
+                    setQuery(customVenue.name);
+                    setIsOpen(false);
+                    setSelectedIndex(-1);
+                    onSearchStateChange?.(false);
+                  }}
+                >
+                  Use &quot;{query.trim()}&quot; as venue
+                </Button>
+              )}
             </div>
           )}
         </div>

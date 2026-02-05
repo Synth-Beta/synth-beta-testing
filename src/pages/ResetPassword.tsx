@@ -4,8 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -13,7 +11,6 @@ export default function ResetPassword() {
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
 
   useEffect(() => {
     // Check if we have a valid reset token in the URL
@@ -33,20 +30,10 @@ export default function ResetPassword() {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      toast({
-        title: 'Passwords do not match',
-        description: 'Please make sure both passwords are the same.',
-        variant: 'destructive',
-      });
       return;
     }
 
     if (password.length < 6) {
-      toast({
-        title: 'Password too short',
-        description: 'Password must be at least 6 characters long.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -61,22 +48,12 @@ export default function ResetPassword() {
         throw error;
       }
 
-      toast({
-        title: 'Password updated!',
-        description: 'Your password has been successfully reset.',
-      });
-
       // Redirect to login after a short delay
       setTimeout(() => {
         navigate('/');
       }, 2000);
     } catch (error: any) {
       console.error('Error resetting password:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to reset password. The link may have expired.',
-        variant: 'destructive',
-      });
     } finally {
       setLoading(false);
     }

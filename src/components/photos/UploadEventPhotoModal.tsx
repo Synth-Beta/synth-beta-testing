@@ -15,7 +15,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { Upload, Loader2, Image as ImageIcon, X } from 'lucide-react';
 import EventPhotoService from '@/services/eventPhotoService';
 
@@ -36,8 +35,7 @@ export function UploadEventPhotoModal({
   userId,
   onPhotoUploaded,
 }: UploadEventPhotoModalProps) {
-  const { toast } = useToast();
-  const [isUploading, setIsUploading] = useState(false);
+const [isUploading, setIsUploading] = useState(false);
   const [caption, setCaption] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -49,21 +47,11 @@ export function UploadEventPhotoModal({
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file',
-        description: 'Please select an image file',
-        variant: 'destructive',
-      });
       return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please select an image under 5MB',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -75,11 +63,6 @@ export function UploadEventPhotoModal({
     e.preventDefault();
 
     if (!selectedFile) {
-      toast({
-        title: 'No photo selected',
-        description: 'Please select a photo to upload',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -92,21 +75,11 @@ export function UploadEventPhotoModal({
         caption: caption.trim() || undefined,
       });
 
-      toast({
-        title: 'Photo Uploaded! 📸',
-        description: 'Your photo has been added to the event gallery',
-      });
-
       onPhotoUploaded?.();
       handleClose();
     } catch (error) {
       console.error('Error uploading photo:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to upload photo',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsUploading(false);
     }
   };

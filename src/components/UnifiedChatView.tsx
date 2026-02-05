@@ -38,7 +38,6 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsService } from '@/services/friendsService';
-import { useToast } from '@/hooks/use-toast';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { SynthButton } from '@/components/Button/SynthButton';
@@ -157,8 +156,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const [isEditingGroupName, setIsEditingGroupName] = useState(false);
   const [editedGroupName, setEditedGroupName] = useState('');
-  const { toast } = useToast();
-  const lastAnnouncedMessageIdRef = useRef<string | null>(null);
+const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
   // Total unread messages across all chats (for Messages header)
   // Prefer unread_count (message count). Fall back to has_unread (treated as 1) when counts aren't available.
@@ -380,18 +378,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       setSelectedEventInterested(interested);
       setRefreshTrigger(prev => prev + 1);
       
-      toast({
-        title: interested ? 'Added to interested events!' : 'Removed from interested events',
-        description: interested ? 'This event will appear in your profile' : 'Event removed from your interested list'
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error toggling interest:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update interest',
-        variant: 'destructive'
-      });
-    }
+      }
   };
 
   const handleReviewClick = async (review: ReviewWithEngagement) => {
@@ -522,18 +511,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     try {
       await UserEventService.markUserAttendance(currentUserId, eventId, attended);
       
-      toast({
-        title: attended ? 'Marked as attended!' : 'Removed attendance',
-        description: attended ? 'This event will appear in your attended events' : 'Attendance removed'
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error toggling attendance:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update attendance',
-        variant: 'destructive'
-      });
-    }
+      }
   };
 
   const fetchChats = async (): Promise<Chat[] | null> => {
@@ -961,11 +941,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         console.error('Error sending message:', error);
         // Restore message text on error
         setNewMessage(messageText);
-        toast({
-          title: "Error",
-          description: "Failed to send message. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -988,20 +963,11 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         console.error('Error tracking message send:', error);
       }
       
-      toast({
-        title: "Message Sent! 💬",
-        description: "Your message has been delivered",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error sending message:', error);
       // Restore message text on error
       setNewMessage(messageText);
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const createDirectChat = async (userId: string) => {
@@ -1009,11 +975,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       // Validate inputs
       if (!currentUserId || !userId) {
         console.error('Missing user IDs:', { currentUserId, userId });
-        toast({
-          title: "Error",
-          description: "Missing user information. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -1021,11 +982,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(currentUserId) || !uuidRegex.test(userId)) {
         console.error('Invalid UUID format:', { currentUserId, userId });
-        toast({
-          title: "Error",
-          description: "Invalid user information. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -1034,11 +990,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       // First check if this user is actually a friend
       const isFriend = users.some(user => user.user_id === userId);
       if (!isFriend) {
-        toast({
-          title: "Not Friends Yet",
-          description: "You can only chat with people who have accepted your friend request.",
-          variant: "destructive",
-        });
         return;
       }
       
@@ -1070,12 +1021,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
           }
         }
         
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive",
-          duration: 10000
-        });
         return;
       }
 
@@ -1090,27 +1035,13 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         fetchChats();
       }
       
-      toast({
-        title: "Chat Created! 💬",
-        description: "You can now start chatting!",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error creating direct chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create chat. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const createGroupChat = async (autoGeneratedName?: string) => {
     // Group chats are temporarily disabled
-    toast({
-      title: "Coming Soon",
-      description: "Group chats are still in development and will be available soon.",
-      variant: "default",
-    });
     return;
     
     // Disabled code below - keeping for reference
@@ -1118,11 +1049,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     const groupNameToUse = groupName.trim() || autoGeneratedName || selectedUsers.map(u => u.name).join(', ');
     
     if (selectedUsers.length < 2) {
-      toast({
-        title: "Error",
-        description: "Please select at least 2 users.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -1140,11 +1066,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
       if (error) {
         console.error('Error creating group chat:', error);
-        toast({
-          title: "Error",
-          description: "Failed to create group chat. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -1153,18 +1074,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       setShowGroupCreate(false);
       fetchChats();
       
-      toast({
-        title: "Group Created! 🎉",
-        description: `"${groupNameToUse}" group chat is ready!`,
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error creating group chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create group chat. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
     */
   };
 
@@ -1172,11 +1084,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
     // Check if this user is actually a friend
     const isFriend = users.some(u => u.user_id === user.user_id);
     if (!isFriend) {
-      toast({
-        title: "Not Friends Yet",
-        description: "You can only add friends to group chats.",
-        variant: "destructive",
-      });
       return;
     }
     
@@ -1201,11 +1108,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
       if (error) {
         console.error('Error deleting chat:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete chat. Please try again.",
-          variant: "destructive",
-        });
         return;
       }
 
@@ -1215,18 +1117,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
         setMessages([]);
       }
 
-      toast({
-        title: "Chat Deleted",
-        description: "Chat has been removed.",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error deleting chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete chat. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const filteredUsers = users.filter(user =>
@@ -1543,19 +1436,11 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
   const handleBlockUser = (userId: string) => {
     // TODO: Implement block user
-    toast({
-      title: 'Block User',
-      description: 'Block user functionality will be implemented soon',
-    });
-  };
+    };
 
   const handleMuteNotifications = () => {
     setIsMuted(!isMuted);
-    toast({
-      title: isMuted ? 'Notifications Unmuted' : 'Notifications Muted',
-      description: isMuted ? 'You will receive notifications for this chat' : 'You will not receive notifications for this chat',
-    });
-  };
+    };
 
   const handleViewEvent = () => {
     if (linkedEvent) {
@@ -1613,21 +1498,12 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       .eq('id', selectedChat.id);
     
     if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update group name",
-        variant: "destructive",
-      });
       return;
     }
     
     setIsEditingGroupName(false);
     fetchChats(); // Refresh to show new name
-    toast({
-      title: "Success",
-      description: "Group name updated",
-    });
-  };
+    };
 
   const requestDeleteChat = (e?: React.MouseEvent) => {
     if (e) {
@@ -1656,11 +1532,6 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       
       if (error) {
         console.error('Error deleting chat:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete chat",
-          variant: "destructive",
-        });
         return;
       }
       
@@ -1669,18 +1540,9 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
       closeDeleteChatModal();
       fetchChats();
       
-      toast({
-        title: "Chat Deleted",
-        description: "The chat has been removed",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error deleting chat:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete chat",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const renderGroupedMessages = () => {

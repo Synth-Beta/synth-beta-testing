@@ -7,16 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Shield, MessageSquare, Eye, EyeOff, Info, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { AgeVerificationCard } from '@/components/AgeVerificationCard';
 import type { User } from '@/types/database';
 
 export const ParentalControlsSettings = () => {
   const { user: authUser } = useAuth();
-  const { toast } = useToast();
-  
-  const [userData, setUserData] = useState<User | null>(null);
+const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [age, setAge] = useState<number | null>(null);
@@ -45,11 +42,6 @@ export const ParentalControlsSettings = () => {
 
       if (error) {
         console.error('Error fetching user data:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load parental controls settings",
-          variant: "destructive",
-        });
         setLoading(false);
         return;
       }
@@ -79,12 +71,7 @@ export const ParentalControlsSettings = () => {
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load settings",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -107,18 +94,9 @@ export const ParentalControlsSettings = () => {
         throw error;
       }
 
-      toast({
-        title: "Settings Updated",
-        description: `Your ${field === 'dm_restricted' ? 'DM restrictions' : field === 'is_public_profile' ? 'privacy' : 'parental controls'} have been updated.`,
-      });
-    } catch (error) {
+      } catch (error) {
       console.error(`Error updating ${field}:`, error);
-      toast({
-        title: "Error",
-        description: `Failed to update ${field}. Please try again.`,
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   if (loading) {

@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { NotificationItem } from './NotificationItem';
 import { NotificationService } from '@/services/notificationService';
-import { useToast } from '@/hooks/use-toast';
 import type { NotificationWithDetails, NotificationType } from '@/types/notifications';
 
 interface NotificationsModalProps {
@@ -35,9 +34,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
   const [filterType, setFilterType] = useState<NotificationType | 'all'>('all');
-  const { toast } = useToast();
-
-  // Load notifications
+// Load notifications
   const loadNotifications = async () => {
     setLoading(true);
     try {
@@ -55,12 +52,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       setNotifications(nonChat);
     } catch (error) {
       console.error('Error loading notifications:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load notifications",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -101,18 +93,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       // Update unread count
       setUnreadCount(prev => Math.max(0, prev - 1));
       
-      toast({
-        title: "Notification marked as read",
-        description: "The notification has been marked as read",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error marking notification as read:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mark notification as read",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   // Handle mark all as read
@@ -124,18 +107,9 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       await loadNotifications();
       await loadUnreadCount();
       
-      toast({
-        title: "All notifications marked as read",
-        description: "All notifications have been marked as read",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error marking all notifications as read:', error);
-      toast({
-        title: "Error",
-        description: "Failed to mark all notifications as read",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   // Handle refresh

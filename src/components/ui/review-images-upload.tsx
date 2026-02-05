@@ -15,7 +15,6 @@ import {
 import { Camera, Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { storageService, type BucketName } from '@/services/storageService';
-import { useToast } from '@/hooks/use-toast';
 import type { ReviewImageItem, ReviewThumbnailCrop } from '@/hooks/useReviewForm';
 import {
   REVIEW_THUMBNAIL_ASPECT_RATIO,
@@ -64,9 +63,7 @@ export function ReviewImagesUpload(props: ReviewImagesUploadProps) {
     disabled = false,
     onThumbnailBlobChange,
   } = props;
-
-  const { toast } = useToast();
-  const [uploading, setUploading] = useState(false);
+const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -160,22 +157,12 @@ export function ReviewImagesUpload(props: ReviewImagesUploadProps) {
 
     // Check if adding these files would exceed max
     if (images.length + files.length > maxPhotos) {
-      toast({
-        title: 'Too many photos',
-        description: `You can only upload up to ${maxPhotos} photos`,
-        variant: 'destructive',
-      });
       return;
     }
 
     for (const file of files) {
       const validation = storageService.validateImage(file, { maxSizeMB });
       if (!validation.valid) {
-        toast({
-          title: 'Invalid file',
-          description: validation.error,
-          variant: 'destructive',
-        });
         return;
       }
     }
@@ -203,18 +190,9 @@ export function ReviewImagesUpload(props: ReviewImagesUploadProps) {
       }
 
       onChange(next);
-      toast({
-        title: 'Upload successful',
-        description: `${files.length} photo${files.length > 1 ? 's' : ''} uploaded`,
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Upload error:', error);
-      toast({
-        title: 'Upload failed',
-        description: error instanceof Error ? error.message : 'Failed to upload photos',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setUploading(false);
       setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -251,11 +229,9 @@ export function ReviewImagesUpload(props: ReviewImagesUploadProps) {
       }
 
       onChange(next);
-      toast({ title: 'Photo removed', description: 'Photo deleted successfully' });
-    } catch (error) {
+      } catch (error) {
       console.error('Delete error:', error);
-      toast({ title: 'Delete failed', description: 'Failed to delete photo', variant: 'destructive' });
-    }
+      }
   };
 
   return (

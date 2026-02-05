@@ -15,7 +15,6 @@ import { calculateAge } from '@/utils/calculateAge';
 
 // Union type to handle both old and new event formats
 type EventData = DBEvent | Event;
-import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 
 interface EventUsersViewProps {
@@ -51,8 +50,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
   const [showProfile, setShowProfile] = useState(false);
   const [otherEvents, setOtherEvents] = useState<any[]>([]);
   const [showAllEvents, setShowAllEvents] = useState(false);
-  const { toast } = useToast();
-  const { sessionExpired } = useAuth();
+const { sessionExpired } = useAuth();
 
   // Helper functions to handle event data display
   const getEventName = () => {
@@ -172,12 +170,7 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
       setUsers(usersWithData);
     } catch (error) {
       console.error('Error fetching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load interested users",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -268,21 +261,11 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
             if (chatError) {
               console.error('Error creating chat:', chatError);
             } else if (chat) {
-          toast({
-            title: "It's a match! 🎉",
-            description: `You and ${targetUser.name} both want to connect at ${event.event_name}!`,
-          });
-              onChatCreated(chat.id);
+          onChatCreated(chat.id);
             }
           }
         } else {
-          toast({
-            title: direction === 'like' ? "Invitation sent! 💌" : "No worries!",
-            description: direction === 'like' 
-              ? `You've sent an invitation to ${targetUser.name}. They'll see it in their Requests!`
-              : "Moving on to the next person",
-          });
-        }
+          }
       }
 
       setTimeout(() => {
@@ -293,11 +276,6 @@ export const EventUsersView = ({ event, currentUserId, onBack, onChatCreated }: 
 
     } catch (error) {
       console.error('Error recording swipe:', error);
-      toast({
-        title: "Error",
-        description: "Failed to record your choice",
-        variant: "destructive",
-      });
       setIsAnimating(false);
       setSwipeDirection(null);
     }

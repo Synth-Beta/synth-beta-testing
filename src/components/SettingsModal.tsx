@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { LogOut, User, Bell, Shield, Mail, Key, AtSign, Eye, EyeOff, AlertCircle, CheckCircle, ArrowLeft, Info } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { UserVisibilityService } from '@/services/userVisibilityService';
@@ -46,36 +45,22 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
   const [enablePushNotifications, setEnablePushNotifications] = useState(true);
   const [enableEmails, setEnableEmails] = useState(true);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
-  const { toast } = useToast();
-  const { user } = useAuth();
+const { user } = useAuth();
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
       await onSignOut();
       onClose();
-      toast({
-        title: "Signed out successfully",
-        description: "You've been signed out of your account.",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error signing out:', error);
-      toast({
-        title: "Error",
-        description: "Failed to sign out. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
+      } finally {
       setIsSigningOut(false);
     }
   };
 
   const handleComingSoon = (feature: string) => {
-    toast({
-      title: "Coming Soon",
-      description: `${feature} will be available in a future update.`,
-    });
-  };
+    };
 
   const handleClose = () => {
     setView('menu');
@@ -90,11 +75,6 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
 
   const handleResetPassword = async () => {
     if (!userEmail) {
-      toast({
-        title: 'Error',
-        description: 'No email address found for this account.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -114,38 +94,19 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
         throw error;
       }
 
-      toast({
-        title: 'Password reset email sent',
-        description: 'Check your email for instructions to reset your password.',
-      });
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error sending password reset:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to send password reset email.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsResettingPassword(false);
     }
   };
 
   const handleChangeEmail = async () => {
     if (!newEmail.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter a new email address.',
-        variant: 'destructive',
-      });
       return;
     }
 
     if (newEmail === userEmail) {
-      toast({
-        title: 'Error',
-        description: 'The new email address must be different from your current email.',
-        variant: 'destructive',
-      });
       return;
     }
 
@@ -159,20 +120,10 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
         throw error;
       }
 
-      toast({
-        title: 'Email change confirmation sent',
-        description: `Check ${newEmail} for a confirmation link to complete the change.`,
-      });
-      
       setNewEmail('');
     } catch (error: any) {
       console.error('Error changing email:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to send email change confirmation.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsChangingEmail(false);
     }
   };
@@ -186,11 +137,6 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
       if (checked) {
         const hasProfilePic = await UserVisibilityService.hasProfilePicture(user.id);
         if (!hasProfilePic) {
-          toast({
-            title: 'Profile Picture Required',
-            description: 'You must upload a profile picture before making your profile public. Go to Edit Profile to add a photo.',
-            variant: 'destructive',
-          });
           setIsLoadingVisibility(false);
           return;
         }
@@ -204,23 +150,12 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
         await updateCurrentUserSettingsPreferences({ is_public_profile: checked });
         
         setIsPublicProfile(checked);
-        toast({
-          title: checked ? 'Profile is now public' : 'Profile is now private',
-          description: checked 
-            ? 'Your profile is visible to all users.' 
-            : 'Your profile is only visible to your friends.',
-        });
-      } else {
+        } else {
         throw new Error('Failed to update visibility');
       }
     } catch (error) {
       console.error('Error toggling profile visibility:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update profile visibility. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsLoadingVisibility(false);
     }
   };
@@ -236,23 +171,12 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
 
       if (updated) {
         setEnablePushNotifications(checked);
-        toast({
-          title: checked ? 'Push notifications enabled' : 'Push notifications disabled',
-          description: checked 
-            ? 'You will receive push notifications.' 
-            : 'Push notifications are now disabled.',
-        });
-      } else {
+        } else {
         throw new Error('Failed to update preferences');
       }
     } catch (error) {
       console.error('Error toggling push notifications:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update push notification preferences. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsLoadingPreferences(false);
     }
   };
@@ -268,23 +192,12 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
 
       if (updated) {
         setEnableEmails(checked);
-        toast({
-          title: checked ? 'Email notifications enabled' : 'Email notifications disabled',
-          description: checked 
-            ? 'You will receive email notifications.' 
-            : 'Email notifications are now disabled.',
-        });
-      } else {
+        } else {
         throw new Error('Failed to update preferences');
       }
     } catch (error) {
       console.error('Error toggling email notifications:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update email preferences. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setIsLoadingPreferences(false);
     }
   };

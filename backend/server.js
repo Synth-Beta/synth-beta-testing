@@ -1,5 +1,8 @@
-// Load environment variables from .env.local (in root directory)
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env.local') });
+// Load environment variables: .env then .env.local (root directory; .env.local overrides)
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+require('dotenv').config({ path: path.join(root, '.env') });
+require('dotenv').config({ path: path.join(root, '.env.local'), override: true });
 
 // Validate API keys on startup
 const { validateApiKeys } = require('./config/apiKeys');
@@ -14,6 +17,12 @@ try {
     process.exit(1);
   }
   console.warn('⚠️  Continuing in development mode with missing keys');
+}
+
+if (process.env.SETLIST_FM_API_KEY) {
+  console.log('✓ Setlist.fm API key loaded');
+} else {
+  console.warn('⚠ Setlist.fm API key not set — setlist search will return 503 until SETLIST_FM_API_KEY is in .env or .env.local and backend is restarted');
 }
 
 const express = require('express');

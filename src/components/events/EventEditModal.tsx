@@ -6,8 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, MapPin, Clock, X, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
 interface EventEditModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -16,8 +14,7 @@ interface EventEditModalProps {
 }
 
 export function EventEditModal({ isOpen, onClose, event, onEventUpdated }: EventEditModalProps) {
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     artist_name: '',
@@ -95,21 +92,11 @@ export function EventEditModal({ isOpen, onClose, event, onEventUpdated }: Event
         event_status: formData.event_status
       });
 
-      toast({
-        title: 'Event Updated',
-        description: 'Your event has been successfully updated',
-      });
-
       onEventUpdated();
       onClose();
     } catch (error) {
       console.error('Error updating event:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update event. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };

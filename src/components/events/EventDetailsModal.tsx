@@ -49,7 +49,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { PromotionTrackingService } from '@/services/promotionTrackingService';
 import { UserEventService } from '@/services/userEventService';
-import { useToast } from '@/hooks/use-toast';
 import { useAccountType } from '@/hooks/useAccountType';
 import { extractTicketProvider, getDaysUntilEvent, extractEventMetadata } from '@/utils/trackingHelpers';
 import { SetlistService } from '@/services/setlistService';
@@ -163,8 +162,7 @@ export function EventDetailsModal({
     username: string | null;
     avatar_url: string | null;
   }>>([]);
-  const { toast } = useToast();
-  const { isCreator, isAdmin, isBusiness } = useAccountType();
+const { isCreator, isAdmin, isBusiness } = useAccountType();
 
   // 🎯 TRACKING: View duration tracking
   const viewStartTime = useRef<number | null>(null);
@@ -933,23 +931,11 @@ export function EventDetailsModal({
         onAttendanceChange(actualEvent.id, newAttendanceStatus);
       }
       
-      toast({
-        title: newAttendanceStatus ? "Marked as attended!" : "Removed attendance",
-        description: newAttendanceStatus 
-          ? "You've marked that you were at this event. Add a review to share your experience!"
-          : "You've removed your attendance for this event"
-      });
-
       // Reload attendance data to ensure consistency
       await loadAttendanceData();
     } catch (error) {
       console.error('Error toggling attendance:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update attendance",
-        variant: "destructive"
-      });
-    } finally {
+      } finally {
       setAttendanceLoading(false);
     }
   };
@@ -1171,7 +1157,6 @@ export function EventDetailsModal({
   const headerHeightCss = headerHeight
     ? `${headerHeight}px`
     : 'calc(env(safe-area-inset-top, 0px) + 56px + 8px)';
-
 
   return (
     <>
@@ -1395,11 +1380,6 @@ export function EventDetailsModal({
                       setReportModalOpen(true);
                       console.log('Report modal should now be open');
                     } else {
-                      toast({
-                        title: 'Error',
-                        description: 'Unable to report this content',
-                        variant: 'destructive',
-                      });
                     }
                   }}
                   style={{
@@ -1718,7 +1698,6 @@ export function EventDetailsModal({
               )}
           </div>
 
-
           {/* Reviews Section - Show artist and venue reviews */}
           {/* Reviews Section - Yelp/Google style */}
           {(actualEvent.artist_id || actualEvent.venue_id) && (
@@ -1994,12 +1973,7 @@ export function EventDetailsModal({
                 {...(interestedCount !== null && { interestedCount })}
                 guestListTotalCount={guestListLoading ? null : guestListAllUsers.length}
                 onOpenGuestList={() => setInterestedModalOpen(true)}
-                onMatchCreated={(matchedUser) => {
-                  toast({
-                    title: 'New Match! 🎉',
-                    description: `You matched with ${matchedUser.name}!`,
-                  });
-                }}
+                onMatchCreated={() => {}}
                 onNavigateToProfile={(userId) => {
                   if (onNavigateToProfile) {
                     onNavigateToProfile(userId);
@@ -2271,7 +2245,6 @@ export function EventDetailsModal({
             </div>
           )}
 
-
           {/* Map Section - Only show for upcoming events */}
           {isUpcomingEvent && (
             <div className="mb-6">
@@ -2513,14 +2486,12 @@ export function EventDetailsModal({
           />
         )}
 
-
         <EventCommentsModal
           eventId={actualEvent.id}
           isOpen={commentsOpen}
           onClose={() => setCommentsOpen(false)}
           currentUserId={currentUserId}
         />
-
 
         {actualEvent?.id && (
           <ReportContentModal
@@ -2535,12 +2506,8 @@ export function EventDetailsModal({
             onReportSubmitted={() => {
               console.log('Report submitted, closing modal');
               setReportModalOpen(false);
-              toast({
-                title: 'Report Submitted',
-                description: 'Thank you for helping keep our community safe',
-              });
             }}
-          />
+        />
         )}
 
         <CreateEventGroupModal
@@ -2555,11 +2522,7 @@ export function EventDetailsModal({
           onGroupCreated={(groupId) => {
             setShowCreateGroup(false);
             // loadEventGroups(); // Disabled - event_groups feature not available in 3NF schema
-            toast({
-              title: 'Group Created! 🎉',
-              description: 'Your event group is ready',
-            });
-          }}
+            }}
         />
     </div>
 

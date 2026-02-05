@@ -10,7 +10,6 @@ import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Sett
 import { FollowersModal } from './FollowersModal';
 import { FollowingModal } from './FollowingModal';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 // JamBaseService removed - using database queries directly
@@ -198,8 +197,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     mutual_friends_count: number;
     shared_genres_count?: number;
   }>>([]);
-  const { toast } = useToast();
-  const { user, sessionExpired } = useAuth();
+const { user, sessionExpired } = useAuth();
   const navigate = useNavigate();
 
   // Determine which user's profile to show
@@ -398,11 +396,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         
         if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT') || error.message?.includes('expired')) {
           console.error('Session error in ProfileView:', error);
-          toast({
-            title: "Session Expired",
-            description: "Your session has expired. Please sign in again.",
-            variant: "destructive",
-          });
           // Don't set loading to false here - let the main fetchData handle it
           return;
         }
@@ -449,12 +442,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfile(null);
-      toast({
-        title: 'Profile not found',
-        description: 'Unable to load your profile right now. Please try again.',
-        variant: 'destructive',
-      });
-    }
+      }
   };
 
   const fetchUserEvents = async () => {
@@ -879,11 +867,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       });
       if (error) throw error;
       setProfileFriendSuggestions(prev => prev.filter(s => s.user_id !== userId));
-      toast({ title: 'Friend request sent', variant: 'default' });
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error sending friend request:', error);
-      toast({ title: error?.message || 'Failed to send request', variant: 'destructive' });
-    }
+      }
   };
 
   const fetchFollowedArtistsCount = async () => {
@@ -1443,18 +1429,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       setPendingRequestId(requestId);
       setFriendStatus('pending_sent');
       
-      toast({
-        title: "Friend Request Sent! 🎉",
-        description: "Your friend request has been sent and they'll be notified.",
-      });
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error sending friend request:', error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send friend request. Please try again.",
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const unfriendUser = async (friendUserId: string) => {
@@ -1480,11 +1457,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       // Refresh friends list to ensure it's up to date
       await fetchFriends();
       
-      toast({
-        title: "Friend Removed",
-        description: "You are no longer friends with this person.",
-      });
-    } catch (error: any) {
+      } catch (error: any) {
       console.error('Error unfriending user:', error);
       // Don't show error if friendship doesn't exist (already unfriended)
       if (error?.message?.includes('Friendship does not exist')) {
@@ -1497,11 +1470,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         return;
       }
       
-      toast({
-        title: "Error",
-        description: error.message || "Failed to unfriend user. Please try again.",
-        variant: "destructive",
-      });
       throw error; // Re-throw to let the calling component handle it
     }
   };
@@ -1555,11 +1523,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       fetchDraftReviews()
     ]);
     
-    toast({
-      title: "Review Added",
-      description: "Your concert review has been added!",
-    });
-  };
+    };
 
   const handleEditReview = (review: any) => {
     // Open edit with prefilled data for non-destructive updates
@@ -1615,18 +1579,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       await ReviewService.deleteEventReview(currentUserId, reviewId);
       console.log('✅ ProfileView: Review deleted successfully');
       fetchReviews(); // Refresh the list
-      toast({
-        title: "Review Deleted",
-        description: "Your review has been deleted.",
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('❌ ProfileView: Error deleting review:', error);
-      toast({
-        title: "Error",
-        description: `Failed to delete review: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        variant: "destructive",
-      });
-    }
+      }
   };
 
   const getRatingText = (rating: 'good' | 'okay' | 'bad') => {
@@ -1692,7 +1647,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   }
 
   console.log('✅ ProfileView: Rendering profile for:', profile.name);
-
 
   // setViewReviewOpen is defined by useState earlier
 
@@ -1954,11 +1908,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                         <Button 
                           onClick={async () => {
                             if (!pendingRequestId) {
-                              toast({
-                                title: "Cannot Cancel",
-                                description: "Request ID not available. Please refresh the page.",
-                                variant: "destructive",
-                              });
                               return;
                             }
                             
@@ -1966,16 +1915,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                               await FriendsService.cancelFriendRequest(pendingRequestId);
                               setFriendStatus('none');
                               setPendingRequestId(null);
-                              toast({
-                                title: "Request Cancelled",
-                                description: "Friend request has been cancelled.",
-                              });
                             } catch (error: any) {
-                              toast({
-                                title: "Error",
-                                description: error.message || "Failed to cancel request.",
-                                variant: "destructive",
-                              });
+                              // cancel failed
                             }
                           }}
                           disabled={!pendingRequestId}
@@ -2254,7 +2195,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               />
             </div>
           )}
-
 
           {/* My Events Tab - Show attended events with review/ranking toggle */}
           <TabsContent value="my-events" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden">
@@ -2862,24 +2802,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                                                 // Reload drafts to refresh the list
                                                 const updatedDrafts = await DraftReviewService.getUserDrafts(currentUserId);
                                                 setDraftReviews(updatedDrafts || []);
-                                                toast({
-                                                  title: "Draft Deleted",
-                                                  description: "The draft has been deleted successfully.",
-                                                });
-                                              } else {
-                                                toast({
-                                                  title: "Error",
-                                                  description: "Failed to delete draft. Please try again.",
-                                                  variant: "destructive",
-                                                });
                                               }
                                             } catch (error) {
                                               console.error('Error deleting draft:', error);
-                                              toast({
-                                                title: "Error",
-                                                description: "Failed to delete draft. Please try again.",
-                                                variant: "destructive",
-                                              });
                                             }
                                           }
                                         }}
@@ -3182,8 +3107,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             </TabsContent>
           )}
 
-          
-
           {/* 🎫 Passport Tab */}
           <TabsContent value="passport" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden">
             {targetUserId ? (
@@ -3267,8 +3190,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
         </Dialog>
       )}
 
-
-
       {/* Friends Modal */}
       <FollowersModal
         isOpen={Boolean(showFollowersModal)}
@@ -3335,19 +3256,8 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             }
             // Refetch user events to update the UI
             await fetchUserEvents();
-            toast({
-              title: interested ? "Interest Added" : "Interest Removed",
-              description: interested 
-                ? "You're now interested in this event"
-                : "You've removed this event from your interested list"
-            });
           } catch (error) {
             console.error('Error toggling event interest:', error);
-            toast({
-              title: "Error",
-              description: "Failed to update interest",
-              variant: "destructive"
-            });
           }
         }}
         onNavigateToProfile={onNavigateToProfile}
@@ -3373,10 +3283,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           contentTitle={`${profile.name}'s profile`}
           onReportSubmitted={() => {
             setReportModalOpen(false);
-            toast({
-              title: 'Report Submitted',
-              description: 'Thank you for helping keep our community safe',
-            });
           }}
         />
       )}
@@ -3395,13 +3301,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           onBlockToggled={() => {
             setBlockModalOpen(false);
             setIsUserBlocked(!isUserBlocked);
-            toast({
-              title: isUserBlocked ? 'User Unblocked' : 'User Blocked',
-              description: isUserBlocked 
-                ? `You can now see content from ${profile.name}` 
-                : `You won't see content from ${profile.name} anymore`,
-            });
-          }}
+            }}
         />
       )}
 

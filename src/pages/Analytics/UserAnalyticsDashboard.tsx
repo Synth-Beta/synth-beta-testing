@@ -25,7 +25,6 @@ import { UserAnalyticsService, UserStats, TopArtist, TopVenue, ReviewStats, Achi
 import { MetricCard } from '@/components/analytics/shared/MetricCard';
 import { TopListCard } from '@/components/analytics/shared/TopListCard';
 import { AchievementCard } from '@/components/analytics/shared/AchievementCard';
-import { useToast } from '@/hooks/use-toast';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { 
   SessionAnalyticsCard, 
@@ -38,9 +37,7 @@ import { RevenueEstimationService } from '@/services/revenueEstimationService';
 
 export function UserAnalyticsDashboard() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  
-  const [loading, setLoading] = useState(true);
+const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [topArtists, setTopArtists] = useState<TopArtist[]>([]);
   const [topVenues, setTopVenues] = useState<TopVenue[]>([]);
@@ -108,23 +105,13 @@ export function UserAnalyticsDashboard() {
       setHasPremium(premiumStatus);
     } catch (error) {
       console.error('Error loading analytics:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load analytics data',
-        variant: 'destructive'
-      });
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
 
   const handleExport = async () => {
     if (!hasPremium) {
-      toast({
-        title: 'Premium Feature',
-        description: 'Upgrade to Premium to export your data',
-        variant: 'destructive'
-      });
       return;
     }
 
@@ -140,18 +127,9 @@ export function UserAnalyticsDashboard() {
       a.click();
       window.URL.revokeObjectURL(url);
 
-      toast({
-        title: 'Export Complete',
-        description: 'Your analytics data has been downloaded'
-      });
-    } catch (error) {
+      } catch (error) {
       console.error('Error exporting data:', error);
-      toast({
-        title: 'Export Failed',
-        description: 'Failed to export analytics data',
-        variant: 'destructive'
-      });
-    }
+      }
   };
 
   if (loading) {
