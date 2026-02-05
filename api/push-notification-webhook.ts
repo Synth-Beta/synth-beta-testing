@@ -12,9 +12,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const apn = require('apn');
-
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
   table: string;
@@ -30,17 +27,28 @@ interface WebhookPayload {
   old_record: unknown;
 }
 
-function getApnProvider(): apn.Provider | null {
-  const keyContent = process.env.APNS_KEY_CONTENT;
-  const keyPath = process.env.APNS_KEY_PATH;
-  const keyId = process.env.APNS_KEY_ID;
-  const teamId = process.env.APNS_TEAM_ID;
+async function getApnProvider(): Promise<{ provider: InstanceType<typeof import('apn').Provider>; Notification: typeof import('apn').Notification } | null> {
+  let apnModule: typeof import('apn');
+  try {
+    apnModule = await import('apn');
+  } catch (e) {
+    console.error('[push-webhook] Failed to load apn module:', e);
+    return null;
+  }
+  const { Provider, Notification } = apnModule;
+  // Read and normalize env vars (trim whitespace from copy-paste)
+  const keyContent = process.env.APNS_KEY_CONTENT?.trim().replace(/\s/g, '');
+  const keyPath = process.env.APNS_KEY_PATH?.trim();
+  const keyId = process.env.APNS_KEY_ID?.trim();
+  const teamId = process.env.APNS_TEAM_ID?.trim();
 
   let keyBuffer: Buffer | null = null;
   if (keyContent) {
     try {
       keyBuffer = Buffer.from(keyContent, 'base64');
-    } catch {
+      if (!keyBuffer.length) throw new Error('Decoded key is empty');
+    } catch (e) {
+      console.error('[push-webhook] APNS_KEY_CONTENT decode failed:', e instanceof Error ? e.message : e);
       return null;
     }
   } else if (keyPath) {
@@ -54,20 +62,32 @@ function getApnProvider(): apn.Provider | null {
     }
   }
 
-  if (!keyBuffer || !keyId || !teamId) return null;
+  if (!keyBuffer) {
+    console.error('[push-webhook] APNS key missing: set APNS_KEY_CONTENT (base64) or APNS_KEY_PATH');
+    return null;
+  }
+  if (!keyId) {
+    console.error('[push-webhook] APNS_KEY_ID not set');
+    return null;
+  }
+  if (!teamId) {
+    console.error('[push-webhook] APNS_TEAM_ID not set');
+    return null;
+  }
 
+  const prodEnv = (process.env.APNS_PRODUCTION ?? '').toString().trim().toLowerCase();
   const production =
-    process.env.APNS_PRODUCTION !== undefined
-      ? process.env.APNS_PRODUCTION === 'true' || process.env.APNS_PRODUCTION === '1'
-      : process.env.NODE_ENV === 'production';
+    prodEnv !== '' ? prodEnv === 'true' || prodEnv === '1' : process.env.NODE_ENV === 'production';
 
-  return new apn.Provider({
+  const provider = new Provider({
     token: { key: keyBuffer, keyId, teamId },
     production,
   });
+  return { provider, Notification };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -138,14 +158,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const provider = getApnProvider();
-  if (!provider) {
+  const apnResult = await getApnProvider();
+  if (!apnResult) {
     console.error('[push-webhook] APNs not configured (APNS_KEY_CONTENT/APNS_KEY_PATH, APNS_KEY_ID, APNS_TEAM_ID)');
     return res.status(500).json({ error: 'APNs not configured' });
   }
+  const { provider, Notification } = apnResult;
 
-  const bundleId = process.env.APNS_BUNDLE_ID || 'com.tejpatel.synth';
-  const apnNotification = new apn.Notification();
+  const bundleId = (process.env.APNS_BUNDLE_ID ?? '').trim() || 'com.tejpatel.synth';
+  const apnNotification = new Notification();
   apnNotification.alert = { title: record.title, body: record.message };
   apnNotification.badge = 1;
   apnNotification.sound = 'default';
@@ -191,4 +212,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     total: devices.length,
     errors: errors.length ? errors : undefined,
   });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('[push-webhook] Unhandled error:', message, stack);
+    return res.status(500).json({
+      error: 'Function invocation failed',
+      message,
+      hint: 'Check Vercel logs for full stack trace',
+    });
+  }
 }
