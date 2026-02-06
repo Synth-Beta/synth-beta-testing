@@ -53,7 +53,7 @@ const Slider = React.forwardRef<
         borderRadius: resolvedTrackCornerRadius,
       }}
       className={cn(
-        "relative w-full grow overflow-hidden bg-secondary",
+        "relative h-2 w-full grow overflow-hidden rounded-full bg-secondary",
         trackClassName
       )}
     >
@@ -72,7 +72,7 @@ const Slider = React.forwardRef<
         borderRadius: resolvedThumbCornerRadius,
       }}
       className={cn(
-        "block shrink-0 border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "block shrink-0 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
         thumbClassName
       )}
     />

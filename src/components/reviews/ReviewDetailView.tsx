@@ -6,11 +6,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { SetlistDisplay } from './SetlistDisplay';
 import { supabase } from '@/integrations/supabase/client';
-import { getPreferredReviewThumbnailUrls } from '@/utils/reviewImages';
 import { ReviewService, type ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewCommentsModal } from './ReviewCommentsModal';
 import { ReviewShareModal } from './ReviewShareModal';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
+import { useToast } from '@/hooks/use-toast';
 import { glassCardLight, textStyles } from '@/styles/glassmorphism';
 import { ContentModerationService } from '@/services/contentModerationService';
 
@@ -89,6 +89,7 @@ export function ReviewDetailView({
   const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
   const optionsMenuContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Normalize attendees: DB stores as TEXT[] (JSON strings), but UI expects attendee objects
@@ -132,7 +133,6 @@ export function ReviewDetailView({
             review_text,
             rating,
             photos,
-            updated_at,
             created_at,
             artist_performance_rating,
             production_rating,
@@ -283,6 +283,11 @@ export function ReviewDetailView({
       }
     } catch (error) {
       console.error('Error toggling like:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update like",
+        variant: "destructive",
+      });
     } finally {
       setIsLiking(false);
     }
@@ -334,9 +339,6 @@ export function ReviewDetailView({
     ] as const;
   }, [isOwner]);
 
-  // Must be declared before any early returns so the hook order is stable
-  const [useFallbackThumb, setUseFallbackThumb] = useState(false);
-
   const handleMenuAction = async (key: 'edit' | 'delete' | 'report' | 'block') => {
     setOptionsMenuOpen(false);
     if (!reviewData) return;
@@ -358,14 +360,28 @@ export function ReviewDetailView({
 
     // block
     if (!currentUserId) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to block users.',
+        variant: 'destructive',
+      });
       return;
     }
 
     try {
       await ContentModerationService.blockUser({ blocked_user_id: reviewData.user_id });
+      toast({
+        title: 'User blocked',
+        description: 'You will no longer see their content.',
+      });
       onBack();
     } catch (error) {
       console.error('Error blocking user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to block user',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -380,10 +396,19 @@ export function ReviewDetailView({
       setIsDeleting(true);
       await ReviewService.deleteEventReview(currentUserId, reviewId);
       await onDelete?.();
+      toast({
+        title: 'Deleted',
+        description: 'Your post has been deleted.',
+      });
       setDeleteConfirmOpen(false);
       onBack();
     } catch (error) {
       console.error('Error deleting review:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete post',
+        variant: 'destructive',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -437,8 +462,10 @@ export function ReviewDetailView({
     },
   ].filter(cat => cat.rating > 0);
 
-  const { derivedUrl: derivedThumbUrl, fallbackUrl: fallbackThumbUrl } = getPreferredReviewThumbnailUrls(reviewData);
-  const mainImage = (useFallbackThumb ? fallbackThumbUrl : derivedThumbUrl) || fallbackThumbUrl;
+  const fallbackPhotoUrl = reviewData.photos && reviewData.photos.length > 0 ? reviewData.photos[0] : null;
+  const mainImage = fallbackPhotoUrl
+    ? supabase.storage.from('review-photos').getPublicUrl(`${reviewData.id}/thumbnail.jpg`).data.publicUrl
+    : null;
 
   const openArtistDetail = () => {
     if (!reviewData.artist_id) return;
@@ -826,10 +853,9 @@ export function ReviewDetailView({
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.currentTarget;
-                  if (!useFallbackThumb && fallbackThumbUrl) {
-                    setUseFallbackThumb(true);
-                    // Swap immediately while state updates.
-                    target.src = fallbackThumbUrl;
+                  // Prefer `${reviewId}/thumbnail.jpg` if present; otherwise fall back to first uploaded photo.
+                  if (fallbackPhotoUrl && target.src.includes('/thumbnail.jpg')) {
+                    target.src = fallbackPhotoUrl;
                     return;
                   }
                   target.style.display = 'none';
@@ -1051,6 +1077,10 @@ export function ReviewDetailView({
             : reviewData.event_info?.artist_name || 'Review'}
           onReportSubmitted={() => {
             setReportModalOpen(false);
+            toast({
+              title: "Review Reported",
+              description: "Thank you for reporting this review. We'll review it shortly.",
+            });
           }}
         />
       )}
