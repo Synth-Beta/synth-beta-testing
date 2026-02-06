@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 import { supabase } from '@/integrations/supabase/client';
-import { getPreferredReviewThumbnailUrls } from '@/utils/reviewImages';
 
 interface ProfileStarBucketsProps {
   reviews: any[];
@@ -46,9 +45,11 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
   // Get artist_id from event data - prefer from event, then from review
   const artistId = event?.artist_id || review.artist_id || jambaseEvent?.artist_id || null;
   
-  const { derivedUrl: derivedThumbUrl, fallbackUrl: fallbackThumbUrl } = getPreferredReviewThumbnailUrls(review);
-  const [useFallbackThumb, setUseFallbackThumb] = useState(false);
-  const hasUserImage = Boolean(fallbackThumbUrl);
+  const hasUserImage = Array.isArray(review.photos) && review.photos.length > 0;
+  const fallbackPhotoUrl = hasUserImage ? review.photos[0] : undefined;
+  const reviewThumbnailUrl = hasUserImage
+    ? supabase.storage.from('review-photos').getPublicUrl(`${review.id}/thumbnail.jpg`).data.publicUrl
+    : undefined;
   
   // Fetch artist image if no user image
   const [artistImageUrl, setArtistImageUrl] = useState<string | null>(null);
@@ -71,8 +72,7 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
   
   // Determine image source: user photo > artist image > fallback
   const imageKey = `${review.id}-${artistName}-${venueName}-${dateStr || ''}`;
-  const imageSrc =
-    (useFallbackThumb ? fallbackThumbUrl : derivedThumbUrl) || fallbackThumbUrl || artistImageUrl || getFallbackEventImage(imageKey);
+  const imageSrc = (hasUserImage ? reviewThumbnailUrl : undefined) || artistImageUrl || getFallbackEventImage(imageKey);
 
   return (
     <button
@@ -103,10 +103,9 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
           loading="lazy"
           onError={(e) => {
             const target = e.currentTarget;
-            if (!useFallbackThumb && fallbackThumbUrl) {
-              setUseFallbackThumb(true);
-              // Swap immediately to avoid showing a broken image while state updates.
-              target.src = fallbackThumbUrl;
+            // Prefer `${reviewId}/thumbnail.jpg` if present; otherwise fall back to first uploaded photo.
+            if (fallbackPhotoUrl && target.src.includes('/thumbnail.jpg')) {
+              target.src = fallbackPhotoUrl;
             }
           }}
         />

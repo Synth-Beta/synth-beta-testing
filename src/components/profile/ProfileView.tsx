@@ -442,7 +442,12 @@ const { user, sessionExpired } = useAuth();
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfile(null);
-      }
+      toast({
+        title: 'Profile not found',
+        description: 'Unable to load your profile right now. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const fetchUserEvents = async () => {

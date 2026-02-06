@@ -4,13 +4,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
-import { VideoUpload } from '@/components/ui/photo-upload';
+import { PhotoUpload, VideoUpload } from '@/components/ui/photo-upload';
 import { useAuth } from '@/hooks/useAuth';
 import { Users } from 'lucide-react';
 import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
 import { ShareAppCTA } from '@/components/share/ShareAppCTA';
 import { Card, CardContent } from '@/components/ui/card';
-import { ReviewImagesUpload } from '@/components/ui/review-images-upload';
 
 interface ReviewContentStepProps {
   formData: ReviewFormData;
@@ -79,16 +78,22 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, onThumbn
       </div>
 
       {user && (
-        <ReviewImagesUpload
-          images={formData.images || []}
-          onChange={(next) => onUpdateFormData({ images: next })}
+        <PhotoUpload
+          value={formData.photos || []}
+          onChange={(urls) => onUpdateFormData({ photos: urls })}
+          thumbnailIndex={formData.thumbnailIndex}
+          thumbnailCrop={formData.thumbnailCrop}
+          onThumbnailChange={(idx, crop) =>
+            onUpdateFormData({ thumbnailIndex: idx, thumbnailCrop: crop })
+          }
+          onThumbnailBlobChange={onThumbnailBlobChange}
+          enableReviewThumbnail
           userId={user.id}
           bucket="review-photos"
           maxPhotos={5}
           maxSizeMB={5}
           label="Photos (Optional)"
           helperText="Add up to 5 photos to give fans a feel for the night."
-          onThumbnailBlobChange={onThumbnailBlobChange}
         />
       )}
 
