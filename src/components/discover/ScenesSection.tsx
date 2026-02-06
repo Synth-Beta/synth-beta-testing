@@ -3,17 +3,24 @@ import { HorizontalCarousel } from './HorizontalCarousel';
 import { SceneCard } from './SceneCard';
 import { SceneService, type Scene } from '@/services/sceneService';
 import { SceneDetailView } from './SceneDetailView';
+import type { JamBaseEvent } from '@/types/eventTypes';
 
 interface ScenesSectionProps {
   currentUserId: string;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
+  onArtistClick?: (id: string, name: string) => void;
+  onVenueClick?: (id: string, name: string) => void;
+  onEventClick?: (event: JamBaseEvent) => void;
 }
 
 export const ScenesSection: React.FC<ScenesSectionProps> = ({
   currentUserId,
   onNavigateToProfile,
   onNavigateToChat,
+  onArtistClick,
+  onVenueClick,
+  onEventClick,
 }) => {
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +63,9 @@ export const ScenesSection: React.FC<ScenesSectionProps> = ({
         onBack={handleBack}
         onNavigateToProfile={onNavigateToProfile}
         onNavigateToChat={onNavigateToChat}
+        onArtistClick={onArtistClick}
+        onVenueClick={onVenueClick}
+        onEventClick={onEventClick}
       />
     );
   }

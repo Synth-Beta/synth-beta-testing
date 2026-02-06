@@ -20,6 +20,9 @@ interface SceneDetailViewProps {
   onBack: () => void;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
+  onArtistClick?: (id: string, name: string) => void;
+  onVenueClick?: (id: string, name: string) => void;
+  onEventClick?: (event: JamBaseEvent) => void;
 }
 
 export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
@@ -28,6 +31,9 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
   onBack,
   onNavigateToProfile,
   onNavigateToChat,
+  onArtistClick,
+  onVenueClick,
+  onEventClick,
 }) => {
   const [scene, setScene] = useState<SceneDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -369,23 +375,25 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
   };
 
   const handleParticipantClick = (participant: { type: string; name: string; id: string; participantId?: string; textValue?: string }) => {
-    // Open detail modals for artists and venues
-    if (participant.type === 'artist' && participant.participantId) {
-      setSelectedArtistId(participant.participantId);
-      setSelectedArtistName(participant.name);
-      setArtistModalOpen(true);
-    } else if (participant.type === 'venue' && participant.participantId) {
-      setSelectedVenueId(participant.participantId);
-      setSelectedVenueName(participant.name);
-      setVenueModalOpen(true);
-    } else if (participant.type === 'artist' && participant.name) {
-      // Fallback to name if no participantId - still open modal
-      setSelectedArtistId(participant.id);
+    const id = participant.participantId ?? participant.id;
+
+    // Bubble artist/venue clicks up when callbacks exist (Discover header controls navigation)
+    if (participant.type === 'artist' && onArtistClick) {
+      onArtistClick(id, participant.name);
+      return;
+    }
+    if (participant.type === 'venue' && onVenueClick) {
+      onVenueClick(id, participant.name);
+      return;
+    }
+
+    // Fallback: open local detail modals for artists and venues
+    if (participant.type === 'artist' && participant.name) {
+      setSelectedArtistId(id);
       setSelectedArtistName(participant.name);
       setArtistModalOpen(true);
     } else if (participant.type === 'venue' && participant.name) {
-      // Fallback to name if no participantId - still open modal
-      setSelectedVenueId(participant.id);
+      setSelectedVenueId(id);
       setSelectedVenueName(participant.name);
       setVenueModalOpen(true);
     }
@@ -405,6 +413,10 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
   };
 
   const handleEventClick = async (event: JamBaseEvent) => {
+    if (onEventClick) {
+      onEventClick(event);
+      return;
+    }
     try {
       const { data } = await supabase
         .from('events')
