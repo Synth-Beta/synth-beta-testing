@@ -686,10 +686,14 @@ export class NotificationService {
             .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
           
           if (updateError) throw updateError;
-          return;
+        } else {
+          throw error;
         }
-        throw error;
       }
+
+      // Update iOS badge count after marking as read
+      const { BadgeService } = await import('./badgeService');
+      await BadgeService.updateBadgeCount();
     } catch (error) {
       console.error('Error marking notification as read:', error);
       throw new Error(`Failed to mark notification as read: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -714,10 +718,14 @@ export class NotificationService {
             .eq('is_read', false);
           
           if (updateError) throw updateError;
-          return;
+        } else {
+          throw error;
         }
-        throw error;
       }
+
+      // Update iOS badge count after marking all as read
+      const { BadgeService } = await import('./badgeService');
+      await BadgeService.updateBadgeCount();
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       throw new Error(`Failed to mark all notifications as read: ${error instanceof Error ? error.message : 'Unknown error'}`);

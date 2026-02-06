@@ -102,7 +102,9 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   // User location and preferences
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [userTopGenres, setUserTopGenres] = useState<string[]>([]);
-  const locationFetchedRef = useRef(false);
+  // Track if we already used location/genres in a reload (so catch-up effect only runs once when they become available)
+  const hadLocationForReloadRef = useRef(false);
+  const hadGenresForReloadRef = useRef(false);
 
   const attachObserver = useIntersectionTrackingList(
     'event',
@@ -115,66 +117,40 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   // Compute whether we have more events to show (locally or from API)
   const hasMore = displayCount < allFetchedEvents.length || hasMoreFromApi;
 
-  // Fetch user location and top_genres on mount, then load feed
+  // Load feed on mount (fast path) and reload when filters or currentUserId change
   useEffect(() => {
-    if (locationFetchedRef.current) return;
-    locationFetchedRef.current = true;
+    const f = filters as any;
+    const dateTo = f?.dateRange?.to;
+    const maxDaysAhead = dateTo ? Math.ceil((dateTo.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 90;
 
     const initFeed = async () => {
-      // Fetch location and preferences in parallel
-      const [locationResult, prefsResult] = await Promise.allSettled([
-        LocationService.getCurrentLocation(),
-        supabase
-          .from('user_preferences')
-          .select('top_genres')
-          .eq('user_id', currentUserId)
-          .single()
-      ]);
-
-      let loc: { lat: number; lng: number } | null = null;
-      let genres: string[] = [];
-
-      if (locationResult.status === 'fulfilled') {
-        loc = { lat: locationResult.value.latitude, lng: locationResult.value.longitude };
-        console.log('📍 [UnifiedEventsFeed] Got user location:', loc);
-        setUserLocation(loc);
-      } else {
-        console.log('📍 [UnifiedEventsFeed] Could not get location:', locationResult.reason?.message);
-      }
-
-      if (prefsResult.status === 'fulfilled' && prefsResult.value.data?.top_genres) {
-        genres = prefsResult.value.data.top_genres;
-        console.log('🎵 [UnifiedEventsFeed] Got user top_genres:', genres);
-        setUserTopGenres(genres);
-      }
-
-      // Now load the feed WITH the location
       if (!initialLoadCompleteRef.current) {
+        // Initial load: fast path (don't wait for location/prefs)
         initialLoadCompleteRef.current = true;
-        console.log('🎯 [UnifiedEventsFeed] Loading feed with location:', loc);
-        
         setLoading(true);
-        try {
-          const f = filters as any;
-          const dateTo = f?.dateRange?.to;
-          const maxDaysAhead = dateTo ? Math.ceil((dateTo.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 90;
-          
+
+        const feedLoadPromise = (async () => {
           const feedFilters: PersonalizedFeedFilters = {
-            latitude: f?.latitude ?? loc?.lat,
-            longitude: f?.longitude ?? loc?.lng,
-            genres: (f?.genres && f.genres.length > 0) ? f.genres : genres,
+            latitude: undefined,
+            longitude: undefined,
+            genres: (f?.genres && f.genres.length > 0) ? f.genres : undefined,
             dateRange: f?.dateRange,
             radiusMiles: f?.radiusMiles ?? 50,
             selectedCities: f?.selectedCities,
             includePast: false,
             maxDaysAhead,
           };
-          
-          console.log('🎯 [UnifiedEventsFeed] Feed filters:', feedFilters);
-          
-          const result = await PersonalizationEngineV5.getUnifiedFeed(currentUserId, INITIAL_FEED_SIZE, 0, feedFilters);
+          return PersonalizationEngineV5.getUnifiedFeed(currentUserId, INITIAL_FEED_SIZE, 0, feedFilters);
+        })();
+
+        const locationAndPrefsPromise = Promise.allSettled([
+          LocationService.getCurrentLocation(),
+          supabase.from('user_preferences').select('top_genres').eq('user_id', currentUserId).single(),
+        ]);
+
+        try {
+          const result = await feedLoadPromise;
           const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
-          
           setAllFetchedEvents(items);
           setDisplayedEvents(items.slice(0, PAGE_SIZE));
           setHasMoreFromApi(result.hasMore);
@@ -185,11 +161,93 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         } finally {
           setLoading(false);
         }
+
+        const [locationResult, prefsResult] = await locationAndPrefsPromise;
+        if (locationResult.status === 'fulfilled') {
+          const loc = { lat: locationResult.value.latitude, lng: locationResult.value.longitude };
+          console.log('📍 [UnifiedEventsFeed] Got user location:', loc);
+          setUserLocation(loc);
+        } else {
+          console.log('📍 [UnifiedEventsFeed] Could not get location:', locationResult.reason?.message);
+        }
+        if (prefsResult.status === 'fulfilled' && prefsResult.value.data?.top_genres) {
+          const genres = prefsResult.value.data.top_genres;
+          console.log('🎵 [UnifiedEventsFeed] Got user top_genres:', genres);
+          setUserTopGenres(genres);
+        }
+      } else {
+        // Filter or userId change: reload with current filters (and location/prefs if available)
+        if (userLocation) hadLocationForReloadRef.current = true;
+        if (userTopGenres.length > 0) hadGenresForReloadRef.current = true;
+        setLoading(true);
+        const feedFilters: PersonalizedFeedFilters = {
+          latitude: f?.latitude ?? userLocation?.lat,
+          longitude: f?.longitude ?? userLocation?.lng,
+          genres: (f?.genres && f.genres.length > 0) ? f.genres : userTopGenres,
+          dateRange: f?.dateRange,
+          radiusMiles: f?.radiusMiles ?? 50,
+          selectedCities: f?.selectedCities,
+          includePast: false,
+          maxDaysAhead,
+        };
+        try {
+          const result = await PersonalizationEngineV5.getUnifiedFeed(currentUserId, INITIAL_FEED_SIZE, 0, feedFilters);
+          const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
+          setAllFetchedEvents(items);
+          setDisplayedEvents(items.slice(0, PAGE_SIZE));
+          setHasMoreFromApi(result.hasMore);
+          setApiOffset(items.length);
+          console.log('🎯 [UnifiedEventsFeed] Reloaded', items.length, 'events (filters/userId change)');
+        } catch (error) {
+          console.error('Error reloading feed:', error);
+        } finally {
+          setLoading(false);
+        }
       }
     };
 
     initFeed();
+    // Intentionally omit userLocation/userTopGenres: they are set in the initial path, so including them would re-run the effect and trigger an unnecessary reload after mount.
   }, [currentUserId, filters]);
+
+  // When location or preferences become available after initial load (e.g. they finished loading after a filter change), reload once so the feed is personalized. Fixes: filter change before location loads -> non-personalized results with no automatic correction.
+  useEffect(() => {
+    if (!initialLoadCompleteRef.current) return;
+
+    const locationJustAvailable = userLocation != null && !hadLocationForReloadRef.current;
+    const genresJustAvailable = userTopGenres.length > 0 && !hadGenresForReloadRef.current;
+    if (!locationJustAvailable && !genresJustAvailable) return;
+
+    if (userLocation) hadLocationForReloadRef.current = true;
+    if (userTopGenres.length > 0) hadGenresForReloadRef.current = true;
+
+    const f = filters as any;
+    const dateTo = f?.dateRange?.to;
+    const maxDaysAhead = dateTo ? Math.ceil((dateTo.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 90;
+    const feedFilters: PersonalizedFeedFilters = {
+      latitude: f?.latitude ?? userLocation?.lat,
+      longitude: f?.longitude ?? userLocation?.lng,
+      genres: (f?.genres && f.genres.length > 0) ? f.genres : userTopGenres,
+      dateRange: f?.dateRange,
+      radiusMiles: f?.radiusMiles ?? 50,
+      selectedCities: f?.selectedCities,
+      includePast: false,
+      maxDaysAhead,
+    };
+
+    setLoading(true);
+    PersonalizationEngineV5.getUnifiedFeed(currentUserId, INITIAL_FEED_SIZE, 0, feedFilters)
+      .then((result) => {
+        const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
+        setAllFetchedEvents(items);
+        setDisplayedEvents(items.slice(0, PAGE_SIZE));
+        setHasMoreFromApi(result.hasMore);
+        setApiOffset(items.length);
+        console.log('🎯 [UnifiedEventsFeed] Reloaded', items.length, 'events (location/prefs became available)');
+      })
+      .catch((error) => console.error('Error reloading feed with location/prefs:', error))
+      .finally(() => setLoading(false));
+  }, [currentUserId, filters, userLocation, userTopGenres]);
 
   const toFeedFilters = useCallback((): PersonalizedFeedFilters | undefined => {
     const f = filters as any;
@@ -341,11 +399,13 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   // Load interested events
   useEffect(() => {
-    supabase
-      .from('user_event_relationships')
-      .select('event_id')
-      .eq('user_id', currentUserId)
-      .eq('relationship_type', 'interested')
+    void Promise.resolve(
+      supabase
+        .from('user_event_relationships')
+        .select('event_id')
+        .eq('user_id', currentUserId)
+        .eq('relationship_type', 'interested')
+    )
       .then(({ data }) => {
         if (data) setInterestedEvents(new Set(data.map(r => r.event_id)));
       })

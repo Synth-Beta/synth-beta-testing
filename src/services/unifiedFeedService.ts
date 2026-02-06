@@ -126,33 +126,26 @@ export class UnifiedFeedService {
     const { userId, limit = 50, offset = 0, userLocation, includePrivateReviews = true, filters } = options;
     
     try {
-      const feedItems: UnifiedFeedItem[] = [];
-      
-      // Fetch user's own reviews (private and public)
-      if (includePrivateReviews) {
-        const userReviews = await this.getUserReviews(userId);
-        feedItems.push(...userReviews);
-      }
-      
-      // Fetch reviews from connections (1st, 2nd, relevant 3rd degree)
-      // This uses the connection_degree view which includes relevant connection reviews
-      try {
-        const connectionReviews = await FriendsReviewService.getConnectionDegreeReviews(userId, limit);
-        feedItems.push(...connectionReviews);
-      } catch (error) {
-        console.warn('Error fetching connection degree reviews, falling back to public reviews:', error);
-        // Fallback to public reviews if connection degree fails
-        const publicReviews = await this.getPublicReviews(userId, limit);
-        feedItems.push(...publicReviews);
-      }
-      
-      // Fetch recent events (as "news" items) - NOW PERSONALIZED!
-      const recentEvents = await this.getRecentEvents(userLocation, 20, userId, offset, filters);
-      feedItems.push(...recentEvents);
-      
-      // Fetch friend activity
-      const friendActivity = await this.getFriendActivity(userId, 10);
-      feedItems.push(...friendActivity);
+      // Fetch all feed sources in parallel for faster load
+      const connectionReviewsPromise = FriendsReviewService.getConnectionDegreeReviews(userId, limit)
+        .catch((error) => {
+          console.warn('Error fetching connection degree reviews, falling back to public reviews:', error);
+          return this.getPublicReviews(userId, limit);
+        });
+
+      const [userReviews, connectionReviews, recentEvents, friendActivity] = await Promise.all([
+        includePrivateReviews ? this.getUserReviews(userId) : Promise.resolve([]),
+        connectionReviewsPromise,
+        this.getRecentEvents(userLocation, 20, userId, offset, filters),
+        this.getFriendActivity(userId, 10),
+      ]);
+
+      const feedItems: UnifiedFeedItem[] = [
+        ...userReviews,
+        ...connectionReviews,
+        ...recentEvents,
+        ...friendActivity,
+      ];
       
       // Deduplicate events by event ID (same event might appear as review + event)
       const deduplicatedItems = this.deduplicateFeedItems(feedItems);

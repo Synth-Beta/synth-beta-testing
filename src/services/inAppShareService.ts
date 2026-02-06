@@ -132,7 +132,8 @@ export class InAppShareService {
   }
 
   /**
-   * Share an event to a specific chat
+   * Share an event to a specific chat.
+   * Inserts the message in ONE write with message_type and metadata set so the event card always displays (no update step to fail or race).
    */
   static async shareEventToChat(
     eventId: string,
@@ -141,183 +142,57 @@ export class InAppShareService {
     customMessage?: string
   ): Promise<EventShareResult> {
     try {
-      // Don't query event details - just use a generic message
-      // The event data will be available via the shared_event_id FK join when displaying
-      // This avoids column name issues and database query errors
       const defaultMessage = customMessage || `Check out this event!`;
+      const metadata = {
+        custom_message: customMessage,
+        share_context: 'in_app_share',
+        event_id: eventId
+      };
 
-      // Insert the message with event share data (encrypted)
-      // 3NF COMPLIANT: Only store message-specific metadata, not duplicated event data
-      // Event data should be retrieved via shared_event_id FK join
-      // Note: shared_event_id may reference either 'events' or 'jambase_events' table
-      // depending on migration state, so we handle FK errors gracefully
-      // Try with shared_event_id first, then fall back to null + metadata if FK constraint fails
-      // Use encryption service for consistency
-      const { sendEncryptedMessage } = await import('./chatService');
-      const { data: message, error: messageError } = await sendEncryptedMessage(
-        chatId,
-        userId,
-        defaultMessage
-      );
+      const { encryptMessage } = await import('./chatEncryptionService');
+      const encryptedContent = await encryptMessage(defaultMessage, chatId, userId);
+
+      // Single insert with message_type and metadata so the event card can render immediately (no follow-up update)
+      const insertPayload = {
+        chat_id: chatId,
+        sender_id: userId,
+        content: encryptedContent,
+        is_encrypted: true,
+        message_type: 'event_share' as const,
+        shared_event_id: null,
+        metadata
+      };
       
-      // If encryption succeeded, update the message with event share metadata
-      if (!messageError && message?.data?.id) {
-        const { error: updateError } = await supabase
-          .from('messages')
-          .update({
-            message_type: 'event_share',
-            shared_event_id: eventId,
-            metadata: {
-              custom_message: customMessage,
-              share_context: 'in_app_share'
-            }
-          })
-          .eq('id', message.data.id);
-        
-        // If update failed due to FK constraint, retry without shared_event_id
-        if (updateError && (updateError.code === '23503' || updateError.message?.includes('foreign key') || updateError.code === '42703')) {
-          console.warn('FK constraint error on update, retrying without shared_event_id FK');
-          const { error: retryUpdateError } = await supabase
-            .from('messages')
-            .update({
-              message_type: 'event_share',
-              shared_event_id: null,
-              metadata: {
-                custom_message: customMessage,
-                share_context: 'in_app_share',
-                event_id: eventId
-              }
-            })
-            .eq('id', message.data.id);
-          
-          if (retryUpdateError) {
-            console.warn('Failed to update message with event share metadata (retry):', retryUpdateError);
-          }
-        } else if (updateError) {
-          console.warn('Failed to update message with event share metadata:', updateError);
-        }
-        
-        // Track the share for analytics (non-blocking - don't fail if this errors)
-        try {
-          await supabase
-            .from('event_shares')
-            .insert({
-              event_id: eventId,
-              sharer_user_id: userId,
-              chat_id: chatId,
-              message_id: message.data.id,
-              share_type: 'direct_chat'
-            });
-        } catch (analyticsError) {
-          // Don't fail the share if analytics tracking fails
-          console.warn('Failed to track event share in analytics (non-critical):', analyticsError);
-        }
+      const { data: inserted, error: insertError } = await supabase
+        .from('messages')
+        .insert(insertPayload)
+        .select('id, chat_id')
+        .single();
 
-        return {
-          success: true,
-          message_id: message.data.id,
-          chat_id: chatId
-        };
-      }
-
-      if (messageError) {
-        console.error('Error creating share message:', messageError);
-        
-        // If it's a foreign key constraint error or column error, try without the FK (store in metadata instead)
-        if (messageError.code === '23503' || messageError.message?.includes('foreign key') || messageError.code === '42703') {
-          console.warn('FK constraint or column error, retrying without shared_event_id FK');
-          // Retry with encryption but without shared_event_id FK
-          const { data: retryMessageData, error: retryError } = await sendEncryptedMessage(
-            chatId,
-            userId,
-            defaultMessage
-          );
-          
-          if (retryError) {
-            return {
-              success: false,
-              error: 'Failed to share event: ' + (retryError.message || 'Unknown error')
-            };
-          }
-          
-          if (!retryMessageData?.data?.id) {
-            return {
-              success: false,
-              error: 'Failed to share event: Message was not created'
-            };
-          }
-          
-          const { data: retryMessage, error: updateError } = await supabase
-            .from('messages')
-            .update({
-              message_type: 'event_share',
-              shared_event_id: null, // Set to null to bypass FK constraint
-              metadata: {
-                custom_message: customMessage,
-                share_context: 'in_app_share',
-                event_id: eventId // Store in metadata as fallback
-              }
-            })
-            .eq('id', retryMessageData.data.id)
-            .select('id, chat_id')
-            .single();
-          
-          if (updateError || !retryMessage) {
-            return {
-              success: false,
-              error: 'Failed to share event: ' + (updateError?.message || 'Unknown error')
-            };
-          }
-          
-          // Track the share for analytics (non-blocking - don't fail if this errors)
-          try {
-            await supabase
-              .from('event_shares')
-              .insert({
-                event_id: eventId,
-                sharer_user_id: userId,
-                chat_id: chatId,
-                message_id: retryMessage.id,
-                share_type: 'direct_chat'
-              });
-          } catch (analyticsError) {
-            // Don't fail the share if analytics tracking fails
-            console.warn('Failed to track event share in analytics (non-critical):', analyticsError);
-          }
-
-          return {
-            success: true,
-            message_id: retryMessage.id,
-            chat_id: retryMessage.chat_id
-          };
-        }
-        
+      if (insertError || !inserted?.id) {
+        console.error('Error inserting event share message:', insertError);
         return {
           success: false,
-          error: 'Failed to share event: ' + (messageError.message || 'Unknown error')
+          error: insertError?.message || 'Failed to create message'
         };
       }
 
-      // Track the share for analytics (non-blocking - don't fail if this errors)
       try {
-        await supabase
-          .from('event_shares')
-          .insert({
-            event_id: eventId,
-            sharer_user_id: userId,
-            chat_id: chatId,
-            message_id: message.id,
-            share_type: 'direct_chat' // Will be updated based on chat type
-          });
+        await supabase.from('event_shares').insert({
+          event_id: eventId,
+          sharer_user_id: userId,
+          chat_id: chatId,
+          message_id: inserted.id,
+          share_type: 'direct_chat'
+        });
       } catch (analyticsError) {
-        // Don't fail the share if analytics tracking fails
-        console.warn('Failed to track event share in analytics (non-critical):', analyticsError);
+        console.warn('Failed to track event share (non-critical):', analyticsError);
       }
 
       return {
         success: true,
-        message_id: message.id,
-        chat_id: message.chat_id
+        message_id: inserted.id,
+        chat_id: chatId
       };
     } catch (error) {
       console.error('Error sharing event to chat:', error);

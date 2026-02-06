@@ -274,8 +274,15 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           table: 'messages',
           filter: `chat_id=eq.${selectedChat.id}`
         },
-        (payload) => {
+        async (payload) => {
           console.log('📨 Real-time message update:', payload);
+          
+          // Small delay for INSERT events to ensure database transaction is fully committed
+          // This is especially important for event_share messages with metadata
+          if (payload.eventType === 'INSERT') {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
           // Refresh messages when new ones arrive
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
             fetchMessages(selectedChat.id);
@@ -825,16 +832,56 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         return;
       }
 
+      const rawMessages = data || [];
+      const messageIds = rawMessages.map(m => m.id);
+
+      // Fallback: resolve event_id from event_shares for messages that don't have shared_event_id/metadata.event_id (e.g. old or failed updates)
+      let eventIdByMessageId = new Map<string, string>();
+      if (messageIds.length > 0) {
+        const { data: eventShares } = await supabase
+          .from('event_shares')
+          .select('message_id, event_id')
+          .eq('chat_id', chatId)
+          .in('message_id', messageIds);
+        eventIdByMessageId = new Map((eventShares || []).map((s: { message_id: string; event_id: string }) => [s.message_id, s.event_id]));
+      }
+
       // Get sender profiles separately
-      const senderIds = [...new Set((data || []).map(msg => msg.sender_id))];
+      const senderIds = [...new Set(rawMessages.map(msg => msg.sender_id))];
       const { data: profiles } = await supabase
         .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', senderIds);
 
-      // Decrypt encrypted messages
-      const transformedMessages = await Promise.all((data || []).map(async (msg) => {
+      // Decrypt encrypted messages and merge event_id from event_shares when missing
+      const transformedMessages = await Promise.all(rawMessages.map(async (msg) => {
         const profile = profiles?.find(p => p.user_id === msg.sender_id);
+        const fallbackEventId = eventIdByMessageId.get(msg.id);
+        
+        // Parse metadata if it's a string (JSONB can sometimes be returned as string)
+        let parsedMetadata: any = {};
+        if (msg.metadata) {
+          if (typeof msg.metadata === 'string') {
+            try {
+              parsedMetadata = JSON.parse(msg.metadata);
+            } catch (e) {
+              console.warn('Failed to parse metadata as JSON:', e, msg.metadata);
+              parsedMetadata = {};
+            }
+          } else {
+            parsedMetadata = msg.metadata;
+          }
+        }
+        
+        
+        const resolvedEventId = msg.shared_event_id ?? parsedMetadata?.event_id ?? fallbackEventId ?? null;
+        const resolvedMetadata = {
+          ...parsedMetadata,
+          ...(resolvedEventId != null ? { event_id: resolvedEventId } : {})
+        };
+        
+        // If message_type is 'event_share' but we don't have an event_id yet, try to get it from fallback
+        const isEventShare = msg.message_type === 'event_share' || (resolvedEventId != null && !msg.message_type);
         
         // Decrypt message content if encrypted
         let decryptedContent = msg.content;
@@ -859,10 +906,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           created_at: msg.created_at,
           sender_name: profile?.name || 'Unknown',
           sender_avatar: profile?.avatar_url || null,
-          message_type: msg.message_type || 'text',
-          shared_event_id: msg.shared_event_id,
+          message_type: isEventShare ? 'event_share' : (msg.message_type || 'text'),
+          shared_event_id: msg.shared_event_id ?? fallbackEventId ?? null,
           shared_review_id: msg.shared_review_id,
-          metadata: msg.metadata
+          metadata: resolvedMetadata
         };
       }));
 
@@ -1228,12 +1275,17 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       
       if (error) {
         console.error('Error updating last_read_at:', error);
+        return;
       }
 
       // Update has_unread to false for this chat in local state
       setChats(prev => prev.map(chat => 
         chat.id === chatId ? { ...chat, has_unread: false, unread_count: 0 } : chat
       ));
+
+      // Update iOS badge count after marking chat as read
+      const { BadgeService } = await import('@/services/badgeService');
+      await BadgeService.updateBadgeCount();
     } catch (error) {
       console.error('Error marking chat as read:', error);
     }
@@ -1693,63 +1745,81 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                         className="flex flex-col"
                         style={{ gap: isLastInGroup ? 'var(--spacing-small, 12px)' : '0' }}
                       >
-                        {message.message_type === 'review_share' && (message.shared_review_id || message.metadata?.review_id) ? (
-                          <ChatReviewMessage
-                            reviewId={message.shared_review_id || message.metadata?.review_id}
-                            onReviewClick={handleReviewClick}
-                            currentUserId={currentUserId}
-                            metadata={message.metadata}
-                          />
-                        ) : message.message_type === 'event_share' && (message.shared_event_id || message.metadata?.event_id) ? (
-                          <EventMessageCard
-                            eventId={message.shared_event_id || message.metadata?.event_id}
-                            customMessage={message.metadata?.custom_message}
-                            onEventClick={handleEventClick}
-                            onInterestToggle={handleInterestToggle}
-                            onAttendanceToggle={handleAttendanceToggle}
-                            currentUserId={currentUserId}
-                            refreshTrigger={refreshTrigger}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              display: 'inline-block',
-                              width: 'fit-content',
-                              alignSelf: isSent ? 'flex-end' : 'flex-start',
-                              maxWidth: '172px',
-                              padding: 'var(--spacing-small, 12px)',
-                              borderRadius: 'var(--radius-corner, 10px)',
-                              border: message.sender_id === currentUserId ? 'none' : '1px solid var(--neutral-200)',
-                              backgroundColor: message.sender_id === currentUserId ? 'var(--brand-pink-500)' : 'var(--neutral-100)',
-                              overflowWrap: 'anywhere',
-                              wordWrap: 'break-word',
-                              whiteSpace: 'pre-wrap'
-                            }}
-                          >
-                            <p
+                        {/* Determine what to render: review card, event card, or text - mutually exclusive */}
+                        {(() => {
+                          // Priority 1: Review share
+                          if (message.message_type === 'review_share' && (message.shared_review_id || message.metadata?.review_id)) {
+                            return (
+                              <ChatReviewMessage
+                                reviewId={message.shared_review_id || message.metadata?.review_id}
+                                onReviewClick={handleReviewClick}
+                                currentUserId={currentUserId}
+                                metadata={message.metadata}
+                              />
+                            );
+                          }
+                          
+                          // Priority 2: Event share - check message_type FIRST, then event_id
+                          const eventId = message.shared_event_id || (message.metadata as any)?.event_id;
+                          const isEventShare = message.message_type === 'event_share' || !!eventId;
+                          
+                          if (isEventShare && eventId) {
+                            return (
+                                <EventMessageCard
+                                  eventId={eventId}
+                                  customMessage={message.metadata?.custom_message}
+                                  onEventClick={handleEventClick}
+                                  onInterestToggle={handleInterestToggle}
+                                  onAttendanceToggle={handleAttendanceToggle}
+                                  currentUserId={currentUserId}
+                                  refreshTrigger={refreshTrigger}
+                                />
+                              );
+                            }
+                          }
+                          
+                          // Priority 3: Text content (only if not review or event share)
+                          return (
+                            <div
                               style={{
-                                fontFamily: 'var(--font-family)',
-                                fontSize: 'var(--typography-body-size, 20px)',
-                                fontWeight: 'var(--typography-body-weight, 500)',
-                                lineHeight: 'var(--typography-body-line-height, 1.5)',
-                                margin: 0,
-                                color: message.sender_id === currentUserId ? 'var(--neutral-50)' : 'var(--neutral-900)'
+                                display: 'inline-block',
+                                width: 'fit-content',
+                                alignSelf: isSent ? 'flex-end' : 'flex-start',
+                                maxWidth: '172px',
+                                padding: 'var(--spacing-small, 12px)',
+                                borderRadius: 'var(--radius-corner, 10px)',
+                                border: message.sender_id === currentUserId ? 'none' : '1px solid var(--neutral-200)',
+                                backgroundColor: message.sender_id === currentUserId ? 'var(--brand-pink-500)' : 'var(--neutral-100)',
+                                overflowWrap: 'anywhere',
+                                wordWrap: 'break-word',
+                                whiteSpace: 'pre-wrap'
                               }}
                             >
-                              {message.content}
-                            </p>
-                          </div>
-                        )}
+                              <p
+                                style={{
+                                  fontFamily: 'var(--font-family)',
+                                  fontSize: '14px',
+                                  fontWeight: 'var(--typography-body-weight, 500)',
+                                  lineHeight: 1.4,
+                                  margin: 0,
+                                  color: message.sender_id === currentUserId ? 'var(--neutral-50)' : 'var(--neutral-900)'
+                                }}
+                              >
+                                {message.content}
+                              </p>
+                            </div>
+                          );
+                        })()}
 
                         {/* Timestamp (only on last message in group) */}
                         {isLastInGroup && (
                           <p
                             style={{
                               fontFamily: 'var(--font-family)',
-                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontSize: '12px',
                               fontWeight: 'var(--typography-meta-weight, 500)',
                               color: 'var(--neutral-600)',
-                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                              lineHeight: 1.3,
                               textAlign: isSent ? 'right' : 'left',
                               margin: 0
                             }}

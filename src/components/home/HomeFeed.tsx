@@ -363,8 +363,11 @@ interface FriendEventInterest {
             table: 'notifications',
             filter: `user_id=eq.${currentUserId}`
           }, 
-          () => {
+          async () => {
             fetchNotificationCounts();
+            // Update iOS badge count when notifications change
+            const { BadgeService } = await import('@/services/badgeService');
+            await BadgeService.updateBadgeCount();
           }
         )
         .subscribe();

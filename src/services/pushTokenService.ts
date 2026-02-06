@@ -179,8 +179,12 @@ export class PushTokenService {
       
       // Also listen via Capacitor App plugin events if available
       if ((window as any).Capacitor?.Plugins?.App) {
-        (window as any).Capacitor.Plugins.App.addListener('appStateChange', (state: any) => {
-          // Device token might be available in app state
+        (window as any).Capacitor.Plugins.App.addListener('appStateChange', async (state: any) => {
+          // Update badge count when app comes to foreground
+          if (state.isActive) {
+            const { BadgeService } = await import('./badgeService');
+            await BadgeService.updateBadgeCount();
+          }
         });
       }
 

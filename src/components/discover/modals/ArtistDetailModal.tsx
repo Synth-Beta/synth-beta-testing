@@ -780,15 +780,19 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                         showActions={false}
                         compact={true}
                         onClick={() => {
-                          const eventId = event?.id;
+                          const eventId = event.id || (event as any).jambase_event_id;
                           if (!eventId) return;
+                          
+                          // Use callback if available (partner's approach)
                           if (onEventClick) {
                             onEventClick(eventId);
                             return;
                           }
-                          window.dispatchEvent(
-                            new CustomEvent('open-event-details', { detail: { eventId } })
-                          );
+                          
+                          // Otherwise use our approach: store full event payload and dispatch
+                          const eventPayload = { ...event, id: eventId };
+                          localStorage.setItem('selectedEvent', JSON.stringify(eventPayload));
+                          window.dispatchEvent(new CustomEvent('open-event-details', { detail: { event: eventPayload } }));
                         }}
                       />
                     ))}
@@ -820,15 +824,19 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                         showActions={false}
                         compact={true}
                         onClick={() => {
-                          const eventId = event?.id;
+                          const eventId = event.id || (event as any).jambase_event_id;
                           if (!eventId) return;
+                          
+                          // Use callback if available (partner's approach)
                           if (onEventClick) {
                             onEventClick(eventId);
                             return;
                           }
-                          window.dispatchEvent(
-                            new CustomEvent('open-event-details', { detail: { eventId } })
-                          );
+                          
+                          // Otherwise use our approach: store full event payload and dispatch
+                          const eventPayload = { ...event, id: eventId };
+                          localStorage.setItem('selectedEvent', JSON.stringify(eventPayload));
+                          window.dispatchEvent(new CustomEvent('open-event-details', { detail: { event: eventPayload } }));
                         }}
                       />
                     ))}

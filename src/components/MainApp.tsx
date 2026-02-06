@@ -186,6 +186,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           }
         })
         .catch(() => {});
+
+      // Update iOS badge count on login
+      import('@/services/badgeService').then(({ BadgeService }) => {
+        BadgeService.updateBadgeCount();
+      });
     }
   }, [loading, user]);
 

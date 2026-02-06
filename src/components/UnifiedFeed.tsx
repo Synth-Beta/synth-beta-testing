@@ -749,6 +749,56 @@ export const UnifiedFeed = ({
     checkForSelectedEvent();
   }, []);
 
+  // Stable ref for open-event-details handler so we register one listener and avoid accumulation / stale closures
+  const openEventDetailsHandlerRef = useRef<(e: Event) => void>(() => {});
+  useEffect(() => {
+    openEventDetailsHandlerRef.current = async (e: Event) => {
+      const detail = (e as CustomEvent).detail as { event?: any; eventId?: string };
+      const uid = currentUserId;
+      if (detail?.event) {
+        const eventData = detail.event;
+        setSelectedEventForDetails(eventData);
+        if (uid && eventData?.id) {
+          const interested = await UserEventService.isUserInterested(uid, eventData.id);
+          setSelectedEventInterested(interested);
+        }
+        setDetailsOpen(true);
+        localStorage.removeItem('selectedEvent');
+      } else if (detail?.eventId && uid) {
+        try {
+          const { data: eventData, error } = await supabase
+            .from('events')
+            .select('*, artists(name), venues(name)')
+            .eq('id', detail.eventId)
+            .single();
+          if (eventData && !error) {
+            const normalizedEvent = {
+              ...eventData,
+              artist_name: (eventData.artists as any)?.name ?? eventData.artist_name ?? null,
+              venue_name: (eventData.venues as any)?.name ?? eventData.venue_name ?? null,
+            };
+            setSelectedEventForDetails(normalizedEvent);
+            const interested = await UserEventService.isUserInterested(uid, normalizedEvent.id);
+            setSelectedEventInterested(interested);
+            setDetailsOpen(true);
+            localStorage.removeItem('selectedEvent');
+          }
+        } catch (err) {
+          console.error('Error fetching event for open-event-details:', err);
+        }
+      }
+    };
+  }, [currentUserId]);
+
+  // Single stable listener; cleanup removes the same reference so no accumulation
+  useEffect(() => {
+    const stableListener: EventListener = (e) => {
+      openEventDetailsHandlerRef.current(e);
+    };
+    window.addEventListener('open-event-details', stableListener);
+    return () => window.removeEventListener('open-event-details', stableListener);
+  }, []);
+
   // Note: Interested events are now loaded immediately on mount via loadAllInterestedEvents()
   // This useEffect is kept as a fallback but should rarely trigger since we load all events upfront
   useEffect(() => {

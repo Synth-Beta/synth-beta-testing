@@ -75,6 +75,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 // Configure message handlers
                 webView.configuration.userContentController.add(self, name: "appleSignIn")
                 webView.configuration.userContentController.add(self, name: "eventShare")
+                webView.configuration.userContentController.add(self, name: "setBadgeCount")
                 
                 // Inject JavaScript that listens for events and forwards them to native
                 let script = """
@@ -92,6 +93,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                                 window.webkit.messageHandlers.eventShare.postMessage(event.detail || {});
                             }
                         });
+                        
+                        // Badge Count - expose function for JavaScript to call
+                        window.setBadgeCount = function(count) {
+                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.setBadgeCount) {
+                                window.webkit.messageHandlers.setBadgeCount.postMessage({ count: count });
+                            }
+                        };
                     })();
                 """
                 webView.configuration.userContentController.addUserScript(
@@ -470,6 +478,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                     userInfo: ["event": eventData]
                 )
                 handleEventShare(notification: notification)
+            }
+        } else if message.name == "setBadgeCount" {
+            // Handle badge count update from JavaScript
+            if let data = message.body as? [String: Any],
+               let count = data["count"] as? Int {
+                DispatchQueue.main.async {
+                    UIApplication.shared.applicationIconBadgeNumber = count
+                    print("✅ Badge count set to: \(count)")
+                }
             }
         }
     }

@@ -121,18 +121,37 @@ export function EventMessageCard({
   const loadEvent = async () => {
     try {
       setLoading(true);
+      // Try events table first
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select('*, artists(name), venues(name)')
         .eq('id', eventId)
         .single();
 
-      if (error) {
-        console.error('Error loading shared event:', error);
+      if (!error && data) {
+        const normalized = {
+          ...data,
+          artist_name: (data.artists as any)?.name ?? data.artist_name ?? null,
+          venue_name: (data.venues as any)?.name ?? data.venue_name ?? null,
+        };
+        setEvent(normalized);
         return;
       }
 
-      setEvent(data);
+      // Fallback: try events_with_artist_venue view (normalized names)
+      const { data: viewData, error: viewError } = await supabase
+        .from('events_with_artist_venue')
+        .select('id, title, description, event_date, doors_time, venue_city, venue_state, venue_address, venue_zip, latitude, longitude, external_url, genres, price_range, ticket_available, images, media_urls, event_media_url, artist_name_normalized, venue_name_normalized')
+        .eq('id', eventId)
+        .single();
+
+      if (!viewError && viewData) {
+        setEvent({
+          ...viewData,
+          artist_name: (viewData as any).artist_name_normalized ?? null,
+          venue_name: (viewData as any).venue_name_normalized ?? null,
+        } as JamBaseEvent);
+      }
     } catch (error) {
       console.error('Error loading shared event:', error);
     } finally {

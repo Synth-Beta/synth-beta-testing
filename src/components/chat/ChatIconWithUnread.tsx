@@ -64,9 +64,12 @@ export function ChatIconWithUnread({ onClick, className }: ChatIconWithUnreadPro
               schema: 'public',
               table: 'messages'
             },
-            () => {
+            async () => {
               // Refresh count when messages change
               loadUnreadCount();
+              // Update iOS badge count when chat messages change
+              const { BadgeService } = await import('@/services/badgeService');
+              await BadgeService.updateBadgeCount();
             }
           )
           .subscribe();

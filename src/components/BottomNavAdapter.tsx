@@ -81,8 +81,18 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({
 
     const channel = supabase
       .channel('bottom-nav-messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, fetchUnreadMessages)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${user.id}` }, fetchUnreadMessages)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async () => {
+        fetchUnreadMessages();
+        // Update iOS badge count when messages change
+        const { BadgeService } = await import('@/services/badgeService');
+        await BadgeService.updateBadgeCount();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${user.id}` }, async () => {
+        fetchUnreadMessages();
+        // Update iOS badge count when chat read status changes
+        const { BadgeService } = await import('@/services/badgeService');
+        await BadgeService.updateBadgeCount();
+      })
       .subscribe();
 
     return () => {
