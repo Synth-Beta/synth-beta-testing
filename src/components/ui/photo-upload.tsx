@@ -207,62 +207,6 @@ const enableReviewThumbnail = props.enableReviewThumbnail === true;
     }
   }, [value.length, enableReviewThumbnail]);
 
-  const enableReviewThumbnail = props.enableReviewThumbnail === true;
-  const thumbnailIndex = props.thumbnailIndex ?? 0;
-  const thumbnailCrop = props.thumbnailCrop ?? null;
-
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-
-  const [isThumbnailCropOpen, setIsThumbnailCropOpen] = useState(false);
-  const [thumbnailCropIndex, setThumbnailCropIndex] = useState<number>(0);
-  const [thumbCrop, setThumbCrop] = useState({ x: 0, y: 0 });
-  const [thumbZoom, setThumbZoom] = useState(1);
-  const [thumbCroppedAreaPct, setThumbCroppedAreaPct] = useState<Area | null>(null);
-  const [thumbCroppedAreaPixels, setThumbCroppedAreaPixels] = useState<Area | null>(null);
-  const [generatingThumb, setGeneratingThumb] = useState(false);
-
-  const prevValueLengthRef = useRef<number>(value.length);
-
-  const openPreview = (index: number) => {
-    if (!enableReviewThumbnail) return;
-    setPreviewIndex(index);
-    setIsPreviewOpen(true);
-  };
-
-  const closePreview = () => {
-    setIsPreviewOpen(false);
-    setPreviewIndex(null);
-  };
-
-  const openThumbnailCrop = (index: number) => {
-    if (!enableReviewThumbnail) return;
-    setThumbnailCropIndex(index);
-    setThumbCrop({ x: 0, y: 0 });
-    setThumbZoom(index === thumbnailIndex && thumbnailCrop?.zoom ? thumbnailCrop.zoom : 1);
-    setThumbCroppedAreaPct(null);
-    setThumbCroppedAreaPixels(null);
-    setIsThumbnailCropOpen(true);
-  };
-
-  const closeThumbnailCrop = () => {
-    setIsThumbnailCropOpen(false);
-    setThumbCroppedAreaPct(null);
-    setThumbCroppedAreaPixels(null);
-  };
-
-  useEffect(() => {
-    const prevLen = prevValueLengthRef.current;
-    const nextLen = value.length;
-    prevValueLengthRef.current = nextLen;
-
-    if (!enableReviewThumbnail) return;
-    // Auto-open crop ONLY when user adds their first photo
-    if (prevLen === 0 && nextLen === 1) {
-      openThumbnailCrop(0);
-    }
-  }, [value.length, enableReviewThumbnail]);
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
