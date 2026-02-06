@@ -10,6 +10,71 @@ import { cacheService, CacheKeys, CacheTTL } from './cacheService';
 
 export class NotificationService {
   /**
+   * Dedupe notifications defensively.
+   *
+   * Why:
+   * - Some DB views/joins can return duplicate rows.
+   * - We can also end up with multiple friend_request notifications from the same sender
+   *   (stale rows from older requests, resend edge-cases, etc).
+   *
+   * Strategy:
+   * - Always dedupe by notification `id` first.
+   * - Additionally, for `friend_request`, keep only the most recent notification per sender.
+   */
+  private static dedupeNotifications(
+    notifications: NotificationWithDetails[]
+  ): NotificationWithDetails[] {
+    // 1) Dedupe by notification id (guards against duplicate rows from a view/join)
+    const byId = new Map<string, NotificationWithDetails>();
+    for (const n of notifications) {
+      if (!n?.id) continue;
+      if (!byId.has(n.id)) byId.set(n.id, n);
+    }
+
+    const unique = Array.from(byId.values());
+
+    // 2) For friend_request, dedupe by sender (keep latest by created_at)
+    const friendRequestsBySender = new Map<string, NotificationWithDetails>();
+    const nonFriendRequests: NotificationWithDetails[] = [];
+
+    for (const n of unique) {
+      if (n.type !== 'friend_request') {
+        nonFriendRequests.push(n);
+        continue;
+      }
+
+      const senderId =
+        // Our friend_request payload uses data.sender_id
+        (n.data as any)?.sender_id ??
+        // Fallbacks in case older rows differed
+        (n.data as any)?.actor_user_id ??
+        n.actor_user_id;
+
+      // If we can't determine a sender, keep it (key by id so we don't drop data)
+      const key = senderId ? String(senderId) : `unknown_sender:${n.id}`;
+
+      const existing = friendRequestsBySender.get(key);
+      if (!existing) {
+        friendRequestsBySender.set(key, n);
+        continue;
+      }
+
+      const existingTime = new Date(existing.created_at).getTime();
+      const nextTime = new Date(n.created_at).getTime();
+      if (Number.isFinite(nextTime) && nextTime >= existingTime) {
+        friendRequestsBySender.set(key, n);
+      }
+    }
+
+    const merged = [...friendRequestsBySender.values(), ...nonFriendRequests];
+    merged.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    return merged;
+  }
+
+  /**
    * Get notifications for the current user with optional filters
    */
   static async getNotifications(filters: NotificationFilters = {}): Promise<{
@@ -145,7 +210,7 @@ export class NotificationService {
           // Return only the requested amount to maintain pagination contract
           // The offset was already applied to the database query, so we just need to limit the results
           // After filtering, we may have fewer than requested, so we slice to the requested limit
-          const paginatedNotifications = validNotifications.slice(0, requestedLimit);
+          const paginatedNotifications = this.dedupeNotifications(validNotifications).slice(0, requestedLimit);
 
           // Return the original database count to enable proper pagination
           // Note: This count includes processed friend requests that are filtered out client-side.
@@ -371,7 +436,7 @@ export class NotificationService {
     // The returned array may contain fewer items than the total due to client-side filtering,
     // but the total count allows pagination UI to work correctly.
     return {
-      notifications: enrichedNotifications,
+      notifications: this.dedupeNotifications(enrichedNotifications),
       total: count || 0
     };
   }
