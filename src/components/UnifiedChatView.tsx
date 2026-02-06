@@ -137,7 +137,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
 
   // Single source of truth for gap above composer safety box
   // Messages end 6px above the safety box (the safety box itself accounts for all its own space)
-  const composerReservedSpace = `var(--spacing-inline, 12px)`;
+  const composerReservedSpace = `var(--spacing-grouped, 24px)`;
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
@@ -1617,7 +1617,13 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       return (
         <div key={`session-${sessionIndex}`} className="flex flex-col">
           {/* Session timestamp */}
-          <div className="flex justify-center w-full" style={{ marginBottom: 'var(--spacing-grouped, 24px)' }}>
+          <div
+            className="flex justify-center w-full"
+            style={{
+              marginTop: sessionIndex > 0 ? 'var(--spacing-grouped, 24px)' : 0,
+              marginBottom: 'var(--spacing-grouped, 24px)',
+            }}
+          >
             <p
               style={{
                 fontFamily: 'var(--font-family)',
@@ -1685,7 +1691,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       <div
                         key={message.id}
                         className="flex flex-col"
-                        style={{ gap: isLastInGroup ? 'var(--spacing-inline, 6px)' : '0' }}
+                        style={{ gap: isLastInGroup ? 'var(--spacing-small, 12px)' : '0' }}
                       >
                         {message.message_type === 'review_share' && (message.shared_review_id || message.metadata?.review_id) ? (
                           <ChatReviewMessage
@@ -1723,9 +1729,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                             <p
                               style={{
                                 fontFamily: 'var(--font-family)',
-                                fontSize: '14px',
-                                fontWeight: 400,
-                                lineHeight: 1.4,
+                                fontSize: 'var(--typography-body-size, 20px)',
+                                fontWeight: 'var(--typography-body-weight, 500)',
+                                lineHeight: 'var(--typography-body-line-height, 1.5)',
                                 margin: 0,
                                 color: message.sender_id === currentUserId ? 'var(--neutral-50)' : 'var(--neutral-900)'
                               }}
@@ -1740,10 +1746,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           <p
                             style={{
                               fontFamily: 'var(--font-family)',
-                              fontSize: '12px',
-                              fontWeight: 400,
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
                               color: 'var(--neutral-600)',
-                              lineHeight: 1.4,
+                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
                               textAlign: isSent ? 'right' : 'left',
                               margin: 0
                             }}
