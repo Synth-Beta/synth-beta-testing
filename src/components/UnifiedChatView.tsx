@@ -1775,7 +1775,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                   refreshTrigger={refreshTrigger}
                                 />
                               );
-                            }
                           }
                           
                           // Priority 3: Text content (only if not review or event share)
