@@ -22,6 +22,8 @@ interface ArtistDetailModalProps {
   artistId: string;
   artistName: string;
   currentUserId: string;
+  /** When provided, clicking an event card navigates to the event page/details. When omitted, dispatches 'open-event-details' for global handling (e.g. MainApp). */
+  onEventClick?: (eventId: string) => void;
 }
 
 const INITIAL_UPCOMING_COUNT = 5;
@@ -34,6 +36,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   artistId,
   artistName,
   currentUserId,
+  onEventClick,
 }) => {
   const [artistImage, setArtistImage] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
@@ -776,6 +779,17 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                         currentUserId={currentUserId}
                         showActions={false}
                         compact={true}
+                        onClick={() => {
+                          const eventId = event?.id;
+                          if (!eventId) return;
+                          if (onEventClick) {
+                            onEventClick(eventId);
+                            return;
+                          }
+                          window.dispatchEvent(
+                            new CustomEvent('open-event-details', { detail: { eventId } })
+                          );
+                        }}
                       />
                     ))}
                   </div>
@@ -805,6 +819,17 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                         currentUserId={currentUserId}
                         showActions={false}
                         compact={true}
+                        onClick={() => {
+                          const eventId = event?.id;
+                          if (!eventId) return;
+                          if (onEventClick) {
+                            onEventClick(eventId);
+                            return;
+                          }
+                          window.dispatchEvent(
+                            new CustomEvent('open-event-details', { detail: { eventId } })
+                          );
+                        }}
                       />
                     ))}
                   </div>

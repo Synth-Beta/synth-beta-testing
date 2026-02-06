@@ -70,6 +70,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [detailView, setDetailView] = useState<
     | { type: 'artist'; id: string; name: string }
     | { type: 'venue'; id: string; name: string }
+    | { type: 'event'; id: string; name: string }
     | null
   >(null);
 
@@ -218,6 +219,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   };
 
   const handleCloseDetail = () => {
+    if (detailView?.type === 'event') {
+      setEventDetailsOpen(false);
+      setSelectedEvent(null);
+    }
     setDetailView(null);
   };
 
@@ -240,6 +245,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         const interested = await UserEventService.isUserInterested(currentUserId, eventId);
         setSelectedEventInterested(interested);
         setEventDetailsOpen(true);
+        setDetailView({
+          type: 'event',
+          id: eventId,
+          name: normalizedEvent.artist_name || normalizedEvent.name || 'Event',
+        });
       }
     } catch (err) {
       console.error('Error opening event from venue:', err);
@@ -253,6 +263,14 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         detailView.id,
         `${detailView.name} on Synth`,
         `Check out ${detailView.name} on Synth.`
+      );
+      return;
+    }
+    if (detailView.type === 'event') {
+      await ShareService.shareEvent(
+        detailView.id,
+        `${detailView.name} on Synth`,
+        `Check out this event on Synth.`
       );
       return;
     }
@@ -837,6 +855,49 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             currentUserId={currentUserId}
             onNavigateToProfile={onNavigateToProfile}
             onNavigateToChat={onNavigateToChat}
+            onArtistClick={(id, name) => setDetailView({ type: 'artist', id, name })}
+            onVenueClick={(id, name) => setDetailView({ type: 'venue', id, name })}
+            onEventClick={async (event) => {
+              // Open event details under the Discover "detail" header
+              if (!event?.id) return;
+              setSelectedEvent(event);
+              try {
+                const interested = await UserEventService.isUserInterested(currentUserId, event.id);
+                setSelectedEventInterested(interested);
+              } catch (error) {
+                console.error('Error checking interest:', error);
+              }
+              setEventDetailsOpen(true);
+              setDetailView({
+                type: 'event',
+                id: event.id,
+                name: (event as any)?.artist_name || (event as any)?.name || 'Event',
+              });
+
+              // Attempt to hydrate with full DB row (optional)
+              try {
+                const { data } = await supabase
+                  .from('events')
+                  .select('*, artists(name), venues(name)')
+                  .eq('id', event.id)
+                  .single();
+                if (data) {
+                  const normalizedEvent = {
+                    ...data,
+                    artist_name: (data.artists as any)?.name || (data as any).artist_name || null,
+                    venue_name: (data.venues as any)?.name || (data as any).venue_name || null,
+                  };
+                  setSelectedEvent(normalizedEvent);
+                  setDetailView({
+                    type: 'event',
+                    id: event.id,
+                    name: normalizedEvent.artist_name || normalizedEvent.name || 'Event',
+                  });
+                }
+              } catch (error) {
+                // keep fallback event object
+              }
+            }}
           />
             </div>
           </>
@@ -859,6 +920,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           artistId={detailView.id}
           artistName={detailView.name}
           currentUserId={currentUserId}
+          onEventClick={(eventId) => {
+            handleCloseDetail();
+            handleEventClickFromVenue(eventId);
+          }}
         />
       )}
 
@@ -883,6 +948,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           onClose={() => {
             setEventDetailsOpen(false);
             setSelectedEvent(null);
+            if (detailView?.type === 'event') {
+              setDetailView(null);
+            }
           }}
           event={selectedEvent}
           currentUserId={currentUserId}
