@@ -3,29 +3,35 @@ import { spotifyService } from '@/services/spotifyService';
 import { streamingSyncService } from '@/services/streamingSyncService';
 
 const SpotifyCallback = () => {
-const [status, setStatus] = useState<'connecting' | 'complete' | 'error'>('connecting');
+  const [status, setStatus] = useState<'connecting' | 'syncing' | 'complete' | 'error'>('connecting');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
         setStatus('connecting');
-        
-        // Authenticate (this exchanges the code for token)
+
+        // Authenticate (exchanges code for token; saves refresh token to DB inside exchangeCodeForToken)
         const success = await spotifyService.handleAuthCallback();
-        
+
         if (success) {
-          // Start background sync
           streamingSyncService.startSync('spotify');
-          
-          // Start the sync in the background (don't await)
-          spotifyService.syncUserMusicPreferences().catch((error) => {
-            console.error('Background sync error:', error);
-            streamingSyncService.errorSync(error.message || 'Sync failed');
+          setStatus('syncing');
+
+          // Await sync so token + streaming_profiles are written before redirect (otherwise redirect kills the request)
+          const syncTimeoutMs = 45000;
+          await Promise.race([
+            spotifyService.syncUserMusicPreferences(),
+            new Promise<void>((_, reject) =>
+              setTimeout(() => reject(new Error('Sync timed out')), syncTimeoutMs)
+            ),
+          ]).catch((error) => {
+            console.error('Spotify sync error:', error);
+            streamingSyncService.errorSync(error?.message || 'Sync failed');
+            // Still proceed to complete so user gets redirected; data may be partial
           });
-          
+
           setStatus('complete');
-          // Redirect immediately to home so user can continue using app
           setTimeout(() => {
             window.location.href = '/';
             localStorage.setItem('intendedView', 'feed');
@@ -55,8 +61,8 @@ const [status, setStatus] = useState<'connecting' | 'complete' | 'error'>('conne
         
         setErrorMessage(errorMsg);
         // Clear any stored auth data to ensure clean retry
-        spotifyService.clearStoredData();
-        
+        await spotifyService.clearStoredData();
+
         setTimeout(() => {
           window.location.href = '/';
         }, 2000);
@@ -76,7 +82,15 @@ const [status, setStatus] = useState<'connecting' | 'complete' | 'error'>('conne
             <p className="text-muted-foreground">Please wait while we authenticate your account.</p>
           </>
         )}
-        
+
+        {status === 'syncing' && (
+          <>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold mb-2">Syncing your music...</h2>
+            <p className="text-muted-foreground">Saving your taste to personalize your feed. This may take a moment.</p>
+          </>
+        )}
+
         {status === 'complete' && (
           <>
             <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">

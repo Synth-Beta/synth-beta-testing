@@ -32,6 +32,7 @@ import {
   generateThumbnailBlob,
   REVIEW_THUMBNAIL_ASPECT_RATIO,
 } from '@/utils/reviewThumbnailCrop';
+import { toast } from '@/hooks/use-toast';
 
 const ARTIST_SUGGESTIONS: CategoryConfig['suggestions'] = [
   { id: 'artist-electric', label: 'Electric energy', description: 'The band fed off the crowd with nonstop energy.', sentiment: 'positive' },
@@ -699,8 +700,15 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
     }
 
-    // If there are validation errors, don't submit
+    // If there are validation errors, show them and don't submit
     if (validationErrors.length > 0) {
+      toast({
+        title: 'Please fix the following',
+        description: validationErrors.length <= 3
+          ? validationErrors.join('. ')
+          : validationErrors.slice(0, 3).join('. ') + ` (and ${validationErrors.length - 3} more)`,
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -1287,6 +1295,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
     } catch (e) {
       console.error('Error submitting review:', e);
+      toast({
+        title: 'Failed to submit review',
+        description: e instanceof Error ? e.message : 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
       // Reset submission flag on error so auto-save can work again
       setIsReviewSubmitted(false);
     } finally {

@@ -134,23 +134,22 @@ const { user } = useAuth();
       }
   };
 
-  const handleReconnect = () => {
-    // Check if Spotify is configured before attempting reconnection
+  const handleReconnect = async () => {
     if (!spotifyService.isConfigured()) {
       return;
     }
 
     setAuthenticating(true);
     try {
-      spotifyService.reauthenticate();
+      await spotifyService.reauthenticate();
     } catch (error) {
       console.error('Reconnection error:', error);
       setAuthenticating(false);
-      }
+    }
   };
 
-  const handleClearData = () => {
-    spotifyService.clearStoredData();
+  const handleClearData = async () => {
+    await spotifyService.clearStoredData();
     setIsAuthenticated(false);
     setUserProfile(null);
     setTopTracks([]);
@@ -161,8 +160,8 @@ const { user } = useAuth();
     
     };
 
-  const handleForceReconnect = () => {
-    spotifyService.forceClearAndReauth();
+  const handleForceReconnect = async () => {
+    await spotifyService.forceClearAndReauth();
   };
 
   const handleNuclearReset = () => {
@@ -171,8 +170,8 @@ const { user } = useAuth();
     }
   };
 
-  const handleLogout = () => {
-    spotifyService.logout();
+  const handleLogout = async () => {
+    await spotifyService.logout();
     setIsAuthenticated(false);
     setUserProfile(null);
     setTopTracks([]);

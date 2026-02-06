@@ -97,10 +97,10 @@ export class SpotifyService {
     window.location.href = authUrl.toString();
   }
 
-  public reauthenticate(): void {
+  public async reauthenticate(): Promise<void> {
     // Clear existing tokens and force re-auth
     console.log('🔄 Forcing re-authentication...');
-    this.logout();
+    await this.logout();
     this.authenticate();
   }
 
@@ -130,8 +130,8 @@ export class SpotifyService {
       
       if (error instanceof Error && error.message.includes('403')) {
         console.log('🚨 Token has insufficient scopes, clearing old token and forcing re-authentication...');
-        this.clearStoredData();
-        this.reauthenticate();
+        await this.clearStoredData();
+        await this.reauthenticate();
         return false; // Will redirect, so return false
       }
       
@@ -438,7 +438,10 @@ export class SpotifyService {
   private async saveRefreshTokenToServer(refreshToken: string): Promise<void> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.warn('Cannot save Spotify token: no authenticated user (session may not be ready on callback). Will retry from sync.');
+        return;
+      }
       const { error } = await supabase
         .from('spotify_user_tokens')
         .upsert(
@@ -446,9 +449,9 @@ export class SpotifyService {
           { onConflict: 'user_id' }
         );
       if (error) {
-        console.warn('Could not save Spotify refresh token for backfill:', error.message);
+        console.warn('Could not save Spotify refresh token for backfill:', error.message, error.code);
       } else {
-        console.log('✅ Spotify refresh token saved for server-side sync');
+        console.log('✅ Spotify refresh token saved to spotify_user_tokens for user:', user.id);
       }
     } catch (e) {
       console.warn('Save refresh token to server failed:', e);
@@ -676,15 +679,15 @@ export class SpotifyService {
     console.log('✅ Spotify logout completed');
   }
 
-  public clearStoredData(): void {
+  public async clearStoredData(): Promise<void> {
     console.log('🧹 Clearing all stored Spotify data...');
-    this.logout();
+    await this.logout();
     console.log('✅ All Spotify data cleared');
   }
 
-  public forceClearAndReauth(): void {
+  public async forceClearAndReauth(): Promise<void> {
     console.log('🚨 Force clearing all data and re-authenticating...');
-    this.clearStoredData();
+    await this.clearStoredData();
     // Show a message to the user
     if (typeof window !== 'undefined') {
       alert('Clearing all Spotify data. Please reconnect with the new authentication method.');
@@ -696,17 +699,17 @@ export class SpotifyService {
    * Recovery method for state mismatch issues
    * Clears auth data and provides user-friendly guidance
    */
-  public recoverFromStateMismatch(): void {
+  public async recoverFromStateMismatch(): Promise<void> {
     console.log('🔧 Recovering from state mismatch...');
-    this.clearStoredData();
-    
+    await this.clearStoredData();
+
     if (typeof window !== 'undefined') {
       // Show a more user-friendly message
       const shouldRetry = confirm(
         'Spotify authentication session expired. This can happen if you navigated away during the connection process.\n\n' +
         'Would you like to try connecting again now?'
       );
-      
+
       if (shouldRetry) {
         this.authenticate();
       }
@@ -790,7 +793,7 @@ export class SpotifyService {
   private async refreshToken(): Promise<boolean> {
     const refreshToken = localStorage.getItem('spotify_refresh_token');
     if (!refreshToken) {
-      this.logout();
+      await this.logout();
       return false;
     }
 
@@ -848,7 +851,7 @@ export class SpotifyService {
         // Retry the request with new token
         return this.spotifyApiCall<T>(endpoint, options);
       } else {
-        this.logout();
+        await this.logout();
         throw new Error('Authentication failed');
       }
     }
@@ -863,7 +866,7 @@ export class SpotifyService {
     if (response.status === 403) {
       // Forbidden - likely missing scopes or old token
       console.log('🚨 403 Forbidden detected, clearing all stored data...');
-      this.clearStoredData();
+      await this.clearStoredData();
       // Dispatch a custom event to notify components
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('spotify-token-cleared'));

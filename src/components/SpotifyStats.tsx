@@ -90,8 +90,8 @@ useEffect(() => {
       }
   };
 
-  const handleLogout = () => {
-    spotifyService.logout();
+  const handleLogout = async () => {
+    await spotifyService.logout();
     setIsAuthenticated(false);
     setUserProfile(null);
     setTopTracks([]);
