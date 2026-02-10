@@ -150,42 +150,37 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
     }
   }, [isOpen]);
 
+  const reviewSelect = `
+    id, user_id, event_id, artist_id, venue_id, rating, review_text, photos, videos,
+    mood_tags, genre_tags, context_tags, likes_count, comments_count, shares_count,
+    is_public, created_at, updated_at, artist_performance_rating, production_rating,
+    venue_rating, location_rating, value_rating, "Event_date"
+  `;
+
   const loadVenueData = async () => {
     try {
       setLoading(true);
-      
-      // Get events for this venue using venue_id (UUID join) - no limit
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('venue_id', venueId)
-        .order('event_date', { ascending: true });
 
-      if (eventsError) {
-        console.warn('Error fetching venue events:', eventsError);
+      // Wave 1: events, venue details, direct reviews in parallel
+      const [eventsRes, venueRes, directReviewsRes] = await Promise.all([
+        supabase.from('events').select('*').eq('venue_id', venueId).order('event_date', { ascending: true }),
+        supabase.from('venues').select('id, name, state, latitude, longitude, street_address, zip, country').eq('id', venueId).maybeSingle(),
+        supabase.from('reviews').select(reviewSelect).eq('venue_id', venueId).eq('is_public', true).eq('is_draft', false).order('created_at', { ascending: false })
+      ]);
+
+      const eventsData = eventsRes.data || [];
+      const eventsError = eventsRes.error;
+      const venueData = venueRes.data;
+
+      if (eventsError) console.warn('Error fetching venue events:', eventsError);
+      if (venueData) {
+        if (venueData.state) setVenueState(venueData.state);
+        if (venueData.latitude != null) setLatitude(Number(venueData.latitude));
+        if (venueData.longitude != null) setLongitude(Number(venueData.longitude));
       }
 
-      // Get venue details if possible
-      try {
-        const { data: venueData } = await supabase
-          .from('venues')
-          .select('id, name, state, latitude, longitude, street_address, zip, country')
-          .eq('id', venueId)
-          .maybeSingle();
-
-        if (venueData) {
-          if (venueData.state && !venueState) setVenueState(venueData.state);
-          if (venueData.latitude && !latitude) setLatitude(Number(venueData.latitude));
-          if (venueData.longitude && !longitude) setLongitude(Number(venueData.longitude));
-        }
-      } catch (venueError) {
-        console.warn('Could not fetch venue details (non-critical):', venueError);
-      }
-
-      if (eventsData && eventsData.length > 0) {
+      if (eventsData.length > 0) {
         setEvents(eventsData);
-
-        // Get location from first event
         const firstEvent = eventsData[0];
         if (firstEvent.venue_city) setVenueCity(firstEvent.venue_city);
         if (firstEvent.venue_state) setVenueState(firstEvent.venue_state);
@@ -193,86 +188,23 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
         if (firstEvent.longitude) setLongitude(Number(firstEvent.longitude));
       }
 
-      // Get reviews for this venue - both direct (venue_id) and event-linked
-      const eventIds = eventsData?.map(e => e.id) || [];
-      
-      // Fetch direct venue reviews (where venue_id matches)
-      const { data: directReviews } = await supabase
-        .from('reviews')
-        .select(`
-          id,
-          user_id,
-          event_id,
-          artist_id,
-          venue_id,
-          rating,
-          review_text,
-          photos,
-          videos,
-          mood_tags,
-          genre_tags,
-          context_tags,
-          likes_count,
-          comments_count,
-          shares_count,
-          is_public,
-          created_at,
-          updated_at,
-          artist_performance_rating,
-          production_rating,
-          venue_rating,
-          location_rating,
-          value_rating,
-          "Event_date"
-        `)
-        .eq('venue_id', venueId)
-        .eq('is_public', true)
-        .eq('is_draft', false)
-        .order('created_at', { ascending: false });
+      const eventIds = eventsData.map(e => e.id);
+      const directReviews = directReviewsRes.data || [];
 
-      // Fetch event-linked reviews (reviews for events at this venue)
+      // Wave 2: event-linked reviews
       let eventLinkedReviews: any[] = [];
       if (eventIds.length > 0) {
         const { data: eventReviews } = await supabase
           .from('reviews')
-          .select(`
-            id,
-            user_id,
-            event_id,
-            artist_id,
-            venue_id,
-            rating,
-            review_text,
-            photos,
-            videos,
-            mood_tags,
-            genre_tags,
-            context_tags,
-            likes_count,
-            comments_count,
-            shares_count,
-            is_public,
-            created_at,
-            updated_at,
-            artist_performance_rating,
-            production_rating,
-            venue_rating,
-            location_rating,
-            value_rating,
-            "Event_date"
-          `)
+          .select(reviewSelect)
           .in('event_id', eventIds)
           .eq('is_public', true)
           .eq('is_draft', false)
           .order('created_at', { ascending: false });
-
-        if (eventReviews) {
-          eventLinkedReviews = eventReviews;
-        }
+        eventLinkedReviews = eventReviews || [];
       }
 
-      // Combine and deduplicate reviews
-      const allReviewsRaw = [...(directReviews || []), ...eventLinkedReviews];
+      const allReviewsRaw = [...directReviews, ...eventLinkedReviews];
       const uniqueReviewIds = new Set<string>();
       const uniqueReviews = allReviewsRaw.filter(r => {
         if (uniqueReviewIds.has(r.id)) return false;
@@ -280,38 +212,32 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
         return true;
       });
 
-      // Calculate average rating (prefer venue_rating, fallback to rating)
       if (uniqueReviews.length > 0) {
         const ratings = uniqueReviews
-            .map(r => r.venue_rating || r.rating)
-            .filter((r): r is number => typeof r === 'number' && !isNaN(r) && r > 0);
-          if (ratings.length > 0) {
-            const avgRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
-            setAverageRating(avgRating);
-        }
+          .map(r => r.venue_rating || r.rating)
+          .filter((r): r is number => typeof r === 'number' && !isNaN(r) && r > 0);
+        if (ratings.length > 0) setAverageRating(ratings.reduce((sum, r) => sum + r, 0) / ratings.length);
         setTotalReviews(uniqueReviews.length);
       }
 
-      // Fetch user profiles for reviews
       const userIds = [...new Set(uniqueReviews.map(r => r.user_id).filter(Boolean))];
-      const { data: profiles } = userIds.length > 0 
-        ? await supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds)
-        : { data: [] };
+      const artistIds = [...new Set(uniqueReviews.map(r => r.artist_id).filter(Boolean))];
 
-      // Store profiles in state for SwiftUIReviewCard
-      if (profiles) {
+      // Wave 3: profiles and artists in parallel
+      const [profilesRes, artistsRes] = await Promise.all([
+        userIds.length > 0 ? supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds) : Promise.resolve({ data: [] }),
+        artistIds.length > 0 ? supabase.from('artists').select('id, name, image_url').in('id', artistIds) : Promise.resolve({ data: [] })
+      ]);
+      const profiles = profilesRes.data || [];
+      const artists = artistsRes.data || [];
+
+      if (profiles.length > 0) {
         const profileMap: Record<string, { name: string; avatar_url?: string }> = {};
         profiles.forEach(p => {
           profileMap[p.user_id] = { name: p.name || 'User', avatar_url: p.avatar_url || undefined };
         });
         setReviewUserProfiles(profileMap);
       }
-
-      // Fetch artist names for reviews
-      const artistIds = [...new Set(uniqueReviews.map(r => r.artist_id).filter(Boolean))];
-      const { data: artists } = artistIds.length > 0
-        ? await supabase.from('artists').select('id, name, image_url').in('id', artistIds)
-        : { data: [] };
 
       // Transform reviews to ReviewWithEngagement format
       const transformedReviews: ReviewWithEngagement[] = uniqueReviews.map(r => {

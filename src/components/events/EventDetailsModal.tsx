@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,8 +42,8 @@ import { formatPrice } from '@/utils/currencyUtils';
 import { EventReviewsSection } from '@/components/reviews/EventReviewsSection';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import { EventMap } from '@/components/EventMap';
-import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
-import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
+const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -2528,25 +2528,28 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
 
     {/* Artist Detail Modal */}
     {actualEvent?.artist_id && actualEvent?.artist_name && (
-      <ArtistDetailModal
-        isOpen={artistModalOpen}
-        onClose={() => setArtistModalOpen(false)}
-        artistId={actualEvent.artist_id}
-        artistName={actualEvent.artist_name}
-        currentUserId={currentUserId}
-      />
+      <Suspense fallback={null}>
+        <ArtistDetailModal
+          isOpen={artistModalOpen}
+          onClose={() => setArtistModalOpen(false)}
+          artistId={actualEvent.artist_id}
+          artistName={actualEvent.artist_name}
+          currentUserId={currentUserId}
+        />
+      </Suspense>
     )}
 
-    {/* Venue Detail Modal */}
     {actualEvent?.venue_id && actualEvent?.venue_name && (
-      <VenueDetailModal
-        isOpen={venueModalOpen}
-        onClose={() => setVenueModalOpen(false)}
-        venueId={actualEvent.venue_id}
-        venueName={actualEvent.venue_name}
-        currentUserId={currentUserId}
-        onEventClick={handleEventClickFromVenue}
-      />
+      <Suspense fallback={null}>
+        <VenueDetailModal
+          isOpen={venueModalOpen}
+          onClose={() => setVenueModalOpen(false)}
+          venueId={actualEvent.venue_id}
+          venueName={actualEvent.venue_name}
+          currentUserId={currentUserId}
+          onEventClick={handleEventClickFromVenue}
+        />
+      </Suspense>
     )}
 
     {/* Event Share Modal */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/components/Icon/Icon';
@@ -21,8 +21,8 @@ import { SearchBar } from '@/components/SearchBar/SearchBar';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { Share2 } from 'lucide-react';
 import { ShareService } from '@/services/shareService';
-import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
-import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
+const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 
@@ -913,33 +913,34 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       />
 
       {/* Artist/Venue detail overlays (single Discover header drives navigation) */}
-      {detailView?.type === 'artist' && (
-        <ArtistDetailModal
-          isOpen={true}
-          onClose={handleCloseDetail}
-          artistId={detailView.id}
-          artistName={detailView.name}
-          currentUserId={currentUserId}
-          onEventClick={(eventId) => {
-            handleCloseDetail();
-            handleEventClickFromVenue(eventId);
-          }}
-        />
-      )}
-
-      {detailView?.type === 'venue' && (
-        <VenueDetailModal
-          isOpen={true}
-          onClose={handleCloseDetail}
-          venueId={detailView.id}
-          venueName={detailView.name}
-          currentUserId={currentUserId}
-          onEventClick={(eventId) => {
-            handleCloseDetail();
-            handleEventClickFromVenue(eventId);
-          }}
-        />
-      )}
+      <Suspense fallback={null}>
+        {detailView?.type === 'artist' && (
+          <ArtistDetailModal
+            isOpen={true}
+            onClose={handleCloseDetail}
+            artistId={detailView.id}
+            artistName={detailView.name}
+            currentUserId={currentUserId}
+            onEventClick={(eventId) => {
+              handleCloseDetail();
+              handleEventClickFromVenue(eventId);
+            }}
+          />
+        )}
+        {detailView?.type === 'venue' && (
+          <VenueDetailModal
+            isOpen={true}
+            onClose={handleCloseDetail}
+            venueId={detailView.id}
+            venueName={detailView.name}
+            currentUserId={currentUserId}
+            onEventClick={(eventId) => {
+              handleCloseDetail();
+              handleEventClickFromVenue(eventId);
+            }}
+          />
+        )}
+      </Suspense>
 
       {/* Event Details Modal (opened from venue event cards) */}
       {eventDetailsOpen && selectedEvent && (

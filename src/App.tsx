@@ -1,24 +1,39 @@
-import { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import NotFound from "./pages/NotFound";
+import { SynthLoader } from "@/components/ui/SynthLoader";
 import SpotifyCallback from "./pages/SpotifyCallback";
 import AppPage from "./pages/App";
-import ArtistPage from "./pages/ArtistPage";
-import VenuePage from "./pages/VenuePage";
-import { StreamingStatsPage } from "./pages/StreamingStatsPage";
-import { ArtistFollowingPage } from "./pages/ArtistFollowingPage";
-import Admin from "./pages/Admin";
-import MobilePreview from "./pages/mobile/MobilePreview";
-import ComponentShowcase from "./pages/mobile/ComponentShowcase";
-import ResetPassword from "./pages/ResetPassword";
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+const RouteFallback = () => (
+  <div className="flex min-h-[200px] items-center justify-center">
+    <SynthLoader size="md" variant="spinner" inline />
+  </div>
+);
+
+const Admin = React.lazy(() => import("./pages/Admin"));
+const ArtistPage = React.lazy(() => import("./pages/ArtistPage").then(m => ({ default: m.default })));
+const VenuePage = React.lazy(() => import("./pages/VenuePage").then(m => ({ default: m.default })));
+const StreamingStatsPage = React.lazy(() => import("./pages/StreamingStatsPage").then(m => ({ default: m.StreamingStatsPage })));
+const ArtistFollowingPage = React.lazy(() => import("./pages/ArtistFollowingPage").then(m => ({ default: m.ArtistFollowingPage })));
+const ResetPassword = React.lazy(() => import("./pages/ResetPassword").then(m => ({ default: m.default })));
+const NotFound = React.lazy(() => import("./pages/NotFound").then(m => ({ default: m.default })));
+const ComponentShowcase = React.lazy(() => import("./pages/mobile/ComponentShowcase").then(m => ({ default: m.default })));
+const MobilePreview = React.lazy(() => import("./pages/mobile/MobilePreview").then(m => ({ default: m.default })));
 
 // Component to handle deep links and auth callbacks
 // Must be inside BrowserRouter to use useLocation and useNavigate
@@ -225,9 +240,10 @@ const App = () => {
           <BrowserRouter>
             <DeepLinkHandlerInner />
             <ScrollToTop />
-            <Routes>
-              <Route path="/" element={<AppPage />} />
-              <Route path="/admin" element={<Admin />} />
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                <Route path="/" element={<AppPage />} />
+                <Route path="/admin" element={<Admin />} />
               {/* Artist/Venue info pages (support id or name) */}
               <Route path="/artist/:artistIdOrName" element={<ArtistPage />} />
               <Route path="/venue/:venueIdOrName" element={<VenuePage />} />
@@ -244,7 +260,8 @@ const App = () => {
               <Route path="/mobile-preview/*" element={<MobilePreview />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </QueryClientProvider>

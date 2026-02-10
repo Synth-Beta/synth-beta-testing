@@ -60,17 +60,65 @@ fi
 
 echo "✅ Found package.json"
 
-# Install Node.js using Homebrew if not available
-if ! command -v node &> /dev/null; then
-  echo "📦 Node.js not found, installing via Homebrew..."
-  
-  # Xcode Cloud has Homebrew pre-installed
-  if command -v brew &> /dev/null; then
-    brew install node
-  else
-    echo "❌ Error: Neither Node.js nor Homebrew available"
-    exit 1
+# --- Ensure Node.js is available (Xcode Cloud does not pre-install Node) ---
+set_node_path() {
+  export PATH="$1/bin:$PATH"
+  if command -v node &> /dev/null; then
+    return 0
   fi
+  return 1
+}
+
+# 1) Already in PATH or common locations
+if command -v node &> /dev/null; then
+  echo "📦 Node.js found in PATH"
+elif [ -x "/usr/local/bin/node" ]; then
+  set_node_path "/usr/local"
+  echo "📦 Node.js found at /usr/local"
+elif [ -x "/opt/homebrew/bin/node" ]; then
+  set_node_path "/opt/homebrew"
+  echo "📦 Node.js found at /opt/homebrew"
+fi
+
+# 2) Install via Homebrew without auto-update (avoids ghcr.io fetch in restricted CI)
+if ! command -v node &> /dev/null && command -v brew &> /dev/null; then
+  echo "📦 Installing Node.js via Homebrew (no auto-update)..."
+  export HOMEBREW_NO_AUTO_UPDATE=1
+  export HOMEBREW_NO_INSTALL_FROM_API=1
+  export HOMEBREW_NO_ENV_HINTS=1
+  if brew install node 2>/dev/null; then
+    BREW_PREFIX=$(brew --prefix 2>/dev/null || echo "/usr/local")
+    set_node_path "$BREW_PREFIX"
+  fi
+fi
+
+# 3) Fallback: download Node LTS from nodejs.org (works when Homebrew is blocked e.g. ghcr.io)
+if ! command -v node &> /dev/null; then
+  echo "📦 Node.js not available via Homebrew, trying direct download from nodejs.org..."
+  NODE_VERSION="20.18.0"
+  ARCH=$(uname -m)
+  if [ "$ARCH" = "arm64" ]; then
+    NODE_ARCH="arm64"
+  else
+    NODE_ARCH="x64"
+  fi
+  TARBALL="node-v${NODE_VERSION}-darwin-${NODE_ARCH}.tar.gz"
+  NODE_DIR="$PROJECT_ROOT/.ci-node"
+  mkdir -p "$NODE_DIR"
+  if curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${TARBALL}" -o "$NODE_DIR/${TARBALL}" 2>/dev/null; then
+    tar -xzf "$NODE_DIR/${TARBALL}" -C "$NODE_DIR"
+    set_node_path "$NODE_DIR/node-v${NODE_VERSION}-darwin-${NODE_ARCH}"
+    echo "📦 Node.js installed from nodejs.org to $NODE_DIR"
+  else
+    echo "❌ Could not download Node from nodejs.org (network may be restricted)"
+  fi
+  rm -rf "$NODE_DIR/${TARBALL}" 2>/dev/null
+fi
+
+if ! command -v node &> /dev/null; then
+  echo "❌ Node.js is required but could not be installed."
+  echo "   Xcode Cloud may restrict network (e.g. ghcr.io). Ensure nodejs.org is allowed or use a custom image with Node pre-installed."
+  exit 1
 fi
 
 echo "✅ Node.js version: $(node --version)"

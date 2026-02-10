@@ -44,8 +44,9 @@ import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { triggerNativeEventShare, isNativeShareAvailable, setupNativeShareListener } from '@/utils/nativeShareService';
 import { EventShareModal } from '@/components/events/EventShareModal';
 import { InAppShareService } from '@/services/inAppShareService';
-import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
-import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+import { Suspense } from 'react';
+const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
+const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '@/services/notificationService';
 
@@ -2567,41 +2568,40 @@ interface FriendEventInterest {
         />
       )}
 
-      {/* Artist Detail Modal */}
-      {artistModalOpen && selectedArtistId && (
-        <ArtistDetailModal
-          isOpen={artistModalOpen}
-          onClose={() => {
-            setArtistModalOpen(false);
-            setSelectedArtistId(null);
-            setSelectedArtistName('');
-          }}
-          artistId={selectedArtistId}
-          artistName={selectedArtistName}
-          currentUserId={currentUserId}
-        />
-      )}
-
-      {/* Venue Detail Modal */}
-      {venueModalOpen && selectedVenueId && (
-        <VenueDetailModal
-          isOpen={venueModalOpen}
-          onClose={() => {
-            setVenueModalOpen(false);
-            setSelectedVenueId(null);
-            setSelectedVenueName('');
-          }}
-          venueId={selectedVenueId}
-          venueName={selectedVenueName}
-          currentUserId={currentUserId}
-          onEventClick={(eventId) => {
-            setVenueModalOpen(false);
-            setSelectedVenueId(null);
-            setSelectedVenueName('');
-            handleEventClick(eventId);
-          }}
-        />
-      )}
+      <Suspense fallback={null}>
+        {artistModalOpen && selectedArtistId && (
+          <ArtistDetailModal
+            isOpen={artistModalOpen}
+            onClose={() => {
+              setArtistModalOpen(false);
+              setSelectedArtistId(null);
+              setSelectedArtistName('');
+            }}
+            artistId={selectedArtistId}
+            artistName={selectedArtistName}
+            currentUserId={currentUserId}
+          />
+        )}
+        {venueModalOpen && selectedVenueId && (
+          <VenueDetailModal
+            isOpen={venueModalOpen}
+            onClose={() => {
+              setVenueModalOpen(false);
+              setSelectedVenueId(null);
+              setSelectedVenueName('');
+            }}
+            venueId={selectedVenueId}
+            venueName={selectedVenueName}
+            currentUserId={currentUserId}
+            onEventClick={(eventId) => {
+              setVenueModalOpen(false);
+              setSelectedVenueId(null);
+              setSelectedVenueName('');
+              handleEventClick(eventId);
+            }}
+          />
+        )}
+      </Suspense>
     </main>
     </div>
   );

@@ -20,18 +20,18 @@ if (!rootElement) {
     console.log('✅ App rendered successfully!');
     
     // Hide splash screen when app is loaded (for Capacitor)
-    // Check if we're running in Capacitor (mobile app)
     const isCapacitor = (window as any).Capacitor !== undefined;
     if (isCapacitor) {
-      // Wait for the app to fully render, then hide splash
-      setTimeout(async () => {
-        try {
-          await SplashScreen.hide();
-          console.log('✅ Splash screen hidden');
-        } catch (error) {
-          console.log('ℹ️ Splash screen not available:', error);
-        }
-      }, 1000);
+      requestAnimationFrame(() => {
+        setTimeout(async () => {
+          try {
+            await SplashScreen.hide();
+            console.log('✅ Splash screen hidden');
+          } catch (error) {
+            console.log('ℹ️ Splash screen not available:', error);
+          }
+        }, 350);
+      });
     }
   } catch (error) {
     console.error('❌ Error rendering React app:', error);

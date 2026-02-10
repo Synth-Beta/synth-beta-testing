@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { PersonalizationEngineV5, type PersonalizedEvent } from '@/services/personalizedFeedService';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +11,7 @@ import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
 import { LocationService } from '@/services/locationService';
+import { getLastKnownLocation, saveLastKnownLocation } from '@/services/locationCacheService';
 
 interface UnifiedEventItem {
   event_id: string;
@@ -42,6 +44,8 @@ const PAGE_SIZE = 20;
 const INITIAL_FEED_SIZE = 40; // First load: fewer events for faster first paint
 const BATCH_SIZE = 100; // Load-more batches
 const PREFETCH_THRESHOLD = 60; // Start prefetching when 60 events are displayed (3rd load more)
+const LOCATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const LOCATION_RELOAD_THRESHOLD_MILES = 50; // Only reload when location changes meaningfully
 
 function personalEventToItem(event: PersonalizedEvent, eventType?: string): UnifiedEventItem {
   // Map event_type from context to reason
@@ -98,13 +102,95 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   
   // Track if initial load has completed to prevent re-fetching on filter changes
   const initialLoadCompleteRef = useRef(false);
-  
+
+  const filterSignature = useMemo(() => {
+    const f = filters as any;
+    const cached = typeof window !== 'undefined'
+      ? getLastKnownLocation(LOCATION_CACHE_MAX_AGE_MS)
+      : null;
+    return JSON.stringify({
+      genres: f?.genres,
+      selectedCities: f?.selectedCities,
+      radiusMiles: f?.radiusMiles,
+      dateRange: f?.dateRange
+        ? { from: f.dateRange.from?.toISOString(), to: f.dateRange.to?.toISOString() }
+        : undefined,
+      cachedLat: cached?.lat,
+      cachedLng: cached?.lng,
+    });
+  }, [filters]);
+ 
   // User location and preferences
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [userTopGenres, setUserTopGenres] = useState<string[]>([]);
   // Track if we already used location/genres in a reload (so catch-up effect only runs once when they become available)
   const hadLocationForReloadRef = useRef(false);
   const hadGenresForReloadRef = useRef(false);
+  const lastReloadLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  const { data: cachedFeed, isLoading: queryLoading } = useQuery({
+    queryKey: ['feed', 'home', currentUserId, filterSignature],
+    queryFn: async () => {
+      const f = filters as any;
+      const dateTo = f?.dateRange?.to;
+      const maxDaysAhead = dateTo ? Math.ceil((dateTo.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 90;
+
+      let latitude: number | undefined = f?.latitude;
+      let longitude: number | undefined = f?.longitude;
+
+      // If no explicit coords in filters, try cached last-known location for a fast, location-based first paint
+      if (latitude == null || longitude == null) {
+        const cached = getLastKnownLocation(LOCATION_CACHE_MAX_AGE_MS);
+        if (cached) {
+          latitude = cached.lat;
+          longitude = cached.lng;
+        }
+      }
+
+      const feedFilters: PersonalizedFeedFilters = {
+        latitude,
+        longitude,
+        genres: (f?.genres && f.genres.length > 0) ? f.genres : undefined,
+        dateRange: f?.dateRange,
+        radiusMiles: f?.radiusMiles ?? 50,
+        selectedCities: f?.selectedCities,
+        includePast: false,
+        maxDaysAhead,
+      };
+
+      const result = await PersonalizationEngineV5.getUnifiedFeed(
+        currentUserId,
+        INITIAL_FEED_SIZE,
+        0,
+        feedFilters
+      );
+      const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
+
+      if (latitude != null && longitude != null) {
+        saveLastKnownLocation(latitude, longitude);
+      }
+
+      return { events: items, hasMore: result.hasMore, latitude, longitude };
+    },
+    enabled: !!currentUserId,
+    staleTime: 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (cachedFeed) {
+      setAllFetchedEvents(cachedFeed.events);
+      setDisplayedEvents(cachedFeed.events.slice(0, PAGE_SIZE));
+      setHasMoreFromApi(cachedFeed.hasMore);
+      setApiOffset(cachedFeed.events.length);
+      if (typeof cachedFeed.latitude === 'number' && typeof cachedFeed.longitude === 'number') {
+        lastReloadLocationRef.current = {
+          lat: cachedFeed.latitude,
+          lng: cachedFeed.longitude,
+        };
+      }
+      setLoading(false);
+    }
+  }, [cachedFeed]);
 
   const attachObserver = useIntersectionTrackingList(
     'event',
@@ -125,55 +211,20 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
     const initFeed = async () => {
       if (!initialLoadCompleteRef.current) {
-        // Initial load: fast path (don't wait for location/prefs)
         initialLoadCompleteRef.current = true;
-        setLoading(true);
-
-        const feedLoadPromise = (async () => {
-          const feedFilters: PersonalizedFeedFilters = {
-            latitude: undefined,
-            longitude: undefined,
-            genres: (f?.genres && f.genres.length > 0) ? f.genres : undefined,
-            dateRange: f?.dateRange,
-            radiusMiles: f?.radiusMiles ?? 50,
-            selectedCities: f?.selectedCities,
-            includePast: false,
-            maxDaysAhead,
-          };
-          return PersonalizationEngineV5.getUnifiedFeed(currentUserId, INITIAL_FEED_SIZE, 0, feedFilters);
-        })();
-
+        if (allFetchedEvents.length === 0) setLoading(true);
         const locationAndPrefsPromise = Promise.allSettled([
           LocationService.getCurrentLocation(),
           supabase.from('user_preferences').select('top_genres').eq('user_id', currentUserId).single(),
         ]);
-
-        try {
-          const result = await feedLoadPromise;
-          const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
-          setAllFetchedEvents(items);
-          setDisplayedEvents(items.slice(0, PAGE_SIZE));
-          setHasMoreFromApi(result.hasMore);
-          setApiOffset(items.length);
-          console.log('🎯 [UnifiedEventsFeed] Loaded', items.length, 'events (initial)');
-        } catch (error) {
-          console.error('Error loading feed:', error);
-        } finally {
-          setLoading(false);
-        }
-
-        const [locationResult, prefsResult] = await locationAndPrefsPromise;
-        if (locationResult.status === 'fulfilled') {
-          const loc = { lat: locationResult.value.latitude, lng: locationResult.value.longitude };
-          console.log('📍 [UnifiedEventsFeed] Got user location:', loc);
-          setUserLocation(loc);
-        } else {
-          console.log('📍 [UnifiedEventsFeed] Could not get location:', locationResult.reason?.message);
-        }
+      const [locationResult, prefsResult] = await locationAndPrefsPromise;
+      if (locationResult.status === 'fulfilled') {
+        const loc = { lat: locationResult.value.latitude, lng: locationResult.value.longitude };
+        setUserLocation(loc);
+        saveLastKnownLocation(loc.lat, loc.lng);
+      }
         if (prefsResult.status === 'fulfilled' && prefsResult.value.data?.top_genres) {
-          const genres = prefsResult.value.data.top_genres;
-          console.log('🎵 [UnifiedEventsFeed] Got user top_genres:', genres);
-          setUserTopGenres(genres);
+          setUserTopGenres(prefsResult.value.data.top_genres);
         }
       } else {
         // Filter or userId change: reload with current filters (and location/prefs if available)
@@ -191,12 +242,24 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           maxDaysAhead,
         };
         try {
-          const result = await PersonalizationEngineV5.getUnifiedFeed(currentUserId, INITIAL_FEED_SIZE, 0, feedFilters);
+          const result = await PersonalizationEngineV5.getUnifiedFeed(
+            currentUserId,
+            INITIAL_FEED_SIZE,
+            0,
+            feedFilters
+          );
           const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
           setAllFetchedEvents(items);
           setDisplayedEvents(items.slice(0, PAGE_SIZE));
           setHasMoreFromApi(result.hasMore);
           setApiOffset(items.length);
+          if (feedFilters.latitude != null && feedFilters.longitude != null) {
+            lastReloadLocationRef.current = {
+              lat: feedFilters.latitude,
+              lng: feedFilters.longitude,
+            };
+            saveLastKnownLocation(feedFilters.latitude, feedFilters.longitude);
+          }
           console.log('🎯 [UnifiedEventsFeed] Reloaded', items.length, 'events (filters/userId change)');
         } catch (error) {
           console.error('Error reloading feed:', error);
@@ -217,6 +280,20 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     const locationJustAvailable = userLocation != null && !hadLocationForReloadRef.current;
     const genresJustAvailable = userTopGenres.length > 0 && !hadGenresForReloadRef.current;
     if (!locationJustAvailable && !genresJustAvailable) return;
+
+    // If location just became available but hasn't changed meaningfully from the last used
+    // location (and there are no new genres), avoid an extra reload.
+    if (locationJustAvailable && userLocation && lastReloadLocationRef.current) {
+      const distance = LocationService.calculateDistance(
+        lastReloadLocationRef.current.lat,
+        lastReloadLocationRef.current.lng,
+        userLocation.lat,
+        userLocation.lng
+      );
+      if (distance < LOCATION_RELOAD_THRESHOLD_MILES && !genresJustAvailable) {
+        return;
+      }
+    }
 
     if (userLocation) hadLocationForReloadRef.current = true;
     if (userTopGenres.length > 0) hadGenresForReloadRef.current = true;
@@ -243,6 +320,13 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         setDisplayedEvents(items.slice(0, PAGE_SIZE));
         setHasMoreFromApi(result.hasMore);
         setApiOffset(items.length);
+        if (feedFilters.latitude != null && feedFilters.longitude != null) {
+          lastReloadLocationRef.current = {
+            lat: feedFilters.latitude,
+            lng: feedFilters.longitude,
+          };
+          saveLastKnownLocation(feedFilters.latitude, feedFilters.longitude);
+        }
         console.log('🎯 [UnifiedEventsFeed] Reloaded', items.length, 'events (location/prefs became available)');
       })
       .catch((error) => console.error('Error reloading feed with location/prefs:', error))
@@ -279,6 +363,13 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     console.log('🎯 [UnifiedEventsFeed] fetchBatch result:', result.events.length, 'events, hasMore:', result.hasMore);
     
     const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
+    if (feedFilters?.latitude != null && feedFilters?.longitude != null) {
+      lastReloadLocationRef.current = {
+        lat: feedFilters.latitude,
+        lng: feedFilters.longitude,
+      };
+      saveLastKnownLocation(feedFilters.latitude, feedFilters.longitude);
+    }
     return { events: items, hasMore: result.hasMore };
   }, [currentUserId, toFeedFilters]);
 
@@ -441,6 +532,13 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         setDisplayedEvents(items.slice(0, PAGE_SIZE));
         setHasMoreFromApi(result.hasMore);
         setApiOffset(items.length);
+        if (feedFilters?.latitude != null && feedFilters?.longitude != null) {
+          lastReloadLocationRef.current = {
+            lat: feedFilters.latitude,
+            lng: feedFilters.longitude,
+          };
+          saveLastKnownLocation(feedFilters.latitude, feedFilters.longitude);
+        }
         setLoading(false);
         
         console.log('✅ [UnifiedEventsFeed] Refresh complete:', items.length, 'events');

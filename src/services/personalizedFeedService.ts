@@ -207,7 +207,40 @@ export class PersonalizationEngineV5 {
     console.log('🔍 [FeedV5] getUnifiedFeed RPC payload:', JSON.stringify(rpcPayload, null, 2));
     
     try {
-      const { data, error } = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+      // Prefer cached wrapper when available; fall back to direct function if missing
+      let data: any;
+      let error: any;
+
+      try {
+        const cachedResult = await supabase.rpc('get_or_refresh_feed_v5_cached', {
+          ...rpcPayload,
+          // Cache TTL in seconds for feed V5 (10 minutes by default)
+          p_ttl_seconds: 600,
+        });
+        data = cachedResult.data;
+        error = cachedResult.error;
+      } catch (rpcErr: any) {
+        error = rpcErr;
+      }
+
+      // If wrapper function is missing / not yet migrated, fall back to direct RPC
+      const isWrapperMissing =
+        error &&
+        (error.code === '42883' || // undefined_function
+          error.code === 'PGRST116' || // function not found in schema cache
+          error.code === 'PGRST204' || // not found
+          /get_or_refresh_feed_v5_cached/.test(error.message || ''));
+
+      if (isWrapperMissing) {
+        logger.warn(
+          '⚠️ get_or_refresh_feed_v5_cached not available, falling back to get_personalized_feed_v5',
+          error
+        );
+        const direct = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+        data = direct.data;
+        error = direct.error;
+      }
+
       if (error) {
         logger.error('❌ get_personalized_feed_v5 error:', error);
         return { events: [], hasMore: false };

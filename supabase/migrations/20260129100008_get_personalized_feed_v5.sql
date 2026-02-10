@@ -57,19 +57,34 @@ BEGIN
 
   RETURN QUERY
   WITH 
-  -- 25 FOLLOWING events
+  -- Candidate FOLLOWING events (limit before random for performance)
+  following_candidates AS (
+    SELECT e.id AS eid
+    FROM events e
+    WHERE e.event_date BETWEEN min_ts AND max_ts
+      AND (
+        EXISTS (SELECT 1 FROM artist_follows af WHERE af.user_id = p_user_id AND af.artist_id = e.artist_id)
+        OR EXISTS (SELECT 1 FROM user_venue_relationships uvr WHERE uvr.user_id = p_user_id AND uvr.venue_id = e.venue_id)
+        OR EXISTS (
+          SELECT 1
+          FROM user_event_relationships uer
+          WHERE uer.user_id = p_user_id
+            AND uer.event_id = e.id
+            AND uer.relationship_type IN ('going','maybe')
+        )
+      )
+    ORDER BY e.event_date
+    LIMIT 500
+  ),
+
+  -- 25 FOLLOWING events, randomized from candidates
   following AS (
     SELECT 'following'::TEXT AS sec, e.id AS eid, e.*, a.name AS aname, v.name AS vname,
            0::NUMERIC AS genre_weight
     FROM events e
     LEFT JOIN artists a ON a.id = e.artist_id
     LEFT JOIN venues v ON v.id = e.venue_id
-    WHERE e.event_date BETWEEN min_ts AND max_ts
-      AND (
-        EXISTS (SELECT 1 FROM artist_follows af WHERE af.user_id = p_user_id AND af.artist_id = e.artist_id)
-        OR EXISTS (SELECT 1 FROM user_venue_relationships uvr WHERE uvr.user_id = p_user_id AND uvr.venue_id = e.venue_id)
-        OR EXISTS (SELECT 1 FROM user_event_relationships uer WHERE uer.user_id = p_user_id AND uer.event_id = e.id AND uer.relationship_type IN ('going','maybe'))
-      )
+    INNER JOIN following_candidates fc ON fc.eid = e.id
     ORDER BY RANDOM()
     LIMIT 25
   ),
@@ -100,26 +115,46 @@ BEGIN
         AND e.latitude BETWEEN v_min_lat AND v_max_lat
         AND e.longitude BETWEEN v_min_lng AND v_max_lng
       ))
+    LIMIT 10000
   ),
   
-  -- 50 RECOMMENDED + extra to fill missing following (weighted by genre scores)
-  -- Location filter only when has_location
+  -- Choose RECOMMENDED event ids using weighted random over a bounded candidate set
+  recommended_ids AS (
+    SELECT ew.eid,
+           ew.total_weight
+    FROM event_weights ew
+    ORDER BY -LN(RANDOM() + 0.0001) / (ew.total_weight + 1)
+    LIMIT 50 + (25 - (SELECT cnt FROM following_count))
+  ),
+  
+  -- 50 RECOMMENDED + extra to fill missing following (join heavy tables only after ids chosen)
   recommended AS (
-    SELECT 'recommending'::TEXT AS sec, e.id AS eid, e.*, a.name AS aname, v.name AS vname,
-           ew.total_weight AS genre_weight
-    FROM events e
-    INNER JOIN event_weights ew ON ew.eid = e.id
+    SELECT 'recommending'::TEXT AS sec,
+           e.id AS eid,
+           e.*,
+           a.name AS aname,
+           v.name AS vname,
+           ri.total_weight AS genre_weight
+    FROM recommended_ids ri
+    INNER JOIN events e ON e.id = ri.eid
     LEFT JOIN artists a ON a.id = e.artist_id
     LEFT JOIN venues v ON v.id = e.venue_id
+  ),
+  
+  -- Candidate TRENDING events (limit before random for performance)
+  trending_candidates AS (
+    SELECT e.id AS eid
+    FROM events e
     WHERE e.event_date BETWEEN min_ts AND max_ts
       AND e.id NOT IN (SELECT eid FROM following)
+      AND e.id NOT IN (SELECT eid FROM recommended)
       AND (NOT has_location OR (
         e.latitude IS NOT NULL AND e.longitude IS NOT NULL
         AND e.latitude BETWEEN v_min_lat AND v_max_lat
         AND e.longitude BETWEEN v_min_lng AND v_max_lng
       ))
-    ORDER BY -LN(RANDOM() + 0.0001) / (ew.total_weight + 1)
-    LIMIT 50 + (25 - (SELECT cnt FROM following_count))
+    ORDER BY e.event_date DESC
+    LIMIT 500
   ),
   
   -- 25 TRENDING events (location filter only when has_location)
@@ -129,14 +164,7 @@ BEGIN
     FROM events e
     LEFT JOIN artists a ON a.id = e.artist_id
     LEFT JOIN venues v ON v.id = e.venue_id
-    WHERE e.event_date BETWEEN min_ts AND max_ts
-      AND e.id NOT IN (SELECT eid FROM following)
-      AND e.id NOT IN (SELECT eid FROM recommended)
-      AND (NOT has_location OR (
-        e.latitude IS NOT NULL AND e.longitude IS NOT NULL
-        AND e.latitude BETWEEN v_min_lat AND v_max_lat
-        AND e.longitude BETWEEN v_min_lng AND v_max_lng
-      ))
+    INNER JOIN trending_candidates tc ON tc.eid = e.id
     ORDER BY RANDOM()
     LIMIT 25
   ),

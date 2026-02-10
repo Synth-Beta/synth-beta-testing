@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,8 +19,8 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PassportEntry } from '@/services/passportService';
-import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
-import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
+const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { supabase } from '@/integrations/supabase/client';
 
 interface ProcessedAchievement extends AchievementDisplay {
@@ -603,27 +603,26 @@ export const PassportModal: React.FC<PassportModalProps> = ({
           </DialogContent>
         </Dialog>
 
-      {/* Artist Detail Modal - Use existing modal */}
-      {artistDialog.artistId && (
-        <ArtistDetailModal
-          isOpen={artistDialog.open}
-          onClose={() => setArtistDialog({ open: false, artistId: null, artistName: undefined })}
-          artistId={artistDialog.artistId}
-          artistName={artistDialog.artistName || 'Unknown Artist'}
-          currentUserId={userId}
-        />
-      )}
-
-      {/* Venue Detail Modal - Use existing modal */}
-      {venueDialog.venueId && venueDialog.venueName && (
-        <VenueDetailModal
-          isOpen={venueDialog.open}
-          onClose={() => setVenueDialog({ open: false, venueId: null, venueName: '' })}
-          venueId={venueDialog.venueId}
-          venueName={venueDialog.venueName}
-          currentUserId={userId}
-        />
-      )}
+      <Suspense fallback={null}>
+        {artistDialog.artistId && (
+          <ArtistDetailModal
+            isOpen={artistDialog.open}
+            onClose={() => setArtistDialog({ open: false, artistId: null, artistName: undefined })}
+            artistId={artistDialog.artistId}
+            artistName={artistDialog.artistName || 'Unknown Artist'}
+            currentUserId={userId}
+          />
+        )}
+        {venueDialog.venueId && venueDialog.venueName && (
+          <VenueDetailModal
+            isOpen={venueDialog.open}
+            onClose={() => setVenueDialog({ open: false, venueId: null, venueName: '' })}
+            venueId={venueDialog.venueId}
+            venueName={venueDialog.venueName}
+            currentUserId={userId}
+          />
+        )}
+      </Suspense>
       </>
     );
   }
@@ -642,31 +641,30 @@ export const PassportModal: React.FC<PassportModalProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Artist Detail Modal - Use existing modal */}
-      {artistDialog.open && artistDialog.artistId && (
-        <ArtistDetailModal
-          isOpen={artistDialog.open}
-          onClose={() => {
-            setArtistDialog({ open: false, artistId: null, artistName: undefined });
-          }}
-          artistId={artistDialog.artistId}
-          artistName={artistDialog.artistName || 'Unknown Artist'}
-          currentUserId={userId}
-        />
-      )}
-
-      {/* Venue Detail Modal - Use existing modal */}
-      {venueDialog.open && venueDialog.venueId && venueDialog.venueName && (
-        <VenueDetailModal
-          isOpen={venueDialog.open}
-          onClose={() => {
-            setVenueDialog({ open: false, venueId: null, venueName: '' });
-          }}
-          venueId={venueDialog.venueId}
-          venueName={venueDialog.venueName}
-          currentUserId={userId}
-        />
-      )}
+      <Suspense fallback={null}>
+        {artistDialog.open && artistDialog.artistId && (
+          <ArtistDetailModal
+            isOpen={artistDialog.open}
+            onClose={() => {
+              setArtistDialog({ open: false, artistId: null, artistName: undefined });
+            }}
+            artistId={artistDialog.artistId}
+            artistName={artistDialog.artistName || 'Unknown Artist'}
+            currentUserId={userId}
+          />
+        )}
+        {venueDialog.open && venueDialog.venueId && venueDialog.venueName && (
+          <VenueDetailModal
+            isOpen={venueDialog.open}
+            onClose={() => {
+              setVenueDialog({ open: false, venueId: null, venueName: '' });
+            }}
+            venueId={venueDialog.venueId}
+            venueName={venueDialog.venueName}
+            currentUserId={userId}
+          />
+        )}
+      </Suspense>
     </>
   );
 };

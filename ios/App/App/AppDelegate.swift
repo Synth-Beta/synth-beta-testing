@@ -65,48 +65,64 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         setupJavaScriptMessageHandler()
     }
     
-    /// Sets up WKWebView message handler to receive JavaScript requests
+    /// Sets up WKWebView message handler to receive JavaScript requests.
+    /// Ensures Capacitor's WebView is ready (loadViewIfNeeded) and retries if not yet in hierarchy.
     func setupJavaScriptMessageHandler() {
-        // Wait for the web view to be available, then inject the message handler
-        DispatchQueue.main.async {
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let window = windowScene.windows.first,
-               let webView = self.findWebView(in: window) {
-                // Configure message handlers
-                webView.configuration.userContentController.add(self, name: "appleSignIn")
-                webView.configuration.userContentController.add(self, name: "eventShare")
-                webView.configuration.userContentController.add(self, name: "setBadgeCount")
-                
-                // Inject JavaScript that listens for events and forwards them to native
-                let script = """
-                    (function() {
-                        // Apple Sign In
-                        window.addEventListener('RequestAppleSignIn', function() {
-                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.appleSignIn) {
-                                window.webkit.messageHandlers.appleSignIn.postMessage({});
-                            }
-                        });
-                        
-                        // Event Share
-                        window.addEventListener('RequestEventShare', function(event) {
-                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.eventShare) {
-                                window.webkit.messageHandlers.eventShare.postMessage(event.detail || {});
-                            }
-                        });
-                        
-                        // Badge Count - expose function for JavaScript to call
-                        window.setBadgeCount = function(count) {
-                            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.setBadgeCount) {
-                                window.webkit.messageHandlers.setBadgeCount.postMessage({ count: count });
-                            }
-                        };
-                    })();
-                """
-                webView.configuration.userContentController.addUserScript(
-                    WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
-                )
+        func attach(to webView: WKWebView) {
+            webView.configuration.userContentController.add(self, name: "appleSignIn")
+            webView.configuration.userContentController.add(self, name: "eventShare")
+            webView.configuration.userContentController.add(self, name: "setBadgeCount")
+            let script = """
+                (function() {
+                    window.addEventListener('RequestAppleSignIn', function() {
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.appleSignIn) {
+                            window.webkit.messageHandlers.appleSignIn.postMessage({});
+                        }
+                    });
+                    window.addEventListener('RequestEventShare', function(event) {
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.eventShare) {
+                            window.webkit.messageHandlers.eventShare.postMessage(event.detail || {});
+                        }
+                    });
+                    window.setBadgeCount = function(count) {
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.setBadgeCount) {
+                            window.webkit.messageHandlers.setBadgeCount.postMessage({ count: count });
+                        }
+                    };
+                })();
+            """
+            webView.configuration.userContentController.addUserScript(
+                WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
+            )
+            print("✅ Apple Sign In / Event Share message handlers attached to WebView")
+        }
+
+        func tryAttach(attempt: Int) {
+            DispatchQueue.main.async {
+                guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                      let window = windowScene.windows.first else {
+                    if attempt < 5 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { tryAttach(attempt: attempt + 1) } }
+                    return
+                }
+                // Ensure Capacitor bridge VC has loaded its view (and thus created the WebView)
+                if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
+                    bridgeVC.loadViewIfNeeded()
+                    if let webView = bridgeVC.webView {
+                        attach(to: webView)
+                        return
+                    }
+                }
+                // Fallback: find WebView in hierarchy (e.g. different host or timing)
+                if let webView = self.findWebView(in: window) {
+                    attach(to: webView)
+                    return
+                }
+                if attempt < 5 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { tryAttach(attempt: attempt + 1) }
+                }
             }
         }
+        tryAttach(attempt: 0)
     }
     
     /// Helper to find WKWebView in window hierarchy

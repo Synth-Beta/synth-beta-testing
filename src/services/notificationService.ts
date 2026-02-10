@@ -127,39 +127,10 @@ export class NotificationService {
 
         const { data, error, count } = await query;
 
-        // If view doesn't exist (404, PGRST205, or any error mentioning the view), fallback to notifications table
+        // If view doesn't exist or any error (404, PGRST205, etc.), fallback to notifications table
+        // We always fallback on any error from the view so the app works when the view is missing.
         if (error) {
-          const errorCode = error.code || (error as any)?.statusCode || (error as any)?.status;
-          const errorMessage = (error.message || String(error) || '').toLowerCase();
-          const errorDetails = ((error as any)?.details || '').toLowerCase();
-          const errorHint = ((error as any)?.hint || '').toLowerCase();
-          
-          // Check for various error codes that indicate the view doesn't exist
-          // Also check HTTP status codes (404 can come through as number or string)
-          const isViewNotFound = 
-            errorCode === 'PGRST205' || 
-            errorCode === '42P01' ||
-            errorCode === 404 ||
-            errorCode === '404' ||
-            String(errorCode) === '404' ||
-            errorMessage?.includes('notifications_with_details') ||
-            errorMessage?.includes('does not exist') ||
-            errorMessage?.includes('relation') ||
-            errorMessage?.includes('not found') ||
-            errorMessage?.includes('404') ||
-            errorDetails?.includes('notifications_with_details') ||
-            errorHint?.includes('notifications_with_details') ||
-            // Check if the error is a 404 HTTP error (common in Supabase REST API)
-            (error as any)?.status === 404 ||
-            (error as any)?.statusCode === 404;
-          
-          if (isViewNotFound) {
-            // Silently fallback - no need to log this expected error
-            return await this.getNotificationsWithManualJoin(filters);
-          }
-          
-          // If it's a different error, throw it
-          throw error;
+          return await this.getNotificationsWithManualJoin(filters);
         }
         
         // If no error and we have data, process it
@@ -231,26 +202,9 @@ export class NotificationService {
           // No data returned, fallback
           return await this.getNotificationsWithManualJoin(filters);
         }
-      } catch (viewError: any) {
-        // Catch any exceptions (including network errors, 404s, etc.) and fallback
-        const errorMessage = viewError?.message || String(viewError) || '';
-        const errorCode = viewError?.code || viewError?.statusCode || viewError?.status;
-        
-        // If it's clearly a "view doesn't exist" error, fallback silently
-        if (
-          errorCode === 'PGRST205' || 
-          errorCode === '42P01' ||
-          errorCode === 404 ||
-          errorMessage?.includes('notifications_with_details') ||
-          errorMessage?.includes('does not exist') ||
-          errorMessage?.includes('Not Found') ||
-          errorMessage?.includes('404')
-        ) {
-          return await this.getNotificationsWithManualJoin(filters);
-        }
-        
-        // If it's a different error, re-throw it
-        throw viewError;
+      } catch {
+        // Any exception (e.g. 404, network, or client throw) — fallback so app works when view is missing
+        return await this.getNotificationsWithManualJoin(filters);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -770,48 +724,20 @@ export class NotificationService {
               .eq('id', payload.new.id)
               .single();
 
-              // Check if view exists and data is available
             if (viewError) {
-              // There's an error - check if it's a "view doesn't exist" error
-              const viewErrorCode = viewError.code || (viewError as any)?.statusCode || (viewError as any)?.status;
-              const viewErrorMessage = (viewError.message || String(viewError) || '').toLowerCase();
-              
-              // If it's a "view doesn't exist" error, we'll fallback below
-              // Otherwise, it's a different error and we should still try fallback
-              const isViewNotFound = 
-                viewErrorCode === 'PGRST205' || 
-                viewErrorCode === '42P01' ||
-                viewErrorCode === 404 ||
-                viewErrorCode === '404' ||
-                String(viewErrorCode) === '404' ||
-                (viewError as any)?.status === 404 ||
-                (viewError as any)?.statusCode === 404 ||
-                viewErrorMessage?.includes('notifications_with_details') ||
-                viewErrorMessage?.includes('does not exist') ||
-                viewErrorMessage?.includes('not found') ||
-                viewErrorMessage?.includes('404');
-              
-              // If it's not a "view doesn't exist" error, log it but still fallback
-              if (!isViewNotFound) {
-                console.warn('Unexpected error fetching from notifications_with_details view:', viewError);
-              }
-              // Fall through to fallback
+              // View missing or any error — fall through to fallback
             } else if (viewData) {
-              // No error and we have data - use it
               data = viewData as NotificationWithDetails;
             }
-            
-            // Fallback: fetch from notifications table and enrich if view data not available
+
             if (!data) {
               const { data: notifData } = await supabase
                 .from('notifications')
                 .select('*')
                 .eq('id', payload.new.id)
                 .single();
-
               if (notifData) {
-                const enriched = await this.enrichNotification(notifData as any);
-                data = enriched;
+                data = await this.enrichNotification(notifData as any);
               }
             }
 
@@ -842,48 +768,20 @@ export class NotificationService {
               .eq('id', payload.new.id)
               .single();
 
-              // Check if view exists and data is available
             if (viewError) {
-              // There's an error - check if it's a "view doesn't exist" error
-              const viewErrorCode = viewError.code || (viewError as any)?.statusCode || (viewError as any)?.status;
-              const viewErrorMessage = (viewError.message || String(viewError) || '').toLowerCase();
-              
-              // If it's a "view doesn't exist" error, we'll fallback below
-              // Otherwise, it's a different error and we should still try fallback
-              const isViewNotFound = 
-                viewErrorCode === 'PGRST205' || 
-                viewErrorCode === '42P01' ||
-                viewErrorCode === 404 ||
-                viewErrorCode === '404' ||
-                String(viewErrorCode) === '404' ||
-                (viewError as any)?.status === 404 ||
-                (viewError as any)?.statusCode === 404 ||
-                viewErrorMessage?.includes('notifications_with_details') ||
-                viewErrorMessage?.includes('does not exist') ||
-                viewErrorMessage?.includes('not found') ||
-                viewErrorMessage?.includes('404');
-              
-              // If it's not a "view doesn't exist" error, log it but still fallback
-              if (!isViewNotFound) {
-                console.warn('Unexpected error fetching from notifications_with_details view:', viewError);
-              }
-              // Fall through to fallback
+              // View missing or any error — fall through to fallback
             } else if (viewData) {
-              // No error and we have data - use it
               data = viewData as NotificationWithDetails;
             }
-            
-            // Fallback: fetch from notifications table and enrich if view data not available
+
             if (!data) {
               const { data: notifData } = await supabase
                 .from('notifications')
                 .select('*')
                 .eq('id', payload.new.id)
                 .single();
-
               if (notifData) {
-                const enriched = await this.enrichNotification(notifData as any);
-                data = enriched;
+                data = await this.enrichNotification(notifData as any);
               }
             }
 

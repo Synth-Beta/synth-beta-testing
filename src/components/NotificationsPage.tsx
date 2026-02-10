@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,73 +59,39 @@ export const NotificationsPage = ({
   // Track notifications view
   useViewTracking('view', 'notifications', { source: 'notifications' });
 
-  const [notifications, setNotifications] = useState<NotificationWithDetails[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const queryClient = useQueryClient();
   const { sessionExpired } = useAuth();
 
-  useEffect(() => {
-    if (sessionExpired) {
-      setLoading(false);
-      return;
-    }
-    
-    fetchNotifications();
-  }, [currentUserId, sessionExpired, filter]);
-
-  const fetchNotifications = async () => {
-    try {
-      // Check if session is expired before making any requests
-      if (sessionExpired) {
-        console.log('Session expired, skipping notifications fetch');
-        setLoading(false);
-        return;
-      }
-
-      // Parallelize notification and unread count queries
-      const [result, count] = await Promise.all([
+  const { data: notificationsData, isLoading: loading, refetch: fetchNotifications } = useQuery({
+    queryKey: ['notifications', 'list', currentUserId, filter],
+    queryFn: async () => {
+      const [result] = await Promise.all([
         NotificationService.getNotifications({ limit: 50 }),
         NotificationService.getUnreadCount()
       ]);
-      
-      // Always exclude chat notifications - unread messages are shown via the chat icon indicator (Instagram/WhatsApp style)
       const nonChatNotifications = result.notifications.filter(
         n => n.type !== 'message' && n.type !== 'group_chat_invite'
       );
-
-      // Apply filter based on prop
-      let filteredNotifications = nonChatNotifications;
+      let filtered = nonChatNotifications;
       if (filter === 'friends_only') {
-        filteredNotifications = nonChatNotifications.filter(n => n.type === 'friend_request');
+        filtered = nonChatNotifications.filter(n => n.type === 'friend_request');
       } else if (filter === 'exclude_friends') {
-        filteredNotifications = nonChatNotifications.filter(n => n.type !== 'friend_request');
+        filtered = nonChatNotifications.filter(n => n.type !== 'friend_request');
       }
-      
-      setNotifications(filteredNotifications);
-      
-      // Update unread count based on filter
-      const filteredUnread = filteredNotifications.filter(n => !n.is_read).length;
-      setUnreadCount(filteredUnread);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      setNotifications([]);
-      setUnreadCount(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { notifications: filtered, unreadCount: filtered.filter(n => !n.is_read).length };
+    },
+    enabled: !!currentUserId && !sessionExpired,
+    staleTime: 30 * 1000,
+  });
+
+  const notifications = notificationsData?.notifications ?? [];
+  const unreadCount = notificationsData?.unreadCount ?? 0;
 
   const markAsRead = async (notificationId: string) => {
     try {
       await NotificationService.markAsRead(notificationId);
-
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-      );
-      
-      // Refresh unread count (excludes chat notifications; those use the chat icon)
-      const count = await NotificationService.getUnreadCount();
-      setUnreadCount(count);
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread', currentUserId] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'list', currentUserId, filter] });
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -133,10 +100,8 @@ export const NotificationsPage = ({
   const markAllAsRead = async () => {
     try {
       await NotificationService.markAllAsRead();
-      
-      // Refresh notifications to get updated state
-      await fetchNotifications();
-      
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread', currentUserId] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'list', currentUserId, filter] });
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }

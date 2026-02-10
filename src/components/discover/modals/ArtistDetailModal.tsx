@@ -145,121 +145,47 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
     }
   }, [isOpen]);
 
+  const reviewSelect = `
+    id, user_id, event_id, artist_id, venue_id, rating, review_text, photos, videos,
+    mood_tags, genre_tags, context_tags, likes_count, comments_count, shares_count,
+    is_public, created_at, updated_at, artist_performance_rating, production_rating,
+    venue_rating, location_rating, value_rating, "Event_date"
+  `;
+
   const loadArtistData = async () => {
     try {
       setLoading(true);
-      
-      // Get artist image from artists table
-      const { data: artistData } = await supabase
-        .from('artists')
-        .select('id, name, image_url')
-        .eq('id', artistId)
-        .maybeSingle();
 
-      if (artistData?.image_url) {
-        setArtistImage(artistData.image_url);
-      }
+      // Wave 1: artist, events, direct reviews in parallel
+      const [artistRes, eventsRes, directReviewsRes] = await Promise.all([
+        supabase.from('artists').select('id, name, image_url').eq('id', artistId).maybeSingle(),
+        supabase.from('events').select('*').eq('artist_id', artistId).order('event_date', { ascending: true }),
+        supabase.from('reviews').select(reviewSelect).eq('artist_id', artistId).eq('is_public', true).eq('is_draft', false).order('created_at', { ascending: false })
+      ]);
 
-      // Get events for this artist using artist_id (UUID join)
-      const { data: eventsData } = await supabase
-        .from('events')
-        .select('*')
-        .eq('artist_id', artistId)
-        .order('event_date', { ascending: true });
+      const artistData = artistRes.data;
+      const eventsData = eventsRes.data || [];
+      const directReviews = directReviewsRes.data || [];
 
-      if (eventsData) {
-        setEvents(eventsData);
+      if (artistData?.image_url) setArtistImage(artistData.image_url);
+      setEvents(eventsData);
 
-        // Get first event image as artist image if artist table doesn't have one
-        if (!artistData?.image_url) {
-          const firstEvent = eventsData.find(e => e.images && Array.isArray(e.images) && e.images.length > 0);
-          if (firstEvent?.images) {
-            const imageUrl = firstEvent.images.find((img: any) => img?.url)?.url;
-            if (imageUrl) setArtistImage(imageUrl);
-          }
-        }
-      }
+      const eventIds = eventsData.map(e => e.id);
 
-      // Get reviews for this artist - both direct (artist_id) and event-linked
-      const eventIds = eventsData?.map(e => e.id) || [];
-      
-      // Fetch direct artist reviews (where artist_id matches)
-      const { data: directReviews } = await supabase
-        .from('reviews')
-        .select(`
-          id,
-          user_id,
-          event_id,
-          artist_id,
-          venue_id,
-          rating,
-          review_text,
-          photos,
-          videos,
-          mood_tags,
-          genre_tags,
-          context_tags,
-          likes_count,
-          comments_count,
-          shares_count,
-          is_public,
-          created_at,
-          updated_at,
-          artist_performance_rating,
-          production_rating,
-          venue_rating,
-          location_rating,
-          value_rating,
-          "Event_date"
-        `)
-        .eq('artist_id', artistId)
-        .eq('is_public', true)
-        .eq('is_draft', false)
-        .order('created_at', { ascending: false });
-
-      // Fetch event-linked reviews (reviews for events by this artist)
+      // Wave 2: event-linked reviews
       let eventLinkedReviews: any[] = [];
       if (eventIds.length > 0) {
         const { data: eventReviews } = await supabase
           .from('reviews')
-          .select(`
-            id,
-            user_id,
-            event_id,
-            artist_id,
-            venue_id,
-            rating,
-            review_text,
-            photos,
-            videos,
-            mood_tags,
-            genre_tags,
-            context_tags,
-            likes_count,
-            comments_count,
-            shares_count,
-            is_public,
-            created_at,
-            updated_at,
-            artist_performance_rating,
-            production_rating,
-            venue_rating,
-            location_rating,
-            value_rating,
-            "Event_date"
-          `)
+          .select(reviewSelect)
           .in('event_id', eventIds)
           .eq('is_public', true)
           .eq('is_draft', false)
           .order('created_at', { ascending: false });
-
-        if (eventReviews) {
-          eventLinkedReviews = eventReviews;
-        }
+        eventLinkedReviews = eventReviews || [];
       }
 
-      // Combine and deduplicate reviews
-      const allReviewsRaw = [...(directReviews || []), ...eventLinkedReviews];
+      const allReviewsRaw = [...directReviews, ...eventLinkedReviews];
       const uniqueReviewIds = new Set<string>();
       const uniqueReviews = allReviewsRaw.filter(r => {
         if (uniqueReviewIds.has(r.id)) return false;
@@ -277,14 +203,18 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
         setTotalReviews(uniqueReviews.length);
       }
 
-      // Fetch user profiles for reviews
       const userIds = [...new Set(uniqueReviews.map(r => r.user_id).filter(Boolean))];
-      const { data: profiles } = userIds.length > 0 
-        ? await supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds)
-        : { data: [] };
+      const venueIds = [...new Set(uniqueReviews.map(r => r.venue_id).filter(Boolean))];
 
-      // Store profiles in state for SwiftUIReviewCard
-      if (profiles) {
+      // Wave 3: profiles and venues in parallel
+      const [profilesRes, venuesRes] = await Promise.all([
+        userIds.length > 0 ? supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds) : Promise.resolve({ data: [] }),
+        venueIds.length > 0 ? supabase.from('venues').select('id, name').in('id', venueIds) : Promise.resolve({ data: [] })
+      ]);
+      const profiles = profilesRes.data || [];
+      const venues = venuesRes.data || [];
+
+      if (profiles.length > 0) {
         const profileMap: Record<string, { name: string; avatar_url?: string }> = {};
         profiles.forEach(p => {
           profileMap[p.user_id] = { name: p.name || 'User', avatar_url: p.avatar_url || undefined };
@@ -292,11 +222,13 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
         setReviewUserProfiles(profileMap);
       }
 
-      // Fetch venue names for reviews
-      const venueIds = [...new Set(uniqueReviews.map(r => r.venue_id).filter(Boolean))];
-      const { data: venues } = venueIds.length > 0
-        ? await supabase.from('venues').select('id, name').in('id', venueIds)
-        : { data: [] };
+      if (!artistData?.image_url && eventsData.length > 0) {
+        const firstEvent = eventsData.find(e => e.images && Array.isArray(e.images) && e.images.length > 0);
+        if (firstEvent?.images) {
+          const imageUrl = firstEvent.images.find((img: any) => img?.url)?.url;
+          if (imageUrl) setArtistImage(imageUrl);
+        }
+      }
 
       // Transform reviews to ReviewWithEngagement format
       const transformedReviews: ReviewWithEngagement[] = uniqueReviews.map(r => {

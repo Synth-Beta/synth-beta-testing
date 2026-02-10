@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { BottomNavAdapter } from './BottomNavAdapter';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
@@ -38,8 +38,8 @@ import { NotificationService } from '@/services/notificationService';
 import { SynthLoadingScreen } from './ui/SynthLoader';
 import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
-import { ArtistDetailModal } from '@/components/discover/modals/ArtistDetailModal';
-import { VenueDetailModal } from '@/components/discover/modals/VenueDetailModal';
+const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
+const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { ShareService } from '@/services/shareService';
@@ -1090,26 +1090,27 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         {renderCurrentView()}
       </div>
 
-      {/* Global Artist/Venue Detail Modals */}
-      {user?.id && detailModal.open && detailModal.type === 'artist' && detailModal.artistId && (
-        <ArtistDetailModal
-          isOpen={detailModal.open}
-          onClose={handleCloseGlobalDetail}
-          artistId={detailModal.artistId}
-          artistName={detailModal.artistName || 'Artist'}
-          currentUserId={user.id}
-        />
-      )}
-      {user?.id && detailModal.open && detailModal.type === 'venue' && detailModal.venueId && (
-        <VenueDetailModal
-          isOpen={detailModal.open}
-          onClose={handleCloseGlobalDetail}
-          venueId={detailModal.venueId}
-          venueName={detailModal.venueName || 'Venue'}
-          currentUserId={user.id}
-          onEventClick={handleEventClickFromVenue}
-        />
-      )}
+      <Suspense fallback={null}>
+        {user?.id && detailModal.open && detailModal.type === 'artist' && detailModal.artistId && (
+          <ArtistDetailModal
+            isOpen={detailModal.open}
+            onClose={handleCloseGlobalDetail}
+            artistId={detailModal.artistId}
+            artistName={detailModal.artistName || 'Artist'}
+            currentUserId={user.id}
+          />
+        )}
+        {user?.id && detailModal.open && detailModal.type === 'venue' && detailModal.venueId && (
+          <VenueDetailModal
+            isOpen={detailModal.open}
+            onClose={handleCloseGlobalDetail}
+            venueId={detailModal.venueId}
+            venueName={detailModal.venueName || 'Venue'}
+            currentUserId={user.id}
+            onEventClick={handleEventClickFromVenue}
+          />
+        )}
+      </Suspense>
 
       {/* Event Details Modal (opened from global venue modal event cards) */}
       {eventDetailsFromVenueOpen && selectedEventFromVenue && user?.id && (

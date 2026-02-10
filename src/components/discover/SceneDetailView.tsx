@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/Icon/Icon';
 import { SceneService, type SceneDetail } from '@/services/sceneService';
@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { HorizontalCarousel } from './HorizontalCarousel';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
-import { ArtistDetailModal } from './modals/ArtistDetailModal';
-import { VenueDetailModal } from './modals/VenueDetailModal';
+const ArtistDetailModal = React.lazy(() => import('./modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
+const VenueDetailModal = React.lazy(() => import('./modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
 import type { JamBaseEvent } from '@/types/eventTypes';
@@ -1243,34 +1243,34 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
       )}
 
       {/* Artist Detail Modal */}
-      {selectedArtistId && (
-        <ArtistDetailModal
-          isOpen={artistModalOpen}
-          onClose={() => {
-            setArtistModalOpen(false);
-            setSelectedArtistId(null);
-            setSelectedArtistName('');
-          }}
-          artistId={selectedArtistId}
-          artistName={selectedArtistName}
-          currentUserId={userId}
-        />
-      )}
-
-      {/* Venue Detail Modal */}
-      {selectedVenueId && (
-        <VenueDetailModal
-          isOpen={venueModalOpen}
-          onClose={() => {
-            setVenueModalOpen(false);
-            setSelectedVenueId(null);
-            setSelectedVenueName('');
-          }}
-          venueId={selectedVenueId}
-          venueName={selectedVenueName}
-          currentUserId={userId}
-        />
-      )}
+      <Suspense fallback={null}>
+        {selectedArtistId && (
+          <ArtistDetailModal
+            isOpen={artistModalOpen}
+            onClose={() => {
+              setArtistModalOpen(false);
+              setSelectedArtistId(null);
+              setSelectedArtistName('');
+            }}
+            artistId={selectedArtistId}
+            artistName={selectedArtistName}
+            currentUserId={userId}
+          />
+        )}
+        {selectedVenueId && (
+          <VenueDetailModal
+            isOpen={venueModalOpen}
+            onClose={() => {
+              setVenueModalOpen(false);
+              setSelectedVenueId(null);
+              setSelectedVenueName('');
+            }}
+            venueId={selectedVenueId}
+            venueName={selectedVenueName}
+            currentUserId={userId}
+          />
+        )}
+      </Suspense>
 
     </div>
   );

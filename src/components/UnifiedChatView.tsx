@@ -766,26 +766,22 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         }
       }
       
-      // Identify event-created group chats
+      // Identify event-created group chats (parallel)
+      const groupChats = sortedChats.filter(c => c.is_group_chat);
+      const eventCreatedResults = groupChats.length > 0
+        ? await Promise.all(groupChats.map(c => isEventCreatedGroupChat(c.id)))
+        : [];
       const eventCreatedChatIds = new Set<string>();
-      for (const chat of sortedChats) {
-        if (chat.is_group_chat) {
-          const isEventCreated = await isEventCreatedGroupChat(chat.id);
-          if (isEventCreated) {
-            eventCreatedChatIds.add(chat.id);
-          }
-        }
-      }
+      groupChats.forEach((chat, i) => {
+        if (eventCreatedResults[i]) eventCreatedChatIds.add(chat.id);
+      });
       setEventCreatedChats(eventCreatedChatIds);
+      setLoading(false);
       return normalizedChats;
     } catch (error) {
       console.error('Error fetching chats:', error);
+      setLoading(false);
       return null;
-    } finally {
-      // Add minimum loading time to show skeleton
-      setTimeout(() => {
-        setLoading(false);
-      }, 800);
     }
   };
 
@@ -834,24 +830,27 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
       const rawMessages = data || [];
       const messageIds = rawMessages.map(m => m.id);
-
-      // Fallback: resolve event_id from event_shares for messages that don't have shared_event_id/metadata.event_id (e.g. old or failed updates)
-      let eventIdByMessageId = new Map<string, string>();
-      if (messageIds.length > 0) {
-        const { data: eventShares } = await supabase
-          .from('event_shares')
-          .select('message_id, event_id')
-          .eq('chat_id', chatId)
-          .in('message_id', messageIds);
-        eventIdByMessageId = new Map((eventShares || []).map((s: { message_id: string; event_id: string }) => [s.message_id, s.event_id]));
-      }
-
-      // Get sender profiles separately
       const senderIds = [...new Set(rawMessages.map(msg => msg.sender_id))];
-      const { data: profiles } = await supabase
-        .from('users')
-        .select('user_id, name, avatar_url')
-        .in('user_id', senderIds);
+
+      // event_shares and profiles in parallel
+      const [eventSharesResult, profilesResult] = await Promise.all([
+        messageIds.length > 0
+          ? supabase
+              .from('event_shares')
+              .select('message_id, event_id')
+              .eq('chat_id', chatId)
+              .in('message_id', messageIds)
+          : Promise.resolve({ data: [] }),
+        senderIds.length > 0
+          ? supabase.from('users').select('user_id, name, avatar_url').in('user_id', senderIds)
+          : Promise.resolve({ data: [] })
+      ]);
+
+      const eventShares = eventSharesResult.data || [];
+      const profiles = profilesResult.data || [];
+      const eventIdByMessageId = new Map(
+        eventShares.map((s: { message_id: string; event_id: string }) => [s.message_id, s.event_id])
+      );
 
       // Decrypt encrypted messages and merge event_id from event_shares when missing
       const transformedMessages = await Promise.all(rawMessages.map(async (msg) => {
