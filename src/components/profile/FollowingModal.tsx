@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Music, MapPin, Loader2, X } from 'lucide-react';
 import { ArtistFollowService } from '@/services/artistFollowService';
@@ -31,6 +32,9 @@ export function FollowingModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'artists' | 'venues'>('artists');
+  const [manualArtistOpen, setManualArtistOpen] = useState(false);
+  const [manualArtist, setManualArtist] = useState<ArtistFollowWithDetails | null>(null);
+  const [manualPending, setManualPending] = useState(false);
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -89,15 +93,55 @@ export function FollowingModal({
 
   const handleArtistClick = (artist: ArtistFollowWithDetails) => {
     if (!artist.artist_name) return;
-    
-    // Use artistId if available and valid, otherwise use encoded artist name
-    const artistId = artist.artist_id && artist.artist_id !== 'manual' 
-      ? artist.artist_id 
-      : encodeURIComponent(artist.artist_name);
-    
-    // Navigate to artist page
-    navigate(`/artist/${artistId}`);
-    onClose(); // Close the modal after opening the card
+
+    if (!artist.artist_id || artist.artist_id === 'manual') {
+      setManualArtist(artist);
+      setManualArtistOpen(true);
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('open-artist-card', {
+        detail: {
+          artistId: artist.artist_id,
+          artistName: artist.artist_name,
+        },
+      })
+    );
+
+    onClose();
+  };
+
+  const handleManualUnfollow = async () => {
+    if (!manualArtist?.artist_name) return;
+
+    try {
+      setManualPending(true);
+
+      if (manualArtist.artist_id && manualArtist.artist_id !== 'manual') {
+        await ArtistFollowService.setArtistFollow(userId, manualArtist.artist_id, false);
+      } else {
+        await ArtistFollowService.setArtistFollowByName(
+          userId,
+          manualArtist.artist_name,
+          undefined,
+          false
+        );
+      }
+
+      setFollowedArtists((prev) =>
+        prev.filter(
+          (artist) =>
+            (artist.artist_id || artist.artist_name) !==
+            (manualArtist.artist_id || manualArtist.artist_name)
+        )
+      );
+
+      setManualArtistOpen(false);
+      setManualArtist(null);
+    } finally {
+      setManualPending(false);
+    }
   };
 
   const handleVenueClick = (venue: VenueFollowWithDetails) => {
@@ -114,120 +158,181 @@ export function FollowingModal({
   const totalCount = followedArtists.length + followedVenues.length;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent 
-        className="sm:max-w-lg w-[95vw] max-h-[80vh] flex flex-col p-0 max-w-[393px] mx-auto"
-        hideCloseButton={true}
-      >
-        <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b relative">
-          <DialogTitle className="text-center text-lg font-semibold">Following</DialogTitle>
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#cc2486] flex items-center justify-center hover:bg-[#b01f75] transition-colors"
-            aria-label="Close dialog"
-            type="button"
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent
+          className="sm:max-w-lg w-[95vw] max-h-[80vh] flex flex-col p-0 max-w-[393px] mx-auto"
+          hideCloseButton={true}
+        >
+          <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b relative">
+            <DialogTitle className="text-center text-lg font-semibold">Following</DialogTitle>
+            <button
+              onClick={onClose}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#cc2486] flex items-center justify-center hover:bg-[#b01f75] transition-colors"
+              aria-label="Close dialog"
+              type="button"
+            >
+              <X className="w-4 h-4 text-white" aria-hidden="true" />
+            </button>
+          </DialogHeader>
+
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as 'artists' | 'venues')}
+            className="flex-1 flex flex-col min-h-0"
           >
-            <X className="w-4 h-4 text-white" aria-hidden="true" />
-          </button>
-        </DialogHeader>
-        
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'artists' | 'venues')} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="w-full grid grid-cols-2 rounded-none border-b">
-            <TabsTrigger value="artists" className="rounded-none">
-              Artists ({followedArtists.length})
-            </TabsTrigger>
-            <TabsTrigger value="venues" className="rounded-none">
-              Venues ({followedVenues.length})
-            </TabsTrigger>
-          </TabsList>
+            <TabsList className="w-full grid grid-cols-2 rounded-none border-b">
+              <TabsTrigger value="artists" className="rounded-none">
+                Artists ({followedArtists.length})
+              </TabsTrigger>
+              <TabsTrigger value="venues" className="rounded-none">
+                Venues ({followedVenues.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-[#cc2486] mr-2" />
-                <span className="text-muted-foreground">Loading...</span>
-              </div>
-            ) : error ? (
-              <div className="text-center py-8">
-                <p className="text-red-600">{error}</p>
-              </div>
-            ) : (
-              <>
-                {/* Artists Tab */}
-                <TabsContent value="artists" className="mt-0 space-y-2">
-                  {followedArtists.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        {isOwnProfile ? 'Not following any artists yet' : `${profileName} is not following any artists yet`}
-                      </p>
-                    </div>
-                  ) : (
-                    followedArtists.map((artist) => (
-                      <div
-                        key={artist.artist_id || artist.artist_name}
-                        className="flex items-center gap-3 hover:bg-[rgba(201,201,201,0.2)] rounded-lg p-3 transition-colors cursor-pointer"
-                        onClick={() => handleArtistClick(artist)}
-                      >
-                        <Avatar className="w-12 h-12 flex-shrink-0">
-                          {artist.artist_image_url ? (
-                            <AvatarImage src={artist.artist_image_url} alt={artist.artist_name || 'Artist'} />
-                          ) : null}
-                          <AvatarFallback className="bg-[#fdf2f7]">
-                            <Music className="w-6 h-6 text-[#cc2486]" />
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-base truncate">{artist.artist_name}</p>
-                          <p className="text-sm text-muted-foreground">Artist</p>
-                        </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#cc2486] mr-2" />
+                  <span className="text-muted-foreground">Loading...</span>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600">{error}</p>
+                </div>
+              ) : (
+                <>
+                  {/* Artists Tab */}
+                  <TabsContent value="artists" className="mt-0 space-y-2">
+                    {followedArtists.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">
+                          {isOwnProfile
+                            ? 'Not following any artists yet'
+                            : `${profileName} is not following any artists yet`}
+                        </p>
                       </div>
-                    ))
-                  )}
-                </TabsContent>
+                    ) : (
+                      followedArtists.map((artist) => (
+                        <div
+                          key={artist.artist_id || artist.artist_name}
+                          className="flex items-center gap-3 hover:bg-[rgba(201,201,201,0.2)] rounded-lg p-3 transition-colors cursor-pointer"
+                          onClick={() => handleArtistClick(artist)}
+                        >
+                          <Avatar className="w-12 h-12 flex-shrink-0">
+                            {artist.artist_image_url ? (
+                              <AvatarImage
+                                src={artist.artist_image_url}
+                                alt={artist.artist_name || 'Artist'}
+                              />
+                            ) : null}
+                            <AvatarFallback className="bg-[#fdf2f7]">
+                              <Music className="w-6 h-6 text-[#cc2486]" />
+                            </AvatarFallback>
+                          </Avatar>
 
-                {/* Venues Tab */}
-                <TabsContent value="venues" className="mt-0 space-y-2">
-                  {followedVenues.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        {isOwnProfile ? 'Not following any venues yet' : `${profileName} is not following any venues yet`}
-                      </p>
-                    </div>
-                  ) : (
-                    followedVenues.map((venue) => (
-                      <div
-                        key={(venue as any).venue_id || venue.venue_name}
-                        className="flex items-center gap-3 hover:bg-[rgba(201,201,201,0.2)] rounded-lg p-3 transition-colors cursor-pointer"
-                        onClick={() => handleVenueClick(venue)}
-                      >
-                        <Avatar className="w-12 h-12 flex-shrink-0">
-                          {venue.venue_image_url ? (
-                            <AvatarImage src={venue.venue_image_url} alt={venue.venue_name || 'Venue'} />
-                          ) : null}
-                          <AvatarFallback className="bg-[#fdf2f7]">
-                            <MapPin className="w-6 h-6 text-[#cc2486]" />
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-base truncate">{venue.venue_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {venue.venue_state || 'Venue'}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-base truncate">{artist.artist_name}</p>
+                            <p className="text-sm text-muted-foreground">Artist</p>
+                          </div>
                         </div>
+                      ))
+                    )}
+                  </TabsContent>
+
+                  {/* Venues Tab */}
+                  <TabsContent value="venues" className="mt-0 space-y-2">
+                    {followedVenues.length === 0 ? (
+                      <div className="text-center py-8">
+                        <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">
+                          {isOwnProfile
+                            ? 'Not following any venues yet'
+                            : `${profileName} is not following any venues yet`}
+                        </p>
                       </div>
-                    ))
-                )}
-                </TabsContent>
-              </>
-            )}
+                    ) : (
+                      followedVenues.map((venue) => (
+                        <div
+                          key={(venue as any).venue_id || venue.venue_name}
+                          className="flex items-center gap-3 hover:bg-[rgba(201,201,201,0.2)] rounded-lg p-3 transition-colors cursor-pointer"
+                          onClick={() => handleVenueClick(venue)}
+                        >
+                          <Avatar className="w-12 h-12 flex-shrink-0">
+                            {venue.venue_image_url ? (
+                              <AvatarImage
+                                src={venue.venue_image_url}
+                                alt={venue.venue_name || 'Venue'}
+                              />
+                            ) : null}
+                            <AvatarFallback className="bg-[#fdf2f7]">
+                              <MapPin className="w-6 h-6 text-[#cc2486]" />
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-base truncate">{venue.venue_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {venue.venue_state || 'Venue'}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </TabsContent>
+                </>
+              )}
+            </div>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={manualArtistOpen}
+        onOpenChange={(open) => {
+          setManualArtistOpen(open);
+          if (!open) {
+            setManualArtist(null);
+          }
+        }}
+      >
+        <DialogContent hideCloseButton className="sm:max-w-[360px] w-[90vw] max-w-[360px] p-0">
+          <div className="flex flex-col p-6">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={() => {
+                  setManualArtistOpen(false);
+                  setManualArtist(null);
+                }}
+                className="flex items-center justify-center rounded-full border border-[#e5e7eb] bg-white text-[#1f2937] shadow-sm"
+                style={{ width: '44px', height: '44px' }}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <DialogTitle className="mt-3 text-center text-lg font-semibold">
+              {manualArtist?.artist_name || 'Artist'}
+            </DialogTitle>
+
+            <div className="mt-6">
+              <Button
+                className="w-full"
+                onClick={() => {
+                  void handleManualUnfollow();
+                }}
+                disabled={manualPending}
+              >
+                Unfollow
+              </Button>
+            </div>
           </div>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

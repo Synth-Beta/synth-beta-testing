@@ -197,8 +197,8 @@ export function VerificationStatusCard({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h5 className="font-medium text-sm">{criterion.label}</h5>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                <h5 className="font-medium text-sm min-w-0 flex-1">{criterion.label}</h5>
                     <div
                       style={{
                         height: '25px',
@@ -209,6 +209,9 @@ export function VerificationStatusCard({
                         border: met ? '2px solid #bbf7d0' : '2px solid #e5e7eb', // green-200 : gray-200
                         borderRadius: '999px',
                         display: 'inline-flex',
+                        maxWidth: '50%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                         alignItems: 'center',
                         fontFamily: 'var(--font-family)',
                         fontSize: 'var(--typography-meta-size, 16px)',

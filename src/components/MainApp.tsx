@@ -35,6 +35,7 @@ import { streamingSyncService } from '@/services/streamingSyncService';
 import { EventReviewModal } from './EventReviewModal';
 import { FriendTaggedReviewInviteModal, type PrefillEvent } from './reviews/FriendTaggedReviewInviteModal';
 import { NotificationService } from '@/services/notificationService';
+import { ArtistFollowService } from '@/services/artistFollowService';
 import { SynthLoadingScreen } from './ui/SynthLoader';
 import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
@@ -346,6 +347,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   // Global detail modal state shared across views (artist/venue + future profile popups)
   const [detailModal, setDetailModal] = useState<GlobalDetailModalState>({ open: false });
+  const [manualArtistDetail, setManualArtistDetail] = useState<{
+    open: boolean;
+    artistId?: string;
+    artistName?: string;
+    following?: boolean;
+  }>({ open: false });
   // Track whether any EventDetailsModal is open anywhere in the app so we can
   // hide underlying page headers (Profile/Home/etc) and avoid double headers.
   const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
@@ -412,6 +419,32 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       }
 
       if (artistId) {
+        try {
+          const { data: artistRow } = await supabase
+            .from('artists')
+            .select('id, name, identifier')
+            .eq('id', artistId)
+            .maybeSingle();
+
+          if (artistRow?.identifier?.startsWith('manual:')) {
+            if (!user?.id) {
+              return;
+            }
+
+            const following = await ArtistFollowService.isFollowingArtist(artistId, user.id);
+            setManualArtistDetail({
+              open: true,
+              artistId,
+              artistName: artistRow.name || artistName || 'Artist',
+              following,
+            });
+            return;
+          }
+        } catch (error) {
+          console.error('Error fetching manual artist row:', error);
+          // Continue to open the standard modal even if the manual check fails
+        }
+
         setDetailModal({
           open: true,
           type: 'artist',
@@ -475,7 +508,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       window.removeEventListener('event-details-close', handleEventDetailsClose as EventListener);
       window.removeEventListener('open-event-details', handleOpenEventDetails as EventListener);
     };
-  }, [handleEventClickFromVenue]);
+  }, [handleEventClickFromVenue, user?.id]);
 
   const handleForceLogin = () => {
     setShowAuth(true);
@@ -963,6 +996,29 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   };
 
+  const closeManualArtistDetail = () => {
+    setManualArtistDetail({ open: false });
+  };
+
+  const toggleManualArtistFollow = async () => {
+    if (!user?.id || !manualArtistDetail.artistId) return;
+    const currentlyFollowing = manualArtistDetail.following === true;
+
+    try {
+      await ArtistFollowService.setArtistFollow(user.id, manualArtistDetail.artistId, !currentlyFollowing);
+      setManualArtistDetail((prev) =>
+        prev.open
+          ? {
+              ...prev,
+              following: !currentlyFollowing,
+            }
+          : prev
+      );
+    } catch (error) {
+      console.error('Error toggling manual artist follow:', error);
+    }
+  };
+
   return (
     <div 
       className="min-h-screen"
@@ -1222,6 +1278,69 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             setRefreshTrigger((prev) => prev + 1);
           }}
         />
+      )}
+
+      {manualArtistDetail.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={closeManualArtistDetail} />
+          <div
+            className="relative bg-white w-full max-w-sm mx-4 rounded-2xl p-4 shadow-xl"
+            style={{ minHeight: '150px' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                }}
+                onClick={closeManualArtistDetail}
+                aria-label="Close manual artist detail"
+              >
+                <span
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    color: 'var(--neutral-900)',
+                  }}
+                >
+                  ✕
+                </span>
+              </button>
+            </div>
+            <div className="text-center mt-2">
+              <h2
+                className="font-semibold"
+                style={{
+                  fontSize: '20px',
+                  lineHeight: '28px',
+                  color: 'var(--neutral-900)',
+                }}
+              >
+                {manualArtistDetail.artistName || 'Artist'}
+              </h2>
+            </div>
+            <div className="mt-4">
+              <button
+                type="button"
+                className="w-full rounded-2xl px-4 py-3 font-semibold"
+                style={{
+                  backgroundColor: 'var(--neutral-900)',
+                  color: 'var(--neutral-50)',
+                }}
+                onClick={toggleManualArtistFollow}
+              >
+                {manualArtistDetail.following ? 'Following' : 'Follow'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Onboarding Tour */}
