@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProfileSetupStep, type ProfileSetupStepRef } from './ProfileSetupStep';
 import { MusicTagsStep } from './MusicTagsStep';
+import { FollowArtistsModal, type FollowArtistOption } from './FollowArtistsModal';
 import { OnboardingService, ProfileSetupData } from '@/services/onboardingService';
-import { ArtistFollowService } from '@/services/artistFollowService';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { useAuth } from '@/hooks/useAuth';
 import { useViewTracking } from '@/hooks/useViewTracking';
@@ -16,12 +16,49 @@ interface OnboardingFlowProps {
   onExit: () => void;
 }
 
+const dedupeFavoriteArtists = (artists: FollowArtistOption[]): FollowArtistOption[] => {
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  const deduped: FollowArtistOption[] = [];
+
+  for (const artist of artists) {
+    const trimmedName = artist.name?.trim();
+    if (!trimmedName) {
+      continue;
+    }
+
+    if (artist.id) {
+      if (seenIds.has(artist.id)) {
+        continue;
+      }
+      seenIds.add(artist.id);
+    } else {
+      const nameKey = trimmedName.toLowerCase();
+      if (seenNames.has(nameKey)) {
+        continue;
+      }
+      seenNames.add(nameKey);
+    }
+
+    deduped.push({
+      ...artist,
+      name: trimmedName,
+    });
+  }
+
+  return deduped;
+};
+
 export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const [loading, setLoading] = useState(false);
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
   const { user, session } = useAuth();
 const exitInProgressRef = useRef(false);
+
+  const [showFollowArtistsModal, setShowFollowArtistsModal] = useState(false);
+  const [favoriteArtistOptions, setFavoriteArtistOptions] = useState<FollowArtistOption[]>([]);
+  const finishOnboardingRef = useRef(false);
 
   const [profileData, setProfileData] = useState<ProfileSetupData>({});
   const [prefillLoading, setPrefillLoading] = useState(true);
@@ -35,6 +72,38 @@ const exitInProgressRef = useRef(false);
     beginExit();
     onExit();
   }, [beginExit, onExit]);
+
+  const finishOnboarding = useCallback(async () => {
+    if (!user?.id || finishOnboardingRef.current) {
+      return;
+    }
+
+    finishOnboardingRef.current = true;
+    setShowFollowArtistsModal(false);
+    setFavoriteArtistOptions([]);
+
+    try {
+      await OnboardingService.completeOnboarding(user.id);
+      trackInteraction.formSubmit('form', 'onboarding_complete', true, {
+        completed: true,
+        total_steps: 1,
+      });
+      beginExit();
+      onComplete();
+    } catch (error) {
+      console.error('Error finishing onboarding:', error);
+    }
+  }, [user?.id, beginExit, onComplete]);
+
+  const handleFollowArtistsModalOpenChange = useCallback(
+    (open: boolean) => {
+      setShowFollowArtistsModal(open);
+      if (!open) {
+        void finishOnboarding();
+      }
+    },
+    [finishOnboarding]
+  );
 
   // Close onboarding on ESC
   useEffect(() => {
@@ -174,22 +243,34 @@ const exitInProgressRef = useRef(false);
       }
 
       // Save music preferences (same logic as former handleMusicTags)
-      const artistData: { name: string; id?: string }[] = [];
+      const artistData: FollowArtistOption[] = [];
 
       for (const artistName of musicData.artists) {
-        try {
-          const searchResults = await UnifiedArtistSearchService.searchArtistsTrigram(artistName, 1);
+        const normalizedArtistName = artistName.trim();
+        if (!normalizedArtistName) {
+          continue;
+        }
 
-          if (searchResults.length > 0 && searchResults[0].name.toLowerCase() === artistName.toLowerCase()) {
-            artistData.push({ name: searchResults[0].name, id: searchResults[0].id });
+        try {
+          const searchResults = await UnifiedArtistSearchService.searchArtistsTrigram(normalizedArtistName, 1);
+
+          if (
+            searchResults.length > 0 &&
+            searchResults[0].name.toLowerCase() === normalizedArtistName.toLowerCase()
+          ) {
+            artistData.push({
+              name: searchResults[0].name,
+              id: searchResults[0].id,
+              image_url: searchResults[0].image_url ?? undefined,
+            });
           } else {
-            artistData.push({ name: artistName });
+            artistData.push({ name: normalizedArtistName });
             try {
               void import('@/services/missingEntityRequestService')
                 .then(({ MissingEntityRequestService }) =>
                   MissingEntityRequestService.submitRequest({
                     entity_type: 'artist',
-                    entity_name: artistName,
+                    entity_name: normalizedArtistName,
                   })
                 )
                 .catch((error) => {
@@ -200,8 +281,8 @@ const exitInProgressRef = useRef(false);
             }
           }
         } catch (error) {
-          console.warn(`Error searching for artist "${artistName}":`, error);
-          artistData.push({ name: artistName });
+          console.warn(`Error searching for artist "${normalizedArtistName}":`, error);
+          artistData.push({ name: normalizedArtistName });
         }
       }
 
@@ -212,30 +293,17 @@ const exitInProgressRef = useRef(false);
         if (error?.message?.includes('already exist') || error?.code === '23505') {
           console.warn('Some preferences already exist, continuing...');
         } else {
-          const errorMessage = error?.message || 'Failed to save music preferences. Please try again.';
           return;
         }
       }
 
-      // Immediately follow selected artists so they appear in the home feed
-      try {
-        await ArtistFollowService.followArtists(user.id, artistData);
-      } catch (followErr) {
-        console.warn('Onboarding: could not follow some artists (continuing):', followErr);
-      }
-
-      await OnboardingService.completeOnboarding(user.id);
-
-      trackInteraction.formSubmit('form', 'onboarding_complete', true, {
-        completed: true,
-        total_steps: 1,
-      });
-
-      beginExit();
-      onComplete();
+      const dedupedArtists = dedupeFavoriteArtists(artistData);
+      setFavoriteArtistOptions(dedupedArtists);
+      setShowFollowArtistsModal(true);
+      return;
     } catch (error) {
       console.error('Error in handleCompleteSetup:', error);
-      } finally {
+    } finally {
       if (!exitInProgressRef.current) {
         setLoading(false);
       }
@@ -301,6 +369,15 @@ const exitInProgressRef = useRef(false);
           )}
         </CardContent>
       </Card>
+      {user?.id && (
+        <FollowArtistsModal
+          open={showFollowArtistsModal}
+          onOpenChange={handleFollowArtistsModalOpenChange}
+          userId={user.id}
+          artists={favoriteArtistOptions}
+          onDone={finishOnboarding}
+        />
+      )}
     </div>
   );
 };

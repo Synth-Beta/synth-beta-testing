@@ -1654,6 +1654,13 @@ const { user, sessionExpired } = useAuth();
   console.log('✅ ProfileView: Rendering profile for:', profile.name);
 
   // setViewReviewOpen is defined by useState earlier
+  const handleHeaderBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      onBack();
+    }
+  };
 
   return (
     <div 
@@ -1669,8 +1676,8 @@ const { user, sessionExpired } = useAuth();
                 menuOpen={menuOpen} 
                 onMenuClick={onMenuClick} 
                 alignLeft={true}
-                leftIcon={onNavigateToDiscover ? "left" : undefined}
-                onLeftIconClick={onNavigateToDiscover ? onNavigateToDiscover : undefined}
+                leftIcon="left"
+                onLeftIconClick={handleHeaderBack}
                 rightButton={
                   <DropdownMenuTrigger asChild>
                     <button
@@ -1724,9 +1731,9 @@ const { user, sessionExpired } = useAuth();
               position: 'absolute',
               top: 0,
               bottom: 0,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: '100vw',
+              left: 0,
+              transform: 'none',
+              width: '100%',
               backgroundColor: 'var(--neutral-050)',
               zIndex: 0
             }}
