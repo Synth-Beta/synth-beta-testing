@@ -33,7 +33,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
   useViewTracking('view', 'settings', { source: 'settings' }, undefined, { enabled: isOpen });
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [view, setView] = useState<'menu' | 'onboarding-preferences' | 'security-actions' | 'verification' | 'parental-controls'>('menu');
+  const [view, setView] = useState<'menu' | 'onboarding-preferences' | 'security-actions' | 'verification' | 'parental-controls' | 'delete-account'>('menu');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -45,7 +45,10 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
   const [enablePushNotifications, setEnablePushNotifications] = useState(true);
   const [enableEmails, setEnableEmails] = useState(true);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
-const { user } = useAuth();
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteAccountInput, setDeleteAccountInput] = useState('');
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -65,12 +68,16 @@ const { user } = useAuth();
   const handleClose = () => {
     setView('menu');
     setNewEmail('');
+    setDeleteAccountInput('');
+    setDeleteAccountError(null);
     onClose();
   };
 
   const handleBack = () => {
     setView('menu');
     setNewEmail('');
+    setDeleteAccountInput('');
+    setDeleteAccountError(null);
   };
 
   const handleResetPassword = async () => {
@@ -125,6 +132,56 @@ const { user } = useAuth();
       console.error('Error changing email:', error);
       } finally {
       setIsChangingEmail(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (isDeletingAccount) return;
+
+    if (deleteAccountInput !== 'DELETE') {
+      setDeleteAccountError(`Text doesn't match expected output, type "DELETE" to continue`);
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    setDeleteAccountError(null);
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      if (!accessToken) {
+        throw new Error('No active session token found');
+      }
+
+      const rsp = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!rsp.ok) {
+        let details: any = null;
+        try {
+          details = await rsp.json();
+        } catch {
+          // ignore
+        }
+        const message =
+          (details && (details.message || details.error)) ||
+          `Delete request failed (${rsp.status})`;
+        throw new Error(message);
+      }
+
+      await onSignOut();
+      handleClose();
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setDeleteAccountError('Failed to delete account. Please try again.');
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -276,7 +333,9 @@ const { user } = useAuth();
             {view === 'menu' ? 'Settings' : 
              view === 'onboarding-preferences' ? 'Profile & Preferences' :
              view === 'security-actions' ? 'Security Actions' :
-             view === 'verification' ? 'Verification Status' : 'Settings'}
+             view === 'verification' ? 'Verification Status' :
+             view === 'parental-controls' ? 'Parental Controls' :
+             view === 'delete-account' ? 'Delete Account' : 'Settings'}
           </DialogTitle>
         </DialogHeader>
         
@@ -391,7 +450,7 @@ const { user } = useAuth();
             <div className="space-y-2">
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 h-12"
+                className="w-full justify-start items-start gap-3 min-h-12 h-auto py-3 whitespace-normal"
                 onClick={() => setView('onboarding-preferences')}
               >
                 <User className="w-5 h-5" style={{ flexShrink: 0 }} />
@@ -400,8 +459,10 @@ const { user } = useAuth();
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    overflowWrap: 'break-word',
-                    wordBreak: 'normal'
+                    overflowWrap: 'normal',
+                    wordBreak: 'normal',
+                    whiteSpace: 'normal',
+                    hyphens: 'none',
                   }}
                 >
                   <div className="font-medium">Profile & Preferences</div>
@@ -412,7 +473,7 @@ const { user } = useAuth();
 
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 h-12"
+                className="w-full justify-start items-start gap-3 min-h-12 h-auto py-3 whitespace-normal"
                 onClick={() => setView('security-actions')}
               >
                 <Shield className="w-5 h-5" style={{ flexShrink: 0 }} />
@@ -421,8 +482,10 @@ const { user } = useAuth();
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    overflowWrap: 'break-word',
-                    wordBreak: 'normal'
+                    overflowWrap: 'normal',
+                    wordBreak: 'normal',
+                    whiteSpace: 'normal',
+                    hyphens: 'none',
                   }}
                 >
                   <div className="font-medium">Security Actions</div>
@@ -432,7 +495,7 @@ const { user } = useAuth();
 
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 h-12"
+                className="w-full justify-start items-start gap-3 min-h-12 h-auto py-3 whitespace-normal"
                 onClick={() => setView('verification')}
               >
                 <CheckCircle className="w-5 h-5" style={{ flexShrink: 0 }} />
@@ -441,8 +504,10 @@ const { user } = useAuth();
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    overflowWrap: 'break-word',
-                    wordBreak: 'normal'
+                    overflowWrap: 'normal',
+                    wordBreak: 'normal',
+                    whiteSpace: 'normal',
+                    hyphens: 'none',
                   }}
                 >
                   <div className="font-medium flex items-center gap-2">
@@ -455,7 +520,7 @@ const { user } = useAuth();
 
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 h-12"
+                className="w-full justify-start items-start gap-3 min-h-12 h-auto py-3 whitespace-normal"
                 onClick={() => setView('parental-controls')}
               >
                 <Shield className="w-5 h-5" style={{ flexShrink: 0 }} />
@@ -464,12 +529,40 @@ const { user } = useAuth();
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    overflowWrap: 'break-word',
-                    wordBreak: 'normal'
+                    overflowWrap: 'normal',
+                    wordBreak: 'normal',
+                    whiteSpace: 'normal',
+                    hyphens: 'none',
                   }}
                 >
                   <div className="font-medium">Parental Controls</div>
                   <div className="text-sm text-muted-foreground">Age verification and safety settings</div>
+                </div>
+              </Button>
+
+              <Button
+                variant="ghost"
+                className="w-full justify-start items-start gap-3 min-h-12 h-auto py-3 whitespace-normal"
+                onClick={() => {
+                  setDeleteAccountInput('');
+                  setDeleteAccountError(null);
+                  setView('delete-account');
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-x-icon lucide-user-x"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></svg>
+                <div 
+                  className="text-left"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflowWrap: 'normal',
+                    wordBreak: 'normal',
+                    whiteSpace: 'normal',
+                    hyphens: 'none',
+                  }}
+                >
+                  <div className="font-medium">Delete Account</div>
+                  <div className="text-sm text-muted-foreground">Permanently delete your account from Synth</div>
                 </div>
               </Button>
 
@@ -567,6 +660,66 @@ const { user } = useAuth();
           ) : view === 'parental-controls' ? (
             <div style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
               <ParentalControlsSettings />
+            </div>
+          ) : view === 'delete-account' ? (
+            <div className="space-y-6" style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user-x-icon lucide-user-x"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" x2="22" y1="8" y2="13"/><line x1="22" x2="17" y1="8" y2="13"/></svg>
+                  <h3 className="text-lg font-semibold">Delete Account</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Are you sure you want to delete your account?
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  This action is permanent and cannot be undone. If you are sure you want to delete your account, type &quot;DELETE&quot; in the text box below.
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                {deleteAccountError ? (
+                  <div
+                    style={{
+                      color: 'var(--status-error-500)',
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 14px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    }}
+                  >
+                    {deleteAccountError}
+                  </div>
+                ) : null}
+                <Input
+                  value={deleteAccountInput}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setDeleteAccountInput(next);
+                    if (deleteAccountError && next === 'DELETE') setDeleteAccountError(null);
+                  }}
+                  disabled={isDeletingAccount}
+                  placeholder='Type "DELETE" to confirm'
+                />
+              </div>
+
+              <Button
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                style={{
+                  width: '100%',
+                  height: 'var(--size-button-height, 36px)',
+                  backgroundColor: 'var(--status-error-500)',
+                  color: 'var(--neutral-50)',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  boxShadow: isDeletingAccount ? 'none' : '0 4px 4px 0 var(--shadow-color)',
+                  border: 'none',
+                  opacity: isDeletingAccount ? 0.8 : 1,
+                }}
+              >
+                Delete Account
+              </Button>
             </div>
           ) : view === 'security-actions' ? (
             <div className="space-y-6" style={{ paddingLeft: '20px', paddingRight: '20px', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>

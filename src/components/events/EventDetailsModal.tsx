@@ -1203,7 +1203,7 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
     <div 
       style={{
         ...iosModalBackdrop,
-        zIndex: 30,
+        zIndex: 55,
       }}
       onClick={onClose}
     />
@@ -1213,7 +1213,7 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
       className="fixed inset-0 overflow-hidden"
       style={{
         ...iosModal,
-        zIndex: 35,
+        zIndex: 60,
         background: 'var(--neutral-50, #FCFCFC)',
         pointerEvents: 'auto',
         // Make content scroll independently so header never scrolls away.

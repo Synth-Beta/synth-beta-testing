@@ -2025,7 +2025,13 @@ export const UnifiedFeed = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/artist/${encodeURIComponent(item.event_data.artist_name)}`);
+                              window.dispatchEvent(
+                                new CustomEvent('open-artist-card', {
+                                  detail: {
+                                    artistName: item.event_data.artist_name,
+                                  },
+                                })
+                              );                              
                             }}
                             className="hover:text-synth-pink transition-colors underline"
                           >
@@ -2187,7 +2193,7 @@ export const UnifiedFeed = ({
     }
 
     return (
-      <div className="flex flex-col items-center justify-center py-6 mt-6">
+      <div className="flex flex-col items-center justify-center py-6 mt-6 pb-24">
         {!hasMore && <p className="text-gray-500 text-sm mb-3">You're all caught up! 🎉</p>}
         <Button
           onClick={() => loadFeedData(feedItems.length)}
