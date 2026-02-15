@@ -3242,6 +3242,10 @@ export const UnifiedFeed = ({
         onClose={() => setDetailsOpen(false)}
           event={selectedEventForDetails}
           currentUserId={currentUserId}
+        onEventChange={(newEvent, isInterested) => {
+          setSelectedEventForDetails(newEvent);
+          setSelectedEventInterested(isInterested ?? false);
+        }}
         onReview={() => {
           if (selectedEventForDetails) {
             setSelectedReviewEvent(selectedEventForDetails);

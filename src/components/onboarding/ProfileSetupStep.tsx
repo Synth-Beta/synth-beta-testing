@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { calculateAge } from '@/utils/calculateAge';
 import { SinglePhotoUpload } from '@/components/ui/photo-upload';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface ProfileSetupFormData {
   username: string;
@@ -100,7 +101,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
             setFormData(prev => ({ ...prev, username: suggested }));
           }
         } catch (error) {
-          console.error('Error generating suggested username:', error);
+          logger.error('Error generating suggested username:', error);
         } finally {
           isGeneratingRef.current = false; // Clear generating flag
         }
@@ -123,7 +124,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
       const result = await checkAvailability(username);
       return result;
     } catch (error) {
-      console.error('Error checking username availability:', error);
+      logger.error('Error checking username availability:', error);
       // Fallback to direct query if service fails
       // Use same sanitization as primary path to ensure consistency
       try {
@@ -141,7 +142,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
         .limit(1);
 
       if (error && error.code !== 'PGRST116') {
-        console.warn('Error checking username:', error);
+        logger.warn('Error checking username:', error);
           return { available: true }; // Allow if column doesn't exist
       }
 
@@ -150,7 +151,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
           ? { available: true }
           : { available: false, error: 'This username is already taken' };
       } catch (fallbackError) {
-        console.error('Fallback username check failed:', fallbackError);
+        logger.error('Fallback username check failed:', fallbackError);
         return { available: true }; // Allow on error to not block onboarding
       }
     }
@@ -188,7 +189,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
       setErrors({ ...errors, username: '' });
       }
     } catch (error) {
-      console.error('Error validating username:', error);
+      logger.error('Error validating username:', error);
       setIsCheckingUsername(false);
       setErrors({ ...errors, username: 'Error validating username' });
     }
@@ -223,7 +224,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
           }
         }
       } catch (error) {
-        console.error('Error validating username:', error);
+        logger.error('Error validating username:', error);
         newErrors.username = 'Error validating username';
       }
     }

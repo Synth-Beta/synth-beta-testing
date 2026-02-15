@@ -194,6 +194,10 @@ export const BecauseYouLikeSection: React.FC<BecauseYouLikeSectionProps> = ({
           event={selectedEvent}
           currentUserId={currentUserId}
           isInterested={selectedEventInterested}
+          onEventChange={(newEvent, isInterested) => {
+            setSelectedEvent(newEvent);
+            setSelectedEventInterested(isInterested ?? false);
+          }}
           onInterestToggle={handleInterestToggle}
           onReview={() => {
             console.log('Review event:', selectedEvent.id);

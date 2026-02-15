@@ -83,6 +83,8 @@ interface EventDetailsModalProps {
   hasReviewed?: boolean;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
+  /** Called when user selects a different event from venue/artist modal so parent can sync state */
+  onEventChange?: (event: JamBaseEvent, isInterested?: boolean) => void;
 }
 
 export function EventDetailsModal({
@@ -96,7 +98,8 @@ export function EventDetailsModal({
   isInterested = false,
   hasReviewed = false,
   onNavigateToProfile,
-  onNavigateToChat
+  onNavigateToChat,
+  onEventChange,
 }: EventDetailsModalProps) {
   // All hooks must be called before any conditional returns
   const navigate = useNavigate();
@@ -168,17 +171,22 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
   const viewStartTime = useRef<number | null>(null);
   const hasInteracted = useRef(false);
 
-  // Update actualEvent when event prop changes
+  // Track previous isOpen to detect modal open (start false so first open is detected)
+  const prevIsOpenRef = useRef(false);
+
+  // Update actualEvent when event prop changes from parent.
+  // Sync when: (1) same event id, (2) modal just opened (parent opened with new event), or
+  // (3) no actualEvent yet. Do NOT overwrite when user selected a different event from
+  // venue/artist - parent will call onEventChange and update, then we'll receive the new event.
   useEffect(() => {
-    setActualEvent(event);
-    verifiedChatLoadedRef.current = false; // Reset when event changes
-    
-    // Load event groups when modal opens
-    // NOTE: event_groups table does not exist in 3NF schema - feature is disabled
-    // if (event) {
-    //   loadEventGroups();
-    // }
-  }, [event, isCreator, isAdmin]);
+    if (!event) return;
+    const justOpened = isOpen && !prevIsOpenRef.current;
+    prevIsOpenRef.current = isOpen;
+    if (justOpened || !actualEvent || actualEvent.id === event.id) {
+      setActualEvent(event);
+      verifiedChatLoadedRef.current = false;
+    }
+  }, [event, isOpen, isCreator, isAdmin]);
 
   // Load verified chat when modal opens and event is available
   useEffect(() => {
@@ -1092,9 +1100,40 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
           venue_name: (eventData.venues as any)?.name || eventData.venue_name || null,
         };
         setActualEvent(normalizedEvent);
+        const interested = await UserEventService.isUserInterested(currentUserId, eventId);
+        setLocalIsInterested(interested);
+        onEventChange?.(normalizedEvent, interested);
       }
     } catch (err) {
       console.error('Error fetching event from venue:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEventClickFromArtist = async (eventId: string) => {
+    setArtistModalOpen(false);
+    try {
+      setLoading(true);
+      const { data: eventData, error } = await supabase
+        .from('events')
+        .select('*, artists(name), venues(name)')
+        .eq('id', eventId)
+        .single();
+
+      if (!error && eventData) {
+        const normalizedEvent = {
+          ...eventData,
+          artist_name: (eventData.artists as any)?.name || eventData.artist_name || null,
+          venue_name: (eventData.venues as any)?.name || eventData.venue_name || null,
+        };
+        setActualEvent(normalizedEvent);
+        const interested = await UserEventService.isUserInterested(currentUserId, eventId);
+        setLocalIsInterested(interested);
+        onEventChange?.(normalizedEvent, interested);
+      }
+    } catch (err) {
+      console.error('Error fetching event from artist:', err);
     } finally {
       setLoading(false);
     }
@@ -2535,6 +2574,7 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
           artistId={actualEvent.artist_id}
           artistName={actualEvent.artist_name}
           currentUserId={currentUserId}
+          onEventClick={handleEventClickFromArtist}
         />
       </Suspense>
     )}

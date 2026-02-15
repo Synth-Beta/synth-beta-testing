@@ -16,6 +16,7 @@ import {
   MusicKitInstance
 } from '@/types/appleMusic';
 import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
+import { logger } from '@/utils/logger';
 
 class AppleMusicService {
   private developerToken: string = import.meta.env.VITE_APPLE_MUSIC_DEVELOPER_TOKEN || '';
@@ -51,14 +52,21 @@ class AppleMusicService {
   }
 
   private configureMusicKit() {
-    if (!this.developerToken) {
-      console.warn('Apple Music developer token not configured');
+    const token = (this.developerToken || '').trim();
+    if (!token) {
+      logger.warn('Apple Music developer token not configured');
+      return;
+    }
+    // Validate JWT-like format (3 base64 parts) to avoid "Invalid token" from MusicKit
+    const parts = token.split('.');
+    if (parts.length !== 3 || parts.some((p) => !p || p.length < 10)) {
+      logger.warn('Apple Music developer token appears invalid (expected JWT format)');
       return;
     }
 
     try {
       window.MusicKit.configure({
-        developerToken: this.developerToken,
+        developerToken: token,
         app: {
           name: 'PlusOne Event Crew',
           build: '1.0.0'
@@ -67,7 +75,7 @@ class AppleMusicService {
 
       this.musicKit = window.MusicKit.getInstance();
     } catch (error) {
-      console.error('MusicKit configuration error:', error);
+      logger.warn('MusicKit configuration failed (token may be expired):', error);
     }
   }
 

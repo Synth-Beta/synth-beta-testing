@@ -36,12 +36,24 @@ router.post('/api/user/streaming-profile',
 
       const { service, data, userId } = req.body;
 
-    // For now, we'll store the data in a generic streaming_profiles table
-    // In a real implementation, you might want separate tables for each service
+    // Normalize profile_data so capture_streaming_music_data trigger can process it.
+    // Apple Music sends { id, attributes: { name, genreNames } }; trigger expects { name, id, genres }.
+    let normalizedData = data;
+    if (service === 'apple-music' && data?.topArtists) {
+      normalizedData = {
+        ...data,
+        topArtists: data.topArtists.map((a) => ({
+          name: a?.name ?? a?.attributes?.name ?? '',
+          id: a?.id ?? '',
+          genres: a?.genres ?? a?.attributes?.genreNames ?? [],
+        })),
+      };
+    }
+
     const profileData = {
-      user_id: userId || null, // If no userId provided, we'll need to get it from auth
+      user_id: userId || null,
       service_type: service,
-      profile_data: data,
+      profile_data: normalizedData,
       last_updated: new Date().toISOString(),
       sync_status: 'completed'
     };

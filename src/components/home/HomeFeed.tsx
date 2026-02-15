@@ -2478,6 +2478,10 @@ interface FriendEventInterest {
           event={selectedEvent}
           currentUserId={currentUserId}
           isInterested={selectedEventInterested}
+          onEventChange={(newEvent, isInterested) => {
+            setSelectedEvent(newEvent);
+            setSelectedEventInterested(isInterested ?? false);
+          }}
           onInterestToggle={async (eventId, interested) => {
             // Tracking is handled in UserEventService.setEventInterest
             try {

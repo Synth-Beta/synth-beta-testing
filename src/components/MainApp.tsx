@@ -1123,6 +1123,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           event={selectedEventFromVenue}
           currentUserId={user.id}
           isInterested={selectedEventFromVenueInterested}
+          onEventChange={(newEvent, isInterested) => {
+            setSelectedEventFromVenue(newEvent);
+            setSelectedEventFromVenueInterested(isInterested ?? false);
+          }}
           onInterestToggle={async (eventId, interested) => {
             try {
               await UserEventService.setEventInterest(user.id, eventId, interested);

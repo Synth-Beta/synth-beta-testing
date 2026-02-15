@@ -204,7 +204,7 @@ export class PersonalizationEngineV5 {
       p_max_days_ahead: normalizedFilters.maxDaysAhead,
     };
     
-    console.log('🔍 [FeedV5] getUnifiedFeed RPC payload:', JSON.stringify(rpcPayload, null, 2));
+    logger.debug('🔍 [FeedV5] getUnifiedFeed RPC payload:', rpcPayload);
     
     try {
       // Prefer cached wrapper when available; fall back to direct function if missing
@@ -242,12 +242,17 @@ export class PersonalizationEngineV5 {
       }
 
       if (error) {
-        logger.error('❌ get_personalized_feed_v5 error:', error);
+        const isTimeout = error?.code === '57014' || /statement timeout|canceling statement/i.test(String(error?.message || ''));
+        if (isTimeout) {
+          logger.warn('⚠️ Feed RPC timed out (will retry on next load):', error);
+        } else {
+          logger.error('❌ get_personalized_feed_v5 error:', error);
+        }
         return { events: [], hasMore: false };
       }
       
       const rows = (data ?? []) as FeedV5Row[];
-      console.log('🔍 [FeedV5] Raw RPC response:', rows.length, 'events');
+      logger.debug('🔍 [FeedV5] Raw RPC response:', rows.length, 'events');
       
       // Map rows to events, preserving event_type from context
       const events = rows.map((row) => {
@@ -296,7 +301,12 @@ export class PersonalizationEngineV5 {
     try {
       const { data, error } = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
       if (error) {
-        logger.error('❌ get_personalized_feed_v5 error:', { section, error });
+        const isTimeout = error?.code === '57014' || /statement timeout|canceling statement/i.test(String(error?.message || ''));
+        if (isTimeout) {
+          logger.warn('⚠️ Feed RPC timed out:', { section, error });
+        } else {
+          logger.error('❌ get_personalized_feed_v5 error:', { section, error });
+        }
         return { events: [], hasMore: false };
       }
       const rows = (data ?? []) as FeedV5Row[];
@@ -342,12 +352,16 @@ export class PersonalizationEngineV5 {
       p_state_filter: hasCoordinates ? null : (normalizedFilters.state ?? null),
       p_max_days_ahead: normalizedFilters.maxDaysAhead,
     };
-    console.log('🔍 [FeedV5] getAllSections RPC payload:', JSON.stringify(rpcPayload, null, 2));
-    console.log('🔍 [FeedV5] normalizedFilters:', normalizedFilters.debugSummary);
+    logger.debug('🔍 [FeedV5] getAllSections RPC payload:', rpcPayload);
     try {
       const { data, error } = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
       if (error) {
-        logger.error('❌ get_personalized_feed_v5 error:', error);
+        const isTimeout = error?.code === '57014' || /statement timeout|canceling statement/i.test(String(error?.message || ''));
+        if (isTimeout) {
+          logger.warn('⚠️ Feed RPC timed out:', error);
+        } else {
+          logger.error('❌ get_personalized_feed_v5 error:', error);
+        }
         return {
           following: { events: [], hasMore: false },
           recommending: { events: [], hasMore: false },
@@ -355,15 +369,14 @@ export class PersonalizationEngineV5 {
         };
       }
       const rows = (data ?? []) as FeedV5Row[];
-      console.log('🔍 [FeedV5] Raw RPC response: total rows =', rows.length);
-      console.log('🔍 [FeedV5] Raw rows sample (first 3):', rows.slice(0, 3).map(r => ({ section: r.section, id: r.id, score: r.score })));
+      logger.debug('🔍 [FeedV5] Raw RPC response: total rows =', rows.length);
       
       // Count rows by section
       const sectionCounts: Record<string, number> = {};
       for (const row of rows) {
         sectionCounts[row.section] = (sectionCounts[row.section] || 0) + 1;
       }
-      console.log('🔍 [FeedV5] Rows by section from RPC:', sectionCounts);
+      logger.debug('🔍 [FeedV5] Rows by section from RPC:', sectionCounts);
       
       const bySection: Record<FeedV5Section, PersonalizedEvent[]> = {
         following: [],
@@ -376,7 +389,7 @@ export class PersonalizationEngineV5 {
           bySection[section].push(PersonalizationEngineV5.rowToEvent(row));
         }
       }
-      console.log('🔍 [FeedV5] After grouping - following:', bySection.following.length, 'recommending:', bySection.recommending.length, 'trending:', bySection.trending.length);
+      logger.debug('🔍 [FeedV5] After grouping - following:', bySection.following.length, 'recommending:', bySection.recommending.length, 'trending:', bySection.trending.length);
       
       const followingFiltered = PersonalizedFeedService['applyClientSideFilters'](
         bySection.following.map((e) => PersonalizationEngineV5.eventToFeedRow(e)),
@@ -393,7 +406,7 @@ export class PersonalizationEngineV5 {
         normalizedFilters,
         normalizedFilters.includePast
       );
-      console.log('🔍 [FeedV5] After client-side filtering - following:', followingFiltered.length, 'recommending:', recommendingFiltered.length, 'trending:', trendingFiltered.length);
+      logger.debug('🔍 [FeedV5] After client-side filtering - following:', followingFiltered.length, 'recommending:', recommendingFiltered.length, 'trending:', trendingFiltered.length);
       
       return {
         following: {
@@ -535,15 +548,15 @@ export class PersonalizedFeedService {
     };
 
     try {
-      console.log('📡 Calling get_personalized_feed_v3 with payload:', rpcPayload);
+      logger.debug('📡 Calling get_personalized_feed_v3 with payload:', rpcPayload);
       const { data, error } = await supabase.rpc('get_personalized_feed_v3', rpcPayload);
       
       if (error) {
         if (error.code === '42P01' || error.code === 'PGRST204' || error.code === 'PGRST116' || error.message?.includes('does not exist')) {
-          console.warn('⚠️ get_personalized_feed_v3 RPC function not found');
+          logger.warn('⚠️ get_personalized_feed_v3 RPC function not found');
           throw error;
         }
-        console.error('❌ get_personalized_feed_v3 error:', {
+        logger.error('❌ get_personalized_feed_v3 error:', {
           code: error.code,
           message: error.message,
           details: error.details,
@@ -565,7 +578,7 @@ export class PersonalizedFeedService {
       const finishedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const duration = finishedAt - startedAt;
 
-      console.log('✅ Unified feed v3 (RPC):', {
+      logger.debug('✅ Unified feed v3 (RPC):', {
         userId,
         itemCount: items.length,
         types: items.reduce((acc, item) => {
@@ -580,7 +593,7 @@ export class PersonalizedFeedService {
         has_more: items.length === limit, // Simple heuristic - could be improved
       };
     } catch (rpcException) {
-      console.error('❌ get_personalized_feed_v3 exception:', rpcException);
+      logger.error('❌ get_personalized_feed_v3 exception:', rpcException);
       throw rpcException;
     }
   }
@@ -1557,7 +1570,7 @@ export class PersonalizedFeedService {
 
       return age;
     } catch (error) {
-      console.error('Error getting user age:', error);
+      logger.error('Error getting user age:', error);
       return null;
     }
   }

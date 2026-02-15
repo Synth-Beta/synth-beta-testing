@@ -781,6 +781,7 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
             setEventDetailsOpen(false);
             setSelectedEventForDetails(null);
           }}
+          onEventChange={(newEvent) => setSelectedEventForDetails(newEvent)}
         />
       )}
     </div>

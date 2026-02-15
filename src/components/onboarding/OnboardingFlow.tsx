@@ -10,6 +10,7 @@ import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -25,6 +26,8 @@ const exitInProgressRef = useRef(false);
 
   const [profileData, setProfileData] = useState<ProfileSetupData>({});
   const [prefillLoading, setPrefillLoading] = useState(true);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const completeButtonRef = useRef<HTMLDivElement>(null);
 
   const beginExit = useCallback(() => {
     exitInProgressRef.current = true;
@@ -96,7 +99,7 @@ const exitInProgressRef = useRef(false);
 
         if (cancelled) return;
         if (error) {
-          console.warn('OnboardingFlow: failed to prefill profile data (continuing):', error);
+          logger.warn('OnboardingFlow: failed to prefill profile data (continuing):', error);
           setPrefillLoading(false);
           return;
         }
@@ -125,6 +128,8 @@ const exitInProgressRef = useRef(false);
   }, [session?.user?.id]);
 
   const handleCompleteSetup = async () => {
+    setCompletionError(null);
+
     // Never call /auth/v1/user or profile/account queries unless we have a session.
     if (!session || !user) {
       return;
@@ -143,16 +148,10 @@ const exitInProgressRef = useRef(false);
     const profileResult = await profileStepRef.current?.validateAndGetData();
     if (!profileResult?.valid || !profileResult.data) {
       if (profileResult?.errors && Object.keys(profileResult.errors).length > 0) {
-        const firstError = Object.values(profileResult.errors)[0];
-        }
-      return;
-    }
-
-    // Validate music (≥3 genres, ≥3 artists)
-    if (musicData.genres.length < 3) {
-      return;
-    }
-    if (musicData.artists.length < 3) {
+        const firstError = Object.values(profileResult.errors)[0] as string;
+        setCompletionError(firstError);
+        completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
       return;
     }
 
@@ -168,12 +167,22 @@ const exitInProgressRef = useRef(false);
         bio: profileResult.data.bio || undefined,
         avatar_url: profileResult.data.avatar_url || undefined,
       };
-      const profileSuccess = await OnboardingService.saveProfileSetup(user.id, profilePayload);
+      let profileSuccess = false;
+      try {
+        profileSuccess = await OnboardingService.saveProfileSetup(user.id, profilePayload);
+      } catch (profileErr: any) {
+        const msg = profileErr?.message || 'Failed to save profile. Please try again.';
+        setCompletionError(msg);
+        completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
       if (!profileSuccess) {
+        setCompletionError('Failed to save profile. Please try again.');
+        completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
       }
 
-      // Save music preferences (same logic as former handleMusicTags)
+      // Save music preferences (optional; same logic as former handleMusicTags)
       const artistData: { name: string; id?: string }[] = [];
 
       for (const artistName of musicData.artists) {
@@ -193,14 +202,14 @@ const exitInProgressRef = useRef(false);
                   })
                 )
                 .catch((error) => {
-                  console.warn('Error submitting missing artist request:', error);
+                  logger.warn('Error submitting missing artist request:', error);
                 });
             } catch (error) {
-              console.warn('Error submitting missing artist request:', error);
+              logger.warn('Error submitting missing artist request:', error);
             }
           }
         } catch (error) {
-          console.warn(`Error searching for artist "${artistName}":`, error);
+          logger.warn(`Error searching for artist "${artistName}":`, error);
           artistData.push({ name: artistName });
         }
       }
@@ -208,11 +217,13 @@ const exitInProgressRef = useRef(false);
       try {
         await OnboardingService.saveMusicPreferences(user.id, musicData.genres, artistData);
       } catch (error: any) {
-        console.error('Error saving music preferences:', error);
+        logger.error('Error saving music preferences:', error);
         if (error?.message?.includes('already exist') || error?.code === '23505') {
-          console.warn('Some preferences already exist, continuing...');
+          logger.warn('Some preferences already exist, continuing...');
         } else {
           const errorMessage = error?.message || 'Failed to save music preferences. Please try again.';
+          setCompletionError(errorMessage);
+          completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           return;
         }
       }
@@ -221,7 +232,7 @@ const exitInProgressRef = useRef(false);
       try {
         await ArtistFollowService.followArtists(user.id, artistData);
       } catch (followErr) {
-        console.warn('Onboarding: could not follow some artists (continuing):', followErr);
+        logger.warn('Onboarding: could not follow some artists (continuing):', followErr);
       }
 
       await OnboardingService.completeOnboarding(user.id);
@@ -234,8 +245,11 @@ const exitInProgressRef = useRef(false);
       beginExit();
       onComplete();
     } catch (error) {
-      console.error('Error in handleCompleteSetup:', error);
-      } finally {
+      logger.error('Error in handleCompleteSetup:', error);
+      const msg = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+      setCompletionError(msg);
+      completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } finally {
       if (!exitInProgressRef.current) {
         setLoading(false);
       }
@@ -290,7 +304,10 @@ const exitInProgressRef = useRef(false);
           )}
 
           {!loading && (
-            <div className="pt-6 mt-4 border-t">
+            <div ref={completeButtonRef} className="pt-6 mt-4 border-t">
+              {completionError && (
+                <p className="text-sm text-destructive mb-2">{completionError}</p>
+              )}
               <Button
                 onClick={handleCompleteSetup}
                 className="w-full"

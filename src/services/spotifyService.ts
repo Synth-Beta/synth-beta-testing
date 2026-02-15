@@ -14,6 +14,7 @@ import {
 import { trackInteraction, interactionTracker } from '@/services/interactionTrackingService';
 import { supabase } from '@/integrations/supabase/client';
 import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
+import { logger } from '@/utils/logger';
 
 export class SpotifyService {
   private static instance: SpotifyService;
@@ -27,15 +28,7 @@ export class SpotifyService {
       import.meta.env.VITE_SPOTIFY_REDIRECT_URI ||
       (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : '');
     
-    // Debug logging
-    console.log('🔍 Spotify Config Debug:', {
-      hasClientId: !!clientId,
-      hasRedirectUri: !!redirectUri,
-      clientIdLength: clientId.length,
-      redirectUri: redirectUri,
-      envMode: import.meta.env.MODE,
-      allEnvKeys: Object.keys(import.meta.env)
-    });
+    logger.debug('🔍 Spotify Config:', { hasClientId: !!clientId, hasRedirectUri: !!redirectUri });
     
     this.config = {
       clientId,
@@ -50,7 +43,7 @@ export class SpotifyService {
       ]
     } as SpotifyAuthConfig;
     if (!clientId || !redirectUri) {
-      console.error('Spotify config is missing. Ensure VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_REDIRECT_URI are set.');
+      logger.warn('Spotify config is missing. Set VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_REDIRECT_URI.');
     }
   }
 
@@ -69,7 +62,7 @@ export class SpotifyService {
   // Authentication methods
   public async authenticate(): Promise<void> {
     if (!this.config.clientId || !this.config.redirectUri) {
-      console.warn('Spotify not configured. Missing VITE_SPOTIFY_CLIENT_ID or VITE_SPOTIFY_REDIRECT_URI environment variables.');
+      logger.warn('Spotify not configured. Missing VITE_SPOTIFY_CLIENT_ID or VITE_SPOTIFY_REDIRECT_URI.');
       throw new Error('Spotify integration is not configured. Please contact the administrator.');
     }
     const state = this.generateRandomString(16);
@@ -99,14 +92,14 @@ export class SpotifyService {
 
   public async reauthenticate(): Promise<void> {
     // Clear existing tokens and force re-auth
-    console.log('🔄 Forcing re-authentication...');
+    logger.debug('🔄 Forcing re-authentication...');
     await this.logout();
     this.authenticate();
   }
 
   public async validateTokenAndReauthIfNeeded(): Promise<boolean> {
     if (!this.accessToken) {
-      console.log('❌ No access token available');
+      logger.debug('❌ No access token available');
       return false;
     }
 
@@ -115,21 +108,21 @@ export class SpotifyService {
     const isInCallback = urlParams.get('code') && urlParams.get('state');
     
     if (isInCallback) {
-      console.log('🔄 Currently in auth callback, skipping token validation to avoid race condition');
+      logger.debug('🔄 Currently in auth callback, skipping token validation to avoid race condition');
       return false; // Let the callback handle the authentication
     }
 
     try {
       // Try to get user profile to test basic scopes
-      console.log('🔍 Validating token scopes...');
+      logger.debug('🔍 Validating token scopes...');
       await this.spotifyApiCall<SpotifyUser>('/me');
-      console.log('✅ Token validation successful');
+      logger.debug('✅ Token validation successful');
       return true;
     } catch (error) {
-      console.error('❌ Token validation failed:', error);
+      logger.error('❌ Token validation failed:', error);
       
       if (error instanceof Error && error.message.includes('403')) {
-        console.log('🚨 Token has insufficient scopes, clearing old token and forcing re-authentication...');
+        logger.debug('🚨 Token has insufficient scopes, clearing old token and forcing re-authentication...');
         await this.clearStoredData();
         await this.reauthenticate();
         return false; // Will redirect, so return false
@@ -140,56 +133,56 @@ export class SpotifyService {
   }
 
   public async handleAuthCallback(): Promise<boolean> {
-    console.log('🔄 Handling Spotify auth callback...');
+    logger.debug('🔄 Handling Spotify auth callback...');
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
     const error = urlParams.get('error');
 
-    console.log('📥 Callback params:', { code: !!code, state: !!state, error });
+    logger.debug('📥 Callback params:', { code: !!code, state: !!state, error });
 
     if (error) {
-      console.error('❌ Authentication error:', error);
+      logger.error('❌ Authentication error:', error);
       throw new Error(`Authentication failed: ${error}`);
     }
 
     if (!code || !state) {
-      console.log('ℹ️ No code or state in callback, not a Spotify auth');
+      logger.debug('ℹ️ No code or state in callback, not a Spotify auth');
       return false;
     }
 
     const storedState = localStorage.getItem('spotify_auth_state');
-    console.log('🔐 State validation:', { received: state, stored: storedState, match: state === storedState });
+    logger.debug('🔐 State validation:', { received: state, stored: storedState, match: state === storedState });
     
     if (state !== storedState) {
-      console.error('❌ State mismatch detected');
-      console.log('🔧 Attempting recovery...');
+      logger.error('❌ State mismatch detected');
+      logger.debug('🔧 Attempting recovery...');
       
       // Check if we have any stored state at all
       if (!storedState) {
-        console.log('⚠️ No stored state found - user may have navigated away during auth');
-        console.log('🔄 Attempting to proceed with token exchange anyway...');
+        logger.debug('⚠️ No stored state found - user may have navigated away during auth');
+        logger.debug('🔄 Attempting to proceed with token exchange anyway...');
         
         // Try to exchange the code anyway - sometimes this works
         try {
           await this.exchangeCodeForToken(code);
-          console.log('✅ Token exchange successful despite state mismatch');
+          logger.debug('✅ Token exchange successful despite state mismatch');
           
           // Clean up and return success
           window.history.replaceState({}, document.title, window.location.pathname);
           return true;
         } catch (tokenError) {
-          console.error('❌ Token exchange failed:', tokenError);
+          logger.error('❌ Token exchange failed:', tokenError);
           throw new Error('Authentication state mismatch. Please try connecting to Spotify again.');
         }
       } else {
-        console.error('❌ State mismatch with stored state present');
-        console.log('🔧 This might be due to a race condition - attempting token exchange anyway');
+        logger.error('❌ State mismatch with stored state present');
+        logger.debug('🔧 This might be due to a race condition - attempting token exchange anyway');
         
         // Try to exchange the code anyway - sometimes this works even with state mismatch
         try {
           await this.exchangeCodeForToken(code);
-          console.log('✅ Token exchange successful despite state mismatch');
+          logger.debug('✅ Token exchange successful despite state mismatch');
           
           // Clean up and return success
           window.history.replaceState({}, document.title, window.location.pathname);
@@ -197,13 +190,13 @@ export class SpotifyService {
           localStorage.removeItem('spotify_code_verifier');
           return true;
         } catch (tokenError) {
-          console.error('❌ Token exchange failed:', tokenError);
+          logger.error('❌ Token exchange failed:', tokenError);
           throw new Error('Authentication state mismatch. Please try connecting to Spotify again.');
         }
       }
     }
 
-    console.log('✅ State validated, exchanging code for token...');
+    logger.debug('✅ State validated, exchanging code for token...');
     await this.exchangeCodeForToken(code);
     
     // Clean up URL first
@@ -215,7 +208,7 @@ export class SpotifyService {
       });
     } catch {}
     
-    console.log('🎉 Authentication completed successfully!');
+    logger.debug('🎉 Authentication completed successfully!');
     
     return true;
   }
@@ -342,9 +335,9 @@ export class SpotifyService {
         // Handle duplicate key errors gracefully - these happen when the same genre
         // is processed multiple times with the same timestamp
         if (error?.code === '23505' && error?.message?.includes('user_genre_interactions')) {
-          console.warn('Some genre interactions were duplicates (this is expected during sync)');
+          logger.warn('Some genre interactions were duplicates (this is expected during sync)');
         } else {
-          console.error('Error flushing interactions:', error);
+          logger.error('Error flushing interactions:', error);
         }
       }
 
@@ -353,7 +346,7 @@ export class SpotifyService {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           // Fetch ALL data using pagination for maximum coverage
-          console.log('📊 Fetching comprehensive streaming data...');
+          logger.debug('📊 Fetching comprehensive streaming data...');
           
           const [allArtistsShort, allArtistsMed, allArtistsLong] = await Promise.all([
             this.getAllTopArtists('short_term').catch(() => []),
@@ -385,7 +378,7 @@ export class SpotifyService {
           // Database table removed - stats are no longer persisted
           // Removed: UserStreamingStatsService.syncComprehensiveSpotifyData call
 
-          console.log('⚠️ Stats table removed - stats not persisted. Fetched:', {
+          logger.debug('⚠️ Stats table removed - stats not persisted. Fetched:', {
             short_term: { artists: allArtistsShort.length, tracks: allTracksShort.length },
             medium_term: { artists: allArtistsMed.length, tracks: allTracksMed.length },
             long_term: { artists: allArtistsLong.length, tracks: allTracksLong.length },
@@ -399,17 +392,17 @@ export class SpotifyService {
               streamingSyncService.completeSync();
             }
           } catch (importError) {
-            console.warn('Could not notify sync service:', importError);
+            logger.warn('Could not notify sync service:', importError);
           }
         }
       } catch (statsError) {
-        console.error('Error storing comprehensive Spotify stats:', statsError);
+        logger.error('Error storing comprehensive Spotify stats:', statsError);
         // Notify sync service of error
         try {
           const { streamingSyncService } = await import('@/services/streamingSyncService');
           streamingSyncService.errorSync(statsError instanceof Error ? statsError.message : 'Unknown error');
         } catch (importError) {
-          console.warn('Could not notify sync service of error:', importError);
+          logger.warn('Could not notify sync service of error:', importError);
         }
         // Don't fail the whole sync if stats storage fails
       }
@@ -426,35 +419,53 @@ export class SpotifyService {
         recently_played: recentlyPlayed.items.length
       });
     } catch (error) {
-      console.error('Spotify sync error:', error);
-      // Best-effort logging, do not throw
+      logger.error('Spotify sync error:', error);
+      throw error;
     }
   }
 
   /**
    * Save refresh token to Supabase so server-side backfill can sync without the app.
    * Only the row for the current user is written; client cannot read tokens back.
+   * Retries up to 3 times when session is not ready (e.g. on OAuth callback redirect).
    */
   private async saveRefreshTokenToServer(refreshToken: string): Promise<void> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.warn('Cannot save Spotify token: no authenticated user (session may not be ready on callback). Will retry from sync.');
+    const maxRetries = 3;
+    const retryDelayMs = 500;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          if (attempt < maxRetries) {
+            logger.debug(`Spotify token save: no user yet (attempt ${attempt}/${maxRetries}), retrying in ${retryDelayMs}ms...`);
+            await new Promise((r) => setTimeout(r, retryDelayMs));
+            continue;
+          }
+          logger.warn('Cannot save Spotify token: no authenticated user after retries (session may not be ready on callback). Will retry from sync.');
+          return;
+        }
+        const { error } = await supabase
+          .from('spotify_user_tokens')
+          .upsert(
+            { user_id: user.id, refresh_token: refreshToken, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' }
+          );
+        if (error) {
+          logger.debug('Spotify token save failed:', { code: error.code, message: error.message });
+          logger.warn('Could not save Spotify refresh token for backfill:', error.message, error.code);
+        } else {
+          logger.debug('✅ Spotify refresh token saved to spotify_user_tokens for user:', user.id);
+        }
         return;
+      } catch (e) {
+        if (attempt < maxRetries) {
+          logger.debug(`Save refresh token failed (attempt ${attempt}/${maxRetries}), retrying...`, e);
+          await new Promise((r) => setTimeout(r, retryDelayMs));
+        } else {
+          logger.warn('Save refresh token to server failed after retries:', e);
+        }
       }
-      const { error } = await supabase
-        .from('spotify_user_tokens')
-        .upsert(
-          { user_id: user.id, refresh_token: refreshToken, updated_at: new Date().toISOString() },
-          { onConflict: 'user_id' }
-        );
-      if (error) {
-        console.warn('Could not save Spotify refresh token for backfill:', error.message, error.code);
-      } else {
-        console.log('✅ Spotify refresh token saved to spotify_user_tokens for user:', user.id);
-      }
-    } catch (e) {
-      console.warn('Save refresh token to server failed:', e);
     }
   }
 
@@ -476,7 +487,7 @@ export class SpotifyService {
       // Get current user ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.warn('No authenticated user for streaming profile save');
+        logger.warn('No authenticated user for streaming profile save');
         return;
       }
 
@@ -515,31 +526,30 @@ export class SpotifyService {
         });
 
       if (upsertError) {
-        // Handle specific error codes
+        logger.debug('Streaming profile upsert failed:', { code: upsertError.code, message: upsertError.message });
         if (upsertError.code === 'PGRST205') {
-          console.warn('Table streaming_profiles does not exist or RLS policy issue');
+          logger.warn('Table streaming_profiles does not exist or RLS policy issue');
         } else if (upsertError.code === '23505') {
-          // Unique constraint violation - try update instead
-        const { error: updateError } = await supabase
-          .from('streaming_profiles')
-          .update({
-            profile_data: profileData,
-            sync_status: 'completed',
-            last_updated: new Date().toISOString()
-          })
+          const { error: updateError } = await supabase
+            .from('streaming_profiles')
+            .update({
+              profile_data: profileData,
+              sync_status: 'completed',
+              last_updated: new Date().toISOString()
+            })
             .eq('user_id', user.id)
             .eq('service_type', 'spotify');
 
-        if (updateError) {
-          console.error('Error updating streaming profile:', updateError);
+          if (updateError) {
+            logger.error('Error updating streaming profile:', updateError.code, updateError.message);
+          } else {
+            logger.debug('✅ Updated streaming profile for user:', user.id);
+          }
         } else {
-          console.log('✅ Updated streaming profile for user:', user.id);
+          logger.error('Error upserting streaming profile:', upsertError.code, upsertError.message);
         }
       } else {
-          console.error('Error upserting streaming profile:', upsertError);
-        }
-        } else {
-        console.log('✅ Upserted streaming profile for user:', user.id);
+        logger.debug('✅ Upserted streaming profile for user:', user.id);
       }
 
       // Also update user's music_streaming_profile field in profiles table
@@ -553,13 +563,13 @@ export class SpotifyService {
           .eq('user_id', user.id);
 
         if (userUpdateError) {
-          console.warn('Warning: Failed to update user profile with Spotify URL:', userUpdateError);
+          logger.warn('Warning: Failed to update user profile with Spotify URL:', userUpdateError);
         } else {
-          console.log('✅ Updated user profile with Spotify URL');
+          logger.debug('✅ Updated user profile with Spotify URL');
         }
       }
     } catch (error) {
-      console.error('Error saving to streaming profiles:', error);
+      logger.error('Error saving to streaming profiles:', error);
     }
   }
 
@@ -569,11 +579,11 @@ export class SpotifyService {
     // If we have a code verifier stored, it's fine (PKCE). Do not clear.
     if (storedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
       this.accessToken = storedToken;
-      console.log('🔑 Found stored token, expires at:', new Date(parseInt(tokenExpiry)).toLocaleString());
+      logger.debug('🔑 Found stored token, expires at:', new Date(parseInt(tokenExpiry)).toLocaleString());
       return true;
     }
 
-    console.log('❌ No valid stored token found');
+    logger.debug('❌ No valid stored token found');
     return false;
   }
 
@@ -613,7 +623,7 @@ export class SpotifyService {
         this.getRecentlyPlayed(10).catch(() => null)
       ]);
     } catch (e) {
-      console.warn('Light sync skipped:', e);
+      logger.warn('Light sync skipped:', e);
     }
   }
 
@@ -623,45 +633,45 @@ export class SpotifyService {
 
   public async checkTokenScopes(): Promise<string[]> {
     try {
-      console.log('🔍 Checking Spotify token scopes...');
-      console.log('📋 Requested scopes:', this.config.scopes);
-      console.log('🔑 Access token present:', !!this.accessToken);
+      logger.debug('🔍 Checking Spotify token scopes...');
+      logger.debug('📋 Requested scopes:', this.config.scopes);
+      logger.debug('🔑 Access token present:', !!this.accessToken);
       
       // Try to get user profile to check basic scopes
       try {
         const profile = await this.spotifyApiCall<SpotifyUser>('/me');
-        console.log('✅ User profile loaded successfully, basic scopes are working');
-        console.log('👤 User profile:', profile.display_name);
+        logger.debug('✅ User profile loaded successfully, basic scopes are working');
+        logger.debug('👤 User profile:', profile.display_name);
       } catch (error) {
-        console.error('❌ User profile failed:', error);
+        logger.error('❌ User profile failed:', error);
         throw error;
       }
       
       // Try to get top tracks to check user-top-read scope
       try {
         await this.spotifyApiCall<SpotifyTopTracksResponse>('/me/top/tracks?limit=1');
-        console.log('✅ user-top-read scope is working');
+        logger.debug('✅ user-top-read scope is working');
       } catch (error) {
-        console.warn('⚠️ user-top-read scope may be missing:', error);
+        logger.warn('⚠️ user-top-read scope may be missing:', error);
       }
       
       // Try to get recently played to check user-read-recently-played scope
       try {
         await this.spotifyApiCall<SpotifyRecentlyPlayedResponse>('/me/player/recently-played?limit=1');
-        console.log('✅ user-read-recently-played scope is working');
+        logger.debug('✅ user-read-recently-played scope is working');
       } catch (error) {
-        console.warn('⚠️ user-read-recently-played scope may be missing:', error);
+        logger.warn('⚠️ user-read-recently-played scope may be missing:', error);
       }
       
       return ['user-read-private', 'user-read-email']; // Basic scopes that work
     } catch (error) {
-      console.error('❌ Token scope check failed:', error);
+      logger.error('❌ Token scope check failed:', error);
       throw new Error('Unable to verify token scopes. Please reconnect to Spotify.');
     }
   }
 
   public async logout(): Promise<void> {
-    console.log('🚪 Logging out from Spotify...');
+    logger.debug('🚪 Logging out from Spotify...');
     this.accessToken = null;
     localStorage.removeItem('spotify_access_token');
     localStorage.removeItem('spotify_token_expiry');
@@ -676,17 +686,17 @@ export class SpotifyService {
     } catch {
       // ignore
     }
-    console.log('✅ Spotify logout completed');
+    logger.debug('✅ Spotify logout completed');
   }
 
   public async clearStoredData(): Promise<void> {
-    console.log('🧹 Clearing all stored Spotify data...');
+    logger.debug('🧹 Clearing all stored Spotify data...');
     await this.logout();
-    console.log('✅ All Spotify data cleared');
+    logger.debug('✅ All Spotify data cleared');
   }
 
   public async forceClearAndReauth(): Promise<void> {
-    console.log('🚨 Force clearing all data and re-authenticating...');
+    logger.debug('🚨 Force clearing all data and re-authenticating...');
     await this.clearStoredData();
     // Show a message to the user
     if (typeof window !== 'undefined') {
@@ -700,7 +710,7 @@ export class SpotifyService {
    * Clears auth data and provides user-friendly guidance
    */
   public async recoverFromStateMismatch(): Promise<void> {
-    console.log('🔧 Recovering from state mismatch...');
+    logger.debug('🔧 Recovering from state mismatch...');
     await this.clearStoredData();
 
     if (typeof window !== 'undefined') {
@@ -717,7 +727,7 @@ export class SpotifyService {
   }
 
   public nuclearReset(): void {
-    console.log('💥 NUCLEAR RESET: Clearing everything and forcing fresh start...');
+    logger.debug('💥 NUCLEAR RESET: Clearing everything and forcing fresh start...');
     
     // Clear all possible localStorage keys
     const keysToRemove = [
@@ -730,7 +740,7 @@ export class SpotifyService {
     
     keysToRemove.forEach(key => {
       localStorage.removeItem(key);
-      console.log(`🗑️ Removed ${key}`);
+      logger.debug(`🗑️ Removed ${key}`);
     });
     
     this.accessToken = null;
@@ -764,14 +774,14 @@ export class SpotifyService {
     const data: SpotifyAuthResponse = await response.json();
 
     if (!response.ok) {
-      console.error('❌ Token exchange failed:', response.status, response.statusText);
-      console.error('Response data:', data);
+      logger.error('❌ Token exchange failed:', response.status, response.statusText);
+      logger.error('Response data:', data);
       throw new Error('Failed to exchange code for token');
     }
 
-    console.log('🎉 Token exchange successful!');
-    console.log('📋 Granted scopes:', data.scope);
-    console.log('⏰ Token expires in:', data.expires_in, 'seconds');
+    logger.debug('🎉 Token exchange successful!');
+    logger.debug('📋 Granted scopes:', data.scope);
+    logger.debug('⏰ Token expires in:', data.expires_in, 'seconds');
 
     if (data.access_token) {
       this.accessToken = data.access_token;
@@ -782,7 +792,7 @@ export class SpotifyService {
       
       if (data.refresh_token) {
         localStorage.setItem('spotify_refresh_token', data.refresh_token);
-        console.log('🔄 Refresh token saved');
+        logger.debug('🔄 Refresh token saved');
         await this.saveRefreshTokenToServer(data.refresh_token);
       }
     } else {
@@ -823,7 +833,7 @@ export class SpotifyService {
       }
       return false;
     } catch (error) {
-      console.error('Token refresh error:', error);
+      logger.error('Token refresh error:', error);
       return false;
     }
   }
@@ -865,7 +875,7 @@ export class SpotifyService {
 
     if (response.status === 403) {
       // Forbidden - likely missing scopes or old token
-      console.log('🚨 403 Forbidden detected, clearing all stored data...');
+      logger.debug('🚨 403 Forbidden detected, clearing all stored data...');
       await this.clearStoredData();
       // Dispatch a custom event to notify components
       if (typeof window !== 'undefined') {
@@ -891,7 +901,7 @@ export class SpotifyService {
     try {
       return await this.spotifyApiCall<SpotifyUser>('/me');
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      logger.error('Error fetching user profile:', error);
       // Check if it's a scope issue
       if (error instanceof Error && error.message.includes('403')) {
         throw new Error('Insufficient permissions. Please reconnect with proper Spotify permissions.');
@@ -967,7 +977,7 @@ export class SpotifyService {
       return this.spotifyApiCall<SpotifyCurrentlyPlayingResponse>('/me/player');
     } catch (error) {
       // Player might not be active
-      console.log('No active player found');
+      logger.debug('No active player found');
       return null;
     }
   }
@@ -987,7 +997,7 @@ export class SpotifyService {
         hasMore = response.next !== null;
         offset += limit;
       } catch (error) {
-        console.error('Error fetching top tracks:', error);
+        logger.error('Error fetching top tracks:', error);
         break;
       }
     }
@@ -1009,7 +1019,7 @@ export class SpotifyService {
         hasMore = response.next !== null;
         offset += limit;
       } catch (error) {
-        console.error('Error fetching top artists:', error);
+        logger.error('Error fetching top artists:', error);
         break;
       }
     }

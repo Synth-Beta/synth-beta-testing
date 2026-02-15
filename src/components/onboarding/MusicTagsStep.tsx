@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Music, User as UserIcon, Loader2 } from 'lucide-react';
+import { X, Music, User as UserIcon, Loader2, LogIn } from 'lucide-react';
 import { MUSIC_GENRES } from '@/data/musicGenres';
 import {
   Command,
@@ -13,6 +13,11 @@ import {
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
+import { spotifyService } from '@/services/spotifyService';
+import { appleMusicService } from '@/services/appleMusicService';
+import { streamingSyncService } from '@/services/streamingSyncService';
+import { toast } from '@/hooks/use-toast';
+import { logger } from '@/utils/logger';
 
 interface MusicTagsStepProps {
   onNext?: (data: { genres: string[]; artists: string[] }) => void;
@@ -35,6 +40,8 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
   const [isSearchingArtists, setIsSearchingArtists] = useState(false);
   const [artistSearchOpen, setArtistSearchOpen] = useState(false);
   const artistSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [appleMusicSyncing, setAppleMusicSyncing] = useState(false);
+  const [spotifyConnecting, setSpotifyConnecting] = useState(false);
 
   // Report state to parent for single-page onboarding
   useEffect(() => {
@@ -97,7 +104,7 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
         setArtistSearchResults(results);
         setArtistSearchOpen(results.length > 0);
       } catch (error) {
-        console.error('Error searching artists:', error);
+        logger.error('Error searching artists:', error);
         setArtistSearchResults([]);
       } finally {
         setIsSearchingArtists(false);
@@ -149,24 +156,62 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
     setErrors({ ...errors, artists: '' });
   };
 
+  const handleConnectSpotify = async () => {
+    try {
+      setSpotifyConnecting(true);
+      await spotifyService.authenticate();
+      // On success, authenticate redirects to Spotify's OAuth page
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Connection failed';
+      toast({
+        title: 'Connection failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSpotifyConnecting(false);
+    }
+  };
+
+  const handleConnectAppleMusic = async () => {
+    let syncStarted = false;
+    try {
+      setAppleMusicSyncing(true);
+      await appleMusicService.authenticate();
+      streamingSyncService.startSync('apple-music');
+      syncStarted = true;
+      const success = await appleMusicService.syncProfileData();
+      if (success) {
+        streamingSyncService.completeSync();
+        toast({
+          title: 'Apple Music connected',
+          description: 'Your music preferences have been synced.',
+        });
+      } else {
+        streamingSyncService.errorSync('Sync failed');
+        toast({
+          title: 'Sync failed',
+          description: 'Could not sync Apple Music data.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Connection failed';
+      if (syncStarted) {
+        streamingSyncService.errorSync(message);
+      }
+      toast({
+        title: 'Connection failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setAppleMusicSyncing(false);
+    }
+  };
+
   const handleSubmit = () => {
     if (!onNext) return;
-
-    const newErrors: Record<string, string> = {};
-
-    if (selectedGenres.length < 3) {
-      newErrors.genres = 'Please select at least 3 genres';
-    }
-
-    if (selectedArtists.length < 3) {
-      newErrors.artists = 'Please add at least 3 artists';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
     onNext({
       genres: selectedGenres,
       artists: selectedArtists,
@@ -187,11 +232,10 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
         <div className="flex items-center justify-between">
           <Label className="flex items-center gap-2">
             <Music className="w-4 h-4" />
-            Favorite Genres
-            <span className="text-destructive">*</span>
+            Favorite Genres (Optional)
           </Label>
           <span className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
-            {selectedGenres.length}/7 (min 3)
+            {selectedGenres.length}/7
           </span>
         </div>
 
@@ -290,11 +334,10 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
         <div className="flex items-center justify-between">
           <Label className="flex items-center gap-2">
             <UserIcon className="w-4 h-4" />
-            Favorite Artists
-            <span className="text-destructive">*</span>
+            Favorite Artists (Optional)
           </Label>
           <span className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
-            {selectedArtists.length}/15 (min 3)
+            {selectedArtists.length}/15
           </span>
         </div>
 
@@ -406,10 +449,57 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
         )}
       </div>
 
+      {/* Optional: Connect your music */}
+      <div className="space-y-3">
+        <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
+          Connect your music (optional)
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800"
+            onClick={handleConnectSpotify}
+            disabled={spotifyConnecting}
+          >
+            {spotifyConnecting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Connecting…
+              </>
+            ) : (
+              <>
+                <LogIn className="w-4 h-4" />
+                Connect Spotify
+              </>
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2 border-red-500 text-red-700 hover:bg-red-50 hover:text-red-800"
+            onClick={handleConnectAppleMusic}
+            disabled={appleMusicSyncing}
+          >
+            {appleMusicSyncing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Syncing…
+              </>
+            ) : (
+              <>
+                <LogIn className="w-4 h-4" />
+                Connect Apple Music
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-[16px] font-medium leading-[1.5]">
         <p className="text-blue-700 dark:text-blue-300">
-          💡 <strong>Tip:</strong> You can also connect your Spotify account later to
-          automatically sync your music preferences!
+          💡 <strong>Tip:</strong> You can also connect Spotify or Apple Music later to
+          automatically sync your music preferences.
         </p>
       </div>
 

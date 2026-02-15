@@ -27,6 +27,7 @@ import { Music, DollarSign, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
 import { useAuth } from '@/hooks/useAuth';
+import { logger } from '@/utils/logger';
 
 const ARTIST_SUGGESTIONS: CategoryConfig['suggestions'] = [
   { id: 'artist-electric', label: 'Electric energy', description: 'The band fed off the crowd with nonstop energy.', sentiment: 'positive' },
@@ -154,7 +155,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         const prevReview = await ReviewService.getPreviousVenueReview(userId, venueId, existingReview?.id);
         setPreviousVenueReview(prevReview);
       } catch (error) {
-        console.error('Error checking for previous venue review:', error);
+        logger.error('Error checking for previous venue review:', error);
         setPreviousVenueReview(null);
       }
     };
@@ -282,7 +283,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         
         // Validate that the date is actually valid
         if (isNaN(eventDateTime.getTime())) {
-          console.error('❌ Invalid date format:', formData.eventDate);
+          logger.error('❌ Invalid date format:', formData.eventDate);
           throw new Error(`Invalid event date format: ${formData.eventDate}`);
         }
         // resolvedVenueId is a UUID from venues.id (not jambase_venue_id)
@@ -305,7 +306,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         };
         
         // Step 3: Check if event exists first, then insert if needed
-        console.log('🔍 DEBUG: Checking for existing event before insert');
+        logger.debug('🔍 DEBUG: Checking for existing event before insert');
         
         // First, check if an event with similar details already exists
         const { data: existingEvent } = await (supabase as any)
@@ -317,10 +318,10 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           .maybeSingle();
         
         if (existingEvent) {
-          console.log('🔍 DEBUG: Found existing event, using it:', existingEvent.id);
+          logger.debug('Found existing event, using it:', existingEvent.id);
           setActualEventId(existingEvent.id);
         } else {
-          console.log('🔍 DEBUG: No existing event found, creating new one');
+          logger.debug('No existing event found, creating new one');
           
           // Create a unique jambase_event_id for user-created events
           const uniqueEventId = `user_created_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -330,7 +331,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             jambase_event_id: uniqueEventId
           };
           
-          console.log('🔍 DEBUG: Insert payload:', JSON.stringify(insertPayloadWithId, null, 2));
+          logger.debug('Insert payload:', insertPayloadWithId);
           
           // Users can no longer directly create events
         // Submit a request instead
@@ -346,18 +347,18 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               venue_name: formData.selectedVenue.name,
             },
           });
-          console.log('📝 Submitted request for missing event:', insertPayload.title);
+          logger.debug('Submitted request for missing event:', insertPayload.title);
           toast({
             title: "Event Request Submitted",
             description: "Your event request has been submitted for review. You can still write your review, but the event will need to be approved first.",
           });
         } catch (error) {
-          console.error('❌ Error submitting event request:', error);
+          logger.error('Error submitting event request:', error);
           // Don't throw - allow user to continue with review
         }
         }
       } catch (error) {
-        console.error('❌ Exception creating event for draft:', error);
+        logger.error('Exception creating event for draft:', error);
       }
     };
     
@@ -397,7 +398,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             : 'new';
           const draftData = loadDraft(loadDraftKey);
           if (draftData) {
-            console.log('📂 Loaded draft from localStorage for event:', event.id);
+            logger.debug('📂 Loaded draft from localStorage for event:', event.id);
             setFormData(draftData as any);
           }
         }
@@ -497,7 +498,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               // Ensure event date is set
               eventDate: eventDateFromEvent || formData.eventDate
             };
-            console.log('🎵 Pre-populating form data for edit:', { 
+            logger.debug('🎵 Pre-populating form data for edit:', { 
               selectedArtist, 
               selectedVenue, 
               hasSetlist: !!updates.selectedSetlist,
@@ -507,7 +508,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             });
             setFormData(updates);
           } catch (error) {
-            console.error('❌ Error pre-populating artist/venue:', error);
+            logger.error('❌ Error pre-populating artist/venue:', error);
           }
         } else {
           // No existing review - create new one
@@ -544,7 +545,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           }
         }
       } catch (e) {
-        console.error('Error loading review for single page form', e);
+        logger.error('Error loading review for single page form', e);
       }
     };
     load();
@@ -554,7 +555,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
   const handleSaveDraft = async () => {
     // Manual save trigger - auto-save is already happening, but this forces immediate save
-    console.log('💾 Manual save triggered (auto-save is already enabled)');
+    logger.debug('💾 Manual save triggered (auto-save is already enabled)');
     setIsSaving(true);
     try {
       await manualSave();
@@ -565,7 +566,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       });
       setLastSaveTime(new Date());
     } catch (error) {
-      console.error('❌ Error in manual save:', error);
+      logger.error('❌ Error in manual save:', error);
       toast({
         title: "Save Failed",
         description: "Failed to save draft. Auto-save will retry automatically.",
@@ -702,9 +703,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     try {
       const artistCandidate: any = (formData.selectedArtist || (event as any)?.artist) || null;
       const jambaseArtistId: string | undefined = artistCandidate?.id || (artistCandidate?.identifier?.split?.(':')?.[1]);
-      console.log('🔍 EventReviewForm: Artist resolution - candidate:', artistCandidate, 'jambaseArtistId:', jambaseArtistId);
+      logger.debug('🔍 EventReviewForm: Artist resolution - candidate:', artistCandidate, 'jambaseArtistId:', jambaseArtistId);
       if (jambaseArtistId) {
-        console.log('🔍 EventReviewForm: Looking up artist with jambaseArtistId:', jambaseArtistId);
+        logger.debug('🔍 EventReviewForm: Looking up artist with jambaseArtistId:', jambaseArtistId);
         // Try to find artist by identifier or name
         // Use identifier column or external_identifiers jsonb to find artist
         if (artistCandidate?.identifier) {
@@ -717,7 +718,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           
           if (artistByIdentifier) {
             artistProfileId = artistByIdentifier.id;
-            console.log('🔍 EventReviewForm: Found existing artist by identifier:', artistProfileId);
+            logger.debug('🔍 EventReviewForm: Found existing artist by identifier:', artistProfileId);
           }
         }
         
@@ -732,12 +733,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           
           if (artistByName) {
             artistProfileId = artistByName.id;
-            console.log('🔍 EventReviewForm: Found existing artist by name:', artistProfileId);
+            logger.debug('🔍 EventReviewForm: Found existing artist by name:', artistProfileId);
           }
         }
         
         if (!artistProfileId) {
-          console.log('⚠️ EventReviewForm: Artist not found in database');
+          logger.debug('⚠️ EventReviewForm: Artist not found in database');
         }
       }
     } catch {}
@@ -884,7 +885,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         met_on_synth: formData.metOnSynth ?? undefined,
       };
 
-      console.log('🎵 EventReviewForm: Review data being saved:', {
+      logger.debug('🎵 EventReviewForm: Review data being saved:', {
         rating: reviewData.rating,
         decimalAverage,
         hasSetlist: !!reviewData.setlist,
@@ -1047,10 +1048,10 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           } as any);
 
           if (thumbError) {
-            console.warn('⚠️ EventReviewForm: Thumbnail upload failed:', thumbError);
+            logger.warn('⚠️ EventReviewForm: Thumbnail upload failed:', thumbError);
           }
         } catch (thumbUploadError) {
-          console.warn('⚠️ EventReviewForm: Thumbnail upload threw exception:', thumbUploadError);
+          logger.warn('⚠️ EventReviewForm: Thumbnail upload threw exception:', thumbUploadError);
         }
       }
       setPendingReviewThumbnailBlob(null);
@@ -1061,7 +1062,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       
       // Delete drafts for this artist+venue combination
       try {
-        console.log('🗑️ EventReviewForm: Deleting drafts for artist+venue:', { artistId: safeArtistId, venueId: safeVenueId });
+        logger.debug('🗑️ EventReviewForm: Deleting drafts for artist+venue:', { artistId: safeArtistId, venueId: safeVenueId });
         
         const { error: deleteError, data: deletedData } = await supabase
           .from('reviews')
@@ -1073,10 +1074,10 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           .select('id');
         
         if (deleteError) {
-          console.error('❌ EventReviewForm: Draft deletion failed:', deleteError);
+          logger.error('❌ EventReviewForm: Draft deletion failed:', deleteError);
         } else {
           const deletedCount = deletedData?.length || 0;
-          console.log(`🧹 EventReviewForm: Deleted ${deletedCount} draft(s)`);
+          logger.debug(`🧹 EventReviewForm: Deleted ${deletedCount} draft(s)`);
         }
         
         // Also delete drafts that match by artist/venue/date from draft_data (handles drafts with different IDs)
@@ -1105,7 +1106,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           }
         }
       } catch (error) {
-        console.error('❌ EventReviewForm: Error during draft deletion:', error);
+        logger.error('❌ EventReviewForm: Error during draft deletion:', error);
       }
       
       // Update events table with API setlist data ONLY (not custom setlist)
@@ -1183,8 +1184,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       
       // Check if we should show ranking modal (only for new reviews, not edits)
       if (!existingReview) {
-        console.log('🎯 New review submitted, checking if we should show ranking modal');
-        console.log('  Review data:', {
+        logger.debug('🎯 New review submitted, checking if we should show ranking modal');
+        logger.debug('  Review data:', {
           id: review.id,
           rating: review.rating,
           artist_performance_rating: (review as any).artist_performance_rating,
@@ -1207,9 +1208,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           ? ratingParts.reduce((sum, value) => sum + value, 0) / ratingParts.length
           : review.rating;
         
-        console.log('  Effective rating for modal:', effectiveRating);
-        console.log('  Opening ranking modal with review ID:', review.id);
-        console.log('  ⚠️ Deferring onSubmitted callback until ranking modal closes to avoid unmounting component');
+        logger.debug('  Effective rating for modal:', effectiveRating);
+        logger.debug('  Opening ranking modal with review ID:', review.id);
+        logger.debug('  ⚠️ Deferring onSubmitted callback until ranking modal closes to avoid unmounting component');
         
         // Store the review for when the ranking modal closes
         setSubmittedReview(review);
@@ -1217,7 +1218,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         // Small delay to ensure review is fully saved before opening modal
         setTimeout(() => {
           setShowRankingModal(true);
-          console.log('  ✅ Modal state updated:', { showRankingModal: true, submittedReview: review.id });
+          logger.debug('  ✅ Modal state updated:', { showRankingModal: true, submittedReview: review.id });
         }, 100);
         
         // Don't reset form yet - wait until after ranking modal closes
@@ -1225,7 +1226,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       } else {
         // For edits, call onSubmitted immediately (no ranking modal, so safe to close)
         if (onSubmitted) {
-          console.log('📞 Calling onSubmitted callback immediately after edit');
+          logger.debug('📞 Calling onSubmitted callback immediately after edit');
           const result = onSubmitted(review);
           if (result instanceof Promise) {
             await result;
@@ -1234,7 +1235,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.error('Error submitting review:', e);
+      logger.error('Error submitting review:', e);
       toast({ title: 'Error', description: `Failed to submit review: ${msg}`, variant: 'destructive' });
       // Reset submission flag on error so auto-save can work again
       setIsReviewSubmitted(false);
@@ -1244,7 +1245,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   };
 
   const handleRankingModalClose = async () => {
-    console.log('🚪 Ranking modal closing');
+    logger.debug('🚪 Ranking modal closing');
     setShowRankingModal(false);
     const reviewToSubmit = submittedReview;
     setSubmittedReview(null);
@@ -1255,7 +1256,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     // NOW call the onSubmitted callback (which triggers refresh and closes modal)
     // This was deferred for new reviews to avoid unmounting before ranking modal could show
     if (onSubmitted && reviewToSubmit) {
-      console.log('📞 Calling onSubmitted callback after ranking modal close');
+      logger.debug('📞 Calling onSubmitted callback after ranking modal close');
       const result = onSubmitted(reviewToSubmit);
       if (result instanceof Promise) {
         await result;
@@ -1739,7 +1740,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   };
 
   // Debug component state
-  console.log('🔍 EventReviewForm render state:', {
+  logger.debug('🔍 EventReviewForm render state:', {
     existingReview: !!existingReview,
     isLoading,
     draftKey,
