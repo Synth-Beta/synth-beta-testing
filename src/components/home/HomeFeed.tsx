@@ -514,9 +514,9 @@ interface FriendEventInterest {
     let pullDistance = 0;
 
     const handleScroll = () => {
-      const scrollHeight = feedElement.scrollHeight;
-      const clientHeight = feedElement.clientHeight;
-      const scrollTop = feedElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
 
       // Use refs to get current state values (avoid stale closures)
       if (scrollHeight - scrollTop - clientHeight < 200 && trendingHasMoreRef.current && !loadingTrendingRef.current) {
@@ -541,8 +541,9 @@ interface FriendEventInterest {
     const handleTouchMove = (e: TouchEvent) => {
       const touchY = e.touches[0].clientY;
       const deltaY = touchY - touchStartY;
+      const isAtTop = (window.scrollY || document.documentElement.scrollTop) <= 0;
 
-      if (feedElement.scrollTop === 0 && deltaY > 0) {
+      if (isAtTop && deltaY > 0) {
         e.preventDefault();
         pullDistance = deltaY;
         isPullingToRefresh = true;
@@ -577,19 +578,18 @@ interface FriendEventInterest {
     };
 
     // Store options objects to reuse for cleanup (browser requires matching options)
-    const scrollOptions = { passive: true } as AddEventListenerOptions;
     const touchendOptions = { passive: false } as AddEventListenerOptions;
     const touchstartOptions = { passive: true } as AddEventListenerOptions;
     const touchmoveOptions = { passive: false } as AddEventListenerOptions;
 
-    feedElement.addEventListener('scroll', handleScroll, scrollOptions);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     feedElement.addEventListener('touchend', handleTouchEnd, touchendOptions);
     feedElement.addEventListener('touchstart', handleTouchStart, touchstartOptions);
     feedElement.addEventListener('touchmove', handleTouchMove, touchmoveOptions);
 
     return () => {
       // Remove listeners with the same options to ensure proper cleanup
-      feedElement.removeEventListener('scroll', handleScroll, scrollOptions);
+      window.removeEventListener('scroll', handleScroll);
       feedElement.removeEventListener('touchend', handleTouchEnd, touchendOptions);
       feedElement.removeEventListener('touchstart', handleTouchStart, touchstartOptions);
       feedElement.removeEventListener('touchmove', handleTouchMove, touchmoveOptions);
@@ -611,9 +611,9 @@ interface FriendEventInterest {
     let pullDistance = 0;
 
     const handleScroll = () => {
-      const scrollHeight = feedElement.scrollHeight;
-      const clientHeight = feedElement.clientHeight;
-      const scrollTop = feedElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
 
       // Use refs to get current state values (avoid stale closures)
       if (scrollHeight - scrollTop - clientHeight < 200 && friendsHasMoreRef.current && !loadingNetworkRef.current) {
@@ -638,8 +638,9 @@ interface FriendEventInterest {
     const handleTouchMove = (e: TouchEvent) => {
       const touchY = e.touches[0].clientY;
       const deltaY = touchY - touchStartY;
+      const isAtTop = (window.scrollY || document.documentElement.scrollTop) <= 0;
 
-      if (feedElement.scrollTop === 0 && deltaY > 0) {
+      if (isAtTop && deltaY > 0) {
         e.preventDefault();
         pullDistance = deltaY;
         isPullingToRefresh = true;
@@ -674,19 +675,18 @@ interface FriendEventInterest {
     };
 
     // Store options objects to reuse for cleanup (browser requires matching options)
-    const scrollOptions = { passive: true } as AddEventListenerOptions;
     const touchendOptions = { passive: false } as AddEventListenerOptions;
     const touchstartOptions = { passive: true } as AddEventListenerOptions;
     const touchmoveOptions = { passive: false } as AddEventListenerOptions;
 
-    feedElement.addEventListener('scroll', handleScroll, scrollOptions);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     feedElement.addEventListener('touchend', handleTouchEnd, touchendOptions);
     feedElement.addEventListener('touchstart', handleTouchStart, touchstartOptions);
     feedElement.addEventListener('touchmove', handleTouchMove, touchmoveOptions);
 
     return () => {
       // Remove listeners with the same options to ensure proper cleanup
-      feedElement.removeEventListener('scroll', handleScroll, scrollOptions);
+      window.removeEventListener('scroll', handleScroll);
       feedElement.removeEventListener('touchend', handleTouchEnd, touchendOptions);
       feedElement.removeEventListener('touchstart', handleTouchStart, touchstartOptions);
       feedElement.removeEventListener('touchmove', handleTouchMove, touchmoveOptions);
@@ -1922,6 +1922,7 @@ interface FriendEventInterest {
           paddingBottom: 'var(--spacing-bottom-nav, 32px)',
           // Add extra padding when onboarding reminder banner is visible (approximately 60px banner height)
           marginTop: 'var(--onboarding-banner-height, 0px)',
+          transition: 'margin-top 0.2s ease-out',
         }}
       >
         {feedLocation && selectedFeedType !== 'events' && selectedFeedType !== 'reviews' && (
@@ -2010,7 +2011,7 @@ interface FriendEventInterest {
           />
         )}
         {selectedFeedType === 'trending' && (
-          <div className="space-y-4">
+          <div ref={trendingFeedRef} className="space-y-4">
               {loadingTrending && trendingEvents.length === 0 ? (
                 <SynthLoadingInline text="Loading trending events..." size="md" />
               ) : (
@@ -2066,7 +2067,7 @@ interface FriendEventInterest {
               </div>
         )}
         {selectedFeedType === 'friends' && (
-          <div className="space-y-4">
+          <div ref={friendsFeedRef} className="space-y-4">
             {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <SynthLoadingInline />

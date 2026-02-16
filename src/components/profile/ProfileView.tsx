@@ -919,6 +919,7 @@ const { user, sessionExpired } = useAuth();
         } else {
           streamingSyncService.errorSync('Sync failed');
           toast({ title: 'Sync failed', description: 'Could not sync Apple Music data.', variant: 'destructive' });
+          return;
         }
       }
     } catch (error) {
