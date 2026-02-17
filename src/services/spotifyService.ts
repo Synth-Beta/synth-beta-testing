@@ -81,7 +81,7 @@ export class SpotifyService {
     authUrl.searchParams.append('code_challenge', codeChallenge);
 
     try {
-      trackInteraction.click('spotify', this.config.clientId, {
+      trackInteraction.click('profile', 'connect_spotify', {
         action: 'connect_start',
         scopes: this.config.scopes,
         redirectUri: this.config.redirectUri
@@ -203,7 +203,7 @@ export class SpotifyService {
     window.history.replaceState({}, document.title, window.location.pathname);
     
     try {
-      trackInteraction.click('spotify', 'current_user', {
+      trackInteraction.click('profile', 'connect_spotify', {
         action: 'connect_success'
       });
     } catch {}
@@ -408,7 +408,7 @@ export class SpotifyService {
       }
 
       // Summary log
-      trackInteraction.click('spotify', 'current_user', {
+      trackInteraction.click('profile', 'spotify_sync', {
         action: 'sync_complete',
         artists_short: topArtistsShort.items.length,
         artists_medium: topArtistsMed.items.length,

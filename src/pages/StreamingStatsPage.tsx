@@ -133,12 +133,25 @@ const [loading, setLoading] = useState(true);
   const handleConnectSpotify = async () => {
     try {
       if (!spotifyService.isConfigured()) {
+        toast({
+          title: 'Spotify not available',
+          description: 'Spotify connection is not configured for this build.',
+          variant: 'destructive',
+        });
         return;
+      }
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('spotify_connect_source', 'streaming_stats');
       }
       await spotifyService.authenticate();
     } catch (error) {
       console.error('Error connecting Spotify:', error);
-      }
+      toast({
+        title: 'Unable to connect to Spotify',
+        description: 'Please try again in a moment.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleConnectAppleMusic = async () => {

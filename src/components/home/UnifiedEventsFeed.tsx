@@ -87,6 +87,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   const [displayCount, setDisplayCount] = useState(PAGE_SIZE); // How many to show
   const [hasMoreFromApi, setHasMoreFromApi] = useState(true); // More from server
   const feedRef = useRef<HTMLDivElement>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -472,6 +473,42 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     }
   }, [loadingMore, displayCount, allFetchedEvents, hasMoreFromApi, apiOffset, fetchBatch]);
 
+  // Automatically load more events when the user scrolls near the end of the list.
+  // Uses a lightweight IntersectionObserver on a sentinel div instead of a button click,
+  // so pagination still happens in chunks and we don't load an infinite list all at once.
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    const scrollRoot = feedRef.current;
+
+    if (!sentinel || !scrollRoot) return;
+    if (!hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            // Let the existing pagination logic decide whether to use cached items
+            // or fetch the next page from the server.
+            loadMore();
+            break;
+          }
+        }
+      },
+      {
+        root: scrollRoot,
+        // Trigger when the sentinel is close to the bottom of the viewport
+        rootMargin: '0px 0px 200px 0px', // Start loading slightly before the user hits the end
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, loadMore, displayedEvents.length]);
+
   // Background prefetch when approaching end of current batch
   useEffect(() => {
     // When displayed events reach threshold and we have more from API, prefetch next batch
@@ -818,84 +855,25 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           })()}
         </div>
         
-        {/* Load More Button - SwiftUI Glassmorphism Style with Synth Pink */}
-        {/* Always show the button - users can try to load more even if we think we're done */}
-        <div className="flex justify-center py-6 px-4">
-            <button
-              type="button"
-              disabled={loadingMore}
-              onClick={hasMore ? loadMore : loadInitial}
-              className="
-                relative overflow-hidden
-                px-8 py-3 rounded-2xl
-                font-semibold text-sm
-                text-white
-                transition-all duration-300 ease-out
-                hover:scale-[1.02] active:scale-[0.98]
-                disabled:opacity-50 disabled:cursor-not-allowed
-              "
-              style={{
-                background: 'linear-gradient(135deg, #FF3399 0%, #FF66B3 50%, #FF99CC 100%)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                boxShadow: '0 8px 32px rgba(255,51,153,0.3), inset 0 1px 0 rgba(255,255,255,0.3)',
-              }}
-            >
-              {/* Glass highlight overlay */}
-              <span 
-                className="absolute inset-0 opacity-30"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 50%)',
-                  borderRadius: 'inherit',
-                }}
-              />
-              {/* Content */}
-              <span className="relative z-10 flex items-center gap-2">
-                {loadingMore ? (
-                  <>
-                    <SynthLoader variant="spinner" size="sm" />
-                    <span>Loading...</span>
-                  </>
-                ) : !hasMore ? (
-                  <>
-                    <span>Refresh Feed</span>
-                    <svg 
-                      className="w-4 h-4" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-                      />
-                    </svg>
-                  </>
-                ) : (
-                  <>
-                    <span>Load More</span>
-                    <svg 
-                      className="w-4 h-4" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M19 9l-7 7-7-7" 
-                      />
-                    </svg>
-                  </>
-                )}
-              </span>
-            </button>
-          </div>
+        {/* Infinite scroll sentinel + status text */}
+        <div
+          ref={loadMoreSentinelRef}
+          className="flex justify-center py-6 px-4 text-center text-xs text-neutral-500"
+        >
+          {loadingMore && hasMore && (
+            <div className="flex items-center gap-2 bg-white/80 rounded-full px-4 py-2 shadow-sm">
+              <SynthLoader variant="spinner" size="sm" />
+              <span>Loading more events…</span>
+            </div>
+          )}
+          {!loadingMore && !hasMore && (
+            <div className="bg-white/80 rounded-full px-4 py-2 shadow-sm">
+              <span>You're all caught up for now. Pull down to refresh or adjust filters for more events.</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+

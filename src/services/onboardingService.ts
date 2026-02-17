@@ -487,6 +487,26 @@ export class OnboardingService {
 
       const { error } = await supabase.from('user_preference_signals').insert(insertRows);
       if (error) throw error;
+
+      // Best-effort: immediately refresh aggregated preferences so top_genres/top_artists
+      // are available to the personalization engine and settings UI without waiting
+      // for a scheduled job.
+      try {
+        const { error: refreshError } = await supabase.rpc('refresh_user_preferences_v5', {
+          p_user_id: userId,
+        });
+        if (refreshError) {
+          console.warn(
+            'OnboardingService.saveMusicPreferences: refresh_user_preferences_v5 failed (preferences may lag until the next scheduled refresh):',
+            refreshError
+          );
+        }
+      } catch (refreshErr) {
+        console.warn(
+          'OnboardingService.saveMusicPreferences: unexpected error calling refresh_user_preferences_v5:',
+          refreshErr
+        );
+      }
     } catch (error: any) {
       console.error('Error saving music preferences:', error);
       // Re-throw with a more descriptive message

@@ -20,6 +20,8 @@ import {
 } from '@/services/usernameService';
 import { sanitizeUsername, validateUsernameFormat } from '@/utils/usernameUtils';
 import { spotifyService } from '@/services/spotifyService';
+import { appleMusicService } from '@/services/appleMusicService';
+import { toast } from '@/hooks/use-toast';
 
 interface ProfileEditProps {
   currentUserId: string;
@@ -537,6 +539,9 @@ useEffect(() => {
                   className="mt-2"
                   onClick={() => {
                     if (spotifyService.isConfigured()) {
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('spotify_connect_source', 'profile');
+                      }
                       spotifyService.authenticate();
                     } else {
                       toast({
@@ -550,8 +555,33 @@ useEffect(() => {
                   Link Spotify account to sync your taste
                 </Button>
               )}
+              {formData.music_streaming_service === 'apple_music' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={async () => {
+                    try {
+                      await appleMusicService.authenticate();
+                      toast({
+                        title: 'Apple Music connected',
+                        description: 'Your Apple Music account is now linked. Syncing stats is optional and can be done from Streaming Stats.',
+                      });
+                    } catch (error) {
+                      toast({
+                        title: 'Apple Music not available',
+                        description: 'Apple Music linking is not available right now.',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                >
+                  Connect Apple Music to sync your stats (optional)
+                </Button>
+              )}
               <p className="text-xs text-muted-foreground">
-                Share your Spotify, Apple Music, or other streaming profile link. Will display as a clickable link on your profile.
+                Share your Spotify, Apple Music, or other streaming profile link. You can paste @username or a full profile URL. This controls the music icon on your profile; syncing is optional and only affects stats and recommendations.
               </p>
             </div>
 

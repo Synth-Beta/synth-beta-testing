@@ -34,8 +34,37 @@ const SpotifyCallback = () => {
 
           setStatus('complete');
           setTimeout(() => {
-            window.location.href = '/';
+            try {
+              const source = typeof window !== 'undefined'
+                ? localStorage.getItem('spotify_connect_source')
+                : null;
+              
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('spotify_connect_source');
+              }
+
+              if (source === 'streaming_stats') {
+                window.location.href = '/streaming-stats';
+                return;
+              }
+
+              if (source === 'onboarding') {
+                localStorage.setItem('intendedView', 'onboarding');
+                window.location.href = '/';
+                return;
+              }
+
+              if (source === 'profile') {
+                localStorage.setItem('intendedView', 'profile');
+                window.location.href = '/';
+                return;
+              }
+            } catch {
+              // Ignore and fall through to default redirect
+            }
+
             localStorage.setItem('intendedView', 'feed');
+            window.location.href = '/';
           }, 1500);
         } else {
           setStatus('error');

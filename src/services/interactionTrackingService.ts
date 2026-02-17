@@ -114,9 +114,9 @@ class InteractionTrackingService {
 
     // Entity identifier validation
     // After normalization: entityUuid is preferred for UUID-based entities (artists, venues, events)
-    // entityId is optional metadata. Some entity types don't require UUIDs (search, view, form, scene, etc.)
+    // entityId is optional metadata. Some entity types don't require UUIDs (search, view, form, scene, profile, etc.)
     // Note: 'scene' can optionally have an identifier but doesn't require one (matches DB constraint)
-    const entityTypesWithoutUuid = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene'];
+    const entityTypesWithoutUuid = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'profile'];
     const requiresUuid = !entityTypesWithoutUuid.includes(event.entityType);
     
     if (requiresUuid) {
@@ -269,17 +269,58 @@ class InteractionTrackingService {
     const weight = event.eventType === 'follow' ? 2.0 : event.eventType === 'view' ? 0.5 : 1.5;
     const entityName = event.metadata?.artist_name ?? event.metadata?.venue_name ?? event.metadata?.event_name ?? null;
     const now = new Date().toISOString();
-    await supabase.from('user_preference_signals').insert({
-      user_id: userId,
-      signal_type: signalType,
-      entity_type: event.entityType as 'event' | 'artist' | 'venue',
-      entity_id: entityUuid,
-      entity_name: entityName,
-      signal_weight: weight,
-      genre: null,
-      context: { source: 'app', event_type: event.eventType },
-      occurred_at: (event as BatchedInteractionEvent).timestamp ?? now,
-    });
+    try {
+      const { error } = await supabase.from('user_preference_signals').insert({
+        user_id: userId,
+        signal_type: signalType,
+        entity_type: event.entityType as 'event' | 'artist' | 'venue',
+        entity_id: entityUuid,
+        entity_name: entityName,
+        signal_weight: weight,
+        genre: null,
+        context: { source: 'app', event_type: event.eventType },
+        occurred_at: (event as BatchedInteractionEvent).timestamp ?? now,
+      });
+
+      if (error) {
+        console.error('Error writing user_preference_signals from InteractionTrackingService:', {
+          error,
+          userId,
+          eventType: event.eventType,
+          entityType: event.entityType,
+          entityUuid,
+        });
+      }
+
+      // Best-effort: refresh aggregated preferences immediately for higher-signal events.
+      // Skip for plain views to avoid calling the function too frequently.
+      if (event.eventType === 'interest' || event.eventType === 'follow') {
+        try {
+          const { error: refreshError } = await supabase.rpc('refresh_user_preferences_v5', {
+            p_user_id: userId,
+          });
+          if (refreshError) {
+            console.warn(
+              'InteractionTrackingService: refresh_user_preferences_v5 failed after preference signal insert:',
+              refreshError
+            );
+          }
+        } catch (refreshErr) {
+          console.warn(
+            'InteractionTrackingService: unexpected error calling refresh_user_preferences_v5:',
+            refreshErr
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error writing user_preference_signals:', {
+        error: err,
+        userId,
+        eventType: event.eventType,
+        entityType: event.entityType,
+        entityUuid,
+      });
+    }
   }
 
   /**
@@ -357,8 +398,8 @@ class InteractionTrackingService {
       // Use insert instead of rpc due to lint error and to match table structure
       // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
       // entity_id is kept as metadata for legacy support
-      // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene
-      const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene'];
+      // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene, profile
+      const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'profile'];
       
       // Skip if entity_type requires entity_uuid but it's not provided
       if (!ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT.includes(normalizedEvent.entityType) && !normalizedEvent.entityUuid) {
@@ -506,9 +547,9 @@ class InteractionTrackingService {
       // Map camelCase to snake_case for database
       // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
       // entity_id is kept as metadata for legacy support
-      // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene
+      // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene, profile
       // Note: Events are already normalized in the validation loop above, no need to normalize again
-      const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene'];
+      const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'profile'];
       
       const dbBatch = validEvents
         .filter(event => {

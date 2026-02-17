@@ -359,16 +359,19 @@ export class MusicTagsService {
               }
               
               if (newArtist) {
-                // Insert into external_entity_ids for normalization
-                await supabase
+                // Insert into external_entity_ids for normalization.
+                // Ignore any duplicate errors – this is best-effort enrichment.
+                const { error: externalIdError } = await supabase
                   .from('external_entity_ids')
                   .insert({
                     entity_type: 'artist',
                     entity_uuid: newArtist.id,
                     source: 'manual',
                     external_id: jambaseArtistId
-                  })
-                  .catch(() => {}); // Ignore duplicate errors
+                  });
+                if (externalIdError) {
+                  console.warn('Error inserting into external_entity_ids (safe to ignore if duplicate):', externalIdError);
+                }
                 
                 artistUuids.push(newArtist.id);
                 console.log(`✅ Created new artist: "${artistName}" (${newArtist.id})`);
