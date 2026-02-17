@@ -53,7 +53,7 @@ const Slider = React.forwardRef<
         borderRadius: resolvedTrackCornerRadius,
       }}
       className={cn(
-        "relative h-2 w-full grow overflow-hidden rounded-full bg-secondary",
+        "relative h-2 w-full grow overflow-hidden rounded-md bg-secondary",
         trackClassName
       )}
     >

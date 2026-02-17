@@ -27,9 +27,19 @@ interface MusicTagsStepProps {
   showButtons?: boolean;
   /** Parent can receive current genres/artists for single-page submit. */
   onChange?: (data: { genres: string[]; artists: string[] }) => void;
+  initialGenres?: string[];
+  initialArtists?: string[];
 }
 
-export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onChange }: MusicTagsStepProps) => {
+export const MusicTagsStep = ({
+  onNext,
+  onBack,
+  onSkip,
+  showButtons = true,
+  onChange,
+  initialGenres,
+  initialArtists,
+}: MusicTagsStepProps) => {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [customGenre, setCustomGenre] = useState('');
@@ -42,43 +52,65 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
   const artistSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [appleMusicSyncing, setAppleMusicSyncing] = useState(false);
   const [spotifyConnecting, setSpotifyConnecting] = useState(false);
+  const hasPrefilledGenresRef = useRef(false);
+  const hasPrefilledArtistsRef = useRef(false);
 
   // Report state to parent for single-page onboarding
   useEffect(() => {
     onChange?.({ genres: selectedGenres, artists: selectedArtists });
   }, [selectedGenres, selectedArtists, onChange]);
 
+  useEffect(() => {
+    if (initialGenres === undefined || hasPrefilledGenresRef.current) return;
+    setSelectedGenres(initialGenres);
+    hasPrefilledGenresRef.current = true;
+  }, [initialGenres]);
+
+  useEffect(() => {
+    if (initialArtists === undefined || hasPrefilledArtistsRef.current) return;
+    setSelectedArtists(initialArtists);
+    hasPrefilledArtistsRef.current = true;
+  }, [initialArtists]);
+
+  const toggleGenre = (genre: string) => {
+    let added = false;
+    setSelectedGenres((prev) => {
+      if (prev.includes(genre)) {
+        setErrors((prevErrors) => ({ ...prevErrors, genres: '' }));
+        return prev.filter((g) => g !== genre);
+      }
+
+      if (prev.length >= 7) {
+        setErrors((prevErrors) => ({ ...prevErrors, genres: 'Maximum 7 genres allowed' }));
+        return prev;
+      }
+
+      added = true;
+      setErrors((prevErrors) => ({ ...prevErrors, genres: '' }));
+      return [...prev, genre];
+    });
+    return added;
+  };
+ 
   const handleAddGenre = (genre: string) => {
-    if (selectedGenres.length >= 7) {
-      setErrors({ ...errors, genres: 'Maximum 7 genres allowed' });
-      return;
+    const added = toggleGenre(genre);
+    if (added) {
+      setGenreSearchOpen(false);
     }
-    if (!selectedGenres.includes(genre)) {
-      setSelectedGenres([...selectedGenres, genre]);
-      setErrors({ ...errors, genres: '' });
-    }
-    setGenreSearchOpen(false);
   };
 
   const handleAddCustomGenre = () => {
     const genre = customGenre.trim();
     if (!genre) return;
 
-    if (selectedGenres.length >= 7) {
-      setErrors({ ...errors, genres: 'Maximum 7 genres allowed' });
-      return;
-    }
-
-    if (!selectedGenres.includes(genre)) {
-      setSelectedGenres([...selectedGenres, genre]);
+    const added = toggleGenre(genre);
+    if (added) {
       setCustomGenre('');
-      setErrors({ ...errors, genres: '' });
     }
   };
 
   const handleRemoveGenre = (genre: string) => {
-    setSelectedGenres(selectedGenres.filter((g) => g !== genre));
-    setErrors({ ...errors, genres: '' });
+    toggleGenre(genre);
   };
 
   // Search artists using trigram search
@@ -265,6 +297,22 @@ export const MusicTagsStep = ({ onNext, onBack, onSkip, showButtons = true, onCh
               </Command>
             </PopoverContent>
           </Popover>
+
+          <div className="grid grid-cols-2 gap-2">
+            {MUSIC_GENRES.slice(0, 20).map((genre) => (
+              <Button
+                key={genre}
+                type="button"
+                size="sm"
+                variant={selectedGenres.includes(genre) ? 'default' : 'outline'}
+                onClick={() => toggleGenre(genre)}
+                disabled={!selectedGenres.includes(genre) && selectedGenres.length >= 7}
+                className="justify-start text-xs"
+              >
+                {genre}
+              </Button>
+            ))}
+          </div>
 
           {/* Custom Genre Input */}
           <div className="flex gap-2">

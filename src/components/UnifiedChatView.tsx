@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SkeletonChatMessage } from '@/components/skeleton/SkeletonChatMessage';
 import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
 import { Button } from '@/components/ui/button';
@@ -153,6 +153,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const [groupName, setGroupName] = useState('');
   const [loading, setLoading] = useState(true);
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
+  const [didLoadMessages, setDidLoadMessages] = useState(false);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const [isEditingGroupName, setIsEditingGroupName] = useState(false);
   const [editedGroupName, setEditedGroupName] = useState('');
@@ -210,6 +211,66 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   
   // Auto-scroll ref for messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const horizontalSwipeTriggeredRef = useRef(false);
+
+  const scrollMessagesToBottom = useCallback(() => {
+    const el = messagesScrollRef.current;
+    if (!el) return;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    });
+  }, []);
+
+  const resetSwipeState = () => {
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    horizontalSwipeTriggeredRef.current = false;
+  };
+
+  const handleChatTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    touchStartXRef.current = touch.clientX;
+    touchStartYRef.current = touch.clientY;
+    horizontalSwipeTriggeredRef.current = false;
+  };
+
+  const handleChatTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    const startX = touchStartXRef.current;
+    const startY = touchStartYRef.current;
+    if (startX === null || startY === null) return;
+
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    const isHorizontalSwipe = Math.abs(dx) > Math.abs(dy) && dx > 0;
+
+    if (!isHorizontalSwipe) return;
+
+    if (startX < 24) {
+      if (!horizontalSwipeTriggeredRef.current && dx > 90) {
+        horizontalSwipeTriggeredRef.current = true;
+        setSelectedChat(null);
+        window.scrollTo(0, 0);
+      }
+      event.preventDefault();
+    }
+  };
+
+  const handleChatTouchEnd = () => {
+    resetSwipeState();
+  };
+
+  const handleChatTouchCancel = () => {
+    resetSwipeState();
+  };
 
   const closeDeleteChatModal = () => {
     setIsDeleteChatModalOpen(false);
@@ -252,6 +313,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (selectedChat) {
+      setDidLoadMessages(false);
       fetchMessages(selectedChat.id);
       fetchChatParticipants(selectedChat.id);
       fetchLinkedEvent(selectedChat.id);
@@ -259,6 +321,12 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       markChatAsRead(selectedChat.id);
     }
   }, [selectedChat]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    if (!didLoadMessages) return;
+    scrollMessagesToBottom();
+  }, [didLoadMessages, selectedChat?.id, scrollMessagesToBottom]);
 
   // Real-time subscription for messages in selected chat
   useEffect(() => {
@@ -925,11 +993,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               : 'text'
         }))
       );
+      setDidLoadMessages(true);
       
-      // Auto-scroll to bottom after messages load
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
       setLiveAnnouncement('Messages loaded.');
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -941,12 +1006,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   
   // Auto-scroll when messages change
   useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    }
-  }, [messages.length]);
+    if (!selectedChat) return;
+    if (messages.length === 0) return;
+    scrollMessagesToBottom();
+  }, [messages.length, selectedChat?.id, scrollMessagesToBottom]);
 
   // Polite announcements when new messages arrive
   useEffect(() => {
@@ -1848,10 +1911,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
   return (
     <div 
-      className="flex w-full max-w-[393px] mx-auto" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh' }}
+      className="flex w-full max-w-[393px] mx-auto h-full" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh', height: '100dvh' }}
     >
       {/* Mobile Header */}
-      {!hideHeader && (
+      {!hideHeader && !eventDetailsOpen && !showReviewDetailModal && (
         <MobileHeader 
           menuOpen={menuOpen} 
           onMenuClick={onMenuClick}
@@ -2240,11 +2303,19 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
       {/* Right Side - Messages */}
       {selectedChat && (
-        <div className="w-full flex flex-col" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh', position: 'relative' }}>
+        <div
+          className="w-full flex flex-col min-h-0 h-full"
+          style={{ backgroundColor: 'var(--neutral-50)', height: '100%', position: 'relative' }}
+          onTouchStart={handleChatTouchStart}
+          onTouchMove={handleChatTouchMove}
+          onTouchEnd={handleChatTouchEnd}
+          onTouchCancel={handleChatTouchCancel}
+        >
           <>
             {/* Messages */}
               <div 
-                className="flex-1 overflow-y-auto"
+                ref={messagesScrollRef}
+                className="flex-1 overflow-y-auto min-h-0"
                 aria-busy={isFetchingMessages}
                 aria-label="Chat messages"
                 style={{ 

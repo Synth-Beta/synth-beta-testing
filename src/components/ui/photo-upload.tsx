@@ -151,7 +151,7 @@ export function PhotoUpload(props: PhotoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-const enableReviewThumbnail = props.enableReviewThumbnail === true;
+  const enableReviewThumbnail = props.enableReviewThumbnail === true;
   const thumbnailIndex = props.thumbnailIndex ?? 0;
   const thumbnailCrop = props.thumbnailCrop ?? null;
 

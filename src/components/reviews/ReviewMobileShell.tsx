@@ -32,7 +32,7 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
     // Desktop / large-screen: simple centered card, no iPhone chrome
     return (
       <div className="flex justify-center py-6">
-        <div className="w-full max-w-3xl rounded-xl border border-gray-200 bg-[#fcfcfc] shadow-md max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4">
+        <div data-review-scroll="true" className="w-full max-w-3xl rounded-xl border border-gray-200 bg-[#fcfcfc] shadow-md max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4">
           {children}
         </div>
       </div>
@@ -60,7 +60,7 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
         </div>
 
         {/* Scrollable content area */}
-        <div className="max-h-[calc(100vh-140px)] overflow-y-auto px-4 pb-24 pt-4">
+        <div data-review-scroll="true" className="max-h-[calc(100vh-140px)] overflow-y-auto px-4 pb-24 pt-4">
           {children}
         </div>
 

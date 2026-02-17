@@ -351,7 +351,10 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
                   type="button"
                   variant={musicPreferences.genres.includes(genre) ? "default" : "outline"}
                   size="sm"
-                  onClick={() => handleMusicTagToggle('genre', genre, !musicPreferences.genres.includes(genre))}
+                  onClick={() => {
+                    const isSelected = musicPreferences.genres.includes(genre);
+                    handleMusicTagToggle('genre', genre, !isSelected);
+                  }}
                   disabled={!musicPreferences.genres.includes(genre) && musicPreferences.genres.length >= 7}
                   className="justify-start text-xs"
                 >

@@ -4,6 +4,7 @@ import { ProfileSetupStep, type ProfileSetupStepRef } from './ProfileSetupStep';
 import { MusicTagsStep } from './MusicTagsStep';
 import { FollowArtistsModal, type FollowArtistOption } from './FollowArtistsModal';
 import { OnboardingService, ProfileSetupData } from '@/services/onboardingService';
+import { MusicTagsService, type MusicTagInput } from '@/services/musicTagsService';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { useAuth } from '@/hooks/useAuth';
 import { useViewTracking } from '@/hooks/useViewTracking';
@@ -56,6 +57,8 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
   const { user, session } = useAuth();
 const exitInProgressRef = useRef(false);
+  const [prefilledMusicData, setPrefilledMusicData] = useState<{ genres: string[]; artists: string[] } | null>(null);
+  const musicPrefillAppliedRef = useRef(false);
 
   const [showFollowArtistsModal, setShowFollowArtistsModal] = useState(false);
   const [favoriteArtistOptions, setFavoriteArtistOptions] = useState<FollowArtistOption[]>([]);
@@ -196,6 +199,35 @@ const exitInProgressRef = useRef(false);
     };
   }, [session?.user?.id]);
 
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    let cancelled = false;
+
+    const loadMusicPreferences = async () => {
+      try {
+        const tags = await MusicTagsService.getUserMusicTags(session.user.id);
+        if (cancelled) return;
+
+        const genres = tags.filter((tag) => tag.tag_type === 'genre').map((tag) => tag.tag_value);
+        const artists = tags.filter((tag) => tag.tag_type === 'artist').map((tag) => tag.tag_value);
+        const initialData = { genres, artists };
+
+        if (!musicPrefillAppliedRef.current) {
+          setPrefilledMusicData(initialData);
+          setMusicData(initialData);
+          musicPrefillAppliedRef.current = true;
+        }
+      } catch (error) {
+        logger.error('OnboardingFlow: failed to prefill music preferences:', error);
+      }
+    };
+
+    void loadMusicPreferences();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
   const handleCompleteSetup = async () => {
     setCompletionError(null);
 
@@ -309,6 +341,27 @@ const exitInProgressRef = useRef(false);
         }
       }
 
+      const genreTags: MusicTagInput[] = musicData.genres.map((genre) => ({
+        tag_type: 'genre',
+        tag_value: genre,
+      }));
+      const artistTags: MusicTagInput[] = musicData.artists.map((artist) => ({
+        tag_type: 'artist',
+        tag_value: artist,
+      }));
+      const manualMusicTags = [...genreTags, ...artistTags];
+
+      if (manualMusicTags.length > 0) {
+        try {
+          const success = await MusicTagsService.bulkUpdateMusicTags(user.id, manualMusicTags);
+          if (!success) {
+            logger.warn('OnboardingFlow: failed to sync manual music tags.');
+          }
+        } catch (error) {
+          logger.error('OnboardingFlow: error syncing manual music tags:', error);
+        }
+      }
+
       const dedupedArtists = dedupeFavoriteArtists(artistData);
       setFavoriteArtistOptions(dedupedArtists);
       setShowFollowArtistsModal(true);
@@ -367,6 +420,8 @@ const exitInProgressRef = useRef(false);
                 <MusicTagsStep
                   onChange={handleMusicDraftChange}
                   showButtons={false}
+                  initialGenres={prefilledMusicData?.genres}
+                  initialArtists={prefilledMusicData?.artists}
                 />
               </section>
             </div>

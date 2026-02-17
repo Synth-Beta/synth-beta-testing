@@ -4,6 +4,7 @@ import { PersonalizationEngineV5, type PersonalizedEvent } from '@/services/pers
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
 import { CompactEventCard, type EventReason } from './CompactEventCard';
+import { Button } from '@/components/ui/button';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import type { PersonalizedFeedFilters } from '@/services/personalizedFeedService';
@@ -397,29 +398,6 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     }
   }, [fetchBatch, hasMoreFromApi]);
 
-  const loadInitial = useCallback(async () => {
-    setLoading(true);
-    setApiOffset(0);
-    setDisplayCount(PAGE_SIZE);
-    // Clear prefetch cache on fresh load
-    prefetchedEventsRef.current = [];
-    prefetchedOffsetRef.current = 0;
-    isPrefetchingRef.current = false;
-    
-    try {
-      const { events, hasMore } = await fetchBatch(0);
-      setAllFetchedEvents(events);
-      setDisplayedEvents(events.slice(0, PAGE_SIZE));
-      setHasMoreFromApi(hasMore);
-      setApiOffset(events.length);
-      console.log('🎯 [UnifiedEventsFeed] loadInitial: showing', PAGE_SIZE, 'of', events.length, 'fetched');
-    } catch (error) {
-      console.error('Error loading feed:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchBatch]);
-
   const loadMore = useCallback(async () => {
     if (loadingMore) return;
     
@@ -505,7 +483,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   // Initial load is now handled in the location fetch effect above
 
-  // Refresh function with visual feedback - update ref whenever loadInitial changes
+  // Refresh function with visual feedback - always reference the latest filters via refs
   useEffect(() => {
     refreshFnRef.current = async () => {
       if (isRefreshingRef.current) return;
@@ -552,6 +530,11 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       }
     };
   }, [currentUserId, toFeedFilters]);
+
+  const handleRefreshButtonClick = useCallback(() => {
+    if (isRefreshingRef.current) return;
+    refreshFnRef.current?.();
+  }, []);
 
   // Pull to refresh - only set up once, uses refs to get latest values
   useEffect(() => {
@@ -739,6 +722,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           paddingTop: '12px',
           paddingBottom: '80px', // Extra padding for load more button
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         <div className="px-2">
@@ -821,80 +805,62 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         {/* Load More Button - SwiftUI Glassmorphism Style with Synth Pink */}
         {/* Always show the button - users can try to load more even if we think we're done */}
         <div className="flex justify-center py-6 px-4">
-            <button
-              type="button"
-              disabled={loadingMore}
-              onClick={hasMore ? loadMore : loadInitial}
-              className="
-                relative overflow-hidden
-                px-8 py-3 rounded-2xl
-                font-semibold text-sm
-                text-white
-                transition-all duration-300 ease-out
-                hover:scale-[1.02] active:scale-[0.98]
-                disabled:opacity-50 disabled:cursor-not-allowed
-              "
-              style={{
-                background: 'linear-gradient(135deg, #FF3399 0%, #FF66B3 50%, #FF99CC 100%)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                boxShadow: '0 8px 32px rgba(255,51,153,0.3), inset 0 1px 0 rgba(255,255,255,0.3)',
-              }}
-            >
-              {/* Glass highlight overlay */}
-              <span 
-                className="absolute inset-0 opacity-30"
-                style={{
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 50%)',
-                  borderRadius: 'inherit',
-                }}
-              />
-              {/* Content */}
-              <span className="relative z-10 flex items-center gap-2">
-                {loadingMore ? (
-                  <>
-                    <SynthLoader variant="spinner" size="sm" />
-                    <span>Loading...</span>
-                  </>
-                ) : !hasMore ? (
-                  <>
-                    <span>Refresh Feed</span>
-                    <svg 
-                      className="w-4 h-4" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
-                      />
-                    </svg>
-                  </>
-                ) : (
-                  <>
-                    <span>Load More</span>
-                    <svg 
-                      className="w-4 h-4" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M19 9l-7 7-7-7" 
-                      />
-                    </svg>
-                  </>
-                )}
-              </span>
-            </button>
-          </div>
+          <Button
+            type="button"
+            variant="default"
+            className="px-8 py-3 rounded-2xl font-semibold text-sm inline-flex items-center justify-center gap-2 transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+            disabled={hasMore ? loadingMore : isRefreshing}
+            onClick={hasMore ? loadMore : handleRefreshButtonClick}
+          >
+            {hasMore ? (
+              loadingMore ? (
+                <>
+                  <SynthLoader variant="spinner" size="sm" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <>
+                  <span>Load More</span>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </>
+              )
+            ) : isRefreshing ? (
+              <>
+                <SynthLoader variant="spinner" size="sm" />
+                <span>Refreshing...</span>
+              </>
+            ) : (
+              <>
+                <span>Refresh Feed</span>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
