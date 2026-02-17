@@ -2778,6 +2778,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
             // Trigger refresh of event message cards when modal closes
             setRefreshTrigger(prev => prev + 1);
           }}
+          onEventChange={(newEvent, isInterested) => {
+            setSelectedEvent(newEvent);
+            setSelectedEventInterested(isInterested ?? false);
+          }}
           onInterestToggle={handleInterestToggle}
           isInterested={selectedEventInterested}
         />

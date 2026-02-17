@@ -58,6 +58,12 @@ import instagramLogo from '@/assets/icons/Instagram_Logo.svg';
 import appleMusicLogo from '@/assets/icons/Apple-Music-Logo.svg';
 import spotifyLogo from '@/assets/icons/Spotify-Logo.svg';
 import { OnboardingService } from '@/services/onboardingService';
+import { MusicServiceActionModal, type MusicServiceType } from '@/components/profile/MusicServiceActionModal';
+import { spotifyService } from '@/services/spotifyService';
+import { appleMusicService } from '@/services/appleMusicService';
+import { streamingSyncService } from '@/services/streamingSyncService';
+import { toast } from '@/hooks/use-toast';
+import { logger } from '@/utils/logger';
 
 interface ProfileViewProps {
   currentUserId: string;
@@ -197,6 +203,11 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     mutual_friends_count: number;
     shared_genres_count?: number;
   }>>([]);
+  const [musicActionModalOpen, setMusicActionModalOpen] = useState(false);
+  const [musicModalKey, setMusicModalKey] = useState(0);
+  const [musicServiceType, setMusicServiceType] = useState<MusicServiceType>('spotify');
+  const [musicProfileHref, setMusicProfileHref] = useState('');
+  const [musicActionSyncing, setMusicActionSyncing] = useState(false);
 const { user, sessionExpired } = useAuth();
   const navigate = useNavigate();
 
@@ -213,7 +224,7 @@ const { user, sessionExpired } = useAuth();
   );
 
   useEffect(() => {
-    console.log('🔍 ProfileView: useEffect triggered with:', {
+    logger.debug('🔍 ProfileView: useEffect triggered with:', {
       targetUserId,
       sessionExpired,
       user: user?.id,
@@ -222,27 +233,27 @@ const { user, sessionExpired } = useAuth();
     
     // Don't fetch data if session is expired
     if (sessionExpired) {
-      console.log('🔍 ProfileView: Session expired, skipping data fetch');
+      logger.debug('🔍 ProfileView: Session expired, skipping data fetch');
       setLoading(false);
       return;
     }
     
     // Don't fetch if user is not available yet
     if (!user) {
-      console.log('🔍 ProfileView: User not available yet, waiting...');
+      logger.debug('🔍 ProfileView: User not available yet, waiting...');
       return;
     }
     
     // Debounce data fetching to prevent excessive calls
     const fetchTimeout = setTimeout(() => {
-      console.log('🔍 ProfileView: User is available, fetching data...');
+      logger.debug('🔍 ProfileView: User is available, fetching data...');
       setLoading(true);
-      console.log('🔍 ProfileView: Loading state set to TRUE');
+      logger.debug('🔍 ProfileView: Loading state set to TRUE');
       
       // Parallelize all independent data fetching for faster loading
       const fetchData = async () => {
         try {
-          console.log('🔍 ProfileView: fetchData function called - parallelizing queries');
+          logger.debug('🔍 ProfileView: fetchData function called - parallelizing queries');
           
           // Parallelize all independent queries
           await Promise.all([
@@ -261,12 +272,12 @@ const { user, sessionExpired } = useAuth();
             isViewingOwnProfile ? loadProfileFriendSuggestions() : Promise.resolve()
           ]);
           
-          console.log('🔍 ProfileView: All data fetched successfully');
+          logger.debug('🔍 ProfileView: All data fetched successfully');
         } catch (error) {
-          console.error('🔍 ProfileView: Error fetching data:', error);
+          logger.error('🔍 ProfileView: Error fetching data:', error);
         } finally {
           setLoading(false);
-          console.log('🔍 ProfileView: Loading state set to FALSE');
+          logger.debug('🔍 ProfileView: Loading state set to FALSE');
         }
       };
       
@@ -279,7 +290,7 @@ const { user, sessionExpired } = useAuth();
   // Refresh interested events when user switches to "interested" tab
   useEffect(() => {
     if (activeTab === 'interested' && targetUserId) {
-      console.log('🔍 ProfileView: User switched to interested tab, refreshing events...');
+      logger.debug('🔍 ProfileView: User switched to interested tab, refreshing events...');
       fetchUserEvents();
     }
   }, [activeTab, targetUserId]);
@@ -287,7 +298,7 @@ const { user, sessionExpired } = useAuth();
   // Refresh reviews when refreshTrigger changes (triggered when review is submitted)
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0 && user && !sessionExpired) {
-      console.log('🔄 ProfileView: Refresh trigger changed, refetching reviews...');
+      logger.debug('🔄 ProfileView: Refresh trigger changed, refetching reviews...');
       fetchReviews();
       fetchReviewsCount();
     }
@@ -357,25 +368,25 @@ const { user, sessionExpired } = useAuth();
 
   const fetchProfile = async () => {
     try {
-      console.log('🔍 ProfileView: Starting profile fetch...');
-      console.log('🔍 ProfileView: sessionExpired:', sessionExpired);
-      console.log('🔍 ProfileView: user:', user);
-      console.log('🔍 ProfileView: currentUserId:', currentUserId);
+      logger.debug('🔍 ProfileView: Starting profile fetch...');
+      logger.debug('🔍 ProfileView: sessionExpired:', sessionExpired);
+      logger.debug('🔍 ProfileView: user:', user);
+      logger.debug('🔍 ProfileView: currentUserId:', currentUserId);
       
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
-        console.log('❌ Session expired or no user, skipping profile fetch');
+        logger.debug('❌ Session expired or no user, skipping profile fetch');
         // Don't set loading to false here - let the main fetchData handle it
         return;
       }
 
-      console.log('✅ Fetching profile for user:', targetUserId);
+      logger.debug('✅ Fetching profile for user:', targetUserId);
       
       // First try to get the profile
-      console.log('ProfileView: Fetching profile for user:', targetUserId);
+      logger.debug('ProfileView: Fetching profile for user:', targetUserId);
 
       const fetchProfileRecord = async (column: 'user_id' | 'id') => {
-        console.log(`ProfileView: Attempting profile lookup by ${column}`);
+        logger.debug(`ProfileView: Attempting profile lookup by ${column}`);
         return await supabase
           .from('users')
           .select('*')
@@ -386,16 +397,16 @@ const { user, sessionExpired } = useAuth();
       let profileData: UserProfile | null = null;
 
       const { data, error } = await fetchProfileRecord('user_id');
-      console.log('ProfileView: Profile query result (user_id):', { data, error });
+      logger.debug('ProfileView: Profile query result (user_id):', { data, error });
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Profile query error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.details);
+        logger.error('Profile query error:', error);
+        logger.error('Error code:', error.code);
+        logger.error('Error message:', error.message);
+        logger.error('Error details:', error.details);
         
         if (error.message?.includes('invalid') || error.message?.includes('API key') || error.message?.includes('JWT') || error.message?.includes('expired')) {
-          console.error('Session error in ProfileView:', error);
+          logger.error('Session error in ProfileView:', error);
           // Don't set loading to false here - let the main fetchData handle it
           return;
         }
@@ -405,7 +416,7 @@ const { user, sessionExpired } = useAuth();
 
       if (!profileData) {
         const { data: fallbackData, error: fallbackError } = await fetchProfileRecord('id');
-        console.log('ProfileView: Profile query result (id):', { fallbackData, fallbackError });
+        logger.debug('ProfileView: Profile query result (id):', { fallbackData, fallbackError });
 
         if (fallbackError && fallbackError.code !== 'PGRST116') {
           throw fallbackError;
@@ -415,7 +426,7 @@ const { user, sessionExpired } = useAuth();
       }
 
       if (profileData) {
-        console.log('Profile found:', profileData);
+        logger.debug('Profile found:', profileData);
         setProfile(profileData);
         return;
       }
@@ -423,7 +434,7 @@ const { user, sessionExpired } = useAuth();
       // If we're viewing our own profile and the users row doesn't exist yet,
       // try to create it (e.g., Apple sign-in race or trigger delay), then refetch.
       if (isViewingOwnProfile && targetUserId === currentUserId) {
-        console.log('No profile found for current user. Ensuring public.users row exists, then retrying...');
+        logger.debug('No profile found for current user. Ensuring public.users row exists, then retrying...');
         await OnboardingService.ensureUserExists(currentUserId);
 
         const { data: createdAfterEnsure, error: createdAfterEnsureError } = await fetchProfileRecord('user_id');
@@ -431,7 +442,7 @@ const { user, sessionExpired } = useAuth();
           throw createdAfterEnsureError;
         }
         if (createdAfterEnsure) {
-          console.log('Profile found after ensureUserExists:', createdAfterEnsure);
+          logger.debug('Profile found after ensureUserExists:', createdAfterEnsure);
           setProfile(createdAfterEnsure as UserProfile);
           return;
         }
@@ -440,7 +451,7 @@ const { user, sessionExpired } = useAuth();
       // For other users (or if ensure failed), do not create placeholder rows.
       throw new Error(`Profile not found for user ${targetUserId}`);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      logger.error('Error fetching profile:', error);
       setProfile(null);
       toast({
         title: 'Profile not found',
@@ -452,20 +463,20 @@ const { user, sessionExpired } = useAuth();
 
   const fetchUserEvents = async () => {
     try {
-      console.log('🔍 ProfileView: fetchUserEvents called for user:', targetUserId);
+      logger.debug('🔍 ProfileView: fetchUserEvents called for user:', targetUserId);
       
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
-        console.log('Session expired or no user, skipping user events fetch');
+        logger.debug('Session expired or no user, skipping user events fetch');
         return;
       }
 
-      console.log('🔍 ProfileView: Fetching user events from database...');
+      logger.debug('🔍 ProfileView: Fetching user events from database...');
       const interested = await UserEventService.getUserInterestedEvents(targetUserId);
       let data: JamBaseEvent[] = interested.events
         .map(item => item.event)
         .filter(Boolean) as JamBaseEvent[];
-      console.log('🔍 ProfileView: Database query returned:', data?.length, 'events');
+      logger.debug('🔍 ProfileView: Database query returned:', data?.length, 'events');
       
       // Get events that user has attended to exclude them from interested events
       const { data: attendanceData } = await (supabase as any)
@@ -482,7 +493,7 @@ const { user, sessionExpired } = useAuth();
         const rawItem = item as any; // Keep raw item to access all database fields
         
         // Debug all events to see what we're getting
-        console.log('ProfileView: Processing event in getUserEvents:', {
+        logger.debug('ProfileView: Processing event in getUserEvents:', {
           title: jambaseEvent?.title,
           artist_name: jambaseEvent?.artist_name,
           venue_name: jambaseEvent?.venue_name,
@@ -492,7 +503,7 @@ const { user, sessionExpired } = useAuth();
         
         // Debug specific event if it's the Anotha event
         if (jambaseEvent?.title?.includes('Anotha')) {
-          console.log('ProfileView: Found Anotha event in getUserEvents:', {
+          logger.debug('ProfileView: Found Anotha event in getUserEvents:', {
             item,
             jambaseEvent,
             title: jambaseEvent?.title,
@@ -546,7 +557,7 @@ const { user, sessionExpired } = useAuth();
         
         // Debug specific event if it's the Anotha event
         if (jambaseEvent?.title?.includes('Anotha')) {
-          console.log('ProfileView: Processed Anotha event:', {
+          logger.debug('ProfileView: Processed Anotha event:', {
             processedEvent,
             title: processedEvent.title,
             artist_name: processedEvent.artist_name,
@@ -562,7 +573,7 @@ const { user, sessionExpired } = useAuth();
       // Filter out events that user has attended (moved to My Events)
       const filteredEvents = events.filter(event => !attendedEventIds.has(event.id));
 
-      console.log('ProfileView: Final filtered events:', filteredEvents.map(ev => ({
+      logger.debug('ProfileView: Final filtered events:', filteredEvents.map(ev => ({
         title: ev.title,
         artist_name: ev.artist_name,
         venue_name: ev.venue_name
@@ -571,9 +582,9 @@ const { user, sessionExpired } = useAuth();
       // Ensure filteredEvents conforms to the expected type
       setUserEvents(filteredEvents as any); // TODO: Ensure type safety
 
-      console.log('🔍 ProfileView: fetchUserEvents completed successfully');
+      logger.debug('🔍 ProfileView: fetchUserEvents completed successfully');
     } catch (error) {
-      console.error('❌ ProfileView: Error fetching user events:', error);
+      logger.error('❌ ProfileView: Error fetching user events:', error);
       setUserEvents([] as any); // TODO: Ensure type safety
     } finally {
       setLoading(false);
@@ -587,22 +598,22 @@ const { user, sessionExpired } = useAuth();
     try {
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
-        console.log('Session expired or no user, skipping reviews fetch');
+        logger.debug('Session expired or no user, skipping reviews fetch');
         return;
       }
 
-      console.log('🔍 ProfileView: Fetching reviews for user:', targetUserId);
-      console.log('🔍 ProfileView: isViewingOwnProfile:', isViewingOwnProfile);
-      console.log('🔍 ProfileView: Session user:', user?.id);
+      logger.debug('🔍 ProfileView: Fetching reviews for user:', targetUserId);
+      logger.debug('🔍 ProfileView: isViewingOwnProfile:', isViewingOwnProfile);
+      logger.debug('🔍 ProfileView: Session user:', user?.id);
       
       // Fetch user's reviews from the database
       let result;
       try {
         result = await ReviewService.getUserReviewHistory(targetUserId);
-      console.log('🔍 ProfileView: Raw review data:', result);
-      console.log('🔍 ProfileView: Number of reviews in result:', result.reviews.length);
+      logger.debug('🔍 ProfileView: Raw review data:', result);
+      logger.debug('🔍 ProfileView: Number of reviews in result:', result.reviews.length);
       if (result.reviews.length > 0) {
-        console.log('🔍 ProfileView: First review event data:', {
+        logger.debug('🔍 ProfileView: First review event data:', {
           reviewId: result.reviews[0].review.id,
           eventId: result.reviews[0].review.event_id,
           event: result.reviews[0].event,
@@ -610,7 +621,7 @@ const { user, sessionExpired } = useAuth();
         });
       }
       } catch (serviceError) {
-        console.error('❌ ProfileView: Error calling ReviewService.getUserReviewHistory:', serviceError);
+        logger.error('❌ ProfileView: Error calling ReviewService.getUserReviewHistory:', serviceError);
         setReviews([]);
         return;
       }
@@ -707,12 +718,12 @@ const { user, sessionExpired } = useAuth();
         };
         });
       
-      console.log('🔍 ProfileView: Transformed reviews:', transformedReviews);
-      console.log('🔍 ProfileView: Number of transformed reviews:', transformedReviews.length);
+      logger.debug('🔍 ProfileView: Transformed reviews:', transformedReviews);
+      logger.debug('🔍 ProfileView: Number of transformed reviews:', transformedReviews.length);
       
       // Debug: Check if any reviews have setlist data
       const reviewsWithSetlist = transformedReviews.filter((review: any) => review.setlist);
-      console.log('🎵 ProfileView: Reviews with setlist:', reviewsWithSetlist.length, reviewsWithSetlist);
+      logger.debug('🎵 ProfileView: Reviews with setlist:', reviewsWithSetlist.length, reviewsWithSetlist);
       
       // Debug: Check reviews that will be shown in PostsGrid
       const reviewsForPosts = transformedReviews.filter(review => {
@@ -721,8 +732,8 @@ const { user, sessionExpired } = useAuth();
         }
         return true;
       });
-      console.log('🔍 ProfileView: Reviews for PostsGrid:', reviewsForPosts.length);
-      console.log('🔍 ProfileView: Reviews for PostsGrid (first 3):', reviewsForPosts.slice(0, 3).map(r => ({
+      logger.debug('🔍 ProfileView: Reviews for PostsGrid:', reviewsForPosts.length);
+      logger.debug('🔍 ProfileView: Reviews for PostsGrid (first 3):', reviewsForPosts.slice(0, 3).map(r => ({
         id: r.id,
         event_name: r.event?.event_name,
         review_text: (r as any).review_text,
@@ -731,7 +742,7 @@ const { user, sessionExpired } = useAuth();
       
       setReviews(transformedReviews);
     } catch (error) {
-      console.error('❌ ProfileView: Error fetching reviews:', error);
+      logger.error('❌ ProfileView: Error fetching reviews:', error);
       setReviews([]);
     }
   };
@@ -745,7 +756,7 @@ const { user, sessionExpired } = useAuth();
       const interested = await UserEventService.isUserInterested(currentUserId, event.id);
       setSelectedEventInterested(interested);
     } catch (error) {
-      console.error('Error checking interest:', error);
+      logger.error('Error checking interest:', error);
       setSelectedEventInterested(false);
     }
     
@@ -754,7 +765,7 @@ const { user, sessionExpired } = useAuth();
 
   const fetchReviewsCount = async () => {
     try {
-      console.log('🔍 ProfileView: Fetching reviews count for user:', targetUserId);
+      logger.debug('🔍 ProfileView: Fetching reviews count for user:', targetUserId);
       
       // Query reviews table directly to get accurate count
       // Count all non-draft reviews that the user has either:
@@ -774,7 +785,7 @@ const { user, sessionExpired } = useAuth();
       const { data, count, error } = await query;
 
       if (error) {
-        console.error('❌ ProfileView: Error fetching reviews count:', error);
+        logger.error('❌ ProfileView: Error fetching reviews count:', error);
         setReviewsCount(0);
         return;
       }
@@ -794,11 +805,11 @@ const { user, sessionExpired } = useAuth();
 
       const actualCount = filteredData.length;
 
-      console.log('🔍 ProfileView: Reviews count (raw):', count);
-      console.log('🔍 ProfileView: Reviews count (filtered):', actualCount);
+      logger.debug('🔍 ProfileView: Reviews count (raw):', count);
+      logger.debug('🔍 ProfileView: Reviews count (filtered):', actualCount);
       setReviewsCount(actualCount);
     } catch (error) {
-      console.error('❌ ProfileView: Error fetching reviews count:', error);
+      logger.error('❌ ProfileView: Error fetching reviews count:', error);
       setReviewsCount(0);
     }
   };
@@ -842,7 +853,7 @@ const { user, sessionExpired } = useAuth();
     try {
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
-        console.log('Session expired or no user, skipping friends fetch');
+        logger.debug('Session expired or no user, skipping friends fetch');
         return;
       }
 
@@ -850,7 +861,7 @@ const { user, sessionExpired } = useAuth();
       const friendsList = await FriendsService.getFriends(targetUserId);
       setFriends(friendsList);
     } catch (error) {
-      console.warn('Warning: Error fetching friends:', error);
+      logger.warn('Warning: Error fetching friends:', error);
       setFriends([]);
     }
   };
@@ -860,7 +871,7 @@ const { user, sessionExpired } = useAuth();
       const suggestions = await FriendsService.getSimilarUsersToFriend(currentUserId, 5);
       setProfileFriendSuggestions(suggestions);
     } catch (error) {
-      console.warn('Error loading profile friend suggestions:', error);
+      logger.warn('Error loading profile friend suggestions:', error);
       setProfileFriendSuggestions([]);
     }
   };
@@ -873,29 +884,82 @@ const { user, sessionExpired } = useAuth();
       if (error) throw error;
       setProfileFriendSuggestions(prev => prev.filter(s => s.user_id !== userId));
       } catch (error: any) {
-      console.error('Error sending friend request:', error);
+      logger.error('Error sending friend request:', error);
       }
+  };
+
+  const handleMusicActionSync = async () => {
+    setMusicActionSyncing(true);
+    let syncStarted = false;
+    try {
+      if (musicServiceType === 'spotify') {
+        const hasSession = await spotifyService.ensureSession();
+        if (!hasSession || !spotifyService.isAuthenticated()) {
+          setMusicActionSyncing(false);
+          toast({ title: 'Not connected', description: 'Connect Spotify in Settings → Streaming Stats first.', variant: 'destructive' });
+          return;
+        }
+        streamingSyncService.startSync('spotify');
+        syncStarted = true;
+        await spotifyService.syncUserMusicPreferences();
+        streamingSyncService.completeSync();
+        toast({ title: 'Spotify synced', description: 'Your music preferences have been updated.' });
+      } else {
+        if (!appleMusicService.checkStoredToken()) {
+          setMusicActionSyncing(false);
+          toast({ title: 'Not connected', description: 'Connect Apple Music in Settings → Streaming Stats first.', variant: 'destructive' });
+          return;
+        }
+        streamingSyncService.startSync('apple-music');
+        syncStarted = true;
+        const success = await appleMusicService.syncProfileData();
+        if (success) {
+          streamingSyncService.completeSync();
+          toast({ title: 'Apple Music synced', description: 'Your music preferences have been updated.' });
+        } else {
+          streamingSyncService.errorSync('Sync failed');
+          toast({ title: 'Sync failed', description: 'Could not sync Apple Music data.', variant: 'destructive' });
+          return;
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Sync failed';
+      const isAuthError = /authentication failed|expired|401|reconnect/i.test(message);
+      if (syncStarted) {
+        streamingSyncService.errorSync(message);
+      }
+      toast({
+        title: isAuthError ? 'Session expired' : 'Sync failed',
+        description: isAuthError
+          ? 'Your music session may have expired. Reconnect in Settings → Streaming Stats, then try again.'
+          : message,
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setMusicActionSyncing(false);
+    }
   };
 
   const fetchFollowedArtistsCount = async () => {
     try {
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
-        console.log('Session expired or no user, skipping followed artists count fetch');
+        logger.debug('Session expired or no user, skipping followed artists count fetch');
         return;
       }
 
-      console.log('🔍 ProfileView: Fetching artist follows count for user:', targetUserId);
-      console.log('🔍 ProfileView: Current authenticated user:', user?.id);
+      logger.debug('🔍 ProfileView: Fetching artist follows count for user:', targetUserId);
+      logger.debug('🔍 ProfileView: Current authenticated user:', user?.id);
       
       // Get artist follows count
       const artistFollowsCount = await UserAnalyticsService.getArtistFollowsCount(targetUserId);
-      console.log('🔍 ProfileView: Artist follows count:', artistFollowsCount);
+      logger.debug('🔍 ProfileView: Artist follows count:', artistFollowsCount);
       
       // Also get detailed data for debugging and verification
       const followedArtists = await ArtistFollowService.getUserFollowedArtists(targetUserId);
-      console.log('🔍 ProfileView: Followed artists array length:', followedArtists.length);
-      console.log('🔍 ProfileView: Artist names:', followedArtists.map(a => a.artist_name));
+      logger.debug('🔍 ProfileView: Followed artists array length:', followedArtists.length);
+      logger.debug('🔍 ProfileView: Artist names:', followedArtists.map(a => a.artist_name));
       
       // Use the count from the service (which queries the database directly)
       // If there's a discrepancy, log it for debugging
@@ -904,11 +968,11 @@ const { user, sessionExpired } = useAuth();
         : artistFollowsCount;
       
       if (artistFollowsCount !== followedArtists.length) {
-        console.warn(`⚠️ ProfileView: Count mismatch! Service count: ${artistFollowsCount}, Array length: ${followedArtists.length}. Using array length.`);
+        logger.warn(`⚠️ ProfileView: Count mismatch! Service count: ${artistFollowsCount}, Array length: ${followedArtists.length}. Using array length.`);
       }
       
       setFollowedArtistsCount(finalCount);
-      console.log('🔍 ProfileView: Final artist follows count set to:', finalCount);
+      logger.debug('🔍 ProfileView: Final artist follows count set to:', finalCount);
 
       // Also fetch venue follows count
       const { count: venueCount } = await supabase
@@ -918,9 +982,9 @@ const { user, sessionExpired } = useAuth();
       
       const venueFollowsCount = venueCount || 0;
       setFollowedVenuesCount(venueFollowsCount);
-      console.log('🔍 ProfileView: Venue follows count set to:', venueFollowsCount);
+      logger.debug('🔍 ProfileView: Venue follows count set to:', venueFollowsCount);
     } catch (error) {
-      console.error('Error fetching followed artists/venues count:', error);
+      logger.error('Error fetching followed artists/venues count:', error);
       setFollowedArtistsCount(0);
       setFollowedVenuesCount(0);
     }
@@ -930,11 +994,11 @@ const { user, sessionExpired } = useAuth();
     try {
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
-        console.log('Session expired or no user, skipping attended events fetch');
+        logger.debug('Session expired or no user, skipping attended events fetch');
         return;
       }
 
-      console.log('🔍 ProfileView: Fetching attended events for user:', targetUserId);
+      logger.debug('🔍 ProfileView: Fetching attended events for user:', targetUserId);
       setAttendedEventsLoading(true);
       
       // Fetch reviews first
@@ -955,7 +1019,7 @@ const { user, sessionExpired } = useAuth();
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching attended events:', error);
+        logger.error('Error fetching attended events:', error);
         setAttendedEvents([]);
         return;
       }
@@ -988,8 +1052,8 @@ const { user, sessionExpired } = useAuth();
         events: eventMap.get(review.event_id)
       }));
 
-      console.log('🔍 ProfileView: Attended events data (raw):', data);
-      console.log('🔍 ProfileView: Total attended events fetched (raw):', data?.length);
+      logger.debug('🔍 ProfileView: Attended events data (raw):', data);
+      logger.debug('🔍 ProfileView: Total attended events fetched (raw):', data?.length);
       
       // Filter reviews: include those where user either attended or wrote a review
       const filteredData = (data || []).filter((item: any) => {
@@ -1004,19 +1068,19 @@ const { user, sessionExpired } = useAuth();
         return false;
       });
       
-      console.log('🔍 ProfileView: Attended events data (filtered):', filteredData);
-      console.log('🔍 ProfileView: Total attended events fetched (filtered):', filteredData?.length);
+      logger.debug('🔍 ProfileView: Attended events data (filtered):', filteredData);
+      logger.debug('🔍 ProfileView: Total attended events fetched (filtered):', filteredData?.length);
       
       // Log breakdown of event types
       const withReviews = filteredData?.filter(item => item.review_text && item.review_text !== 'ATTENDANCE_ONLY').length || 0;
       const attendanceOnly = filteredData?.filter(item => item.review_text === 'ATTENDANCE_ONLY').length || 0;
       const noReview = filteredData?.filter(item => !item.review_text).length || 0;
       
-      console.log('📊 Event breakdown:');
-      console.log(`   With reviews: ${withReviews}`);
-      console.log(`   Attendance only: ${attendanceOnly}`);
-      console.log(`   No review: ${noReview}`);
-      console.log(`   Total: ${filteredData?.length}`);
+      logger.debug('📊 Event breakdown:');
+      logger.debug(`   With reviews: ${withReviews}`);
+      logger.debug(`   Attendance only: ${attendanceOnly}`);
+      logger.debug(`   No review: ${noReview}`);
+      logger.debug(`   Total: ${filteredData?.length}`);
       
       // Event data is already joined from the query above
       if (filteredData && filteredData.length > 0) {
@@ -1031,7 +1095,7 @@ const { user, sessionExpired } = useAuth();
         setAttendedEvents([]);
       }
     } catch (error) {
-      console.error('Error fetching attended events:', error);
+      logger.error('Error fetching attended events:', error);
       setAttendedEvents([]);
     } finally {
       setAttendedEventsLoading(false);
@@ -1042,11 +1106,11 @@ const { user, sessionExpired } = useAuth();
     try {
       // Check if session is expired before making any requests
       if (sessionExpired || !user) {
-        console.log('Session expired or no user, skipping draft reviews fetch');
+        logger.debug('Session expired or no user, skipping draft reviews fetch');
         return;
       }
 
-      console.log('🔍 ProfileView: Fetching draft reviews for user:', targetUserId);
+      logger.debug('🔍 ProfileView: Fetching draft reviews for user:', targetUserId);
       setDraftReviewsLoading(true);
       
       // Only fetch drafts for the current user (not other users' profiles)
@@ -1064,15 +1128,15 @@ const { user, sessionExpired } = useAuth();
         .eq('is_draft', true);
       
       if (directError) {
-        console.error('❌ ProfileView: Error fetching drafts directly:', directError);
+        logger.error('❌ ProfileView: Error fetching drafts directly:', directError);
       }
       
-      console.log('🔍 ProfileView: All drafts from database (direct query):', allDraftsDirect?.length || 0);
+      logger.debug('🔍 ProfileView: All drafts from database (direct query):', allDraftsDirect?.length || 0);
       
       // Fetch draft reviews using the DraftReviewService (uses RPC function)
       const drafts = await DraftReviewService.getUserDrafts(targetUserId);
       
-      console.log('🔍 ProfileView: Drafts from RPC function:', drafts?.length || 0);
+      logger.debug('🔍 ProfileView: Drafts from RPC function:', drafts?.length || 0);
       
       // CRITICAL: Filter out drafts that have published reviews
       // Get all published reviews with event data to match by artist/venue/date too
@@ -1132,8 +1196,8 @@ const { user, sessionExpired } = useAuth();
         }
       });
       
-      console.log('🔍 ProfileView: Published review event IDs:', Array.from(publishedEventIds));
-      console.log('🔍 ProfileView: Published reviews by concert:', publishedByConcert.size);
+      logger.debug('🔍 ProfileView: Published review event IDs:', Array.from(publishedEventIds));
+      logger.debug('🔍 ProfileView: Published reviews by concert:', publishedByConcert.size);
       
       // Helper function to normalize dates for comparison
       const normalizeDate = (dateStr: string) => {
@@ -1152,7 +1216,7 @@ const { user, sessionExpired } = useAuth();
       
       for (const draft of (drafts || [])) {
         if (!draft.event_id) {
-          console.log('⚠️ ProfileView: Draft has no event_id:', draft.id);
+          logger.debug('⚠️ ProfileView: Draft has no event_id:', draft.id);
           continue; // Skip drafts without event_id
         }
         
@@ -1195,7 +1259,7 @@ const { user, sessionExpired } = useAuth();
         
         if (shouldDelete) {
           draftsToDelete.push(draft.id);
-          console.log(`🚫 ProfileView: Marked draft ${draft.id} for deletion - ${deleteReason}`);
+          logger.debug(`🚫 ProfileView: Marked draft ${draft.id} for deletion - ${deleteReason}`);
         } else {
           draftsToKeep.push(draft);
         }
@@ -1203,7 +1267,7 @@ const { user, sessionExpired } = useAuth();
       
       // Step 2: Delete all identified drafts and await completion
       if (draftsToDelete.length > 0) {
-        console.log(`🗑️ ProfileView: Deleting ${draftsToDelete.length} orphaned draft(s)...`);
+        logger.debug(`🗑️ ProfileView: Deleting ${draftsToDelete.length} orphaned draft(s)...`);
         const deletePromises = draftsToDelete.map(async (draftId) => {
           try {
             const { error } = await supabase
@@ -1211,14 +1275,14 @@ const { user, sessionExpired } = useAuth();
               .delete()
               .eq('id', draftId);
             if (error) {
-              console.error(`❌ ProfileView: Failed to delete orphaned draft ${draftId}:`, error);
+              logger.error(`❌ ProfileView: Failed to delete orphaned draft ${draftId}:`, error);
               return { success: false, draftId, error };
             } else {
-              console.log(`✅ ProfileView: Successfully deleted orphaned draft ${draftId}`);
+              logger.debug(`✅ ProfileView: Successfully deleted orphaned draft ${draftId}`);
               return { success: true, draftId };
             }
           } catch (err) {
-            console.error(`❌ ProfileView: Exception deleting orphaned draft ${draftId}:`, err);
+            logger.error(`❌ ProfileView: Exception deleting orphaned draft ${draftId}:`, err);
             return { success: false, draftId, error: err };
           }
         });
@@ -1228,7 +1292,7 @@ const { user, sessionExpired } = useAuth();
         const failedDeletions = deleteResults.filter(r => !r.success);
         
         if (failedDeletions.length > 0) {
-          console.error(`❌ ProfileView: Failed to delete ${failedDeletions.length} draft(s):`, failedDeletions);
+          logger.error(`❌ ProfileView: Failed to delete ${failedDeletions.length} draft(s):`, failedDeletions);
           // Keep failed drafts in the UI so user can see them and potentially retry
           // Add them back to draftsToKeep
           const failedDraftIds = new Set(failedDeletions.map(r => r.draftId));
@@ -1236,7 +1300,7 @@ const { user, sessionExpired } = useAuth();
           draftsToKeep.push(...failedDrafts);
         }
         
-        console.log(`✅ ProfileView: Deletion complete - ${successfulDeletions} successful, ${failedDeletions.length} failed`);
+        logger.debug(`✅ ProfileView: Deletion complete - ${successfulDeletions} successful, ${failedDeletions.length} failed`);
       }
        
       // Step 3: Use only the drafts we kept (deleted drafts are already excluded)
@@ -1249,7 +1313,7 @@ const { user, sessionExpired } = useAuth();
           
           // Check by event_id
           if (directDraft.event_id && publishedEventIds.has(directDraft.event_id)) {
-            console.log(`🚫 ProfileView: Found orphaned draft ${directDraft.id} in database (same event_id) - deleting`);
+            logger.debug(`🚫 ProfileView: Found orphaned draft ${directDraft.id} in database (same event_id) - deleting`);
             shouldDelete = true;
           }
           
@@ -1281,7 +1345,7 @@ const { user, sessionExpired } = useAuth();
                 if (pubArtist === draftArtist && 
                     pubVenue === draftVenue && 
                     normalizedPubDate === normalizedDraftDate) {
-                  console.log(`🚫 ProfileView: Found orphaned draft ${directDraft.id} in database (same concert) - deleting`);
+                  logger.debug(`🚫 ProfileView: Found orphaned draft ${directDraft.id} in database (same concert) - deleting`);
                   shouldDelete = true;
                   break;
                 }
@@ -1298,12 +1362,12 @@ const { user, sessionExpired } = useAuth();
         }
       }
       
-      console.log('🔍 ProfileView: Draft reviews data (final):', validDrafts);
-      console.log('🔍 ProfileView: Total valid draft reviews (after filtering):', validDrafts?.length);
+      logger.debug('🔍 ProfileView: Draft reviews data (final):', validDrafts);
+      logger.debug('🔍 ProfileView: Total valid draft reviews (after filtering):', validDrafts?.length);
       
       setDraftReviews(validDrafts);
     } catch (error) {
-      console.error('Error fetching draft reviews:', error);
+      logger.error('Error fetching draft reviews:', error);
       setDraftReviews([]);
     } finally {
       setDraftReviewsLoading(false);
@@ -1325,7 +1389,7 @@ const { user, sessionExpired } = useAuth();
         scenes: progress.scenes.length,
       });
     } catch (error) {
-      console.error('Error loading passport summary:', error);
+      logger.error('Error loading passport summary:', error);
     }
   };
 
@@ -1345,7 +1409,7 @@ const { user, sessionExpired } = useAuth();
         .limit(1);
 
       if (friendsError) {
-        console.warn('Warning: Could not check friendship status:', friendsError);
+        logger.warn('Warning: Could not check friendship status:', friendsError);
         return;
       }
 
@@ -1365,7 +1429,7 @@ const { user, sessionExpired } = useAuth();
         .limit(1);
 
       if (sentError) {
-        console.warn('Warning: Could not check sent friend requests:', sentError);
+        logger.warn('Warning: Could not check sent friend requests:', sentError);
         return;
       }
 
@@ -1386,7 +1450,7 @@ const { user, sessionExpired } = useAuth();
         .limit(1);
 
       if (receivedError) {
-        console.warn('Warning: Could not check received friend requests:', receivedError);
+        logger.warn('Warning: Could not check received friend requests:', receivedError);
         return;
       }
 
@@ -1397,7 +1461,7 @@ const { user, sessionExpired } = useAuth();
 
       setFriendStatus('none');
     } catch (error) {
-      console.warn('Warning: Error checking friend status:', error);
+      logger.warn('Warning: Error checking friend status:', error);
       setFriendStatus('none');
     }
   };
@@ -1408,7 +1472,7 @@ const { user, sessionExpired } = useAuth();
         return;
       }
 
-      console.log('Sending friend request to:', targetUserId);
+      logger.debug('Sending friend request to:', targetUserId);
       
       // Call the database function to create friend request
       const { data, error } = await supabase.rpc('create_friend_request', {
@@ -1416,7 +1480,7 @@ const { user, sessionExpired } = useAuth();
       });
 
       if (error) {
-        console.error('Error creating friend request:', error);
+        logger.error('Error creating friend request:', error);
         throw error;
       }
 
@@ -1435,7 +1499,7 @@ const { user, sessionExpired } = useAuth();
       setFriendStatus('pending_sent');
       
       } catch (error: any) {
-      console.error('Error sending friend request:', error);
+      logger.error('Error sending friend request:', error);
       }
   };
 
@@ -1445,7 +1509,7 @@ const { user, sessionExpired } = useAuth();
         return;
       }
 
-      console.log('Unfriending user:', friendUserId);
+      logger.debug('Unfriending user:', friendUserId);
       
       // Use FriendsService to unfriend (which calls the RPC function)
       // No confirmation needed - quick unfriend as requested
@@ -1463,7 +1527,7 @@ const { user, sessionExpired } = useAuth();
       await fetchFriends();
       
       } catch (error: any) {
-      console.error('Error unfriending user:', error);
+      logger.error('Error unfriending user:', error);
       // Don't show error if friendship doesn't exist (already unfriended)
       if (error?.message?.includes('Friendship does not exist')) {
         // Silently update UI since friendship is already gone
@@ -1499,7 +1563,7 @@ const { user, sessionExpired } = useAuth();
     // NUCLEAR: Delete ALL drafts for this event before refreshing
     if (review?.event_id) {
       try {
-        console.log('🗑️ ProfileView: NUCLEAR deletion of drafts for event:', review.event_id);
+        logger.debug('🗑️ ProfileView: NUCLEAR deletion of drafts for event:', review.event_id);
         const { error } = await supabase
           .from('reviews')
           .delete()
@@ -1508,12 +1572,12 @@ const { user, sessionExpired } = useAuth();
           .eq('is_draft', true);
         
         if (error) {
-          console.error('❌ ProfileView: Failed to delete drafts:', error);
+          logger.error('❌ ProfileView: Failed to delete drafts:', error);
         } else {
-          console.log('✅ ProfileView: Deleted all drafts for event:', review.event_id);
+          logger.debug('✅ ProfileView: Deleted all drafts for event:', review.event_id);
         }
       } catch (error) {
-        console.error('❌ ProfileView: Exception deleting drafts:', error);
+        logger.error('❌ ProfileView: Exception deleting drafts:', error);
       }
     }
     
@@ -1580,12 +1644,12 @@ const { user, sessionExpired } = useAuth();
 
   const handleDeleteReview = async (reviewId: string) => {
     try {
-      console.log('🗑️ ProfileView: Deleting review:', { userId: currentUserId, reviewId });
+      logger.debug('🗑️ ProfileView: Deleting review:', { userId: currentUserId, reviewId });
       await ReviewService.deleteEventReview(currentUserId, reviewId);
-      console.log('✅ ProfileView: Review deleted successfully');
+      logger.debug('✅ ProfileView: Review deleted successfully');
       fetchReviews(); // Refresh the list
       } catch (error) {
-      console.error('❌ ProfileView: Error deleting review:', error);
+      logger.error('❌ ProfileView: Error deleting review:', error);
       }
   };
 
@@ -1627,9 +1691,9 @@ const { user, sessionExpired } = useAuth();
 
   // If loading is complete but no profile, show error
   if (!profile) {
-    console.log('❌ ProfileView: No profile data available after loading');
-    console.log('❌ ProfileView: Loading state:', loading);
-    console.log('❌ ProfileView: Current user ID:', currentUserId);
+    logger.debug('❌ ProfileView: No profile data available after loading');
+    logger.debug('❌ ProfileView: Loading state:', loading);
+    logger.debug('❌ ProfileView: Current user ID:', currentUserId);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -1651,7 +1715,7 @@ const { user, sessionExpired } = useAuth();
     );
   }
 
-  console.log('✅ ProfileView: Rendering profile for:', profile.name);
+  logger.debug('✅ ProfileView: Rendering profile for:', profile.name);
 
   // setViewReviewOpen is defined by useState earlier
   const handleHeaderBack = () => {
@@ -2090,11 +2154,22 @@ const { user, sessionExpired } = useAuth();
                   ariaLabel = 'Music Streaming Profile';
                 }
                 
+                const handleMusicIconClick = () => {
+                  if (isViewingOwnProfile) {
+                    setMusicServiceType(isSpotify ? 'spotify' : 'apple_music');
+                    setMusicProfileHref(href);
+                    setMusicModalKey((k) => k + 1);
+                    setMusicActionModalOpen(true);
+                  } else {
+                    window.open(href, '_blank');
+                  }
+                };
+                
                 return (
                   <Button
                     variant="secondary"
                     size="icon"
-                    onClick={() => window.open(href, '_blank')}
+                    onClick={handleMusicIconClick}
                     style={{
                       width: '44px',
                       height: '44px',
@@ -2168,7 +2243,7 @@ const { user, sessionExpired } = useAuth();
               profile_user_id: targetUserId
             }, targetUserId);
           } catch (error) {
-            console.error('Error tracking profile tab switch:', error);
+            logger.error('Error tracking profile tab switch:', error);
           }
           setActiveTab(tab);
         }} className="w-full">
@@ -2573,7 +2648,7 @@ const { user, sessionExpired } = useAuth();
                                     setlist_fm_url: eventData.setlist_fm_url || event.setlist_fm_url || null
                                   };
                                   
-                                  console.log('ProfileView: Complete event data for modal:', {
+                                  logger.debug('ProfileView: Complete event data for modal:', {
                                     originalEvent: event,
                                     completeEvent,
                                     attendanceEventId: attendance.event_id
@@ -2816,7 +2891,7 @@ const { user, sessionExpired } = useAuth();
                                                 setDraftReviews(updatedDrafts || []);
                                               }
                                             } catch (error) {
-                                              console.error('Error deleting draft:', error);
+                                              logger.error('Error deleting draft:', error);
                                             }
                                           }
                                         }}
@@ -2955,7 +3030,7 @@ const { user, sessionExpired } = useAuth();
                           e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6)';
                         }}
                         onClick={() => { 
-                          console.log('ProfileView: Event data being passed to modal from interested events:', ev);
+                          logger.debug('ProfileView: Event data being passed to modal from interested events:', ev);
                           // Ensure we have complete event data for the modal
                           // The event from fetchUserEvents is already processed, so use it directly
                           const completeEvent = {
@@ -2973,7 +3048,7 @@ const { user, sessionExpired } = useAuth();
                             setlist_fm_url: (ev as any).setlist_fm_url || null
                           };
                           
-                          console.log('ProfileView: Complete event data for modal from interested events:', {
+                          logger.debug('ProfileView: Complete event data for modal from interested events:', {
                             originalEvent: ev,
                             completeEvent,
                             artist_name: completeEvent.artist_name,
@@ -3210,7 +3285,7 @@ const { user, sessionExpired } = useAuth();
         friends={Array.isArray(friends) ? friends : []}
         count={Array.isArray(friends) ? friends.length : 0}
         onStartChat={(friendId: string) => {
-          console.log('Start chat with friend:', friendId);
+          logger.debug('Start chat with friend:', friendId);
           if (onNavigateToChat) {
             onNavigateToChat(friendId);
           }
@@ -3243,7 +3318,7 @@ const { user, sessionExpired } = useAuth();
       {detailsOpen && selectedEvent && (
       <EventDetailsModal
         event={(() => {
-          console.log('🎵 ProfileView: Event data being passed to EventDetailsModal:', {
+          logger.debug('🎵 ProfileView: Event data being passed to EventDetailsModal:', {
             event: selectedEvent,
             hasSetlist: selectedEvent.setlist,
             hasSetlistEnriched: selectedEvent.setlist_enriched,
@@ -3255,8 +3330,12 @@ const { user, sessionExpired } = useAuth();
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
         isInterested={selectedEventInterested}
+        onEventChange={(newEvent, isInterested) => {
+          setSelectedEvent(newEvent);
+          setSelectedEventInterested(isInterested ?? false);
+        }}
         onInterestToggle={async (eventId, interested) => {
-          console.log('🎯 Interest toggled in profile view:', eventId, interested);
+          logger.debug('🎯 Interest toggled in profile view:', eventId, interested);
           try {
             // Use setEventInterest for consistency (handles both add and remove)
             await UserEventService.setEventInterest(currentUserId, eventId, interested);
@@ -3269,13 +3348,13 @@ const { user, sessionExpired } = useAuth();
             // Refetch user events to update the UI
             await fetchUserEvents();
           } catch (error) {
-            console.error('Error toggling event interest:', error);
+            logger.error('Error toggling event interest:', error);
           }
         }}
         onNavigateToProfile={onNavigateToProfile}
         onNavigateToChat={onNavigateToChat}
         onAttendanceChange={async (eventId, attended) => {
-          console.log('🎯 Attendance changed in profile view:', eventId, attended);
+          logger.debug('🎯 Attendance changed in profile view:', eventId, attended);
           // Refetch user events and attended events to update the UI
           await Promise.all([
             fetchUserEvents(),
@@ -3316,6 +3395,19 @@ const { user, sessionExpired } = useAuth();
             }}
         />
       )}
+
+      {/* Music service action modal (own profile only); key forces remount so it reopens reliably */}
+      <MusicServiceActionModal
+        key={musicModalKey}
+        open={musicActionModalOpen}
+        onOpenChange={setMusicActionModalOpen}
+        serviceType={musicServiceType}
+        serviceLabel={musicServiceType === 'spotify' ? 'Spotify' : 'Apple Music'}
+        href={musicProfileHref}
+        onSync={handleMusicActionSync}
+        onOpenApp={() => window.open(musicProfileHref, '_blank')}
+        isSyncing={musicActionSyncing}
+      />
 
     </div>
   );

@@ -6,6 +6,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/utils/logger';
 
 export interface Friend {
   id: string;
@@ -37,7 +38,7 @@ export class FriendsService {
         .order('created_at', { ascending: false });
 
       if (friendsError) {
-        console.error('Error fetching friends:', friendsError);
+        logger.error('Error fetching friends:', friendsError);
         return [];
       }
 
@@ -69,7 +70,7 @@ export class FriendsService {
         .in('user_id', userIds);
 
       if (profilesError) {
-        console.error('Error fetching friend profiles:', profilesError);
+        logger.error('Error fetching friend profiles:', profilesError);
         return [];
       }
 
@@ -103,7 +104,7 @@ export class FriendsService {
       // Convert map to array
       return Array.from(friendsMap.values());
     } catch (error) {
-      console.error('Error getting friends:', error);
+      logger.error('Error getting friends:', error);
       return [];
     }
   }
@@ -123,19 +124,19 @@ export class FriendsService {
         // If friendship doesn't exist, that's okay - just log and continue
         // The function now returns silently instead of raising an error
         if (error.message?.includes('Friendship does not exist') || error.code === 'P0001') {
-          console.log('Friendship already removed or does not exist:', friendUserId);
+          logger.debug('Friendship already removed or does not exist:', friendUserId);
           return; // Success - friendship is already gone
         }
-        console.error('Error unfriending user:', error);
+        logger.error('Error unfriending user:', error);
         throw error;
       }
     } catch (error: any) {
       // Handle case where friendship might already be deleted
       if (error?.message?.includes('Friendship does not exist') || error?.code === 'P0001') {
-        console.log('Friendship already removed or does not exist:', friendUserId);
+        logger.debug('Friendship already removed or does not exist:', friendUserId);
         return; // Success - friendship is already gone
       }
-      console.error('Error in unfriendUser:', error);
+      logger.error('Error in unfriendUser:', error);
       throw error;
     }
   }
@@ -152,11 +153,11 @@ export class FriendsService {
       });
 
       if (error) {
-        console.error('Error cancelling friend request:', error);
+        logger.error('Error cancelling friend request:', error);
         throw error;
       }
     } catch (error: any) {
-      console.error('Error in cancelFriendRequest:', error);
+      logger.error('Error in cancelFriendRequest:', error);
       throw error;
     }
   }
@@ -183,13 +184,13 @@ export class FriendsService {
           // No rows returned
           return null;
         }
-        console.error('Error getting pending request ID:', error);
+        logger.error('Error getting pending request ID:', error);
         return null;
       }
 
       return data?.id || null;
     } catch (error) {
-      console.error('Error in getPendingRequestId:', error);
+      logger.error('Error in getPendingRequestId:', error);
       return null;
     }
   }
@@ -213,7 +214,9 @@ export class FriendsService {
         p_limit: limit,
       });
       if (error) {
-        console.warn('get_similar_users_to_friend RPC not available, falling back to connection-based:', error.message);
+        if (import.meta.env.DEV) {
+          logger.debug('get_similar_users_to_friend RPC not available, using connection-based fallback');
+        }
         return this.getRecommendedFriends(userId, limit);
       }
       return (data || []).map((r: any) => ({
@@ -226,7 +229,9 @@ export class FriendsService {
         shared_genres_count: r.shared_genres_count ?? 0,
       }));
     } catch (err) {
-      console.error('Error getting similar users:', err);
+      if (import.meta.env.DEV) {
+        logger.warn('Error getting similar users, using fallback:', err);
+      }
       return this.getRecommendedFriends(userId, limit);
     }
   }
@@ -254,10 +259,10 @@ export class FriendsService {
       ]);
 
       if (secondDegreeResult.error) {
-        console.error('Error fetching second degree connections:', secondDegreeResult.error);
+        logger.error('Error fetching second degree connections:', secondDegreeResult.error);
       }
       if (thirdDegreeResult.error) {
-        console.error('Error fetching third degree connections:', thirdDegreeResult.error);
+        logger.error('Error fetching third degree connections:', thirdDegreeResult.error);
       }
 
       const secondDegree = secondDegreeResult.data || [];
@@ -314,7 +319,7 @@ export class FriendsService {
       // Return limited results
       return uniqueRecommendations.slice(0, limit);
     } catch (error) {
-      console.error('Error getting recommended friends:', error);
+      logger.error('Error getting recommended friends:', error);
       return [];
     }
   }

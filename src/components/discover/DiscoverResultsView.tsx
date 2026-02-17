@@ -509,6 +509,10 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
           event={selectedEvent}
           currentUserId={userId}
           isInterested={selectedEventInterested}
+          onEventChange={(newEvent, isInterested) => {
+            setSelectedEvent(newEvent);
+            setSelectedEventInterested(isInterested ?? false);
+          }}
           onInterestToggle={handleInterestToggle}
           onReview={() => {
             console.log('Review event:', selectedEvent.id);

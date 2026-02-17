@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Joyride, { Step, CallBackProps, STATUS, ACTIONS, EVENTS } from 'react-joyride';
 import { OnboardingService } from '@/services/onboardingService';
 import { useAuth } from '@/hooks/useAuth';
+import { logger } from '@/utils/logger';
 
 interface OnboardingTourProps {
   run: boolean;
@@ -112,7 +113,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
                        document.querySelector('[role="dialog"]');
         
         if (tooltip) {
-          console.log('Step 3 tooltip detected, clearing stepIndex for button clicks');
+          logger.debug('Step 3 tooltip detected, clearing stepIndex for button clicks');
           setStepIndex(undefined);
           clearInterval(checkInterval);
         }
@@ -122,7 +123,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       setTimeout(() => {
         clearInterval(checkInterval);
         if (stepIndex === 2) {
-          console.log('Timeout clearing stepIndex');
+          logger.debug('Timeout clearing stepIndex');
           setStepIndex(undefined);
         }
       }, 2000);
@@ -134,11 +135,11 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
   // If we need to resume at step 3, set stepIndex only for the first render
   useEffect(() => {
     if (runTour && resumeAtStepRef.current === 2 && stepIndex === undefined) {
-      console.log('Resuming tour at step 3, setting stepIndex briefly');
+      logger.debug('Resuming tour at step 3, setting stepIndex briefly');
       setStepIndex(2);
       // Clear it immediately after render
       setTimeout(() => {
-        console.log('Clearing stepIndex after resume');
+        logger.debug('Clearing stepIndex after resume');
         setStepIndex(undefined);
         resumeAtStepRef.current = null;
       }, 50);
@@ -148,11 +149,11 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
   // If we need to resume at step 5, set stepIndex only for the first render
   useEffect(() => {
     if (runTour && resumeAtStepRef.current === 4 && stepIndex === undefined) {
-      console.log('Resuming tour at step 5, setting stepIndex briefly');
+      logger.debug('Resuming tour at step 5, setting stepIndex briefly');
       setStepIndex(4);
       // Clear it immediately after render to allow buttons to work
       setTimeout(() => {
-        console.log('Clearing stepIndex after resume step 5');
+        logger.debug('Clearing stepIndex after resume step 5');
         setStepIndex(undefined);
         resumeAtStepRef.current = null;
       }, 50);
@@ -162,11 +163,11 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
   // If we need to resume at step 6, set stepIndex only for the first render
   useEffect(() => {
     if (runTour && resumeAtStepRef.current === 5 && stepIndex === undefined) {
-      console.log('Resuming tour at step 6, setting stepIndex briefly');
+      logger.debug('Resuming tour at step 6, setting stepIndex briefly');
       setStepIndex(5);
       // Clear it immediately after render to allow buttons to work
       setTimeout(() => {
-        console.log('Clearing stepIndex after resume step 6');
+        logger.debug('Clearing stepIndex after resume step 6');
         setStepIndex(undefined);
         resumeAtStepRef.current = null;
       }, 50);
@@ -215,7 +216,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
           await new Promise(resolve => setTimeout(resolve, 400));
         } catch (error) {
-          console.error('Step 2: Element not found:', error);
+          logger.error('Step 2: Element not found:', error);
           throw error;
         }
       },
@@ -233,7 +234,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       placement: 'bottom',
       disableBeacon: true,
       before: async () => {
-        console.log('Step 3 before: Checking if discover view is ready');
+        logger.debug('Step 3 before: Checking if discover view is ready');
         
         // Ensure we're on discover view
         if (onViewChange) {
@@ -246,9 +247,9 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         await new Promise(resolve => requestAnimationFrame(resolve));
         
         // Wait for element (should already be loaded from useEffect pre-load)
-        console.log('Step 3 before: Waiting for element...');
+        logger.debug('Step 3 before: Waiting for element...');
         const element = await waitForElement('[data-tour="discover-vibes"]', 10000);
-        console.log('Step 3 before: Element found!', element);
+        logger.debug('Step 3 before: Element found!', element);
         
         // Scroll into view
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -257,11 +258,11 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         // Verify visibility
         const rect = element.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0 || element.offsetParent === null) {
-          console.error('Step 3 before: Element not visible!', rect);
+          logger.error('Step 3 before: Element not visible!', rect);
           throw new Error('Target element not visible');
         }
         
-        console.log('Step 3 before: Element verified and ready');
+        logger.debug('Step 3 before: Element verified and ready');
       },
     },
     {
@@ -287,7 +288,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
           await new Promise(resolve => setTimeout(resolve, 400));
         } catch (error) {
-          console.error('Step 4: Element not found:', error);
+          logger.error('Step 4: Element not found:', error);
           throw error;
         }
       },
@@ -307,7 +308,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       before: async () => {
         // View should already be changed from STEP_AFTER handler
         // Just verify it's loaded and wait for button
-        console.log('Step 5 before: Verifying chat view is loaded');
+        logger.debug('Step 5 before: Verifying chat view is loaded');
         
         try {
           // Verify chat view is present
@@ -316,18 +317,18 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           );
           
           if (!messagesHeading) {
-            console.warn('Step 5 before: Messages heading not found, waiting...');
+            logger.warn('Step 5 before: Messages heading not found, waiting...');
             await new Promise(resolve => setTimeout(resolve, 300));
           }
           
-          console.log('Step 5 before: Waiting for chat navigation button...');
+          logger.debug('Step 5 before: Waiting for chat navigation button...');
           const element = await waitForElement('[data-tour="chat"]', 8000);
-          console.log('Step 5 before: Chat navigation button found!');
+          logger.debug('Step 5 before: Chat navigation button found!');
           
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
           await new Promise(resolve => setTimeout(resolve, 400));
         } catch (error) {
-          console.error('Step 5: Element not found:', error);
+          logger.error('Step 5: Element not found:', error);
           // Don't throw - allow step to proceed even if element not found
         }
       },
@@ -345,7 +346,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       placement: 'top',
       disableBeacon: true,
       before: async () => {
-        console.log('Step 6 before: Navigating to profile view');
+        logger.debug('Step 6 before: Navigating to profile view');
         if (onViewChange) {
           onViewChange('profile');
         }
@@ -354,13 +355,13 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         await new Promise(resolve => requestAnimationFrame(resolve));
         await new Promise(resolve => requestAnimationFrame(resolve));
         try {
-          console.log('Step 6 before: Waiting for profile-passport element...');
+          logger.debug('Step 6 before: Waiting for profile-passport element...');
           const element = await waitForElement('[data-tour="profile-passport"]', 6000);
-          console.log('Step 6 before: Profile-passport element found!');
+          logger.debug('Step 6 before: Profile-passport element found!');
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
           await new Promise(resolve => setTimeout(resolve, 400));
         } catch (error) {
-          console.error('Step 6: Element not found:', error);
+          logger.error('Step 6: Element not found:', error);
           // Don't throw - allow step to proceed even if element not found
         }
       },
@@ -391,7 +392,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
 
     // Pause tour and show loading when leaving step 2 (index 1) to load step 3
     if (type === EVENTS.STEP_AFTER && action === ACTIONS.NEXT && index === 1 && onViewChange) {
-      console.log('Step 2 completed: Pausing tour to load discover view');
+      logger.debug('Step 2 completed: Pausing tour to load discover view');
       
       // Pause the tour
       setRunTour(false);
@@ -409,7 +410,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       // Wait for the element to be ready
       try {
         await waitForElement('[data-tour="discover-vibes"]', 15000);
-        console.log('Step 3 target is ready, resuming tour');
+        logger.debug('Step 3 target is ready, resuming tour');
         
         // Small delay to ensure everything is rendered
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -425,7 +426,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         await new Promise(resolve => setTimeout(resolve, 100));
         setRunTour(true);
       } catch (error) {
-        console.error('Step 3 target not ready, resuming anyway:', error);
+        logger.error('Step 3 target not ready, resuming anyway:', error);
         // Resume anyway - the before handler will try again
         setIsLoading(false);
         setLoadingMessage('');
@@ -439,14 +440,14 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
     // Clear stepIndex immediately when step 3 is shown (STEP_BEFORE with index 2)
     // This ensures buttons work as soon as step 3 appears
     if (type === EVENTS.STEP_BEFORE && index === 2) {
-      console.log('Step 3 shown, immediately clearing stepIndex to enable buttons');
+      logger.debug('Step 3 shown, immediately clearing stepIndex to enable buttons');
       // Clear immediately, synchronously if possible
       setStepIndex(undefined);
       // Force a re-render to ensure buttons are clickable
       setTimeout(() => {
         const button = document.querySelector('[data-test-id="button-primary"]') as HTMLButtonElement;
         if (button) {
-          console.log('Button found, ensuring it is clickable');
+          logger.debug('Button found, ensuring it is clickable');
           button.style.pointerEvents = 'auto';
           button.style.cursor = 'pointer';
         }
@@ -455,14 +456,14 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
     
     // Also clear stepIndex on STEP_AFTER for step 3 to ensure next button works
     if (type === EVENTS.STEP_AFTER && index === 2 && stepIndex === 2) {
-      console.log('Step 3 completed, clearing stepIndex');
+      logger.debug('Step 3 completed, clearing stepIndex');
       setStepIndex(undefined);
     }
 
     // Clear stepIndex immediately when step 5 is shown (STEP_BEFORE with index 4)
     // This ensures buttons work as soon as step 5 appears
     if (type === EVENTS.STEP_BEFORE && index === 4) {
-      console.log('Step 5 shown, immediately clearing stepIndex to enable buttons');
+      logger.debug('Step 5 shown, immediately clearing stepIndex to enable buttons');
       // Clear immediately, synchronously if possible
       setStepIndex(undefined);
       // Force a re-render and make button clickable using multiple strategies
@@ -490,7 +491,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
               
               const text = button.textContent || '';
               if (text.includes('Next') || text.includes('Step 5')) {
-                console.log(`Step 5 button found with selector: ${selector}`);
+                logger.debug(`Step 5 button found with selector: ${selector}`);
                 processedButtons.add(button);
                 
                 // Just ensure the button is enabled and clickable
@@ -521,7 +522,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           
           const text = button.textContent || '';
           if (text.includes('Next') && text.includes('Step 5')) {
-            console.log('Step 5 button found by text search');
+            logger.debug('Step 5 button found by text search');
             processedButtons.add(button);
             button.style.pointerEvents = 'auto';
             button.style.cursor = 'pointer';
@@ -558,13 +559,13 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
     
     // Also clear stepIndex on STEP_AFTER for step 5 to ensure next button works
     if (type === EVENTS.STEP_AFTER && index === 4 && stepIndex === 4) {
-      console.log('Step 5 completed, clearing stepIndex');
+      logger.debug('Step 5 completed, clearing stepIndex');
       setStepIndex(undefined);
     }
 
     // Pause tour and show loading when leaving step 5 (index 4) to load step 6 (profile)
     if (type === EVENTS.STEP_AFTER && action === ACTIONS.NEXT && index === 4 && onViewChange) {
-      console.log('Step 5 completed: Pausing tour to load profile view');
+      logger.debug('Step 5 completed: Pausing tour to load profile view');
       
       // Pause the tour
       setRunTour(false);
@@ -576,7 +577,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       
       // Wait for the profile view to load
       try {
-        console.log('Step 5 completed: Waiting for profile view to load...');
+        logger.debug('Step 5 completed: Waiting for profile view to load...');
         await new Promise(resolve => setTimeout(resolve, 500));
         await new Promise(resolve => requestAnimationFrame(resolve));
         await new Promise(resolve => requestAnimationFrame(resolve));
@@ -589,7 +590,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           const profilePassport = document.querySelector('[data-tour="profile-passport"]');
           
           if (profilePassport) {
-            console.log('Profile view is ready, resuming tour');
+            logger.debug('Profile view is ready, resuming tour');
             profileViewReady = true;
             break;
           }
@@ -599,7 +600,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         }
         
         if (!profileViewReady) {
-          console.warn('Profile view loading timeout, proceeding anyway');
+          logger.warn('Profile view loading timeout, proceeding anyway');
         }
         
         // Wait a bit more for profile to render
@@ -622,7 +623,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           resumeAtStepRef.current = null;
         }, 200);
       } catch (error) {
-        console.error('Profile view loading error:', error);
+        logger.error('Profile view loading error:', error);
         // Still resume, let before handler deal with it
         setIsLoading(false);
         setLoadingMessage('');
@@ -639,7 +640,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
 
     // Pause tour and show loading when leaving step 4 (index 3) to load step 5 (chat)
     if (type === EVENTS.STEP_AFTER && action === ACTIONS.NEXT && index === 3 && onViewChange) {
-      console.log('Step 4 completed: Pausing tour to load chat view');
+      logger.debug('Step 4 completed: Pausing tour to load chat view');
       
       // Pause the tour
       setRunTour(false);
@@ -651,7 +652,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       
       // Wait for the chat view to load
       try {
-        console.log('Step 4 completed: Waiting for chat view to load...');
+        logger.debug('Step 4 completed: Waiting for chat view to load...');
         await new Promise(resolve => setTimeout(resolve, 500));
         await new Promise(resolve => requestAnimationFrame(resolve));
         await new Promise(resolve => requestAnimationFrame(resolve));
@@ -666,7 +667,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           );
           
           if (messagesHeading) {
-            console.log('Chat view is ready, resuming tour');
+            logger.debug('Chat view is ready, resuming tour');
             chatViewReady = true;
             break;
           }
@@ -676,7 +677,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         }
         
         if (!chatViewReady) {
-          console.warn('Chat view loading timeout, proceeding anyway');
+          logger.warn('Chat view loading timeout, proceeding anyway');
         }
         
         // Wait a bit more for chat list to render
@@ -700,7 +701,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           resumeAtStepRef.current = null;
         }, 200);
       } catch (error) {
-        console.error('Chat view loading error:', error);
+        logger.error('Chat view loading error:', error);
         // Still resume, let before handler deal with it
         setIsLoading(false);
         setLoadingMessage('');
@@ -730,7 +731,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
 
     // Handle errors
     if (type === EVENTS.TARGET_NOT_FOUND) {
-      console.error('Joyride: Target not found for step', index, data);
+      logger.error('Joyride: Target not found for step', index, data);
       // Don't block progression - let user skip if needed
     }
   };

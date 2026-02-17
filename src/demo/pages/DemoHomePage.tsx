@@ -320,6 +320,10 @@ export const DemoHomePage: React.FC<DemoHomePageProps> = ({
           currentUserId={DEMO_USER.id}
           isOpen={eventDetailsOpen}
           onClose={() => setEventDetailsOpen(false)}
+          onEventChange={(newEvent, isInterested) => {
+            setSelectedEvent(newEvent);
+            setSelectedEventInterested(isInterested ?? false);
+          }}
           onInterestToggle={handleInterestToggle}
           onAttendanceChange={handleAttendanceToggle}
           isInterested={selectedEventInterested}

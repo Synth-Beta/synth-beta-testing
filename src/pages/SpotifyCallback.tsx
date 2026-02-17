@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { spotifyService } from '@/services/spotifyService';
 import { streamingSyncService } from '@/services/streamingSyncService';
+import { logger } from '@/utils/logger';
 
 const SpotifyCallback = () => {
   const [status, setStatus] = useState<'connecting' | 'syncing' | 'complete' | 'error'>('connecting');
@@ -25,8 +26,8 @@ const SpotifyCallback = () => {
             new Promise<void>((_, reject) =>
               setTimeout(() => reject(new Error('Sync timed out')), syncTimeoutMs)
             ),
-          ]).catch((error) => {
-            console.error('Spotify sync error:', error);
+          ]          ).catch((error) => {
+            logger.error('Spotify sync error:', error);
             streamingSyncService.errorSync(error?.message || 'Sync failed');
             // Still proceed to complete so user gets redirected; data may be partial
           });
@@ -44,7 +45,7 @@ const SpotifyCallback = () => {
           }, 2000);
         }
       } catch (error) {
-        console.error('Spotify callback error:', error);
+        logger.error('Spotify callback error:', error);
         setStatus('error');
         
         // Provide more specific error messages

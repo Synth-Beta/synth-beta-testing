@@ -956,6 +956,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           event={selectedEvent}
           currentUserId={currentUserId}
           isInterested={selectedEventInterested}
+          onEventChange={(newEvent, isInterested) => {
+            setSelectedEvent(newEvent);
+            setSelectedEventInterested(isInterested ?? false);
+            setDetailView({ type: 'event', id: newEvent.id, name: newEvent.artist_name || newEvent.title || 'Event' });
+          }}
           onInterestToggle={async (eventId, interested) => {
             try {
               await UserEventService.setEventInterest(currentUserId, eventId, interested);

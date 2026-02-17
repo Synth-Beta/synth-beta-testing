@@ -44,12 +44,9 @@ if (SUPABASE_URL === "https://your-project.supabase.co" || SUPABASE_PUBLISHABLE_
   console.error('SUPABASE_KEY present:', !!SUPABASE_PUBLISHABLE_KEY);
   console.error('Environment check - DEV:', import.meta.env.DEV);
   console.error('Environment check - MODE:', import.meta.env.MODE);
-} else {
-  // Always log in production too for debugging
+} else if (import.meta.env.DEV) {
   console.log('✅ Supabase credentials loaded');
-  if (import.meta.env.DEV) {
-    console.log('Supabase URL:', SUPABASE_URL);
-  }
+  console.log('Supabase URL:', SUPABASE_URL);
 }
 
 // Detect if running on mobile (Capacitor)

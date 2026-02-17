@@ -106,6 +106,20 @@ import { supabase } from '@/integrations/supabase/client';
 
 const DEFAULT_MAP_CENTER: [number, number] = [39.8283, -98.5795];
 
+const getScrollParent = (element: HTMLElement | null): HTMLElement | null => {
+  if (!element) return null;
+  let parent: HTMLElement | null = element.parentElement;
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    const overflowY = style.overflowY;
+    const canScroll = (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+      && parent.scrollHeight > parent.clientHeight;
+    if (canScroll) return parent;
+    parent = parent.parentElement;
+  }
+  return null;
+};
+
 // Using UnifiedFeedItem from service instead of local interface
 
 type FeedSectionKey = 'events' | 'reviews' | 'news';
@@ -234,6 +248,7 @@ export const UnifiedFeed = ({
   const [selectedReviewDetail, setSelectedReviewDetail] = useState<UnifiedFeedItem | null>(null);
   const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'price' | 'popularity' | 'distance'>('relevance');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const feedRootRef = useRef<HTMLElement | null>(null);
   
   // Check localStorage for feed filter on mount
   const initialFollowingFilter = (() => {
@@ -1042,10 +1057,17 @@ export const UnifiedFeed = ({
 
   // Infinite scroll effect
   useEffect(() => {
+    const container = getScrollParent(feedRootRef.current);
+
     const handleScroll = () => {
+      const scrollTop = container
+        ? container.scrollTop
+        : (window.scrollY || document.documentElement.scrollTop);
+      const viewportHeight = container ? container.clientHeight : window.innerHeight;
+      const fullHeight = container ? container.scrollHeight : document.documentElement.offsetHeight;
+
       if (
-        window.innerHeight + document.documentElement.scrollTop
-        >= document.documentElement.offsetHeight - 1000 &&
+        viewportHeight + scrollTop >= fullHeight - 1000 &&
         !loadingMore &&
         hasMore
       ) {
@@ -1053,7 +1075,12 @@ export const UnifiedFeed = ({
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    if (container) {
+      container.addEventListener('scroll', handleScroll, { passive: true });
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loadingMore, hasMore, feedItems.length]);
 
@@ -2383,7 +2410,7 @@ export const UnifiedFeed = ({
   }
 
   return (
-    <main className={outerClassName} style={outerStyle}>
+    <main ref={feedRootRef} className={outerClassName} style={outerStyle}>
       <div className={innerClassName}>
         {shouldRenderHeader && (
         <div className={headerSpacingClass}>
@@ -3248,6 +3275,10 @@ export const UnifiedFeed = ({
         onClose={() => setDetailsOpen(false)}
           event={selectedEventForDetails}
           currentUserId={currentUserId}
+        onEventChange={(newEvent, isInterested) => {
+          setSelectedEventForDetails(newEvent);
+          setSelectedEventInterested(isInterested ?? false);
+        }}
         onReview={() => {
           if (selectedEventForDetails) {
             setSelectedReviewEvent(selectedEventForDetails);

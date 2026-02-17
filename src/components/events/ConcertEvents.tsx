@@ -322,6 +322,17 @@ useEffect(() => {
         currentUserId={currentUserId}
         isOpen={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+        onEventChange={(newEvent, isInterested) => {
+          setSelectedEvent(newEvent as ConcertEvent);
+          if (isInterested !== undefined) {
+            setInterestedEvents(prev => {
+              const next = new Set(prev);
+              if (isInterested) next.add(newEvent.id);
+              else next.delete(newEvent.id);
+              return next;
+            });
+          }
+        }}
         onInterestToggle={(eventId) => handleInterestToggle(eventId)}
         isInterested={selectedEvent ? interestedEvents.has(selectedEvent.id) : false}
         onNavigateToProfile={onNavigateToProfile}
