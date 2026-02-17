@@ -120,23 +120,23 @@ export const SideMenu: React.FC<SideMenuProps> = ({
       if (!isOpen || !user) return;
 
       try {
-        // Fetch unread notifications count (excluding friend requests)
+        // Fetch unread notifications count (excluding friend_request and friend_accepted - those go to Friends)
         const { count: notifCount } = await supabase
           .from('notifications')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .eq('is_read', false)
-          .not('type', 'eq', 'friend_request');
+          .not('type', 'in', '(friend_request,friend_accepted)');
         
         setUnreadNotificationsCount(notifCount || 0);
 
-        // Fetch pending friend requests count
+        // Fetch friends count (friend requests + friend accepted / "You're now friends!")
         const { count: friendReqCount } = await supabase
           .from('notifications')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .eq('is_read', false)
-          .eq('type', 'friend_request');
+          .in('type', ['friend_request', 'friend_accepted']);
         
         setPendingFriendRequestsCount(friendReqCount || 0);
       } catch (error) {
@@ -238,7 +238,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           {/* Navigation */}
           <div className="side-menu__list">
             <MenuCategory
-              label="Friend Requests"
+              label="Friends"
               icon="twoUsers"
               badgeCount={pendingFriendRequestsCount}
               onPress={() => {

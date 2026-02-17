@@ -80,6 +80,33 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, sup
 // Expose URL for validation (for debugging)
 (supabase as any).supabaseUrl = SUPABASE_URL;
 
+// Request native session from Swift layer (when app uses native auth + Capacitor WebView)
+// The native layer injects session via synthNativeSessionReady event
+if (isMobile && typeof window !== 'undefined') {
+  const win = window as any;
+  let nativeSessionReceived = false;
+  win.addEventListener('synthNativeSessionReady', async (e: CustomEvent<{ access_token: string; refresh_token: string }>) => {
+    const { access_token, refresh_token } = e.detail || {};
+    if (access_token && !nativeSessionReceived) {
+      nativeSessionReceived = true;
+      try {
+        await supabase.auth.setSession({ access_token, refresh_token: refresh_token || '' });
+        if (import.meta.env.DEV) console.log('✅ Session restored from native auth');
+      } catch (err) {
+        console.error('Failed to set session from native:', err);
+      }
+    }
+  });
+  const requestNativeSession = () => {
+    if (win.webkit?.messageHandlers?.synthGetSession) {
+      win.webkit.messageHandlers.synthGetSession.postMessage({});
+    }
+  };
+  requestNativeSession();
+  // Retry in case native handler attaches after page load
+  [500, 1500, 3000].forEach((ms) => setTimeout(requestNativeSession, ms));
+}
+
 // Set up auth state change listener for deep link handling on mobile
 // This is mobile-only because web handles auth callbacks differently
 if (isMobile && typeof window !== 'undefined') {

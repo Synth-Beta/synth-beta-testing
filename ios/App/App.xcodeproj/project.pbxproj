@@ -9,6 +9,35 @@
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
+		SN1000012AF431CB00220026 /* Synth_SwiftUIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000022AF431CB00220026 /* Synth_SwiftUIApp.swift */; };
+		AUTH10012AF431CB00220026 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AUTH10002AF431CB00220026 /* AuthView.swift */; };
+		CAPWV10012AF431CB00220026 /* CapacitorWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAPWV10002AF431CB00220026 /* CapacitorWebView.swift */; };
+		SN1000032AF431CB00220026 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000042AF431CB00220026 /* ContentView.swift */; };
+		SN1000052AF431CB00220026 /* AppShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000062AF431CB00220026 /* AppShellView.swift */; };
+		SN1000072AF431CB00220026 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000082AF431CB00220026 /* Theme.swift */; };
+		SN1000092AF431CB00220026 /* PageScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10000A2AF431CB00220026 /* PageScreen.swift */; };
+		SN10000B2AF431CB00220026 /* PageBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10000C2AF431CB00220026 /* PageBody.swift */; };
+		SN10000D2AF431CB00220026 /* HomeFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10000E2AF431CB00220026 /* HomeFeedView.swift */; };
+		SN10000F2AF431CB00220026 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000102AF431CB00220026 /* DiscoverView.swift */; };
+		SN1000112AF431CB00220026 /* BottomNav.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000122AF431CB00220026 /* BottomNav.swift */; };
+		SN1000132AF431CB00220026 /* AppHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000142AF431CB00220026 /* AppHeader.swift */; };
+		SN1000152AF431CB00220026 /* AppRoutes.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000162AF431CB00220026 /* AppRoutes.swift */; };
+		SN1000172AF431CB00220026 /* AllPagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000182AF431CB00220026 /* AllPagesView.swift */; };
+		SN1000192AF431CB00220026 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10001A2AF431CB00220026 /* SideMenuView.swift */; };
+		SN10001B2AF431CB00220026 /* Icon.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10001C2AF431CB00220026 /* Icon.swift */; };
+		SN10001D2AF431CB00220026 /* MenuCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10001E2AF431CB00220026 /* MenuCategory.swift */; };
+		SN10001F2AF431CB00220026 /* SynthTextStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000202AF431CB00220026 /* SynthTextStyle.swift */; };
+		SN1000212AF431CB00220026 /* ShareWithFriendsBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000222AF431CB00220026 /* ShareWithFriendsBanner.swift */; };
+		SN1000232AF431CB00220026 /* ShareOfferView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000242AF431CB00220026 /* ShareOfferView.swift */; };
+		SN1000252AF431CB00220026 /* EmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000262AF431CB00220026 /* EmptyState.swift */; };
+		SN1000282AF431CB00220026 /* IconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000292AF431CB00220026 /* IconView.swift */; };
+		SN10002C2AF431CB00220026 /* IconText.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10002D2AF431CB00220026 /* IconText.swift */; };
+		SN10002E2AF431CB00220026 /* SynthSearchBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10002F2AF431CB00220026 /* SynthSearchBar.swift */; };
+		SN1000302AF431CB00220026 /* SynthButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000312AF431CB00220026 /* SynthButton.swift */; };
+		SN1000322AF431CB00220026 /* IconGalleryPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000332AF431CB00220026 /* IconGalleryPreview.swift */; };
+		SN1000342AF431CB00220026 /* HeaderShowcase.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000352AF431CB00220026 /* HeaderShowcase.swift */; };
+		SN1000362AF431CB00220026 /* DesignSystemPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000372AF431CB00220026 /* DesignSystemPreview.swift */; };
+		SN10002A2AF431CB00220026 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = SN10002B2AF431CB00220026 /* icons */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30A1FED79650016851F /* AppleSignInHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3091FED79650016851F /* AppleSignInHandler.swift */; };
@@ -22,6 +51,35 @@
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+		AUTH10002AF431CB00220026 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		CAPWV10002AF431CB00220026 /* CapacitorWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapacitorWebView.swift; sourceTree = "<group>"; };
+		SN1000022AF431CB00220026 /* Synth_SwiftUIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Synth_SwiftUIApp.swift; sourceTree = "<group>"; };
+		SN1000042AF431CB00220026 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		SN1000062AF431CB00220026 /* AppShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellView.swift; sourceTree = "<group>"; };
+		SN1000082AF431CB00220026 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		SN10000A2AF431CB00220026 /* PageScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageScreen.swift; sourceTree = "<group>"; };
+		SN10000C2AF431CB00220026 /* PageBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageBody.swift; sourceTree = "<group>"; };
+		SN10000E2AF431CB00220026 /* HomeFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeFeedView.swift; sourceTree = "<group>"; };
+		SN1000102AF431CB00220026 /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
+		SN1000122AF431CB00220026 /* BottomNav.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomNav.swift; sourceTree = "<group>"; };
+		SN1000142AF431CB00220026 /* AppHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppHeader.swift; sourceTree = "<group>"; };
+		SN1000162AF431CB00220026 /* AppRoutes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoutes.swift; sourceTree = "<group>"; };
+		SN1000182AF431CB00220026 /* AllPagesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllPagesView.swift; sourceTree = "<group>"; };
+		SN10001A2AF431CB00220026 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
+		SN10001C2AF431CB00220026 /* Icon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icon.swift; sourceTree = "<group>"; };
+		SN10001E2AF431CB00220026 /* MenuCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuCategory.swift; sourceTree = "<group>"; };
+		SN1000202AF431CB00220026 /* SynthTextStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthTextStyle.swift; sourceTree = "<group>"; };
+		SN1000222AF431CB00220026 /* ShareWithFriendsBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareWithFriendsBanner.swift; sourceTree = "<group>"; };
+		SN1000242AF431CB00220026 /* ShareOfferView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareOfferView.swift; sourceTree = "<group>"; };
+		SN1000262AF431CB00220026 /* EmptyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyState.swift; sourceTree = "<group>"; };
+		SN1000292AF431CB00220026 /* IconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconView.swift; sourceTree = "<group>"; };
+		SN10002D2AF431CB00220026 /* IconText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconText.swift; sourceTree = "<group>"; };
+		SN10002F2AF431CB00220026 /* SynthSearchBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthSearchBar.swift; sourceTree = "<group>"; };
+		SN1000312AF431CB00220026 /* SynthButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthButton.swift; sourceTree = "<group>"; };
+		SN1000332AF431CB00220026 /* IconGalleryPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconGalleryPreview.swift; sourceTree = "<group>"; };
+		SN1000352AF431CB00220026 /* HeaderShowcase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderShowcase.swift; sourceTree = "<group>"; };
+		SN1000372AF431CB00220026 /* DesignSystemPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystemPreview.swift; sourceTree = "<group>"; };
+		SN10002B2AF431CB00220026 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; path = icons; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* Synth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Synth.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -43,6 +101,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+				SN0000032AF431CB00220026 /* SynthNative in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,6 +129,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				SN1000272AF431CB00220026 /* SwiftUI */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC3091FED79650016851F /* AppleSignInHandler.swift */,
@@ -83,6 +143,42 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		SN1000272AF431CB00220026 /* SwiftUI */ = {
+			isa = PBXGroup;
+			children = (
+				AUTH10002AF431CB00220026 /* AuthView.swift */,
+				CAPWV10002AF431CB00220026 /* CapacitorWebView.swift */,
+				SN1000022AF431CB00220026 /* Synth_SwiftUIApp.swift */,
+				SN1000042AF431CB00220026 /* ContentView.swift */,
+				SN1000062AF431CB00220026 /* AppShellView.swift */,
+				SN1000082AF431CB00220026 /* Theme.swift */,
+				SN10000A2AF431CB00220026 /* PageScreen.swift */,
+				SN10000C2AF431CB00220026 /* PageBody.swift */,
+				SN10000E2AF431CB00220026 /* HomeFeedView.swift */,
+				SN1000102AF431CB00220026 /* DiscoverView.swift */,
+				SN1000122AF431CB00220026 /* BottomNav.swift */,
+				SN1000142AF431CB00220026 /* AppHeader.swift */,
+				SN1000162AF431CB00220026 /* AppRoutes.swift */,
+				SN1000182AF431CB00220026 /* AllPagesView.swift */,
+				SN10001A2AF431CB00220026 /* SideMenuView.swift */,
+				SN10001C2AF431CB00220026 /* Icon.swift */,
+				SN10001E2AF431CB00220026 /* MenuCategory.swift */,
+				SN1000202AF431CB00220026 /* SynthTextStyle.swift */,
+				SN1000222AF431CB00220026 /* ShareWithFriendsBanner.swift */,
+				SN1000242AF431CB00220026 /* ShareOfferView.swift */,
+				SN1000262AF431CB00220026 /* EmptyState.swift */,
+				SN1000292AF431CB00220026 /* IconView.swift */,
+				SN10002D2AF431CB00220026 /* IconText.swift */,
+				SN10002F2AF431CB00220026 /* SynthSearchBar.swift */,
+				SN1000312AF431CB00220026 /* SynthButton.swift */,
+				SN1000332AF431CB00220026 /* IconGalleryPreview.swift */,
+				SN1000352AF431CB00220026 /* HeaderShowcase.swift */,
+				SN1000372AF431CB00220026 /* DesignSystemPreview.swift */,
+				SN10002B2AF431CB00220026 /* icons */,
+			);
+			path = SwiftUI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -104,6 +200,7 @@
 			name = Synth;
 			packageProductDependencies = (
 				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
+				SN0000022AF431CB00220026 /* SynthNative */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* Synth.app */;
@@ -137,6 +234,7 @@
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
+				SN0000012AAA248700AAC8A2 /* XCLocalSwiftPackageReference "SynthNative" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -153,6 +251,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
+				SN10002A2AF431CB00220026 /* icons in Resources */,
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
@@ -193,6 +292,34 @@
 				504EC30A1FED79650016851F /* AppleSignInHandler.swift in Sources */,
 				EVSH1002ABCD12340016851F /* EventShareHandler.swift in Sources */,
 				EVSM2002ABCD12340016851F /* EventShareModal.swift in Sources */,
+				AUTH10012AF431CB00220026 /* AuthView.swift in Sources */,
+				CAPWV10012AF431CB00220026 /* CapacitorWebView.swift in Sources */,
+				SN1000012AF431CB00220026 /* Synth_SwiftUIApp.swift in Sources */,
+				SN1000032AF431CB00220026 /* ContentView.swift in Sources */,
+				SN1000052AF431CB00220026 /* AppShellView.swift in Sources */,
+				SN1000072AF431CB00220026 /* Theme.swift in Sources */,
+				SN1000092AF431CB00220026 /* PageScreen.swift in Sources */,
+				SN10000B2AF431CB00220026 /* PageBody.swift in Sources */,
+				SN10000D2AF431CB00220026 /* HomeFeedView.swift in Sources */,
+				SN10000F2AF431CB00220026 /* DiscoverView.swift in Sources */,
+				SN1000112AF431CB00220026 /* BottomNav.swift in Sources */,
+				SN1000132AF431CB00220026 /* AppHeader.swift in Sources */,
+				SN1000152AF431CB00220026 /* AppRoutes.swift in Sources */,
+				SN1000172AF431CB00220026 /* AllPagesView.swift in Sources */,
+				SN1000192AF431CB00220026 /* SideMenuView.swift in Sources */,
+				SN10001B2AF431CB00220026 /* Icon.swift in Sources */,
+				SN10001D2AF431CB00220026 /* MenuCategory.swift in Sources */,
+				SN10001F2AF431CB00220026 /* SynthTextStyle.swift in Sources */,
+				SN1000212AF431CB00220026 /* ShareWithFriendsBanner.swift in Sources */,
+				SN1000232AF431CB00220026 /* ShareOfferView.swift in Sources */,
+				SN1000252AF431CB00220026 /* EmptyState.swift in Sources */,
+				SN1000282AF431CB00220026 /* IconView.swift in Sources */,
+				SN10002C2AF431CB00220026 /* IconText.swift in Sources */,
+				SN10002E2AF431CB00220026 /* SynthSearchBar.swift in Sources */,
+				SN1000302AF431CB00220026 /* SynthButton.swift in Sources */,
+				SN1000322AF431CB00220026 /* IconGalleryPreview.swift in Sources */,
+				SN1000342AF431CB00220026 /* HeaderShowcase.swift in Sources */,
+				SN1000362AF431CB00220026 /* DesignSystemPreview.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -272,7 +399,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -329,7 +456,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -350,7 +477,7 @@
 				CURRENT_PROJECT_VERSION = 2;
 				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -379,7 +506,7 @@
 				CURRENT_PROJECT_VERSION = 2;
 				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -425,6 +552,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "CapApp-SPM";
 		};
+		SN0000012AAA248700AAC8A2 /* XCLocalSwiftPackageReference "SynthNative" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../../synth-native-ios";
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -432,6 +563,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;
 			productName = "CapApp-SPM";
+		};
+		SN0000022AF431CB00220026 /* SynthNative */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SN0000012AAA248700AAC8A2 /* XCLocalSwiftPackageReference "SynthNative" */;
+			productName = "SynthNative";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

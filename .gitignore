@@ -21,6 +21,7 @@ ios/App/App/public
 backend/.env
 
 # Security - API Keys and Authentication Files - NEVER commit these!
+ios/debug.xcconfig
 *.p8
 *.p12
 *.pem

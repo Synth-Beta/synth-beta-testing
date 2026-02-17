@@ -27,7 +27,6 @@ struct AppShellView: View {
                         )
                         .ignoresSafeArea(.keyboard, edges: .bottom)
                     }
-                }
             }
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $activeModal) { modal in

@@ -73,10 +73,11 @@ export const NotificationsPage = ({
         n => n.type !== 'message' && n.type !== 'group_chat_invite'
       );
       let filtered = nonChatNotifications;
+      const friendTypes = ['friend_request', 'friend_accepted'];
       if (filter === 'friends_only') {
-        filtered = nonChatNotifications.filter(n => n.type === 'friend_request');
+        filtered = nonChatNotifications.filter(n => friendTypes.includes(n.type));
       } else if (filter === 'exclude_friends') {
-        filtered = nonChatNotifications.filter(n => n.type !== 'friend_request');
+        filtered = nonChatNotifications.filter(n => !friendTypes.includes(n.type));
       }
       return { notifications: filtered, unreadCount: filtered.filter(n => !n.is_read).length };
     },
@@ -594,7 +595,7 @@ export const NotificationsPage = ({
   if (loading) {
     return (
       <SynthLoadingScreen
-        text={filter === 'friends_only' ? 'Loading friend requests...' : 'Loading notifications...'}
+        text={filter === 'friends_only' ? 'Loading friends...' : 'Loading notifications...'}
       />
     );
   }
@@ -636,7 +637,7 @@ export const NotificationsPage = ({
             margin: 0,
             fontWeight: 600,
           }}>
-            {filter === 'friends_only' ? 'Friend Requests' : 'Notifications'}
+            {filter === 'friends_only' ? 'Friends' : 'Notifications'}
           </h1>
           {unreadCount > 0 && (
             <div
@@ -726,14 +727,14 @@ export const NotificationsPage = ({
               color: 'var(--neutral-900)',
               marginBottom: 8,
             }}>
-              {filter === 'friends_only' ? 'No friend requests' : 'No notifications yet'}
+              {filter === 'friends_only' ? 'No friend activity' : 'No notifications yet'}
             </h3>
             <p style={{
               ...textStyles.body,
               color: 'var(--neutral-600)',
             }}>
               {filter === 'friends_only' 
-                ? "When someone sends you a friend request, it will appear here."
+                ? "Friend requests and new friendships will appear here."
                 : "When you get event updates or review activity, they'll appear here."
               }
             </p>
@@ -875,6 +876,69 @@ export const NotificationsPage = ({
                           >
                             <X size={14} />
                             Decline
+                          </button>
+                        </div>
+                      )}
+                      {notification.type === 'friend_accepted' && (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              const data = notification.data as any;
+                              const friendId = data?.friend_id || data?.sender_id;
+                              const friendName = data?.friend_name || notification.title?.replace("You're now friends with ", '').replace('!', '') || 'Friend';
+                              if (friendId) {
+                                window.dispatchEvent(new CustomEvent('open-friend-match', {
+                                  detail: { friendId, friendName, notificationId: notification.id },
+                                }));
+                              }
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '6px 12px',
+                              background: 'var(--brand-pink-500)',
+                              color: '#fff',
+                              borderRadius: 8,
+                              border: 'none',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Users size={14} />
+                            View Match
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              const data = notification.data as any;
+                              const friendId = data?.friend_id || data?.sender_id || notification.actor_user_id;
+                              if (friendId && onNavigateToProfile) {
+                                onNavigateToProfile(friendId);
+                              }
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '6px 12px',
+                              background: 'rgba(255, 255, 255, 0.8)',
+                              color: 'var(--neutral-700)',
+                              borderRadius: 8,
+                              border: '1px solid rgba(0, 0, 0, 0.1)',
+                              fontFamily: 'var(--font-family)',
+                              fontSize: 12,
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <UserPlus size={14} />
+                            View Profile
                           </button>
                         </div>
                       )}

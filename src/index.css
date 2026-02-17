@@ -1435,7 +1435,6 @@
     overflow-y: auto !important;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
     overscroll-behavior-y: auto;
     overscroll-behavior-x: none;
     touch-action: pan-y pinch-zoom;
@@ -1443,19 +1442,15 @@
     -webkit-transform: translateZ(0);
     will-change: scroll-position;
     position: relative;
-    scroll-snap-type: y mandatory;
-    scroll-padding-top: 12px;
-    scroll-padding-bottom: 12px;
+    /* No scroll-snap: normal continuous scroll for events */
   }
 
   .swift-ui-feed-item {
     width: 100%;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     padding: 0;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
     flex-shrink: 0;
     position: relative;
     margin-bottom: 0;
@@ -1515,7 +1510,7 @@
     }
 
     .swift-ui-feed-item {
-      min-height: calc(100vh - 220px);
+      min-height: auto;
     }
   }
 

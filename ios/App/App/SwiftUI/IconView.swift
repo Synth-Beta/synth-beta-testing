@@ -1,6 +1,6 @@
 import Foundation
 import SwiftUI
-import SVGView
+import WebKit
 
 struct IconView: View {
     let icon: Icon
@@ -28,9 +28,8 @@ struct IconView: View {
 
     var body: some View {
         Group {
-            if let data = svgData() {
-                SVGView(data: data)
-                    .aspectRatio(contentMode: .fit)
+            if let html = svgHtml() {
+                SVGWebView(html: html)
             } else {
                 Color.clear
             }
@@ -39,7 +38,7 @@ struct IconView: View {
         .foregroundStyle(color)
     }
 
-    private func svgData() -> Data? {
+    private func svgHtml() -> String? {
         guard let url = Bundle.main.url(forResource: icon.filename, withExtension: "svg", subdirectory: "icons") else {
             return nil
         }
@@ -79,7 +78,10 @@ struct IconView: View {
             )
         }
 
-        return svg.data(using: .utf8)
+        return """
+        <html><head><meta name="viewport" content="width=\(size),height=\(size)"/></head>
+        <body style="margin:0;padding:0;background:transparent;"><div style="width:\(size)px;height:\(size)px;">\(svg)</div></body></html>
+        """
     }
 
     private func resolvedStrokeHex() -> String? {
@@ -99,5 +101,22 @@ struct IconView: View {
         if color == SynthColor.neutral900 { return SynthColorHex.neutral900 }
 
         return nil
+    }
+}
+
+private struct SVGWebView: UIViewRepresentable {
+    let html: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        webView.loadHTMLString(html, baseURL: nil)
     }
 }

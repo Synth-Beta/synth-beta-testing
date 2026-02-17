@@ -87,6 +87,7 @@ export interface NotificationData {
   };
   friend_accepted: {
     friend_id: string;
+    friend_name?: string;
   };
   event_interest: {
     interested_user_id: string;

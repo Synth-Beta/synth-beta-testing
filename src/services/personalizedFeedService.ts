@@ -251,8 +251,38 @@ export class PersonalizationEngineV5 {
         return { events: [], hasMore: false };
       }
       
-      const rows = (data ?? []) as FeedV5Row[];
+      let rows = (data ?? []) as FeedV5Row[];
       logger.debug('🔍 [FeedV5] Raw RPC response:', rows.length, 'events');
+
+      // Fallback: when we have coordinates but get 0 events, retry without geo filter.
+      // Events may lack lat/lng in DB; without filter we get nationwide results.
+      if (rows.length === 0 && hasCoordinates) {
+        console.warn('⚠️ [FeedV5] 0 events with coordinates, retrying without location filter');
+        const fallbackPayload = { ...rpcPayload, p_city_lat: null, p_city_lng: null };
+        let fallbackData: any;
+        let fallbackError: any;
+        try {
+          const fallbackResult = await supabase.rpc('get_or_refresh_feed_v5_cached', {
+            ...fallbackPayload,
+            p_ttl_seconds: 600,
+          });
+          fallbackData = fallbackResult.data;
+          fallbackError = fallbackResult.error;
+        } catch (fallbackErr) {
+          const direct = await supabase.rpc('get_personalized_feed_v5', fallbackPayload);
+          fallbackData = direct.data;
+          fallbackError = direct.error;
+        }
+        const fallbackCount = Array.isArray(fallbackData) ? fallbackData.length : 0;
+        if (fallbackError) {
+          console.warn('⚠️ [FeedV5] Fallback RPC error:', fallbackError);
+        } else if (fallbackCount > 0) {
+          rows = fallbackData as FeedV5Row[];
+          console.warn('✅ [FeedV5] Fallback (no location) returned', rows.length, 'events');
+        } else {
+          console.warn('⚠️ [FeedV5] Fallback also returned 0 events (DB may have no upcoming events)');
+        }
+      }
       
       // Map rows to events, preserving event_type from context
       const events = rows.map((row) => {

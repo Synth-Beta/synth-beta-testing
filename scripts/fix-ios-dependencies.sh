@@ -77,13 +77,20 @@ fi
 
 echo ""
 
-# Step 3: Verify Package.swift paths
+# Step 3: Fix Package.swift paths (forward slashes for macOS)
 echo -e "${GREEN}Step 3: Verifying Package.swift paths...${NC}"
 
 PACKAGE_SWIFT="ios/App/CapApp-SPM/Package.swift"
 if [ ! -f "$PACKAGE_SWIFT" ]; then
   echo -e "${RED}Error: Package.swift not found at $PACKAGE_SWIFT${NC}"
   exit 1
+fi
+
+# Replace Windows-style backslashes with forward slashes (fixes XCFramework not found on macOS)
+if grep -q 'path: "\.\.\\' "$PACKAGE_SWIFT" 2>/dev/null; then
+  echo -e "${YELLOW}Fixing path separators in Package.swift...${NC}"
+  sed -i '' 's|\\|/|g' "$PACKAGE_SWIFT"
+  echo -e "${GREEN}✓ Path separators fixed${NC}"
 fi
 
 # Check if paths in Package.swift are correct
