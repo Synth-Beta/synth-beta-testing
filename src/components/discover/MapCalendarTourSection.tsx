@@ -19,7 +19,7 @@ import type { VibeFilters } from '@/services/discoverVibeService';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { CompactEventCard } from '@/components/home/CompactEventCard';
-import { MapPin, Calendar as CalendarIcon, Building2 } from 'lucide-react';
+import { MapPin, Calendar as CalendarIcon, Building2, X } from 'lucide-react';
 import { LocationService } from '@/services/locationService';
 import { UserEventService } from '@/services/userEventService';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
@@ -1005,18 +1005,31 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
 
       {/* Event Details Modal */}
       <Dialog open={eventDetailsOpen} onOpenChange={setEventDetailsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto pt-10 pr-12 [&>button]:hidden">
           {selectedEvent && (
-            <SwiftUIEventCard
-              event={selectedEvent}
-              currentUserId={currentUserId}
-              onInterestToggle={async () => {}}
-              onReview={async () => {}}
-              isInterested={false}
-              hasReviewed={false}
-              showInterestButton={true}
-              showReviewButton={true}
-            />
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  aria-label="Close event details"
+                  onClick={() => setEventDetailsOpen(false)}
+                  className="h-9 w-9 inline-flex items-center justify-center rounded-md hover:bg-muted"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <SwiftUIEventCard
+                event={selectedEvent}
+                currentUserId={currentUserId}
+                onInterestToggle={async () => {}}
+                onReview={async () => {}}
+                isInterested={false}
+                hasReviewed={false}
+                showInterestButton={true}
+                showReviewButton={true}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>
