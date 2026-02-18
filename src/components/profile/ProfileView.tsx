@@ -1965,8 +1965,25 @@ const { user, sessionExpired } = useAuth();
                       </Button>
                     )}
                     {friendStatus === 'pending_sent' && (
-                      <div className="flex items-center gap-2">
-                        <Button disabled variant="outline" style={{
+                      <Button
+                        onClick={async () => {
+                          if (!pendingRequestId) {
+                            return;
+                          }
+
+                          try {
+                            await FriendsService.cancelFriendRequest(pendingRequestId);
+                            setFriendStatus('none');
+                            setPendingRequestId(null);
+                          } catch (error: any) {
+                            // cancel failed
+                          }
+                        }}
+                        disabled={!pendingRequestId}
+                        variant="outline"
+                        size="sm"
+                        className="disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{
                           height: 'var(--size-button-height, 36px)',
                           paddingLeft: 'var(--spacing-small, 12px)',
                           paddingRight: 'var(--spacing-small, 12px)',
@@ -1978,32 +1995,11 @@ const { user, sessionExpired } = useAuth();
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
                           flex: 1,
                           minWidth: 0,
-                        }}>
-                          Friend Request Sent
-                        </Button>
-                        <Button 
-                          onClick={async () => {
-                            if (!pendingRequestId) {
-                              return;
-                            }
-                            
-                            try {
-                              await FriendsService.cancelFriendRequest(pendingRequestId);
-                              setFriendStatus('none');
-                              setPendingRequestId(null);
-                            } catch (error: any) {
-                              // cancel failed
-                            }
-                          }}
-                          disabled={!pendingRequestId}
-                          variant="outline" 
-                          size="sm" 
-                          className="disabled:opacity-50 disabled:cursor-not-allowed" style={{ borderColor: 'var(--neutral-200)', color: 'var(--neutral-600)' }}
-                          title={!pendingRequestId ? "Request ID not available" : "Cancel friend request"}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
+                        }}
+                        title={!pendingRequestId ? 'Request ID not available' : 'Retract friend request'}
+                      >
+                        Friend Request Sent
+                      </Button>
                     )}
                     {friendStatus === 'pending_received' && (
                       <Button 
@@ -3035,7 +3031,6 @@ const { user, sessionExpired } = useAuth();
                 <div className="grid grid-cols-3 gap-2.5 w-full max-w-full">
                   {filteredUserEvents
                     .sort((a,b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
-                    .slice(0, 9)
                     .map((ev) => (
                       <div
                         key={ev.id}

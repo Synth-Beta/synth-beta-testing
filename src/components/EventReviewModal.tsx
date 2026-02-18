@@ -42,7 +42,7 @@ export function EventReviewModal({
         <DialogHeader>
           <DialogTitle>{eventTitle}</DialogTitle>
         </DialogHeader>
-        <DialogBody>
+        <DialogBody data-review-scroll="true">
           <EventReviewForm
             event={event as any}
             userId={userId}

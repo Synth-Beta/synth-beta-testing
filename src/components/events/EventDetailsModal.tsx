@@ -105,8 +105,6 @@ export function EventDetailsModal({
   const navigate = useNavigate();
   const [actualEvent, setActualEvent] = useState<any>(event);
   const [loading, setLoading] = useState(false);
-  const headerRef = useRef<HTMLDivElement | null>(null);
-  const [headerHeight, setHeaderHeight] = useState<number>(0);
   // Local state for isInterested to allow immediate UI updates
   const [localIsInterested, setLocalIsInterested] = useState(isInterested);
   
@@ -201,34 +199,6 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
     setLocalIsInterested(isInterested);
   }, [isInterested]);
 
-  // Keep header pinned above map layers (Leaflet controls often use z-index ~1000),
-  // and pad the scrollable content by the measured header height (incl. safe-area).
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const el = headerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      const next = Math.ceil(el.getBoundingClientRect().height);
-      setHeaderHeight(prev => (prev === next ? prev : next));
-    };
-
-    measure();
-
-    let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(() => measure());
-      ro.observe(el);
-    }
-
-    window.addEventListener('resize', measure);
-    return () => {
-      window.removeEventListener('resize', measure);
-      ro?.disconnect();
-    };
-  }, [isOpen]);
-  
   const loadVerifiedChat = async () => {
     if (!actualEvent?.id || !currentUserId || verifiedChatLoading) {
       return;
@@ -1193,10 +1163,6 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
     setShareModalOpen(true);
   };
   
-  const headerHeightCss = headerHeight
-    ? `${headerHeight}px`
-    : 'calc(env(safe-area-inset-top, 0px) + 56px + 8px)';
-
   return (
     <>
     {/* Backdrop (kept below bottom nav so nav stays visually on top) */}
@@ -1222,13 +1188,10 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
         paddingBottom: 0,
         display: 'flex',
         flexDirection: 'column',
-        // Custom prop used for padding the scrollable body.
-        ['--event-details-modal-header-height' as any]: headerHeightCss,
       }}
     >
       {/* iOS-style Header with glassmorphism */}
         <div
-          ref={headerRef}
           style={{
           ...iosHeader,
           position: 'sticky',
@@ -1300,10 +1263,7 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
           padding: '0 20px',
-          // Header overlays the scroll region; pad by header height so content starts below it.
-          paddingTop: 'calc(var(--event-details-modal-header-height, 64px) + 12px)',
-          // Cancel out the in-flow header height so the scroll region begins at the top (behind header).
-          marginTop: 'calc(-1 * var(--event-details-modal-header-height, 64px))',
+          paddingTop: '12px',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px + 32px)',
         }}
       >

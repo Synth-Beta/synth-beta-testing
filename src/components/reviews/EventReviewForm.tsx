@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -125,6 +125,20 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     setIsReviewSubmitted(false);
     setPendingReviewThumbnailBlob(null);
   }, [event?.id]);
+
+  useLayoutEffect(() => {
+    const els = Array.from(document.querySelectorAll('[data-review-scroll="true"]')) as HTMLElement[];
+    if (els.length === 0) return;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        for (const el of els) {
+          el.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+    });
+  }, [currentStep]);
   const isValidUUID = (value?: string | null) => {
     if (!value) return false;
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -123,6 +123,51 @@ export const VibeSelectorModal: React.FC<VibeSelectorModalProps> = ({
   onSelectVibe,
   isMobile = false,
 }) => {
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startYRef = useRef(0);
+  const didDragRef = useRef(false);
+  const DRAG_THRESHOLD = 120;
+
+  const resetDrag = () => {
+    setDragY(0);
+    setIsDragging(false);
+    startYRef.current = 0;
+    didDragRef.current = false;
+  };
+
+  const handlePointerDown: React.PointerEventHandler<HTMLDivElement> = (event) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDragging(true);
+    startYRef.current = event.clientY;
+    didDragRef.current = false;
+  };
+
+  const handlePointerMove: React.PointerEventHandler<HTMLDivElement> = (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    const currentY = event.clientY;
+    const delta = Math.max(0, currentY - startYRef.current);
+    didDragRef.current = delta > 0;
+    setDragY(delta);
+  };
+
+  const handlePointerEnd: React.PointerEventHandler<HTMLDivElement> = (event) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (dragY > DRAG_THRESHOLD && didDragRef.current) {
+      resetDrag();
+      onClose();
+      return;
+    }
+
+    resetDrag();
+  };
+
   const handleSelect = (vibeType: VibeType) => {
     onSelectVibe(vibeType);
     onClose();
@@ -211,7 +256,23 @@ export const VibeSelectorModal: React.FC<VibeSelectorModalProps> = ({
   if (isMobile) {
     return (
       <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto">
+        <SheetContent
+          side="bottom"
+          className="h-[90vh] overflow-y-auto"
+          style={{
+            transform: `translateY(${dragY}px)`,
+            transition: isDragging ? 'none' : 'transform 180ms ease-out',
+          }}
+        >
+          <div
+            className="flex justify-center mt-4 px-4"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+          >
+            <div className="h-1.5 w-20 rounded-full bg-neutral-600"></div>
+          </div>
           <SheetHeader>
             <SheetTitle>Browse by Vibe</SheetTitle>
             <SheetDescription>
