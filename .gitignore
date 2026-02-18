@@ -33,6 +33,9 @@ AuthKey*.p8
 backend/secure/
 supabase/migrations/backend/secure/
 
+# Swift Package Manager build artifacts (never commit)
+synth-native-ios/.build/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
