@@ -15,6 +15,7 @@ export interface Friend {
   username?: string;
   avatar_url: string | null;
   bio: string | null;
+  account_type?: 'user' | 'creator' | 'business' | 'admin';
   friendship_id?: string;
   created_at?: string;
 }
@@ -66,7 +67,7 @@ export class FriendsService {
       // Fetch the profiles for those users
       const { data: profiles, error: profilesError } = await supabase
         .from('users')
-        .select('id, name, avatar_url, bio, user_id, created_at')
+        .select('id, name, avatar_url, bio, user_id, created_at, account_type')
         .in('user_id', userIds);
 
       if (profilesError) {
@@ -96,6 +97,7 @@ export class FriendsService {
           username: (profile?.name || 'unknown').toLowerCase().replace(/\s+/g, ''),
           avatar_url: profile?.avatar_url || null,
           bio: profile?.bio || null,
+          account_type: profile?.account_type || 'user',
           friendship_id: friendship.id,
           created_at: friendship.created_at
         });

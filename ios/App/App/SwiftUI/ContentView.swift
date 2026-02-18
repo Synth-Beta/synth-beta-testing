@@ -1,18 +1,17 @@
 //
 //  ContentView.swift
-//  Synth-SwiftUI
+//  Synth
 //
-//  Created by Lauren Pesce on 1/15/26.
+//  After native auth/onboarding, shows the full Capacitor web app.
 //
 
 import SwiftUI
+import SynthNative
 
 struct ContentView: View {
     var body: some View {
-        ZStack {
-            SynthColor.neutral50.ignoresSafeArea()
-            AppShellView()
-        }
+        CapacitorWebView()
+            .ignoresSafeArea(.all)
     }
 }
 

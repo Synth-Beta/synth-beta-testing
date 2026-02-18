@@ -621,6 +621,151 @@ export class NotificationService {
   }
 
   /**
+   * Fetch first unread friend_accepted notification and celebration data for the new friend popup.
+   * Returns null if none found.
+   */
+  static async getUnreadFriendCelebration(): Promise<{
+    notificationId: string;
+    friendId: string;
+    friendName: string;
+    data: {
+      events_attended_together: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string }>;
+      shared_genres: Array<{ genre: string; match_pct: number } | string>;
+      shared_artists?: Array<{ id: string; name: string; image_url?: string | null }>;
+      shared_venues?: Array<{ id: string; name: string; image_url?: string | null }>;
+      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: string }>;
+      current_user_avatar_url?: string;
+      friend_avatar_url?: string;
+      friendship_days?: number;
+    };
+  } | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: notifications } = await supabase
+      .from('notifications')
+      .select('id, data')
+      .eq('user_id', user.id)
+      .eq('type', 'friend_accepted')
+      .eq('is_read', false)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const notif = notifications?.[0];
+    if (!notif?.data?.friend_id) return null;
+
+    const friendId = notif.data.friend_id as string;
+    const friendName = (notif.data.friend_name as string) || 'Friend';
+
+    let celebrationData: {
+      events_attended_together: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string }>;
+      shared_genres: Array<{ genre: string; match_pct: number } | string>;
+      shared_artists?: Array<{ id: string; name: string; image_url?: string | null }>;
+      shared_venues?: Array<{ id: string; name: string; image_url?: string | null }>;
+      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: string }>;
+      current_user_avatar_url?: string;
+      friend_avatar_url?: string;
+      friendship_days?: number;
+    };
+    try {
+      const { data: rpcData, error } = await supabase.rpc('get_new_friend_celebration_data', {
+        p_friend_id: friendId,
+      });
+      if (error || !rpcData) {
+        console.error('[FriendCelebration] RPC failed:', error?.message ?? 'No data returned');
+        celebrationData = { events_attended_together: [], shared_genres: [], shared_artists: [], shared_venues: [], suggested_events: [] };
+      } else {
+        celebrationData = {
+          events_attended_together: rpcData.events_attended_together ?? [],
+          shared_genres: rpcData.shared_genres ?? [],
+          shared_artists: rpcData.shared_artists ?? [],
+          shared_venues: rpcData.shared_venues ?? [],
+          suggested_events: rpcData.suggested_events ?? [],
+          current_user_avatar_url: rpcData.current_user_avatar_url,
+          friend_avatar_url: rpcData.friend_avatar_url,
+          friendship_days: rpcData.friendship_days,
+        };
+      }
+    } catch (err) {
+      console.error('[FriendCelebration] RPC error:', err);
+      celebrationData = { events_attended_together: [], shared_genres: [], shared_artists: [], shared_venues: [], suggested_events: [] };
+    }
+
+    return {
+      notificationId: notif.id,
+      friendId,
+      friendName,
+      data: celebrationData,
+    };
+  }
+
+  /**
+   * Fetch celebration data for a specific friend (used by "View Friend Match" button).
+   * Does NOT require an unread notification — works for any friend.
+   */
+  static async getFriendCelebrationData(
+    friendId: string,
+    friendName: string,
+    notificationId?: string,
+  ): Promise<{
+    notificationId: string;
+    friendName: string;
+    data: {
+      events_attended_together: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string }>;
+      shared_genres: Array<{ genre: string; match_pct: number } | string>;
+      shared_artists?: Array<{ id: string; name: string; image_url?: string | null }>;
+      shared_venues?: Array<{ id: string; name: string; image_url?: string | null }>;
+      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: string }>;
+      current_user_avatar_url?: string;
+      friend_avatar_url?: string;
+      friendship_days?: number;
+    };
+  } | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    let celebrationData: {
+      events_attended_together: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string }>;
+      shared_genres: Array<{ genre: string; match_pct: number } | string>;
+      shared_artists?: Array<{ id: string; name: string; image_url?: string | null }>;
+      shared_venues?: Array<{ id: string; name: string; image_url?: string | null }>;
+      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: string }>;
+      current_user_avatar_url?: string;
+      friend_avatar_url?: string;
+      friendship_days?: number;
+    };
+    try {
+      const { data: rpcData, error } = await supabase.rpc('get_new_friend_celebration_data', {
+        p_friend_id: friendId,
+      });
+      if (error || !rpcData) {
+        console.error('[FriendCelebration] RPC failed:', error?.message ?? 'No data returned');
+        celebrationData = { events_attended_together: [], shared_genres: [], shared_artists: [], shared_venues: [], suggested_events: [] };
+      } else {
+        celebrationData = {
+          events_attended_together: rpcData.events_attended_together ?? [],
+          shared_genres: rpcData.shared_genres ?? [],
+          shared_artists: rpcData.shared_artists ?? [],
+          shared_venues: rpcData.shared_venues ?? [],
+          suggested_events: rpcData.suggested_events ?? [],
+          current_user_avatar_url: rpcData.current_user_avatar_url,
+          friend_avatar_url: rpcData.friend_avatar_url,
+          friendship_days: rpcData.friendship_days,
+        };
+      }
+    } catch (err) {
+      console.error('[FriendCelebration] RPC error:', err);
+      celebrationData = { events_attended_together: [], shared_genres: [], shared_artists: [], shared_venues: [], suggested_events: [] };
+    }
+
+    return {
+      notificationId: notificationId || '',
+      friendName,
+      data: celebrationData,
+    };
+  }
+
+  /**
    * Mark a notification as read
    */
   static async markAsRead(notificationId: string): Promise<void> {

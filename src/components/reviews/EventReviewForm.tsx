@@ -1061,12 +1061,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             contentType: fileType,
           } as any);
 
-        if (thumbError) {
-          logger.warn('⚠️ EventReviewForm: Thumbnail upload failed:', thumbError);
+          if (thumbError) {
+            logger.warn('⚠️ EventReviewForm: Thumbnail upload failed:', thumbError);
+          }
+        } catch (thumbUploadError) {
+          logger.warn('⚠️ EventReviewForm: Thumbnail upload threw exception:', thumbUploadError);
         }
-      } catch (thumbUploadError) {
-        logger.warn('⚠️ EventReviewForm: Thumbnail upload threw exception:', thumbUploadError);
-      }
       }
       setPendingReviewThumbnailBlob(null);
       

@@ -1,0 +1,3 @@
+module CryptoExtras {
+    header "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/CryptoExtras.build/include/CryptoExtras-Swift.h"
+}

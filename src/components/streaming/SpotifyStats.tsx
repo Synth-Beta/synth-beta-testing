@@ -127,11 +127,14 @@ const { user } = useAuth();
 
     setAuthenticating(true);
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('spotify_connect_source', 'profile');
+      }
       spotifyService.authenticate();
     } catch (error) {
       console.error('Authentication error:', error);
       setAuthenticating(false);
-      }
+    }
   };
 
   const handleReconnect = async () => {
@@ -141,6 +144,9 @@ const { user } = useAuth();
 
     setAuthenticating(true);
     try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('spotify_connect_source', 'profile');
+      }
       await spotifyService.reauthenticate();
     } catch (error) {
       console.error('Reconnection error:', error);

@@ -81,7 +81,7 @@ export class SpotifyService {
     authUrl.searchParams.append('code_challenge', codeChallenge);
 
     try {
-      trackInteraction.click('spotify', this.config.clientId, {
+      trackInteraction.click('profile', 'connect_spotify', {
         action: 'connect_start',
         scopes: this.config.scopes,
         redirectUri: this.config.redirectUri
@@ -203,7 +203,7 @@ export class SpotifyService {
     window.history.replaceState({}, document.title, window.location.pathname);
     
     try {
-      trackInteraction.click('spotify', 'current_user', {
+      trackInteraction.click('profile', 'connect_spotify', {
         action: 'connect_success'
       });
     } catch {}
@@ -408,7 +408,7 @@ export class SpotifyService {
       }
 
       // Summary log
-      trackInteraction.click('spotify', 'current_user', {
+      trackInteraction.click('profile', 'spotify_sync', {
         action: 'sync_complete',
         artists_short: topArtistsShort.items.length,
         artists_medium: topArtistsMed.items.length,
@@ -926,7 +926,7 @@ export class SpotifyService {
     });
     
     const res = await this.spotifyApiCall<SpotifyTopTracksResponse>(`/me/top/tracks?${params.toString()}`);
-    try { trackInteraction.view('spotify', 'current_user', undefined, { resource: 'top_tracks', count: res.items?.length ?? 0, timeRange }); } catch {}
+    try { trackInteraction.view('profile', 'spotify_top_tracks', undefined, { resource: 'top_tracks', count: res.items?.length ?? 0, timeRange }); } catch {}
     return res;
   }
 
@@ -946,7 +946,7 @@ export class SpotifyService {
     });
     
     const res = await this.spotifyApiCall<SpotifyTopArtistsResponse>(`/me/top/artists?${params.toString()}`);
-    try { trackInteraction.view('spotify', 'current_user', undefined, { resource: 'top_artists', count: res.items?.length ?? 0, timeRange }); } catch {}
+    try { trackInteraction.view('profile', 'spotify_top_artists', undefined, { resource: 'top_artists', count: res.items?.length ?? 0, timeRange }); } catch {}
     return res;
   }
 
@@ -968,7 +968,7 @@ export class SpotifyService {
     }
     
     const res = await this.spotifyApiCall<SpotifyRecentlyPlayedResponse>(`/me/player/recently-played?${params.toString()}`);
-    try { trackInteraction.view('spotify', 'current_user', undefined, { resource: 'recently_played', count: res.items?.length ?? 0 }); } catch {}
+    try { trackInteraction.view('profile', 'spotify_recently_played', undefined, { resource: 'recently_played', count: res.items?.length ?? 0 }); } catch {}
     return res;
   }
 

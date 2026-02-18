@@ -1,0 +1,3 @@
+module PostgREST {
+    header "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/PostgREST.build/include/PostgREST-Swift.h"
+}

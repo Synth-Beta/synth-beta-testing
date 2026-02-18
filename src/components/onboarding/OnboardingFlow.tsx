@@ -56,7 +56,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
   const { user, session } = useAuth();
-const exitInProgressRef = useRef(false);
+  const exitInProgressRef = useRef(false);
   const [prefilledMusicData, setPrefilledMusicData] = useState<{ genres: string[]; artists: string[] } | null>(null);
   const musicPrefillAppliedRef = useRef(false);
 
@@ -361,7 +361,6 @@ const exitInProgressRef = useRef(false);
           logger.error('OnboardingFlow: error syncing manual music tags:', error);
         }
       }
-
       const dedupedArtists = dedupeFavoriteArtists(artistData);
       setFavoriteArtistOptions(dedupedArtists);
       setShowFollowArtistsModal(true);

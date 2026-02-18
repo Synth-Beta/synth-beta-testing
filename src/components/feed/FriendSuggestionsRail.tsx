@@ -31,15 +31,25 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 }) => {
   // Users to exclude from the list: already friends or pending (sent or received)
   const [excludedUserIds, setExcludedUserIds] = useState<Set<string>>(new Set());
+  // Don't render until we've checked exclusions - prevents flash of wrong content (e.g. showing
+  // someone you've already requested, then changing after the async check completes)
+  const [exclusionsLoaded, setExclusionsLoaded] = useState(false);
 
   // Check for existing relationships (pending or accepted) on mount and when suggestions change
   useEffect(() => {
-    const checkExistingRelationships = async () => {
-      if (suggestions.length === 0) return;
+    if (suggestions.length === 0) {
+      setExclusionsLoaded(true);
+      return;
+    }
+    setExclusionsLoaded(false);
 
+    const checkExistingRelationships = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setExclusionsLoaded(true);
+          return;
+        }
 
         const userIds = suggestions.map(s => s.user_id);
 
@@ -75,6 +85,8 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
         setExcludedUserIds(excluded);
       } catch (error) {
         console.error('Error checking friend relationships:', error);
+      } finally {
+        setExclusionsLoaded(true);
       }
     };
 
@@ -99,7 +111,8 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 
   const visibleSuggestions = suggestions.filter(s => !excludedUserIds.has(s.user_id));
 
-  if (visibleSuggestions.length === 0) {
+  // Don't render until we've loaded exclusions - avoids flash of wrong content
+  if (!exclusionsLoaded || visibleSuggestions.length === 0) {
     return null;
   }
 

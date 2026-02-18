@@ -34,6 +34,7 @@ import { HomeFeed } from './home/HomeFeed';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { EventReviewModal } from './EventReviewModal';
 import { FriendTaggedReviewInviteModal, type PrefillEvent } from './reviews/FriendTaggedReviewInviteModal';
+import { NewFriendCelebrationModal, type CelebrationData } from './NewFriendCelebrationModal';
 import { NotificationService } from '@/services/notificationService';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { SynthLoadingScreen } from './ui/SynthLoader';
@@ -195,6 +196,28 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   }, [loading, user]);
 
+  // Listen for open-friend-match events (from notification buttons or profile)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.friendId) {
+        NotificationService.getFriendCelebrationData(detail.friendId, detail.friendName || 'Friend', detail.notificationId)
+          .then((result) => {
+            if (result) {
+              setFriendCelebration({
+                notificationId: result.notificationId || '',
+                friendName: result.friendName,
+                data: result.data,
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    };
+    window.addEventListener('open-friend-match', handler);
+    return () => window.removeEventListener('open-friend-match', handler);
+  }, []);
+
   // Listen for open-review-invite (from NotificationsPage tap on friend_tagged_in_review)
   useEffect(() => {
     const handler = (e: Event) => {
@@ -344,6 +367,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [friendTaggedInviteNotification, setFriendTaggedInviteNotification] = useState<any>(null);
   const [showFriendTaggedInviteModal, setShowFriendTaggedInviteModal] = useState(false);
   const hasCheckedFriendTaggedInvite = useRef(false);
+  const [friendCelebration, setFriendCelebration] = useState<{
+    notificationId: string;
+    friendName: string;
+    data: CelebrationData;
+  } | null>(null);
+  // hasCheckedFriendCelebration removed — celebration is now triggered manually via buttons
   const [menuOpen, setMenuOpen] = useState(false);
   // Global detail modal state shared across views (artist/venue + future profile popups)
   const [detailModal, setDetailModal] = useState<GlobalDetailModalState>({ open: false });
@@ -1261,6 +1290,38 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             if (notifId) {
               NotificationService.markAsRead(notifId).catch(() => {});
             }
+          }}
+        />
+      )}
+
+      {/* New Friend Celebration Modal - shows on login or realtime when friend_accepted */}
+      {friendCelebration && (
+        <NewFriendCelebrationModal
+          friendName={friendCelebration.friendName}
+          data={friendCelebration.data}
+          isOpen={!!friendCelebration}
+          onClose={async () => {
+            const notifId = friendCelebration.notificationId;
+            setFriendCelebration(null);
+            if (notifId) {
+              try {
+                await NotificationService.markAsRead(notifId);
+              } catch {}
+            }
+          }}
+          onEventClick={(eventId) => {
+            const notifId = friendCelebration.notificationId;
+            setFriendCelebration(null);
+            if (notifId) {
+              NotificationService.markAsRead(notifId).catch(() => {});
+            }
+            window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId } }));
+          }}
+          onArtistClick={(artistId, artistName) => {
+            window.dispatchEvent(new CustomEvent('open-artist-card', { detail: { artistId, artistName } }));
+          }}
+          onVenueClick={(venueId, venueName) => {
+            window.dispatchEvent(new CustomEvent('open-venue-card', { detail: { venueId, venueName } }));
           }}
         />
       )}

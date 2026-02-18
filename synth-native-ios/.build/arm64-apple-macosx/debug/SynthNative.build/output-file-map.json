@@ -1,0 +1,152 @@
+{
+  "": {
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/master.swiftdeps"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/App/SynthNativeApp.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SynthNativeApp.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SynthNativeApp.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SynthNativeApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SynthNativeApp.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SynthNativeApp.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Components/BubbleChip.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/BubbleChip.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/BubbleChip.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/BubbleChip~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/BubbleChip.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/BubbleChip.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Components/GlassCard.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GlassCard.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GlassCard.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GlassCard~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GlassCard.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GlassCard.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Components/PrimaryButton.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/PrimaryButton.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/PrimaryButton.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/PrimaryButton~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/PrimaryButton.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/PrimaryButton.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Models/OnboardingState.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingState.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingState.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingState~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingState.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingState.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Onboarding/OnboardingCoordinator.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingCoordinator.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingCoordinator.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingCoordinator~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingCoordinator.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingCoordinator.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Onboarding/OnboardingPage.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingPage.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingPage.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingPage~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingPage.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingPage.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Onboarding/Page1BirthYearGender.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page1BirthYearGender.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page1BirthYearGender.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page1BirthYearGender~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page1BirthYearGender.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page1BirthYearGender.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Onboarding/Page2City.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page2City.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page2City.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page2City~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page2City.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page2City.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Onboarding/Page3Profile.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page3Profile.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page3Profile.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page3Profile~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page3Profile.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page3Profile.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Onboarding/Page4Artists.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page4Artists.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page4Artists.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page4Artists~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page4Artists.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page4Artists.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Onboarding/Page5Genres.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page5Genres.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page5Genres.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page5Genres~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page5Genres.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Page5Genres.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Services/ArtistSearchService.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/ArtistSearchService.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/ArtistSearchService.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/ArtistSearchService~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/ArtistSearchService.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/ArtistSearchService.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Services/AuthService.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/AuthService.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/AuthService.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/AuthService~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/AuthService.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/AuthService.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Services/CitySearchService.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/CitySearchService.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/CitySearchService.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/CitySearchService~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/CitySearchService.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/CitySearchService.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Services/FriendCelebrationService.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/FriendCelebrationService.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/FriendCelebrationService.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/FriendCelebrationService~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/FriendCelebrationService.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/FriendCelebrationService.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Services/GenreCategoriesService.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GenreCategoriesService.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GenreCategoriesService.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GenreCategoriesService~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GenreCategoriesService.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/GenreCategoriesService.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Services/OnboardingService.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingService.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingService.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingService~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingService.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/OnboardingService.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Services/SupabaseService.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SupabaseService.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SupabaseService.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SupabaseService~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SupabaseService.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/SupabaseService.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Theme/Theme.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Theme.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Theme.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Theme~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Theme.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/Theme.dia"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/SynthNative/Views/NewFriendCelebrationView.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/NewFriendCelebrationView.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/NewFriendCelebrationView.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/NewFriendCelebrationView~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/NewFriendCelebrationView.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/SynthNative.build/NewFriendCelebrationView.dia"
+  }
+}

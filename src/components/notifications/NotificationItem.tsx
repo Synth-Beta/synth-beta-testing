@@ -70,8 +70,11 @@ const [isProcessing, setIsProcessing] = useState(false);
     // Navigate based on notification type
     if (notification.review_id && onViewReview) {
       onViewReview(notification.review_id);
-    } else if (notification.actor_user_id && onViewProfile) {
-      onViewProfile(notification.actor_user_id);
+    } else if (onViewProfile) {
+      const profileUserId = notification.actor_user_id ?? notification.data?.friend_id;
+      if (profileUserId) {
+        onViewProfile(profileUserId);
+      }
     }
   };
 

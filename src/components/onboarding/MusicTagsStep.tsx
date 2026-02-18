@@ -191,6 +191,9 @@ export const MusicTagsStep = ({
   const handleConnectSpotify = async () => {
     try {
       setSpotifyConnecting(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('spotify_connect_source', 'onboarding');
+      }
       await spotifyService.authenticate();
       // On success, authenticate redirects to Spotify's OAuth page
     } catch (error) {

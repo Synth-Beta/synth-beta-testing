@@ -5,7 +5,6 @@ import AuthenticationServices
 import WebKit
 import SwiftUI
 
-@UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, WKScriptMessageHandler {
 
     var window: UIWindow?
@@ -13,13 +12,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var eventShareHandler: Any? // EventShareHandler (Any? to avoid import issues)
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Clear WKWebView cache on launch to ensure fresh content
-        let dataStore = WKWebsiteDataStore.default()
-        let websiteDataTypes = WKWebsiteDataStore.allWebsiteDataTypes()
-        let date = Date(timeIntervalSince1970: 0)
-        dataStore.removeData(ofTypes: websiteDataTypes, modifiedSince: date) {
-            print("✅ Cleared WKWebView cache")
-        }
+        // Do NOT clear WKWebsiteDataStore on launch - it wipes session storage and breaks
+        // sign-in persistence. Users should stay signed in until they sign out or reinstall.
         
         // Set up push notification delegate
         UNUserNotificationCenter.current().delegate = self
@@ -46,7 +40,47 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Set up Event Share listener
         setupEventShareListener()
         
+        // Listen for native-to-web event open (e.g. from celebration popup)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSynthOpenEvent(_:)),
+            name: NSNotification.Name("SynthOpenEvent"),
+            object: nil
+        )
+        
         return true
+    }
+    
+    /// Weak reference to current Capacitor web view for native-to-web communication
+    private weak var currentWebView: WKWebView?
+    
+    @objc private func handleSynthOpenEvent(_ notification: Notification) {
+        guard let eventId = notification.userInfo?["eventId"] as? String else { return }
+        let webView: WKWebView? = currentWebView ?? {
+            guard let window = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .flatMap({ $0.windows })
+                .first(where: { $0.isKeyWindow }) ?? UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .flatMap({ $0.windows })
+                .first else { return nil }
+            return findWebView(in: window)
+        }()
+        guard let wv = webView else { return }
+        let escaped = eventId.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+        let script = """
+            (function() {
+                try {
+                    window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId: '\(escaped)' } }));
+                } catch (e) { console.error('SynthOpenEvent error:', e); }
+            })();
+            """
+        wv.evaluateJavaScript(script) { _, error in
+            if let error = error {
+                print("Synth: SynthOpenEvent evaluateJavaScript error: \(error.localizedDescription)")
+            }
+        }
     }
     
     // MARK: - Apple Sign In Listener Setup
@@ -63,40 +97,60 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Set up JavaScript message handler to receive requests from web layer
         // This listens for messages posted via webkit.messageHandlers.appleSignIn
         setupJavaScriptMessageHandler()
+        
+        // Listen for CapacitorWebView when it appears (after native auth/onboarding)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleCapacitorWebViewReady(_:)),
+            name: NSNotification.Name("CapacitorWebViewReady"),
+            object: nil
+        )
+    }
+    
+    @objc private func handleCapacitorWebViewReady(_ notification: Notification) {
+        guard let webView = notification.userInfo?["webView"] as? WKWebView else { return }
+        currentWebView = webView
+        attachAppHandlers(to: webView)
+    }
+    
+    private var appHandlersAttachedToWebViews = Set<ObjectIdentifier>()
+
+    private func attachAppHandlers(to webView: WKWebView) {
+        let id = ObjectIdentifier(webView)
+        guard !appHandlersAttachedToWebViews.contains(id) else { return }
+        appHandlersAttachedToWebViews.insert(id)
+        let config = webView.configuration
+        config.userContentController.add(self, name: "appleSignIn")
+        config.userContentController.add(self, name: "eventShare")
+        config.userContentController.add(self, name: "setBadgeCount")
+        let script = """
+            (function() {
+                window.addEventListener('RequestAppleSignIn', function() {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.appleSignIn) {
+                        window.webkit.messageHandlers.appleSignIn.postMessage({});
+                    }
+                });
+                window.addEventListener('RequestEventShare', function(event) {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.eventShare) {
+                        window.webkit.messageHandlers.eventShare.postMessage(event.detail || {});
+                    }
+                });
+                window.setBadgeCount = function(count) {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.setBadgeCount) {
+                        window.webkit.messageHandlers.setBadgeCount.postMessage({ count: count });
+                    }
+                };
+            })();
+        """
+        config.userContentController.addUserScript(
+            WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
+        )
+        print("✅ Apple Sign In / Event Share message handlers attached to CapacitorWebView")
     }
     
     /// Sets up WKWebView message handler to receive JavaScript requests.
     /// Ensures Capacitor's WebView is ready (loadViewIfNeeded) and retries if not yet in hierarchy.
     func setupJavaScriptMessageHandler() {
-        func attach(to webView: WKWebView) {
-            webView.configuration.userContentController.add(self, name: "appleSignIn")
-            webView.configuration.userContentController.add(self, name: "eventShare")
-            webView.configuration.userContentController.add(self, name: "setBadgeCount")
-            let script = """
-                (function() {
-                    window.addEventListener('RequestAppleSignIn', function() {
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.appleSignIn) {
-                            window.webkit.messageHandlers.appleSignIn.postMessage({});
-                        }
-                    });
-                    window.addEventListener('RequestEventShare', function(event) {
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.eventShare) {
-                            window.webkit.messageHandlers.eventShare.postMessage(event.detail || {});
-                        }
-                    });
-                    window.setBadgeCount = function(count) {
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.setBadgeCount) {
-                            window.webkit.messageHandlers.setBadgeCount.postMessage({ count: count });
-                        }
-                    };
-                })();
-            """
-            webView.configuration.userContentController.addUserScript(
-                WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
-            )
-            print("✅ Apple Sign In / Event Share message handlers attached to WebView")
-        }
-
         func tryAttach(attempt: Int) {
             DispatchQueue.main.async {
                 guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
@@ -108,13 +162,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
                     bridgeVC.loadViewIfNeeded()
                     if let webView = bridgeVC.webView {
-                        attach(to: webView)
+                        self.attachAppHandlers(to: webView)
                         return
                     }
                 }
-                // Fallback: find WebView in hierarchy (e.g. different host or timing)
+                // Fallback: find WebView in hierarchy (e.g. CapacitorWebView embedded in SwiftUI)
                 if let webView = self.findWebView(in: window) {
-                    attach(to: webView)
+                    self.attachAppHandlers(to: webView)
                     return
                 }
                 if attempt < 5 {
@@ -496,12 +550,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 handleEventShare(notification: notification)
             }
         } else if message.name == "setBadgeCount" {
-            // Handle badge count update from JavaScript
+            // Handle badge count update from JavaScript (matches in-app unread notifications)
             if let data = message.body as? [String: Any],
                let count = data["count"] as? Int {
                 DispatchQueue.main.async {
-                    UIApplication.shared.applicationIconBadgeNumber = count
-                    print("✅ Badge count set to: \(count)")
+                    UNUserNotificationCenter.current().setBadgeCount(count) { error in
+                        if let error = error {
+                            print("❌ Failed to set badge count: \(error)")
+                        } else {
+                            print("✅ Badge count set to: \(count)")
+                        }
+                    }
                 }
             }
         }

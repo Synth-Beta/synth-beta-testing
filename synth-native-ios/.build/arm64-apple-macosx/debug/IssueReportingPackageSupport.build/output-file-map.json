@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/IssueReportingPackageSupport.build/master.swiftdeps"
+  },
+  "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/checkouts/xctest-dynamic-overlay/Sources/IssueReportingPackageSupport/_Test.swift": {
+    "dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/IssueReportingPackageSupport.build/_Test.d",
+    "object": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/IssueReportingPackageSupport.build/_Test.swift.o",
+    "swiftmodule": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/IssueReportingPackageSupport.build/_Test~partial.swiftmodule",
+    "swift-dependencies": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/IssueReportingPackageSupport.build/_Test.swiftdeps",
+    "diagnostics": "/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/synth-native-ios/.build/arm64-apple-macosx/debug/IssueReportingPackageSupport.build/_Test.dia"
+  }
+}
