@@ -7,22 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { 
   MapPin, 
-  Calendar, 
   Users, 
   Music, 
   Bell, 
   Save,
   User,
-  Building2,
   Palette
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { MusicTagsService, MusicTag } from '@/services/musicTagsService';
 import { MUSIC_GENRES } from '@/data/musicGenres';
+import { MusicTagsStep } from '@/components/onboarding/MusicTagsStep';
 
 interface OnboardingPreferencesSettingsProps {
   onClose?: () => void;
@@ -41,10 +38,41 @@ interface UserProfile {
   [key: string]: any;
 }
 
+type ArtistSignalEntry = {
+  entityId: string | null;
+  fallbackName: string | null;
+};
+
+const GENRE_MANUAL_SIGNAL_TYPE = 'genre_manual_preference';
+const ARTIST_MANUAL_SIGNAL_TYPE = 'artist_manual_preference';
+const MANUAL_PREFERENCE_SIGNAL_TYPES = [
+  GENRE_MANUAL_SIGNAL_TYPE,
+  ARTIST_MANUAL_SIGNAL_TYPE,
+] as const;
+
+const normalizeGenreKey = (raw: string) =>
+  raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || raw.trim();
+
+type PreferenceSignalInsertRow = {
+  user_id: string;
+  signal_type: typeof GENRE_MANUAL_SIGNAL_TYPE | typeof ARTIST_MANUAL_SIGNAL_TYPE;
+  entity_type: 'genre' | 'artist';
+  entity_id: string | null;
+  entity_name: string | null;
+  genre: string | null;
+  signal_weight: number;
+  context: { source: string };
+  occurred_at: string;
+};
+
 export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferencesSettingsProps) => {
   const { user } = useAuth();
-const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [musicTags, setMusicTags] = useState<MusicTag[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -56,12 +84,204 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
     similar_users_notifications: true
   });
   
-  const [musicPreferences, setMusicPreferences] = useState({
-    genres: [] as string[],
-    artists: [] as string[],
-    customGenres: [] as string[],
-    customArtists: [] as string[]
+  const [musicPreferences, setMusicPreferences] = useState<{
+    genres: string[];
+    artists: string[];
+  }>({
+    genres: [],
+    artists: []
   });
+
+  const handleMusicPreferencesChange = (data: { genres: string[]; artists: string[] }) => {
+    setMusicPreferences(data);
+  };
+
+  const resolveArtistIds = async (names: string[]) => {
+    const lookup = new Map<string, string | null>();
+    const uniqueNames = names.reduce<Map<string, string>>((map, name) => {
+      const key = name.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, name);
+      }
+      return map;
+    }, new Map());
+
+    await Promise.all(
+      Array.from(uniqueNames.values()).map(async (name) => {
+        const key = name.toLowerCase();
+        try {
+          const { data, error } = await supabase
+            .from('artists')
+            .select('id')
+            .ilike('name', name)
+            .limit(1);
+
+          if (error) {
+            console.error('Error resolving artist ID for', name, error);
+            lookup.set(key, null);
+          } else {
+            lookup.set(key, data?.[0]?.id ?? null);
+          }
+        } catch (error) {
+          console.error('Error resolving artist ID for', name, error);
+          lookup.set(key, null);
+        }
+      })
+    );
+
+    return lookup;
+  };
+
+  const loadSavedMusicPreferences = async (userId: string) => {
+    const { data: signals, error } = await supabase
+      .from('user_preference_signals')
+      .select('signal_type, entity_id, entity_name, genre')
+      .eq('user_id', userId)
+      .in('signal_type', MANUAL_PREFERENCE_SIGNAL_TYPES as string[])
+      .order('occurred_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading music preferences:', error);
+      return { genres: [], artists: [] };
+    }
+
+    const dedupedGenres: string[] = [];
+    const seenGenreKeys = new Set<string>();
+    const artistEntries: ArtistSignalEntry[] = [];
+    const seenArtistKeys = new Set<string>();
+    const artistIdsToFetch = new Set<string>();
+
+    (signals ?? []).forEach((signal) => {
+      if (signal.signal_type === GENRE_MANUAL_SIGNAL_TYPE && signal.genre) {
+        const genreKey = normalizeGenreKey(signal.genre);
+        if (!genreKey || seenGenreKeys.has(genreKey)) return;
+        seenGenreKeys.add(genreKey);
+        const canonical = MUSIC_GENRES.find(
+          (genre) => normalizeGenreKey(genre) === genreKey
+        );
+        dedupedGenres.push(canonical ?? signal.genre);
+      } else if (signal.signal_type === ARTIST_MANUAL_SIGNAL_TYPE) {
+        if (signal.entity_id) {
+          if (seenArtistKeys.has(signal.entity_id)) return;
+          seenArtistKeys.add(signal.entity_id);
+          artistIdsToFetch.add(signal.entity_id);
+          artistEntries.push({
+            entityId: signal.entity_id,
+            fallbackName: signal.entity_name?.trim() ?? null,
+          });
+        } else if (signal.entity_name) {
+          const normalizedName = signal.entity_name.trim().toLowerCase();
+          if (!normalizedName || seenArtistKeys.has(normalizedName)) return;
+          seenArtistKeys.add(normalizedName);
+          artistEntries.push({
+            entityId: null,
+            fallbackName: signal.entity_name.trim(),
+          });
+        }
+      }
+    });
+
+    const artistNameMap = new Map<string, string>();
+    if (artistIdsToFetch.size > 0) {
+      const { data: artistRows, error: artistError } = await supabase
+        .from('artists')
+        .select('id, name')
+        .in('id', Array.from(artistIdsToFetch));
+
+      if (artistError) {
+        console.error('Error fetching artist names:', artistError);
+      } else {
+        artistRows?.forEach((row) => {
+          if (row?.id && row?.name) {
+            artistNameMap.set(row.id, row.name);
+          }
+        });
+      }
+    }
+
+    const dedupedArtists = artistEntries
+      .map((entry) => {
+        if (!entry) return null;
+        if (entry.entityId) {
+          return artistNameMap.get(entry.entityId) ?? entry.fallbackName;
+        }
+        return entry.fallbackName;
+      })
+      .filter((name): name is string => typeof name === 'string' && name.length > 0);
+
+    return {
+      genres: dedupedGenres,
+      artists: dedupedArtists,
+    };
+  };
+
+  const persistMusicPreferences = async (userId: string, genres: string[], artists: string[]) => {
+    const now = new Date().toISOString();
+    const { error: deleteError } = await supabase
+      .from('user_preference_signals')
+      .delete()
+      .eq('user_id', userId)
+      .in('signal_type', MANUAL_PREFERENCE_SIGNAL_TYPES as string[]);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    const normalizedGenres = genres
+      .map((genre) => normalizeGenreKey(genre))
+      .filter((genre) => genre.length > 0);
+
+    const genreRows: PreferenceSignalInsertRow[] = normalizedGenres.map((genre) => ({
+      user_id: userId,
+      signal_type: GENRE_MANUAL_SIGNAL_TYPE,
+      entity_type: 'genre',
+      entity_id: null,
+      entity_name: null,
+      genre,
+      signal_weight: 1,
+      context: { source: 'settings' },
+      occurred_at: now,
+    }));
+
+    const trimmedArtists = artists
+      .map((artist) => artist.trim())
+      .filter((artist) => artist.length > 0);
+    const resolvedArtistIds = await resolveArtistIds(trimmedArtists);
+    const addedArtistKeys = new Set<string>();
+    const artistRows: PreferenceSignalInsertRow[] = trimmedArtists.reduce((rows, artist) => {
+      const key = artist.toLowerCase();
+      if (addedArtistKeys.has(key)) {
+        return rows;
+      }
+      addedArtistKeys.add(key);
+      const artistId = resolvedArtistIds.get(key) ?? null;
+      rows.push({
+        user_id: userId,
+        signal_type: ARTIST_MANUAL_SIGNAL_TYPE,
+        entity_type: 'artist',
+        entity_id: artistId,
+        entity_name: artistId ? null : artist,
+        genre: null,
+        signal_weight: 1,
+        context: { source: 'settings' },
+        occurred_at: now,
+      });
+      return rows;
+    }, [] as PreferenceSignalInsertRow[]);
+
+    const insertRows = [...genreRows, ...artistRows];
+    if (insertRows.length === 0) {
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from('user_preference_signals')
+      .insert(insertRows);
+
+    if (insertError) {
+      throw insertError;
+    }
+  };
 
   useEffect(() => {
     if (user?.id) {
@@ -72,8 +292,9 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
   const fetchUserData = async () => {
     if (!user?.id) return;
     
+    setLoading(true);
+
     try {
-      // Fetch profile data
       const { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('*')
@@ -95,23 +316,12 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
         });
       }
 
-      // Fetch music tags
-      const userMusicTags = await MusicTagsService.getUserMusicTags(user.id);
-      setMusicTags(userMusicTags);
-
-      // Separate genres and artists
-      const genres = userMusicTags.filter(tag => tag.tag_type === 'genre').map(tag => tag.tag_value);
-      const artists = userMusicTags.filter(tag => tag.tag_type === 'artist').map(tag => tag.tag_value);
-      
-      setMusicPreferences(prev => ({
-        ...prev,
-        genres,
-        artists
-      }));
+      const savedPreferences = await loadSavedMusicPreferences(user.id);
+      setMusicPreferences(savedPreferences);
 
     } catch (error) {
       console.error('Error fetching user data:', error);
-      } finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -121,47 +331,6 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
       ...prev,
       [field]: value
     }));
-  };
-
-  const handleMusicTagToggle = async (tagType: 'genre' | 'artist', tagValue: string, isSelected: boolean) => {
-    if (!user?.id) return;
-
-    try {
-      if (isSelected) {
-        // Add tag
-        await MusicTagsService.addMusicTag(user.id, {
-          tag_type: tagType,
-          tag_value: tagValue,
-          tag_source: 'manual',
-          weight: 5
-        });
-      } else {
-        // Remove tag - find the tag ID first
-        const existingTag = musicTags.find(tag => 
-          tag.tag_type === tagType && tag.tag_value === tagValue
-        );
-        if (existingTag) {
-          await MusicTagsService.removeMusicTag(user.id, existingTag.id);
-        }
-      }
-
-      // Refresh music tags
-      const updatedTags = await MusicTagsService.getUserMusicTags(user.id);
-      setMusicTags(updatedTags);
-
-      // Update local state
-      const genres = updatedTags.filter(tag => tag.tag_type === 'genre').map(tag => tag.tag_value);
-      const artists = updatedTags.filter(tag => tag.tag_type === 'artist').map(tag => tag.tag_value);
-      
-      setMusicPreferences(prev => ({
-        ...prev,
-        genres,
-        artists
-      }));
-
-    } catch (error) {
-      console.error('Error updating music tag:', error);
-      }
   };
 
   const handleSave = async () => {
@@ -185,6 +354,8 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
       if (profileError) {
         throw profileError;
       }
+
+      await persistMusicPreferences(user.id, musicPreferences.genres, musicPreferences.artists);
 
       if (onClose) {
         onClose();
@@ -336,72 +507,12 @@ const [profile, setProfile] = useState<UserProfile | null>(null);
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Genres */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Favorite Genres</Label>
-              <Badge variant="secondary">
-                {musicPreferences.genres.length}/7
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {MUSIC_GENRES.slice(0, 20).map((genre) => (
-                <Button
-                  key={genre}
-                  type="button"
-                  variant={musicPreferences.genres.includes(genre) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    const isSelected = musicPreferences.genres.includes(genre);
-                    handleMusicTagToggle('genre', genre, !isSelected);
-                  }}
-                  disabled={!musicPreferences.genres.includes(genre) && musicPreferences.genres.length >= 7}
-                  className="justify-start text-xs"
-                >
-                  {genre}
-                </Button>
-              ))}
-            </div>
-            {musicPreferences.genres.length >= 7 && (
-              <p className="text-xs text-amber-600">
-                Maximum of 7 genres selected
-              </p>
-            )}
-          </div>
-
-          {/* Artists */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Favorite Artists</Label>
-              <Badge variant="secondary">
-                {musicPreferences.artists.length}/15
-              </Badge>
-            </div>
-            {musicPreferences.artists.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {musicPreferences.artists.map((artist) => (
-                  <Badge
-                    key={artist}
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    {artist}
-                    <button
-                      type="button"
-                      onClick={() => handleMusicTagToggle('artist', artist, false)}
-                      className="ml-1 text-xs hover:text-destructive"
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Add artists by searching for them in the search bar or during onboarding
-              </p>
-            )}
-          </div>
+          <MusicTagsStep
+            showButtons={false}
+            initialGenres={musicPreferences.genres}
+            initialArtists={musicPreferences.artists}
+            onChange={handleMusicPreferencesChange}
+          />
         </CardContent>
       </Card>
 
