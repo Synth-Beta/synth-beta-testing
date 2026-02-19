@@ -24,6 +24,9 @@ import { LocationService } from '@/services/locationService';
 import { UserEventService } from '@/services/userEventService';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
 
+//Define variable to save mapbox token
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY;
+
 // Create numbered marker icon factory
 const createNumberedIcon = (number: number) => {
   return divIcon({
@@ -741,10 +744,14 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                     style={{ height: '100%', width: '100%', zIndex: 0 }}
                     boundsOptions={{ padding: [50, 50] }}
                   >
-                        <TileLayer
-                      url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w'}`}
-                          attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        />
+                    
+                    {MAPBOX_TOKEN ? (
+                      <TileLayer
+                        url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
+                        attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      />
+                    ) : null}
+
                     <MapBoundsFitter events={sortedTourEvents} />
                     
                     {/* Draw route lines with arrowheads (based on grouped venues) */}
@@ -1036,4 +1043,3 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     </div>
   );
 };
-
