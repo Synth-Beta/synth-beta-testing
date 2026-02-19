@@ -5,11 +5,6 @@ import { BottomNav } from '@/components/BottomNav/BottomNav';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import ComponentShowcase from './ComponentShowcase';
-import { DemoHomePage } from '@/demo/pages/DemoHomePage';
-import { DemoDiscoverPage } from '@/demo/pages/DemoDiscoverPage';
-import { DemoProfilePage } from '@/demo/pages/DemoProfilePage';
-import { DemoMessagesPage } from '@/demo/pages/DemoMessagesPage';
-import { DemoCreatePostPage } from '@/demo/pages/DemoCreatePostPage';
 import './MobilePreview.css';
 
 /**
@@ -45,12 +40,6 @@ const MobilePreview: React.FC = () => {
         <Routes>
           <Route index element={<Navigate to="component-view" replace />} />
           <Route path="component-view" element={<ComponentShowcase />} />
-          {/* Demo Mode Routes */}
-          <Route path="demo/home" element={<DemoHomePage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
-          <Route path="demo/discover" element={<DemoDiscoverPage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
-          <Route path="demo/profile" element={<DemoProfilePage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
-          <Route path="demo/messages" element={<DemoMessagesPage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
-          <Route path="demo/create-post" element={<DemoCreatePostPage menuOpen={menuOpen} onMenuClick={handleMenuToggle} />} />
         </Routes>
       </main>
 
