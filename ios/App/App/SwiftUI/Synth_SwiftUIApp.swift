@@ -41,8 +41,14 @@ struct RootView: View {
                         onComplete: {
                             onboardingComplete = true
                             showOnboarding = false
-                        }
-                    )
+                            },
+                            onExitToAuth: {
+                                Task {
+                                    try? await AuthService.signOut()
+                                    await refreshAuth()
+                                    }
+                                }
+                            )
                 } else {
                     ContentView()
                 }
@@ -64,15 +70,18 @@ struct RootView: View {
 
         let uid = await AuthService.currentUserId()
         let name = await AuthService.currentUserName()
+        let completed = uid == nil ? false : await AuthService.onboardingCompleted(userId: uid!)
 
         await MainActor.run {
             userId = uid
             userName = name
-            if uid != nil && onboardingComplete {
-                showOnboarding = false
-            } else if uid != nil {
-                showOnboarding = !onboardingComplete
-            }
+
+        if uid != nil {
+            onboardingComplete = completed
+            showOnboarding = !completed
+        } else {
+            showOnboarding = true
+        }
         }
     }
 }

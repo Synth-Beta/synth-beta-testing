@@ -16,14 +16,22 @@ public struct OnboardingCoordinator: View {
     public let userId: String
     public let userName: String
     public let onComplete: () -> Void
+    public let onExitToAuth: (() -> Void)?
 
     private let totalPages = 5
 
-    public init(userId: String, userName: String, onComplete: @escaping () -> Void) {
+    public init(
+        userId: String,
+        userName: String,
+        onComplete: @escaping () -> Void,
+        onExitToAuth: (() -> Void)? = nil
+) {
         self.userId = userId
         self.userName = userName
         self.onComplete = onComplete
-    }
+        self.onExitToAuth = onExitToAuth
+}
+
 
     public var body: some View {
         ZStack {
@@ -32,7 +40,8 @@ public struct OnboardingCoordinator: View {
                 Page1BirthYearGender(
                     state: $state,
                     onNext: { advancePage() },
-                    onSkip: { advancePage() }
+                    onSkip: { advancePage() },
+                    onBack: { onExitToAuth?() }
                 )
             case 2:
                 Page2City(

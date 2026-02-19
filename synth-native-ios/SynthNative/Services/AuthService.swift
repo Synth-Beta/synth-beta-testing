@@ -63,4 +63,30 @@ public enum AuthService {
         }
         return "User"
     }
+    /// Sign out (clears session)
+    public static func signOut() async throws {
+        try await SupabaseService.client.auth.signOut()
+    }
+
+    /// Whether onboarding is completed (stored in public.users.onboarding_completed)
+    public static func onboardingCompleted(userId: String) async -> Bool {
+        struct Row: Decodable {
+            let onboarding_completed: Bool?
+        }
+
+        do {
+            let rows: [Row] = try await SupabaseService.client
+                .from("users")
+                .select("onboarding_completed")
+                .eq("user_id", value: userId)
+                .limit(1)
+                .execute()
+                .value
+
+        return rows.first?.onboarding_completed ?? false
+    } catch {
+        return false
+    }
+}
+
 }

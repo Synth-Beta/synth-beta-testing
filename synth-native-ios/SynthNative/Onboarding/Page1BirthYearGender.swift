@@ -11,6 +11,7 @@ struct Page1BirthYearGender: View {
     @Binding var state: OnboardingState
     let onNext: () -> Void
     let onSkip: () -> Void
+    var onBack: (() -> Void)? = nil
 
     private static let minAge = 13
     private var currentYear: Int { Calendar.current.component(.year, from: Date()) }
@@ -31,7 +32,8 @@ struct Page1BirthYearGender: View {
                 }
                 onNext()
             },
-            onSkip: onSkip
+            onSkip: onSkip,
+            onBack: onBack
         ) {
             VStack(alignment: .leading, spacing: SynthSpacing.grouped) {
                 Picker("Birth year", selection: $state.birthYear) {
