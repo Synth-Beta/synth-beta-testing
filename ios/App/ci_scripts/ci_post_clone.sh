@@ -225,22 +225,101 @@ done
 
 # Build web assets (required for cap sync to copy to ios/App/App/public)
 echo "🔨 Building web assets..."
-npm run build 2>&1 || {
-  echo "⚠️  npm run build failed, but continuing..."
-}
+
+# Check for required environment variables — FAIL HARD if missing
+echo "🔍 Checking required environment variables..."
+MISSING_VARS=()
+if [ -z "$VITE_SUPABASE_URL" ]; then
+  echo "❌ VITE_SUPABASE_URL is not set!"
+  MISSING_VARS+=("VITE_SUPABASE_URL")
+fi
+if [ -z "$VITE_SUPABASE_ANON_KEY" ] && [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+  echo "❌ Neither VITE_SUPABASE_ANON_KEY nor VITE_SUPABASE_PUBLISHABLE_KEY is set!"
+  MISSING_VARS+=("VITE_SUPABASE_ANON_KEY")
+fi
+
+if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+  echo ""
+  echo "❌ CRITICAL: Required environment variables are missing!"
+  echo "   Missing: ${MISSING_VARS[*]}"
+  echo ""
+  echo "   To fix this:"
+  echo "   1. Open Xcode Cloud → your workflow → Environment Variables"
+  echo "   2. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY"
+  echo "   3. Re-run the workflow"
+  echo ""
+  echo "   Without these, the app will bundle placeholder credentials"
+  echo "   and all login attempts will fail with an API key error."
+  exit 1
+fi
+
+echo "✅ VITE_SUPABASE_URL: SET"
+echo "✅ VITE_SUPABASE_ANON_KEY/PUBLISHABLE_KEY: SET"
+
+if ! npm run build; then
+  echo "❌ Error: npm run build failed"
+  echo "   Check the build output above for TypeScript/lint errors."
+  exit 1
+fi
 
 # Verify dist directory was created
-if [ -d "dist" ]; then
-  echo "✅ dist directory created with $(ls dist | wc -l | tr -d ' ') items"
-else
-  echo "⚠️  dist directory not created, cap sync may fail"
+if [ ! -d "dist" ]; then
+  echo "❌ Error: dist directory not created after npm run build"
+  exit 1
 fi
+
+echo "✅ dist directory created with $(ls dist | wc -l | tr -d ' ') items"
 
 # Run Capacitor sync (copies dist/ to ios/App/App/public/)
 echo "🔄 Running Capacitor sync..."
-npx cap sync ios 2>&1 || {
-  echo "⚠️  cap sync failed, but continuing (might be already synced)"
-}
+if ! npx cap sync ios; then
+  echo "❌ Error: npx cap sync ios failed"
+  echo "   dist/ files were not copied to ios/App/App/public/"
+  exit 1
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Inject Supabase credentials into Info.plist for the NATIVE Swift layer.
+#
+# WHY THIS IS NEEDED:
+#   The app has a native Swift auth flow (AuthView.swift → SupabaseService.swift)
+#   that reads credentials from Info.plist at runtime via Bundle.main. The plist
+#   uses $(SUPABASE_ANON_KEY) — an Xcode build variable — which only resolves in
+#   Debug builds via debug.xcconfig. For App Store (Release) builds there is no
+#   release xcconfig, so the variable expands to empty string and the native
+#   Supabase client falls back to its placeholder → API key error on login.
+#
+#   Xcode Cloud environment variables are NOT automatic Xcode build settings, so
+#   setting VITE_SUPABASE_ANON_KEY in the workflow does not fix this on its own.
+#   PlistBuddy writes the real values BEFORE xcodebuild runs, so Xcode uses the
+#   literal string values rather than attempting build variable expansion.
+# ─────────────────────────────────────────────────────────────────────────────
+PLIST_PATH="$PROJECT_ROOT/ios/App/App/Info.plist"
+
+# Resolve the anon key: prefer VITE_SUPABASE_ANON_KEY, fall back to VITE_SUPABASE_PUBLISHABLE_KEY
+RESOLVED_ANON_KEY="${VITE_SUPABASE_ANON_KEY:-$VITE_SUPABASE_PUBLISHABLE_KEY}"
+
+if [ -f "$PLIST_PATH" ]; then
+  echo "🔑 Injecting Supabase credentials into Info.plist for native Swift layer..."
+
+  if [ -n "$VITE_SUPABASE_URL" ]; then
+    /usr/libexec/PlistBuddy -c "Set :SUPABASE_URL $VITE_SUPABASE_URL" "$PLIST_PATH" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :SUPABASE_URL string $VITE_SUPABASE_URL" "$PLIST_PATH"
+    echo "   ✅ SUPABASE_URL written to Info.plist"
+  else
+    echo "   ⚠️  VITE_SUPABASE_URL not set — SUPABASE_URL left unchanged in Info.plist"
+  fi
+
+  if [ -n "$RESOLVED_ANON_KEY" ]; then
+    /usr/libexec/PlistBuddy -c "Set :SUPABASE_ANON_KEY $RESOLVED_ANON_KEY" "$PLIST_PATH" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :SUPABASE_ANON_KEY string $RESOLVED_ANON_KEY" "$PLIST_PATH"
+    echo "   ✅ SUPABASE_ANON_KEY written to Info.plist"
+  else
+    echo "   ⚠️  No anon key env var found — SUPABASE_ANON_KEY left unchanged in Info.plist"
+  fi
+else
+  echo "⚠️  Info.plist not found at $PLIST_PATH — skipping native credential injection"
+fi
 
 echo "=========================================="
 echo "✅ Post-clone setup complete!"

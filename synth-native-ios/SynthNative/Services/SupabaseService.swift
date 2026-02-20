@@ -9,17 +9,20 @@ import Foundation
 import Supabase
 
 enum SupabaseService {
-    static var client: SupabaseClient {
+    // Static let with closure = lazy singleton: initialized once on first access,
+    // never re-created. Using a computed var was creating a new SupabaseClient on
+    // every call, meaning signIn() and currentUserId() used different instances.
+    static let client: SupabaseClient = {
         let urlStr = Config.supabaseUrl ?? "https://your-project.supabase.co"
         let key = Config.supabaseAnonKey ?? "your-anon-key"
         guard let url = URL(string: urlStr) else {
-            fatalError("Invalid Supabase URL")
+            fatalError("Invalid Supabase URL: \(urlStr)")
         }
         let options = SupabaseClientOptions(
             auth: SupabaseClientOptions.AuthOptions(emitLocalSessionAsInitialSession: true)
         )
         return SupabaseClient(supabaseURL: url, supabaseKey: key, options: options)
-    }
+    }()
 }
 
 /// Replace with your Supabase project URL and anon key.
