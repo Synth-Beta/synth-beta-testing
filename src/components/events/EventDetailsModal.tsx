@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, Suspense } from 'react';
+import React, { useCallback, useEffect, useState, useRef, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -163,7 +163,13 @@ export function EventDetailsModal({
     username: string | null;
     avatar_url: string | null;
   }>>([]);
-const { isCreator, isAdmin, isBusiness } = useAccountType();
+  const handleShareEvent = useCallback(() => {
+    setShareModalOpen(true);
+  }, [setShareModalOpen]);
+  const hasNativeEventHeader =
+    typeof window !== 'undefined' && !!(window as any).webkit?.messageHandlers?.eventHeader;
+  
+  const { isCreator, isAdmin, isBusiness } = useAccountType();
 
   // 🎯 TRACKING: View duration tracking
   const viewStartTime = useRef<number | null>(null);
@@ -198,6 +204,60 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
   useEffect(() => {
     setLocalIsInterested(isInterested);
   }, [isInterested]);
+
+  useEffect(() => {
+    if (!hasNativeEventHeader || !isOpen || !actualEvent?.id) {
+      return;
+    }
+
+    const handler = (window as any).webkit?.messageHandlers?.eventHeader;
+    if (!handler) {
+      return;
+    }
+
+    handler.postMessage({
+      action: 'show',
+      title: actualEvent.title,
+      eventId: actualEvent.id,
+      artistName: actualEvent.artist_name ?? actualEvent.artistName,
+      venueName: actualEvent.venue_name ?? actualEvent.venueName,
+    });
+
+    return () => {
+      handler.postMessage({ action: 'hide' });
+    };
+  }, [
+    hasNativeEventHeader,
+    actualEvent?.artistName,
+    actualEvent?.artist_name,
+    actualEvent?.id,
+    actualEvent?.title,
+    actualEvent?.venueName,
+    actualEvent?.venue_name,
+    isOpen,
+  ]);
+
+  useEffect(() => {
+    if (!hasNativeEventHeader) {
+      return;
+    }
+
+    const handleNativeBack = () => {
+      onClose();
+    };
+
+    const handleNativeShare = () => {
+      handleShareEvent();
+    };
+
+    window.addEventListener('synthNativeEventHeaderBack', handleNativeBack);
+    window.addEventListener('synthNativeEventHeaderShare', handleNativeShare);
+
+    return () => {
+      window.removeEventListener('synthNativeEventHeaderBack', handleNativeBack);
+      window.removeEventListener('synthNativeEventHeaderShare', handleNativeShare);
+    };
+  }, [hasNativeEventHeader, handleShareEvent, onClose]);
 
   const loadVerifiedChat = async () => {
     if (!actualEvent?.id || !currentUserId || verifiedChatLoading) {
@@ -1159,9 +1219,6 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
   };
 
   if (!isOpen) return null;
-  const handleShareEvent = () => {
-    setShareModalOpen(true);
-  };
   
   return (
     <>
@@ -1191,66 +1248,68 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
       }}
     >
       {/* iOS-style Header with glassmorphism */}
+      {!hasNativeEventHeader && (
         <div
           style={{
-          ...iosHeader,
-          position: 'sticky',
-          top: 0,
-          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-          // Ensure header stays above map/leaflet panes and controls.
-          zIndex: 5000,
-          flexShrink: 0,
-        }}
-      >
-        {/* Back button */}
-        <button
-          onClick={onClose}
-          style={{
-            ...iosIconButton,
-            width: 44,
-            height: 44,
-            minWidth: 44,
-            minHeight: 44,
-          }}
-          aria-label="Close event details"
-          type="button"
-        >
-          <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-        </button>
-        
-        {/* Title */}
-        <h1 
-          style={{
-            ...textStyles.title2,
-            flex: 1,
-            minWidth: 0,
-            textAlign: 'center',
-            margin: '0 12px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            color: 'var(--neutral-900)',
+            ...iosHeader,
+            position: 'sticky',
+            top: 0,
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+            // Ensure header stays above map/leaflet panes and controls.
+            zIndex: 5000,
+            flexShrink: 0,
           }}
         >
-          {actualEvent.title}
-        </h1>
-        
-        {/* Share button */}
+          {/* Back button */}
           <button
-          onClick={handleShareEvent}
-              style={{
-            ...iosIconButton,
-            width: 44,
-            height: 44,
-            minWidth: 44,
-            minHeight: 44,
-          }}
-          aria-label="Share event"
-          type="button"
-        >
-          <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+            onClick={onClose}
+            style={{
+              ...iosIconButton,
+              width: 44,
+              height: 44,
+              minWidth: 44,
+              minHeight: 44,
+            }}
+            aria-label="Close event details"
+            type="button"
+          >
+            <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+          </button>
+          
+          {/* Title */}
+          <h1 
+            style={{
+              ...textStyles.title2,
+              flex: 1,
+              minWidth: 0,
+              textAlign: 'center',
+              margin: '0 12px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              color: 'var(--neutral-900)',
+            }}
+          >
+            {actualEvent.title}
+          </h1>
+          
+          {/* Share button */}
+          <button
+            onClick={handleShareEvent}
+            style={{
+              ...iosIconButton,
+              width: 44,
+              height: 44,
+              minWidth: 44,
+              minHeight: 44,
+            }}
+            aria-label="Share event"
+            type="button"
+          >
+            <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
           </button>
         </div>
+      )}
 
       {/* Content area with iOS padding (start 12px below header).
           Ensure the scrollable content clears the fixed bottom nav and
@@ -1263,7 +1322,9 @@ const { isCreator, isAdmin, isBusiness } = useAccountType();
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
           padding: '0 20px',
-          paddingTop: '12px',
+          paddingTop: hasNativeEventHeader
+            ? 'calc(env(safe-area-inset-top, 0px) + 56px + 12px)'
+            : '12px',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px + 32px)',
         }}
       >

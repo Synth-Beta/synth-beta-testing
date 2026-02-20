@@ -37,6 +37,8 @@
 		SN1000322AF431CB00220026 /* IconGalleryPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000332AF431CB00220026 /* IconGalleryPreview.swift */; };
 		SN1000342AF431CB00220026 /* HeaderShowcase.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000352AF431CB00220026 /* HeaderShowcase.swift */; };
 		SN1000362AF431CB00220026 /* DesignSystemPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000372AF431CB00220026 /* DesignSystemPreview.swift */; };
+		SN1000392AF431CB00220026 /* NativeEventHeaderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN1000382AF431CB00220026 /* NativeEventHeaderModel.swift */; };
+		SN10003B2AF431CB00220026 /* NativeEventHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SN10003A2AF431CB00220026 /* NativeEventHeaderView.swift */; };
 		SN10002A2AF431CB00220026 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = SN10002B2AF431CB00220026 /* icons */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -79,6 +81,8 @@
 		SN1000332AF431CB00220026 /* IconGalleryPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconGalleryPreview.swift; sourceTree = "<group>"; };
 		SN1000352AF431CB00220026 /* HeaderShowcase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderShowcase.swift; sourceTree = "<group>"; };
 		SN1000372AF431CB00220026 /* DesignSystemPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystemPreview.swift; sourceTree = "<group>"; };
+		SN1000382AF431CB00220026 /* NativeEventHeaderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEventHeaderModel.swift; sourceTree = "<group>"; };
+		SN10003A2AF431CB00220026 /* NativeEventHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEventHeaderView.swift; sourceTree = "<group>"; };
 		SN10002B2AF431CB00220026 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; path = icons; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* Synth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Synth.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -176,6 +180,8 @@
 				SN1000332AF431CB00220026 /* IconGalleryPreview.swift */,
 				SN1000352AF431CB00220026 /* HeaderShowcase.swift */,
 				SN1000372AF431CB00220026 /* DesignSystemPreview.swift */,
+				SN1000382AF431CB00220026 /* NativeEventHeaderModel.swift */,
+				SN10003A2AF431CB00220026 /* NativeEventHeaderView.swift */,
 				SN10002B2AF431CB00220026 /* icons */,
 			);
 			path = SwiftUI;
@@ -320,6 +326,8 @@
 				SN1000322AF431CB00220026 /* IconGalleryPreview.swift in Sources */,
 				SN1000342AF431CB00220026 /* HeaderShowcase.swift in Sources */,
 				SN1000362AF431CB00220026 /* DesignSystemPreview.swift in Sources */,
+				SN1000392AF431CB00220026 /* NativeEventHeaderModel.swift in Sources */,
+				SN10003B2AF431CB00220026 /* NativeEventHeaderView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

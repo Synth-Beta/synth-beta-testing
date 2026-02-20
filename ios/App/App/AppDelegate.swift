@@ -48,6 +48,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             object: nil
         )
         
+        // Listen for native header controls coming from SwiftUI overlay
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSynthNativeEventHeaderBack(_:)),
+            name: NSNotification.Name("SynthNativeEventHeaderBack"),
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleSynthNativeEventHeaderShare(_:)),
+            name: NSNotification.Name("SynthNativeEventHeaderShare"),
+            object: nil
+        )
+        
         return true
     }
     
@@ -56,17 +70,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     @objc private func handleSynthOpenEvent(_ notification: Notification) {
         guard let eventId = notification.userInfo?["eventId"] as? String else { return }
-        let webView: WKWebView? = currentWebView ?? {
-            guard let window = UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .flatMap({ $0.windows })
-                .first(where: { $0.isKeyWindow }) ?? UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .flatMap({ $0.windows })
-                .first else { return nil }
-            return findWebView(in: window)
-        }()
-        guard let wv = webView else { return }
         let escaped = eventId.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "'", with: "\\'")
         let script = """
@@ -76,11 +79,49 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 } catch (e) { console.error('SynthOpenEvent error:', e); }
             })();
             """
+        evaluateScriptOnAvailableWebView(script: script)
+    }
+
+    @objc private func handleSynthNativeEventHeaderBack(_ notification: Notification) {
+        let script = """
+            (function() {
+                try {
+                    window.dispatchEvent(new CustomEvent('synthNativeEventHeaderBack'));
+                } catch (e) { console.error('SynthNativeEventHeaderBack error:', e); }
+            })();
+            """
+        evaluateScriptOnAvailableWebView(script: script)
+    }
+
+    @objc private func handleSynthNativeEventHeaderShare(_ notification: Notification) {
+        let script = """
+            (function() {
+                try {
+                    window.dispatchEvent(new CustomEvent('synthNativeEventHeaderShare'));
+                } catch (e) { console.error('SynthNativeEventHeaderShare error:', e); }
+            })();
+            """
+        evaluateScriptOnAvailableWebView(script: script)
+    }
+
+    private func evaluateScriptOnAvailableWebView(script: String) {
+        let webView: WKWebView? = currentWebView ?? {
+            guard let window = availableWindow() else { return nil }
+            return findWebView(in: window)
+        }()
+        guard let wv = webView else { return }
         wv.evaluateJavaScript(script) { _, error in
             if let error = error {
-                print("Synth: SynthOpenEvent evaluateJavaScript error: \(error.localizedDescription)")
+                print("Synth: JavaScript evaluation error: \(error.localizedDescription)")
             }
         }
+    }
+
+    private func availableWindow() -> UIWindow? {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+        return windows.first(where: { $0.isKeyWindow }) ?? windows.first
     }
     
     // MARK: - Apple Sign In Listener Setup
@@ -122,6 +163,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         let config = webView.configuration
         config.userContentController.add(self, name: "appleSignIn")
         config.userContentController.add(self, name: "eventShare")
+        config.userContentController.add(self, name: "eventHeader")
         config.userContentController.add(self, name: "setBadgeCount")
         let script = """
             (function() {
@@ -548,6 +590,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                     userInfo: ["event": eventData]
                 )
                 handleEventShare(notification: notification)
+            }
+        } else if message.name == "eventHeader" {
+            guard let body = message.body as? [String: Any],
+                  let action = body["action"] as? String else {
+                return
+            }
+            switch action {
+            case "show":
+                let title = body["title"] as? String ?? ""
+                NativeEventHeaderModel.shared.show(title: title)
+            case "hide":
+                NativeEventHeaderModel.shared.hide()
+            default:
+                break
             }
         } else if message.name == "setBadgeCount" {
             // Handle badge count update from JavaScript (matches in-app unread notifications)

@@ -195,49 +195,120 @@ struct SideMenuDivider: View {
 
 struct SideMenuVerificationSection: View {
     let data: VerificationStatusData
-
+    @State private var refreshing: Bool = false
+    
     var body: some View {
-        if data.accountType == .user {
+        switch data.accountType {
+        case .user:
             userVerificationCard
-        } else {
+        case .creator, .business, .admin:
             nonUserVerificationCard
         }
     }
-
+    
     private var userVerificationCard: some View {
         VStack(alignment: .leading, spacing: SynthSpacing.grouped) {
-            HStack(spacing: SynthSpacing.inline) {
-                IconView(.sparkles, size: SynthSizes.iconStandard, color: SynthColor.brandPink500)
-                Text(data.verified ? "Verified Account" : "Verification Status")
-                    .synth(.h2, color: SynthColor.neutral900)
-            }
-
-            if !data.verified && !data.criteria.isEmpty {
-                VStack(alignment: .leading, spacing: SynthSpacing.small) {
-                    Text(criteriaSummaryText)
-                        .synth(.meta, color: SynthColor.neutral600)
-
-                    SideMenuProgressBar(value: progressValue)
-
-                    VStack(spacing: SynthSpacing.small) {
-                        ForEach(data.criteria) { criterion in
-                            SideMenuVerificationRow(criterion: criterion)
+            // Header
+            VStack(alignment: .leading, spacing: SynthSpacing.inline) {
+                HStack(alignment: .top, spacing: SynthSpacing.small) {
+                    VStack(alignment: .leading, spacing: SynthSpacing.inline) {
+                        HStack(spacing: SynthSpacing.inline) {
+                            Text("Verification Status").synth(.h2, color: SynthColor.neutral900)
+                            if data.verified {
+                                IconView(.checkCircle, size: SynthSizes.iconSmall, color: SynthColor.statusSuccess500)
+                            }
                         }
+                        Text(
+                            data.verified
+                            ? "You are a verified member of the Synth community"
+                            : "Complete criteria to earn verification"
+                        )
+                        .synth(.meta, color: SynthColor.neutral600)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: { refreshing.toggle() }) {
+                        IconView(.refreshCw, size: SynthSizes.iconSmall, color: SynthColor.neutral600)
+                            .frame(width: SynthSizes.inputHeight, height: SynthSizes.inputHeight)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            // Score
+            VStack(alignment: .leading, spacing: SynthSpacing.inline) {
+                HStack {
+                    Text("Trust Score").synth(.meta, color: SynthColor.neutral900)
+                    Spacer()
+                    Text("\(data.score)%").synth(.h2, color: SynthColor.brandPink500)
+                }
+                
+                SideMenuProgressBar(value: progressValue)
+                
+                Text(criteriaSummaryText)
+                    .synth(.meta, color: SynthColor.neutral600)
+            }
+            
+            // Verified block
+            if data.verified {
+                HStack(alignment: .center, spacing: SynthSpacing.small) {
+                    IconView(.checkCircle, size: SynthSizes.iconStandard, color: SynthColor.statusSuccess500)
+                    VStack(alignment: .leading, spacing: SynthSpacing.inline) {
+                        Text("Verified User").synth(.meta, color: SynthColor.neutral900)
+                        Text("You have earned the trusted user badge")
+                            .synth(.meta, color: SynthColor.statusSuccess500)
                     }
                 }
-            } else if data.verified {
-                Text("Your user account is verified and trusted by the Synth community.")
-                    .synth(.meta, color: SynthColor.neutral600)
-
-                HStack {
-                    Spacer()
-                    IconView(.checkCircle, size: SynthSizes.iconLarge, color: SynthColor.statusSuccess500)
-                    Spacer()
+                .padding(SynthSpacing.small)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(SynthColor.statusSuccess050)
+                .overlay(
+                    RoundedRectangle(cornerRadius: SynthRadius.corner)
+                        .stroke(SynthColor.statusSuccess500, lineWidth: SynthSizes.borderThin)
+                )
+            }
+            
+            // Criteria list
+            VStack(alignment: .leading, spacing: SynthSpacing.small) {
+                Text("Verification Criteria").synth(.meta, color: SynthColor.neutral900)
+                ForEach(data.criteria) { criterion in
+                    SideMenuVerificationRow(criterion: criterion)
                 }
-                .padding(.vertical, SynthSpacing.grouped)
-            } else {
-                Text("Verification details are not available for this account type.")
-                    .synth(.meta, color: SynthColor.neutral600)
+            }
+            
+            // Tips card (pink)
+            if !data.verified {
+                VStack(alignment: .leading, spacing: SynthSpacing.small) {
+                    Text("Tips to Get Verified")
+                        .synth(.meta, color: SynthColor.brandPink700)
+                        .fontWeight(.bold)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                    
+                    VStack(alignment: .leading, spacing: SynthSpacing.inline) {
+                        Text("• Complete your profile with all information")
+                            .synth(.meta, color: SynthColor.brandPink700)
+                        Text("• Connect your music streaming account")
+                            .synth(.meta, color: SynthColor.brandPink700)
+                        Text("• Post reviews for concerts you attend")
+                            .synth(.meta, color: SynthColor.brandPink700)
+                        Text("• Build your friend network")
+                            .synth(.meta, color: SynthColor.brandPink700)
+                        Text("• Mark concerts you're interested in")
+                            .synth(.meta, color: SynthColor.brandPink700)
+                    }
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(SynthSpacing.small)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(SynthColor.brandPink050)
+                .overlay(
+                    RoundedRectangle(cornerRadius: SynthRadius.corner)
+                        .stroke(SynthColor.brandPink500, lineWidth: SynthSizes.borderThin)
+                )
             }
         }
         .padding(SynthSpacing.grouped)
@@ -256,10 +327,13 @@ struct SideMenuVerificationSection: View {
                 Text(data.verified ? "Verified Account" : "Verification Status")
                     .synth(.h2, color: SynthColor.neutral900)
             }
-            Text(data.verified
-                 ? "Your \(accountTypeLabel) account is verified and trusted by the Synth community."
-                 : "Verification details are not available for this account type.")
-                .synth(.meta, color: SynthColor.neutral600)
+
+            Text(
+                data.verified
+                ? "Your \(accountTypeLabel) account is verified and trusted by the Synth community."
+                : "Verification details are not available for this account type."
+            )
+            .synth(.meta, color: SynthColor.neutral600)
 
             if data.verified {
                 HStack {
@@ -303,14 +377,10 @@ struct SideMenuVerificationSection: View {
 
     private var accountTypeLabel: String {
         switch data.accountType {
-        case .user:
-            return "user"
-        case .creator:
-            return "creator"
-        case .business:
-            return "business"
-        case .admin:
-            return "admin"
+        case .user: return "user"
+        case .creator: return "creator"
+        case .business: return "business"
+        case .admin: return "admin"
         }
     }
 }

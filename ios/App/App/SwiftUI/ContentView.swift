@@ -9,9 +9,17 @@ import SwiftUI
 import SynthNative
 
 struct ContentView: View {
+    @StateObject private var headerModel = NativeEventHeaderModel.shared
+
     var body: some View {
-        CapacitorWebView()
-            .ignoresSafeArea(.all)
+        ZStack(alignment: .top) {
+            CapacitorWebView()
+                .ignoresSafeArea(.all)
+            if headerModel.isVisible {
+                NativeEventHeaderView(title: headerModel.title)
+                    .zIndex(9999)
+            }
+        }
     }
 }
 
