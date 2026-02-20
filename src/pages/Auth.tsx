@@ -40,6 +40,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [signupEmailAlreadyRegistered, setSignupEmailAlreadyRegistered] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [resetPasswordSent, setResetPasswordSent] = useState(false);
   const signInEmailInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleEmailChange = (value: string) => {
@@ -76,9 +78,11 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   }, []);
 
   useEffect(() => {
-    // Don't carry sign-in email errors across tabs
+    // Don't carry errors across tabs
     setEmailError(null);
     setSignupEmailAlreadyRegistered(false);
+    setAuthError(null);
+    setResetPasswordSent(false);
   }, [activeTab]);
 
   useEffect(() => {
@@ -151,6 +155,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     e.preventDefault();
     setLoading(true);
     setSignupEmailAlreadyRegistered(false);
+    setAuthError(null);
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -207,6 +212,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         return;
       }
 
+      setAuthError(error?.message || 'Sign up failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -215,6 +221,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setAuthError(null);
 
     try {
       // Always log for debugging
@@ -280,9 +287,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       }
       onAuthSuccess();
     } catch (error: any) {
-      if (import.meta.env.DEV) {
-        console.error('❌ Sign in failed:', error);
-      }
+      console.error('❌ Sign in failed:', error);
+      setAuthError(error?.message || 'Sign in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -299,6 +305,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     }
 
     setIsResettingPassword(true);
+    setAuthError(null);
+    setResetPasswordSent(false);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: getRedirectUrl('/reset-password'),
@@ -306,7 +314,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
       if (error) {
         logSupabaseAuthError('resetPasswordForEmail', error);
-        
+
         // Provide better error messages
         let errorMessage =
           getSupabaseAuthErrorDescription(error) ||
@@ -317,13 +325,14 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         } else if (error.status === 0) {
           errorMessage = 'Network error. Please check your internet connection.';
         }
-        
+
         throw new Error(errorMessage);
       }
+
+      setResetPasswordSent(true);
     } catch (error: any) {
-      if (import.meta.env.DEV) {
-        console.error('❌ Password reset failed:', error);
-      }
+      console.error('❌ Password reset failed:', error);
+      setAuthError(error?.message || 'Failed to send password reset email.');
     } finally {
       setIsResettingPassword(false);
     }
@@ -489,6 +498,22 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       {isResettingPassword ? 'Sending...' : 'Forgot password?'}
                     </button>
                   </div>
+                  {authError && (
+                    <p
+                      className="text-[15px] font-medium leading-[1.5] text-red-600 text-center bg-red-50 rounded-lg px-3 py-2"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    >
+                      {authError}
+                    </p>
+                  )}
+                  {resetPasswordSent && (
+                    <p
+                      className="text-[15px] font-medium leading-[1.5] text-green-700 text-center bg-green-50 rounded-lg px-3 py-2"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    >
+                      Password reset email sent. Check your inbox.
+                    </p>
+                  )}
                   <Button
                     type="submit"
                     disabled={loading}
@@ -501,7 +526,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                     className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                   >
-                    Trouble signing in? Double-check your email and password, or use “Forgot password”.
+                    Trouble signing in? Double-check your email and password, or use "Forgot password".
                   </p>
                 </form>
               </div>
@@ -579,6 +604,14 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     />
                   </div>
+                  {authError && (
+                    <p
+                      className="text-[15px] font-medium leading-[1.5] text-red-600 text-center bg-red-50 rounded-lg px-3 py-2"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    >
+                      {authError}
+                    </p>
+                  )}
                   <Button
                     type="submit"
                     disabled={loading}
