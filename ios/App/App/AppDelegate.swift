@@ -4,6 +4,7 @@ import UserNotifications
 import AuthenticationServices
 import WebKit
 import SwiftUI
+import SynthNative
 
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate, WKScriptMessageHandler {
 
@@ -165,6 +166,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         config.userContentController.add(self, name: "eventShare")
         config.userContentController.add(self, name: "eventHeader")
         config.userContentController.add(self, name: "setBadgeCount")
+        config.userContentController.add(self, name: "synthNativeAuth")
         let script = """
             (function() {
                 window.addEventListener('RequestAppleSignIn', function() {
@@ -619,6 +621,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                     }
                 }
             }
+        } else if message.name == "synthNativeAuth" {
+            guard let body = message.body as? [String: Any],
+                  let action = body["action"] as? String else {
+                return
+            }
+            switch action {
+            case "signedOut":
+                handleSynthNativeAuthSignOut(showSuccess: false)
+            case "userDeleted":
+                handleSynthNativeAuthSignOut(showSuccess: true)
+            default:
+                break
+            }
+        }
+    }
+
+    private func handleSynthNativeAuthSignOut(showSuccess: Bool) {
+        Task {
+            do {
+                try await AuthService.signOut()
+            } catch {
+                print("SynthNativeAuth signOut error: \(error)")
+            }
+            if showSuccess {
+                await MainActor.run {
+                    AppAuthModel.shared.showAccountDeletedSuccess = true
+                }
+            }
+            NotificationCenter.default.post(
+                name: Notification.Name("SynthAuthDidChange"),
+                object: nil
+            )
         }
     }
 

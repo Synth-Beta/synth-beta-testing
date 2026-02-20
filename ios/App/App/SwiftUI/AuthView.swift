@@ -12,12 +12,14 @@ import SynthNative
 struct AuthView: View {
     let onSignedIn: () -> Void
 
+    @AppStorage(AuthFlow.storageKey) private var authFlowRawValue = AuthFlow.defaultFlow.rawValue
     @State private var email = ""
     @State private var password = ""
     @State private var isSignUp = false
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showError = false
+    @EnvironmentObject private var appAuthModel: AppAuthModel
 
     var body: some View {
         ScrollView {
@@ -68,6 +70,7 @@ struct AuthView: View {
 
                     Button {
                         isSignUp.toggle()
+                        authFlowRawValue = isSignUp ? AuthFlow.signUp.rawValue : AuthFlow.signIn.rawValue
                         errorMessage = nil
                     } label: {
                         Text(isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up")
@@ -104,6 +107,12 @@ struct AuthView: View {
         } message: {
             Text(errorMessage ?? "Something went wrong")
         }
+        .sheet(
+            isPresented: $appAuthModel.showAccountDeletedSuccess,
+            onDismiss: { appAuthModel.showAccountDeletedSuccess = false }
+        ) {
+            AccountDeletedSuccessModal(isPresented: $appAuthModel.showAccountDeletedSuccess)
+        }
     }
 
     private func performEmailAuth() async {
@@ -113,6 +122,7 @@ struct AuthView: View {
 
         do {
             if isSignUp {
+                authFlowRawValue = AuthFlow.signUp.rawValue
                 try await AuthService.signUp(
                     email: email.trimmingCharacters(in: .whitespaces),
                     password: password
@@ -120,6 +130,7 @@ struct AuthView: View {
                 errorMessage = "Check your email to confirm your account, then sign in."
                 return
             } else {
+                authFlowRawValue = AuthFlow.signIn.rawValue
                 try await AuthService.signIn(
                     email: email.trimmingCharacters(in: .whitespaces),
                     password: password
@@ -158,6 +169,7 @@ struct AuthView: View {
         defer { isLoading = false }
 
         do {
+            authFlowRawValue = AuthFlow.signIn.rawValue
             try await AuthService.signInWithAppleToken(token)
             await MainActor.run { onSignedIn() }
         } catch {

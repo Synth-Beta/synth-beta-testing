@@ -35,18 +35,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Missing bearer token' });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: { persistSession: false },
-  });
-
-  // Validate token and get user id
-  const { data: userData, error: userError } = await supabase.auth.getUser(token);
-  if (userError || !userData?.user?.id) {
-    return res.status(401).json({ error: 'Invalid token', message: userError?.message });
-  }
-
-  const userId = userData.user.id;
-
   const fkBlockerResponse = () =>
     res.status(409).json({
       error: 'Cannot delete account',
@@ -54,36 +42,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         "Your account couldn’t be deleted because some content in your account was unable to be deleted. Please contact support for help.",
     });
 
-  // Pre-step: scenes.created_by references auth.users without ON DELETE CASCADE
-  // Null it out so auth deletion won't be blocked by FK constraints.
-  const { error: scenesErr } = await supabase
-    .from('scenes')
-    .update({ created_by: null })
-    .eq('created_by', userId);
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false },
+    });
 
-  if (scenesErr) {
-    console.error('[delete-account] Failed to null scenes.created_by:', scenesErr);
-    return fkBlockerResponse();
-  }
+    // Validate token and get user id
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData?.user?.id) {
+      console.error('[delete-account] Invalid token', userError);
+      return res.status(401).json({ error: 'Invalid token', message: userError?.message });
+    }
 
-  // Delete the auth user (cascades to FK'd data where ON DELETE CASCADE is set)
-  const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
-  if (deleteError) {
-    console.error('[delete-account] Failed to delete user:', deleteError);
-    const msg = (deleteError.message || '').toLowerCase();
-    const looksLikeFkViolation =
-      msg.includes('foreign key') ||
-      msg.includes('violates foreign key') ||
-      msg.includes('constraint') ||
-      msg.includes('sqlstate 23503') ||
-      msg.includes('23503');
+    const userId = userData.user.id;
+    console.log(`[delete-account] Received delete request for user ${userId}`);
 
-    if (looksLikeFkViolation) {
+    // Pre-step: scenes.created_by references auth.users without ON DELETE CASCADE
+    // Null it out so auth deletion won't be blocked by FK constraints.
+    const { error: scenesErr } = await supabase
+      .from('scenes')
+      .update({ created_by: null })
+      .eq('created_by', userId);
+
+    if (scenesErr) {
+      console.error('[delete-account] Failed to null scenes.created_by:', scenesErr);
       return fkBlockerResponse();
     }
 
-    return res.status(500).json({ error: 'Failed to delete account', message: deleteError.message });
-  }
+    // Delete the auth user (cascades to FK'd data where ON DELETE CASCADE is set)
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
+    if (deleteError) {
+      console.error('[delete-account] Failed to delete user:', deleteError);
+      const msg = (deleteError.message || '').toLowerCase();
+      const looksLikeFkViolation =
+        msg.includes('foreign key') ||
+        msg.includes('violates foreign key') ||
+        msg.includes('constraint') ||
+        msg.includes('sqlstate 23503') ||
+        msg.includes('23503');
 
-  return res.status(200).json({ ok: true });
+      if (looksLikeFkViolation) {
+        return fkBlockerResponse();
+      }
+
+      return res.status(500).json({ error: 'Failed to delete account', message: deleteError.message });
+    }
+
+    console.log(`[delete-account] Successfully deleted user ${userId}`);
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('[delete-account] Unexpected error deleting account:', error);
+    return res.status(500).json({
+      error: 'Failed to delete account',
+      message: 'An unexpected error occurred while deleting your account. Please try again later.',
+    });
+  }
 }

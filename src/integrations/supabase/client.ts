@@ -51,6 +51,10 @@ if (SUPABASE_URL === "https://your-project.supabase.co" || SUPABASE_PUBLISHABLE_
 
 // Detect if running on mobile (Capacitor)
 const isMobile = Capacitor.isNativePlatform();
+const isIosNativePlatform =
+  isMobile &&
+  typeof Capacitor.getPlatform === 'function' &&
+  Capacitor.getPlatform() === 'ios';
 
 // Configure Supabase client with mobile-specific settings
 const supabaseConfig: any = {
@@ -110,11 +114,16 @@ if (isMobile && typeof window !== 'undefined') {
 // Set up auth state change listener for deep link handling on mobile
 // This is mobile-only because web handles auth callbacks differently
 if (isMobile && typeof window !== 'undefined') {
+  const win = window as any;
   supabase.auth.onAuthStateChange((event, session) => {
     if (import.meta.env.DEV) {
       console.log('🔐 Auth state changed:', event, session ? 'Session exists' : 'No session');
     }
-    
+
+    if (isIosNativePlatform && event === 'SIGNED_OUT') {
+      win.webkit?.messageHandlers?.synthNativeAuth?.postMessage({ action: 'signedOut' });
+    }
+
     // Handle deep link callbacks
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       // Session is established, app can proceed

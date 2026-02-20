@@ -8,6 +8,14 @@
 import SwiftUI
 import SynthNative
 
+enum AuthFlow: String {
+    case signIn = "signin"
+    case signUp = "signup"
+
+    static let storageKey = "synth_auth_flow"
+    static var defaultFlow: AuthFlow { .signIn }
+}
+
 @main
 struct Synth_SwiftUIApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -22,10 +30,16 @@ struct Synth_SwiftUIApp: App {
 /// Root view: auth (if needed) → onboarding → main app shell.
 struct RootView: View {
     @AppStorage("synth_onboarding_complete") private var onboardingComplete = false
-    @State private var showOnboarding = true
+    @AppStorage(AuthFlow.storageKey) private var authFlowRawValue = AuthFlow.defaultFlow.rawValue
+    @State private var showOnboarding = false
     @State private var userId: String?
     @State private var userName: String = "User"
     @State private var isCheckingAuth = true
+    @StateObject private var authModel = AppAuthModel.shared
+
+    private var currentAuthFlow: AuthFlow {
+        AuthFlow(rawValue: authFlowRawValue) ?? .defaultFlow
+    }
 
     var body: some View {
         Group {
@@ -41,14 +55,15 @@ struct RootView: View {
                         onComplete: {
                             onboardingComplete = true
                             showOnboarding = false
-                            },
-                            onExitToAuth: {
-                                Task {
-                                    try? await AuthService.signOut()
-                                    await refreshAuth()
-                                    }
-                                }
-                            )
+                            authFlowRawValue = AuthFlow.defaultFlow.rawValue
+                        },
+                        onExitToAuth: {
+                            Task {
+                                try? await AuthService.signOut()
+                                await refreshAuth()
+                            }
+                        }
+                    )
                 } else {
                     ContentView()
                 }
@@ -56,11 +71,17 @@ struct RootView: View {
                 AuthView(onSignedIn: { Task { await refreshAuth() } })
             }
         }
+        .environmentObject(authModel)
         .task {
             await refreshAuth()
         }
         .onChange(of: onboardingComplete) { _, complete in
             if complete { showOnboarding = false }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("SynthAuthDidChange"))) { _ in
+            Task {
+                await refreshAuth()
+            }
         }
     }
 
@@ -76,12 +97,15 @@ struct RootView: View {
             userId = uid
             userName = name
 
-        if uid != nil {
-            onboardingComplete = completed
-            showOnboarding = !completed
-        } else {
-            showOnboarding = true
-        }
+            if uid != nil {
+                onboardingComplete = completed
+                showOnboarding = (uid != nil) && !completed
+                authFlowRawValue = AuthFlow.defaultFlow.rawValue
+            } else {
+                onboardingComplete = false
+                showOnboarding = false
+                authFlowRawValue = AuthFlow.defaultFlow.rawValue
+            }
         }
     }
 }

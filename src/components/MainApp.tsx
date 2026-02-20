@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { BottomNavAdapter } from './BottomNavAdapter';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
@@ -124,10 +125,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [isIosNative]);
 
   // Check onboarding status on mount
   useEffect(() => {
+    if (isIosNative) {
+      return;
+    }
     const checkOnboardingStatus = async () => {
       if (!user) return;
 
@@ -148,8 +152,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
         // If user hasn't completed onboarding and hasn't skipped it, redirect to onboarding
         if (!status.onboarding_completed && !status.onboarding_skipped) {
+          if (isIosNative) {
+            return; // Native Swift handles onboarding
+          }
           setCurrentView('onboarding');
-        } else if (status.onboarding_skipped && !status.onboarding_completed) {
+        } 
+        if (isIosNative && currentView === 'onboarding') {
+          setCurrentView('feed');
+        }
+        else if (status.onboarding_skipped && !status.onboarding_completed) {
           // Show reminder banner if they skipped
           setShowOnboardingReminder(true);
           // Start tour if not completed (tour should start after skip too)
@@ -169,7 +180,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     if (!loading && user) {
       checkOnboardingStatus();
     }
-  }, [user, loading, currentView]);
+  }, [user, loading, currentView, isIosNative]);
 
   // Check for unread friend-tagged-in-review notifications on login (popup on next login)
   useEffect(() => {
@@ -262,7 +273,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   useEffect(() => {
     const hash = location.hash;
     if (hash === '#onboarding') {
-      setCurrentView('onboarding');
+      if (!isIosNative) {
+        setCurrentView('onboarding');
+      }
       // Clear the hash to prevent re-triggering on refresh
       navigate(`${location.pathname}${location.search}`, { replace: true });
     } else if (hash === '#profile') {
@@ -270,7 +283,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       // Clear the hash to prevent re-triggering on refresh
       navigate(`${location.pathname}${location.search}`, { replace: true });
     }
-  }, [location.hash, location.pathname, location.search, navigate]);
+  }, [location.hash, location.pathname, location.search, navigate, isIosNative]);
 
   useEffect(() => {
     // MainApp useEffect starting
@@ -278,10 +291,17 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
     // Check for intended view from localStorage (for navigation from other pages)
     const intendedView = localStorage.getItem('intendedView');
-    if (intendedView && ['feed', 'search', 'profile', 'onboarding'].includes(intendedView)) {
-      setCurrentView(intendedView as ViewType);
-      // Clear the intended view to prevent re-triggering
-      localStorage.removeItem('intendedView');
+    if (intendedView) {
+      if (intendedView === 'onboarding') {
+        if (!isIosNative) {
+          setCurrentView('onboarding');
+        }
+        localStorage.removeItem('intendedView');
+      } else if (['feed', 'search', 'profile'].includes(intendedView)) {
+        setCurrentView(intendedView as ViewType);
+        // Clear the intended view to prevent re-triggering
+        localStorage.removeItem('intendedView');
+      }
     }
 
     // Add keyboard shortcut for testing login (Ctrl/Cmd + L)
@@ -389,6 +409,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [selectedEventFromVenue, setSelectedEventFromVenue] = useState<any>(null);
   const [eventDetailsFromVenueOpen, setEventDetailsFromVenueOpen] = useState(false);
   const [selectedEventFromVenueInterested, setSelectedEventFromVenueInterested] = useState(false);
+  const isIosNative =
+    Capacitor.isNativePlatform() &&
+    typeof Capacitor.getPlatform === 'function' &&
+    Capacitor.getPlatform() === 'ios';
 
   // Lock body scroll when menu is open
   useLockBodyScroll(menuOpen);
@@ -795,6 +819,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   };
 
+  const handleOnboardingReminderComplete = () => {
+    if (isIosNative) {
+      return;
+    }
+    setCurrentView('onboarding');
+  };
+
   const handleTourFinish = () => {
     setRunTour(false);
   };
@@ -805,6 +836,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   // Show auth if no user, session expired, or auth requested
   if (showAuth || sessionExpired || !user?.id) {
+    if (isIosNative) {
+      return <SynthLoadingScreen text="Loading Synth..." />;
+    }
     // Showing auth modal
     return <Auth onAuthSuccess={handleAuthSuccess} />;
   }
@@ -816,9 +850,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     // Rendering current view
     switch (currentView) {
       case 'auth':
-        return <Auth onAuthSuccess={handleAuthSuccess} />;
+        return isIosNative ? (
+          <SynthLoadingScreen text="Loading Synth..." />
+        ) : (
+          <Auth onAuthSuccess={handleAuthSuccess} />
+        );
       case 'onboarding':
-        return (
+        return isIosNative ? (
+          <SynthLoadingScreen text="Loading Synth..." />
+        ) : (
           <OnboardingFlow
             onComplete={handleOnboardingComplete}
             onExit={() => {
@@ -1066,7 +1106,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       {/* Onboarding Reminder Banner */}
       {showOnboardingReminder && !hideNavigation && (
         <OnboardingReminderBanner
-          onComplete={() => setCurrentView('onboarding')}
+          onComplete={handleOnboardingReminderComplete}
           onDismiss={() => setShowOnboardingReminder(false)}
         />
       )}

@@ -80,6 +80,16 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
     setDeleteAccountError(null);
   };
 
+  const notifyNativeAccountDeleted = () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handler = (window as any).webkit?.messageHandlers?.synthNativeAuth;
+    if (handler?.postMessage) {
+      handler.postMessage({ action: 'userDeleted' });
+    }
+  };
+
   const handleResetPassword = async () => {
     if (!userEmail) {
       return;
@@ -174,8 +184,10 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
         throw new Error(message);
       }
 
+      window.webkit?.messageHandlers?.synthNativeAuth?.postMessage({ action: 'userDeleted' });
       await onSignOut();
       handleClose();
+      notifyNativeAccountDeleted();
       window.location.href = '/';
     } catch (error) {
       console.error('Error deleting account:', error);

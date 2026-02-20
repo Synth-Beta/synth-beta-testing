@@ -15,11 +15,13 @@ struct ContentView: View {
         ZStack(alignment: .top) {
             CapacitorWebView()
                 .ignoresSafeArea(.all)
+
             if headerModel.isVisible {
                 NativeEventHeaderView(title: headerModel.title)
                     .zIndex(9999)
             }
         }
+        .preferredColorScheme(.light) // makes status bar content black
     }
 }
 

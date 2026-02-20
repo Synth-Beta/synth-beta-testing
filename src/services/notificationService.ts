@@ -24,7 +24,6 @@ export class NotificationService {
   private static dedupeNotifications(
     notifications: NotificationWithDetails[]
   ): NotificationWithDetails[] {
-    // 1) Dedupe by notification id (guards against duplicate rows from a view/join)
     const byId = new Map<string, NotificationWithDetails>();
     for (const n of notifications) {
       if (!n?.id) continue;
@@ -33,43 +32,72 @@ export class NotificationService {
 
     const unique = Array.from(byId.values());
 
-    // 2) For friend_request, dedupe by sender (keep latest by created_at)
-    const friendRequestsBySender = new Map<string, NotificationWithDetails>();
-    const nonFriendRequests: NotificationWithDetails[] = [];
+    const getLogicalKey = (n: NotificationWithDetails): string => {
+      const type = n.type ?? 'unknown';
+      const data = (n.data ?? {}) as Record<string, any>;
 
-    for (const n of unique) {
-      if (n.type !== 'friend_request') {
-        nonFriendRequests.push(n);
-        continue;
+      if (type === 'friend_request') {
+        const senderId =
+          data?.sender_id ?? data?.actor_user_id ?? n.actor_user_id;
+        return `friend_request:${senderId ?? 'unknown'}:${n.user_id ?? ''}`;
       }
 
-      const senderId =
-        // Our friend_request payload uses data.sender_id
-        (n.data as any)?.sender_id ??
-        // Fallbacks in case older rows differed
-        (n.data as any)?.actor_user_id ??
-        n.actor_user_id;
+      if (type.includes('event')) {
+        const eventId =
+          data?.event_id ??
+          data?.jambase_event_id ??
+          data?.event?.id ??
+          n.entity_id;
+        const subtype = data?.action ?? data?.subtype ?? '';
+        return `event:${eventId ?? 'unknown'}:${subtype}`;
+      }
 
-      // If we can't determine a sender, keep it (key by id so we don't drop data)
-      const key = senderId ? String(senderId) : `unknown_sender:${n.id}`;
+      const lowerType = type.toLowerCase();
+      const isPostCommentLikeReview = ['post', 'comment', 'like', 'review'].some(
+        (keyword) => lowerType.includes(keyword)
+      );
+      if (isPostCommentLikeReview) {
+        const entityId =
+          data?.post_id ??
+          data?.review_id ??
+          data?.comment_id ??
+          n.entity_id;
+        const actorId = data?.actor_user_id ?? n.actor_user_id;
+        return `${type}:${entityId ?? 'unknown'}:${actorId ?? ''}`;
+      }
 
-      const existing = friendRequestsBySender.get(key);
+      const actorId =
+        data?.actor_user_id ?? n.actor_user_id ?? data?.sender_id;
+      const entityId =
+        n.entity_id ?? data?.object_id ?? data?.target_id;
+      return `${type}:${entityId ?? 'unknown'}:${actorId ?? ''}`;
+    };
+
+    const dedupedByLogicalKey = new Map<string, NotificationWithDetails>();
+
+    for (const n of unique) {
+      const logicalKey = getLogicalKey(n);
+      const existing = dedupedByLogicalKey.get(logicalKey);
       if (!existing) {
-        friendRequestsBySender.set(key, n);
+        dedupedByLogicalKey.set(logicalKey, n);
         continue;
       }
 
       const existingTime = new Date(existing.created_at).getTime();
       const nextTime = new Date(n.created_at).getTime();
       if (Number.isFinite(nextTime) && nextTime >= existingTime) {
-        friendRequestsBySender.set(key, n);
+        dedupedByLogicalKey.set(logicalKey, n);
       }
     }
 
-    const merged = [...friendRequestsBySender.values(), ...nonFriendRequests];
+    const merged = Array.from(dedupedByLogicalKey.values());
     merged.sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
+
+    // Quick test notes:
+    // - same event notification returned twice from join => collapses
+    // - multiple notifications about same event action => keep newest only
 
     return merged;
   }
