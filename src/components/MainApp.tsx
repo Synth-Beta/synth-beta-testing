@@ -13,6 +13,7 @@ import { Event as EventCardEvent } from './EventCard';
 import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
 import { SettingsModal } from './SettingsModal';
+import type { SettingsModalView } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
 import { UnifiedChatView } from './UnifiedChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
@@ -86,6 +87,10 @@ type GlobalDetailModalState =
     };
 
 export const MainApp = ({ onSignOut }: MainAppProps) => {
+  const isIosNative =
+  Capacitor.isNativePlatform() &&
+  typeof Capacitor.getPlatform === 'function' &&
+  Capacitor.getPlatform() === 'ios';
   const [currentView, setCurrentView] = useState<ViewType>('feed');
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
@@ -382,6 +387,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsInitialView, setSettingsInitialView] = useState<SettingsModalView>('menu');
   const [showEventReviewModal, setShowEventReviewModal] = useState(false);
   const [eventReviewPrefill, setEventReviewPrefill] = useState<PrefillEvent | null>(null);
   const [friendTaggedInviteNotification, setFriendTaggedInviteNotification] = useState<any>(null);
@@ -409,10 +415,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [selectedEventFromVenue, setSelectedEventFromVenue] = useState<any>(null);
   const [eventDetailsFromVenueOpen, setEventDetailsFromVenueOpen] = useState(false);
   const [selectedEventFromVenueInterested, setSelectedEventFromVenueInterested] = useState(false);
-  const isIosNative =
-    Capacitor.isNativePlatform() &&
-    typeof Capacitor.getPlatform === 'function' &&
-    Capacitor.getPlatform() === 'ios';
 
   // Lock body scroll when menu is open
   useLockBodyScroll(menuOpen);
@@ -657,8 +659,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     setCurrentView('profile-edit');
   };
 
-  const handleProfileSettings = () => {
+  const openSettingsModal = (view: SettingsModalView = 'menu') => {
+    setSettingsInitialView(view);
     setShowSettings(true);
+  };
+
+  const closeSettingsModal = () => {
+    setShowSettings(false);
+    setSettingsInitialView('menu');
+  };
+
+  const handleProfileSettings = () => {
+    openSettingsModal('onboarding-preferences');
   };
 
   const handleProfileSave = () => {
@@ -671,7 +683,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     try {
       await signOut();
       setShowAuth(false); // Hide auth modal
-      setShowSettings(false); // Hide settings modal
+      closeSettingsModal(); // Hide settings modal
     } catch (error: any) {
       // Error signing out
     }
@@ -1291,7 +1303,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         onToggle={handleMenuToggle}
         onNavigateToNotifications={handleNavigateToNotifications}
         onNavigateToProfile={handleNavigateToProfile}
-        onNavigateToSettings={() => setShowSettings(true)}
+        onNavigateToSettings={() => openSettingsModal()}
         onNavigateToVerification={() => {
           handleNavigateToProfile(undefined, 'timeline');
         }}
@@ -1301,9 +1313,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       {/* Settings Modal */}
       <SettingsModal
         isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
+        onClose={closeSettingsModal}
         onSignOut={handleSignOut}
         userEmail={user?.email}
+        initialView={settingsInitialView}
       />
 
       {/* Friend Tagged in Review Invite Modal - shows on login when user was tagged */}

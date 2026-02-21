@@ -5,6 +5,7 @@ import { InAppShareService, type ShareTarget } from '@/services/inAppShareServic
 import { ShareService } from '@/services/shareService';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { Users } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 interface EventShareModalProps {
   event: JamBaseEvent;
@@ -266,18 +267,19 @@ const modalRef = useRef<HTMLDivElement>(null);
   }));
 
   if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
 
   // Gate all in-app chat sharing behind having friends.
   // If the user has no friends, we show only external share options and a helper text.
   const showInternalChatSection = friends.length > 0;
   const internalLoading = loading || friendsLoading;
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 1000,
+        zIndex: 10000,
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
@@ -886,6 +888,7 @@ const modalRef = useRef<HTMLDivElement>(null);
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

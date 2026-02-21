@@ -20,20 +20,30 @@ import {
 } from '@/services/userSettingsPreferencesService';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { Capacitor } from '@capacitor/core';
+import { getApiBaseUrl } from '@/utils/apiBaseUrl';
+
+export type SettingsModalView =
+  | 'menu'
+  | 'onboarding-preferences'
+  | 'security-actions'
+  | 'verification'
+  | 'parental-controls'
+  | 'delete-account';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSignOut: () => void;
   userEmail?: string;
+  initialView?: SettingsModalView;
 }
 
-export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: SettingsModalProps) => {
+export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialView }: SettingsModalProps) => {
   // Track settings view when modal opens
   useViewTracking('view', 'settings', { source: 'settings' }, undefined, { enabled: isOpen });
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [view, setView] = useState<'menu' | 'onboarding-preferences' | 'security-actions' | 'verification' | 'parental-controls' | 'delete-account'>('menu');
+  const [view, setView] = useState<SettingsModalView>('menu');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState('');
@@ -49,6 +59,14 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
   const [deleteAccountInput, setDeleteAccountInput] = useState('');
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (isOpen) {
+      setView(initialView ?? 'menu');
+    } else {
+      setView('menu');
+    }
+  }, [initialView, isOpen]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -163,7 +181,12 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail }: Setting
         throw new Error('No active session token found');
       }
 
-      const rsp = await fetch('/api/delete-account', {
+      const base = getApiBaseUrl();
+      if (!base) {
+        throw new Error('Missing VITE_API_BASE_URL for native builds');
+      }
+
+      const rsp = await fetch(`${base}/api/delete-account`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,

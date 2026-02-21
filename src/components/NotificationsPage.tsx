@@ -12,10 +12,8 @@ import {
   Calendar, 
   Star,
   Users,
-  ArrowLeft,
   Check,
   X,
-  ChevronLeft
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,9 +21,8 @@ import { NotificationService } from '@/services/notificationService';
 import type { NotificationWithDetails } from '@/types/notifications';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
+import { MobileHeader } from '@/components/Header/MobileHeader';
 import { 
-  iosHeader, 
-  iosIconButton,
   glassCard,
   glassCardLight,
   textStyles,
@@ -87,6 +84,7 @@ export const NotificationsPage = ({
 
   const notifications = notificationsData?.notifications ?? [];
   const unreadCount = notificationsData?.unreadCount ?? 0;
+  const headerTitle = filter === 'friends_only' ? 'Friends' : 'Notifications';
 
   const markAsRead = async (notificationId: string) => {
     try {
@@ -601,43 +599,32 @@ export const NotificationsPage = ({
   }
 
   return (
-    <div 
+    <main
+      className="page-container"
       style={{
         minHeight: '100vh',
+        position: 'relative',
         background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 1) 100%)',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'var(--spacing-bottom-nav, 80px)'
+        paddingTop: `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`,
+        paddingBottom: 'var(--spacing-bottom-nav, 80px)',
       }}
     >
-      {/* iOS-style Header */}
-      <div 
-        style={{
-          ...iosHeader,
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-        }}
+      <MobileHeader
+        alignLeft
+        leftIcon="left"
+        onLeftIconClick={onBack}
+        rightButton={<div style={{ width: 44, height: 44 }} aria-hidden="true" />}
       >
-        <button
-          onClick={onBack}
-          style={{
-            ...iosIconButton,
-            width: 44,
-            height: 44,
-          }}
-          aria-label="Back"
-        >
-          <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-        </button>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' }}>
-          <h1 style={{
-            ...textStyles.title1,
-            color: 'var(--neutral-900)',
-            margin: 0,
-            fontWeight: 600,
-          }}>
-            {filter === 'friends_only' ? 'Friends' : 'Notifications'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h1
+            style={{
+              ...textStyles.title1,
+              color: 'var(--neutral-900)',
+              margin: 0,
+              fontWeight: 600,
+            }}
+          >
+            {headerTitle}
           </h1>
           {unreadCount > 0 && (
             <div
@@ -663,12 +650,18 @@ export const NotificationsPage = ({
             </div>
           )}
         </div>
-        
-        <div style={{ width: 44 }} /> {/* Spacer for centering */}
-      </div>
+      </MobileHeader>
 
-      {/* Content area with iOS padding */}
-      <div style={{ padding: '16px' }}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 720,
+          margin: '0 auto',
+          paddingTop: 'var(--spacing-small, 12px)',
+        }}
+      >
+        {/* Content area with iOS padding */}
+        <div style={{ padding: '16px' }}>
         {/* Actions */}
         {notifications.length > 0 && unreadCount > 0 && (
           <div style={{
@@ -951,5 +944,6 @@ export const NotificationsPage = ({
         )}
       </div>
     </div>
+  </main>
   );
 };

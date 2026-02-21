@@ -238,7 +238,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           {/* Navigation */}
           <div className="side-menu__list">
             <MenuCategory
-              label="Friends"
+              label="Friend Requests"
               icon="twoUsers"
               badgeCount={pendingFriendRequestsCount}
               onPress={() => {
@@ -270,7 +270,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
             />
 
             <MenuCategory
-              label="Event Timeline"
+              label="Synth Passport"
               icon="music"
               onPress={() => {
                 try {

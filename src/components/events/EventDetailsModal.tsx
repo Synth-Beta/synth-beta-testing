@@ -164,8 +164,30 @@ export function EventDetailsModal({
     avatar_url: string | null;
   }>>([]);
   const handleShareEvent = useCallback(() => {
+    if (!actualEvent) {
+      setShareModalOpen(true);
+      return;
+    }
+
+    const eventId = actualEvent.event_id ?? actualEvent.id ?? actualEvent.eventId;
+    const artistName = actualEvent.artist_name ?? actualEvent.artistName;
+    const venueName = actualEvent.venue_name ?? actualEvent.venueName;
+
+    if (eventId) {
+      trackInteraction.click(
+        'share',
+        eventId,
+        {
+          source: 'event_details_modal',
+          artist_name: artistName,
+          venue_name: venueName,
+        },
+        eventId
+      );
+    }
+
     setShareModalOpen(true);
-  }, [setShareModalOpen]);
+  }, [actualEvent, setShareModalOpen]);
   const hasNativeEventHeader =
     typeof window !== 'undefined' && !!(window as any).webkit?.messageHandlers?.eventHeader;
   
