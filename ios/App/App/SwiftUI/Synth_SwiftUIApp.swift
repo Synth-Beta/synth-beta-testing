@@ -27,7 +27,13 @@ struct Synth_SwiftUIApp: App {
     }
 }
 
-/// Root view: auth (if needed) → onboarding → main app shell.
+/// Root view: onboarding (if needed for native-auth users) → main app shell.
+///
+/// Auth is handled entirely by the React/Capacitor web layer (the pink login page).
+/// This native shell only intercepts to show the native OnboardingCoordinator when
+/// a user has an existing native Supabase session but hasn't completed onboarding.
+/// All other states — including unauthenticated — fall through to ContentView so
+/// the React app can handle login and its own onboarding flow uninterrupted.
 struct RootView: View {
     @AppStorage("synth_onboarding_complete") private var onboardingComplete = false
     @AppStorage(AuthFlow.storageKey) private var authFlowRawValue = AuthFlow.defaultFlow.rawValue
@@ -68,7 +74,10 @@ struct RootView: View {
                     ContentView()
                 }
             } else {
-                AuthView(onSignedIn: { Task { await refreshAuth() } })
+                // Unauthenticated users, and authenticated users who finished
+                // onboarding, both go straight to ContentView. The React app
+                // shows the login page when needed and handles auth itself.
+                ContentView()
             }
         }
         .environmentObject(authModel)
@@ -91,7 +100,7 @@ struct RootView: View {
 
         let uid = await AuthService.currentUserId()
         let name = await AuthService.currentUserName()
-        let completed = uid == nil ? false : await AuthService.onboardingCompleted(userId: uid!)
+        let completed = uid == nil ? true : await AuthService.onboardingCompleted(userId: uid!)
 
         await MainActor.run {
             userId = uid

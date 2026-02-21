@@ -36,6 +36,7 @@ export interface SideMenuProps {
   onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested') => void;
   onNavigateToSettings?: () => void;
   onNavigateToVerification?: () => void;
+  onNavigateToStreamingStats?: () => void;
 
   /**
    * Optional callback for sign out action
@@ -56,8 +57,9 @@ export interface SideMenuProps {
  * - UserInfo component at top of content
  *
  * Menu order:
+ * Friends
  * Notifications
- * Event Timeline
+ * Streaming Stats
  * Interested
  * Settings
  *
@@ -72,6 +74,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onNavigateToProfile,
   onNavigateToSettings,
   onNavigateToVerification,
+  onNavigateToStreamingStats,
   onSignOut,
 }) => {
   const navigate = useNavigate();
@@ -270,18 +273,15 @@ export const SideMenu: React.FC<SideMenuProps> = ({
             />
 
             <MenuCategory
-              label="Synth Passport"
+              label="Streaming Stats"
               icon="music"
               onPress={() => {
                 try {
-                  trackInteraction.click('view', 'side_menu_timeline', { source: 'side_menu' });
+                  trackInteraction.click('view', 'side_menu_streaming_stats', { source: 'side_menu' });
                 } catch (error) {
                   console.error('Error tracking menu click:', error);
                 }
-                if (onNavigateToProfile) {
-                  sessionStorage.setItem('profileTab', 'timeline');
-                  onNavigateToProfile(undefined, 'timeline');
-                }
+                onNavigateToStreamingStats?.();
                 onClose();
               }}
             />

@@ -29,6 +29,7 @@ import { OnboardingService } from '@/services/onboardingService';
 import CreatorAnalyticsDashboard from '@/pages/Analytics/CreatorAnalyticsDashboard';
 import BusinessAnalyticsDashboard from '@/pages/Analytics/BusinessAnalyticsDashboard';
 import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
+import { StreamingStatsPage } from '@/pages/StreamingStatsPage';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
@@ -52,6 +53,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 type ViewType =
   | 'feed'
   | 'search'
+  | 'streaming-stats'
   | 'profile'
   | 'profile-edit'
   | 'notifications'
@@ -969,6 +971,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onChatSelected={setIsChatSelected}
           />
         );
+      case 'streaming-stats':
+        return <StreamingStatsPage onBack={() => setCurrentView('feed')} />;
       case 'analytics':
         // Render the appropriate analytics dashboard based on account type
         if (!accountInfo) {
@@ -1304,6 +1308,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         onNavigateToNotifications={handleNavigateToNotifications}
         onNavigateToProfile={handleNavigateToProfile}
         onNavigateToSettings={() => openSettingsModal()}
+        onNavigateToStreamingStats={() => setCurrentView('streaming-stats')}
         onNavigateToVerification={() => {
           handleNavigateToProfile(undefined, 'timeline');
         }}

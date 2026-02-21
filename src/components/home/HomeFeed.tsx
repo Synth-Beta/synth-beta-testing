@@ -1251,7 +1251,7 @@ interface FriendEventInterest {
 
   const loadFriendSuggestionsForRail = async () => {
     try {
-      const suggestions = await FriendsService.getSimilarUsersToFriend(currentUserId);
+      const suggestions = await FriendsService.getSimilarUsersToFriend(currentUserId, 5);
       // FriendsService.getRecommendedFriends already returns the correct format
       setFriendSuggestionsForRail(suggestions);
     } catch (error) {

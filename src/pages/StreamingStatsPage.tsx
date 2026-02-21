@@ -1,133 +1,137 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  ArrowLeft, 
-  Music, 
-  TrendingUp, 
-  Clock, 
-  Headphones, 
-  Disc, 
-  RefreshCw,
-  User,
-  BarChart3,
-  PlayCircle,
-  ExternalLink,
-  LogIn
-} from 'lucide-react';
+import { ArrowLeft, Music, RefreshCw, Headphones, BarChart3, User, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { UserStreamingStatsService, type UserStreamingStatsSummary, type TimeRange } from '@/services/userStreamingStatsService';
 import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
-import { detectStreamingServiceType } from '@/components/streaming/UnifiedStreamingStats';
-import { format } from 'date-fns';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { toast } from '@/hooks/use-toast';
+import { formatDistanceToNow } from 'date-fns';
 
-export const StreamingStatsPage = () => {
-  const { user, loading: authLoading } = useAuth();
-const [loading, setLoading] = useState(true);
+interface StreamingStatsPageProps {
+  onBack?: () => void;
+}
+
+type SpotifyTimeRange = 'short_term' | 'medium_term' | 'long_term';
+
+const TIME_RANGE_LABELS: Record<SpotifyTimeRange, string> = {
+  short_term: '4 Weeks',
+  medium_term: '6 Months',
+  long_term: 'All Time',
+};
+
+export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
+  const { user } = useAuth();
+
+  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [streamingProfile, setStreamingProfile] = useState<string | null>(null);
-  const [stats, setStats] = useState<UserStreamingStatsSummary | null>(null);
-  const [serviceType, setServiceType] = useState<'spotify' | 'apple-music' | 'unknown'>('unknown');
+  const [serviceType, setServiceType] = useState<'spotify' | 'apple-music' | null>(null);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [needsConnection, setNeedsConnection] = useState(false);
-  const [hasCheckedStats, setHasCheckedStats] = useState(false);
-  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>('all_time');
-  const [availableTimeRanges, setAvailableTimeRanges] = useState<TimeRange[]>([]);
+  const [timeRange, setTimeRange] = useState<SpotifyTimeRange>('medium_term');
 
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
-    
-    if (!user) {
-      window.location.href = '/';
-      return;
-    }
-    
-    loadUserProfile();
+    if (user) loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading]);
+  }, [user]);
 
-  useEffect(() => {
+  const loadProfile = async () => {
     if (!user) return;
-
-    if (streamingProfile !== null) {
-      // Profile loaded - detect service type and load stats
-      const detected = detectStreamingServiceType(streamingProfile);
-      const newServiceType = detected === 'spotify' ? 'spotify' : detected === 'apple-music' ? 'apple-music' : 'unknown';
-      setServiceType(newServiceType);
-      if (newServiceType !== 'unknown') {
-        loadStats(selectedTimeRange);
-      } else {
-        setLoading(false);
-        setNeedsConnection(true);
-      }
-    } else if (streamingProfile === null && !hasCheckedStats && !loading) {
-      // No profile link - check if user has stats in database (only once, after loading is done)
-      setHasCheckedStats(true);
-      checkForExistingStats();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [streamingProfile, user]);
-
-  // Note: Time range changes are handled by onClick in the time range buttons
-  // This ensures stats are loaded when the component first mounts with a time range
-
-  const checkForExistingStats = async () => {
-    if (!user) return;
-    // Database table has been removed - stats are no longer persisted
-    // Always show connection screen
-    setLoading(false);
-    setNeedsConnection(true);
-  };
-
-  const loadUserProfile = async () => {
-    if (!user) return;
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data, error } = await supabase
+      // 1. Detect service type from users.music_streaming_profile (Spotify sets this)
+      const { data: userData } = await supabase
         .from('users')
         .select('music_streaming_profile')
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading profile:', error);
-        setStreamingProfile(null);
-        setLoading(false);
+      const profileUrl = userData?.music_streaming_profile || null;
+      let detectedType: 'spotify' | 'apple-music' | null = null;
+
+      if (profileUrl?.includes('spotify')) {
+        detectedType = 'spotify';
+      } else {
+        // Check for Apple Music via streaming_profiles row or active MusicKit session
+        const { data: amRow } = await supabase
+          .from('streaming_profiles')
+          .select('profile_data')
+          .eq('user_id', user.id)
+          .eq('service_type', 'apple-music')
+          .maybeSingle();
+
+        if (amRow) {
+          detectedType = 'apple-music';
+        } else if (appleMusicService.checkStoredToken()) {
+          detectedType = 'apple-music';
+        }
+      }
+
+      if (!detectedType) {
         setNeedsConnection(true);
         return;
       }
 
-      const profile = data?.music_streaming_profile || null;
-      setStreamingProfile(profile);
-      // Loading state will be managed by loadStats or checkForExistingStats
-    } catch (error) {
-      console.error('Error in loadUserProfile:', error);
-      setStreamingProfile(null);
-      setLoading(false);
+      setServiceType(detectedType);
+
+      // 2. Load stored profile data from streaming_profiles
+      const { data: row } = await supabase
+        .from('streaming_profiles')
+        .select('profile_data, last_updated')
+        .eq('user_id', user.id)
+        .eq('service_type', detectedType)
+        .maybeSingle();
+
+      if (row?.profile_data) {
+        setProfileData(row.profile_data);
+        setLastSynced(row.last_updated);
+      } else {
+        setProfileData(null);
+      }
+
+      setNeedsConnection(false);
+    } catch (err) {
+      console.error('Error loading streaming profile:', err);
       setNeedsConnection(true);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadStats = async (timeRange?: TimeRange) => {
-    if (!user || serviceType === 'unknown') {
-      setLoading(false);
-      setNeedsConnection(true);
-      return;
+  const handleSync = async () => {
+    if (!serviceType) return;
+    setSyncing(true);
+    try {
+      if (serviceType === 'spotify') {
+        if (!spotifyService.isAuthenticated()) {
+          setNeedsConnection(true);
+          return;
+        }
+        await spotifyService.syncUserMusicPreferences();
+      } else {
+        if (!appleMusicService.checkStoredToken()) {
+          setNeedsConnection(true);
+          return;
+        }
+        const data = await appleMusicService.generateProfileData();
+        if (data) await appleMusicService.uploadProfileData(data);
+      }
+      await loadProfile();
+      toast({ title: 'Stats updated', description: 'Your streaming data has been refreshed.' });
+    } catch (err) {
+      console.error('Sync error:', err);
+      toast({
+        title: 'Sync failed',
+        description: 'Could not refresh stats. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
     }
-
-    // Stats are stored in streaming_profiles (not a separate stats table). When user
-    // has already connected (music_streaming_profile set), show the stats view so they
-    // can click "Refresh Stats" to pull from Spotify/Apple Music and backfill preferences.
-    setLoading(false);
-    setNeedsConnection(false);
   };
 
   const handleConnectSpotify = async () => {
@@ -135,623 +139,489 @@ const [loading, setLoading] = useState(true);
       if (!spotifyService.isConfigured()) {
         toast({
           title: 'Spotify not available',
-          description: 'Spotify connection is not configured for this build.',
+          description: 'Spotify is not configured for this build.',
           variant: 'destructive',
         });
         return;
       }
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('spotify_connect_source', 'streaming_stats');
-      }
+      localStorage.setItem('spotify_connect_source', 'streaming_stats');
       await spotifyService.authenticate();
-    } catch (error) {
-      console.error('Error connecting Spotify:', error);
+    } catch (err) {
+      console.error('Spotify connect error:', err);
       toast({
-        title: 'Unable to connect to Spotify',
-        description: 'Please try again in a moment.',
+        title: 'Connection failed',
+        description: 'Could not connect to Spotify. Please try again.',
         variant: 'destructive',
       });
     }
   };
 
   const handleConnectAppleMusic = async () => {
+    setSyncing(true);
     try {
-      setSyncing(true);
       await appleMusicService.authenticate();
-      
-      // Start background sync tracking
       streamingSyncService.startSync('apple-music');
-      
-      // Trigger sync in background (don't await)
       appleMusicService.syncProfileData().then(() => {
         streamingSyncService.completeSync();
-        // Reload stats after sync completes
-        loadStats(selectedTimeRange);
-        setNeedsConnection(false);
-      }).catch((error) => {
-        console.error('Background sync error:', error);
-        streamingSyncService.errorSync(error.message || 'Sync failed');
+        loadProfile();
+      }).catch(err => {
+        streamingSyncService.errorSync(err.message || 'Sync failed');
       });
-      
-      // Redirect to home so user can continue using app
-      setTimeout(() => {
-        window.location.href = '/';
-        localStorage.setItem('intendedView', 'feed');
-      }, 1500);
-    } catch (error) {
-      console.error('Error connecting Apple Music:', error);
-      streamingSyncService.errorSync(error instanceof Error ? error.message : 'Connection failed');
-      setSyncing(false);
-    }
-  };
-
-  const handleSync = async () => {
-    if (!user || serviceType === 'unknown') return;
-
-    try {
-      setSyncing(true);
-      // Don't track this sync in the sync service (user is already on stats page)
-      // This prevents showing a notification when they're already viewing stats
-      
-      if (serviceType === 'spotify') {
-        if (!spotifyService.isAuthenticated()) {
-          setNeedsConnection(true);
-          return;
-        }
-        
-        // This will pull ALL data and store for all time ranges
-        await spotifyService.syncUserMusicPreferences();
-      } else if (serviceType === 'apple-music') {
-        if (!appleMusicService.checkStoredToken()) {
-          setNeedsConnection(true);
-          return;
-        }
-
-        const profileData = await appleMusicService.generateProfileData();
-        if (profileData) {
-          await appleMusicService.uploadProfileData(profileData);
-          
-          const topArtists = profileData.topArtists || [];
-          const topGenres = profileData.topGenres || [];
-          
-          const statsInsert = {
-            user_id: user.id,
-            service_type: 'apple-music' as const,
-            top_artists: topArtists.map((artist: any) => ({
-              name: artist.name || artist.attributes?.name || '',
-              popularity: artist.popularity || 0,
-              id: artist.id
-            })),
-            top_genres: topGenres.map((genre: any) => ({
-              genre: typeof genre === 'string' ? genre : genre.genre || '',
-              count: typeof genre === 'string' ? 1 : genre.count || 1
-            })),
-            total_tracks: profileData.topTracks?.length ?? 0,
-            unique_artists: topArtists.length,
-            total_listening_hours: profileData.listeningTime ?? 0
-          };
-
-          // Database table removed - stats are no longer persisted
-        }
-      }
-
-      // Reload stats after sync (note: database table removed, stats are not persisted)
-      await loadStats(selectedTimeRange);
       setNeedsConnection(false);
-
+      await loadProfile();
+    } catch (err) {
+      console.error('Apple Music connect error:', err);
+      streamingSyncService.errorSync(err instanceof Error ? err.message : 'Connection failed');
       toast({
-        title: "Sync Complete",
-        description: "Your streaming data is saved and used to personalize your feed and recommendations.",
+        title: 'Connection failed',
+        description: 'Could not connect to Apple Music. Please try again.',
+        variant: 'destructive',
       });
-    } catch (error) {
-      console.error('Error syncing stats:', error);
     } finally {
       setSyncing(false);
     }
   };
 
-  if (authLoading || loading) {
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      window.history.back();
+    }
+  };
+
+  // ─── Derived data ───────────────────────────────────────────────────────────
+
+  const displayArtists = useMemo<any[]>(() => {
+    if (!profileData) return [];
+    // Spotify: use time-range-specific list if available
+    if (serviceType === 'spotify' && profileData.topArtistsByTimeRange?.[timeRange]) {
+      return profileData.topArtistsByTimeRange[timeRange].slice(0, 20);
+    }
+    return (profileData.topArtists || []).slice(0, 20);
+  }, [profileData, timeRange, serviceType]);
+
+  const displayTracks = useMemo<any[]>(() => {
+    if (!profileData) return [];
+    return (profileData.topTracks || []).slice(0, 20);
+  }, [profileData]);
+
+  const recentlyPlayed = useMemo<any[]>(() => {
+    if (!profileData?.recentlyPlayed) return [];
+    return profileData.recentlyPlayed.slice(0, 15);
+  }, [profileData]);
+
+  const genres = useMemo<{ name: string; count: number; pct: number }[]>(() => {
+    const counts: Record<string, number> = {};
+    displayArtists.forEach((a: any) => {
+      (a.genres || []).forEach((g: string) => {
+        counts[g] = (counts[g] || 0) + 1;
+      });
+    });
+    const entries = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12);
+    const max = entries[0]?.[1] || 1;
+    return entries.map(([name, count]) => ({ name, count, pct: Math.round((count / max) * 100) }));
+  }, [displayArtists]);
+
+  const statsOverview = useMemo(() => {
+    // Estimate listening time from recently played (sum of track duration_ms)
+    const totalMs = recentlyPlayed.reduce((sum: number, item: any) => {
+      return sum + (item.track?.duration_ms || item.duration_ms || 0);
+    }, 0);
+    const listeningHours = totalMs > 0 ? Math.round(totalMs / 3_600_000) : null;
+    return {
+      artistCount: displayArtists.length,
+      trackCount: displayTracks.length,
+      listeningHours,
+      genreCount: genres.length,
+    };
+  }, [displayArtists, displayTracks, recentlyPlayed, genres]);
+
+  const isSpotify = serviceType === 'spotify';
+  const accentColor = isSpotify ? '#1DB954' : '#FC3C44';
+  const serviceName = isSpotify ? 'Spotify' : 'Apple Music';
+  const hasTimeRanges = isSpotify && !!profileData?.topArtistsByTimeRange;
+
+  // ─── Loading ────────────────────────────────────────────────────────────────
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-white to-beige-50 p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading streaming stats...</p>
-            </div>
-          </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-synth-pink mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Loading your stats...</p>
         </div>
       </div>
     );
   }
 
-  if (!user) {
+  // ─── Connection screen ──────────────────────────────────────────────────────
+
+  if (needsConnection) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-white to-beige-50 p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <p className="text-muted-foreground">Please log in to view streaming stats.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show connection screen if no service connected
-  if (needsConnection && !stats) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-white to-beige-50 p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                console.log('🎵 StreamingStatsPage: Back button clicked');
-                window.location.href = '/';
-                localStorage.setItem('intendedView', 'profile');
-              }}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Profile
-            </Button>
-          </div>
-
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                <Music className="w-6 h-6 text-pink-500" />
-                Connect Your Streaming Service
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-center py-12 space-y-6">
-              <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto">
-                <Music className="w-10 h-10 text-pink-500" />
-              </div>
-              <h3 className="text-xl font-semibold">Connect Your Music</h3>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                Connect your Spotify or Apple Music account to view your comprehensive streaming statistics and personalize your feed.
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-                <Card className="border-2 hover:border-green-500 transition-colors cursor-pointer" onClick={handleConnectSpotify}>
-                  <CardContent className="pt-6">
-                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Music className="w-6 h-6 text-white" />
-                    </div>
-                    <h4 className="font-semibold mb-2">Connect Spotify</h4>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      View your top artists, tracks, and listening habits
-                    </p>
-                    <Button className="w-full bg-green-500 hover:bg-green-600">
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Connect Spotify
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-2 hover:border-red-500 transition-colors cursor-pointer" onClick={handleConnectAppleMusic}>
-                  <CardContent className="pt-6">
-                    <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Music className="w-6 h-6 text-white" />
-                    </div>
-                    <h4 className="font-semibold mb-2">Connect Apple Music</h4>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Sync your library and listening history
-                    </p>
-                    <Button className="w-full bg-red-500 hover:bg-red-600">
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Connect Apple Music
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Show stats if we have them, or if service is detected
-  if (stats || serviceType !== 'unknown') {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-white to-beige-50 p-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                window.location.href = '/';
-                localStorage.setItem('intendedView', 'profile');
-              }}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-            <div className="flex items-center gap-3">
-              {syncing && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <RefreshCw className="w-4 h-4 animate-spin text-pink-500" />
-                  <span>Syncing your stats...</span>
-                </div>
-              )}
-              <Button
-                onClick={handleSync}
-                disabled={syncing}
-                variant="outline"
-                className="bg-pink-50 hover:bg-pink-100 border-pink-200"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Syncing...' : 'Refresh Stats'}
-              </Button>
-            </div>
-          </div>
-
-          {/* Time Range Selector */}
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold mb-1">Time Period</h3>
-                  {stats?.last_updated && (
-                    <p className="text-sm text-muted-foreground">
-                      <span className="font-medium text-pink-600">Last synced:</span>{' '}
-                      {format(new Date(stats.last_updated), 'MMM d, yyyy h:mm a')}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        (Data is permanently stored)
-                      </span>
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(['last_day', 'last_week', 'last_month', 'last_3_months', 'last_6_months', 'last_year', 'last_3_years', 'last_5_years', 'all_time'] as TimeRange[]).map((range) => {
-                  // All ranges are available if we have any stats (we filter client-side)
-                  const isAvailable = stats !== null;
-                  const isSelected = selectedTimeRange === range;
-                  return (
-                    <Button
-                      key={range}
-                      variant={isSelected ? "default" : "outline"}
-                      size="sm"
-                      disabled={!isAvailable || loading}
-                      onClick={async () => {
-                        if (isSelected) return; // Don't reload if already selected
-                        setSelectedTimeRange(range);
-                        setLoading(true);
-                        await loadStats(range);
-                      }}
-                      className={
-                        isSelected
-                          ? "bg-pink-500 hover:bg-pink-600 text-white"
-                          : isAvailable
-                          ? "hover:bg-pink-50"
-                          : "opacity-50 cursor-not-allowed"
-                      }
-                    >
-                      {range === 'last_day' && 'Day'}
-                      {range === 'last_week' && 'Week'}
-                      {range === 'last_month' && 'Month'}
-                      {range === 'last_3_months' && '3 Months'}
-                      {range === 'last_6_months' && '6 Months'}
-                      {range === 'last_year' && 'Year'}
-                      {range === 'last_3_years' && '3 Years'}
-                      {range === 'last_5_years' && '5 Years'}
-                      {range === 'all_time' && 'All Time'}
-                    </Button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Hero Section */}
-          <Card className="mb-6 border-2">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                    serviceType === 'spotify' ? 'bg-green-500' : 'bg-red-500'
-                  }`}>
-                    <Music className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-3xl">
-                      {serviceType === 'spotify' ? 'Spotify' : 'Apple Music'} Streaming Stats
-                    </CardTitle>
-                    {stats && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Last updated: {format(new Date(stats.last_updated), 'PPp')}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          {/* Stats Overview */}
-          {stats ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center">
-                        <Headphones className="w-6 h-6 text-pink-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Tracks</p>
-                        <p className="text-3xl font-bold">{stats.total_tracks}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center">
-                        <User className="w-6 h-6 text-pink-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Unique Artists</p>
-                        <p className="text-3xl font-bold">{stats.unique_artists}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center">
-                        <Clock className="w-6 h-6 text-pink-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Listening Hours</p>
-                        <p className="text-3xl font-bold">{Math.round(stats.total_listening_hours)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center">
-                        <BarChart3 className="w-6 h-6 text-pink-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Top Genres</p>
-                        <p className="text-3xl font-bold">{stats.top_genres.length}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Detailed Stats Tabs */}
-              <Tabs defaultValue="artists" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="artists">Top Artists</TabsTrigger>
-                  <TabsTrigger value="tracks">Top Tracks</TabsTrigger>
-                  <TabsTrigger value="genres">Top Genres</TabsTrigger>
-                  <TabsTrigger value="insights">Insights</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="artists" className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Your Top Artists</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {stats.top_artists.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {stats.top_artists.slice(0, 20).map((artist, index) => (
-                            <div
-                              key={artist.id || artist.name}
-                              className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                            >
-                              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-                                {index + 1}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-lg truncate">{artist.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  Popularity: {artist.popularity}/100
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <Music className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                          <p className="text-muted-foreground">No artist data available. Sync your stats to see your top artists.</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="tracks" className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Your Top Tracks</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {stats.top_tracks && stats.top_tracks.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {stats.top_tracks.slice(0, 30).map((track, index) => (
-                            <div
-                              key={track.id || `${track.name}-${index}`}
-                              className="flex items-center gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                            >
-                              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-lg">
-                                {index + 1}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-lg truncate">{track.name || 'Unknown Track'}</p>
-                                <p className="text-sm text-muted-foreground truncate">
-                                  {track.artist || 'Unknown Artist'}
-                                </p>
-                                {track.popularity !== undefined && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Popularity: {track.popularity}/100
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <PlayCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                          <p className="text-muted-foreground">No track data available. Sync your stats to see your top tracks.</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="genres" className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Your Top Genres</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {stats.top_genres.length > 0 ? (
-                        <div className="space-y-3">
-                          {stats.top_genres.map((genre, index) => (
-                            <div
-                              key={genre.genre}
-                              className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold">
-                                  {index + 1}
-                                </div>
-                                <span className="font-semibold text-lg">{genre.genre}</span>
-                              </div>
-                              <Badge variant="secondary" className="text-lg px-3 py-1">
-                                {genre.count} {genre.count === 1 ? 'artist' : 'artists'}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <BarChart3 className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                          <p className="text-muted-foreground">No genre data available. Sync your stats to see your top genres.</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="insights" className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5" />
-                          Listening Activity
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Total Tracks</p>
-                          <p className="text-2xl font-bold">{stats.total_tracks}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Estimated Listening Time</p>
-                          <p className="text-2xl font-bold">{Math.round(stats.total_listening_hours)} hours</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Artist Diversity</p>
-                          <p className="text-2xl font-bold">{stats.unique_artists} unique artists</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Disc className="w-5 h-5" />
-                          Music Preferences
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-2">Top Genre</p>
-                          {stats.top_genres.length > 0 ? (
-                            <Badge variant="default" className="text-lg px-3 py-1">
-                              {stats.top_genres[0].genre}
-                            </Badge>
-                          ) : (
-                            <p className="text-muted-foreground">No data</p>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-2">Top Artist</p>
-                          {stats.top_artists.length > 0 ? (
-                            <p className="text-lg font-semibold">{stats.top_artists[0].name}</p>
-                          ) : (
-                            <p className="text-muted-foreground">No data</p>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Genre Diversity</p>
-                          <p className="text-2xl font-bold">{stats.top_genres.length} genres</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </>
-          ) : (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground mb-2">No stats available yet.</p>
-                <p className="text-sm text-muted-foreground mb-4">Sync to pull your data from {serviceType === 'spotify' ? 'Spotify' : 'Apple Music'} and update your music preferences for recommendations.</p>
-                <Button onClick={handleSync} disabled={syncing}>
-                  <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                  {syncing ? 'Syncing...' : 'Sync Your Stats'}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Fallback
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-beige-50 p-4">
-      <div className="max-w-7xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={() => {
-            window.location.href = '/';
-            localStorage.setItem('intendedView', 'profile');
-          }}
-          className="mb-6"
-        >
+      <div className="min-h-screen bg-gradient-to-b from-white to-pink-50/30 px-4 pt-4 pb-24">
+        <Button variant="ghost" onClick={handleBack} className="mb-4 -ml-2">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Unable to load streaming stats.</p>
-          </CardContent>
-        </Card>
+
+        <div className="max-w-sm mx-auto text-center pt-6">
+          <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Headphones className="w-10 h-10 text-synth-pink" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Streaming Stats</h2>
+          <p className="text-muted-foreground text-sm mb-8">
+            Connect your music app to see your top artists, tracks, and listening habits.
+          </p>
+
+          <div className="space-y-3">
+            <button
+              onClick={handleConnectSpotify}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#1DB954]/10 hover:bg-[#1DB954]/20 active:scale-[0.98] transition-all text-left"
+            >
+              <div className="w-12 h-12 bg-[#1DB954] rounded-full flex items-center justify-center flex-shrink-0">
+                <Music className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Connect Spotify</p>
+                <p className="text-xs text-muted-foreground">Top artists, tracks, and genres</p>
+              </div>
+            </button>
+
+            <button
+              onClick={handleConnectAppleMusic}
+              disabled={syncing}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-50 hover:bg-red-100 active:scale-[0.98] transition-all text-left disabled:opacity-60"
+            >
+              <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                {syncing ? (
+                  <RefreshCw className="w-5 h-5 text-white animate-spin" />
+                ) : (
+                  <Music className="w-6 h-6 text-white" />
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Connect Apple Music</p>
+                <p className="text-xs text-muted-foreground">Library stats and listening history</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Stats view ─────────────────────────────────────────────────────────────
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-white to-pink-50/30 pb-28">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={handleBack} className="-ml-2">
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Back
+        </Button>
+
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accentColor }} />
+          <span className="text-sm font-semibold">{serviceName}</span>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleSync}
+          disabled={syncing}
+          className="-mr-2"
+          title="Refresh stats"
+        >
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+        </Button>
+      </div>
+
+      <div className="px-4 pt-5 space-y-5">
+        {/* Title + last synced */}
+        <div>
+          <h1 className="text-2xl font-bold">Streaming Stats</h1>
+          {lastSynced && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Updated {formatDistanceToNow(new Date(lastSynced), { addSuffix: true })}
+            </p>
+          )}
+        </div>
+
+        {/* Stat overview pills */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <User className="w-5 h-5 mb-2" style={{ color: accentColor }} />
+            <p className="text-2xl font-bold">{statsOverview.artistCount}</p>
+            <p className="text-xs text-muted-foreground">Top Artists</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <Music className="w-5 h-5 mb-2" style={{ color: accentColor }} />
+            <p className="text-2xl font-bold">{statsOverview.trackCount}</p>
+            <p className="text-xs text-muted-foreground">Top Tracks</p>
+          </div>
+          {statsOverview.listeningHours !== null && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <Clock className="w-5 h-5 mb-2" style={{ color: accentColor }} />
+              <p className="text-2xl font-bold">{statsOverview.listeningHours}h</p>
+              <p className="text-xs text-muted-foreground">Listening Time</p>
+            </div>
+          )}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <BarChart3 className="w-5 h-5 mb-2" style={{ color: accentColor }} />
+            <p className="text-2xl font-bold">{statsOverview.genreCount}</p>
+            <p className="text-xs text-muted-foreground">Genres</p>
+          </div>
+        </div>
+
+        {/* Time range selector (Spotify only) */}
+        {hasTimeRanges && (
+          <div className="flex gap-2">
+            {(Object.keys(TIME_RANGE_LABELS) as SpotifyTimeRange[]).map((range) => (
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
+                  timeRange === range
+                    ? 'text-white shadow-sm'
+                    : 'bg-white border border-gray-200 text-muted-foreground hover:border-gray-300'
+                }`}
+                style={timeRange === range ? { backgroundColor: accentColor } : undefined}
+              >
+                {TIME_RANGE_LABELS[range]}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* No data — prompt to sync */}
+        {!profileData && (
+          <Card>
+            <CardContent className="py-10 text-center">
+              <Music className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="font-medium mb-1">No stats yet</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Sync to pull your data from {serviceName}.
+              </p>
+              <Button
+                onClick={handleSync}
+                disabled={syncing}
+                className="text-white"
+                style={{ backgroundColor: accentColor }}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync Stats'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tabs */}
+        {profileData && (
+          <Tabs defaultValue="artists">
+            <TabsList className="w-full grid grid-cols-4">
+              <TabsTrigger value="artists">Artists</TabsTrigger>
+              <TabsTrigger value="tracks">Tracks</TabsTrigger>
+              <TabsTrigger value="genres">Genres</TabsTrigger>
+              <TabsTrigger value="recent">Recent</TabsTrigger>
+            </TabsList>
+
+            {/* Artists */}
+            <TabsContent value="artists" className="mt-3 space-y-2">
+              {displayArtists.length === 0 ? (
+                <EmptyTab message="No artist data. Tap ↻ to sync." />
+              ) : (
+                displayArtists.map((artist: any, i: number) => (
+                  <ArtistRow key={artist.id || i} artist={artist} rank={i + 1} accentColor={accentColor} />
+                ))
+              )}
+            </TabsContent>
+
+            {/* Tracks */}
+            <TabsContent value="tracks" className="mt-3 space-y-2">
+              {displayTracks.length === 0 ? (
+                <EmptyTab message="No track data. Tap ↻ to sync." />
+              ) : (
+                displayTracks.map((track: any, i: number) => (
+                  <TrackRow key={track.id || i} track={track} rank={i + 1} accentColor={accentColor} />
+                ))
+              )}
+            </TabsContent>
+
+            {/* Genres */}
+            <TabsContent value="genres" className="mt-3 space-y-2">
+              {genres.length === 0 ? (
+                <EmptyTab message="Genres are derived from your top artists. Tap ↻ to sync." />
+              ) : (
+                genres.map((g) => (
+                  <div key={g.name} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium capitalize">{g.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {g.count} artist{g.count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${g.pct}%`, backgroundColor: accentColor }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </TabsContent>
+
+            {/* Recently Played */}
+            <TabsContent value="recent" className="mt-3 space-y-2">
+              {recentlyPlayed.length === 0 ? (
+                <EmptyTab message="No recently played data. Tap ↻ to sync." />
+              ) : (
+                recentlyPlayed.map((item: any, i: number) => {
+                  const track = item.track || item;
+                  const playedAt = item.played_at;
+                  const artistName =
+                    track.artists?.[0]?.name || track.artist || 'Unknown Artist';
+                  const imageUrl =
+                    track.album?.images?.[0]?.url ||
+                    track.album?.images?.[1]?.url;
+
+                  return (
+                    <div
+                      key={i}
+                      className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 p-3"
+                    >
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={track.name}
+                          className="w-11 h-11 rounded-lg object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div
+                          className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: accentColor + '20' }}
+                        >
+                          <Music className="w-5 h-5" style={{ color: accentColor }} />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{track.name || 'Unknown Track'}</p>
+                        <p className="text-xs text-muted-foreground truncate">{artistName}</p>
+                      </div>
+                      {playedAt && (
+                        <p className="text-xs text-muted-foreground flex-shrink-0 pl-2">
+                          {formatDistanceToNow(new Date(playedAt), { addSuffix: true })}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </div>
   );
 };
+
+// ─── Small sub-components ────────────────────────────────────────────────────
+
+function ArtistRow({
+  artist,
+  rank,
+  accentColor,
+}: {
+  artist: any;
+  rank: number;
+  accentColor: string;
+}) {
+  const imageUrl = artist.images?.[0]?.url || artist.images?.[1]?.url;
+  const topGenre = artist.genres?.[0];
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 p-3">
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={artist.name}
+          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+        />
+      ) : (
+        <div
+          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
+          style={{ backgroundColor: accentColor }}
+        >
+          {rank}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{artist.name}</p>
+        {topGenre && (
+          <p className="text-xs text-muted-foreground capitalize truncate">{topGenre}</p>
+        )}
+      </div>
+      <span
+        className="text-xs font-bold flex-shrink-0 w-7 text-right tabular-nums"
+        style={{ color: accentColor + 'aa' }}
+      >
+        #{rank}
+      </span>
+    </div>
+  );
+}
+
+function TrackRow({
+  track,
+  rank,
+  accentColor,
+}: {
+  track: any;
+  rank: number;
+  accentColor: string;
+}) {
+  const imageUrl = track.album?.images?.[0]?.url || track.album?.images?.[1]?.url;
+  const artistName = track.artists?.[0]?.name || track.artist || 'Unknown Artist';
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 p-3">
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={track.name}
+          className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+        />
+      ) : (
+        <div
+          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
+          style={{ backgroundColor: accentColor }}
+        >
+          {rank}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm truncate">{track.name || 'Unknown Track'}</p>
+        <p className="text-xs text-muted-foreground truncate">{artistName}</p>
+      </div>
+      <span
+        className="text-xs font-bold flex-shrink-0 w-7 text-right tabular-nums"
+        style={{ color: accentColor + 'aa' }}
+      >
+        #{rank}
+      </span>
+    </div>
+  );
+}
+
+function EmptyTab({ message }: { message: string }) {
+  return (
+    <div className="text-center py-12">
+      <p className="text-sm text-muted-foreground">{message}</p>
+    </div>
+  );
+}
