@@ -1251,9 +1251,23 @@ interface FriendEventInterest {
 
   const loadFriendSuggestionsForRail = async () => {
     try {
-      const suggestions = await FriendsService.getSimilarUsersToFriend(currentUserId, 5);
-      // FriendsService.getRecommendedFriends already returns the correct format
-      setFriendSuggestionsForRail(suggestions);
+      // Fetch a larger pool so we can vary the selection each load
+      const pool = await FriendsService.getSimilarUsersToFriend(currentUserId, 20);
+
+      // Weighted shuffle: assign each candidate a score that mixes a quality
+      // signal (mutual friends + connection depth) with a fresh random value.
+      // This means stronger matches surface more often but never deterministically,
+      // so the rail feels different on every load/sign-in.
+      const scored = pool.map(u => {
+        const quality =
+          (u.mutual_friends_count ?? 0) * 0.4 +
+          (u.shared_genres_count ?? 0) * 0.3 +
+          (u.connection_depth === 2 ? 0.3 : 0);
+        return { u, score: Math.random() + quality };
+      });
+      scored.sort((a, b) => b.score - a.score);
+
+      setFriendSuggestionsForRail(scored.slice(0, 5).map(s => s.u));
     } catch (error) {
       console.error('Error loading friend suggestions for rail:', error);
       setFriendSuggestionsForRail([]);
