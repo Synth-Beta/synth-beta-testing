@@ -55,7 +55,7 @@
 
   /* Shimmer effect for skeleton cards */
   .animate-shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    background: linear-gradient(90deg, #fdf2f7 0%, #fce7f3 40%, #fdf2f7 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
@@ -251,11 +251,28 @@
 
   /* Gradient accents throughout */
   .gradient-badge {
-    background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+    background: var(--gradient-brand);
     @apply text-white px-3 py-1 rounded-full text-xs font-medium;
     animation: pulse-glow 2s ease-in-out infinite;
-    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+    box-shadow: 0 4px 15px rgba(204, 36, 134, 0.3);
   }
+
+  /* Brand gradient utilities */
+  .synth-gradient-text {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .synth-gradient-bg {
+    background: var(--gradient-brand);
+  }
+
+  /* Typography token classes */
+  .type-h1   { font-size: var(--typography-h1-size);   font-weight: var(--typography-h1-weight);   line-height: var(--typography-h1-line-height); }
+  .type-h2   { font-size: var(--typography-h2-size);   font-weight: var(--typography-h2-weight);   line-height: var(--typography-h2-line-height); }
+  .type-body { font-size: var(--typography-body-size); font-weight: var(--typography-body-weight); line-height: var(--typography-body-line-height); }
+  .type-meta { font-size: var(--typography-meta-size); font-weight: var(--typography-meta-weight); line-height: var(--typography-meta-line-height); }
 
   .gradient-button {
     background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
@@ -445,6 +462,23 @@
     pointer-events: none;
     border-radius: inherit;
   }
+
+  /* ── Page transition animations ───────────────────────────────── */
+  @keyframes view-slide-in-right {
+    from { opacity: 0; transform: translateX(18px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes view-slide-in-left {
+    from { opacity: 0; transform: translateX(-18px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes view-slide-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .view-enter-right { animation: view-slide-in-right 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+  .view-enter-left  { animation: view-slide-in-left  220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+  .view-enter-up    { animation: view-slide-in-up    220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
 }
 
 /* Synth Design System - Bold, modern, music-focused */

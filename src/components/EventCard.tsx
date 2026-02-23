@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { Heart, X, Calendar, MapPin, Users, Star, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ProgressiveImage } from "@/components/ui/ProgressiveImage"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { isEventPast, getEventStatus } from "@/utils/eventStatusUtils"
@@ -87,11 +88,11 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
         >
       {/* Event Image - contain so full photo is visible (no crop) */}
       <div className="relative h-72 overflow-hidden bg-black flex items-center justify-center">
-        <img
+        <ProgressiveImage
           src={eventImage}
           alt={`${event.title} event image`}
-          className="max-w-full max-h-full w-auto h-auto object-contain object-center transition-transform duration-500 hover:scale-105"
-          loading="lazy"
+          className="absolute inset-0 w-full h-full transition-transform duration-500 hover:scale-105"
+          objectFit="contain"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 

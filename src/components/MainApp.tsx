@@ -94,6 +94,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   typeof Capacitor.getPlatform === 'function' &&
   Capacitor.getPlatform() === 'ios';
   const [currentView, setCurrentView] = useState<ViewType>('feed');
+  const prevViewRef = useRef<ViewType>('feed');
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
   const [notificationFilter, setNotificationFilter] = useState<'friends_only' | 'exclude_friends' | undefined>(undefined);
@@ -632,7 +633,17 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   // Scroll to top whenever the view changes
   useEffect(() => {
     window.scrollTo(0, 0);
+    // Update prevView ref AFTER the render cycle so it reflects the just-left view
+    return () => { prevViewRef.current = currentView; };
   }, [currentView]);
+
+  const getViewTransitionClass = (prev: ViewType, next: ViewType): string => {
+    if (prev === next) return '';
+    if (next === 'notifications' || next === 'streaming-stats') return 'view-enter-up';
+    if (next === 'feed') return 'view-enter-left';
+    return 'view-enter-right';
+  };
+  const transitionClass = getViewTransitionClass(prevViewRef.current, currentView);
 
   const handleViewChange = (view: ViewType) => {
     // View changing
@@ -1227,7 +1238,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
 
-      <div style={{ backgroundColor: 'transparent' }}>
+      <div key={currentView} className={transitionClass} style={{ backgroundColor: 'transparent' }}>
         {renderCurrentView()}
       </div>
 

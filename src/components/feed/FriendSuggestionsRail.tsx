@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { X, UserPlus, Check, Verified } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { SkeletonFriendCard } from '@/components/skeleton/SkeletonFriendCard';
+import { hapticLight } from '@/utils/haptics';
+import { ProgressiveImage } from '@/components/ui/ProgressiveImage';
 
 export interface FriendSuggestion {
   user_id: string;
@@ -100,6 +103,8 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   const handleAddFriend = (userId: string) => {
     if (excludedUserIds.has(userId) || sentUserIds.has(userId)) return;
 
+    hapticLight();
+
     // Fire the request optimistically — don't block the animation on the network call
     if (onAddFriend) {
       onAddFriend(userId).catch((error: any) => {
@@ -122,8 +127,27 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 
   const visibleSuggestions = suggestions.filter(s => !excludedUserIds.has(s.user_id));
 
-  // Don't render until we've loaded exclusions - avoids flash of wrong content
-  if (!exclusionsLoaded || visibleSuggestions.length === 0) {
+  // While loading exclusions, show skeleton placeholders
+  if (!exclusionsLoaded) {
+    return (
+      <div className="mb-6 flex w-full flex-col items-center" style={{ marginTop: 12 }}>
+        <div className="flex items-center mb-3 px-1 w-full justify-center">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-synth-black">Who You Should Know</h2>
+            <p className="text-sm text-synth-black/60">People you may know</p>
+          </div>
+        </div>
+        <div className="flex gap-3 px-1 pb-4 pt-1 overflow-hidden w-full justify-center">
+          <SkeletonFriendCard />
+          <SkeletonFriendCard />
+          <SkeletonFriendCard />
+        </div>
+      </div>
+    );
+  }
+
+  // Nothing to show once exclusions are loaded
+  if (visibleSuggestions.length === 0) {
     return null;
   }
 
@@ -189,15 +213,22 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                 {/* Avatar */}
                 <div className="relative mb-2 mt-1">
                   <Avatar className={cn(
-                    "h-20 w-20 ring-2 transition-all duration-300",
+                    "h-20 w-20 ring-2 transition-all duration-300 overflow-hidden",
                     isSent
                       ? "ring-green-400/60"
                       : "ring-synth-pink/30 group-hover:ring-synth-pink/60"
                   )}>
-                    <AvatarImage src={suggestion.avatar_url || undefined} alt={suggestion.name} />
-                    <AvatarFallback className="bg-synth-pink/10 text-synth-pink text-base">
-                      {getInitials(suggestion.name)}
-                    </AvatarFallback>
+                    {suggestion.avatar_url ? (
+                      <ProgressiveImage
+                        src={suggestion.avatar_url}
+                        alt={suggestion.name}
+                        className="h-20 w-20 rounded-full"
+                      />
+                    ) : (
+                      <AvatarFallback className="bg-synth-pink/10 text-synth-pink text-base">
+                        {getInitials(suggestion.name)}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   {suggestion.verified && (
                     <div className="absolute -bottom-1 -right-1 bg-synth-pink rounded-full p-0.5">

@@ -293,7 +293,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
       >
         {/* ─── Header bar ────────────────────────────────────────────────── */}
         <DialogHeader className="px-5 pt-5 pb-4 flex-shrink-0 border-b border-gray-100">
-          <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+          <DialogTitle className="flex items-center gap-2 type-meta font-semibold">
             {view !== 'menu' && (
               <button
                 onClick={handleBack}

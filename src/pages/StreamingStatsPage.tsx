@@ -271,7 +271,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
           <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Headphones className="w-10 h-10 text-synth-pink" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Streaming Stats</h2>
+          <h2 className="type-h2 mb-2 synth-gradient-text">Streaming Stats</h2>
           <p className="text-muted-foreground text-sm mb-8">
             Connect your music app to see your top artists, tracks, and listening habits.
           </p>
@@ -325,8 +325,8 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         </Button>
 
         <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accentColor }} />
-          <span className="text-sm font-semibold">{serviceName}</span>
+          <div className="w-2.5 h-2.5 rounded-full synth-gradient-bg" />
+          <span className="type-meta">{serviceName}</span>
         </div>
 
         <Button
@@ -344,7 +344,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
       <div className="px-4 pt-5 space-y-5">
         {/* Title + last synced */}
         <div>
-          <h1 className="text-2xl font-bold">Streaming Stats</h1>
+          <h1 className="type-h2 synth-gradient-text">Streaming Stats</h1>
           {lastSynced && (
             <p className="text-xs text-muted-foreground mt-0.5">
               Updated {formatDistanceToNow(new Date(lastSynced), { addSuffix: true })}

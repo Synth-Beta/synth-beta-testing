@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { hapticLight } from '@/utils/haptics';
 import { useQuery } from '@tanstack/react-query';
 import { PersonalizationEngineV5, type PersonalizedEvent } from '@/services/personalizedFeedService';
 import { UserEventService } from '@/services/userEventService';
@@ -706,6 +707,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   }, [allFetchedEvents]);
 
   const handleInterestToggle = async (eventId: string, e: React.MouseEvent) => {
+    hapticLight();
     const event = findEvent(eventId);
     if (event) {
       try {
