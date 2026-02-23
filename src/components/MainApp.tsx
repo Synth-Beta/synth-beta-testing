@@ -95,6 +95,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   Capacitor.getPlatform() === 'ios';
   const [currentView, setCurrentView] = useState<ViewType>('feed');
   const prevViewRef = useRef<ViewType>('feed');
+  // Track whether the user has ever been authenticated in this session.
+  // If true and then user === null, it means an explicit sign-out happened —
+  // on iOS we should show the web login form rather than the loading screen.
+  const hasEverHadUserRef = useRef(false);
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
   const [notificationFilter, setNotificationFilter] = useState<'friends_only' | 'exclude_friends' | undefined>(undefined);
@@ -106,6 +110,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
+
+  // Once the user is authenticated, remember it for this session so we can
+  // detect an explicit sign-out later (vs. the initial unauthenticated load).
+  useEffect(() => {
+    if (user?.id) hasEverHadUserRef.current = true;
+  }, [user?.id]);
   const { accountInfo } = useAccountType();
   const navigate = useNavigate();
   const location = useLocation();
@@ -861,10 +871,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   // Show auth if no user, session expired, or auth requested
   if (showAuth || sessionExpired || !user?.id) {
-    if (isIosNative) {
+    // On iOS native, during the INITIAL load (user has never been authenticated
+    // this session) we defer to the Swift layer and show a loading screen.
+    // But after an explicit sign-out (hasEverHadUserRef.current === true),
+    // Swift won't re-show its auth UI on its own, so we render the web login form.
+    if (isIosNative && !hasEverHadUserRef.current) {
       return <SynthLoadingScreen text="Loading Synth..." />;
     }
-    // Showing auth modal
     return <Auth onAuthSuccess={handleAuthSuccess} />;
   }
 
