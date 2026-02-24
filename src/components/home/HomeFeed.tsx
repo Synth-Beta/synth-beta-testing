@@ -2136,19 +2136,6 @@ interface FriendEventInterest {
           </div>
         )}
         {selectedFeedType === 'group-chats' && (
-          <div className="flex items-center justify-center py-24">
-            <div className="text-center space-y-2">
-              <MessageCircle className="w-12 h-12 mx-auto" style={{ color: 'var(--neutral-600)' }} />
-              <h3 className="font-semibold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>Coming Soon</h3>
-              <p className="text-muted-foreground" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                Group chats are still in development
-              </p>
-            </div>
-          </div>
-        )}
-        
-        {/* Old group chat code - commented out */}
-        {false && selectedFeedType === 'group-chats-old' && (
           <div className="space-y-4">
             {loadingRecommendedGroupChats ? (
               <div className="flex items-center justify-center py-12">
@@ -2192,17 +2179,6 @@ interface FriendEventInterest {
                   
                   // Final safety: remove any "members0" pattern
                   memberCountText = memberCountText.replace(/members0/g, 'members');
-                  
-                  // Debug log to see what we're creating
-                  console.log('🔍 Member count debug:', { 
-                    chatId: chat.id, 
-                    chatName: chat.chat_name,
-                    rawCount: chat.member_count, 
-                    countNum, 
-                    memberCountText,
-                    memberCountTextLength: memberCountText.length,
-                    memberCountTextChars: memberCountText.split('').map(c => `${c} (${c.charCodeAt(0)})`).join(', ')
-                  });
                   
                   return (
                     <div

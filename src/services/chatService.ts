@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { encryptMessage, decryptMessage, isEncrypted } from './chatEncryptionService';
 
 /** When true, artist and venue associated group chats are excluded from chat list (join-on-follow still works). Flip to false when ready to show them. */
-const HIDE_ENTITY_GROUP_CHATS = true;
+const HIDE_ENTITY_GROUP_CHATS = false;
 
 export interface UserChat {
   id: string;
