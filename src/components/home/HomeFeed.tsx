@@ -1386,18 +1386,87 @@ interface FriendEventInterest {
             id: chat.chat_id,
             chat_name: chat.chat_name || chat.entity_name || 'Unnamed Group',
             member_count: memberCount,
-            friends_in_chat_count: 0, // Not calculated in RPC, but kept for compatibility
+            friends_in_chat_count: 0,
             entity_type: chat.entity_type,
             entity_name: chat.entity_name,
-            entity_image_url: chat.entity_image_url,
+            entity_image_url: chat.entity_image_url || '',
+            entity_uuid: chat.entity_uuid,
             relevance_score: chat.relevance_score,
             distance_miles: chat.distance_miles,
           };
         });
 
-      console.log('✅ Loaded recommended chats:', chatsWithFriends.length);
-      console.log('📊 Member counts:', chatsWithFriends.map(c => ({ id: c.id, name: c.chat_name, member_count: c.member_count, type: typeof c.member_count })));
-      setRecommendedGroupChats(chatsWithFriends);
+      // Secondary fetch: fill in missing/placeholder entity images
+      // Include artists where entity_image_url is empty OR is the JamBase generic placeholder
+      // (the RPC often returns the placeholder URL which replaceJambasePlaceholder() will strip at render time)
+      const needsImage = (url: string | null | undefined) =>
+        !url || url.includes('jambase-default-band-image');
+      const artistIds = chatsWithFriends
+        .filter((c: any) => c.entity_type === 'artist' && needsImage(c.entity_image_url) && c.entity_uuid)
+        .map((c: any) => c.entity_uuid as string);
+      const venueIds = chatsWithFriends
+        .filter((c: any) => c.entity_type === 'venue' && needsImage(c.entity_image_url) && c.entity_uuid)
+        .map((c: any) => c.entity_uuid as string);
+
+      const imageMap: Record<string, string> = {};
+
+      if (artistIds.length > 0) {
+        // Stage 1: artists.image_url (skip generic JamBase placeholder)
+        const { data: artistRows } = await supabase
+          .from('artists')
+          .select('id, image_url')
+          .in('id', artistIds);
+        (artistRows || []).forEach((a: any) => {
+          if (a.image_url && !a.image_url.includes('jambase-default-band-image')) {
+            imageMap[a.id] = a.image_url;
+          }
+        });
+
+        // Stage 2: for artists still missing an image, use a recent event's promo photo
+        // (same images shown in the home/discovery event cards)
+        const stillMissing = artistIds.filter(id => !imageMap[id]);
+        if (stillMissing.length > 0) {
+          const { data: eventRows } = await supabase
+            .from('events')
+            .select('artist_id, images, event_media_url, media_urls')
+            .in('artist_id', stillMissing)
+            .not('images', 'is', null)
+            .order('event_date', { ascending: false })
+            .limit(stillMissing.length * 5);
+          (eventRows || []).forEach((e: any) => {
+            if (imageMap[e.artist_id]) return;
+            let url: string | null = null;
+            if (Array.isArray(e.images)) {
+              const best = e.images.find((img: any) =>
+                img?.url && !img.url.includes('jambase-default-band-image') &&
+                (img?.ratio === '16_9' || (img?.width && img.width > 1000))
+              ) || e.images.find((img: any) =>
+                img?.url && !img.url.includes('jambase-default-band-image')
+              );
+              url = best?.url || null;
+            }
+            if (!url && e.event_media_url) url = e.event_media_url;
+            if (!url && Array.isArray(e.media_urls) && e.media_urls[0]) url = e.media_urls[0];
+            if (url) imageMap[e.artist_id] = url;
+          });
+        }
+      }
+
+      if (venueIds.length > 0) {
+        const { data: venueRows } = await supabase
+          .from('venues')
+          .select('id, image_url')
+          .in('id', venueIds);
+        (venueRows || []).forEach((v: any) => { if (v.image_url) imageMap[v.id] = v.image_url; });
+      }
+
+      const withImages = chatsWithFriends.map((c: any) =>
+        c.entity_uuid && imageMap[c.entity_uuid]
+          ? { ...c, entity_image_url: imageMap[c.entity_uuid] }
+          : c
+      );
+
+      setRecommendedGroupChats(withImages);
     } catch (error) {
       console.error('❌ Error loading recommended group chats:', error);
       setRecommendedGroupChats([]);

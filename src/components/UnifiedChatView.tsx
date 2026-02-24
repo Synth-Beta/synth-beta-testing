@@ -2384,36 +2384,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 }}
               >
               <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
-              {selectedChat.is_group_chat && (selectedChat.entity_type === 'artist' || selectedChat.entity_type === 'venue' || selectedChat.entity_type === 'event') ? (
-                /* Verified (artist/venue/event) group chats - Coming Soon */
-                <>
-                  <div className="flex items-center justify-center h-full">
-                    <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                      <MessageCircle size={60} className="mx-auto" style={{ color: 'var(--neutral-600)' }} />
-                      <h3 style={{ 
-                        fontFamily: 'var(--font-family)',
-                        fontSize: 'var(--typography-body-size, 20px)',
-                        fontWeight: 'var(--typography-body-weight, 500)',
-                        lineHeight: 'var(--typography-body-line-height, 1.5)',
-                        color: 'var(--neutral-900)',
-                        margin: 0,
-                        textAlign: 'center'
-                      }}>Coming Soon</h3>
-                      <p style={{ 
-                        fontFamily: 'var(--font-family)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        color: 'var(--neutral-600)',
-                        margin: 0,
-                        textAlign: 'center'
-                      }}>
-                        Group chats are still in development
-                      </p>
-                    </div>
-                  </div>
-                </>
-              ) : messages.length === 0 ? (
+              {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                   {/* Large icon (60px), dark grey */}
                   <MessageCircle size={60} strokeWidth={2} style={{ color: 'var(--neutral-600)' }} />
@@ -2453,9 +2424,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               )}
             </div>
 
-            {/* Message Input - show for direct chats and user group chats; hide for verified (artist/venue/event) group chats */}
-            {!(selectedChat.is_group_chat && (selectedChat.entity_type === 'artist' || selectedChat.entity_type === 'venue' || selectedChat.entity_type === 'event')) && (
-              <div 
+            {/* Message Input */}
+            <div
                 style={{ 
                   position: 'fixed',
                   bottom: 0,
@@ -2554,7 +2524,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   </div>
                 </div>
               </div>
-            )}
           </>
           </div>
         )}
