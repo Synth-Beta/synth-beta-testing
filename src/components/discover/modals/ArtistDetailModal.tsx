@@ -8,6 +8,7 @@ import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { JamBaseAttribution } from '@/components/attribution';
 import { ClickableImage } from '@/components/modals/FullScreenImageModal';
 import { ShareService } from '@/services/shareService';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import {
   iosModalBackdrop,
   glassCard,
@@ -51,6 +52,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   const [reviewsShown, setReviewsShown] = useState(3);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [hasOuterMobileHeader, setHasOuterMobileHeader] = useState(true);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -78,18 +80,6 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   }, [isOpen]);
 
   const useInternalHeader = isOpen && !hasOuterMobileHeader;
-
-  const handleShareArtist = async () => {
-    try {
-      await ShareService.shareArtist(
-        artistId,
-        `${artistName} on Synth`,
-        `Check out ${artistName} on Synth.`
-      );
-    } catch (error) {
-      console.error('Error sharing artist:', error);
-    }
-  };
 
   // Focus management for accessibility
   useEffect(() => {
@@ -428,7 +418,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
               </h1>
 
               <button
-                onClick={handleShareArtist}
+                onClick={() => setShareModalOpen(true)}
                 type="button"
                 aria-label="Share"
                 style={{
@@ -859,6 +849,17 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
           )}
         </div>
       </div>
+
+      {shareModalOpen && (
+        <UniversalShareModal
+          type="artist"
+          title={artistName}
+          url={ShareService.getArtistUrl(artistId)}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
 
       {/* Full-screen review detail overlay when a review is selected */}
       {selectedReviewId && (

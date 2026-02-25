@@ -42,8 +42,9 @@ import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { triggerNativeEventShare, isNativeShareAvailable, setupNativeShareListener } from '@/utils/nativeShareService';
-import { EventShareModal } from '@/components/events/EventShareModal';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { InAppShareService } from '@/services/inAppShareService';
+import { ShareService } from '@/services/shareService';
 import { Suspense } from 'react';
 const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
@@ -2607,9 +2608,12 @@ interface FriendEventInterest {
 
       {/* Event Share Modal (fallback for web) */}
       {shareModalOpen && selectedEventForShare && (
-        <EventShareModal
-          event={selectedEventForShare}
+        <UniversalShareModal
+          type="event"
+          title={selectedEventForShare.title || 'Event'}
+          url={ShareService.getEventUrl(selectedEventForShare.id || selectedEventForShare.event_id || '')}
           currentUserId={currentUserId}
+          eventId={selectedEventForShare.id || selectedEventForShare.event_id || ''}
           isOpen={shareModalOpen}
           onClose={() => {
             setShareModalOpen(false);

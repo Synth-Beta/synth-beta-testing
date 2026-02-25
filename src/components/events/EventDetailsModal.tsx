@@ -26,7 +26,7 @@ import {
   Building2
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
-import { EventShareModal } from './EventShareModal';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { EventInterestedUsersModal } from './EventInterestedUsersModal';
 import { ReportContentModal } from '../moderation/ReportContentModal';
 import { FriendsInterestedBadge } from '../social/FriendsInterestedBadge';
@@ -54,6 +54,7 @@ import { extractTicketProvider, getDaysUntilEvent, extractEventMetadata } from '
 import { SetlistService } from '@/services/setlistService';
 import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 import { JamBaseAttribution } from '@/components/attribution';
+import { ShareService } from '@/services/shareService';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { 
   iosModal, 
@@ -2637,9 +2638,12 @@ export function EventDetailsModal({
 
     {/* Event Share Modal */}
     {actualEvent && (
-      <EventShareModal
-        event={actualEvent}
+      <UniversalShareModal
+        type="event"
+        title={actualEvent.title || 'Event'}
+        url={ShareService.getEventUrl(actualEvent.id)}
         currentUserId={currentUserId}
+        eventId={actualEvent.id}
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
       />

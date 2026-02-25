@@ -8,9 +8,10 @@ import type { PersonalizedEvent } from '@/services/personalizedFeedService';
 import type { FilterState } from '@/components/search/EventFilters';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
-import { EventShareModal } from '@/components/events/EventShareModal';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+import { ShareService } from '@/services/shareService';
 
 interface PreferencesV4FeedSectionProps {
   userId: string;
@@ -40,6 +41,7 @@ export const PreferencesV4FeedSection: React.FC<PreferencesV4FeedSectionProps> =
   const [flagModalOpen, setFlagModalOpen] = useState(false);
   const [flaggedEvent, setFlaggedEvent] = useState<PersonalizedEvent | null>(null);
 const feedRef = useRef<HTMLDivElement>(null);
+  const shareEventId = selectedEventForShare?.id || selectedEventForShare?.event_id || '';
 
   const pageSize = 20;
 
@@ -682,10 +684,13 @@ const feedRef = useRef<HTMLDivElement>(null);
       )}
 
       {/* Share Modal */}
-      {selectedEventForShare && (
-        <EventShareModal
-          event={selectedEventForShare as any}
+      {selectedEventForShare && shareEventId && (
+        <UniversalShareModal
+          type="event"
+          title={selectedEventForShare.title || 'Event'}
+          url={ShareService.getEventUrl(shareEventId)}
           currentUserId={userId}
+          eventId={shareEventId}
           isOpen={shareModalOpen}
           onClose={() => {
             setShareModalOpen(false);

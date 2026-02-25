@@ -2,45 +2,61 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, Link2, MessageSquare, Mail, ArrowRight } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
-import { ShareService } from '@/services/shareService';
-import type { JamBaseEvent } from '@/types/eventTypes';
 import { Users } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
-interface EventShareModalProps {
-  event: JamBaseEvent;
-  currentUserId: string;
+type ShareType = 'event' | 'artist' | 'venue';
+
+interface UniversalShareModalProps {
+  type: ShareType;
+  title: string;
+  url: string;
+  imageUrl?: string | null;
+  currentUserId?: string;
+  eventId?: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function EventShareModal({
-  event,
+export function UniversalShareModal({
+  type,
+  title,
+  url,
+  imageUrl,
   currentUserId,
+  eventId,
   isOpen,
   onClose
-}: EventShareModalProps) {
+}: UniversalShareModalProps) {
   const [chats, setChats] = useState<ShareTarget[]>([]);
   const [friends, setFriends] = useState<Array<{ user_id: string; name: string; avatar_url: string | null }>>([]);
   const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [customMessage, setCustomMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
-const modalRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setChats([]);
-      setFriends([]);
-      loadShareTargets();
-      setFriendsLoading(true);
-      loadFriends();
+      setCustomMessage('');
       setSelectedTargets(new Set());
       setSearchQuery('');
+      setChats([]);
+      setFriends([]);
+
+      if (type === 'event' && currentUserId) {
+        setFriendsLoading(true);
+        loadShareTargets();
+        loadFriends();
+      } else {
+        setLoading(false);
+        setFriendsLoading(false);
+      }
     }
-  }, [isOpen, currentUserId]);
+  }, [isOpen, currentUserId, type]);
 
   // Focus management for accessibility
   useEffect(() => {
@@ -97,18 +113,26 @@ const modalRef = useRef<HTMLDivElement>(null);
   }, [isOpen]);
 
   const loadShareTargets = async () => {
+    if (type !== 'event' || !currentUserId) {
+      return;
+    }
+
     try {
       setLoading(true);
       const targets = await InAppShareService.getShareTargets(currentUserId);
       setChats(targets);
     } catch (error) {
       console.error('Error loading share targets:', error);
-      } finally {
+    } finally {
       setLoading(false);
     }
   };
 
   const loadFriends = async () => {
+    if (type !== 'event' || !currentUserId) {
+      return;
+    }
+
     try {
       const friendsList = await InAppShareService.getFriends(currentUserId);
       setFriends(friendsList);
@@ -132,12 +156,18 @@ const modalRef = useRef<HTMLDivElement>(null);
   };
 
   const handleShare = async () => {
-    if (selectedTargets.size === 0) {
+    if (
+      selectedTargets.size === 0 ||
+      type !== 'event' ||
+      !eventId ||
+      !currentUserId
+    ) {
       return;
     }
 
     try {
       setSharing(true);
+      const trimmedCustomMessage = customMessage.trim() || undefined;
       
       const selectedTargetsArray = Array.from(selectedTargets);
       const groupChatIds = selectedTargetsArray.filter(id => !id.startsWith('friend-'));
@@ -150,9 +180,10 @@ const modalRef = useRef<HTMLDivElement>(null);
       // Share to existing group chats
       if (groupChatIds.length > 0) {
         const groupResult = await InAppShareService.shareEventToMultipleChats(
-          event.id,
+          eventId,
           groupChatIds,
-          currentUserId
+          currentUserId,
+          trimmedCustomMessage
         );
         result.successCount += groupResult.successCount;
         result.errors.push(...groupResult.results.filter(r => !r.success).map(r => r.error || 'Unknown error'));
@@ -162,9 +193,10 @@ const modalRef = useRef<HTMLDivElement>(null);
       for (const friendId of friendIds) {
         try {
           const friendResult = await InAppShareService.shareEventToNewChat(
-            event.id,
+            eventId,
             friendId,
-            currentUserId
+            currentUserId,
+            trimmedCustomMessage
           );
           if (friendResult.success) {
             result.successCount += 1;
@@ -190,19 +222,26 @@ const modalRef = useRef<HTMLDivElement>(null);
     }
   };
 
+  const formatShareBody = () => {
+    const trimmedMessage = customMessage.trim();
+    if (trimmedMessage) {
+      return `${trimmedMessage}\n\n${url}`;
+    }
+    return `Check out ${title} on Synth!\n\n${url}`;
+  };
+
   const handleCopyLink = async () => {
     try {
-      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
-      await navigator.clipboard.writeText(url);
-      } catch (error) {
+      const body = customMessage.trim() ? `${customMessage.trim()}\n\n${url}` : url;
+      await navigator.clipboard.writeText(body);
+    } catch (error) {
       console.error('Error copying link:', error);
-      }
+    }
   };
 
   const handleTextMessage = async () => {
     try {
-      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
-      const text = encodeURIComponent(`Check out this event: ${event.title}\n${url}`);
+      const text = encodeURIComponent(formatShareBody());
       window.open(`sms:?body=${text}`, '_blank');
     } catch (error) {
       console.error('Error sharing via text:', error);
@@ -211,9 +250,8 @@ const modalRef = useRef<HTMLDivElement>(null);
 
   const handleEmail = async () => {
     try {
-      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
-      const subject = encodeURIComponent(`Check out: ${event.title}`);
-      const body = encodeURIComponent(`I thought you might like this event!\n\n${event.title}\n\n${url}`);
+      const subject = encodeURIComponent(`Check out: ${title}`);
+      const body = encodeURIComponent(formatShareBody());
       window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
     } catch (error) {
       console.error('Error sharing via email:', error);
@@ -222,17 +260,17 @@ const modalRef = useRef<HTMLDivElement>(null);
 
   const handleMoreOptions = async () => {
     try {
-      const url = await ShareService.shareEvent(event.id, event.title, event.description || undefined);
-      
+      const body = formatShareBody();
+
       if (navigator.share) {
         await navigator.share({
-          title: event.title,
-          text: event.description || 'Check out this event!',
-          url: url
+          title,
+          text: body,
+          url
         });
       } else {
-        await navigator.clipboard.writeText(url);
-        }
+        await navigator.clipboard.writeText(body);
+      }
     } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error('Error sharing:', error);
@@ -269,10 +307,9 @@ const modalRef = useRef<HTMLDivElement>(null);
   if (!isOpen) return null;
   if (typeof document === 'undefined') return null;
 
-  // Gate all in-app chat sharing behind having friends.
-  // If the user has no friends, we show only external share options and a helper text.
-  const showInternalChatSection = friends.length > 0;
-  const internalLoading = loading || friendsLoading;
+  const isEventShare = type === 'event';
+  const showInternalChatSection = isEventShare && friends.length > 0;
+  const internalLoading = isEventShare && (loading || friendsLoading);
 
   return createPortal(
     <div
@@ -359,8 +396,48 @@ const modalRef = useRef<HTMLDivElement>(null);
           </button>
         </div>
 
+        {/* Message text area */}
+        <div
+          style={{
+            padding: '14px 20px',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <label
+            htmlFor="universal-share-message"
+            style={{
+              display: 'block',
+              marginBottom: '6px',
+              fontFamily: 'var(--font-family)',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: 'var(--neutral-700)',
+            }}
+          >
+            Message (optional)
+          </label>
+          <textarea
+            id="universal-share-message"
+            value={customMessage}
+            onChange={(e) => setCustomMessage(e.target.value)}
+            placeholder="Add a personal note before sharing"
+            rows={3}
+            style={{
+              width: '100%',
+              borderRadius: '12px',
+              border: '1px solid rgba(0, 0, 0, 0.1)',
+              padding: '10px 12px',
+              fontFamily: 'var(--font-family)',
+              fontSize: '14px',
+              lineHeight: '1.5',
+              resize: 'vertical',
+              minHeight: '96px',
+            }}
+          />
+        </div>
+
         {/* Search Bar (only when in-app chat is available) */}
-        {showInternalChatSection && (
+        {isEventShare && showInternalChatSection && (
           <div
             style={{
               padding: '12px 20px',
@@ -415,7 +492,7 @@ const modalRef = useRef<HTMLDivElement>(null);
             gap: '24px',
           }}
         >
-          {!showInternalChatSection && !friendsLoading && (
+          {isEventShare && !showInternalChatSection && !friendsLoading && (
             <div
               style={{
                 fontFamily: 'var(--font-family)',
@@ -429,7 +506,7 @@ const modalRef = useRef<HTMLDivElement>(null);
           )}
 
           {/* Direct Share Contacts (in-app chat) */}
-          {showInternalChatSection ? (
+          {isEventShare && showInternalChatSection ? (
             internalLoading ? (
               <div
                 aria-busy="true"
@@ -824,7 +901,7 @@ const modalRef = useRef<HTMLDivElement>(null);
           </div>
 
         {/* Share Button */}
-        {selectedTargets.size > 0 && (
+        {isEventShare && selectedTargets.size > 0 && (
           <div
             style={{
               padding: '16px 20px',

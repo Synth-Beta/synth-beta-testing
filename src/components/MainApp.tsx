@@ -48,6 +48,7 @@ const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/V
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { ShareService } from '@/services/shareService';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 type ViewType =
@@ -108,6 +109,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [chatId, setChatId] = useState<string | undefined>(undefined);
   const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
   const [showShareBanner, setShowShareBanner] = useState(() => !isShareBannerDismissed());
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ type: 'artist' | 'venue'; id: string; name: string } | null>(null);
   const [runTour, setRunTour] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
@@ -1094,25 +1097,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     setDetailModal({ open: false });
   };
 
-  const handleShareGlobalDetail = async () => {
+  const handleShareGlobalDetail = () => {
     if (!detailModal.open) return;
-    try {
-      if (detailModal.type === 'artist') {
-        await ShareService.shareArtist(
-          detailModal.artistId,
-          `${detailModal.artistName} on Synth`,
-          `Check out ${detailModal.artistName} on Synth.`
-        );
-      } else if (detailModal.type === 'venue') {
-        await ShareService.shareVenue(
-          detailModal.venueId,
-          `${detailModal.venueName} on Synth`,
-          `Check out ${detailModal.venueName} on Synth.`
-        );
-      }
-    } catch (error) {
-      console.error('Error sharing detail:', error);
-    }
+    if (detailModal.type !== 'artist' && detailModal.type !== 'venue') return;
+    const target =
+      detailModal.type === 'artist'
+        ? { type: 'artist', id: detailModal.artistId, name: detailModal.artistName }
+        : { type: 'venue', id: detailModal.venueId, name: detailModal.venueName };
+    setShareTarget(target);
+    setShareModalOpen(true);
   };
 
   const closeManualArtistDetail = () => {
@@ -1498,6 +1491,24 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             </div>
           </div>
         </div>
+      )}
+
+      {shareModalOpen && shareTarget && (
+        <UniversalShareModal
+          type={shareTarget.type}
+          title={shareTarget.name}
+          url={
+            shareTarget.type === 'artist'
+              ? ShareService.getArtistUrl(shareTarget.id)
+              : ShareService.getVenueUrl(shareTarget.id)
+          }
+          currentUserId={user?.id}
+          isOpen={shareModalOpen}
+          onClose={() => {
+            setShareModalOpen(false);
+            setShareTarget(null);
+          }}
+        />
       )}
 
       {/* Onboarding Tour */}

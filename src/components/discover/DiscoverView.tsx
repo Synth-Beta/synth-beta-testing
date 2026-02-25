@@ -21,10 +21,17 @@ import { SearchBar } from '@/components/SearchBar/SearchBar';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { Share2 } from 'lucide-react';
 import { ShareService } from '@/services/shareService';
+import PageShell from '@/components/layout/PageShell';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
+
+type DiscoverDetailView =
+  | { type: 'artist'; id: string; name: string }
+  | { type: 'venue'; id: string; name: string }
+  | { type: 'event'; id: string; name: string };
 
 interface DiscoverViewProps {
   currentUserId: string;
@@ -67,16 +74,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  const [detailView, setDetailView] = useState<
-    | { type: 'artist'; id: string; name: string }
-    | { type: 'venue'; id: string; name: string }
-    | { type: 'event'; id: string; name: string }
-    | null
-  >(null);
+  const [detailView, setDetailView] = useState<DiscoverDetailView | null>(null);
 
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEventInterested, setSelectedEventInterested] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareDetail, setShareDetail] = useState<DiscoverDetailView | null>(null);
 
   // Track discover view
   useViewTracking('view', 'discover', { source: 'discover' });
@@ -256,29 +260,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     }
   };
 
-  const handleShareDetail = async () => {
+  const handleShareDetail = () => {
     if (!detailView) return;
-    if (detailView.type === 'artist') {
-      await ShareService.shareArtist(
-        detailView.id,
-        `${detailView.name} on Synth`,
-        `Check out ${detailView.name} on Synth.`
-      );
-      return;
-    }
-    if (detailView.type === 'event') {
-      await ShareService.shareEvent(
-        detailView.id,
-        `${detailView.name} on Synth`,
-        `Check out this event on Synth.`
-      );
-      return;
-    }
-    await ShareService.shareVenue(
-      detailView.id,
-      `${detailView.name} on Synth`,
-      `Check out ${detailView.name} on Synth.`
-    );
+    setShareDetail(detailView);
+    setShareModalOpen(true);
   };
 
   const handleUseCurrentLocation = async () => {
@@ -402,18 +387,65 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     );
   }
 
+  const discoverHeader = !hideHeader
+    ? detailView
+      ? (
+        <MobileHeader
+          alignLeft={true}
+          leftIcon="left"
+          onLeftIconClick={handleCloseDetail}
+          rightButton={
+            <button
+              className="mobile-header__menu-button"
+              onClick={handleShareDetail}
+              aria-label="Share"
+              type="button"
+            >
+              <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+            </button>
+          }
+        >
+          <h1
+            className="font-bold truncate"
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+              color: 'var(--neutral-900)',
+            }}
+          >
+            {detailView.name}
+          </h1>
+        </MobileHeader>
+      )
+      : (
+        <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            width: '100%',
+            maxWidth: '100%',
+          }}>
+            <SearchBar
+              value={searchQuery}
+              onChange={(value) => {
+                setSearchQuery(value);
+                setIsSearchActive(value.trim().length >= 2);
+              }}
+              placeholder='Try "Radiohead"'
+              widthVariant="flex"
+            />
+          </div>
+        </MobileHeader>
+      )
+    : undefined;
+
   return (
-    <main 
-      className="page-container" 
-      style={{ 
-        overflow: 'visible',
-        backgroundColor: 'var(--neutral-50)',
-        position: 'relative',
-        minHeight: '100vh'
-      }}
-    >
+    <PageShell header={discoverHeader}>
       {/* Glass backdrop context - blobs and noise */}
-      <div 
+      <div
         className="swift-ui-discover-backdrop"
         style={{
           position: 'fixed',
@@ -426,8 +458,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           overflow: 'hidden'
         }}
       >
-        {/* Gradient blobs */}
-        <div 
+        <div
           className="swift-ui-discover-blob"
           style={{
             position: 'absolute',
@@ -442,7 +473,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             pointerEvents: 'none'
           }}
         />
-        <div 
+        <div
           className="swift-ui-discover-blob"
           style={{
             position: 'absolute',
@@ -457,7 +488,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             pointerEvents: 'none'
           }}
         />
-        <div 
+        <div
           className="swift-ui-discover-blob"
           style={{
             position: 'absolute',
@@ -472,8 +503,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             pointerEvents: 'none'
           }}
         />
-        {/* Noise overlay */}
-        <div 
+        <div
           className="swift-ui-discover-noise"
           style={{
             position: 'absolute',
@@ -483,68 +513,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           }}
         />
       </div>
-      {/* Mobile Header with SearchBar */}
-      {!hideHeader && (
-        detailView ? (
-          <MobileHeader
-            alignLeft={true}
-            leftIcon="left"
-            onLeftIconClick={handleCloseDetail}
-            rightButton={
-              <button
-                className="mobile-header__menu-button"
-                onClick={handleShareDetail}
-                aria-label="Share"
-                type="button"
-              >
-                <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-              </button>
-            }
-          >
-            <h1
-              className="font-bold truncate"
-              style={{
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-h2-size, 24px)',
-                fontWeight: 'var(--typography-h2-weight, 700)',
-                lineHeight: 'var(--typography-h2-line-height, 1.3)',
-                color: 'var(--neutral-900)',
-              }}
-            >
-              {detailView.name}
-            </h1>
-          </MobileHeader>
-        ) : (
-          <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              width: '100%', 
-              maxWidth: '100%'
-            }}>
-              <SearchBar 
-                value={searchQuery}
-                onChange={(value) => {
-                  setSearchQuery(value);
-                  setIsSearchActive(value.trim().length >= 2);
-                }}
-                placeholder='Try "Radiohead"'
-                widthVariant="flex"
-              />
-            </div>
-          </MobileHeader>
-        )
-      )}
-      <div 
-        className="max-w-7xl mx-auto" 
-        style={{ 
-          paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, 
-          paddingBottom: 'var(--spacing-bottom-nav, 32px)',
+      <div
+        className="max-w-7xl mx-auto"
+        style={{
           overflow: 'visible',
           minHeight: 'auto',
           position: 'relative',
-          zIndex: 1
+          zIndex: 1,
         }}
       >
         {/* Browse Vibes and Location Filter */}
@@ -974,6 +949,27 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             />
       )}
 
-    </main>
+      {shareModalOpen && shareDetail && (
+        <UniversalShareModal
+          type={shareDetail.type}
+          title={shareDetail.name}
+          url={
+            shareDetail.type === 'event'
+              ? ShareService.getEventUrl(shareDetail.id)
+              : shareDetail.type === 'artist'
+                ? ShareService.getArtistUrl(shareDetail.id)
+                : ShareService.getVenueUrl(shareDetail.id)
+          }
+          currentUserId={currentUserId}
+          eventId={shareDetail.type === 'event' ? shareDetail.id : undefined}
+          isOpen={shareModalOpen}
+          onClose={() => {
+            setShareModalOpen(false);
+            setShareDetail(null);
+          }}
+        />
+      )}
+
+    </PageShell>
   );
 };

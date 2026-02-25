@@ -167,6 +167,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         config.userContentController.add(self, name: "eventHeader")
         config.userContentController.add(self, name: "setBadgeCount")
         config.userContentController.add(self, name: "synthNativeAuth")
+        config.userContentController.add(self, name: "synthGetSession")
         let script = """
             (function() {
                 window.addEventListener('RequestAppleSignIn', function() {
@@ -621,6 +622,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                     }
                 }
             }
+        } else if message.name == "synthGetSession" {
+            sendNativeSessionToWeb()
         } else if message.name == "synthNativeAuth" {
             guard let body = message.body as? [String: Any],
                   let action = body["action"] as? String else {
@@ -653,6 +656,41 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 name: Notification.Name("SynthAuthDidChange"),
                 object: nil
             )
+        }
+    }
+
+    private func sendNativeSessionToWeb() {
+        Task {
+            guard let tokens = await AuthService.sessionTokensForWebBridge() else {
+                return
+            }
+            let escapedAccess = tokens.accessToken
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+            let escapedRefresh = tokens.refreshToken
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+            let script = """
+                (function() {
+                    try {
+                        window.dispatchEvent(new CustomEvent('synthNativeSessionReady', {
+                            detail: {
+                                access_token: '\(escapedAccess)',
+                                refresh_token: '\(escapedRefresh)'
+                            }
+                        }));
+                    } catch(e) {
+                        console.error('native session inject failed', e);
+                    }
+                })();
+                """
+            await MainActor.run {
+                evaluateScriptOnAvailableWebView(script: script)
+            }
         }
     }
 

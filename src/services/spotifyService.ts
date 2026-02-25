@@ -45,6 +45,10 @@ export class SpotifyService {
     if (!clientId || !redirectUri) {
       logger.warn('Spotify config is missing. Set VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_REDIRECT_URI.');
     }
+    
+    if (typeof window !== 'undefined') {
+      this.checkStoredToken();
+    }
   }
 
   public static getInstance(): SpotifyService {

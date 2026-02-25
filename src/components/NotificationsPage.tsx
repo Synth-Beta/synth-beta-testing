@@ -22,6 +22,7 @@ import type { NotificationWithDetails } from '@/types/notifications';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 import { MobileHeader } from '@/components/Header/MobileHeader';
+import PageShell from '@/components/layout/PageShell';
 import { 
   glassCard,
   glassCardLight,
@@ -598,60 +599,55 @@ export const NotificationsPage = ({
     );
   }
 
-  return (
-    <main
-      className="page-container"
-      style={{
-        minHeight: '100vh',
-        position: 'relative',
-        background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 1) 100%)',
-        paddingTop: `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`,
-        paddingBottom: 'var(--spacing-bottom-nav, 80px)',
-      }}
+  const notificationsHeader = (
+    <MobileHeader
+      alignLeft
+      leftIcon="left"
+      onLeftIconClick={onBack}
+      rightButton={<div style={{ width: 44, height: 44 }} aria-hidden="true" />}
     >
-      <MobileHeader
-        alignLeft
-        leftIcon="left"
-        onLeftIconClick={onBack}
-        rightButton={<div style={{ width: 44, height: 44 }} aria-hidden="true" />}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h1
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h1
+          style={{
+            ...textStyles.title1,
+            color: 'var(--neutral-900)',
+            margin: 0,
+            fontWeight: 600,
+          }}
+        >
+          {headerTitle}
+        </h1>
+        {unreadCount > 0 && (
+          <div
             style={{
-              ...textStyles.title1,
-              color: 'var(--neutral-900)',
-              margin: 0,
+              backgroundColor: '#EF4444',
+              color: '#fff',
+              borderRadius: 12,
+              minWidth: 24,
+              height: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
               fontWeight: 600,
+              paddingLeft: 6,
+              paddingRight: 6,
+              boxSizing: 'border-box',
+              border: '2px solid #fff',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
             }}
           >
-            {headerTitle}
-          </h1>
-          {unreadCount > 0 && (
-            <div
-              style={{
-                backgroundColor: '#EF4444',
-                color: '#fff',
-                borderRadius: 12,
-                minWidth: 24,
-                height: 24,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 600,
-                paddingLeft: 6,
-                paddingRight: 6,
-                boxSizing: 'border-box',
-                border: '2px solid #fff',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </div>
-          )}
-        </div>
-      </MobileHeader>
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </div>
+        )}
+      </div>
+    </MobileHeader>
+  );
 
+  return (
+    <PageShell
+      header={notificationsHeader}
+    >
       <div
         style={{
           width: '100%',
@@ -944,6 +940,6 @@ export const NotificationsPage = ({
         )}
       </div>
     </div>
-  </main>
+  </PageShell>
   );
 };
