@@ -81,28 +81,39 @@ export function useAuth() {
 
     getInitialSession();
 
-    // Listen for auth changes - only log out when user explicitly signs out
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Only handle explicit sign out - ignore token expiration
         if (event === 'SIGNED_OUT') {
           console.log('👋 User signed out');
           setSessionExpired(false);
           setSession(null);
           setUser(null);
-        } else if (session) {
-          // User is logged in (new sign in, token refresh, etc.)
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          // Successful refresh — clear any prior expired flag
           setSessionExpired(false);
           setSession(session);
           setUser(session.user);
-          
+        } else if (event === 'TOKEN_REFRESH_FAILED') {
+          // Supabase could not silently refresh the token (network issue, revoked token,
+          // or the refresh token itself has expired). The user is effectively logged out
+          // — API calls will 401. Set sessionExpired so the UI routes to the login screen
+          // instead of showing a broken authenticated state.
+          console.warn('⚠️ Token refresh failed — prompting re-login');
+          setSessionExpired(true);
+          setSession(null);
+          setUser(null);
+        } else if (session) {
+          // User is logged in (new sign in, initial session, etc.)
+          setSessionExpired(false);
+          setSession(session);
+          setUser(session.user);
+
           if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
             schedulePreferenceRefresh();
           }
         }
-        // Note: We intentionally don't clear session on token expiration
-        // User stays "logged in" until they explicitly click logout
-        
+
         setLoading(false);
       }
     );

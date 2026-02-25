@@ -13,6 +13,8 @@ const { validateBody } = require('./middleware/validateInput');
 const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
 const { appleAuthSchema } = require('./validation/schemas');
 
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
 const router = express.Router();
 
 // Sanitization middleware
@@ -25,32 +27,21 @@ const authRateLimiter = createRateLimiter('strict'); // 10 req/min per IP/user
 
 /**
  * POST /auth/apple
- * 
- * Authenticate user with Apple Sign In identity token.
- * 
- * Currently supports:
- * - DEV mode: Returns mock user for testing
- * - APPLE mode: Stub that accepts token but returns mock user (verification not yet implemented)
- * 
+ *
+ * NOTE: This endpoint is NOT used in production.
+ *
+ * Real Apple Sign In flows through Supabase directly:
+ *   iOS native → Apple identity token → supabase.auth.signInWithIdToken() → Supabase session
+ * Supabase verifies the Apple token with Apple's servers and creates a real user session.
+ * This backend route was scaffolded as a placeholder for a custom auth server that was
+ * never needed. It is intentionally disabled in production to prevent accidental use.
+ *
+ * Dev mode only: returns a mock user so you can exercise backend endpoints without
+ * a real Apple device present.
+ *
  * Request body:
  * {
  *   "identityToken": "jwt_token_string"
- * }
- * 
- * Response:
- * {
- *   "success": true,
- *   "session": {
- *     "token": "jwt_session_token",
- *     "expiresAt": "2024-12-31T23:59:59.000Z"
- *   },
- *   "user": {
- *     "id": "uuid",
- *     "apple_user_id": "string",
- *     "email": "string | null",
- *     "name": "string",
- *     ...
- *   }
  * }
  */
 router.post('/auth/apple',
@@ -58,16 +49,22 @@ router.post('/auth/apple',
   authRateLimiter, // Strict rate limiting for auth endpoints
   validateBody(appleAuthSchema),
   async (req, res) => {
+    // Block in production — real auth goes through Supabase, not this endpoint.
+    if (NODE_ENV === 'production') {
+      return res.status(501).json({
+        success: false,
+        error: 'Not implemented',
+        message: 'Apple authentication is handled by Supabase. This endpoint is not active in production.'
+      });
+    }
+
     try {
       const { identityToken } = req.body;
 
-      // Authenticate user based on AUTH_MODE
+      // DEV mode: authenticate via AUTH_MODE (returns mock user for local testing)
       const user = await authenticateUser(identityToken);
-
-      // Create session for authenticated user
       const session = createSession(user);
 
-      // Return success response with session and user data
       res.json({
         success: true,
         session: {
@@ -79,8 +76,6 @@ router.post('/auth/apple',
 
     } catch (error) {
       console.error('Apple authentication error:', error);
-      
-      // Return generic error (don't expose implementation details)
       res.status(500).json({
         success: false,
         error: 'Authentication failed',

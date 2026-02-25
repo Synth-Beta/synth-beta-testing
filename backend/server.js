@@ -37,6 +37,12 @@ const authRoutes = require('./auth-routes');
 
 const app = express();
 
+// Tell Express to trust the first proxy hop (Vercel / Railway / Render / etc.)
+// Without this, req.ip returns the load-balancer IP instead of the real client IP,
+// which breaks rate limiting — all requests look like they come from one IP,
+// and X-Forwarded-For can be freely spoofed by clients.
+app.set('trust proxy', 1);
+
 // Server Configuration
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
