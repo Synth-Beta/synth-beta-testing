@@ -107,8 +107,8 @@ if (isMobile && typeof window !== 'undefined') {
     }
   };
   requestNativeSession();
-  // Retry in case native handler attaches after page load
-  [500, 1500, 3000].forEach((ms) => setTimeout(requestNativeSession, ms));
+  // Retry in case native handler attaches after page load (extends to 5s to cover slow devices)
+  [500, 1500, 3000, 5000].forEach((ms) => setTimeout(requestNativeSession, ms));
 }
 
 // Set up auth state change listener for deep link handling on mobile

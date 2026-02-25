@@ -104,11 +104,16 @@ struct CapacitorWebView: UIViewControllerRepresentable {
             let script = """
             (function() {
                 try {
+                    var session = {
+                        access_token: '\(escapedAccess)',
+                        refresh_token: '\(escapedRefresh)'
+                    };
+                    // Prefer the helper if it was injected (subsequent loads),
+                    // otherwise dispatch the event directly so the first load works too.
                     if (typeof window.__synthNativeSessionReady === 'function') {
-                        window.__synthNativeSessionReady({
-                            access_token: '\(escapedAccess)',
-                            refresh_token: '\(escapedRefresh)'
-                        });
+                        window.__synthNativeSessionReady(session);
+                    } else {
+                        window.dispatchEvent(new CustomEvent('synthNativeSessionReady', { detail: session }));
                     }
                 } catch(e) {
                     console.error('Synth native session injection error:', e);

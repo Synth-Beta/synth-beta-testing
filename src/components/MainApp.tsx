@@ -99,6 +99,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   // If true and then user === null, it means an explicit sign-out happened —
   // on iOS we should show the web login form rather than the loading screen.
   const hasEverHadUserRef = useRef(false);
+  // Safety net: if no native session arrives within 8s, fall through to web login
+  const [nativeAuthTimedOut, setNativeAuthTimedOut] = useState(false);
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
   const [notificationFilter, setNotificationFilter] = useState<'friends_only' | 'exclude_friends' | undefined>(undefined);
@@ -116,6 +118,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   useEffect(() => {
     if (user?.id) hasEverHadUserRef.current = true;
   }, [user?.id]);
+
+  // On iOS: if the Swift layer never sends a session (e.g. expired native tokens),
+  // give up waiting after 8s and show the web login form instead of loading forever.
+  useEffect(() => {
+    if (!isIosNative) return;
+    const timer = setTimeout(() => setNativeAuthTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [isIosNative]);
   const { accountInfo } = useAccountType();
   const navigate = useNavigate();
   const location = useLocation();
@@ -875,7 +885,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     // this session) we defer to the Swift layer and show a loading screen.
     // But after an explicit sign-out (hasEverHadUserRef.current === true),
     // Swift won't re-show its auth UI on its own, so we render the web login form.
-    if (isIosNative && !hasEverHadUserRef.current) {
+    if (isIosNative && !hasEverHadUserRef.current && !nativeAuthTimedOut) {
       return <SynthLoadingScreen text="Loading Synth..." />;
     }
     return <Auth onAuthSuccess={handleAuthSuccess} />;
