@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 interface BottomNavAdapterProps {
-  currentView: 'feed' | 'search' | 'profile' | 'profile-edit' | 'analytics' | 'events' | 'chat' | 'notifications' | 'onboarding';
+  currentView: 'feed' | 'search' | 'profile' | 'profile-edit' | 'analytics' | 'events' | 'chat' | 'notifications' | 'onboarding' | 'streaming-stats' | 'auth';
   onViewChange: (view: 'feed' | 'search' | 'profile' | 'analytics' | 'events' | 'chat') => void;
   onOpenEventReview?: () => void;
   profileUserId?: string; // If provided and different from current user, don't mark profile as selected

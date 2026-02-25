@@ -661,7 +661,7 @@ export class NotificationService {
       shared_genres: Array<{ genre: string; match_pct: number } | string>;
       shared_artists?: Array<{ id: string; name: string; image_url?: string | null }>;
       shared_venues?: Array<{ id: string; name: string; image_url?: string | null }>;
-      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: string }>;
+      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: 'you_both_attended' | 'you_both_follow' | 'recommended' | 'fallback' }>;
       current_user_avatar_url?: string;
       friend_avatar_url?: string;
       friendship_days?: number;
@@ -690,7 +690,7 @@ export class NotificationService {
       shared_genres: Array<{ genre: string; match_pct: number } | string>;
       shared_artists?: Array<{ id: string; name: string; image_url?: string | null }>;
       shared_venues?: Array<{ id: string; name: string; image_url?: string | null }>;
-      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: string }>;
+      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: 'you_both_attended' | 'you_both_follow' | 'recommended' | 'fallback' }>;
       current_user_avatar_url?: string;
       friend_avatar_url?: string;
       friendship_days?: number;
@@ -743,7 +743,7 @@ export class NotificationService {
       shared_genres: Array<{ genre: string; match_pct: number } | string>;
       shared_artists?: Array<{ id: string; name: string; image_url?: string | null }>;
       shared_venues?: Array<{ id: string; name: string; image_url?: string | null }>;
-      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: string }>;
+      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: 'you_both_attended' | 'you_both_follow' | 'recommended' | 'fallback' }>;
       current_user_avatar_url?: string;
       friend_avatar_url?: string;
       friendship_days?: number;
@@ -757,7 +757,7 @@ export class NotificationService {
       shared_genres: Array<{ genre: string; match_pct: number } | string>;
       shared_artists?: Array<{ id: string; name: string; image_url?: string | null }>;
       shared_venues?: Array<{ id: string; name: string; image_url?: string | null }>;
-      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: string }>;
+      suggested_events: Array<{ id: string; title: string; event_date: string; venue_city?: string; venue_name?: string; artist_name?: string; source?: 'you_both_attended' | 'you_both_follow' | 'recommended' | 'fallback' }>;
       current_user_avatar_url?: string;
       friend_avatar_url?: string;
       friendship_days?: number;
