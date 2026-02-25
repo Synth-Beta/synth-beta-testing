@@ -362,6 +362,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         }
       }
       const dedupedArtists = dedupeFavoriteArtists(artistData);
+      //If there's no artists, don't show the pop-up
+      if (dedupedArtists.length === 0) {
+        await finishOnboarding();
+        return;
+      }
       setFavoriteArtistOptions(dedupedArtists);
       setShowFollowArtistsModal(true);
       return;
