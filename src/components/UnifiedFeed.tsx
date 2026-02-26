@@ -68,7 +68,6 @@ import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { ShareService } from '@/services/shareService';
 import { FlagContentModal } from '@/components/moderation/FlagContentModal';
 import { trackInteraction } from '@/services/interactionTrackingService';
-import { ShareService } from '@/services/shareService';
 import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { extractEventMetadata } from '@/utils/trackingHelpers';
