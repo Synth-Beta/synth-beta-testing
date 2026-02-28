@@ -72,7 +72,38 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         output: {
-          manualChunks: undefined, // Let Vite handle chunking
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return;
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/react-router-dom/') ||
+              id.includes('/@tanstack/react-query/')
+            ) return 'vendor-react';
+            if (id.includes('/@supabase/')) return 'vendor-supabase';
+            if (
+              id.includes('/@radix-ui/') ||
+              id.includes('/class-variance-authority/') ||
+              id.includes('/clsx/') ||
+              id.includes('/tailwind-merge/') ||
+              id.includes('/cmdk/')
+            ) return 'vendor-ui';
+            if (id.includes('/recharts/')) return 'vendor-charts';
+            if (
+              id.includes('/leaflet/') ||
+              id.includes('/react-leaflet/') ||
+              id.includes('/ngeohash/')
+            ) return 'vendor-maps';
+            if (
+              id.includes('/date-fns/') ||
+              id.includes('/uuid/') ||
+              id.includes('/zod/') ||
+              id.includes('/sonner/') ||
+              id.includes('/embla-carousel') ||
+              id.includes('/canvas-confetti/') ||
+              id.includes('/react-joyride/')
+            ) return 'vendor-misc';
+          },
         },
         // Note: Capacitor plugins must be bundled normally
         // They contain JavaScript code that needs to be included in the bundle

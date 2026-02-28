@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { BottomNavAdapter } from './BottomNavAdapter';
@@ -12,7 +12,6 @@ import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
 import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
-import { SettingsModal } from './SettingsModal';
 import type { SettingsModalView } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
 import { UnifiedChatView } from './UnifiedChatView';
@@ -35,20 +34,17 @@ import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
 import { HomeFeed } from './home/HomeFeed';
 import { streamingSyncService } from '@/services/streamingSyncService';
-import { EventReviewModal } from './EventReviewModal';
-import { FriendTaggedReviewInviteModal, type PrefillEvent } from './reviews/FriendTaggedReviewInviteModal';
-import { NewFriendCelebrationModal, type CelebrationData } from './NewFriendCelebrationModal';
-import { NotificationService } from '@/services/notificationService';
-import { ArtistFollowService } from '@/services/artistFollowService';
 import { SynthLoadingScreen } from './ui/SynthLoader';
 import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
-const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
-const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
-import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { MobileHeader } from '@/components/Header/MobileHeader';
-import { ShareService } from '@/services/shareService';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useEventDetailsFromVenue } from '@/hooks/useEventDetailsFromVenue';
+import { useGlobalDetailModal } from '@/hooks/useGlobalDetailModal';
+import { useEventReviewModals } from '@/hooks/useEventReviewModals';
+import { useFriendCelebration } from '@/hooks/useFriendCelebration';
+import { GlobalDetailModals } from './GlobalDetailModals';
+import { GlobalModals } from './GlobalModals';
 
 type ViewType =
   | 'feed'
@@ -66,27 +62,6 @@ type ViewType =
 interface MainAppProps {
   onSignOut?: () => void;
 }
-
-type GlobalDetailModalState =
-  | { open: false }
-  | {
-      open: true;
-      type: 'artist';
-      artistId: string;
-      artistName: string;
-    }
-  | {
-      open: true;
-      type: 'venue';
-      venueId: string;
-      venueName: string;
-    }
-  | {
-      open: true;
-      type: 'profile';
-      userId: string;
-      userName: string;
-    };
 
 export const MainApp = ({ onSignOut }: MainAppProps) => {
   const isIosNative =
@@ -135,6 +110,40 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   
   // Track user activity (updates last_active_at periodically)
   useActivityTracker();
+
+  // --- Extracted hooks ---
+  const {
+    handleEventClickFromVenue,
+    selectedEventFromVenue,
+    setSelectedEventFromVenue,
+    eventDetailsFromVenueOpen,
+    setEventDetailsFromVenueOpen,
+    selectedEventFromVenueInterested,
+    setSelectedEventFromVenueInterested,
+  } = useEventDetailsFromVenue(user?.id);
+
+  const {
+    detailModal,
+    manualArtistDetail,
+    isEventDetailsOpen,
+    handleCloseGlobalDetail,
+    handleShareGlobalDetail,
+    closeManualArtistDetail,
+    toggleManualArtistFollow,
+  } = useGlobalDetailModal(user?.id, handleEventClickFromVenue);
+
+  const {
+    showEventReviewModal,
+    setShowEventReviewModal,
+    eventReviewPrefill,
+    setEventReviewPrefill,
+    friendTaggedInviteNotification,
+    setFriendTaggedInviteNotification,
+    showFriendTaggedInviteModal,
+    setShowFriendTaggedInviteModal,
+  } = useEventReviewModals(user?.id, loading);
+
+  const { friendCelebration, setFriendCelebration } = useFriendCelebration();
 
   // Listen for streaming sync completion and show notification
   useEffect(() => {
@@ -209,74 +218,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       checkOnboardingStatus();
     }
   }, [user, loading, currentView, isIosNative]);
-
-  // Check for unread friend-tagged-in-review notifications on login (popup on next login)
-  useEffect(() => {
-    if (!loading && user && !hasCheckedFriendTaggedInvite.current) {
-      hasCheckedFriendTaggedInvite.current = true;
-      NotificationService.getNotifications({
-        type: 'friend_tagged_in_review',
-        is_read: false,
-        limit: 1,
-      })
-        .then(({ notifications }) => {
-          const first = notifications[0];
-          if (first) {
-            setFriendTaggedInviteNotification(first);
-            setShowFriendTaggedInviteModal(true);
-          }
-        })
-        .catch(() => {});
-
-      // Update iOS badge count on login
-      import('@/services/badgeService').then(({ BadgeService }) => {
-        BadgeService.updateBadgeCount();
-      });
-    }
-  }, [loading, user]);
-
-  // Listen for open-friend-match events (from notification buttons or profile)
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.friendId) {
-        NotificationService.getFriendCelebrationData(detail.friendId, detail.friendName || 'Friend', detail.notificationId)
-          .then((result) => {
-            if (result) {
-              setFriendCelebration({
-                notificationId: result.notificationId || '',
-                friendName: result.friendName,
-                data: result.data,
-              });
-            }
-          })
-          .catch(() => {});
-      }
-    };
-    window.addEventListener('open-friend-match', handler);
-    return () => window.removeEventListener('open-friend-match', handler);
-  }, []);
-
-  // Listen for open-review-invite (from NotificationsPage tap on friend_tagged_in_review)
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail && (detail as any).artist_id && (detail as any).venue_id) {
-        setEventReviewPrefill({
-          id: `invite-${(detail as any).review_id || 'tap'}`,
-          artist_id: (detail as any).artist_id,
-          artist_name: (detail as any).artist_name,
-          venue_id: (detail as any).venue_id,
-          venue_name: (detail as any).venue_name,
-          event_date: (detail as any).event_date,
-          attendees: (detail as any).attendees,
-        });
-        setShowEventReviewModal(true);
-      }
-    };
-    window.addEventListener('open-review-invite', handler);
-    return () => window.removeEventListener('open-review-invite', handler);
-  }, []);
 
   // Initialize push notifications when user is authenticated
   useEffect(() => {
@@ -411,182 +352,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsInitialView, setSettingsInitialView] = useState<SettingsModalView>('menu');
-  const [showEventReviewModal, setShowEventReviewModal] = useState(false);
-  const [eventReviewPrefill, setEventReviewPrefill] = useState<PrefillEvent | null>(null);
-  const [friendTaggedInviteNotification, setFriendTaggedInviteNotification] = useState<any>(null);
-  const [showFriendTaggedInviteModal, setShowFriendTaggedInviteModal] = useState(false);
-  const hasCheckedFriendTaggedInvite = useRef(false);
-  const [friendCelebration, setFriendCelebration] = useState<{
-    notificationId: string;
-    friendName: string;
-    data: CelebrationData;
-  } | null>(null);
   // hasCheckedFriendCelebration removed — celebration is now triggered manually via buttons
   const [menuOpen, setMenuOpen] = useState(false);
-  // Global detail modal state shared across views (artist/venue + future profile popups)
-  const [detailModal, setDetailModal] = useState<GlobalDetailModalState>({ open: false });
-  const [manualArtistDetail, setManualArtistDetail] = useState<{
-    open: boolean;
-    artistId?: string;
-    artistName?: string;
-    following?: boolean;
-  }>({ open: false });
-  // Track whether any EventDetailsModal is open anywhere in the app so we can
-  // hide underlying page headers (Profile/Home/etc) and avoid double headers.
-  const [isEventDetailsOpen, setIsEventDetailsOpen] = useState(false);
-  // Event details when opened from venue modal (global VenueDetailModal)
-  const [selectedEventFromVenue, setSelectedEventFromVenue] = useState<any>(null);
-  const [eventDetailsFromVenueOpen, setEventDetailsFromVenueOpen] = useState(false);
-  const [selectedEventFromVenueInterested, setSelectedEventFromVenueInterested] = useState(false);
 
   // Lock body scroll when menu is open
   useLockBodyScroll(menuOpen);
-
-  const handleEventClickFromVenue = useCallback(async (eventId: string) => {
-    if (!eventId || !user?.id) return;
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*, artists(name), venues(name)')
-        .eq('id', eventId)
-        .single();
-
-      if (!error && data) {
-        const normalizedEvent = {
-          ...data,
-          artist_name: (data.artists as any)?.name || data.artist_name || null,
-          venue_name: (data.venues as any)?.name || data.venue_name || null,
-        };
-        setSelectedEventFromVenue(normalizedEvent);
-        const interested = await UserEventService.isUserInterested(user.id, eventId);
-        setSelectedEventFromVenueInterested(interested);
-        setDetailModal({ open: false });
-        setEventDetailsFromVenueOpen(true);
-      }
-    } catch (err) {
-      console.error('Error opening event from venue:', err);
-    }
-  }, [user?.id]);
-
-  // Listen globally so artist/venue modals open from anywhere (review pills, links, etc.)
-  useEffect(() => {
-    const openArtist = async (e: Event) => {
-      const detail = (e as CustomEvent).detail || {};
-      let artistId: string | null = detail.artistId || null;
-      let artistName: string = detail.artistName || '';
-
-      // If we have an ID but no name, resolve name for better modal UX.
-      if (artistId && !artistName) {
-        try {
-          const { data } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
-          if (data?.name) artistName = data.name;
-        } catch {
-          // Non-fatal; modal can still open with fallback name
-        }
-      }
-
-      // If we don't have an ID, try resolving by name.
-      if (!artistId && artistName) {
-        try {
-          const { data } = await supabase.from('artists').select('id, name').ilike('name', artistName).limit(1).maybeSingle();
-          if (data?.id) artistId = data.id;
-          if (data?.name) artistName = data.name;
-        } catch {
-          // Ignore
-        }
-      }
-
-      if (artistId) {
-        try {
-          const { data: artistRow } = await supabase
-            .from('artists')
-            .select('id, name, identifier')
-            .eq('id', artistId)
-            .maybeSingle();
-
-          if (artistRow?.identifier?.startsWith('manual:')) {
-            if (!user?.id) {
-              return;
-            }
-
-            const following = await ArtistFollowService.isFollowingArtist(artistId, user.id);
-            setManualArtistDetail({
-              open: true,
-              artistId,
-              artistName: artistRow.name || artistName || 'Artist',
-              following,
-            });
-            return;
-          }
-        } catch (error) {
-          console.error('Error fetching manual artist row:', error);
-          // Continue to open the standard modal even if the manual check fails
-        }
-
-        setDetailModal({
-          open: true,
-          type: 'artist',
-          artistId,
-          artistName: artistName || 'Artist',
-        });
-      }
-    };
-
-    const openVenue = async (e: Event) => {
-      const detail = (e as CustomEvent).detail || {};
-      let venueId: string | null = detail.venueId || null;
-      let venueName: string = detail.venueName || '';
-
-      if (venueId && !venueName) {
-        try {
-          const { data } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
-          if (data?.name) venueName = data.name;
-        } catch {
-          // Non-fatal
-        }
-      }
-
-      if (!venueId && venueName) {
-        try {
-          const { data } = await supabase.from('venues').select('id, name').ilike('name', venueName).limit(1).maybeSingle();
-          if (data?.id) venueId = data.id;
-          if (data?.name) venueName = data.name;
-        } catch {
-          // Ignore
-        }
-      }
-
-      if (venueId) {
-        setDetailModal({
-          open: true,
-          type: 'venue',
-          venueId,
-          venueName: venueName || 'Venue',
-        });
-      }
-    };
-
-    window.addEventListener('open-artist-card', openArtist as EventListener);
-    window.addEventListener('open-venue-card', openVenue as EventListener);
-    const handleEventDetailsOpen = () => setIsEventDetailsOpen(true);
-    const handleEventDetailsClose = () => setIsEventDetailsOpen(false);
-    window.addEventListener('event-details-open', handleEventDetailsOpen as EventListener);
-    window.addEventListener('event-details-close', handleEventDetailsClose as EventListener);
-    const handleOpenEventDetails = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { eventId?: string };
-      if (detail?.eventId) {
-        handleEventClickFromVenue(detail.eventId);
-      }
-    };
-    window.addEventListener('open-event-details', handleOpenEventDetails as EventListener);
-    return () => {
-      window.removeEventListener('open-artist-card', openArtist as EventListener);
-      window.removeEventListener('open-venue-card', openVenue as EventListener);
-      window.removeEventListener('event-details-open', handleEventDetailsOpen as EventListener);
-      window.removeEventListener('event-details-close', handleEventDetailsClose as EventListener);
-      window.removeEventListener('open-event-details', handleOpenEventDetails as EventListener);
-    };
-  }, [handleEventClickFromVenue, user?.id]);
 
   const handleForceLogin = () => {
     setShowAuth(true);
@@ -1090,54 +860,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const isGlobalArtistOrVenueOpen =
     detailModal.open && (detailModal.type === 'artist' || detailModal.type === 'venue');
 
-  const handleCloseGlobalDetail = () => {
-    setDetailModal({ open: false });
-  };
-
-  const handleShareGlobalDetail = async () => {
-    if (!detailModal.open) return;
-    try {
-      if (detailModal.type === 'artist') {
-        await ShareService.shareArtist(
-          detailModal.artistId,
-          `${detailModal.artistName} on Synth`,
-          `Check out ${detailModal.artistName} on Synth.`
-        );
-      } else if (detailModal.type === 'venue') {
-        await ShareService.shareVenue(
-          detailModal.venueId,
-          `${detailModal.venueName} on Synth`,
-          `Check out ${detailModal.venueName} on Synth.`
-        );
-      }
-    } catch (error) {
-      console.error('Error sharing detail:', error);
-    }
-  };
-
-  const closeManualArtistDetail = () => {
-    setManualArtistDetail({ open: false });
-  };
-
-  const toggleManualArtistFollow = async () => {
-    if (!user?.id || !manualArtistDetail.artistId) return;
-    const currentlyFollowing = manualArtistDetail.following === true;
-
-    try {
-      await ArtistFollowService.setArtistFollow(user.id, manualArtistDetail.artistId, !currentlyFollowing);
-      setManualArtistDetail((prev) =>
-        prev.open
-          ? {
-              ...prev,
-              following: !currentlyFollowing,
-            }
-          : prev
-      );
-    } catch (error) {
-      console.error('Error toggling manual artist follow:', error);
-    }
-  };
-
   return (
     <div 
       className="min-h-screen"
@@ -1265,60 +987,36 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         {renderCurrentView()}
       </div>
 
-      <Suspense fallback={null}>
-        {user?.id && detailModal.open && detailModal.type === 'artist' && detailModal.artistId && (
-          <ArtistDetailModal
-            isOpen={detailModal.open}
-            onClose={handleCloseGlobalDetail}
-            artistId={detailModal.artistId}
-            artistName={detailModal.artistName || 'Artist'}
-            currentUserId={user.id}
-          />
-        )}
-        {user?.id && detailModal.open && detailModal.type === 'venue' && detailModal.venueId && (
-          <VenueDetailModal
-            isOpen={detailModal.open}
-            onClose={handleCloseGlobalDetail}
-            venueId={detailModal.venueId}
-            venueName={detailModal.venueName || 'Venue'}
-            currentUserId={user.id}
-            onEventClick={handleEventClickFromVenue}
-          />
-        )}
-      </Suspense>
-
-      {/* Event Details Modal (opened from global venue modal event cards) */}
-      {eventDetailsFromVenueOpen && selectedEventFromVenue && user?.id && (
-        <EventDetailsModal
-          isOpen={eventDetailsFromVenueOpen}
-          onClose={() => {
-            setEventDetailsFromVenueOpen(false);
-            setSelectedEventFromVenue(null);
-          }}
-          event={selectedEventFromVenue}
-          currentUserId={user.id}
-          isInterested={selectedEventFromVenueInterested}
-          onEventChange={(newEvent, isInterested) => {
-            setSelectedEventFromVenue(newEvent);
-            setSelectedEventFromVenueInterested(isInterested ?? false);
-          }}
-          onInterestToggle={async (eventId, interested) => {
-            try {
-              await UserEventService.setEventInterest(user.id, eventId, interested);
-              setSelectedEventFromVenueInterested(interested);
-            } catch (error) {
-              console.error('Error toggling interest:', error);
-            }
-          }}
-          onNavigateToProfile={handleNavigateToProfile}
-          onNavigateToChat={handleNavigateToChat}
-        />
-      )}
+      <GlobalDetailModals
+        userId={user.id}
+        detailModal={detailModal}
+        manualArtistDetail={manualArtistDetail}
+        eventDetailsFromVenueOpen={eventDetailsFromVenueOpen}
+        selectedEventFromVenue={selectedEventFromVenue}
+        selectedEventFromVenueInterested={selectedEventFromVenueInterested}
+        onCloseDetailModal={handleCloseGlobalDetail}
+        onCloseEventDetailsFromVenue={() => {
+          setEventDetailsFromVenueOpen(false);
+          setSelectedEventFromVenue(null);
+        }}
+        onEventFromVenueChange={(newEvent, isInterested) => {
+          setSelectedEventFromVenue(newEvent);
+          setSelectedEventFromVenueInterested(isInterested ?? false);
+        }}
+        onInterestToggle={async (_eventId, interested) => {
+          setSelectedEventFromVenueInterested(interested);
+        }}
+        onNavigateToProfile={handleNavigateToProfile}
+        onNavigateToChat={handleNavigateToChat}
+        onEventClickFromVenue={handleEventClickFromVenue}
+        closeManualArtistDetail={closeManualArtistDetail}
+        toggleManualArtistFollow={toggleManualArtistFollow}
+      />
 
       {/* New Bottom Navigation - replaces old Navigation */}
       {/* Show bottom nav on messages list, but hide when a chat is selected */}
       {!hideNavigation && showMainNav && (currentView !== 'chat' || !isChatSelected) && (
-        <BottomNavAdapter 
+        <BottomNavAdapter
           currentView={navViewForBottomNav}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
@@ -1326,7 +1024,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         />
       )}
       {!hideNavigation && !showMainNav && currentView !== 'profile-edit' && (currentView !== 'chat' || !isChatSelected) && (
-        <BottomNavAdapter 
+        <BottomNavAdapter
           currentView={navViewForBottomNav}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
@@ -1349,156 +1047,48 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         onSignOut={handleSignOut}
       />
 
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={closeSettingsModal}
-        onSignOut={handleSignOut}
+      <GlobalModals
+        userId={user.id}
         userEmail={user?.email}
-        initialView={settingsInitialView}
+        showSettings={showSettings}
+        settingsInitialView={settingsInitialView}
+        onCloseSettings={closeSettingsModal}
+        onSignOut={handleSignOut}
+        showEventReviewModal={showEventReviewModal}
+        eventReviewPrefill={eventReviewPrefill}
+        onCloseEventReview={() => {
+          setShowEventReviewModal(false);
+          setEventReviewPrefill(null);
+        }}
+        onReviewSubmitted={() => {
+          setShowEventReviewModal(false);
+          setEventReviewPrefill(null);
+          setRefreshTrigger((prev) => prev + 1);
+        }}
+        showFriendTaggedInviteModal={showFriendTaggedInviteModal}
+        friendTaggedInviteNotification={friendTaggedInviteNotification}
+        onCloseFriendTaggedInviteModal={() => {
+          setShowFriendTaggedInviteModal(false);
+          setFriendTaggedInviteNotification(null);
+        }}
+        onWriteReview={(prefillEvent) => {
+          setEventReviewPrefill(prefillEvent);
+          setShowEventReviewModal(true);
+          setShowFriendTaggedInviteModal(false);
+          setFriendTaggedInviteNotification(null);
+        }}
+        friendCelebration={friendCelebration}
+        onCloseFriendCelebration={() => setFriendCelebration(null)}
+        onCelebrationEventClick={(eventId) => {
+          window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId } }));
+        }}
+        onCelebrationArtistClick={(artistId, artistName) => {
+          window.dispatchEvent(new CustomEvent('open-artist-card', { detail: { artistId, artistName } }));
+        }}
+        onCelebrationVenueClick={(venueId, venueName) => {
+          window.dispatchEvent(new CustomEvent('open-venue-card', { detail: { venueId, venueName } }));
+        }}
       />
-
-      {/* Friend Tagged in Review Invite Modal - shows on login when user was tagged */}
-      {friendTaggedInviteNotification && (
-        <FriendTaggedReviewInviteModal
-          notification={friendTaggedInviteNotification}
-          isOpen={showFriendTaggedInviteModal}
-          onClose={async () => {
-            const notifId = friendTaggedInviteNotification?.id;
-            setShowFriendTaggedInviteModal(false);
-            setFriendTaggedInviteNotification(null);
-            if (notifId) {
-              try {
-                await NotificationService.markAsRead(notifId);
-              } catch {}
-            }
-          }}
-          onWriteReview={(prefillEvent) => {
-            const notifId = friendTaggedInviteNotification?.id;
-            setEventReviewPrefill(prefillEvent);
-            setShowEventReviewModal(true);
-            setShowFriendTaggedInviteModal(false);
-            setFriendTaggedInviteNotification(null);
-            if (notifId) {
-              NotificationService.markAsRead(notifId).catch(() => {});
-            }
-          }}
-        />
-      )}
-
-      {/* New Friend Celebration Modal - shows on login or realtime when friend_accepted */}
-      {friendCelebration && (
-        <NewFriendCelebrationModal
-          friendName={friendCelebration.friendName}
-          data={friendCelebration.data}
-          isOpen={!!friendCelebration}
-          onClose={async () => {
-            const notifId = friendCelebration.notificationId;
-            setFriendCelebration(null);
-            if (notifId) {
-              try {
-                await NotificationService.markAsRead(notifId);
-              } catch {}
-            }
-          }}
-          onEventClick={(eventId) => {
-            const notifId = friendCelebration.notificationId;
-            setFriendCelebration(null);
-            if (notifId) {
-              NotificationService.markAsRead(notifId).catch(() => {});
-            }
-            window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId } }));
-          }}
-          onArtistClick={(artistId, artistName) => {
-            window.dispatchEvent(new CustomEvent('open-artist-card', { detail: { artistId, artistName } }));
-          }}
-          onVenueClick={(venueId, venueName) => {
-            window.dispatchEvent(new CustomEvent('open-venue-card', { detail: { venueId, venueName } }));
-          }}
-        />
-      )}
-
-      {/* Event Review Modal */}
-      {user?.id && (
-        <EventReviewModal
-          isOpen={showEventReviewModal}
-          onClose={() => {
-            setShowEventReviewModal(false);
-            setEventReviewPrefill(null);
-          }}
-          event={(eventReviewPrefill || { id: 'new-review' }) as any}
-          userId={user.id}
-          onReviewSubmitted={() => {
-            setShowEventReviewModal(false);
-            setEventReviewPrefill(null);
-            // Trigger refresh of profile and feed views
-            setRefreshTrigger((prev) => prev + 1);
-          }}
-        />
-      )}
-
-      {manualArtistDetail.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={closeManualArtistDetail} />
-          <div
-            className="relative bg-white w-full max-w-sm mx-4 rounded-2xl p-4 shadow-xl"
-            style={{ minHeight: '150px' }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex justify-end">
-              <button
-                type="button"
-                className="flex items-center justify-center rounded-full"
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                }}
-                onClick={closeManualArtistDetail}
-                aria-label="Close manual artist detail"
-              >
-                <span
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 600,
-                    lineHeight: 1,
-                    color: 'var(--neutral-900)',
-                  }}
-                >
-                  ✕
-                </span>
-              </button>
-            </div>
-            <div className="text-center mt-2">
-              <h2
-                className="font-semibold"
-                style={{
-                  fontSize: '20px',
-                  lineHeight: '28px',
-                  color: 'var(--neutral-900)',
-                }}
-              >
-                {manualArtistDetail.artistName || 'Artist'}
-              </h2>
-            </div>
-            <div className="mt-4">
-              <button
-                type="button"
-                className="w-full rounded-2xl px-4 py-3 font-semibold"
-                style={{
-                  backgroundColor: 'var(--neutral-900)',
-                  color: 'var(--neutral-50)',
-                }}
-                onClick={toggleManualArtistFollow}
-              >
-                {manualArtistDetail.following ? 'Following' : 'Follow'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Onboarding Tour */}
       <OnboardingTour run={runTour} onFinish={handleTourFinish} onViewChange={handleViewChange} />

@@ -76,6 +76,43 @@ export const NotificationsPage = ({
       } else if (filter === 'exclude_friends') {
         filtered = nonChatNotifications.filter(n => !friendTypes.includes(n.type));
       }
+
+      // Auto-clean stale friend_request notifications where the request is no longer pending
+      // (friendship was already accepted/declined via another path and the notification wasn't cleaned up)
+      const friendRequestNotifs = filtered.filter(n => n.type === 'friend_request');
+      if (friendRequestNotifs.length > 0) {
+        const requestIds = friendRequestNotifs
+          .map(n => (n.data as any)?.request_id)
+          .filter(Boolean);
+
+        if (requestIds.length > 0) {
+          const { data: existingRequests } = await supabase
+            .from('friend_requests')
+            .select('id, status')
+            .in('id', requestIds);
+
+          const pendingIds = new Set(
+            (existingRequests || []).filter(r => r.status === 'pending').map(r => r.id)
+          );
+
+          const staleNotifs = friendRequestNotifs.filter(n => {
+            const reqId = (n.data as any)?.request_id;
+            return !reqId || !pendingIds.has(reqId);
+          });
+
+          if (staleNotifs.length > 0) {
+            // Silently delete stale notifications from DB
+            await supabase
+              .from('notifications')
+              .delete()
+              .in('id', staleNotifs.map(n => n.id));
+
+            const staleIds = new Set(staleNotifs.map(n => n.id));
+            filtered = filtered.filter(n => !staleIds.has(n.id));
+          }
+        }
+      }
+
       return { notifications: filtered, unreadCount: filtered.filter(n => !n.is_read).length };
     },
     enabled: !!currentUserId && !sessionExpired,
@@ -245,8 +282,6 @@ export const NotificationsPage = ({
       console.log('🤝 Accept friend request result:', error);
 
       if (error) {
-        console.error('Error accepting friend request:', error);
-        
         // Handle duplicate key error (23505) - friendship already exists, treat as success
         if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('unique constraint')) {
           console.log('✅ Friendship already exists, treating as success');
@@ -307,7 +342,8 @@ export const NotificationsPage = ({
           await fetchNotifications();
           return;
         }
-        
+
+        console.error('Error accepting friend request:', error);
         throw error;
       }
 

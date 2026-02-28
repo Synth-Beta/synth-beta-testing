@@ -142,6 +142,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const composerReservedSpace = `var(--spacing-grouped, 24px)`;
 
   const [chats, setChats] = useState<Chat[]>([]);
+  const [chatFetchError, setChatFetchError] = useState(false);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -598,6 +599,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
       if (error) {
         console.error('Error fetching chats:', error);
+        setChatFetchError(true);
         return null;
       }
 
@@ -782,8 +784,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         };
       });
       
+      setChatFetchError(false);
       setChats(normalizedChats);
-      
+
       // Fetch user profiles for direct chat participants (to improve getChatDisplayName)
       // Query chat_participants for direct chats instead of using users array
       const directChatIds = sortedChats
@@ -2143,14 +2146,14 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           {chats.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-full" style={{ gap: 'var(--spacing-big-section, 60px)', padding: 'var(--spacing-small, 12px)', paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))' }}>
               {/* New Chat Button - Already in header, but shown in empty state per Figma */}
-              
+
               {/* Empty State Content */}
               <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                 {/* Chat Bubble Icon - Large icon (60px), dark grey */}
-                <MessageCircle size={60} strokeWidth={2} style={{ color: 'var(--neutral-600)' }} />
-                
-                {/* "No Conversations Yet" Heading - Body typography, off black */}
-                <h2 style={{ 
+                <MessageCircle size={60} strokeWidth={2} style={{ color: chatFetchError ? 'var(--status-error-500)' : 'var(--neutral-600)' }} />
+
+                {/* Heading */}
+                <h2 style={{
                   fontFamily: 'var(--font-family)',
                   fontSize: 'var(--typography-body-size, 20px)',
                   fontWeight: 'var(--typography-body-weight, 500)',
@@ -2159,11 +2162,11 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   margin: 0,
                   textAlign: 'center'
                 }}>
-                  No Conversations Yet
+                  {chatFetchError ? 'Could not load conversations' : 'No Conversations Yet'}
                 </h2>
-                
-                {/* Subtitle - Meta typography, dark grey */}
-                <p style={{ 
+
+                {/* Subtitle */}
+                <p style={{
                   fontFamily: 'var(--font-family)',
                   fontSize: 'var(--typography-meta-size, 16px)',
                   fontWeight: 'var(--typography-meta-weight, 500)',
@@ -2172,7 +2175,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   margin: 0,
                   textAlign: 'center'
                 }}>
-                  Start chatting with your friends!
+                  {chatFetchError ? 'There was a problem loading your chats. Please try again.' : 'Start chatting with your friends!'}
                 </p>
               </div>
               

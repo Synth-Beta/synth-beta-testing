@@ -41,12 +41,11 @@ export async function fetchUserChats(
       .eq('user_id', userId);
 
     if (participantsError) {
-      // Handle RLS recursion error gracefully - return empty chats
       if (participantsError.code === '42P17' || participantsError.message?.includes('infinite recursion')) {
-        console.warn('RLS recursion detected in chat_participants, returning empty chats');
-        return { data: [], error: null };
+        console.error('RLS recursion in chat_participants – migration 20260120120201 (is_user_chat_participant SECURITY DEFINER) should prevent this.', participantsError);
+      } else {
+        console.error('Error fetching chat participants:', participantsError);
       }
-      console.error('Error fetching chat participants:', participantsError);
       return { data: null, error: participantsError };
     }
 
