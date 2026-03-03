@@ -13,6 +13,33 @@ struct Page1BirthYearGender: View {
     let onSkip: () -> Void
     var onBack: (() -> Void)? = nil
 
+    private let acquisitionOptions = [
+        "Friends or Family",
+        "Instagram",
+        "TikTok",
+        "Reddit",
+        "LinkedIn",
+        "Facebook",
+        "App Store",
+        "Artist",
+        "Venue",
+        "Other"
+    ]
+    private var hasSelectedAcquisition: Bool {
+        guard let selection = state.acquisitionSource?.trimmingCharacters(in: .whitespacesAndNewlines), !selection.isEmpty else {
+            return false
+        }
+        if selection.caseInsensitiveCompare("Other") == .orderedSame {
+            let otherValue = state.acquisitionSourceOther?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return !otherValue.isEmpty
+        }
+        return true
+    }
+    private var isOtherSelected: Bool {
+        guard let selection = state.acquisitionSource else { return false }
+        return selection.caseInsensitiveCompare("Other") == .orderedSame
+    }
+
     private static let minAge = 13
     private var currentYear: Int { Calendar.current.component(.year, from: Date()) }
     private var years: [Int] {
@@ -23,6 +50,7 @@ struct Page1BirthYearGender: View {
         OnboardingPageContainer(
             title: "What year were you born?",
             subtitle: "We use this to personalize your experience and ensure age-appropriate content.",
+            canProceed: hasSelectedAcquisition,
             onNext: {
                 if let year = state.birthYear {
                     let age = currentYear - year
@@ -62,6 +90,52 @@ struct Page1BirthYearGender: View {
                         Text("Other").tag("other" as String?)
                     }
                     .pickerStyle(.menu)
+                }
+                .padding(.horizontal, SynthSpacing.screenMarginX)
+
+                VStack(alignment: .leading, spacing: SynthSpacing.small) {
+                    Text("How did you find Synth?")
+                        .font(SynthFont.font(size: SynthTypography.meta.size, weight: .semibold))
+                        .foregroundColor(SynthColor.neutral900)
+                    Menu {
+                        ForEach(acquisitionOptions, id: \.self) { option in
+                            Button {
+                                state.acquisitionSource = option
+                                if option.caseInsensitiveCompare("Other") != .orderedSame {
+                                    state.acquisitionSourceOther = nil
+                                }
+                            } label: {
+                                Text(option)
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(state.acquisitionSource ?? "Select an option")
+                                .font(SynthFont.font(size: SynthTypography.body.size, weight: .medium))
+                                .foregroundColor(state.acquisitionSource == nil ? SynthColor.neutral400 : SynthColor.neutral900)
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(SynthColor.neutral400)
+                        }
+                        .padding(.vertical, SynthSpacing.small)
+                        .padding(.horizontal, SynthSpacing.screenMarginX)
+                        .background(
+                            RoundedRectangle(cornerRadius: SynthRadius.corner)
+                                .fill(Color.white)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: SynthRadius.corner)
+                                .stroke(SynthColor.neutral200, lineWidth: 1)
+                        )
+                    }
+
+                    if isOtherSelected {
+                        TextField("Tell us more...", text: Binding(
+                            get: { state.acquisitionSourceOther ?? "" },
+                            set: { state.acquisitionSourceOther = $0 }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                    }
                 }
                 .padding(.horizontal, SynthSpacing.screenMarginX)
             }

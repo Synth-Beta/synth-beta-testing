@@ -66,13 +66,15 @@ const ChatReviewMessage: React.FC<{
   metadata?: { review_text?: string; rating?: number; artist_name?: string; venue_name?: string; custom_message?: string; };
 }> = ({ reviewId, currentUserId, onReviewClick, metadata }) => {
   return (
-    <ReviewMessageCard
-      reviewId={reviewId}
-      currentUserId={currentUserId}
-      onReviewClick={onReviewClick}
-      customMessage={metadata?.custom_message}
-      metadata={metadata}
-    />
+    <PageShell header={chatHeader}>
+      <ReviewMessageCard
+        reviewId={reviewId}
+        currentUserId={currentUserId}
+        onReviewClick={onReviewClick}
+        customMessage={metadata?.custom_message}
+        metadata={metadata}
+      />
+    </PageShell>
   );
 };
 

@@ -53,6 +53,7 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import { UserInfo } from './UserInfo';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
+import PageShell from '@/components/layout/PageShell';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import instagramLogo from '@/assets/icons/Instagram_Logo.svg';
 import appleMusicLogo from '@/assets/icons/Apple-Music-Logo.svg';
@@ -1726,93 +1727,88 @@ const { user, sessionExpired } = useAuth();
     }
   };
 
-  return (
-    <div 
-      className="min-h-screen w-full overflow-x-hidden"
-      style={{ backgroundColor: 'var(--neutral-50)' }}
-    >
-      {/* Mobile Header with person's name */}
-      {!hideHeader && (
-        <div style={{ position: 'relative' }}>
-          {!isViewingOwnProfile ? (
-            <DropdownMenu>
-              <MobileHeader 
-                menuOpen={menuOpen} 
-                onMenuClick={onMenuClick} 
-                alignLeft={true}
-                leftIcon="left"
-                onLeftIconClick={handleHeaderBack}
-                rightButton={
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="mobile-header__menu-button"
-                      aria-label="More options"
-                      type="button"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--neutral-900)' }}>
-                        <circle cx="12" cy="12" r="1"/>
-                        <circle cx="12" cy="5" r="1"/>
-                        <circle cx="12" cy="19" r="1"/>
-                      </svg>
-                    </button>
-                  </DropdownMenuTrigger>
-                }
+  const profileHeader = !hideHeader ? (
+    !isViewingOwnProfile ? (
+      <DropdownMenu>
+        <MobileHeader 
+          menuOpen={menuOpen} 
+          onMenuClick={onMenuClick} 
+          alignLeft={true}
+          leftIcon="left"
+          onLeftIconClick={handleHeaderBack}
+          rightButton={
+            <DropdownMenuTrigger asChild>
+              <button
+                className="mobile-header__menu-button"
+                aria-label="More options"
+                type="button"
               >
-                <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
-                    {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
-                  </h1>
-              </MobileHeader>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setBlockModalOpen(true)}>
-                  <Ban size={16} className="mr-2" />
-                  Block
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setReportModalOpen(true)}>
-                  <Flag size={16} className="mr-2" />
-                  Report
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <MobileHeader 
-              menuOpen={menuOpen} 
-              onMenuClick={onMenuClick} 
-              alignLeft={true}
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--neutral-900)' }}>
+                  <circle cx="12" cy="12" r="1"/>
+                  <circle cx="12" cy="5" r="1"/>
+                  <circle cx="12" cy="19" r="1"/>
+                </svg>
+              </button>
+            </DropdownMenuTrigger>
+          }
+        >
+          <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
+            {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
+          </h1>
+        </MobileHeader>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setBlockModalOpen(true)}>
+            <Ban size={16} className="mr-2" />
+            Block
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setReportModalOpen(true)}>
+            <Flag size={16} className="mr-2" />
+            Report
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) : (
+      <MobileHeader 
+        menuOpen={menuOpen} 
+        onMenuClick={onMenuClick} 
+        alignLeft={true}
+      >
+        <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
+          {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
+        </h1>
+      </MobileHeader>
+    )
+  ) : undefined;
+
+  return (
+    <PageShell header={profileHeader}>
+      <div 
+        className="min-h-screen w-full overflow-x-hidden"
+        style={{ backgroundColor: 'var(--neutral-50)' }}
+      >
+        <div className="pt-[12px]">
+          <div style={{ position: 'relative' }}>
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                transform: 'none',
+                width: '100%',
+                backgroundColor: 'var(--neutral-050)',
+                zIndex: 0
+              }}
+            />
+            <div
+              className="w-full max-w-full overflow-visible"
+              style={{
+                paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+                paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+                paddingBottom: 0,
+              }}
             >
-              <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
-                  {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
-                </h1>
-            </MobileHeader>
-          )}
-        </div>
-      )}
-      {/* Content should start exactly 12px below the fixed MobileHeader */}
-      <div className="pt-[12px]">
-        <div style={{ position: 'relative' }}>
-          <div
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: 0,
-              transform: 'none',
-              width: '100%',
-              backgroundColor: 'var(--neutral-050)',
-              zIndex: 0
-            }}
-          />
-          <div
-            className="w-full max-w-full overflow-visible"
-            style={{
-              paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-              paddingRight: 'var(--spacing-screen-margin-x, 20px)',
-              paddingTop: hideHeader
-                ? 'env(safe-area-inset-top, 0px)'
-                : 'calc(env(safe-area-inset-top, 0px) + 68px)',
-              paddingBottom: 0,
-            }}
-          >
           {/* Profile Card */}
         <Card 
           className="w-full max-w-full mb-0 swift-ui-card"
@@ -3433,6 +3429,7 @@ const { user, sessionExpired } = useAuth();
       />
 
     </div>
+  </PageShell>
   );
 
 };

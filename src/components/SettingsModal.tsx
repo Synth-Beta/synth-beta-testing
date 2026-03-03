@@ -165,7 +165,14 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
 
       const base = getApiBaseUrl();
       if (!base) {
-        throw new Error('Missing VITE_API_BASE_URL for native builds');
+        const missingBaseMessage = 'Missing API base URL. Set VITE_PUBLIC_SITE_URL or VITE_API_BASE_URL.';
+        toast({
+          title: 'Missing API base URL',
+          description: 'Set VITE_PUBLIC_SITE_URL so native builds can reach the API.',
+          variant: 'destructive',
+        });
+        setDeleteAccountError(missingBaseMessage);
+        return;
       }
 
       const rsp = await fetch(`${base}/api/delete-account`, {
@@ -173,9 +180,27 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       });
       if (!rsp.ok) {
-        let details: any = null;
-        try { details = await rsp.json(); } catch { /* ignore */ }
-        throw new Error((details && (details.message || details.error)) || `Delete request failed (${rsp.status})`);
+        const bodyText = await rsp.text();
+        let parsedBody: Record<string, any> | null = null;
+        try {
+          parsedBody = JSON.parse(bodyText);
+        } catch {
+          parsedBody = null;
+        }
+        console.error('Delete request failed', {
+          base,
+          status: rsp.status,
+          bodyText,
+          bodyJson: parsedBody,
+        });
+
+        const fallbackMessage = `Delete request failed (${rsp.status})`;
+        const errorMessage =
+          parsedBody?.message ||
+          parsedBody?.error ||
+          bodyText ||
+          fallbackMessage;
+        throw new Error(errorMessage);
       }
 
       window.webkit?.messageHandlers?.synthNativeAuth?.postMessage({ action: 'userDeleted' });

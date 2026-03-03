@@ -53,6 +53,10 @@ struct RootView: View {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(SynthColor.neutral50)
+            } else if userId == nil {
+                AuthView(onSignedIn: {
+                    Task { await refreshAuth() }
+                })
             } else if let uid = userId {
                 if showOnboarding {
                     OnboardingCoordinator(
@@ -74,9 +78,7 @@ struct RootView: View {
                     ContentView()
                 }
             } else {
-                // Unauthenticated users, and authenticated users who finished
-                // onboarding, both go straight to ContentView. The React app
-                // shows the login page when needed and handles auth itself.
+                // This branch should never hit but keeps the view hierarchy complete.
                 ContentView()
             }
         }
@@ -100,7 +102,7 @@ struct RootView: View {
 
         let uid = await AuthService.currentUserId()
         let name = await AuthService.currentUserName()
-        let completed = uid == nil ? true : await AuthService.onboardingCompleted(userId: uid!)
+        let completed = uid == nil ? false : await AuthService.onboardingCompleted(userId: uid!)
 
         await MainActor.run {
             userId = uid

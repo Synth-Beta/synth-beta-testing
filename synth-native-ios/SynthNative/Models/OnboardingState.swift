@@ -10,6 +10,8 @@ import Foundation
 struct OnboardingState {
     var birthYear: Int?
     var gender: String?
+    var acquisitionSource: String?
+    var acquisitionSourceOther: String?
     var city: CityResult?
     var username: String?
     var avatarUrl: String?

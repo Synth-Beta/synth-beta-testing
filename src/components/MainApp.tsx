@@ -83,6 +83,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [chatId, setChatId] = useState<string | undefined>(undefined);
   const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
   const [showShareBanner, setShowShareBanner] = useState(() => !isShareBannerDismissed());
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ type: 'artist' | 'venue'; id: string; name: string } | null>(null);
   const [runTour, setRunTour] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView

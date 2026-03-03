@@ -9,6 +9,7 @@ import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { toast } from '@/hooks/use-toast';
+import PageShell from '@/components/layout/PageShell';
 import { formatDistanceToNow } from 'date-fns';
 
 interface StreamingStatsPageProps {
@@ -76,6 +77,10 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         return;
       }
 
+      if (detectedType === 'spotify') {
+        await spotifyService.ensureSession();
+      }
+
       setServiceType(detectedType);
 
       // 2. Load stored profile data from streaming_profiles
@@ -107,7 +112,15 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     setSyncing(true);
     try {
       if (serviceType === 'spotify') {
-        if (!spotifyService.isAuthenticated()) {
+        const sessionOk = await spotifyService.ensureSession();
+        if (!sessionOk) {
+          if (profileData) {
+            toast({
+              title: 'Connect Spotify to refresh',
+              description: 'Reconnect to Spotify to refresh your streaming stats.',
+            });
+            return;
+          }
           setNeedsConnection(true);
           return;
         }
@@ -315,33 +328,41 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
   // ─── Stats view ─────────────────────────────────────────────────────────────
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-pink-50/30 pb-28">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={handleBack} className="-ml-2">
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Back
-        </Button>
+  const statsHeader = (
+    <div
+      className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-100 px-4 pb-3 flex items-center justify-between"
+      style={{
+        top: 'env(safe-area-inset-top, 0)',
+        paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
+      }}
+    >
+      <Button variant="ghost" size="sm" onClick={handleBack} className="-ml-2">
+        <ArrowLeft className="w-4 h-4 mr-1" />
+        Back
+      </Button>
 
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full synth-gradient-bg" />
-          <span className="type-meta">{serviceName}</span>
-        </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleSync}
-          disabled={syncing}
-          className="-mr-2"
-          title="Refresh stats"
-        >
-          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-        </Button>
+      <div className="flex items-center gap-2">
+        <div className="w-2.5 h-2.5 rounded-full synth-gradient-bg" />
+        <span className="type-meta">{serviceName}</span>
       </div>
 
-      <div className="px-4 pt-5 space-y-5">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleSync}
+        disabled={syncing}
+        className="-mr-2"
+        title="Refresh stats"
+      >
+        <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+      </Button>
+    </div>
+  );
+
+  return (
+    <PageShell header={statsHeader}>
+      <div className="min-h-screen bg-gradient-to-b from-white to-pink-50/30 pb-28">
+        <div className="px-4 pt-5 space-y-5">
         {/* Title + last synced */}
         <div>
           <h1 className="type-h2 synth-gradient-text">Streaming Stats</h1>
@@ -527,6 +548,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         )}
       </div>
     </div>
+  </PageShell>
   );
 };
 

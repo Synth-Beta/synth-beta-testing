@@ -63,7 +63,7 @@ import { EventCommentsModal } from '@/components/events/EventCommentsModal';
 import { ReviewCommentsModal } from '@/components/reviews/ReviewCommentsModal';
 import { EventLikersModal } from '@/components/events/EventLikersModal';
 import { EventLikesService } from '@/services/eventLikesService';
-import { EventShareModal } from '@/components/events/EventShareModal';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { ShareService } from '@/services/shareService';
 import { FlagContentModal } from '@/components/moderation/FlagContentModal';
@@ -307,6 +307,7 @@ export const UnifiedFeed = ({
   // In-app sharing state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedEventForShare, setSelectedEventForShare] = useState<any>(null);
+  const shareEventId = selectedEventForShare?.id || selectedEventForShare?.event_data?.id || selectedEventForShare?.event_id || '';
   const [reviewShareModalOpen, setReviewShareModalOpen] = useState(false);
   const [selectedReviewForShare, setSelectedReviewForShare] = useState<any>(null);
   
@@ -1348,7 +1349,7 @@ export const UnifiedFeed = ({
         }
       }
       
-      // For events, open EventShareModal
+      // For events, open UniversalShareModal
       if (item.type === 'event' && item.event_data) {
         setSelectedEventForShare(item.event_data);
         setShareModalOpen(true);
@@ -3367,13 +3368,16 @@ export const UnifiedFeed = ({
       />
       )}
 
-      {shareModalOpen && selectedEventForShare && (
-      <EventShareModal
-        event={selectedEventForShare}
-                currentUserId={currentUserId}
-        isOpen={shareModalOpen}
-        onClose={() => setShareModalOpen(false)}
-      />
+      {shareModalOpen && selectedEventForShare && shareEventId && (
+        <UniversalShareModal
+          type="event"
+          title={selectedEventForShare.event_data?.title || selectedEventForShare.title || 'Event'}
+          url={ShareService.getEventUrl(shareEventId)}
+          currentUserId={currentUserId}
+          eventId={shareEventId}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+        />
       )}
 
       {reviewShareModalOpen && selectedReviewForShare && (

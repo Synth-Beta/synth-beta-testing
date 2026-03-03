@@ -17,6 +17,7 @@ import {
 } from '@/styles/glassmorphism';
 import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { ShareService } from '@/services/shareService';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 
 interface VenueDetailModalProps {
   isOpen: boolean;
@@ -56,6 +57,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   const [reviewsShown, setReviewsShown] = useState(3);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [hasOuterMobileHeader, setHasOuterMobileHeader] = useState(true);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -83,18 +85,6 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   }, [isOpen]);
 
   const useInternalHeader = isOpen && !hasOuterMobileHeader;
-
-  const handleShareVenue = async () => {
-    try {
-      await ShareService.shareVenue(
-        venueId,
-        `${venueName} on Synth`,
-        `Check out ${venueName} on Synth.`
-      );
-    } catch (error) {
-      console.error('Error sharing venue:', error);
-    }
-  };
 
   // Focus management for accessibility
   useEffect(() => {
@@ -435,7 +425,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
               </h1>
 
               <button
-                onClick={handleShareVenue}
+                onClick={() => setShareModalOpen(true)}
                 type="button"
                 aria-label="Share"
                 style={{
@@ -856,6 +846,17 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
         )}
         </div>
       </div>
+
+      {shareModalOpen && (
+        <UniversalShareModal
+          type="venue"
+          title={venueName}
+          url={ShareService.getVenueUrl(venueId)}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
 
       {/* Full-screen review detail overlay when a review is selected */}
       {selectedReviewId && (

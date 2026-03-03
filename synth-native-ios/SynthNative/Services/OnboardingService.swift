@@ -95,10 +95,29 @@ enum OnboardingService {
             let username: String?
             let avatar_url: String?
             let bio: String?
+            let acquisition_source: String?
+            let other_acquisition_source: String?
             let age_verified: Bool?
             let is_minor: Bool?
             let parental_controls_enabled: Bool?
             let dm_restricted: Bool?
+        }
+
+        let selectedAcquisition = state.acquisitionSource?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let acquisitionSourceValue: String?
+        let otherAcquisitionValue: String?
+        if let source = selectedAcquisition, !source.isEmpty {
+            if source.caseInsensitiveCompare("Other") == .orderedSame {
+                acquisitionSourceValue = "other"
+                let otherText = state.acquisitionSourceOther?.trimmingCharacters(in: .whitespacesAndNewlines)
+                otherAcquisitionValue = otherText?.isEmpty == false ? otherText : nil
+            } else {
+                acquisitionSourceValue = source
+                otherAcquisitionValue = nil
+            }
+        } else {
+            acquisitionSourceValue = nil
+            otherAcquisitionValue = nil
         }
 
         let update = UserUpdate(
@@ -114,6 +133,8 @@ enum OnboardingService {
             username: state.username?.lowercased().trimmingCharacters(in: .whitespaces),
             avatar_url: state.avatarUrl,
             bio: state.bio,
+            acquisition_source: acquisitionSourceValue,
+            other_acquisition_source: otherAcquisitionValue,
             age_verified: ageVerified,
             is_minor: isMinor,
             parental_controls_enabled: parentalControlsEnabled,

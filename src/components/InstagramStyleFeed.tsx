@@ -39,9 +39,10 @@ import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventCommentsModal } from '@/components/events/EventCommentsModal';
 import { ReviewCommentsModal } from '@/components/reviews/ReviewCommentsModal';
 import { EventLikersModal } from '@/components/events/EventLikersModal';
-import { EventShareModal } from '@/components/events/EventShareModal';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { ShareService } from '@/services/shareService';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -577,11 +578,15 @@ const { user } = useAuth();
         />
       )}
 
-      {showShareModal && selectedItem && (
-        <EventShareModal
+      {showShareModal && selectedItem && selectedItem.event_data?.id && (
+        <UniversalShareModal
+          type="event"
+          title={selectedItem.event_data.title || selectedItem.title || 'Event'}
+          url={ShareService.getEventUrl(selectedItem.event_data.id)}
+          currentUserId={currentUserId}
+          eventId={selectedItem.event_data.id}
           isOpen={showShareModal}
           onClose={() => setShowShareModal(false)}
-          eventId={selectedItem.event_info?.artist_id || ''}
         />
       )}
 
