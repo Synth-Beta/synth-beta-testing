@@ -168,6 +168,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         config.userContentController.add(self, name: "setBadgeCount")
         config.userContentController.add(self, name: "synthNativeAuth")
         config.userContentController.add(self, name: "synthGetSession")
+        config.userContentController.add(self, name: "synthDeepLinkReady")
         let script = """
             (function() {
                 window.addEventListener('RequestAppleSignIn', function() {
@@ -185,12 +186,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                         window.webkit.messageHandlers.setBadgeCount.postMessage({ count: count });
                     }
                 };
+                // Signal to native that the web layer is ready to receive deep-link events.
+                // Called by useShareDeepLink hook on mount.
+                window.synthSignalDeepLinkReady = function() {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.synthDeepLinkReady) {
+                        window.webkit.messageHandlers.synthDeepLinkReady.postMessage({});
+                    }
+                };
             })();
         """
         config.userContentController.addUserScript(
             WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
         )
-        print("✅ Apple Sign In / Event Share message handlers attached to CapacitorWebView")
+        print("✅ Apple Sign In / Event Share / DeepLink message handlers attached to CapacitorWebView")
     }
     
     /// Sets up WKWebView message handler to receive JavaScript requests.
@@ -349,8 +357,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
         // Called when the app was launched with an activity, including Universal Links.
-        // Feel free to add additional processing here, but if you want the App API to support
-        // tracking app url opens, make sure to keep this call
+        // Pass Synth share links to the deep-link router so they survive the auth flow.
+        if userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+           let url = userActivity.webpageURL {
+            SynthDeepLinkRouter.shared.handle(url: url)
+        }
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
     
@@ -532,14 +543,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         
         let event = EventShareData(
-            eventId: eventId,
-            title: title,
-            artistName: eventData["artistName"] as? String,
-            venueName: eventData["venueName"] as? String,
-            venueCity: eventData["venueCity"] as? String,
-            eventDate: eventData["eventDate"] as? String,
-            imageUrl: eventData["imageUrl"] as? String ?? eventData["posterImageUrl"] as? String,
-            posterImageUrl: eventData["posterImageUrl"] as? String
+            eventId:        eventId,
+            title:          title,
+            artistName:     eventData["artistName"]     as? String,
+            venueName:      eventData["venueName"]      as? String,
+            venueCity:      eventData["venueCity"]      as? String,
+            eventDate:      eventData["eventDate"]      as? String,
+            imageUrl:       eventData["imageUrl"]       as? String ?? eventData["posterImageUrl"] as? String,
+            posterImageUrl: eventData["posterImageUrl"] as? String,
+            reviewId:       eventData["reviewId"]       as? String,
+            reviewerName:   eventData["reviewerName"]   as? String,
+            overallRating:  eventData["overallRating"]  as? Double,
+            reviewQuote:    eventData["reviewQuote"]    as? String,
+            shareType:      eventData["shareType"]      as? String
         )
         
         if #available(iOS 15.0, *) {
@@ -624,6 +640,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
         } else if message.name == "synthGetSession" {
             sendNativeSessionToWeb()
+        } else if message.name == "synthDeepLinkReady" {
+            // Web layer is mounted and listening — flush any pending universal link
+            SynthDeepLinkRouter.shared.markWebLayerReady()
         } else if message.name == "synthNativeAuth" {
             guard let body = message.body as? [String: Any],
                   let action = body["action"] as? String else {

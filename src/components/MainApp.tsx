@@ -43,6 +43,7 @@ import { useEventDetailsFromVenue } from '@/hooks/useEventDetailsFromVenue';
 import { useGlobalDetailModal } from '@/hooks/useGlobalDetailModal';
 import { useEventReviewModals } from '@/hooks/useEventReviewModals';
 import { useFriendCelebration } from '@/hooks/useFriendCelebration';
+import { useShareDeepLink } from '@/hooks/useShareDeepLink';
 import { GlobalDetailModals } from './GlobalDetailModals';
 import { GlobalModals } from './GlobalModals';
 
@@ -255,6 +256,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       navigate(`${location.pathname}${location.search}`, { replace: true });
     }
   }, [location.hash, location.pathname, location.search, navigate, isIosNative]);
+
+  // ── Deep-link + share referral handling ─────────────────────────────────
+  // useShareDeepLink handles: URL param capture, Universal Links, Capacitor
+  // appUrlOpen, native SynthDeepLinkRouter events, auto-friend the referrer,
+  // and routing to the shared content once the user is authenticated.
+  // It is wired up below (after nav helpers are defined) via shareDeepLinkNavRef.
 
   useEffect(() => {
     // MainApp useEffect starting
@@ -576,6 +583,23 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       }
     }));
   };
+
+  // ── Share deep-link hook ────────────────────────────────────────────────────
+  // Handles: URL param capture, Universal Links, native SynthDeepLinkRouter events,
+  // auto-friend the referrer, route to shared content + welcome toast.
+  useShareDeepLink({
+    userId:  user?.id,
+    loading,
+    onNavigate: (instruction) => {
+      if (instruction.type === 'event' || instruction.type === 'review') {
+        handleNavigateToEvent(instruction.id);
+      } else if (instruction.type === 'artist') {
+        handleNavigateToArtist(instruction.id);
+      } else if (instruction.type === 'venue') {
+        handleNavigateToVenue(instruction.id);
+      }
+    },
+  });
 
   const handleNavigateToProfile = (userId?: string, tab?: 'timeline' | 'interested') => {
     setCurrentView('profile');

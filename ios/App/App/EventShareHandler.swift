@@ -3,183 +3,182 @@ import UIKit
 import SwiftUI
 import WebKit
 
-/// Handler for presenting event share modal and managing share actions
+// MARK: - Event Share Handler
+
+/// Coordinates the Synth share flow:
+///   1. Presents the native share bottom-sheet (SynthShareCardImageView preview)
+///   2. On "Share Card": renders the card to UIImage → UIActivityViewController
+///   3. On "Send in Chat": fires a CustomEvent back to the web layer
 @available(iOS 15.0, *)
 class EventShareHandler {
     static let shared = EventShareHandler()
-    
+
     private var currentModal: UIViewController?
-    private var shareCompletion: ((String) -> Void)?
-    
     private init() {}
-    
-    /// Presents the share modal for an event
+
+    // ─────────────────────────────────────────────────────────────────
+    // MARK: Present share bottom-sheet
+    // ─────────────────────────────────────────────────────────────────
+
     func presentShareModal(
         event: EventShareData,
         from viewController: UIViewController,
         onShareExternally: @escaping () -> Void,
-        onShareInChat: @escaping () -> Void
+        onShareInChat:     @escaping () -> Void
     ) {
-        // Dismiss any existing modal first
         dismissCurrentModal()
-        
+
         let modalVC = EventShareModalViewController(
             event: event,
-            onShareExternally: {
+            onShareExternally: { [weak self] in
                 onShareExternally()
-                self.dismissCurrentModal()
+                self?.dismissCurrentModal()
             },
-            onShareInChat: {
+            onShareInChat: { [weak self] in
                 onShareInChat()
-                self.dismissCurrentModal()
+                self?.dismissCurrentModal()
             }
         )
-        
+
         modalVC.modalPresentationStyle = .overFullScreen
-        modalVC.modalTransitionStyle = .coverVertical
-        
-        // Make the presentation context semi-transparent
-        modalVC.view.backgroundColor = .clear
-        
+        modalVC.modalTransitionStyle   = .crossDissolve
+        modalVC.view.backgroundColor   = .clear
+
         currentModal = modalVC
-        
+
         DispatchQueue.main.async {
             viewController.present(modalVC, animated: true)
         }
     }
-    
-    /// Dismisses the current modal if present
+
     func dismissCurrentModal() {
-        if let modal = currentModal {
-            DispatchQueue.main.async {
-                modal.dismiss(animated: true) {
-                    self.currentModal = nil
-                }
+        guard let modal = currentModal else { return }
+        DispatchQueue.main.async {
+            modal.dismiss(animated: true) { [weak self] in
+                self?.currentModal = nil
             }
         }
     }
-    
-    /// Handles external share using iOS native share sheet
+
+    // ─────────────────────────────────────────────────────────────────
+    // MARK: Share externally — renders card image then shows share sheet
+    // ─────────────────────────────────────────────────────────────────
+
     func shareExternally(
-        event: EventShareData,
+        event:      EventShareData,
         from viewController: UIViewController,
         completion: @escaping (Bool) -> Void
     ) {
-        // Build share text
-        var shareText = event.title
-        if let venue = event.venueName {
-            shareText += " at \(venue)"
-        }
-        if let date = event.eventDate {
-            shareText += " on \(formatDate(date))"
-        }
-        
-        // Build share URL (you may need to adjust this based on your app's URL scheme)
-        let shareURL = URL(string: "https://plusone.app/?event=\(event.eventId)") ?? URL(string: "https://plusone.app")!
-        
-        let activityVC = UIActivityViewController(
-            activityItems: [shareText, shareURL],
-            applicationActivities: nil
-        )
-        
-        // Configure for iPad
-        if let popover = activityVC.popoverPresentationController {
-            popover.sourceView = viewController.view
-            popover.sourceRect = CGRect(x: viewController.view.bounds.midX, y: viewController.view.bounds.midY, width: 0, height: 0)
-            popover.permittedArrowDirections = []
-        }
-        
-        activityVC.completionWithItemsHandler = { activityType, completed, returnedItems, error in
-            completion(completed)
-        }
-        
-        DispatchQueue.main.async {
-            viewController.present(activityVC, animated: true)
+        Task { @MainActor in
+            // Build the card data model
+            let shareUrl = URL(string: event.isReview
+                ? "https://plusone.app/share?review=\(event.reviewId ?? event.eventId)"
+                : "https://plusone.app/share?event=\(event.eventId)"
+            ) ?? URL(string: "https://plusone.app")!
+
+            let cardData = event.isReview
+                ? SynthShareCardData.fromReview(event, shareUrl: shareUrl)
+                : SynthShareCardData.fromEvent(event, shareUrl: shareUrl)
+
+            // Render card image (downloads artwork + draws to UIImage)
+            let cardImage = await SynthShareCardRenderer.shared.renderCard(for: cardData)
+
+            // Build activity items:
+            //   • UIImage — shown as inline photo; Instagram/Snapchat pick this up for Stories
+            //   • URL     — iMessage shows rich link preview using our OG tags
+            var items: [Any] = []
+            if let image = cardImage { items.append(image) }
+            items.append(shareUrl)
+
+            let activityVC = UIActivityViewController(
+                activityItems: items,
+                applicationActivities: nil
+            )
+
+            // iPad popover anchor
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = viewController.view
+                popover.sourceRect = CGRect(
+                    x: viewController.view.bounds.midX,
+                    y: viewController.view.bounds.maxY - 100,
+                    width: 0, height: 0
+                )
+                popover.permittedArrowDirections = []
+            }
+
+            activityVC.completionWithItemsHandler = { _, completed, _, _ in
+                completion(completed)
+            }
+
+            // Make sure we are not presenting on top of something already dismissed
+            var presenter = viewController
+            while let presented = presenter.presentedViewController {
+                presenter = presented
+            }
+
+            DispatchQueue.main.async {
+                presenter.present(activityVC, animated: true)
+            }
         }
     }
-    
-    /// Handles share in chat (triggers callback to web layer)
+
+    // ─────────────────────────────────────────────────────────────────
+    // MARK: Share in chat — fires CustomEvent to web layer
+    // ─────────────────────────────────────────────────────────────────
+
     func shareInChat(event: EventShareData, completion: @escaping () -> Void) {
-        // Send event to web layer to handle in-app sharing
         sendEventToWebLayer(event: event, action: "shareInChat")
         completion()
     }
-    
-    /// Sends event data to web layer for processing
+
+    // ─────────────────────────────────────────────────────────────────
+    // MARK: Web layer bridge
+    // ─────────────────────────────────────────────────────────────────
+
     private func sendEventToWebLayer(event: EventShareData, action: String) {
         guard let eventData = try? JSONEncoder().encode(event),
-              let eventJSON = String(data: eventData, encoding: .utf8) else {
-            print("Failed to encode event data")
-            return
-        }
-        
-        // Escape JSON for JavaScript
-        let escapedJSON = eventJSON
+              let eventJSON = String(data: eventData, encoding: .utf8) else { return }
+
+        // Safely escape for inline JavaScript
+        let escaped = eventJSON
             .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "'",  with: "\\'")
             .replacingOccurrences(of: "\n", with: "\\n")
             .replacingOccurrences(of: "\r", with: "\\r")
             .replacingOccurrences(of: "\"", with: "\\\"")
-        
+
         let script = """
-            (function() {
-                try {
-                    const eventData = JSON.parse('\(escapedJSON)');
-                    window.dispatchEvent(new CustomEvent('NativeShareEvent', {
-                        detail: {
-                            action: '\(action)',
-                            event: eventData
-                        }
-                    }));
-                } catch(e) {
-                    console.error('Error dispatching NativeShareEvent:', e);
-                }
-            })();
-        """
-        
-        DispatchQueue.main.async {
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let window = windowScene.windows.first {
-                self.evaluateJavaScriptInWebView(script: script, in: window)
+        (function() {
+            try {
+                const d = JSON.parse('\(escaped)');
+                window.dispatchEvent(new CustomEvent('NativeShareEvent', {
+                    detail: { action: '\(action)', event: d }
+                }));
+            } catch(e) {
+                console.error('NativeShareEvent dispatch error:', e);
             }
+        })();
+        """
+
+        DispatchQueue.main.async {
+            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = scene.windows.first else { return }
+            self.evaluateInWebView(script: script, window: window)
         }
     }
-    
-    /// Helper to evaluate JavaScript in web view
-    private func evaluateJavaScriptInWebView(script: String, in window: UIWindow) {
-        func findWebView(in view: UIView) -> WKWebView? {
-            if let webView = view as? WKWebView {
-                return webView
-            }
-            for subview in view.subviews {
-                if let webView = findWebView(in: subview) {
-                    return webView
-                }
-            }
+
+    private func evaluateInWebView(script: String, window: UIWindow) {
+        func find(_ view: UIView) -> WKWebView? {
+            if let wv = view as? WKWebView { return wv }
+            for sub in view.subviews { if let wv = find(sub) { return wv } }
             return nil
         }
-        
-        if let rootView = window.rootViewController?.view,
-           let webView = findWebView(in: rootView) {
-            webView.evaluateJavaScript(script) { result, error in
-                if let error = error {
-                    print("WebView JavaScript evaluation failed: \(error.localizedDescription)")
-                }
+        guard let root = window.rootViewController?.view,
+              let wv = find(root) else { return }
+        wv.evaluateJavaScript(script) { _, error in
+            if let error {
+                print("Synth shareInChat JS error: \(error.localizedDescription)")
             }
         }
-    }
-    
-    private func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
-        if let date = formatter.date(from: dateString) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateStyle = .medium
-            displayFormatter.timeStyle = .short
-            return displayFormatter.string(from: date)
-        }
-        
-        return dateString
     }
 }

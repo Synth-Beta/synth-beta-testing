@@ -8,7 +8,7 @@ const DISMISSED_KEY = 'share_with_friends_banner_dismissed';
 
 export function isShareBannerDismissed(): boolean {
   if (typeof window === 'undefined') return false;
-  return localStorage.getItem(DISMISSED_KEY) === 'true';
+  return sessionStorage.getItem(DISMISSED_KEY) === 'true';
 }
 
 interface ShareWithFriendsBannerProps {
@@ -20,7 +20,7 @@ const BANNER_MESSAGE = 'Share the app for a chance to win a $50 gift card!';
 
 export function ShareWithFriendsBanner({ onDismiss, referralCode }: ShareWithFriendsBannerProps) {
   const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, 'true');
+    sessionStorage.setItem(DISMISSED_KEY, 'true');
     onDismiss();
   };
 

@@ -1,10 +1,22 @@
 {
+  "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/auth/spotify/callback", "destination": "/" },
+    { "source": "/share", "destination": "/api/share" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/" }
   ],
   "functions": {
+    "api/share.ts": {
+      "maxDuration": 10
+    },
     "api/setlists/search.ts": {
       "maxDuration": 10
     },

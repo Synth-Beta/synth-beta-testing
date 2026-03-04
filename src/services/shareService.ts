@@ -9,6 +9,61 @@ export const SHARE_APP_MESSAGE_EVENT_TOGETHER =
 export const SHARE_APP_MESSAGE_DEFAULT =
   "I've been using Synth to discover shows and share live music moments. Thought you'd like it — ";
 
+// ─── Native share payload types ─────────────────────────────────────────────
+
+/** Data sent to the native iOS share handler for an event. */
+export interface NativeEventSharePayload {
+  eventId:        string;
+  title:          string;
+  artistName?:    string;
+  venueName?:     string;
+  venueCity?:     string;
+  eventDate?:     string;
+  imageUrl?:      string;
+  posterImageUrl?: string;
+  shareType:      'event';
+  reviewId?:      undefined;
+  reviewerName?:  undefined;
+  overallRating?: undefined;
+  reviewQuote?:   undefined;
+}
+
+/** Data sent to the native iOS share handler for a review (superset of event). */
+export interface NativeReviewSharePayload {
+  eventId:        string;
+  title:          string;
+  artistName?:    string;
+  venueName?:     string;
+  venueCity?:     string;
+  eventDate?:     string;
+  imageUrl?:      string;
+  posterImageUrl?: string;
+  shareType:      'review';
+  reviewId:       string;
+  reviewerName?:  string;
+  overallRating?: number;   // 0–5
+  reviewQuote?:   string;
+}
+
+export type NativeSharePayload = NativeEventSharePayload | NativeReviewSharePayload;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Returns true when running inside the Synth iOS native shell. */
+function isNativeIOS(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    !!(window as any).webkit?.messageHandlers?.eventShare
+  );
+}
+
+/** Fires the native iOS share sheet with a rendered card. */
+function fireNativeShare(payload: NativeSharePayload): void {
+  (window as any).webkit.messageHandlers.eventShare.postMessage(payload);
+}
+
+// ─── Share Service ────────────────────────────────────────────────────────────
+
 export class ShareService {
   private static getBaseUrl(): string {
     if (typeof window !== 'undefined' && window.location) {
@@ -17,81 +72,116 @@ export class ShareService {
     return 'https://plusone.app';
   }
 
-  static getEventUrl(eventId: string): string {
-    const origin = this.getBaseUrl();
-    return `${origin}/?event=${encodeURIComponent(eventId)}`;
+  // ── URL builders ─────────────────────────────────────────────────────────
+
+  static getEventUrl(eventId: string, referrerId?: string | null): string {
+    const base = `${this.getBaseUrl()}/share?event=${encodeURIComponent(eventId)}`;
+    return referrerId ? `${base}&ref=${encodeURIComponent(referrerId)}` : base;
   }
 
-  static getReviewUrl(reviewId: string): string {
-    const origin = this.getBaseUrl();
-    return `${origin}/?review=${encodeURIComponent(reviewId)}`;
+  static getReviewUrl(reviewId: string, referrerId?: string | null): string {
+    const base = `${this.getBaseUrl()}/share?review=${encodeURIComponent(reviewId)}`;
+    return referrerId ? `${base}&ref=${encodeURIComponent(referrerId)}` : base;
   }
 
-  static getArtistUrl(artistId: string): string {
-    const origin = this.getBaseUrl();
-    return `${origin}/?artist=${encodeURIComponent(artistId)}`;
+  static getArtistUrl(artistId: string, referrerId?: string | null): string {
+    const base = `${this.getBaseUrl()}/share?artist=${encodeURIComponent(artistId)}`;
+    return referrerId ? `${base}&ref=${encodeURIComponent(referrerId)}` : base;
   }
 
-  static getVenueUrl(venueId: string): string {
-    const origin = this.getBaseUrl();
-    return `${origin}/?venue=${encodeURIComponent(venueId)}`;
+  static getVenueUrl(venueId: string, referrerId?: string | null): string {
+    const base = `${this.getBaseUrl()}/share?venue=${encodeURIComponent(venueId)}`;
+    return referrerId ? `${base}&ref=${encodeURIComponent(referrerId)}` : base;
   }
+
+  // ── Native share (iOS card renderer) ─────────────────────────────────────
+
+  /**
+   * Share an event using the native iOS share card renderer.
+   * On iOS: opens the Synth bottom-sheet → renders a card image → UIActivityViewController.
+   * On web: falls back to navigator.share or clipboard.
+   */
+  /**
+   * Share an event using the native iOS share card renderer.
+   * Pass `referrerId` (the current user's Supabase ID) so the share URL includes ?ref=
+   * enabling auto-friend when a new user installs from the link.
+   */
+  static async shareEventNative(opts: {
+    eventId:        string;
+    title:          string;
+    artistName?:    string;
+    venueName?:     string;
+    venueCity?:     string;
+    eventDate?:     string;
+    imageUrl?:      string;
+    posterImageUrl?: string;
+    referrerId?:    string;  // current user's ID — added to ?ref= param
+  }): Promise<string> {
+    const url = this.getEventUrl(opts.eventId, opts.referrerId);
+
+    if (isNativeIOS()) {
+      fireNativeShare({ ...opts, shareType: 'event' });
+      return url;
+    }
+
+    return this._webShare(url, opts.title || 'Synth Event');
+  }
+
+  /**
+   * Share a review using the native iOS share card renderer (shows star rating on card).
+   * Pass `referrerId` to enable auto-friend attribution.
+   */
+  static async shareReviewNative(opts: {
+    reviewId:       string;
+    eventId:        string;
+    title:          string;
+    artistName?:    string;
+    venueName?:     string;
+    venueCity?:     string;
+    eventDate?:     string;
+    imageUrl?:      string;
+    posterImageUrl?: string;
+    reviewerName?:  string;
+    overallRating?: number;
+    reviewQuote?:   string;
+    referrerId?:    string;  // current user's ID
+  }): Promise<string> {
+    const url = this.getReviewUrl(opts.reviewId, opts.referrerId);
+
+    if (isNativeIOS()) {
+      fireNativeShare({ ...opts, shareType: 'review' });
+      return url;
+    }
+
+    return this._webShare(url, opts.artistName
+      ? `${opts.artistName} — Review on Synth`
+      : opts.title || 'Synth Review'
+    );
+  }
+
+  // ── Legacy / web share methods (kept for non-native contexts) ─────────────
 
   static async shareEvent(eventId: string, title?: string, text?: string): Promise<string> {
     const url = this.getEventUrl(eventId);
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: title || 'PlusOne Event', text, url });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch {
-      // ignore user cancel
-    }
-    return url;
+    return this._webShare(url, title || 'Synth Event', text);
   }
 
   static async shareReview(reviewId: string, title?: string, text?: string): Promise<string> {
     const url = this.getReviewUrl(reviewId);
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: title || 'PlusOne Review', text, url });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch {
-      // ignore user cancel
-    }
-    return url;
+    return this._webShare(url, title || 'Synth Review', text);
   }
 
   static async shareArtist(artistId: string, title?: string, text?: string): Promise<string> {
     const url = this.getArtistUrl(artistId);
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: title || 'Synth Artist', text, url });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch {
-      // ignore user cancel
-    }
-    return url;
+    return this._webShare(url, title || 'Synth Artist', text);
   }
 
   static async shareVenue(venueId: string, title?: string, text?: string): Promise<string> {
     const url = this.getVenueUrl(venueId);
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: title || 'Synth Venue', text, url });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch {
-      // ignore user cancel
-    }
-    return url;
+    return this._webShare(url, title || 'Synth Venue', text);
   }
+
+  // ── App share ─────────────────────────────────────────────────────────────
 
   /** Share the Synth app (App Store link). Optional referralCode for ?referral= attribution. */
   static getAppStoreUrl(referralCode?: string | null): string {
@@ -109,9 +199,9 @@ export class ShareService {
     referralCode?: string | null,
     options?: { message?: string; openMessages?: boolean }
   ): Promise<string> {
-    const url = this.getAppStoreUrl(referralCode);
+    const url     = this.getAppStoreUrl(referralCode);
     const message = options?.message ?? SHARE_APP_MESSAGE_DEFAULT;
-    const text = `${message} ${url}`;
+    const text    = `${message} ${url}`;
 
     if (options?.openMessages && typeof window !== 'undefined') {
       try {
@@ -133,6 +223,19 @@ export class ShareService {
     }
     return url;
   }
+
+  // ── Private web-share helper ──────────────────────────────────────────────
+
+  private static async _webShare(url: string, title: string, text?: string): Promise<string> {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch {
+      // ignore user cancel
+    }
+    return url;
+  }
 }
-
-

@@ -8,7 +8,10 @@
 import SwiftUI
 import UIKit
 
-private let kShareBannerDismissedKey = "share_with_friends_banner_dismissed"
+// In-memory only — resets to false every time the app launches.
+// Dismissed state does NOT persist across launches (intentional: banner
+// should reappear on every fresh open, just like a page reload on web).
+private var _shareBannerDismissedThisSession = false
 
 struct ShareWithFriendsBanner: View {
     var referralCode: String? = nil
@@ -33,7 +36,7 @@ struct ShareWithFriendsBanner: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
-                UserDefaults.standard.set(true, forKey: kShareBannerDismissedKey)
+                _shareBannerDismissedThisSession = true
                 isVisible = false
             } label: {
                 IconView(.x, size: SynthSizes.iconSmall, color: SynthColor.neutral600)
@@ -76,9 +79,10 @@ struct ShareWithFriendsBanner: View {
     }
 }
 
-/// Returns whether the share banner has been dismissed by the user.
+/// Returns whether the share banner has been dismissed this session.
+/// Always false on a fresh app launch.
 func isShareWithFriendsBannerDismissed() -> Bool {
-    UserDefaults.standard.bool(forKey: kShareBannerDismissedKey)
+    _shareBannerDismissedThisSession
 }
 
 #Preview {
