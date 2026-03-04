@@ -316,10 +316,6 @@ export const NotificationsPage = ({
         // Handle specific error cases - if already processed, just refresh and show success
         if (error.message?.includes('not found') || error.message?.includes('already processed')) {
           // Check if they're already friends (request was already accepted)
-          const requestStatus = await checkFriendRequestStatus(requestId);
-          if (requestStatus === 'accepted') {
-          }
-          
           // Immediately remove from UI
           setNotifications(prev => prev.filter(n => {
             const notifRequestId = (n.data as any)?.request_id;

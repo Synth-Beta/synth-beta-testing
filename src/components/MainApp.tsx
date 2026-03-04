@@ -1014,7 +1014,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       </div>
 
       <GlobalDetailModals
-        userId={user.id}
+        userId={user?.id ?? ''}
         detailModal={detailModal}
         manualArtistDetail={manualArtistDetail}
         eventDetailsFromVenueOpen={eventDetailsFromVenueOpen}
@@ -1074,7 +1074,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       />
 
       <GlobalModals
-        userId={user.id}
+        userId={user?.id ?? ''}
         userEmail={user?.email}
         showSettings={showSettings}
         settingsInitialView={settingsInitialView}
