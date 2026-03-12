@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SpotifyStats } from './SpotifyStats';
 import { AppleMusicStats } from './AppleMusicStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,46 +25,97 @@ export const UnifiedStreamingStats = ({
   const [showServiceSelector, setShowServiceSelector] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
-useEffect(() => {
-    detectStreamingService();
-    checkLastSyncTime();
+
+  const checkLastSyncTime = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (detectedService === 'apple-music') {
+      const lastSync = localStorage.getItem('apple-music-last-sync');
+      setLastSyncTime(lastSync);
+    } else {
+      setLastSyncTime(null);
+    }
+  }, [detectedService]);
+
+  const detectStreamingService = useCallback((): StreamingService => {
+    // First check if Spotify is already authenticated via localStorage
+    if (spotifyService.checkStoredToken()) {
+      console.log('🎵 Spotify already authenticated, showing Spotify stats');
+      setDetectedService('spotify');
+      setShowServiceSelector(false);
+      return 'spotify';
+    }
+
+    if (!musicStreamingProfile) {
+      setDetectedService('unknown');
+      setShowServiceSelector(true);
+      return 'unknown';
+    }
+
+    const profile = musicStreamingProfile.toLowerCase();
+
+    if (
+      profile.includes('spotify.com') ||
+      profile.includes('open.spotify') ||
+      profile.startsWith('spotify:') ||
+      /^[a-zA-Z0-9_]{1,}$/.test(profile)
+    ) {
+      setDetectedService('spotify');
+      setShowServiceSelector(false);
+      return 'spotify';
+    }
+
+    if (
+      profile.includes('music.apple.com') ||
+      profile.includes('apple.com/music') ||
+      profile.includes('applemusic') ||
+      profile.includes('apple music')
+    ) {
+      setDetectedService('apple-music');
+      setShowServiceSelector(false);
+      return 'apple-music';
+    }
+
+    setDetectedService('unknown');
+    setShowServiceSelector(true);
+    return 'unknown';
   }, [musicStreamingProfile]);
 
   useEffect(() => {
-    checkLastSyncTime();
-  }, [detectedService]);
+    detectStreamingService();
+  }, [musicStreamingProfile, detectStreamingService]);
 
-  // Listen for Spotify authentication changes
   useEffect(() => {
+    checkLastSyncTime();
+  }, [checkLastSyncTime]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const handleSpotifyAuthChange = () => {
       console.log('🔄 Spotify auth state changed, re-detecting service...');
       detectStreamingService();
     };
 
-    // Listen for Spotify token cleared events
-    window.addEventListener('spotify-token-cleared', handleSpotifyAuthChange);
-    
-    // Also listen for storage changes (when Spotify tokens are added/removed)
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'spotify_access_token' || e.key === 'spotify_token_expiry') {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'spotify_access_token' || event.key === 'spotify_token_expiry') {
         console.log('🔄 Spotify localStorage changed, re-detecting service...');
         detectStreamingService();
       }
-    });
+    };
+
+    window.addEventListener('spotify-token-cleared', handleSpotifyAuthChange);
+    window.addEventListener('storage', handleStorageChange);
 
     return () => {
       window.removeEventListener('spotify-token-cleared', handleSpotifyAuthChange);
-      window.removeEventListener('storage', handleSpotifyAuthChange);
+      window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
-
-  const checkLastSyncTime = () => {
-    if (detectedService === 'apple-music') {
-      const lastSync = localStorage.getItem('apple-music-last-sync');
-      setLastSyncTime(lastSync);
-    }
-    // Add Spotify sync check here when implemented
-  };
+  }, [detectStreamingService]);
 
   const handleManualSync = async () => {
     if (detectedService !== 'apple-music') {
@@ -122,55 +173,6 @@ useEffect(() => {
         // Fallback to a generic spinner if Sync icon is not defined
         return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />;
     }
-  };
-
-  const detectStreamingService = (): StreamingService => {
-    // First check if Spotify is already authenticated via localStorage
-    if (spotifyService.checkStoredToken()) {
-      console.log('🎵 Spotify already authenticated, showing Spotify stats');
-      setDetectedService('spotify');
-      setShowServiceSelector(false);
-      return 'spotify';
-    }
-
-    // If no music streaming profile in database, check if we should show selector
-    if (!musicStreamingProfile) {
-      setDetectedService('unknown');
-      setShowServiceSelector(true);
-      return 'unknown';
-    }
-
-    const profile = musicStreamingProfile.toLowerCase();
-    
-    // Check for Spotify indicators
-    if (
-      profile.includes('spotify.com') ||
-      profile.includes('open.spotify') ||
-      profile.startsWith('spotify:') ||
-      // Check for Spotify user ID patterns (alphanumeric, sometimes with underscores)
-      /^[a-zA-Z0-9_]{1,}$/.test(profile)
-    ) {
-      setDetectedService('spotify');
-      setShowServiceSelector(false);
-      return 'spotify';
-    }
-    
-    // Check for Apple Music indicators
-    if (
-      profile.includes('music.apple.com') ||
-      profile.includes('apple.com/music') ||
-      profile.includes('applemusic') ||
-      profile.includes('apple music')
-    ) {
-      setDetectedService('apple-music');
-      setShowServiceSelector(false);
-      return 'apple-music';
-    }
-
-    // If we can't detect, show selector
-    setDetectedService('unknown');
-    setShowServiceSelector(true);
-    return 'unknown';
   };
 
   const handleServiceSelection = (service: StreamingService) => {

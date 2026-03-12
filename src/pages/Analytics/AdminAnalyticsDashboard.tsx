@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { 
   AdminAnalyticsService, 
@@ -17,7 +17,11 @@ import {
   FeatureAdoptionFunnel,
   SessionAnalytics,
   SocialGraphMetrics,
-  SearchEffectiveness
+  SearchEffectiveness,
+  AcquisitionSourceCount,
+  AcquisitionWeeklyBreakdownPoint,
+  AcquisitionOtherResponse,
+  ACQUISITION_SOURCE_CANONICAL_ORDER,
 } from '../../services/adminAnalyticsService';
 import { MetricCard } from '../../components/analytics/shared/MetricCard';
 import { TopListCard } from '../../components/analytics/shared/TopListCard';
@@ -39,6 +43,7 @@ import {
   Download,
   Crown,
   Eye,
+  RefreshCw,
   Search,
   Star,
   Ticket,
@@ -53,6 +58,25 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Cell } from 'recharts';
 import { useViewTracking } from '@/hooks/useViewTracking';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+
+const ACQUISITION_SOURCE_COLOR_MAP: Record<string, string> = {
+  'Friends or Family': '#f97316',
+  Instagram: '#ec4899',
+  TikTok: '#312e81',
+  Reddit: '#f87171',
+  LinkedIn: '#0ea5e9',
+  Facebook: '#2563eb',
+  'App Store': '#a855f7',
+  Artist: '#10b981',
+  Venue: '#f59e0b',
+  Other: '#6b7280',
+};
+
+const getAcquisitionSourceColor = (source: string) => ACQUISITION_SOURCE_COLOR_MAP[source] ?? '#94a3b8';
+
+const FULL_OTHER_RESPONSES_LIMIT = 500;
 
 export default function AdminAnalyticsDashboard() {
   // Track analytics dashboard view
@@ -78,6 +102,13 @@ export default function AdminAnalyticsDashboard() {
   const [sessionAnalytics, setSessionAnalytics] = useState<SessionAnalytics | null>(null);
   const [socialGraphMetrics, setSocialGraphMetrics] = useState<SocialGraphMetrics | null>(null);
   const [searchEffectiveness, setSearchEffectiveness] = useState<SearchEffectiveness | null>(null);
+  const [acquisitionSourceCounts, setAcquisitionSourceCounts] = useState<AcquisitionSourceCount[]>([]);
+  const [acquisitionWeeklyBreakdown, setAcquisitionWeeklyBreakdown] = useState<AcquisitionWeeklyBreakdownPoint[]>([]);
+  const [recentOtherAcquisitionResponses, setRecentOtherAcquisitionResponses] = useState<AcquisitionOtherResponse[]>([]);
+  const [isOtherModalOpen, setIsOtherModalOpen] = useState(false);
+  const [otherModalResponses, setOtherModalResponses] = useState<AcquisitionOtherResponse[]>([]);
+  const [otherModalLoading, setOtherModalLoading] = useState(false);
+  const [otherModalError, setOtherModalError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'active-users' | 'content' | 'achievements' | 'moderation'>('overview');
   
   // Track tab switches
@@ -130,7 +161,10 @@ export default function AdminAnalyticsDashboard() {
         featureAdoptionFunnelData,
         sessionAnalyticsData,
         socialGraphMetricsData,
-        searchEffectivenessData
+        searchEffectivenessData,
+        acquisitionSourceCountsData,
+        acquisitionWeeklyBreakdownData,
+        otherAcquisitionResponsesData
       ] = await Promise.all([
         AdminAnalyticsService.getPlatformStats(),
         AdminAnalyticsService.getUserGrowth(),
@@ -149,7 +183,10 @@ export default function AdminAnalyticsDashboard() {
         AdminAnalyticsService.getFeatureAdoptionFunnel(),
         AdminAnalyticsService.getSessionAnalytics(),
         AdminAnalyticsService.getSocialGraphMetrics(),
-        AdminAnalyticsService.getSearchEffectiveness()
+        AdminAnalyticsService.getSearchEffectiveness(),
+        AdminAnalyticsService.getAcquisitionSourceCounts(),
+        AdminAnalyticsService.getAcquisitionWeeklyBreakdown(7),
+        AdminAnalyticsService.getOtherAcquisitionResponses(5)
       ]);
 
       setPlatformStats(platformStatsData);
@@ -170,12 +207,42 @@ export default function AdminAnalyticsDashboard() {
       setSessionAnalytics(sessionAnalyticsData);
       setSocialGraphMetrics(socialGraphMetricsData);
       setSearchEffectiveness(searchEffectivenessData);
+      setAcquisitionSourceCounts(acquisitionSourceCountsData);
+      setAcquisitionWeeklyBreakdown(acquisitionWeeklyBreakdownData);
+      setRecentOtherAcquisitionResponses(otherAcquisitionResponsesData);
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadAllOtherResponses = useCallback(async () => {
+    setOtherModalLoading(true);
+    setOtherModalError(null);
+    try {
+      const responses = await AdminAnalyticsService.getOtherAcquisitionResponses(FULL_OTHER_RESPONSES_LIMIT);
+      setOtherModalResponses(responses);
+    } catch (error) {
+      console.error('Error loading all other acquisition responses:', error);
+      setOtherModalError('Unable to load responses right now.');
+    } finally {
+      setOtherModalLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOtherModalOpen) {
+      loadAllOtherResponses();
+    }
+  }, [isOtherModalOpen, loadAllOtherResponses]);
+
+  useEffect(() => {
+    if (!isOtherModalOpen) {
+      setOtherModalResponses([]);
+      setOtherModalError(null);
+    }
+  }, [isOtherModalOpen]);
 
   const handleExport = async () => {
     if (!user) return;
@@ -874,6 +941,222 @@ export default function AdminAnalyticsDashboard() {
                 </div>
               )}
             </div>
+
+            {/* How Users Found Synth */}
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500">New User Signups</p>
+                  <h3 className="text-lg font-semibold text-gray-900">How Users Found Synth</h3>
+                  <p className="text-sm text-gray-500">Acquisition mix and recent custom responses</p>
+                </div>
+                <BarChart3 className="w-5 h-5 text-indigo-600" />
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-gray-900">Source Count</h4>
+                      <span className="text-xs text-gray-500">Totals</span>
+                    </div>
+                    {acquisitionSourceCounts.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart
+                          data={acquisitionSourceCounts}
+                          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="source"
+                            stroke="#6b7280"
+                            interval={0}
+                            height={60}
+                            tick={{ fontSize: 12 }}
+                          />
+                          <YAxis stroke="#6b7280" />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                            formatter={(value: any) => [value.toLocaleString(), 'Signups']}
+                          />
+                          <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                            {acquisitionSourceCounts.map((entry) => (
+                              <Cell key={entry.source} fill={getAcquisitionSourceColor(entry.source)} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-center py-12 text-sm text-gray-500">
+                        No acquisition source data yet
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold text-gray-900">Weekly Breakdown</h4>
+                      <span className="text-xs text-gray-500">Last 7 days</span>
+                    </div>
+                    {acquisitionWeeklyBreakdown.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart
+                          data={acquisitionWeeklyBreakdown}
+                          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="date"
+                            stroke="#6b7280"
+                            tick={{ fontSize: 12 }}
+                            tickFormatter={(value) => {
+                              const date = new Date(value);
+                              return `${date.getMonth() + 1}/${date.getDate()}`;
+                            }}
+                          />
+                          <YAxis stroke="#6b7280" />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                            formatter={(value: any) => [value.toLocaleString(), 'Signups']}
+                            labelFormatter={(value) => {
+                              const date = new Date(value);
+                              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            }}
+                          />
+                          <Legend verticalAlign="top" align="left" height={28} wrapperStyle={{ paddingBottom: '4px' }} />
+                          {ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => (
+                            <Bar
+                              key={source}
+                              dataKey={source}
+                              stackId="a"
+                              fill={getAcquisitionSourceColor(source)}
+                              radius={[4, 4, 0, 0]}
+                              name={source}
+                            />
+                          ))}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-center py-12 text-sm text-gray-500">
+                        No weekly acquisition data yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-900">Other Responses Preview</h4>
+                      <p className="text-xs text-gray-500">Latest custom answers</p>
+                    </div>
+                    <Eye className="w-4 h-4 text-gray-500" />
+                  </div>
+
+                  {recentOtherAcquisitionResponses.length > 0 ? (
+                    <div className="space-y-3">
+                      {recentOtherAcquisitionResponses.map((response) => (
+                        <div
+                          key={response.id}
+                          className="rounded-lg border border-gray-100 bg-white p-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {new Date(response.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {response.other_acquisition_source}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center text-sm text-gray-500">
+                      No recent custom responses yet
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-pink-600 hover:text-pink-800 transition-colors"
+                      onClick={() => setIsOtherModalOpen(true)}
+                    >
+                      View Full Detail
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Dialog open={isOtherModalOpen} onOpenChange={(open) => setIsOtherModalOpen(open)}>
+              <DialogContent
+                style={{
+                  maxWidth: 'min(96vw, 720px)',
+                  width: 'min(96vw, 720px)',
+                  maxHeight: '80vh',
+                }}
+              >
+                <DialogHeader>
+                  <div className="space-y-2">
+                    <DialogTitle>Other Acquisition Responses</DialogTitle>
+                    <DialogDescription className="text-sm text-gray-500">
+                      Full list of entries where users selected “Other”. Newest responses appear at the top.
+                    </DialogDescription>
+                  </div>
+                </DialogHeader>
+
+                <DialogBody className="space-y-4 flex flex-col">
+                  {otherModalLoading && (
+                    <div className="flex flex-col items-center justify-center text-sm text-gray-500 py-8 space-y-2">
+                      <RefreshCw className="h-5 w-5 animate-spin text-pink-600" />
+                      <p>Loading responses…</p>
+                    </div>
+                  )}
+
+                  {otherModalError && (
+                    <div className="text-sm text-red-600 text-center py-6">
+                      {otherModalError}
+                    </div>
+                  )}
+
+                  {!otherModalLoading && !otherModalError && otherModalResponses.length === 0 && (
+                    <div className="text-sm text-gray-500 text-center py-8">
+                      No “Other” responses recorded yet.
+                    </div>
+                  )}
+
+                  {!otherModalLoading && !otherModalError && otherModalResponses.length > 0 && (
+                    <div className="flex-1 overflow-y-auto rounded-lg border border-gray-100 bg-white">
+                      <div className="grid grid-cols-[180px,1fr] gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100">
+                        <span>Created</span>
+                        <span>Custom Response</span>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {otherModalResponses.map((response) => (
+                          <div
+                            key={response.id}
+                            className="grid grid-cols-[180px,1fr] gap-4 px-4 py-3 text-sm text-gray-600"
+                          >
+                            <span className="font-semibold text-gray-900">
+                              {new Date(response.created_at).toLocaleString()}
+                            </span>
+                            <span className="whitespace-pre-line">{response.other_acquisition_source}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </DialogBody>
+
+                <DialogFooter className="border-t border-gray-100">
+                  <Button variant="secondary-neutral" onClick={() => setIsOtherModalOpen(false)}>
+                    Close
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* User Geography Chart */}
             <div className="bg-white rounded-xl p-6 shadow-sm">

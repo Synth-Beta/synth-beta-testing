@@ -146,6 +146,47 @@ export interface GeographicDistribution {
   growth_rate: number;
 }
 
+export const ACQUISITION_SOURCE_CANONICAL_ORDER = [
+  'Friends or Family',
+  'Instagram',
+  'TikTok',
+  'Reddit',
+  'LinkedIn',
+  'Facebook',
+  'App Store',
+  'Artist',
+  'Venue',
+  'Other',
+] as const;
+
+const normalizeAcquisitionSource = (value?: string | null): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.toLowerCase();
+  if (normalized === 'other') {
+    return 'Other';
+  }
+  const match = ACQUISITION_SOURCE_CANONICAL_ORDER.find((source) => source.toLowerCase() === normalized);
+  return match || 'Other';
+};
+
+export interface AcquisitionSourceCount {
+  source: string;
+  count: number;
+}
+
+export interface AcquisitionWeeklyBreakdownPoint {
+  date: string;
+  [source: string]: number | string;
+}
+
+export interface AcquisitionOtherResponse {
+  id: string;
+  created_at: string;
+  other_acquisition_source: string;
+}
+
 export interface TimeSeriesDataPoint {
   date: string;
   value: number;
@@ -1835,6 +1876,128 @@ export class AdminAnalyticsService {
         avg_connection_degree: 0,
         network_density: 0,
       };
+    }
+  }
+
+  /**
+   * Acquire counts grouped by acquisition source
+   */
+  static async getAcquisitionSourceCounts(): Promise<AcquisitionSourceCount[]> {
+    try {
+      const { data } = await (supabase as any)
+        .from('users')
+        .select('acquisition_source');
+
+      const counts = new Map<string, number>();
+      ACQUISITION_SOURCE_CANONICAL_ORDER.forEach((source) => counts.set(source, 0));
+
+      data?.forEach((row: any) => {
+        const normalized = normalizeAcquisitionSource(row?.acquisition_source);
+        if (!normalized) return;
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      });
+
+      const result = Array.from(counts.entries()).map(([source, count]) => ({
+        source,
+        count,
+      }));
+
+      result.sort((a, b) => b.count - a.count);
+
+      return result;
+    } catch (error) {
+      console.error('Error getting acquisition source counts:', error);
+      return ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => ({ source, count: 0 }));
+    }
+  }
+
+  /**
+   * Get weekly acquisition breakdown
+   */
+  static async getAcquisitionWeeklyBreakdown(days: number = 7): Promise<AcquisitionWeeklyBreakdownPoint[]> {
+    try {
+      const endDate = new Date();
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - (days - 1));
+      startDate.setHours(0, 0, 0, 0);
+
+      const { data } = await (supabase as any)
+        .from('users')
+        .select('created_at, acquisition_source')
+        .gte('created_at', startDate.toISOString());
+
+      const grouped: Record<string, Record<string, number>> = {};
+
+      data?.forEach((row: any) => {
+        if (!row?.created_at) return;
+        const dateKey = new Date(row.created_at).toISOString().split('T')[0];
+        const normalized = normalizeAcquisitionSource(row.acquisition_source);
+        if (!normalized) return;
+        if (!grouped[dateKey]) {
+          grouped[dateKey] = {};
+        }
+        grouped[dateKey][normalized] = (grouped[dateKey][normalized] || 0) + 1;
+      });
+
+      const result: AcquisitionWeeklyBreakdownPoint[] = [];
+      for (let i = 0; i < days; i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + i);
+        const isoDate = currentDate.toISOString().split('T')[0];
+        const dayTotals = grouped[isoDate] || {};
+        const entry: AcquisitionWeeklyBreakdownPoint = { date: isoDate };
+        ACQUISITION_SOURCE_CANONICAL_ORDER.forEach((source) => {
+          entry[source] = dayTotals[source] || 0;
+        });
+        result.push(entry);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error getting acquisition weekly breakdown:', error);
+      const fallbackStart = new Date();
+      fallbackStart.setDate(fallbackStart.getDate() - (days - 1));
+      fallbackStart.setHours(0, 0, 0, 0);
+      const fallback: AcquisitionWeeklyBreakdownPoint[] = [];
+      for (let i = 0; i < days; i++) {
+        const currentDate = new Date(fallbackStart);
+        currentDate.setDate(fallbackStart.getDate() + i);
+        const isoDate = currentDate.toISOString().split('T')[0];
+        const entry: AcquisitionWeeklyBreakdownPoint = { date: isoDate };
+        ACQUISITION_SOURCE_CANONICAL_ORDER.forEach((source) => {
+          entry[source] = 0;
+        });
+        fallback.push(entry);
+      }
+      return fallback;
+    }
+  }
+
+  /**
+   * Retrieve acquisition responses where `acquisition_source` was "Other"
+   */
+  static async getOtherAcquisitionResponses(limit: number = 5): Promise<AcquisitionOtherResponse[]> {
+    try {
+      const responseLimit = Math.max(limit, 5);
+      const { data } = await (supabase as any)
+        .from('users')
+        .select('id, created_at, acquisition_source, other_acquisition_source')
+        .not('other_acquisition_source', 'is', null)
+        .neq('other_acquisition_source', '')
+        .ilike('acquisition_source', 'other')
+        .order('created_at', { ascending: false })
+        .limit(responseLimit * 2);
+
+      const filtered = (data || []).filter((row: any) => normalizeAcquisitionSource(row.acquisition_source) === 'Other');
+
+      return filtered.slice(0, limit).map((row: any) => ({
+        id: row.id,
+        created_at: row.created_at,
+        other_acquisition_source: row.other_acquisition_source,
+      }));
+    } catch (error) {
+      console.error('Error getting other acquisition responses:', error);
+      return [];
     }
   }
 

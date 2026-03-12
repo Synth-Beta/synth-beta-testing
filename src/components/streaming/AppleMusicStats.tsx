@@ -19,7 +19,6 @@ import {
   Activity
 } from 'lucide-react';
 import { appleMusicService } from '@/services/appleMusicService';
-import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 import { useAuth } from '@/hooks/useAuth';
 import {
   AppleMusicSong,
@@ -46,7 +45,8 @@ export const AppleMusicStats = ({ className }: AppleMusicStatsProps) => {
   const [recentTracks, setRecentTracks] = useState<AppleMusicPlayHistoryObject[]>([]);
   const [listeningStats, setListeningStats] = useState<AppleMusicListeningStats | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<AppleMusicTimeRange>('last-week');
-  const [loadedFromDB, setLoadedFromDB] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 const { user } = useAuth();
 
   useEffect(() => {
@@ -75,15 +75,23 @@ const { user } = useAuth();
   };
 
   const handleConnect = async () => {
+    setConnectError(null);
+    setAuthenticating(true);
+
     try {
-      setAuthenticating(true);
       await appleMusicService.authenticate();
+
+      if (!appleMusicService.checkStoredToken()) {
+        throw new Error('Apple Music did not finish authenticating. Please try again.');
+      }
+
       setIsAuthenticated(true);
       await loadUserProfile();
-      
-      } catch (error) {
+    } catch (error) {
       console.error('Apple Music authentication error:', error);
-      } finally {
+      const message = error instanceof Error ? error.message : 'Unable to connect to Apple Music right now.';
+      setConnectError(message);
+    } finally {
       setAuthenticating(false);
     }
   };
@@ -97,10 +105,16 @@ const { user } = useAuth();
     setTopAlbums([]);
     setRecentTracks([]);
     setListeningStats(null);
+    setConnectError(null);
+    setRefreshError(null);
     
     };
 
   const loadUserProfile = async () => {
+    if (!isAuthenticated && !appleMusicService.checkStoredToken()) {
+      return;
+    }
+
     try {
       const storefront = await appleMusicService.getUserStorefront();
       setUserStorefront(storefront);
@@ -110,55 +124,73 @@ const { user } = useAuth();
   };
 
   const loadStats = async () => {
+    const hasSession = isAuthenticated || appleMusicService.checkStoredToken();
+
+    if (!hasSession) {
+      setIsAuthenticated(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      
-      // Database table removed - stats are no longer persisted
-      // Always fetch from API
-      let loadedFromDatabase = false;
+      setRefreshError(null);
 
-      // Always fetch detailed data from API
       const [songsResponse, artistsResponse, albumsResponse, recentResponse] = await Promise.allSettled([
         appleMusicService.getLibrarySongs(50),
-        loadedFromDatabase ? Promise.resolve({ data: [] }) : appleMusicService.getLibraryArtists(50),
+        appleMusicService.getLibraryArtists(50),
         appleMusicService.getLibraryAlbums(50),
         appleMusicService.getRecentlyPlayed(30)
       ]);
 
-      let songs: AppleMusicSong[] = [];
-      let artists: AppleMusicArtist[] = [];
-      let albums: AppleMusicAlbum[] = [];
-      let recent: AppleMusicPlayHistoryObject[] = [];
+      const songsSuccess = songsResponse.status === 'fulfilled';
+      const artistsSuccess = artistsResponse.status === 'fulfilled';
+      const albumsSuccess = albumsResponse.status === 'fulfilled';
+      const recentSuccess = recentResponse.status === 'fulfilled';
 
-      if (songsResponse.status === 'fulfilled') {
-        songs = appleMusicService.processLibraryData(songsResponse.value.data, currentPeriod);
-        setTopTracks(songs);
+      const newTopTracks = songsSuccess
+        ? appleMusicService.processLibraryData(songsResponse.value.data, currentPeriod).slice(0, 20)
+        : topTracks;
+      const newTopArtists = artistsSuccess
+        ? appleMusicService.processLibraryData(artistsResponse.value.data, currentPeriod).slice(0, 20)
+        : topArtists;
+      const newTopAlbums = albumsSuccess
+        ? appleMusicService.processLibraryData(albumsResponse.value.data, currentPeriod).slice(0, 20)
+        : topAlbums;
+      const newRecentTracks = recentSuccess ? recentResponse.value.data || [] : recentTracks;
+
+      if (songsSuccess) {
+        setTopTracks(newTopTracks);
+      }
+      if (artistsSuccess) {
+        setTopArtists(newTopArtists);
+      }
+      if (albumsSuccess) {
+        setTopAlbums(newTopAlbums);
+      }
+      if (recentSuccess) {
+        setRecentTracks(newRecentTracks);
       }
 
-      if (!loadedFromDatabase && artistsResponse.status === 'fulfilled') {
-        artists = appleMusicService.processLibraryData(artistsResponse.value.data, currentPeriod);
-        setTopArtists(artists);
-        setLoadedFromDB(false);
-      }
-
-      if (albumsResponse.status === 'fulfilled') {
-        albums = appleMusicService.processLibraryData(albumsResponse.value.data, currentPeriod);
-        setTopAlbums(albums);
-      }
-
-      if (recentResponse.status === 'fulfilled') {
-        recent = recentResponse.value.data || [];
-        setRecentTracks(recent);
-      }
-
-      // Calculate listening stats
-      const finalArtists = loadedFromDatabase ? topArtists : artists;
-      const stats = appleMusicService.calculateListeningStats(songs, finalArtists);
+      const finalSongs = songsSuccess ? newTopTracks : topTracks;
+      const finalArtists = artistsSuccess ? newTopArtists : topArtists;
+      const stats = appleMusicService.calculateListeningStats(finalSongs, finalArtists);
       setListeningStats(stats);
 
+      const failedSections: string[] = [];
+      if (!songsSuccess) failedSections.push('songs');
+      if (!artistsSuccess) failedSections.push('artists');
+      if (!albumsSuccess) failedSections.push('albums');
+      if (!recentSuccess) failedSections.push('recent tracks');
+
+      if (failedSections.length > 0) {
+        setRefreshError(`Unable to refresh ${failedSections.join(', ')}. Showing last known data.`);
+      } else {
+        setRefreshError(null);
+      }
     } catch (error) {
       console.error('Error loading stats:', error);
-      } finally {
+      setRefreshError('Unable to refresh Apple Music stats right now.');
+    } finally {
       setLoading(false);
     }
   };
@@ -223,6 +255,11 @@ const { user } = useAuth();
                 </>
               )}
             </Button>
+            {connectError && (
+              <p className="text-sm text-red-500 mt-3">
+                {connectError}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -237,18 +274,35 @@ const { user } = useAuth();
             <Music className="w-5 h-5 text-red-500" />
             Apple Music Stats
           </CardTitle>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Disconnect
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadStats}
+              disabled={loading}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Activity className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Disconnect
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {refreshError && (
+          <p className="text-sm text-red-500">
+            {refreshError}
+          </p>
+        )}
         {/* User Profile Section */}
         {userStorefront && (
           <div className="flex items-center gap-4 p-4 rounded-lg bg-red-50 border border-red-200">

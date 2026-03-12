@@ -71,6 +71,7 @@ import {
   divider,
   animations
 } from '@/styles/glassmorphism';
+import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -191,6 +192,10 @@ export function EventDetailsModal({
   }, [actualEvent, setShareModalOpen]);
   const hasNativeEventHeader =
     typeof window !== 'undefined' && !!(window as any).webkit?.messageHandlers?.eventHeader;
+
+  const { titleRef, variant: headerTitleVariant, allowWrap: headerTitleWrap } = useModalHeaderTitle(
+    actualEvent?.title ?? ''
+  );
   
   const { isCreator, isAdmin, isBusiness } = useAccountType();
 
@@ -1272,51 +1277,70 @@ export function EventDetailsModal({
     >
       {/* iOS-style Header with glassmorphism */}
       {!hasNativeEventHeader && (
+      <div
+        style={{
+          ...iosHeader,
+          position: 'sticky',
+          top: 0,
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+          zIndex: 5000,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            ...iosIconButton,
+            width: 44,
+            height: 44,
+            minWidth: 44,
+            minHeight: 44,
+          }}
+          aria-label="Close event details"
+          type="button"
+        >
+          <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+        </button>
+
         <div
           style={{
-            ...iosHeader,
-            position: 'sticky',
-            top: 0,
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-            // Ensure header stays above map/leaflet panes and controls.
-            zIndex: 5000,
-            flexShrink: 0,
+            flex: 1,
+            minWidth: 0,
+            marginLeft: 6,
+            marginRight: 6,
+            display: 'flex',
+            alignItems: 'center',
           }}
         >
-          {/* Back button */}
-          <button
-            onClick={onClose}
-            style={{
-              ...iosIconButton,
-              width: 44,
-              height: 44,
-              minWidth: 44,
-              minHeight: 44,
-            }}
-            aria-label="Close event details"
-            type="button"
-          >
-            <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-          </button>
-          
-          {/* Title */}
-          <h1 
-            style={{
-              ...textStyles.title2,
-              flex: 1,
-              minWidth: 0,
-              textAlign: 'center',
-              margin: '0 12px',
+          {(() => {
+            const TitleTag = headerTitleVariant === 'h1' ? 'h1' : 'h2';
+            const titleTypography =
+              headerTitleVariant === 'h1' ? textStyles.largeTitle : textStyles.title2;
+            const titleStyles: React.CSSProperties = {
+              ...titleTypography,
+              color: 'var(--neutral-900)',
+              margin: 0,
+              textAlign: 'left',
+              lineHeight: 1.2,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              color: 'var(--neutral-900)',
-            }}
-          >
-            {actualEvent.title}
-          </h1>
-          
-          {/* Share button */}
+              display: headerTitleWrap ? '-webkit-box' : 'block',
+              whiteSpace: headerTitleWrap ? 'normal' : 'nowrap',
+              WebkitLineClamp: headerTitleWrap ? 2 : 1,
+              WebkitBoxOrient: headerTitleWrap ? 'vertical' : undefined,
+            };
+
+            return (
+              <TitleTag ref={titleRef} style={titleStyles}>
+                {actualEvent.title}
+              </TitleTag>
+            );
+          })()}
+        </div>
+
+        <div style={{ flex: '0 0 auto' }}>
           <button
             onClick={handleShareEvent}
             style={{
@@ -1332,6 +1356,7 @@ export function EventDetailsModal({
             <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
           </button>
         </div>
+      </div>
       )}
 
       {/* Content area with iOS padding (start 12px below header).

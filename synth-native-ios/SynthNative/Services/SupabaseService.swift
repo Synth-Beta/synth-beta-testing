@@ -14,7 +14,7 @@ enum SupabaseService {
     // every call, meaning signIn() and currentUserId() used different instances.
     static let client: SupabaseClient = {
         let urlStr = Config.supabaseUrl ?? "https://your-project.supabase.co"
-        let key = Config.supabaseAnonKey ?? "your-anon-key"
+        let key = Config.supabaseKey ?? ""
         guard let url = URL(string: urlStr) else {
             fatalError("Invalid Supabase URL: \(urlStr)")
         }
@@ -25,14 +25,17 @@ enum SupabaseService {
     }()
 }
 
-/// Replace with your Supabase project URL and anon key.
+/// Replace with your Supabase project URL and publishable key.
 enum Config {
     static var supabaseUrl: String? {
         ProcessInfo.processInfo.environment["SUPABASE_URL"]
             ?? Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String
     }
-    static var supabaseAnonKey: String? {
-        ProcessInfo.processInfo.environment["SUPABASE_ANON_KEY"]
-            ?? Bundle.main.object(forInfoDictionaryKey: "SUPABASE_ANON_KEY") as? String
+
+    static var supabaseKey: String? {
+        ProcessInfo.processInfo.environment["SUPABASE_PUBLISHABLE_KEY"]
+            ?? ProcessInfo.processInfo.environment["SUPABASE_KEY"]
+            ?? Bundle.main.object(forInfoDictionaryKey: "SUPABASE_PUBLISHABLE_KEY") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "SUPABASE_KEY") as? String
     }
 }

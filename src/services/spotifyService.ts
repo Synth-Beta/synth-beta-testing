@@ -16,6 +16,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 import { logger } from '@/utils/logger';
 
+interface SpotifyAuthenticateOptions {
+  onNavigate?: (url: string) => Promise<void> | void;
+}
+
 export class SpotifyService {
   private static instance: SpotifyService;
   private accessToken: string | null = null;
@@ -64,11 +68,23 @@ export class SpotifyService {
   }
 
   // Authentication methods
-  public async authenticate(): Promise<void> {
+  public async authenticate(options?: SpotifyAuthenticateOptions): Promise<void> {
     if (!this.config.clientId || !this.config.redirectUri) {
       logger.warn('Spotify not configured. Missing VITE_SPOTIFY_CLIENT_ID or VITE_SPOTIFY_REDIRECT_URI.');
       throw new Error('Spotify integration is not configured. Please contact the administrator.');
     }
+
+    const authUrl = await this.prepareAuthRequest();
+
+    if (options?.onNavigate) {
+      await options.onNavigate(authUrl.toString());
+      return;
+    }
+
+    window.location.href = authUrl.toString();
+  }
+
+  private async prepareAuthRequest(): Promise<URL> {
     const state = this.generateRandomString(16);
     const codeVerifier = this.generateRandomString(64);
     const codeChallenge = await this.generateCodeChallenge(codeVerifier);
@@ -91,7 +107,8 @@ export class SpotifyService {
         redirectUri: this.config.redirectUri
       });
     } catch {}
-    window.location.href = authUrl.toString();
+
+    return authUrl;
   }
 
   public async reauthenticate(): Promise<void> {

@@ -9,6 +9,8 @@ import { JamBaseAttribution } from '@/components/attribution';
 import { ClickableImage } from '@/components/modals/FullScreenImageModal';
 import { ShareService } from '@/services/shareService';
 import { UniversalShareModal } from '@/components/share/UniversalShareModal';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
+import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
 import {
   iosModalBackdrop,
   glassCard,
@@ -55,6 +57,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  useLockBodyScroll(isOpen);
 
   useEffect(() => {
     if (isOpen && artistId) {
@@ -80,6 +83,11 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   }, [isOpen]);
 
   const useInternalHeader = isOpen && !hasOuterMobileHeader;
+  const {
+    titleRef: artistTitleRef,
+    variant: artistTitleVariant,
+    allowWrap: artistTitleWrap,
+  } = useModalHeaderTitle(artistName);
 
   // Focus management for accessibility
   useEffect(() => {
@@ -336,16 +344,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
         aria-label={`Artist details: ${artistName}`}
         style={{
           position: 'fixed',
-          left: 0,
-          right: 0,
-          margin: '0 auto',
-          width: '100%',
-          maxWidth: 390,
-          // Constrain between fixed header and fixed bottom nav.
-          top: useInternalHeader
-            ? 'var(--onboarding-banner-height, 0px)'
-            : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          inset: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
@@ -369,7 +368,6 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                 height: 68,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
                 paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
                 paddingRight: 'var(--spacing-screen-margin-x, 20px)',
                 paddingTop: 12,
@@ -392,50 +390,69 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                   padding: 0,
                   margin: 0,
                   cursor: 'pointer',
+                  flex: '0 0 auto',
                 }}
               >
                 <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
               </button>
 
-              <h1
+              <div
                 style={{
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-h2-size, 24px)',
-                  fontWeight: 'var(--typography-h2-weight, 700)',
-                  lineHeight: 'var(--typography-h2-line-height, 1.3)',
-                  color: 'var(--neutral-900)',
-                  margin: 0,
                   flex: 1,
-                  textAlign: 'center',
-                  paddingLeft: 8,
-                  paddingRight: 8,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {artistName}
-              </h1>
-
-              <button
-                onClick={() => setShareModalOpen(true)}
-                type="button"
-                aria-label="Share"
-                style={{
-                  width: 44,
-                  height: 44,
+                  minWidth: 0,
+                  marginLeft: 6,
+                  marginRight: 6,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  margin: 0,
-                  cursor: 'pointer',
                 }}
               >
-                <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-              </button>
+                {(() => {
+                  const TitleTag = artistTitleVariant === 'h1' ? 'h1' : 'h2';
+                  const titleTypography =
+                    artistTitleVariant === 'h1' ? textStyles.largeTitle : textStyles.title2;
+                  const titleStyles: React.CSSProperties = {
+                    ...titleTypography,
+                    color: 'var(--neutral-900)',
+                    margin: 0,
+                    textAlign: 'left',
+                    lineHeight: 1.2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: artistTitleWrap ? '-webkit-box' : 'block',
+                    whiteSpace: artistTitleWrap ? 'normal' : 'nowrap',
+                    WebkitLineClamp: artistTitleWrap ? 2 : 1,
+                    WebkitBoxOrient: artistTitleWrap ? 'vertical' : undefined,
+                  };
+
+                  return (
+                    <TitleTag ref={artistTitleRef} style={titleStyles}>
+                      {artistName}
+                    </TitleTag>
+                  );
+                })()}
+              </div>
+
+              <div style={{ flex: '0 0 auto' }}>
+                <button
+                  onClick={() => setShareModalOpen(true)}
+                  type="button"
+                  aria-label="Share"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    margin: 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -445,10 +462,8 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
           style={{
             paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
             paddingRight: 'var(--spacing-screen-margin-x, 20px)',
-            // Keep the same visual gap under the app header, but render it
-            // inside the modal so it uses the modal background (not page gradient).
             paddingTop: 'var(--spacing-small, 12px)',
-            paddingBottom: 'var(--spacing-bottom-nav, 32px)',
+            paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))',
           }}
         >
           {loading ? (

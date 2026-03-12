@@ -19,8 +19,8 @@ import {
   Activity
 } from 'lucide-react';
 import { spotifyService } from '@/services/spotifyService';
-import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import {
   SpotifyUser,
   SpotifyTrack,
@@ -45,8 +45,9 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
   const [recentTracks, setRecentTracks] = useState<SpotifyPlayHistoryObject[]>([]);
   const [listeningStats, setListeningStats] = useState<SpotifyListeningStats | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<SpotifyTimeRange>('short_term');
-  const [loadedFromDB, setLoadedFromDB] = useState(false);
-const { user } = useAuth();
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     initializeSpotify();
@@ -84,7 +85,8 @@ const { user } = useAuth();
       if (hasCallback) {
         setIsAuthenticated(true);
         setHasPermissionError(false);
-        await loadUserProfile();
+        const profile = await loadUserProfile();
+        await persistSpotifyProfileUrl(profile);
         return;
       }
 
@@ -96,7 +98,8 @@ const { user } = useAuth();
         if (isValid) {
           setIsAuthenticated(true);
           setHasPermissionError(false);
-          await loadUserProfile();
+          const profile = await loadUserProfile();
+          await persistSpotifyProfileUrl(profile);
         } else {
           // Re-authentication was triggered, will redirect
           return;
@@ -114,25 +117,31 @@ const { user } = useAuth();
       }
     } catch (error) {
       console.error('Spotify initialization error:', error);
-      } finally {
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleConnect = () => {
-    // Check if Spotify is configured before attempting authentication
+  const handleConnect = async () => {
     if (!spotifyService.isConfigured()) {
+      setConnectError('Spotify integration is not configured yet. Please check your environment.');
       return;
     }
 
+    setConnectError(null);
     setAuthenticating(true);
+
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('spotify_connect_source', 'profile');
       }
-      spotifyService.authenticate();
+      await spotifyService.authenticate();
+      setAuthenticating(false);
     } catch (error) {
       console.error('Authentication error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unable to connect to Spotify at this time.';
+      setConnectError(errorMessage);
       setAuthenticating(false);
     }
   };
@@ -163,6 +172,8 @@ const { user } = useAuth();
     setRecentTracks([]);
     setListeningStats(null);
     setHasPermissionError(false);
+    setConnectError(null);
+    setRefreshError(null);
     
     };
 
@@ -184,10 +195,12 @@ const { user } = useAuth();
     setTopArtists([]);
     setRecentTracks([]);
     setListeningStats(null);
+    setRefreshError(null);
+    setConnectError(null);
     
     };
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = async (): Promise<SpotifyUser | null> => {
     // Don't try to load profile if not authenticated
     if (!isAuthenticated || !spotifyService.isAuthenticated()) {
       console.log('⚠️ Not authenticated, skipping profile load');
@@ -201,7 +214,7 @@ const { user } = useAuth();
         setListeningStats(null);
         setHasPermissionError(false);
       }
-      return;
+      return null;
     }
 
     try {
@@ -210,6 +223,7 @@ const { user } = useAuth();
       
       const profile = await spotifyService.getUserProfile();
       setUserProfile(profile);
+      return profile;
     } catch (error) {
       console.error('Error loading user profile:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load Spotify profile.';
@@ -218,78 +232,88 @@ const { user } = useAuth();
       if (errorMessage.includes('permissions') || errorMessage.includes('403')) {
         setHasPermissionError(true);
         }
+      return null;
+    }
+  };
+
+  const persistSpotifyProfileUrl = async (profile?: SpotifyUser | null) => {
+    if (!user?.id) {
+      return;
+    }
+
+    const url = profile?.external_urls?.spotify;
+    if (!url) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ music_streaming_profile: url })
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error persisting Spotify profile URL:', error);
+      }
+    } catch (error) {
+      console.error('Error persisting Spotify profile URL:', error);
     }
   };
 
   const loadStats = async () => {
-    // Don't try to load stats if not authenticated
-    if (!isAuthenticated || !spotifyService.isAuthenticated()) {
+    const hasSession = isAuthenticated || spotifyService.isAuthenticated();
+    if (!hasSession) {
       console.log('⚠️ Not authenticated, skipping stats load');
-      // Reset the component state if we're not actually authenticated
-      if (!spotifyService.isAuthenticated()) {
-        setIsAuthenticated(false);
-        setUserProfile(null);
-        setTopTracks([]);
-        setTopArtists([]);
-        setRecentTracks([]);
-        setListeningStats(null);
-        setHasPermissionError(false);
-      }
+      setIsAuthenticated(false);
+      setHasPermissionError(false);
       return;
     }
 
     try {
       setLoading(true);
-      
-      // Database table removed - stats are no longer persisted
-      // Always fetch from API
-      let loadedFromDatabase = false;
+      setRefreshError(null);
 
-      // Always fetch recent tracks and detailed data from API
-      // Also fetch if we didn't get data from DB
-      if (!loadedFromDatabase) {
       const [topTracksResponse, topArtistsResponse, recentlyPlayedResponse] = await Promise.allSettled([
-          spotifyService.getTopTracks(currentPeriod, 50),
+        spotifyService.getTopTracks(currentPeriod, 50),
         spotifyService.getTopArtists(currentPeriod, 50),
         spotifyService.getRecentlyPlayed(50)
       ]);
 
-      // Handle successful responses
-      const topTracks = topTracksResponse.status === 'fulfilled' ? topTracksResponse.value.items : [];
-      const topArtists = topArtistsResponse.status === 'fulfilled' ? topArtistsResponse.value.items : [];
-      const recentTracks = recentlyPlayedResponse.status === 'fulfilled' ? recentlyPlayedResponse.value.items : [];
+      const tracksSuccess = topTracksResponse.status === 'fulfilled';
+      const artistsSuccess = topArtistsResponse.status === 'fulfilled';
+      const recentSuccess = recentlyPlayedResponse.status === 'fulfilled';
 
-      setTopTracks(topTracks);
-      setTopArtists(topArtists);
-      setRecentTracks(recentTracks);
-        setLoadedFromDB(false);
-      } else {
-        // Still fetch recent tracks and tracks for current period
-        const [topTracksResponse, recentlyPlayedResponse] = await Promise.allSettled([
-          spotifyService.getTopTracks(currentPeriod, 50),
-          spotifyService.getRecentlyPlayed(50)
-        ]);
+      const updatedTopTracks = tracksSuccess ? topTracksResponse.value.items : topTracks;
+      const updatedTopArtists = artistsSuccess ? topArtistsResponse.value.items : topArtists;
+      const updatedRecentTracks = recentSuccess ? recentlyPlayedResponse.value.items : recentTracks;
 
-        const topTracks = topTracksResponse.status === 'fulfilled' ? topTracksResponse.value.items : [];
-        const recentTracks = recentlyPlayedResponse.status === 'fulfilled' ? recentlyPlayedResponse.value.items : [];
-
-        setTopTracks(topTracks);
-        setRecentTracks(recentTracks);
+      if (tracksSuccess) {
+        setTopTracks(updatedTopTracks);
+      }
+      if (artistsSuccess) {
+        setTopArtists(updatedTopArtists);
+      }
+      if (recentSuccess) {
+        setRecentTracks(updatedRecentTracks);
       }
 
-      // Calculate listening stats from current data
-      const stats = spotifyService.calculateListeningStats(topTracks, topArtists);
+      const stats = spotifyService.calculateListeningStats(updatedTopTracks, updatedTopArtists);
       setListeningStats(stats);
 
-      // Show helpful message if no data
-      if (topTracks.length === 0 && topArtists.length === 0) {
-        }
+      const failedSections: string[] = [];
+      if (!tracksSuccess) failedSections.push('top tracks');
+      if (!artistsSuccess) failedSections.push('top artists');
+      if (!recentSuccess) failedSections.push('recent tracks');
 
+      if (failedSections.length > 0) {
+        setRefreshError(`Unable to refresh ${failedSections.join(', ')}. Showing last known data.`);
+      } else {
+        setRefreshError(null);
+      }
     } catch (error) {
       console.error('Error loading stats:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load Spotify statistics.';
-      
-      } finally {
+      setRefreshError('Unable to refresh Spotify stats at this time.');
+    } finally {
       setLoading(false);
     }
   };
@@ -354,6 +378,11 @@ const { user } = useAuth();
                 </>
               )}
             </Button>
+            {connectError && (
+              <p className="text-sm text-red-500 mt-3">
+                {connectError}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -368,7 +397,7 @@ const { user } = useAuth();
             <Music className="w-5 h-5 text-green-600" />
             Spotify Music Stats
           </CardTitle>
-          <div className="flex gap-2">
+        <div className="flex gap-2">
             <Button 
               variant="ghost" 
               size="sm" 
@@ -392,6 +421,11 @@ const { user } = useAuth();
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {refreshError && (
+          <p className="text-sm text-red-500">
+            {refreshError}
+          </p>
+        )}
         {/* User Profile Section */}
         {userProfile && (
           <div className="flex items-center gap-4 p-4 rounded-lg bg-green-50 border border-green-200">

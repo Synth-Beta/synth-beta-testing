@@ -208,8 +208,10 @@ export const UnifiedFeed = ({
     paddingBottom: 'var(--spacing-bottom-nav, 32px)',
     backgroundColor: 'var(--neutral-50)'
   };
-  const innerClassName = isEmbedded ? 'w-full space-y-0' : 'max-w-4xl mx-auto p-6 space-y-8';
-  const headerSpacingClass = isEmbedded ? 'mb-0' : 'mb-8';
+  const innerClassName = isEmbedded
+    ? 'w-full space-y-0'
+    : 'max-w-4xl mx-auto px-6 py-[var(--spacing-small,12px)]';
+  const headerSpacingClass = isEmbedded ? 'mb-0' : 'mb-[var(--spacing-small,12px)]';
   const resolvedHeaderTitle = headerTitle ?? 'Feed';
   const resolvedHeaderSubtitle =
     headerSubtitle ?? 'Discover reviews and events from friends and the community';
@@ -1895,7 +1897,7 @@ export const UnifiedFeed = ({
         // UnifiedFeed render
 
   const renderEventFiltersBlock = () => (
-    <div className={`${isEmbedded ? 'mb-2' : 'mb-6'} lg:sticky lg:top-6 lg:z-20`}>
+    <div className={`${isEmbedded ? 'mb-2' : 'mb-[var(--spacing-small,12px)]'} lg:sticky lg:top-6 lg:z-20`}>
       <div className="rounded-2xl border border-white/60 bg-white/90 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
           <div className="md:flex-1">
@@ -2429,7 +2431,7 @@ export const UnifiedFeed = ({
         {/* Feed type tabs */}
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as FeedSectionKey)}>
           {showSectionTabs !== false && (
-            <TabsList className={`grid w-full ${isEmbedded ? 'mb-1 mt-0' : 'mb-6'} bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1 ${sectionGridClass}`}>
+            <TabsList className={`grid w-full ${isEmbedded ? 'mb-1 mt-0' : 'mb-[var(--spacing-small,12px)]'} bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1 ${sectionGridClass}`}>
               {resolvedSections.map((section) => {
                 const { label, icon: Icon } = SECTION_META[section];
                 return (
@@ -2448,7 +2450,7 @@ export const UnifiedFeed = ({
 
           {/* Filters and Refresh Button - Only show on Events tab */}
           {activeTab === 'events' && resolvedSections.includes('events') && (
-            <div className={`${isEmbedded ? 'mb-1 pt-0' : 'mb-6'} flex flex-col gap-2 md:flex-row md:items-center md:justify-between`}>
+            <div className={`${isEmbedded ? 'mb-1 pt-0' : 'mb-[var(--spacing-small,12px)]'} flex flex-col gap-2 md:flex-row md:items-center md:justify-between`}>
               <div className={`${isEmbedded ? 'flex-1' : 'md:flex-1'}`}>
                 <EventFilters
                   filters={pendingFilters}

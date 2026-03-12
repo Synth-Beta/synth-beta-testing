@@ -463,6 +463,13 @@
     border-radius: inherit;
   }
 
+  /* Keep all headers pinned so iOS webview sections stay visible while scrolling */
+  header {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 50;
+  }
+
   /* ── Page transition animations ───────────────────────────────── */
   @keyframes view-slide-in-right {
     from { opacity: 0; transform: translateX(18px); }
@@ -624,6 +631,17 @@
     line-height: var(--typography-h2-line-height);
     color: var(--neutral-900);
     font-family: var(--font-family);
+  }
+
+  /* Keep all heading spacing tight per design guide (12px under headers). */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-small, 12px);
   }
 
   /* Default text styles using design tokens */

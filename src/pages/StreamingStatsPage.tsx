@@ -11,6 +11,7 @@ import { streamingSyncService } from '@/services/streamingSyncService';
 import { toast } from '@/hooks/use-toast';
 import PageShell from '@/components/layout/PageShell';
 import { formatDistanceToNow } from 'date-fns';
+import { SpotifyUser } from '@/types/spotify';
 
 interface StreamingStatsPageProps {
   onBack?: () => void;
@@ -29,6 +30,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [connectingSpotify, setConnectingSpotify] = useState(false);
   const [serviceType, setServiceType] = useState<'spotify' | 'apple-music' | null>(null);
   const [profileData, setProfileData] = useState<any>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
@@ -73,12 +75,25 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
       }
 
       if (!detectedType) {
+        const hasSpotifySignal =
+          spotifyService.checkStoredToken() || spotifyService.isAuthenticated();
+        if (hasSpotifySignal) {
+          detectedType = 'spotify';
+        }
+      }
+
+      if (!detectedType) {
         setNeedsConnection(true);
         return;
       }
 
       if (detectedType === 'spotify') {
-        await spotifyService.ensureSession();
+        const sessionEstablished = await spotifyService.ensureSession();
+        if (!sessionEstablished) {
+          setNeedsConnection(true);
+          return;
+        }
+        await persistSpotifyProfileUrl();
       }
 
       setServiceType(detectedType);
@@ -107,6 +122,31 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     }
   };
 
+  const persistSpotifyProfileUrl = async (profile?: SpotifyUser | null) => {
+    if (!user?.id) {
+      return;
+    }
+
+    try {
+      const spotifyProfile = profile ?? (await spotifyService.getUserProfile());
+      const url = spotifyProfile?.external_urls?.spotify;
+      if (!url) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from('users')
+        .update({ music_streaming_profile: url })
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error persisting Spotify profile URL:', error);
+      }
+    } catch (error) {
+      console.error('Error persisting Spotify profile URL:', error);
+    }
+  };
+
   const handleSync = async () => {
     if (!serviceType) return;
     setSyncing(true);
@@ -119,6 +159,11 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
               title: 'Connect Spotify to refresh',
               description: 'Reconnect to Spotify to refresh your streaming stats.',
             });
+            try {
+              await spotifyService.reauthenticate();
+            } catch (error) {
+              console.error('Spotify reauthentication error:', error);
+            }
             return;
           }
           setNeedsConnection(true);
@@ -148,6 +193,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   };
 
   const handleConnectSpotify = async () => {
+    setConnectingSpotify(true);
     try {
       if (!spotifyService.isConfigured()) {
         toast({
@@ -157,8 +203,20 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         });
         return;
       }
+
       localStorage.setItem('spotify_connect_source', 'streaming_stats');
-      await spotifyService.authenticate();
+
+      const isNativeCapacitor =
+        typeof window !== 'undefined' && typeof (window as any).Capacitor !== 'undefined';
+
+      await spotifyService.authenticate({
+        onNavigate: isNativeCapacitor
+          ? async (url: string) => {
+              const { Browser } = await import('@capacitor/browser');
+              await Browser.open({ url });
+            }
+          : undefined,
+      });
     } catch (err) {
       console.error('Spotify connect error:', err);
       toast({
@@ -166,10 +224,20 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         description: 'Could not connect to Spotify. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setConnectingSpotify(false);
     }
   };
 
   const handleConnectAppleMusic = async () => {
+    if (typeof (window as any).MusicKit === 'undefined') {
+      toast({
+        title: 'Apple Music unavailable',
+        description: 'Apple Music connection requires the native app build.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSyncing(true);
     try {
       await appleMusicService.authenticate();
@@ -274,7 +342,10 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
   if (needsConnection) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-white to-pink-50/30 px-4 pt-4 pb-24">
+      <div
+        className="min-h-screen bg-gradient-to-b from-white to-pink-50/30 px-4 pb-24"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
+      >
         <Button variant="ghost" onClick={handleBack} className="mb-4 -ml-2">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
@@ -292,13 +363,20 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
           <div className="space-y-3">
             <button
               onClick={handleConnectSpotify}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#1DB954]/10 hover:bg-[#1DB954]/20 active:scale-[0.98] transition-all text-left"
+              disabled={connectingSpotify}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#1DB954]/10 hover:bg-[#1DB954]/20 active:scale-[0.98] transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <div className="w-12 h-12 bg-[#1DB954] rounded-full flex items-center justify-center flex-shrink-0">
-                <Music className="w-6 h-6 text-white" />
+                {connectingSpotify ? (
+                  <RefreshCw className="w-5 h-5 text-white animate-spin" />
+                ) : (
+                  <Music className="w-6 h-6 text-white" />
+                )}
               </div>
               <div>
-                <p className="font-semibold text-sm">Connect Spotify</p>
+                <p className="font-semibold text-sm">
+                  {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
+                </p>
                 <p className="text-xs text-muted-foreground">Top artists, tracks, and genres</p>
               </div>
             </button>

@@ -75,3 +75,4 @@ ios/**/DerivedData/
 *.xcodeproj/*.mode2v3
 *.xcodeproj/*.perspectivev3
 *.xcodeproj/*.userdata
+ios/debug.xcconfig

@@ -167,7 +167,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         config.userContentController.add(self, name: "eventHeader")
         config.userContentController.add(self, name: "setBadgeCount")
         config.userContentController.add(self, name: "synthNativeAuth")
-        config.userContentController.add(self, name: "synthGetSession")
         config.userContentController.add(self, name: "synthDeepLinkReady")
         let script = """
             (function() {

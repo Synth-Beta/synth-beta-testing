@@ -57,6 +57,7 @@ import { Badge as VerifiedBadge } from '@/components/ui/badge';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { toast } from '@/hooks/use-toast';
+import PageShell from '@/components/layout/PageShell';
 
 // Chat Review Message wrapper that displays review using ReviewMessageCard (styled like EventMessageCard)
 const ChatReviewMessage: React.FC<{
@@ -64,9 +65,10 @@ const ChatReviewMessage: React.FC<{
   currentUserId?: string;
   onReviewClick?: (review: ReviewWithEngagement) => void;
   metadata?: { review_text?: string; rating?: number; artist_name?: string; venue_name?: string; custom_message?: string; };
-}> = ({ reviewId, currentUserId, onReviewClick, metadata }) => {
+  header?: React.ReactNode;
+}> = ({ reviewId, currentUserId, onReviewClick, metadata, header }) => {
   return (
-    <PageShell header={chatHeader}>
+    <PageShell header={header}>
       <ReviewMessageCard
         reviewId={reviewId}
         currentUserId={currentUserId}
@@ -1659,6 +1661,93 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     }
   };
 
+  const showChatHeader = !hideHeader && !eventDetailsOpen && !showReviewDetailModal;
+  const chatHeader = showChatHeader ? (
+    <MobileHeader
+      menuOpen={menuOpen}
+      onMenuClick={onMenuClick}
+      rightIcon={selectedChat ? "moreVertical" : undefined}
+      onRightIconClick={selectedChat ? () => setShowSettingsMenu(true) : undefined}
+      alignLeft={true}
+    >
+      {selectedChat ? (
+        <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+          <button
+            onClick={() => {
+              setSelectedChat(null);
+              window.scrollTo(0, 0);
+            }}
+            className="w-6 h-6 flex items-center justify-center cursor-pointer synth-focus rounded"
+            style={{ padding: 0, margin: 0, background: 'none', border: 'none' }}
+            type="button"
+            aria-label="Back to chats"
+          >
+            <ArrowLeft className="w-6 h-6" style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={handleHeaderIdentityClick}
+            className="flex items-center min-w-0 synth-focus rounded"
+            style={{
+              gap: 'var(--spacing-inline, 6px)',
+              padding: 0,
+              margin: 0,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+            aria-label={selectedChat.is_group_chat ? 'Open chat info' : 'Open user profile'}
+          >
+            <Avatar className="w-8 h-8 flex-shrink-0">
+              <AvatarImage
+                src={getChatAvatar(selectedChat) || undefined}
+                alt={
+                  selectedChat.is_group_chat
+                    ? `${getChatDisplayName(selectedChat)} group chat avatar`
+                    : `${getChatDisplayName(selectedChat)}'s profile picture`
+                }
+              />
+              <AvatarFallback className="font-medium text-base" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
+                {selectedChat.is_group_chat ? (
+                  <Users className="w-5 h-5" />
+                ) : (
+                  getChatDisplayName(selectedChat).split(' ').map((n) => n[0]).join('')
+                )}
+              </AvatarFallback>
+            </Avatar>
+            <h2
+              className="font-bold text-[24px] leading-[normal]"
+              style={{
+                color: 'var(--neutral-900)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                lineHeight: 'normal',
+                maxHeight: 'calc(2 * 1.3em)',
+              }}
+            >
+              {getChatDisplayName(selectedChat)}
+            </h2>
+          </button>
+        </div>
+      ) : (
+        <h1
+          style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-h2-size, 24px)',
+            fontWeight: 'var(--typography-h2-weight, 700)',
+            color: 'var(--neutral-900)',
+          }}
+        >
+          {`Messages${unreadMessagesCount > 0 ? ` (${unreadMessagesCount})` : ''}`}
+        </h1>
+      )}
+    </MobileHeader>
+  ) : undefined;
+
   const handleSaveGroupName = async () => {
     if (!editedGroupName.trim() || !selectedChat) return;
     
@@ -1873,6 +1962,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                 onReviewClick={handleReviewClick}
                                 currentUserId={currentUserId}
                                 metadata={message.metadata}
+                                header={chatHeader}
                               />
                             );
                           }
@@ -1966,84 +2056,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   }
 
   return (
-    <div 
-      className="flex w-full max-w-[393px] mx-auto h-full" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh', height: '100dvh' }}
-    >
-      {/* Mobile Header */}
-      {!hideHeader && !eventDetailsOpen && !showReviewDetailModal && (
-        <MobileHeader 
-          menuOpen={menuOpen} 
-          onMenuClick={onMenuClick}
-          rightIcon={selectedChat ? "moreVertical" : undefined}
-          onRightIconClick={selectedChat ? () => setShowSettingsMenu(true) : undefined}
-          alignLeft={true}
-        >
-          {selectedChat ? (
-            <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-              <button
-                onClick={() => {
-                  setSelectedChat(null);
-                  window.scrollTo(0, 0);
-                }}
-                className="w-6 h-6 flex items-center justify-center cursor-pointer synth-focus rounded"
-                style={{ padding: 0, margin: 0, background: 'none', border: 'none' }}
-                type="button"
-                aria-label="Back to chats"
-              >
-                <ArrowLeft className="w-6 h-6" style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={handleHeaderIdentityClick}
-                className="flex items-center min-w-0 synth-focus rounded"
-                style={{
-                  gap: 'var(--spacing-inline, 6px)',
-                  padding: 0,
-                  margin: 0,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-                aria-label={selectedChat.is_group_chat ? 'Open chat info' : 'Open user profile'}
-              >
-                <Avatar className="w-8 h-8 flex-shrink-0">
-                  <AvatarImage 
-                    src={getChatAvatar(selectedChat) || undefined} 
-                    alt={selectedChat.is_group_chat 
-                      ? `${getChatDisplayName(selectedChat)} group chat avatar`
-                      : `${getChatDisplayName(selectedChat)}'s profile picture`} 
-                  />
-                  <AvatarFallback className="font-medium text-base" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
-                    {selectedChat.is_group_chat ? (
-                      <Users className="w-5 h-5" />
-                    ) : (
-                      getChatDisplayName(selectedChat).split(' ').map(n => n[0]).join('')
-                    )}
-                  </AvatarFallback>
-                </Avatar>
-                <h2 className="font-bold text-[24px] leading-[normal]" style={{ 
-                  color: 'var(--neutral-900)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  lineHeight: 'normal',
-                  maxHeight: 'calc(2 * 1.3em)' // Approximate 2 lines
-                }}>
-                  {getChatDisplayName(selectedChat)}
-                </h2>
-              </button>
-            </div>
-          ) : (
-            <h1 style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', color: 'var(--neutral-900)' }}>
-               {`Messages${unreadMessagesCount > 0 ? ` (${unreadMessagesCount})` : ''}`}
-            </h1>
-          )}
-        </MobileHeader>
-      )}
-      
+    <PageShell header={chatHeader}>
+      <div 
+        className="flex w-full max-w-[393px] mx-auto h-full" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh', height: '100dvh' }}
+      >
       {/* Settings Menu Dropdown - Positioned relative to header */}
       {selectedChat && (
         <DropdownMenu open={showSettingsMenu} onOpenChange={setShowSettingsMenu}>
@@ -2123,7 +2139,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       {!selectedChat && (
         <div className="w-full flex flex-col flex-1 min-h-0">
         {/* Content area - 12px below header */}
-        <div className="flex-shrink-0" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: hideHeader ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, paddingBottom: 0 }}>
+          <div className="flex-shrink-0" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 0 }}>
           
           {/* New Chat Button - opens unified modal for direct or group chat */}
             <SynthButton
@@ -3101,6 +3117,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 };

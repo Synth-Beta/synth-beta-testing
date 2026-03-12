@@ -550,7 +550,7 @@ class SynthShareCardRenderer {
 
             // Background
             UIColor(hex: "#0C0C0E").setFill()
-            CGRect(origin: .zero, size: CGSize(width: W, height: H)).fill()
+            cgCtx.fill(CGRect(origin: .zero, size: CGSize(width: W, height: H)))
 
             // Blurred artwork background
             if let artwork {
@@ -561,7 +561,7 @@ class SynthShareCardRenderer {
 
             // Dark overlay
             UIColor.black.withAlphaComponent(0.68).setFill()
-            CGRect(origin: .zero, size: CGSize(width: W, height: H)).fill()
+            cgCtx.fill(CGRect(origin: .zero, size: CGSize(width: W, height: H)))
 
             // Top bar
             drawFallbackTopBar(ctx: cgCtx, W: W)
@@ -711,7 +711,7 @@ class SynthShareCardRenderer {
 
         // URL
         let urlAttrs: [NSAttributedString.Key: Any] = [
-            .font: UIFont.monospacedSystemFont(ofSize: 11, fixedPitch: true),
+            .font: UIFont.monospacedSystemFont(ofSize: 11, weight: .regular),
             .foregroundColor: UIColor.white.withAlphaComponent(0.35)
         ]
         "plusone.app".draw(at: CGPoint(x: 52, y: H - 36), withAttributes: urlAttrs)

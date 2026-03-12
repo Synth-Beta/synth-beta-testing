@@ -20,6 +20,7 @@
 	},
 	"packageClassList": [
 		"AppPlugin",
+		"CAPBrowserPlugin",
 		"HapticsPlugin",
 		"PreferencesPlugin",
 		"PushNotificationsPlugin",

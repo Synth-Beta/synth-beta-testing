@@ -509,18 +509,18 @@ export const MusicTagsStep = ({
           <Button
             type="button"
             variant="outline"
-            className="gap-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800"
+            className="gap-2 border-green-500 text-neutral-900 hover:bg-green-50 hover:text-neutral-900"
             onClick={handleConnectSpotify}
             disabled={spotifyConnecting}
           >
             {spotifyConnecting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-neutral-900" />
                 Connecting…
               </>
             ) : (
               <>
-                <LogIn className="w-4 h-4" />
+                <LogIn className="w-4 h-4 text-neutral-900" />
                 Connect Spotify
               </>
             )}
@@ -528,30 +528,23 @@ export const MusicTagsStep = ({
           <Button
             type="button"
             variant="outline"
-            className="gap-2 border-red-500 text-red-700 hover:bg-red-50 hover:text-red-800"
+            className="gap-2 border-red-500 text-neutral-900 hover:bg-red-50 hover:text-neutral-900"
             onClick={handleConnectAppleMusic}
             disabled={appleMusicSyncing}
           >
             {appleMusicSyncing ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-neutral-900" />
                 Syncing…
               </>
             ) : (
               <>
-                <LogIn className="w-4 h-4" />
+                <LogIn className="w-4 h-4 text-neutral-900" />
                 Connect Apple Music
               </>
             )}
           </Button>
         </div>
-      </div>
-
-      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-[16px] font-medium leading-[1.5]">
-        <p className="text-blue-700 dark:text-blue-300">
-          💡 <strong>Tip:</strong> You can also connect Spotify or Apple Music later to
-          automatically sync your music preferences.
-        </p>
       </div>
 
       {showButtons && (

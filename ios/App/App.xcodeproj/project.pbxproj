@@ -51,6 +51,8 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		EVSH1002ABCD12340016851F /* EventShareHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = EVSH1001ABCD12340016851F /* EventShareHandler.swift */; };
 		EVSM2002ABCD12340016851F /* EventShareModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EVSM2001ABCD12340016851F /* EventShareModal.swift */; };
+		SDLR1002AF431CB00220026 /* SynthDeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = SDLR1001AF431CB00220026 /* SynthDeepLinkRouter.swift */; };
+		SSCR1002AF431CB00220026 /* SynthShareCardRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = SSCR1001AF431CB00220026 /* SynthShareCardRenderer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -101,6 +103,8 @@
 		978E42DA2F19C3B00002FCAA /* Synth.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Synth.entitlements; sourceTree = "<group>"; };
 		EVSH1001ABCD12340016851F /* EventShareHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventShareHandler.swift; sourceTree = "<group>"; };
 		EVSM2001ABCD12340016851F /* EventShareModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventShareModal.swift; sourceTree = "<group>"; };
+		SDLR1001AF431CB00220026 /* SynthDeepLinkRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthDeepLinkRouter.swift; sourceTree = "<group>"; };
+		SSCR1001AF431CB00220026 /* SynthShareCardRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynthShareCardRenderer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -143,6 +147,8 @@
 				504EC3091FED79650016851F /* AppleSignInHandler.swift */,
 				EVSH1001ABCD12340016851F /* EventShareHandler.swift */,
 				EVSM2001ABCD12340016851F /* EventShareModal.swift */,
+				SDLR1001AF431CB00220026 /* SynthDeepLinkRouter.swift */,
+				SSCR1001AF431CB00220026 /* SynthShareCardRenderer.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -304,6 +310,8 @@
 				504EC30A1FED79650016851F /* AppleSignInHandler.swift in Sources */,
 				EVSH1002ABCD12340016851F /* EventShareHandler.swift in Sources */,
 				EVSM2002ABCD12340016851F /* EventShareModal.swift in Sources */,
+				SDLR1002AF431CB00220026 /* SynthDeepLinkRouter.swift in Sources */,
+				SSCR1002AF431CB00220026 /* SynthShareCardRenderer.swift in Sources */,
 				AUTH10012AF431CB00220026 /* AuthView.swift in Sources */,
 				ACCM10012AF431CB00220026 /* AccountDeletedSuccessModal.swift in Sources */,
 				AAPM10012AF431CB00220026 /* AppAuthModel.swift in Sources */,

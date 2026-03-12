@@ -396,46 +396,6 @@ export function UniversalShareModal({
           </button>
         </div>
 
-        {/* Message text area */}
-        <div
-          style={{
-            padding: '14px 20px',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-          }}
-        >
-          <label
-            htmlFor="universal-share-message"
-            style={{
-              display: 'block',
-              marginBottom: '6px',
-              fontFamily: 'var(--font-family)',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: 'var(--neutral-700)',
-            }}
-          >
-            Message (optional)
-          </label>
-          <textarea
-            id="universal-share-message"
-            value={customMessage}
-            onChange={(e) => setCustomMessage(e.target.value)}
-            placeholder="Add a personal note before sharing"
-            rows={3}
-            style={{
-              width: '100%',
-              borderRadius: '12px',
-              border: '1px solid rgba(0, 0, 0, 0.1)',
-              padding: '10px 12px',
-              fontFamily: 'var(--font-family)',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              resize: 'vertical',
-              minHeight: '96px',
-            }}
-          />
-        </div>
-
         {/* Search Bar (only when in-app chat is available) */}
         {isEventShare && showInternalChatSection && (
           <div
@@ -741,6 +701,46 @@ export function UniversalShareModal({
               </div>
             ) : null
           ) : null}
+
+          {/* Message text area */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            <label
+              htmlFor="universal-share-message"
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: 'var(--neutral-700)',
+              }}
+            >
+              Message (optional)
+            </label>
+            <textarea
+              id="universal-share-message"
+              value={customMessage}
+              onChange={(e) => setCustomMessage(e.target.value)}
+              placeholder="Add a personal note before sharing"
+              style={{
+                width: '100%',
+                borderRadius: '12px',
+                border: '1px solid rgba(0, 0, 0, 0.1)',
+                padding: '10px 12px',
+                fontFamily: 'var(--font-family)',
+                fontSize: '14px',
+                lineHeight: '1.5',
+                resize: 'none',
+                height: '44px',
+                maxHeight: '44px',
+                overflowY: 'auto',
+              }}
+            />
+          </div>
 
           {/* External Share Options */}
           <div>
