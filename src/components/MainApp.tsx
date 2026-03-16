@@ -69,6 +69,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   Capacitor.isNativePlatform() &&
   typeof Capacitor.getPlatform === 'function' &&
   Capacitor.getPlatform() === 'ios';
+  const USE_NATIVE_NAV = true;
   const [currentView, setCurrentView] = useState<ViewType>('feed');
   const prevViewRef = useRef<ViewType>('feed');
   // Track whether the user has ever been authenticated in this session.
@@ -1042,20 +1043,24 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       {/* New Bottom Navigation - replaces old Navigation */}
       {/* Show bottom nav on messages list, but hide when a chat is selected */}
       {!hideNavigation && showMainNav && (currentView !== 'chat' || !isChatSelected) && (
-        <BottomNavAdapter
+        !(USE_NATIVE_NAV && isIosNative) && (
+          <BottomNavAdapter
           currentView={navViewForBottomNav}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
           profileUserId={profileUserId}
         />
+        )
       )}
       {!hideNavigation && !showMainNav && currentView !== 'profile-edit' && (currentView !== 'chat' || !isChatSelected) && (
-        <BottomNavAdapter
+        !(USE_NATIVE_NAV && isIosNative) && (
+          <BottomNavAdapter
           currentView={navViewForBottomNav}
           onViewChange={handleViewChange}
           onOpenEventReview={() => setShowEventReviewModal(true)}
           profileUserId={profileUserId}
         />
+        )
       )}
 
       {/* New Side Menu */}

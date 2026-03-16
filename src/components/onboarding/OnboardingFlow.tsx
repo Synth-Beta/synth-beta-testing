@@ -52,6 +52,14 @@ const dedupeFavoriteArtists = (artists: FollowArtistOption[]): FollowArtistOptio
 };
 
 export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
+  const USE_NATIVE_ONBOARDING = true;
+
+  useEffect(() => {
+    if (USE_NATIVE_ONBOARDING) {
+      onComplete();
+    }
+  }, [onComplete]);
+
   const [loading, setLoading] = useState(false);
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
@@ -381,6 +389,10 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       }
     }
   };
+
+  if (USE_NATIVE_ONBOARDING) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 to-accent/10">

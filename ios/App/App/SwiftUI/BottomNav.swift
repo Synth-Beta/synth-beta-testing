@@ -84,7 +84,11 @@ struct BottomNav: View {
         // Use Synth pink for all non-CTA icons.
         let iconColor = SynthColor.brandPink500
         let preserveOriginalColors = isSelected && item.selectedIcon != nil
-        return Button(action: { onSelect(index) }) {
+        return Button(action: { 
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+            onSelect(index) 
+        }) {
             ZStack {
                 Color.clear
                     .frame(width: touchTargetSize, height: touchTargetSize)
@@ -100,12 +104,16 @@ struct BottomNav: View {
             .frame(width: touchTargetSize, height: touchTargetSize)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BottomNavButtonStyle())
         .accessibilityLabel(item.label)
     }
 
     private func ctaButton(index: Int, label: String) -> some View {
-        Button(action: { onSelect(index) }) {
+        Button(action: { 
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+            onSelect(index) 
+        }) {
             ZStack {
                 // 44x44 touch target
                 Color.clear
@@ -121,7 +129,7 @@ struct BottomNav: View {
             .frame(width: touchTargetSize, height: touchTargetSize)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BottomNavButtonStyle())
         .accessibilityLabel(label)
     }
 
@@ -158,3 +166,12 @@ struct TopBorder: Shape {
     }
 }
 
+
+
+struct BottomNavButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}

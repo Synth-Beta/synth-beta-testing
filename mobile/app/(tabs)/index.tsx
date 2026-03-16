@@ -1,0 +1,115 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, RefreshControl } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { FeedHeader } from '../../src/components/Feed/FeedHeader';
+import { FilterPills, FeedFilter } from '../../src/components/Feed/FilterPills';
+import { EventCard } from '../../src/components/Feed/EventCard';
+import { FriendActivityCard } from '../../src/components/Feed/FriendActivityCard';
+import { HomeFeedService, NetworkEvent, TrendingEvent } from '../../src/services/homeFeedService';
+import { SynthTokens } from '../../src/tokens/SynthTokens';
+import { supabase } from '../../src/integrations/supabase/client';
+
+type FeedItem =
+  | { type: 'network', data: NetworkEvent }
+  | { type: 'trending', data: TrendingEvent };
+
+export default function FeedScreen() {
+  const [activeFilter, setActiveFilter] = useState<FeedFilter>('For You');
+  const [items, setItems] = useState<FeedItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchFeed = useCallback(async (filter: FeedFilter) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      let feedItems: FeedItem[] = [];
+
+      if (filter === 'For You' || filter === 'Following') {
+        const networkEvents = await HomeFeedService.getNetworkEvents(user.id);
+        feedItems = networkEvents.map(ev => ({ type: 'network', data: ev }));
+      } else {
+        const trendingEvents = await HomeFeedService.getTrendingEvents();
+        feedItems = trendingEvents.map(ev => ({ type: 'trending', data: ev }));
+      }
+
+      setItems(feedItems);
+    } catch (error) {
+      console.error('Error fetching feed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFeed(activeFilter);
+  }, [activeFilter, fetchFeed]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchFeed(activeFilter);
+  };
+
+  const renderItem = ({ item }: { item: FeedItem }) => {
+    if (item.type === 'network') {
+      return (
+        <FriendActivityCard
+          activity={item.data}
+          onPress={() => console.log('Network event pressed:', item.data.id)}
+        />
+      );
+    }
+
+    return (
+      <EventCard
+        id={item.data.id}
+        title={item.data.title}
+        artist_name={item.data.artist_name}
+        venue_name={item.data.venue_name}
+        event_date={item.data.event_date}
+        image_url={item.data.image_url}
+        onPress={() => console.log('Trending event pressed:', item.data.id)}
+        onGoingPress={() => console.log('Going pressed:', item.data.id)}
+      />
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <FeedHeader notificationsCount={3} />
+      <FilterPills
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+      />
+
+      <FlashList
+        data={items}
+        renderItem={renderItem}
+        estimatedItemSize={280}
+        keyExtractor={(item) => `${item.type}-${item.data.id}`}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={SynthTokens.colors.brandPink500}
+          />
+        }
+        ListEmptyComponent={<View style={styles.empty} />}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: SynthTokens.colors.neutral50,
+  },
+  listContent: {
+    paddingVertical: SynthTokens.spacing.md,
+  },
+  empty: {
+    height: 100,
+  }
+});

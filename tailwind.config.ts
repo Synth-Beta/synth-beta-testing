@@ -55,7 +55,7 @@ export default {
 				warning: 'hsl(var(--warning))',
 				// Synth Brand Colors
 				synth: {
-					pink: '#FF3399',
+					pink: '#CC2486',
 					'pink-light': '#FF66B3',
 					'pink-dark': '#E6007A',
 					beige: '#F5F5DC',
@@ -112,8 +112,8 @@ export default {
 					'100%': { transform: 'scale(1)', opacity: '1' }
 				},
 				'pulse-glow': {
-					'0%, 100%': { boxShadow: '0 0 20px hsl(var(--primary) / 0.3)' },
-					'50%': { boxShadow: '0 0 30px hsl(var(--primary) / 0.6)' }
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.6' }
 				}
 			},
 			animation: {

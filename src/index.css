@@ -44,6 +44,7 @@
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes pulse {
     0%, 100% {
       opacity: 1;
@@ -51,6 +52,7 @@
     50% {
       opacity: .5;
     }
+  }
   }
 
   /* Shimmer effect for skeleton cards */
@@ -60,6 +62,7 @@
     animation: shimmer 1.5s infinite;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes shimmer {
     0% {
       background-position: -200% 0;
@@ -68,12 +71,14 @@
       background-position: 200% 0;
     }
   }
+  }
 
   /* Subtle floating animation for Synth logo in skeleton */
   .animate-float {
     animation: float 4s ease-in-out infinite;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes float {
     0%, 100% {
       transform: translateY(0px);
@@ -82,12 +87,14 @@
       transform: translateY(-4px);
     }
   }
+  }
 
   /* Enhanced pulse for skeleton elements */
   .animate-breathe {
     animation: breathe 2.5s ease-in-out infinite;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes breathe {
     0%, 100% {
       opacity: 1;
@@ -95,6 +102,7 @@
     50% {
       opacity: 0.6;
     }
+  }
   }
 
   /* Enhanced animated gradient background for entire app */
@@ -106,6 +114,7 @@
     position: relative;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes elegant-shift {
     0% {
       background-position: 0% 50%;
@@ -122,6 +131,7 @@
     100% {
       background-position: 0% 50%;
     }
+  }
   }
 
   /* Overlay pattern for subtle texture */
@@ -220,12 +230,14 @@
     animation: gentle-shake 0.5s ease-in-out;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes gentle-shake {
     0% { transform: translateX(0); }
     25% { transform: translateX(-2px); }
     50% { transform: translateX(2px); }
     75% { transform: translateX(-1px); }
     100% { transform: translateX(0); }
+  }
   }
 
   /* Enhanced gradient text utility */
@@ -240,6 +252,7 @@
     @apply bg-clip-text text-transparent font-semibold;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes gradient-text-shift {
     0%, 100% {
       background-position: 0% 50%;
@@ -248,13 +261,20 @@
       background-position: 100% 50%;
     }
   }
+  }
 
   /* Gradient accents throughout */
   .gradient-badge {
     background: var(--gradient-brand);
-    @apply text-white px-3 py-1 rounded-full text-xs font-medium;
-    animation: pulse-glow 2s ease-in-out infinite;
-    box-shadow: 0 4px 15px rgba(204, 36, 134, 0.3);
+    @apply text-white px-3 py-1 rounded-full text-xs font-medium relative;
+  }
+  .gradient-badge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    filter: drop-shadow(0 0 8px rgba(204, 36, 134, 0.4));
+    border-radius: inherit;
+    pointer-events: none;
   }
 
   /* Brand gradient utilities */
@@ -343,14 +363,7 @@
     pointer-events: none;
   }
 
-  @keyframes pulse-glow {
-    0%, 100% {
-      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
-    }
-    50% {
-      box-shadow: 0 6px 25px rgba(236, 72, 153, 0.6);
-    }
-  }
+  
 
   /* Glassmorphism navigation */
   .glass-nav {
@@ -434,9 +447,11 @@
     animation: glow-pulse 2s ease-in-out infinite;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes glow-pulse {
     0%, 100% { opacity: 0.3; }
     50% { opacity: 0.6; }
+  }
   }
 
   .nav-button:not(.active) {
@@ -471,17 +486,23 @@
   }
 
   /* ── Page transition animations ───────────────────────────────── */
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes view-slide-in-right {
     from { opacity: 0; transform: translateX(18px); }
     to   { opacity: 1; transform: translateX(0); }
   }
+  }
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes view-slide-in-left {
     from { opacity: 0; transform: translateX(-18px); }
     to   { opacity: 1; transform: translateX(0); }
   }
+  }
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes view-slide-in-up {
     from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
   }
   .view-enter-right { animation: view-slide-in-right 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
   .view-enter-left  { animation: view-slide-in-left  220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
@@ -1089,9 +1110,11 @@
     animation: shimmer 2s infinite;
   }
   
+  @media (prefers-reduced-motion: no-preference) {
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
+  }
   }
   
   /* Search Page Layout Fixes */

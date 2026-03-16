@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  Ticket, 
+import {
+  Calendar,
+  MapPin,
+  Clock,
+  Ticket,
   X,
   Star,
   Heart,
@@ -56,12 +56,12 @@ import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 import { JamBaseAttribution } from '@/components/attribution';
 import { ShareService } from '@/services/shareService';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
-import { 
-  iosModal, 
-  iosModalBackdrop, 
-  iosHeader, 
-  iosBottomBar, 
-  iosPrimaryButton, 
+import {
+  iosModal,
+  iosModalBackdrop,
+  iosHeader,
+  iosBottomBar,
+  iosPrimaryButton,
   iosSecondaryButton,
   iosIconButton,
   glassCard,
@@ -109,21 +109,21 @@ export function EventDetailsModal({
   const [loading, setLoading] = useState(false);
   // Local state for isInterested to allow immediate UI updates
   const [localIsInterested, setLocalIsInterested] = useState(isInterested);
-  
+
   // Debug: Check if navigation handlers are provided
   const [interestedCount, setInterestedCount] = useState<number | null>(null);
   const [friendModalOpen, setFriendModalOpen] = useState(false);
   const [friendModalUser, setFriendModalUser] = useState<{ id: string; user_id: string; name: string; username: string; avatar_url?: string | null; bio?: string | null; created_at: string; gender?: string; birthday?: string } | null>(null);
   const [showInterestedUsers, setShowInterestedUsers] = useState(false);
-  const [interestedUsers, setInterestedUsers] = useState<Array<{ 
-    id: string; 
-    user_id: string; 
-    name: string; 
-    avatar_url?: string; 
+  const [interestedUsers, setInterestedUsers] = useState<Array<{
+    id: string;
+    user_id: string;
+    name: string;
+    avatar_url?: string;
     bio?: string;
     created_at: string;
     last_active_at?: string;
-    gender?: string; 
+    gender?: string;
     birthday?: string;
     music_streaming_profile?: any;
   }>>([]);
@@ -196,7 +196,6 @@ export function EventDetailsModal({
   const { titleRef, variant: headerTitleVariant, allowWrap: headerTitleWrap } = useModalHeaderTitle(
     actualEvent?.title ?? ''
   );
-  
   const { isCreator, isAdmin, isBusiness } = useAccountType();
 
   // 🎯 TRACKING: View duration tracking
@@ -249,6 +248,8 @@ export function EventDetailsModal({
       eventId: actualEvent.id,
       artistName: actualEvent.artist_name ?? actualEvent.artistName,
       venueName: actualEvent.venue_name ?? actualEvent.venueName,
+      imageUrl: actualEvent.image ?? actualEvent.imageUrl,
+      eventDate: actualEvent.event_date ?? actualEvent.date,
     });
 
     return () => {
@@ -291,22 +292,22 @@ export function EventDetailsModal({
     if (!actualEvent?.id || !currentUserId || verifiedChatLoading) {
       return;
     }
-    
+
     try {
       setVerifiedChatLoading(true);
-      
+
       const { VerifiedChatService } = await import('@/services/verifiedChatService');
-      
+
       // Get or create verified chat
       const chatId = await VerifiedChatService.getOrCreateVerifiedChat(
         'event',
         actualEvent.id,
         actualEvent.title || 'Event'
       );
-      
+
       // Get full chat info
       const chatInfo = await VerifiedChatService.getVerifiedChatInfo('event', actualEvent.id);
-      
+
       setVerifiedChatInfo(chatInfo);
     } catch (error) {
       console.error('Error loading verified chat:', error);
@@ -315,15 +316,15 @@ export function EventDetailsModal({
       setVerifiedChatLoading(false);
     }
   };
-  
+
   const loadEventGroups = async () => {
     if (!actualEvent?.id) return;
-    
+
     // Skip loading if event_groups feature is not available (3NF schema doesn't include this table)
     // This prevents unnecessary 404 errors in console
     // Event groups feature was removed during database consolidation
     return; // Disabled until event_groups table is re-implemented for 3NF schema
-    
+
     try {
       // Get the database UUID (not Ticketmaster/JamBase ID)
       // If id is not a valid UUID, it's a Ticketmaster ID - skip loading groups
@@ -331,7 +332,7 @@ export function EventDetailsModal({
       if (!uuidPattern.test(actualEvent.id)) {
         return;
       }
-      
+
       const groups = await EventGroupService.getEventGroups(actualEvent.id);
       setEventGroups(groups);
     } catch (error) {
@@ -346,7 +347,7 @@ export function EventDetailsModal({
       // Track modal open
       viewStartTime.current = Date.now();
       hasInteracted.current = false;
-      
+
       const eventMetadata = extractEventMetadata(actualEvent, {
         source: 'event_modal',
         has_ticket_urls: !!(actualEvent.ticket_urls?.length),
@@ -362,13 +363,13 @@ export function EventDetailsModal({
     return () => {
       if (viewStartTime.current && actualEvent?.id) {
         const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
-        
+
         trackInteraction.view('event', actualEvent.id, duration, {
           source: 'event_modal_close',
           duration_seconds: duration,
           interacted: hasInteracted.current
         }, actualEvent.id);
-        
+
         viewStartTime.current = null;
       }
     };
@@ -380,7 +381,7 @@ export function EventDetailsModal({
       // Track modal open
       viewStartTime.current = Date.now();
       hasInteracted.current = false;
-      
+
       const eventMetadata = extractEventMetadata(actualEvent, {
         source: 'event_modal',
         has_ticket_urls: !!(actualEvent.ticket_urls?.length),
@@ -396,13 +397,13 @@ export function EventDetailsModal({
     return () => {
       if (viewStartTime.current && actualEvent?.id) {
         const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
-        
+
         trackInteraction.view('event', actualEvent.id, duration, {
           source: 'event_modal_close',
           duration_seconds: duration,
           interacted: hasInteracted.current
         }, actualEvent.id);
-        
+
         viewStartTime.current = null;
       }
     };
@@ -424,8 +425,8 @@ export function EventDetailsModal({
           if (error) {
             console.error('Error fetching event:', error);
             // Fallback to using passed event data
-      setActualEvent(event);
-      setLoading(false);
+            setActualEvent(event);
+            setLoading(false);
             return;
           }
 
@@ -575,11 +576,11 @@ export function EventDetailsModal({
 
   // Load reviews for the artist and venue
   const [reviewUserProfiles, setReviewUserProfiles] = useState<Record<string, { name: string; avatar_url?: string }>>({});
-  
+
   useEffect(() => {
     const loadArtistVenueReviews = async () => {
       if (!actualEvent || !isOpen) return;
-      
+
       setReviewsLoading(true);
       try {
         const allReviews: ReviewWithEngagement[] = [];
@@ -665,7 +666,7 @@ export function EventDetailsModal({
             .from('users')
             .select('user_id, name, avatar_url')
             .in('user_id', userIds);
-          
+
           if (profiles) {
             const profileMap: Record<string, { name: string; avatar_url?: string }> = {};
             profiles.forEach(p => {
@@ -687,16 +688,16 @@ export function EventDetailsModal({
   // Fetch setlist from setlist.fm API for past events that don't have a setlist
   useEffect(() => {
     if (!actualEvent || !isOpen) return;
-    
+
     const isPastEvent = new Date(actualEvent.event_date) < new Date();
     const setlistData = actualEvent.setlist;
-    const hasSetlist = setlistData && 
-      setlistData !== null && 
-      typeof setlistData === 'object' && 
+    const hasSetlist = setlistData &&
+      setlistData !== null &&
+      typeof setlistData === 'object' &&
       Object.keys(setlistData).length > 0 &&
       (Array.isArray(setlistData) || (setlistData.songs && Array.isArray(setlistData.songs)) || (setlistData.setlist && Array.isArray(setlistData.setlist)));
     const hasSetlistEnriched = actualEvent.setlist_enriched === true;
-    
+
     // Only fetch if it's a past event and doesn't have a setlist
     if (isPastEvent && !hasSetlist && !hasSetlistEnriched && actualEvent.artist_name) {
       const fetchSetlist = async () => {
@@ -709,7 +710,7 @@ export function EventDetailsModal({
 
           // Try multiple search strategies for better results
           let setlists: any[] | null = null;
-          
+
           // Strategy 1: Search with all parameters (most specific)
           setlists = await SetlistService.searchSetlists({
             artistName: actualEvent.artist_name,
@@ -785,7 +786,7 @@ export function EventDetailsModal({
                   setlist_last_updated: new Date().toISOString()
                 };
               });
-              
+
               // Skip refetch - we already updated local state
               // This avoids 406 errors from RLS policies
             }
@@ -811,7 +812,7 @@ export function EventDetailsModal({
         // Skipping fetch - no event ID
         return;
       }
-      
+
       try {
         const counts = await UserEventService.getInterestedCountsByEventId(
           [actualEvent.id],
@@ -895,7 +896,7 @@ export function EventDetailsModal({
 
     loadGuestList();
   }, [actualEvent?.id, currentUserId, showBuddyFinder, interestedModalOpen]);
-  
+
   if (!actualEvent) return null;
   // All data is real; no demo flags
 
@@ -946,7 +947,7 @@ export function EventDetailsModal({
   const loadAttendanceData = async () => {
     try {
       setAttendanceLoading(true);
-      
+
       if (!actualEvent?.id || !currentUserId) {
         setUserWasThere(false);
         setAttendanceCount(0);
@@ -973,7 +974,7 @@ export function EventDetailsModal({
     try {
       setAttendanceLoading(true);
       const newAttendanceStatus = !userWasThere;
-      
+
       if (!actualEvent?.id) {
         throw new Error('Event ID is missing');
       }
@@ -984,24 +985,24 @@ export function EventDetailsModal({
         actualEvent.id,
         newAttendanceStatus
       );
-      
+
       // Update local state
       setUserWasThere(newAttendanceStatus);
-      
+
       // Update attendance count
       const newCount = await UserEventService.getEventAttendanceCount(actualEvent.id);
       setAttendanceCount(newCount);
-      
+
       // Notify parent component that attendance changed
       if (onAttendanceChange) {
         onAttendanceChange(actualEvent.id, newAttendanceStatus);
       }
-      
+
       // Reload attendance data to ensure consistency
       await loadAttendanceData();
     } catch (error) {
       console.error('Error toggling attendance:', error);
-      } finally {
+    } finally {
       setAttendanceLoading(false);
     }
   };
@@ -1024,7 +1025,7 @@ export function EventDetailsModal({
           .select('id, name')
           .eq('id', artistId)
           .single();
-        
+
         if (artistData) {
           artistName = artistData.name;
         }
@@ -1041,7 +1042,7 @@ export function EventDetailsModal({
         artist_name: artistName,
         from_view: window.location.pathname
       }, artistId);
-      
+
       // 🎯 TRACK: Event click (for promotion analytics)
       trackInteraction.click('event', actualEvent.id, {
         source: 'event_modal_artist_click',
@@ -1052,7 +1053,7 @@ export function EventDetailsModal({
         price_range: actualEvent.price_range,
         days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
       }, actualEvent.id);
-      
+
       // 🎯 TRACK: Promotion interaction if this event is promoted
       PromotionTrackingService.trackPromotionInteraction(
         actualEvent.id,
@@ -1064,10 +1065,10 @@ export function EventDetailsModal({
           venue_name: actualEvent.venue_name
         }
       );
-      
+
       // Mark interaction for duration tracking
       hasInteracted.current = true;
-      
+
       // Open the existing ArtistDetailModal
       setArtistModalOpen(true);
     }
@@ -1090,7 +1091,7 @@ export function EventDetailsModal({
           .select('id, name')
           .eq('id', venueId)
           .single();
-        
+
         if (venueData) {
           venueName = venueData.name;
         }
@@ -1109,7 +1110,7 @@ export function EventDetailsModal({
         venue_state: actualEvent.venue_state,
         from_view: window.location.pathname
       }, venueId);
-      
+
       // 🎯 TRACK: Event click (for promotion analytics)
       trackInteraction.click('event', actualEvent.id, {
         source: 'event_modal_venue_click',
@@ -1120,7 +1121,7 @@ export function EventDetailsModal({
         price_range: actualEvent.price_range,
         days_until_event: actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined
       }, actualEvent.id);
-      
+
       // 🎯 TRACK: Promotion interaction if this event is promoted
       PromotionTrackingService.trackPromotionInteraction(
         actualEvent.id,
@@ -1132,10 +1133,10 @@ export function EventDetailsModal({
           venue_name: venueName
         }
       );
-      
+
       // Mark interaction for duration tracking
       hasInteracted.current = true;
-      
+
       // Open the existing VenueDetailModal
       setVenueModalOpen(true);
     }
@@ -1201,12 +1202,12 @@ export function EventDetailsModal({
     try {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      
+
       // Use the event ID directly - no need to look it up
       // This avoids 406 errors from RLS policies
       // The event.id should already be the UUID if it exists in the database
       const uuidId = actualEvent.id;
-      
+
       let interestedUserIds: Array<{ user_id: string | null }> | null = null;
       const { data: preferredIds, error: interestsError } = await supabase
         .from('user_event_relationships')
@@ -1222,19 +1223,19 @@ export function EventDetailsModal({
       }
 
       interestedUserIds = preferredIds || [];
-      
+
       if (!interestedUserIds || interestedUserIds.length === 0) {
         setInterestedUsers([]);
         return;
       }
-      
+
       // Get profile details
       const userIds = interestedUserIds?.map(row => row && 'user_id' in row ? row.user_id : null).filter(Boolean) || [];
       const { data: profiles, error: profilesError } = await supabase
         .from('users')
         .select('id, user_id, name, avatar_url, bio, created_at, last_active_at, gender, birthday, music_streaming_profile')
         .in('user_id', userIds);
-        
+
       if (profilesError) {
         console.error('Error fetching profiles:', profilesError);
         throw profilesError;
@@ -1247,7 +1248,7 @@ export function EventDetailsModal({
   };
 
   if (!isOpen) return null;
-  
+
   return (
     <>
     {/* Backdrop (kept below bottom nav so nav stays visually on top) */}
@@ -1358,136 +1359,86 @@ export function EventDetailsModal({
         </div>
       </div>
       )}
-
-      {/* Content area with iOS padding (start 12px below header).
+        {/* Content area with iOS padding (start 12px below header).
           Ensure the scrollable content clears the fixed bottom nav and
           still leaves at least 32px of whitespace visible below the last
           content row when fully scrolled. The bottom nav is ~80px tall. */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-          padding: '0 20px',
-          paddingTop: hasNativeEventHeader
-            ? 'calc(env(safe-area-inset-top, 0px) + 56px + 12px)'
-            : '12px',
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px + 32px)',
-        }}
-      >
-        {/* Event Title (larger, below header) */}
-        <h2 
+        <div
           style={{
-            ...textStyles.largeTitle,
-            color: 'var(--neutral-900)',
-            marginBottom: 8,
-            lineHeight: 1.2,
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch',
+            padding: '0 20px',
+            paddingTop: hasNativeEventHeader
+              ? 'calc(env(safe-area-inset-top, 0px) + 56px + 12px)'
+              : '12px',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px + 32px)',
           }}
         >
-          {actualEvent.title}
-        </h2>
-        {/* Action buttons row */}
-        <div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-                {isUpcomingEvent && onInterestToggle && (
-                  <Button
-                    type="button"
-    variant="secondary"
-    size="sm"
-    aria-pressed={localIsInterested}
-    onClick={async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-                      const newInterestState = !localIsInterested;
-                      
-      // Immediate UI feedback
-                      setLocalIsInterested(newInterestState);
-                      
-      // Tracking stays the same
-                      try {
-                        const { getEventMetadata } = await import('@/utils/entityUuidResolver');
-                        trackInteraction.interest(
-                          'event',
-                          actualEvent.id,
-                          newInterestState,
-                          {
-                            ...getEventMetadata(actualEvent),
-                            source: 'event_modal_interest_button'
-                          },
-                          actualEvent.id
-                        );
-                      } catch (error) {
-                        console.error('Error tracking interest toggle:', error);
-                      }
-                      
-                      if (newInterestState) {
-                        PromotionTrackingService.trackPromotionInteraction(
-                          actualEvent.id,
-                          currentUserId || '',
-                          'conversion',
-                          {
-                            source: 'event_modal_interest_button',
-                            action: 'interested'
-                          }
-                        );
-                      }
-                      
-                      try {
-                        await onInterestToggle?.(actualEvent.id, newInterestState);
-                      } catch (error) {
-                        console.error('Error toggling interest:', error);
-                        setLocalIsInterested(!newInterestState);
-                      }
-                    }}
-                    style={{
-      height: 'var(--size-button-height, 36px)',
-                      paddingLeft: 'var(--spacing-small, 12px)',
-                      paddingRight: 'var(--spacing-small, 12px)',
-                      borderRadius: 'var(--radius-corner, 10px)',
-      fontFamily: 'var(--font-family)',
-      fontSize: 'var(--typography-meta-size, 16px)',
-      fontWeight: 'var(--typography-meta-weight, 500)',
-      lineHeight: 'var(--typography-meta-line-height, 1.5)',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 'var(--spacing-inline, 6px)',
-      border: localIsInterested ? 'none' : '1.5px solid var(--brand-pink-500)',
-      background: localIsInterested ? 'var(--brand-pink-500)' : 'rgba(255, 255, 255, 0.8)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-                      boxShadow: '0 4px 4px 0 var(--shadow-color)',
-      transition: `all ${animations.standardDuration} ${animations.springTiming}`,
-    }}
-    className={localIsInterested ? 'event-interested-button' : ''}
-  >
-    <Heart size={24} fill={localIsInterested ? 'var(--neutral-0)' : 'none'} color={localIsInterested ? 'var(--neutral-0)' : 'var(--brand-pink-500)'} aria-hidden="true" />
-    <span style={{ 
-      color: localIsInterested ? 'var(--neutral-0)' : 'inherit',
-      fontFamily: 'var(--font-family)',
-      fontSize: 'var(--typography-meta-size, 16px)',
-      fontWeight: 'var(--typography-meta-weight, 500)',
-      lineHeight: 'var(--typography-meta-line-height, 1.5)'
-    }}>
-                    {localIsInterested ? 'Interested' : "I'm Interested"}
-    </span>
-                  </Button>
-                )}
-
+          {/* Event Title (larger, below header) */}
+          <h2
+            style={{
+              ...textStyles.largeTitle,
+              color: 'var(--neutral-900)',
+              marginBottom: 8,
+              lineHeight: 1.2,
+            }}
+          >
+            {actualEvent.title}
+          </h2>
+          {/* Action buttons row */}
+          <div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+              {isUpcomingEvent && onInterestToggle && (
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={(e) => {
+                  aria-pressed={localIsInterested}
+                  onClick={async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('Report button clicked', { eventId: actualEvent?.id });
-                    if (actualEvent?.id) {
-                      console.log('Opening report modal, current state:', reportModalOpen);
-                      setReportModalOpen(true);
-                      console.log('Report modal should now be open');
-                    } else {
+
+                    const newInterestState = !localIsInterested;
+
+                    // Immediate UI feedback
+                    setLocalIsInterested(newInterestState);
+
+                    // Tracking stays the same
+                    try {
+                      const { getEventMetadata } = await import('@/utils/entityUuidResolver');
+                      trackInteraction.interest(
+                        'event',
+                        actualEvent.id,
+                        newInterestState,
+                        {
+                          ...getEventMetadata(actualEvent),
+                          source: 'event_modal_interest_button'
+                        },
+                        actualEvent.id
+                      );
+                    } catch (error) {
+                      console.error('Error tracking interest toggle:', error);
+                    }
+
+                    if (newInterestState) {
+                      PromotionTrackingService.trackPromotionInteraction(
+                        actualEvent.id,
+                        currentUserId || '',
+                        'conversion',
+                        {
+                          source: 'event_modal_interest_button',
+                          action: 'interested'
+                        }
+                      );
+                    }
+
+                    try {
+                      await onInterestToggle?.(actualEvent.id, newInterestState);
+                    } catch (error) {
+                      console.error('Error toggling interest:', error);
+                      setLocalIsInterested(!newInterestState);
                     }
                   }}
                   style={{
@@ -1499,75 +1450,124 @@ export function EventDetailsModal({
                     fontSize: 'var(--typography-meta-size, 16px)',
                     fontWeight: 'var(--typography-meta-weight, 500)',
                     lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    pointerEvents: 'auto',
-                    position: 'relative'
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-inline, 6px)',
+                    border: localIsInterested ? 'none' : '1.5px solid var(--brand-pink-500)',
+                    background: localIsInterested ? 'var(--brand-pink-500)' : 'rgba(255, 255, 255, 0.8)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                    transition: `all ${animations.standardDuration} ${animations.springTiming}`,
                   }}
+                  className={localIsInterested ? 'event-interested-button' : ''}
                 >
-                  <Flag size={24} style={{ color: 'var(--brand-pink-500)' }} />
-                  Report
+                  <Heart size={24} fill={localIsInterested ? 'var(--neutral-0)' : 'none'} color={localIsInterested ? 'var(--neutral-0)' : 'var(--brand-pink-500)'} aria-hidden="true" />
+                  <span style={{
+                    color: localIsInterested ? 'var(--neutral-0)' : 'inherit',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                  }}>
+                    {localIsInterested ? 'Interested' : "I'm Interested"}
+                  </span>
                 </Button>
-              </div>
-          {/* Date/Time/Price Info Card - Glassmorphism */}
-          <div
-            style={{
-              ...glassCardLight,
-              padding: 16,
-              marginBottom: 16,
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {/* Date */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: 'rgba(204, 36, 134, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Calendar size={24} style={{ color: 'var(--brand-pink-500)' }} />
+              )}
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Report button clicked', { eventId: actualEvent?.id });
+                  if (actualEvent?.id) {
+                    console.log('Opening report modal, current state:', reportModalOpen);
+                    setReportModalOpen(true);
+                    console.log('Report modal should now be open');
+                  } else {
+                  }
+                }}
+                style={{
+                  height: 'var(--size-button-height, 36px)',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  pointerEvents: 'auto',
+                  position: 'relative'
+                }}
+              >
+                <Flag size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                Report
+              </Button>
+            </div>
+            {/* Date/Time/Price Info Card - Glassmorphism */}
+            <div
+              style={{
+                ...glassCardLight,
+                padding: 16,
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Date */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: 'rgba(204, 36, 134, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Calendar size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                  </div>
+                  <div>
+                    <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
+                      {formatDate(actualEvent.event_date)}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
-                    {formatDate(actualEvent.event_date)}
-                  </span>
+
+                {/* Time */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: 'rgba(204, 36, 134, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Clock size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                  </div>
+                  <div>
+                    <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
+                      {formatTime(actualEvent.event_date)}
+                      {actualEvent.doors_time && (
+                        <span style={{ color: 'var(--neutral-600)', marginLeft: 8 }}>
+                          Doors: {formatDoorsTime(actualEvent.doors_time)}
+                        </span>
+                      )}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              
-              {/* Time */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: 'rgba(204, 36, 134, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Clock size={24} style={{ color: 'var(--brand-pink-500)' }} />
-                </div>
-                <div>
-                  <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
-                    {formatTime(actualEvent.event_date)}
-                {actualEvent.doors_time && (
-                      <span style={{ color: 'var(--neutral-600)', marginLeft: 8 }}>
-                        Doors: {formatDoorsTime(actualEvent.doors_time)}
-                      </span>
-                    )}
-                  </span>
-                </div>
-              </div>
-              
-              {/* Price */}
+
+                {/* Price */}
                 {(() => {
                   const event = actualEvent as any;
                   const priceRange = event?.price_range;
                   const priceMin = event?.ticket_price_min ?? event?.price_min;
                   const priceMax = event?.ticket_price_max ?? event?.price_max;
-                  
+
                   if (priceRange || priceMin || priceMax) {
                     let priceDisplay = '';
                     if (priceRange) {
@@ -1579,38 +1579,38 @@ export function EventDetailsModal({
                     } else if (priceMax) {
                       priceDisplay = `Up to $${priceMax}`;
                     }
-                    
+
                     return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 10,
-                        background: 'rgba(204, 36, 134, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        <Ticket size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          background: 'rgba(204, 36, 134, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          <Ticket size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                        </div>
+                        <div>
+                          <span style={{ ...textStyles.callout, fontWeight: 600, color: 'var(--neutral-900)' }}>
+                            {priceDisplay}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <span style={{ ...textStyles.callout, fontWeight: 600, color: 'var(--neutral-900)' }}>
-                          {priceDisplay}
-                        </span>
-                      </div>
-                    </div>
                     );
                   }
                   return null;
                 })()}
+              </div>
             </div>
-            </div>
-            
-          {/* Remove Interest Button for Past Events */}
+
+            {/* Remove Interest Button for Past Events */}
             {isPastEvent && onInterestToggle && localIsInterested && (
               <button
                 type="button"
-                  onClick={async () => {
+                onClick={async () => {
                   console.log('Remove interest button clicked');
                   // Track interest removal
                   try {
@@ -1650,14 +1650,14 @@ export function EventDetailsModal({
                 Remove Interest
               </button>
             )}
-      </div>
+          </div>
 
           {/* Event Status Badges */}
           <div className="flex flex-wrap gap-1.5" style={{
             marginBottom: 'var(--spacing-grouped, 24px)'
           }}>
-{/* Past Event badge removed per user request */}
-{/* Upcoming badge removed per user request */}
+            {/* Past Event badge removed per user request */}
+            {/* Upcoming badge removed per user request */}
             <TrendingBadge eventId={actualEvent.id} />
             <FriendsInterestedBadge
               eventId={actualEvent.id}
@@ -1696,7 +1696,7 @@ export function EventDetailsModal({
                 }}
                 title="Click to view all events for this artist"
               >
-                <div 
+                <div
                   className="font-semibold break-words"
                   style={{
                     fontFamily: 'var(--font-family)',
@@ -1706,12 +1706,12 @@ export function EventDetailsModal({
                     color: 'var(--neutral-900)',
                     marginBottom: actualEvent.genres && actualEvent.genres.length > 0 ? '8px' : '0'
                   }}
-              >
-                {actualEvent.artist_name}
-              </div>
-              {actualEvent.genres && actualEvent.genres.length > 0 && (
+                >
+                  {actualEvent.artist_name}
+                </div>
+                {actualEvent.genres && actualEvent.genres.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                  {actualEvent.genres.slice(0, 3).map((genre, index) => (
+                    {actualEvent.genres.slice(0, 3).map((genre, index) => (
                       <span
                         key={index}
                         style={{
@@ -1733,9 +1733,9 @@ export function EventDetailsModal({
                       >
                         {genre}
                       </span>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
               </button>
             )}
 
@@ -1767,7 +1767,7 @@ export function EventDetailsModal({
                 }}
                 title="Click to view all events at this venue"
               >
-                <div 
+                <div
                   className="font-semibold break-words mb-1"
                   style={{
                     fontFamily: 'var(--font-family)',
@@ -1776,10 +1776,10 @@ export function EventDetailsModal({
                     lineHeight: 'var(--typography-body-line-height, 1.4)',
                     color: 'var(--neutral-900)'
                   }}
-              >
-                {actualEvent.venue_name}
-              </div>
-                <div 
+                >
+                  {actualEvent.venue_name}
+                </div>
+                <div
                   className="break-words"
                   style={{
                     fontFamily: 'var(--font-family)',
@@ -1788,10 +1788,10 @@ export function EventDetailsModal({
                     lineHeight: '1.4'
                   }}
                 >
-                {getVenueAddress()}
-              </div>
-              {actualEvent.venue_zip && (
-                  <div 
+                  {getVenueAddress()}
+                </div>
+                {actualEvent.venue_zip && (
+                  <div
                     style={{
                       fontFamily: 'var(--font-family)',
                       fontSize: '13px',
@@ -1799,11 +1799,11 @@ export function EventDetailsModal({
                       marginTop: '4px'
                     }}
                   >
-                  ZIP: {actualEvent.venue_zip}
-                </div>
+                    ZIP: {actualEvent.venue_zip}
+                  </div>
                 )}
               </button>
-              )}
+            )}
           </div>
 
           {/* Reviews Section - Show artist and venue reviews */}
@@ -1898,7 +1898,7 @@ export function EventDetailsModal({
                             {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                         </div>
-                        
+
                         {/* Review Text */}
                         {review.review_text && (
                           <p style={{
@@ -1910,7 +1910,7 @@ export function EventDetailsModal({
                             "{review.review_text}"
                           </p>
                         )}
-                        
+
                         {/* User Profile Button with Avatar */}
                         <button
                           onClick={() => {
@@ -2081,7 +2081,7 @@ export function EventDetailsModal({
                 {...(interestedCount !== null && { interestedCount })}
                 guestListTotalCount={guestListLoading ? null : guestListAllUsers.length}
                 onOpenGuestList={() => setInterestedModalOpen(true)}
-                onMatchCreated={() => {}}
+                onMatchCreated={() => { }}
                 onNavigateToProfile={(userId) => {
                   if (onNavigateToProfile) {
                     onNavigateToProfile(userId);
@@ -2096,181 +2096,181 @@ export function EventDetailsModal({
           {(() => {
             // Check if we have setlist data (either in setlist field or setlist_enriched)
             const setlistData = actualEvent?.setlist;
-            const hasSetlistData = setlistData && 
-              setlistData !== null && 
-              typeof setlistData === 'object' && 
+            const hasSetlistData = setlistData &&
+              setlistData !== null &&
+              typeof setlistData === 'object' &&
               Object.keys(setlistData).length > 0 &&
               (Array.isArray(setlistData) || (setlistData.songs && Array.isArray(setlistData.songs)) || (setlistData.setlist && Array.isArray(setlistData.setlist)));
             const hasSetlistEnriched = actualEvent?.setlist_enriched === true;
             const hasSetlistSongCount = actualEvent?.setlist_song_count && actualEvent.setlist_song_count > 0;
             const hasSetlist = isPastEvent && (hasSetlistData || hasSetlistEnriched || hasSetlistSongCount || fetchingSetlist);
-            
+
             return hasSetlist;
           })() && (
-            <Accordion 
-              type="single" 
-              collapsible 
-              value={setlistExpanded ? "setlist" : ""}
-              onValueChange={(value) => setSetlistExpanded(value === "setlist")}
-              className="mb-6"
-            >
-              <AccordionItem value="setlist" className="border border-purple-200 rounded-lg">
-                <AccordionTrigger className="px-6 py-4 hover:no-underline">
-                  <div className="flex items-center gap-3 w-full">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
-                      <Music size={24} className="text-white" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <h3 className="text-lg font-bold text-purple-900">Setlist from this Show</h3>
-                      <p className="text-sm text-purple-700">
-                        {(() => {
-                          // Use song count from database if available, otherwise calculate from setlist data
-                          if (actualEvent.setlist_song_count && actualEvent.setlist_song_count > 0) {
-                            return actualEvent.setlist_song_count;
-                          }
-                          const setlistData = actualEvent.setlist as any;
-                          return setlistData && setlistData.songs ? setlistData.songs.length : 'Multiple';
-                        })()} songs performed
-                      </p>
-                    </div>
-                    {actualEvent.setlist_fm_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="border-purple-300 hover:bg-purple-100"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <a 
-                          href={actualEvent.setlist_fm_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1"
+              <Accordion
+                type="single"
+                collapsible
+                value={setlistExpanded ? "setlist" : ""}
+                onValueChange={(value) => setSetlistExpanded(value === "setlist")}
+                className="mb-6"
+              >
+                <AccordionItem value="setlist" className="border border-purple-200 rounded-lg">
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
+                        <Music size={24} className="text-white" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <h3 className="text-lg font-bold text-purple-900">Setlist from this Show</h3>
+                        <p className="text-sm text-purple-700">
+                          {(() => {
+                            // Use song count from database if available, otherwise calculate from setlist data
+                            if (actualEvent.setlist_song_count && actualEvent.setlist_song_count > 0) {
+                              return actualEvent.setlist_song_count;
+                            }
+                            const setlistData = actualEvent.setlist as any;
+                            return setlistData && setlistData.songs ? setlistData.songs.length : 'Multiple';
+                          })()} songs performed
+                        </p>
+                      </div>
+                      {actualEvent.setlist_fm_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          className="border-purple-300 hover:bg-purple-100"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <span>View on setlist.fm</span>
-                          <ExternalLink size={24} />
-                        </a>
-                      </Button>
-                    )}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pb-6">
-                  {fetchingSetlist ? (
-                    <div className="text-center py-8">
-                      <Music size={35} className="text-purple-500 mx-auto mb-3 animate-pulse" />
-                      <p className="text-purple-700">Loading setlist from setlist.fm...</p>
+                          <a
+                            href={actualEvent.setlist_fm_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1"
+                          >
+                            <span>View on setlist.fm</span>
+                            <ExternalLink size={24} />
+                          </a>
+                        </Button>
+                      )}
                     </div>
-                  ) : (() => {
-                    const setlistData = actualEvent.setlist as any;
-                    
-                    // Handle different setlist data formats
-                    let songs = [];
-                    if (setlistData && typeof setlistData === 'object') {
-                      if (Array.isArray(setlistData)) {
-                        // If setlist is directly an array of songs
-                        songs = setlistData;
-                      } else if (setlistData.songs && Array.isArray(setlistData.songs)) {
-                        // If setlist has a songs property (most common format)
-                        songs = setlistData.songs;
-                      } else if (setlistData.setlist && Array.isArray(setlistData.setlist)) {
-                        // If setlist has a setlist property
-                        songs = setlistData.setlist;
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 pb-6">
+                    {fetchingSetlist ? (
+                      <div className="text-center py-8">
+                        <Music size={35} className="text-purple-500 mx-auto mb-3 animate-pulse" />
+                        <p className="text-purple-700">Loading setlist from setlist.fm...</p>
+                      </div>
+                    ) : (() => {
+                      const setlistData = actualEvent.setlist as any;
+
+                      // Handle different setlist data formats
+                      let songs = [];
+                      if (setlistData && typeof setlistData === 'object') {
+                        if (Array.isArray(setlistData)) {
+                          // If setlist is directly an array of songs
+                          songs = setlistData;
+                        } else if (setlistData.songs && Array.isArray(setlistData.songs)) {
+                          // If setlist has a songs property (most common format)
+                          songs = setlistData.songs;
+                        } else if (setlistData.setlist && Array.isArray(setlistData.setlist)) {
+                          // If setlist has a setlist property
+                          songs = setlistData.setlist;
+                        }
                       }
-                    }
-                    
-                    if (!songs || songs.length === 0) {
+
+                      if (!songs || songs.length === 0) {
+                        return (
+                          <div className="text-center py-4">
+                            <p className="text-purple-700">Setlist data is available but in an unexpected format.</p>
+                            <p className="text-xs text-gray-500 mt-2">Data keys: {setlistData ? Object.keys(setlistData).join(', ') : 'none'}</p>
+                            <p className="text-xs text-gray-500 mt-1">Setlist type: {typeof setlistData}</p>
+                          </div>
+                        );
+                      }
+
                       return (
-                        <div className="text-center py-4">
-                          <p className="text-purple-700">Setlist data is available but in an unexpected format.</p>
-                          <p className="text-xs text-gray-500 mt-2">Data keys: {setlistData ? Object.keys(setlistData).join(', ') : 'none'}</p>
-                          <p className="text-xs text-gray-500 mt-1">Setlist type: {typeof setlistData}</p>
-                        </div>
-                      );
-                    }
-                    
-                    return (
-                      <div className="space-y-4">
-                        {/* Group songs by set */}
-                        {Array.from(new Set(songs.map((song: any) => song.setNumber || 1))).map((setNum: any) => {
-                          const setSongs = songs.filter((song: any) => (song.setNumber || 1) === setNum);
-                          const setName = setSongs[0]?.setName || `Set ${setNum}`;
-                          
-                          return (
-                            <div key={setNum} className="bg-white/70 rounded-lg p-4">
-                              <h4 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
-                                <Music size={16} />
-                                {setName}
-                              </h4>
-                              <div className="space-y-1">
-                                {setSongs.map((song: any, idx: number) => (
-                                  <div key={song.position || idx} className="flex items-start gap-3 py-1">
-                                    <span className="text-purple-600 font-medium min-w-[28px] text-sm">
-                                      {song.position || (idx + 1)}.
-                                    </span>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-gray-900 text-sm font-medium">
-                                          {song.name || song.title || song.song || 'Unknown Song'}
-                                        </span>
-                                        {song.cover && (
-                                          <div
-                                            style={{
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              height: '25px',
-                                              paddingLeft: 'var(--spacing-small, 12px)',
-                                              paddingRight: 'var(--spacing-small, 12px)',
-                                              borderRadius: 'var(--radius-corner, 10px)',
-                                              backgroundColor: 'var(--neutral-100)',
-                                              border: '2px solid var(--neutral-200)',
-                                              fontFamily: 'var(--font-family)',
-                                              fontSize: 'var(--typography-meta-size, 16px)',
-                                              fontWeight: 'var(--typography-meta-weight, 500)',
-                                              lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                                              color: 'var(--neutral-900)',
-                                              boxShadow: '0 4px 4px 0 var(--shadow-color)'
-                                            }}
-                                          >
-                                            {song.cover.artist || song.cover} cover
-                                          </div>
+                        <div className="space-y-4">
+                          {/* Group songs by set */}
+                          {Array.from(new Set(songs.map((song: any) => song.setNumber || 1))).map((setNum: any) => {
+                            const setSongs = songs.filter((song: any) => (song.setNumber || 1) === setNum);
+                            const setName = setSongs[0]?.setName || `Set ${setNum}`;
+
+                            return (
+                              <div key={setNum} className="bg-white/70 rounded-lg p-4">
+                                <h4 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                                  <Music size={16} />
+                                  {setName}
+                                </h4>
+                                <div className="space-y-1">
+                                  {setSongs.map((song: any, idx: number) => (
+                                    <div key={song.position || idx} className="flex items-start gap-3 py-1">
+                                      <span className="text-purple-600 font-medium min-w-[28px] text-sm">
+                                        {song.position || (idx + 1)}.
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-gray-900 text-sm font-medium">
+                                            {song.name || song.title || song.song || 'Unknown Song'}
+                                          </span>
+                                          {song.cover && (
+                                            <div
+                                              style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                height: '25px',
+                                                paddingLeft: 'var(--spacing-small, 12px)',
+                                                paddingRight: 'var(--spacing-small, 12px)',
+                                                borderRadius: 'var(--radius-corner, 10px)',
+                                                backgroundColor: 'var(--neutral-100)',
+                                                border: '2px solid var(--neutral-200)',
+                                                fontFamily: 'var(--font-family)',
+                                                fontSize: 'var(--typography-meta-size, 16px)',
+                                                fontWeight: 'var(--typography-meta-weight, 500)',
+                                                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                                                color: 'var(--neutral-900)',
+                                                boxShadow: '0 4px 4px 0 var(--shadow-color)'
+                                              }}
+                                            >
+                                              {song.cover.artist || song.cover} cover
+                                            </div>
+                                          )}
+                                        </div>
+                                        {(song.info || song.notes) && (
+                                          <p className="text-xs text-gray-600 mt-1 italic">
+                                            {song.info || song.notes}
+                                          </p>
                                         )}
                                       </div>
-                                      {(song.info || song.notes) && (
-                                        <p className="text-xs text-gray-600 mt-1 italic">
-                                          {song.info || song.notes}
-                                        </p>
-                                      )}
                                     </div>
-                                  </div>
-                                ))}
+                                  ))}
+                                </div>
                               </div>
+                            );
+                          })}
+
+                          {setlistData.info && (
+                            <div className="bg-purple-100/50 rounded-lg p-3 mt-4">
+                              <p className="text-sm text-purple-900">
+                                <span className="font-semibold">Note:</span> {setlistData.info}
+                              </p>
                             </div>
-                          );
-                        })}
-                        
-                        {setlistData.info && (
-                          <div className="bg-purple-100/50 rounded-lg p-3 mt-4">
-                            <p className="text-sm text-purple-900">
-                              <span className="font-semibold">Note:</span> {setlistData.info}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Tour information */}
-                        {setlistData.tour && (
-                          <div className="bg-blue-100/50 rounded-lg p-3 mt-4">
-                            <p className="text-sm text-blue-900">
-                              <span className="font-semibold">Tour:</span> {setlistData.tour}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          )}
+                          )}
+
+                          {/* Tour information */}
+                          {setlistData.tour && (
+                            <div className="bg-blue-100/50 rounded-lg p-3 mt-4">
+                              <p className="text-sm text-blue-900">
+                                <span className="font-semibold">Tour:</span> {setlistData.tour}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
 
           {/* Attendance Section for Past Events */}
           {isPastEvent && (
@@ -2300,10 +2300,10 @@ export function EventDetailsModal({
                       className="text-sm"
                       style={{ color: 'var(--neutral-600)' }}
                     >
-                      {attendanceLoading ? 'Loading...' : 
-                       attendanceCount === null ? 'Loading attendance...' :
-                       attendanceCount === 0 ? 'No one has marked attendance yet' :
-                       `${attendanceCount} person${attendanceCount === 1 ? '' : 's'} attended this event`}
+                      {attendanceLoading ? 'Loading...' :
+                        attendanceCount === null ? 'Loading attendance...' :
+                          attendanceCount === 0 ? 'No one has marked attendance yet' :
+                            `${attendanceCount} person${attendanceCount === 1 ? '' : 's'} attended this event`}
                     </p>
                   </div>
                 </div>
@@ -2338,7 +2338,7 @@ export function EventDetailsModal({
                   )}
                 </Button>
               </div>
-              
+
               {userWasThere && (
                 <div
                   className="text-sm rounded-lg p-2"
@@ -2363,7 +2363,7 @@ export function EventDetailsModal({
                     center={[Number(actualEvent.latitude), Number(actualEvent.longitude)]}
                     zoom={13}
                     events={[event as any]}
-                    onEventClick={() => {}}
+                    onEventClick={() => { }}
                   />
                 </div>
               ) : (
@@ -2382,26 +2382,25 @@ export function EventDetailsModal({
             {isPastEvent ? (
               /* Past Event Actions */
               <div className="flex flex-wrap items-center gap-2 w-full">
-                  {/* I Was There Button for Past Events */}
-                  {onReview && (
-                    <Button
-                      variant={hasReviewed ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => onReview(actualEvent.id)}
-                    className={`text-xs px-3 py-1 h-7 ${
-                        hasReviewed 
-                          ? "bg-yellow-500 hover:bg-yellow-600 text-white" 
-                          : "hover:bg-yellow-50 hover:text-yellow-600 hover:border-yellow-300"
-                    }`}
-                    >
-                      {hasReviewed ? (
+                {/* I Was There Button for Past Events */}
+                {onReview && (
+                  <Button
+                    variant={hasReviewed ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => onReview(actualEvent.id)}
+                    className={`text-xs px-3 py-1 h-7 ${hasReviewed
+                        ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                        : "hover:bg-yellow-50 hover:text-yellow-600 hover:border-yellow-300"
+                      }`}
+                  >
+                    {hasReviewed ? (
                       <Star size={16} className="mr-1 fill-current" />
-                      ) : (
+                    ) : (
                       <Star size={16} className="mr-1" />
-                      )}
+                    )}
                     <span className="text-xs">{hasReviewed ? 'Reviewed' : 'I Was There!'}</span>
-                    </Button>
-                  )}
+                  </Button>
+                )}
               </div>
             ) : (
               /* Upcoming Event Actions */
@@ -2414,7 +2413,7 @@ export function EventDetailsModal({
                     const priceRange = event?.price_range;
                     const priceMin = event?.ticket_price_min ?? event?.price_min;
                     const priceMax = event?.ticket_price_max ?? event?.price_max;
-                    
+
                     if (priceRange || priceMin || priceMax) {
                       let priceDisplay = '';
                       if (priceRange) {
@@ -2426,7 +2425,7 @@ export function EventDetailsModal({
                       } else if (priceMax) {
                         priceDisplay = `$${priceMax}`;
                       }
-                      
+
                       return (
                         <div className="text-xs flex items-center">
                           <span className="text-muted-foreground">Price: </span>
@@ -2466,10 +2465,10 @@ export function EventDetailsModal({
                   {(() => {
                     const eventLink = getCompliantEventLink(actualEvent);
                     if (!eventLink) return null;
-                    
+
                     const ticketProvider = extractTicketProvider(eventLink);
                     const daysUntilEvent = actualEvent.event_date ? getDaysUntilEvent(actualEvent.event_date) : undefined;
-                    
+
                     return (
                       <Button
                         variant="default"
@@ -2517,7 +2516,7 @@ export function EventDetailsModal({
                               source: 'event_modal',
                               user_interested: localIsInterested
                             }, actualEvent.id);
-                            
+
                             // 🎯 TRACK: Promotion interaction for ticket click
                             PromotionTrackingService.trackPromotionInteraction(
                               actualEvent.id,
@@ -2529,7 +2528,7 @@ export function EventDetailsModal({
                                 ticket_provider: ticketProvider
                               }
                             );
-                            
+
                             // Mark interaction for duration tracking
                             hasInteracted.current = true;
                           }}
@@ -2547,7 +2546,7 @@ export function EventDetailsModal({
           </div>
           {/* Spacer to ensure ticketing controls are not overlapped by footers */}
           <div className={`${friendModalOpen ? 'h-20' : 'h-2'}`} />
-          
+
           {/* JamBase Attribution */}
           <div className="pt-4 mt-4 border-t" style={{ borderColor: 'var(--neutral-200)' }}>
             <JamBaseAttribution variant="footer" />
@@ -2584,7 +2583,7 @@ export function EventDetailsModal({
                 const { error } = await supabase.rpc('create_friend_request', {
                   receiver_user_id: friendUserId
                 });
-                
+
                 if (error) throw error;
                 console.log('✅ Friend request sent successfully');
               } catch (error) {
@@ -2615,7 +2614,7 @@ export function EventDetailsModal({
               console.log('Report submitted, closing modal');
               setReportModalOpen(false);
             }}
-        />
+          />
         )}
 
         <CreateEventGroupModal
@@ -2630,62 +2629,62 @@ export function EventDetailsModal({
           onGroupCreated={(groupId) => {
             setShowCreateGroup(false);
             // loadEventGroups(); // Disabled - event_groups feature not available in 3NF schema
-            }}
+          }}
         />
-    </div>
+      </div>
 
-    {/* Artist Detail Modal */}
-    {actualEvent?.artist_id && actualEvent?.artist_name && (
-      <Suspense fallback={null}>
-        <ArtistDetailModal
-          isOpen={artistModalOpen}
-          onClose={() => setArtistModalOpen(false)}
-          artistId={actualEvent.artist_id}
-          artistName={actualEvent.artist_name}
+      {/* Artist Detail Modal */}
+      {actualEvent?.artist_id && actualEvent?.artist_name && (
+        <Suspense fallback={null}>
+          <ArtistDetailModal
+            isOpen={artistModalOpen}
+            onClose={() => setArtistModalOpen(false)}
+            artistId={actualEvent.artist_id}
+            artistName={actualEvent.artist_name}
+            currentUserId={currentUserId}
+            onEventClick={handleEventClickFromArtist}
+          />
+        </Suspense>
+      )}
+
+      {actualEvent?.venue_id && actualEvent?.venue_name && (
+        <Suspense fallback={null}>
+          <VenueDetailModal
+            isOpen={venueModalOpen}
+            onClose={() => setVenueModalOpen(false)}
+            venueId={actualEvent.venue_id}
+            venueName={actualEvent.venue_name}
+            currentUserId={currentUserId}
+            onEventClick={handleEventClickFromVenue}
+          />
+        </Suspense>
+      )}
+
+      {/* Event Share Modal */}
+      {actualEvent && (
+        <UniversalShareModal
+          type="event"
+          title={actualEvent.title || 'Event'}
+          url={ShareService.getEventUrl(actualEvent.id)}
           currentUserId={currentUserId}
-          onEventClick={handleEventClickFromArtist}
+          eventId={actualEvent.id}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
         />
-      </Suspense>
-    )}
+      )}
 
-    {actualEvent?.venue_id && actualEvent?.venue_name && (
-      <Suspense fallback={null}>
-        <VenueDetailModal
-          isOpen={venueModalOpen}
-          onClose={() => setVenueModalOpen(false)}
-          venueId={actualEvent.venue_id}
-          venueName={actualEvent.venue_name}
-          currentUserId={currentUserId}
-          onEventClick={handleEventClickFromVenue}
+      {/* Interested Users Modal */}
+      {actualEvent && (
+        <EventInterestedUsersModal
+          isOpen={interestedModalOpen}
+          onClose={() => setInterestedModalOpen(false)}
+          eventId={actualEvent.id}
+          loading={guestListLoading}
+          error={guestListError}
+          allUsers={guestListAllUsers}
+          friendUsers={guestListFriendUsers}
         />
-      </Suspense>
-    )}
-
-    {/* Event Share Modal */}
-    {actualEvent && (
-      <UniversalShareModal
-        type="event"
-        title={actualEvent.title || 'Event'}
-        url={ShareService.getEventUrl(actualEvent.id)}
-        currentUserId={currentUserId}
-        eventId={actualEvent.id}
-        isOpen={shareModalOpen}
-        onClose={() => setShareModalOpen(false)}
-      />
-    )}
-
-    {/* Interested Users Modal */}
-    {actualEvent && (
-      <EventInterestedUsersModal
-        isOpen={interestedModalOpen}
-        onClose={() => setInterestedModalOpen(false)}
-        eventId={actualEvent.id}
-        loading={guestListLoading}
-        error={guestListError}
-        allUsers={guestListAllUsers}
-        friendUsers={guestListFriendUsers}
-      />
-    )}
+      )}
     </>
   );
 }

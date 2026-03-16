@@ -1,0 +1,62 @@
+export const SynthTokens = {
+    colors: {
+        // Base
+        neutral0: '#FFFFFF',
+        neutral50: '#FCFCFC',
+        neutral100: '#F5F5F5',
+        neutral200: '#E6E6E6',
+        neutral400: '#8A8F98',
+        neutral600: '#5D646F',
+        neutral900: '#0E0E0E',
+
+        // Brand
+        brandPink500: '#CC2486',
+        brandPink600: '#951A6D',
+        brandPink700: '#7B1559',
+        brandPink050: '#FDF2F7',
+        purpleAccent: '#8D1FF4',
+
+        // Status
+        success: '#2E8B63',
+        error: '#C62828',
+        warning: '#B88900',
+        stars: '#FCDC5F',
+    },
+    typography: {
+        fontFamily: {
+            regular: 'Inter-Regular', // Needs to be loaded via expo-font
+            medium: 'Inter-Medium',
+            bold: 'Inter-Bold',
+        },
+        sizes: {
+            h1: 35,
+            h2: 24,
+            body: 20,
+            accent: 20,
+            meta: 16,
+            steps: 16,
+        },
+        lineHeights: {
+            h1: 35 * 1.2,
+            h2: 24 * 1.3,
+            body: 20 * 1.5,
+            accent: 20 * 1.5,
+            meta: 16 * 1.5,
+            steps: 16 * 1.5,
+        },
+    },
+    spacing: {
+        xs: 4,
+        sm: 8,
+        md: 16,
+        lg: 24,
+        xl: 32,
+        xxl: 48,
+    },
+    radius: {
+        small: 8,
+        medium: 12,
+        large: 16,
+        full: 9999,
+    }
+};
