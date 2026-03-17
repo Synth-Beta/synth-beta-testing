@@ -109,7 +109,8 @@ export function SynthButton({
 
 const styles = StyleSheet.create({
     base: {
-        height: 56,
+        minHeight: SynthTokens.sizing.buttonHeight,
+        paddingVertical: SynthTokens.spacing.sm,
         borderRadius: SynthTokens.radius.full,
         alignItems: 'center',
         justifyContent: 'center',

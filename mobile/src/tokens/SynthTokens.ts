@@ -21,6 +21,19 @@ export const SynthTokens = {
         error: '#C62828',
         warning: '#B88900',
         stars: '#FCDC5F',
+
+        // Info
+        infoBlue050: '#F0F6FE',
+        infoBlue500: '#1F66EA',
+
+        // States / overlays (match web tokens.css)
+        stateDisabledBg: '#E6E6E6',
+        stateDisabledText: '#5D646F',
+        overlay50: 'rgba(14, 14, 14, 0.5)',
+        overlay20: 'rgba(14, 14, 14, 0.2)',
+    },
+    shadow: {
+        color: 'rgba(0, 0, 0, 0.25)',
     },
     typography: {
         fontFamily: {
@@ -52,11 +65,24 @@ export const SynthTokens = {
         lg: 24,
         xl: 32,
         xxl: 48,
+        inline: 6,
+        small: 12,
+        grouped: 24,
+        bigSection: 60,
+        screenMarginX: 20,
+        menuItemRowHeight: 48,
+        bottomNav: 32,
+    },
+    sizing: {
+        buttonHeight: 36,
+        buttonHeightSm: 28,
+        inputHeight: 44,
     },
     radius: {
         small: 8,
+        corner: 10,
         medium: 12,
         large: 16,
         full: 9999,
-    }
+    },
 };

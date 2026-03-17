@@ -10,7 +10,7 @@ import { SynthButton } from '../../src/components/SynthButton';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { VenueService, Venue } from '../../src/services/venueService';
-import { supabase } from '../../src/services/supabase';
+import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 
 export default function VenuesScreen() {

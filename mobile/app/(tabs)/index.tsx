@@ -85,7 +85,6 @@ export default function FeedScreen() {
       <FlashList
         data={items}
         renderItem={renderItem}
-        estimatedItemSize={280}
         keyExtractor={(item) => `${item.type}-${item.data.id}`}
         contentContainerStyle={styles.listContent}
         refreshControl={

@@ -8,7 +8,7 @@ import { SynthButton } from '../SynthButton';
 import { Heart, MapPin, Calendar } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width - (SynthTokens.spacing.md * 2);
+const CARD_WIDTH = width - (SynthTokens.spacing.screenMarginX * 2);
 const ASPECT_RATIO = 4 / 3;
 const CARD_HEIGHT = CARD_WIDTH / ASPECT_RATIO;
 
@@ -97,12 +97,11 @@ export const EventCard: React.FC<EventCardProps> = ({
 const styles = StyleSheet.create({
     container: {
         backgroundColor: SynthTokens.colors.neutral0,
-        borderRadius: SynthTokens.radius.large,
-        marginHorizontal: SynthTokens.spacing.md,
+        borderRadius: SynthTokens.radius.corner,
+        marginHorizontal: SynthTokens.spacing.screenMarginX,
         marginBottom: SynthTokens.spacing.lg,
         overflow: 'hidden',
-        // Subtle shadow for premium feel
-        shadowColor: '#000',
+        shadowColor: SynthTokens.shadow.color,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 10,

@@ -9,7 +9,7 @@ import { SynthButton } from '../../src/components/SynthButton';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { ArtistService, Artist } from '../../src/services/artistService';
-import { supabase } from '../../src/services/supabase';
+import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 
 export default function ArtistsScreen() {
