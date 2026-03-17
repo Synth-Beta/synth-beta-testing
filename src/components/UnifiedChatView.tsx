@@ -328,10 +328,18 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     }
   }, [selectedChat]);
 
+  // When user first opens a chat, scroll to bottom immediately and again after layout
+  const didInitialScrollForChatRef = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedChat) return;
     if (!didLoadMessages) return;
     scrollMessagesToBottom();
+    const chatId = selectedChat.id;
+    const isFirstOpenForThisChat = didInitialScrollForChatRef.current !== chatId;
+    if (!isFirstOpenForThisChat) return;
+    didInitialScrollForChatRef.current = chatId;
+    const t = setTimeout(() => scrollMessagesToBottom(), 150);
+    return () => clearTimeout(t);
   }, [didLoadMessages, selectedChat?.id, scrollMessagesToBottom]);
 
   // Real-time subscription for messages in selected chat
