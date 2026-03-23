@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, ChevronLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getSynthPlaceholderImage, replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import confetti from 'canvas-confetti';
@@ -41,11 +41,23 @@ const SOURCE_LABELS: Record<string, string> = {
   you_both_attended: "You've both been to",
   you_both_follow: 'You both follow',
   recommended: 'Recommended',
-  fallback: 'For you both',
+  fallback: 'Suggested for you both',
 };
+
+function initialsFromDisplayName(name?: string | null): string {
+  const t = name?.trim();
+  if (!t) return '?';
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return t.slice(0, 2).toUpperCase();
+}
 
 interface NewFriendCelebrationModalProps {
   friendName: string;
+  /** Avatar fallback initials when the current user has no profile photo. */
+  currentUserDisplayName?: string | null;
   data: CelebrationData;
   isOpen: boolean;
   onClose: () => void;
@@ -134,6 +146,7 @@ function SharedFollowGrid({
 
 export function NewFriendCelebrationModal({
   friendName,
+  currentUserDisplayName,
   data,
   isOpen,
   onClose,
@@ -189,19 +202,23 @@ export function NewFriendCelebrationModal({
         flexDirection: 'column',
       }}
     >
-      {/* Header with back button */}
+      {/* Header: back + centered title + spacer so the title never sits under the chevron (web + mobile). */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
+          gap: 8,
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 8,
-          paddingRight: 16,
-          height: 56,
+          paddingRight: 8,
+          minHeight: 56,
           flexShrink: 0,
+          borderBottom: '1px solid var(--neutral-200, #E5E5E5)',
+          backgroundColor: 'var(--neutral-50, #FAFAFA)',
         }}
       >
         <button
+          type="button"
           onClick={onClose}
           style={{
             display: 'flex',
@@ -209,6 +226,7 @@ export function NewFriendCelebrationModal({
             justifyContent: 'center',
             width: 44,
             height: 44,
+            flexShrink: 0,
             background: 'none',
             border: 'none',
             cursor: 'pointer',
@@ -218,6 +236,41 @@ export function NewFriendCelebrationModal({
         >
           <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} />
         </button>
+        <h1
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontFamily: 'var(--font-family)',
+            fontSize: 17,
+            fontWeight: 700,
+            lineHeight: 1.25,
+            color: 'var(--neutral-900)',
+            textAlign: 'center',
+            margin: 0,
+            padding: '4px 0',
+          }}
+        >
+          <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Friend match · {friendName}
+          </span>
+          <span
+            style={{
+              display: 'block',
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--neutral-600, #525252)',
+              marginTop: 2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {typeof data.friendship_days === 'number'
+              ? `${data.friendship_days} ${data.friendship_days === 1 ? 'day' : 'days'} together`
+              : 'Friends'}
+          </span>
+        </h1>
+        <div style={{ width: 44, height: 44, flexShrink: 0 }} aria-hidden />
       </div>
 
       {/* Scrollable content */}
@@ -231,15 +284,16 @@ export function NewFriendCelebrationModal({
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 32px)',
         }}
       >
-        {/* Title */}
-        <h1
+        <p
           style={{
             fontFamily: 'var(--font-family)',
-            fontSize: 24,
+            fontSize: 22,
             fontWeight: 700,
             color: 'var(--neutral-900)',
             textAlign: 'center',
+            marginTop: 16,
             marginBottom: 8,
+            lineHeight: 1.3,
           }}
         >
           You&apos;ve been friends with {friendName} for{' '}
@@ -247,21 +301,21 @@ export function NewFriendCelebrationModal({
             ? `${data.friendship_days} ${data.friendship_days === 1 ? 'day' : 'days'}`
             : '0 days'}
           !
-        </h1>
+        </p>
 
         {/* Avatars - Venn overlap, friend on top, synth pink border */}
         <div className="flex justify-center py-6">
           <div className="relative flex items-center">
             <Avatar className="h-36 w-36 border-[4px] shrink-0" style={{ borderColor: '#CC2486', marginRight: -20 }}>
               <AvatarImage src={data.current_user_avatar_url} />
-              <AvatarFallback>
-                <User className="h-14 w-14" />
+              <AvatarFallback className="bg-muted text-foreground text-3xl font-bold">
+                {initialsFromDisplayName(currentUserDisplayName ?? 'You')}
               </AvatarFallback>
             </Avatar>
             <Avatar className="h-36 w-36 border-[4px] shrink-0 relative z-10" style={{ borderColor: '#CC2486' }}>
               <AvatarImage src={data.friend_avatar_url} />
-              <AvatarFallback>
-                <User className="h-14 w-14" />
+              <AvatarFallback className="bg-muted text-foreground text-3xl font-bold">
+                {initialsFromDisplayName(friendName)}
               </AvatarFallback>
             </Avatar>
           </div>

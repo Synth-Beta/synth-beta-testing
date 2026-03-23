@@ -43,6 +43,7 @@ interface DiscoverViewProps {
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
+  webDesktopChrome?: boolean;
 }
 
 export const DiscoverView: React.FC<DiscoverViewProps> = ({
@@ -55,6 +56,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   menuOpen = false,
   onMenuClick,
   hideHeader = false,
+  webDesktopChrome = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
@@ -419,6 +421,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           </h1>
         </MobileHeader>
       )
+      : webDesktopChrome
+      ? undefined
       : (
         <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
           <div style={{
@@ -444,6 +448,26 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   return (
     <PageShell header={discoverHeader}>
+      {!hideHeader && !detailView && webDesktopChrome && (
+        <header
+          className="sticky z-30 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
+          style={{
+            top: 'var(--onboarding-banner-height, 0px)',
+            paddingTop: 'var(--mobile-header-padding-top, env(safe-area-inset-top, 0px))',
+            marginBottom: 'var(--spacing-small, 12px)',
+          }}
+        >
+          <SearchBar
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value);
+              setIsSearchActive(value.trim().length >= 2);
+            }}
+            placeholder='Try "Radiohead"'
+            widthVariant="flex"
+          />
+        </header>
+      )}
       {/* Glass backdrop context - blobs and noise */}
       <div
         className="swift-ui-discover-backdrop"
@@ -514,7 +538,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         />
       </div>
       <div
-        className="max-w-7xl mx-auto"
+        className={webDesktopChrome ? 'w-full max-w-none mx-auto' : 'max-w-7xl mx-auto'}
         style={{
           overflow: 'visible',
           minHeight: 'auto',

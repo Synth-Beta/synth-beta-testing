@@ -135,9 +135,11 @@ interface UnifiedChatViewProps {
   onMenuClick?: () => void;
   hideHeader?: boolean;
   onChatSelected?: (isSelected: boolean) => void;
+  /** Browser lg+: split inbox + thread, no MobileHeader; composer stays in thread column. */
+  webDesktopChrome?: boolean;
 }
 
-export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMenuClick, hideHeader = false, onChatSelected }: UnifiedChatViewProps) => {
+export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMenuClick, hideHeader = false, onChatSelected, webDesktopChrome = false }: UnifiedChatViewProps) => {
   // Track chat view
   useViewTracking('view', 'chat', { source: 'messages' });
 
@@ -1669,7 +1671,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     }
   };
 
-  const showChatHeader = !hideHeader && !eventDetailsOpen && !showReviewDetailModal;
+  const showChatHeader = !hideHeader && !eventDetailsOpen && !showReviewDetailModal && !webDesktopChrome;
   const chatHeader = showChatHeader ? (
     <MobileHeader
       menuOpen={menuOpen}
@@ -2063,89 +2065,43 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     );
   }
 
+  const showChatListPane = webDesktopChrome || !selectedChat;
+
   return (
-    <PageShell header={chatHeader}>
-      <div 
-        className="flex w-full max-w-[393px] mx-auto h-full" style={{ backgroundColor: 'var(--neutral-50)', minHeight: '100dvh', height: '100dvh' }}
+    <PageShell
+      header={chatHeader}
+      includeBottomNavPadding={!webDesktopChrome}
+      contentPaddingTop={
+        webDesktopChrome
+          ? 'calc(env(safe-area-inset-top, 0px) + var(--onboarding-banner-height, 0px))'
+          : undefined
+      }
+      contentClassName={webDesktopChrome ? 'flex min-h-0 flex-col' : undefined}
+      contentHorizontalPadding={!webDesktopChrome}
+      contentStyle={
+        webDesktopChrome
+          ? {
+              height: 'calc(100dvh - env(safe-area-inset-bottom, 0px))',
+              maxHeight: 'calc(100dvh - env(safe-area-inset-bottom, 0px))',
+              overflow: 'hidden',
+              boxSizing: 'border-box',
+            }
+          : undefined
+      }
+    >
+      <div
+        className={`flex w-full ${webDesktopChrome ? 'max-w-none mx-0 min-h-0 flex-1 flex-row overflow-hidden' : 'h-full max-w-[393px] mx-auto'}`}
+        style={{
+          backgroundColor: 'var(--neutral-50)',
+          minHeight: webDesktopChrome ? undefined : '100dvh',
+          height: webDesktopChrome ? undefined : '100dvh',
+        }}
       >
-      {/* Settings Menu Dropdown - Positioned relative to header */}
-      {selectedChat && (
-        <DropdownMenu open={showSettingsMenu} onOpenChange={setShowSettingsMenu}>
-          <DropdownMenuTrigger asChild>
-            <button
-              style={{
-                position: 'fixed',
-                top: 'calc(var(--onboarding-banner-height, 0px) + env(safe-area-inset-top, 0px) + 12px)',
-                right: 'var(--spacing-screen-margin-x, 20px)',
-                width: 'var(--size-input-height, 44px)',
-                height: 'var(--size-input-height, 44px)',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                zIndex: 41
-              }}
-              aria-label="More options"
-            />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56" style={{ zIndex: 50 }}>
-            {selectedChat.is_group_chat && (
-              <DropdownMenuItem onClick={handleViewUsers}>
-                <Users className="mr-2 h-4 w-4" />
-                <span>View Users</span>
-              </DropdownMenuItem>
-            )}
-            
-            {!selectedChat.is_group_chat && (
-              <>
-                <DropdownMenuItem onClick={() => handleViewProfile(getOtherUserId(selectedChat))}>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>View Profile</span>
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem onClick={() => handleBlockUser(getOtherUserId(selectedChat))}>
-                  <UserX className="mr-2 h-4 w-4" />
-                  <span>Block User</span>
-                </DropdownMenuItem>
-              </>
-            )}
-            
-            <DropdownMenuItem onClick={handleMuteNotifications}>
-              {isMuted ? (
-                <Bell className="mr-2 h-4 w-4" />
-              ) : (
-                <BellOff className="mr-2 h-4 w-4" />
-              )}
-              <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
-            </DropdownMenuItem>
-            
-            {selectedChat.is_group_chat && linkedEvent && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleViewEvent}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  <span>View Event</span>
-                </DropdownMenuItem>
-              </>
-            )}
-            
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onSelect={(e) => {
-                e.preventDefault();
-                requestDeleteChat();
-              }}
-              className="text-red-600 focus:text-red-600"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete Chat</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-      
       {/* Left Sidebar - Chat List */}
-      {!selectedChat && (
-        <div className="w-full flex flex-col flex-1 min-h-0">
+      {showChatListPane && (
+        <div
+          className={`flex flex-col min-h-0 ${webDesktopChrome ? 'h-full w-full max-w-[min(100%,380px)] shrink-0 border-r border-[var(--neutral-200)]' : 'w-full flex-1'}`}
+        >
         {/* Content area - 12px below header */}
           <div className="flex-shrink-0" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 0 }}>
           
@@ -2248,7 +2204,17 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               </div>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 overflow-y-auto" style={{ paddingTop: 0, paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column' }}>
+            <div
+              className="flex-1 min-h-0 overflow-y-auto"
+              style={{
+                paddingTop: 0,
+                paddingBottom: webDesktopChrome
+                  ? 'var(--spacing-small, 12px)'
+                  : 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
               {chats.map((chat, index) => (
                 <div
                   key={chat.id}
@@ -2383,17 +2349,187 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       </div>
       )}
 
+      {webDesktopChrome && !selectedChat && (
+        <div
+          className="hidden min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-hidden border-l border-dashed border-[var(--neutral-200)] bg-[var(--neutral-50)] text-center lg:flex"
+          style={{ padding: 'var(--spacing-grouped, 24px)' }}
+        >
+          <MessageCircle size={48} strokeWidth={2} style={{ color: 'var(--neutral-400)' }} />
+          <p
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              color: 'var(--neutral-600)',
+              margin: 0,
+              maxWidth: '20rem',
+            }}
+          >
+            Select a conversation to read and send messages.
+          </p>
+        </div>
+      )}
+
       {/* Right Side - Messages */}
       {selectedChat && (
         <div
-          className="w-full flex flex-col min-h-0 h-full"
-          style={{ backgroundColor: 'var(--neutral-50)', height: '100%', position: 'relative' }}
+          className={`flex w-full min-h-0 flex-col overflow-hidden ${webDesktopChrome ? 'min-w-0 flex-1' : 'h-full'}`}
+          style={{ backgroundColor: 'var(--neutral-50)', position: 'relative' }}
           onTouchStart={handleChatTouchStart}
           onTouchMove={handleChatTouchMove}
           onTouchEnd={handleChatTouchEnd}
           onTouchCancel={handleChatTouchCancel}
         >
           <>
+            {!webDesktopChrome && (
+              <DropdownMenu open={showSettingsMenu} onOpenChange={setShowSettingsMenu}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    style={{
+                      position: 'fixed',
+                      top: 'calc(var(--onboarding-banner-height, 0px) + env(safe-area-inset-top, 0px) + 12px)',
+                      right: 'var(--spacing-screen-margin-x, 20px)',
+                      width: 'var(--size-input-height, 44px)',
+                      height: 'var(--size-input-height, 44px)',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      zIndex: 41,
+                    }}
+                    aria-label="More options"
+                  />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56" style={{ zIndex: 50 }}>
+                  {selectedChat.is_group_chat && (
+                    <DropdownMenuItem onClick={handleViewUsers}>
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>View Users</span>
+                    </DropdownMenuItem>
+                  )}
+                  {!selectedChat.is_group_chat && (
+                    <>
+                      <DropdownMenuItem onClick={() => handleViewProfile(getOtherUserId(selectedChat))}>
+                        <User className="mr-2 h-4 w-4" />
+                        <span>View Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBlockUser(getOtherUserId(selectedChat))}>
+                        <UserX className="mr-2 h-4 w-4" />
+                        <span>Block User</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuItem onClick={handleMuteNotifications}>
+                    {isMuted ? <Bell className="mr-2 h-4 w-4" /> : <BellOff className="mr-2 h-4 w-4" />}
+                    <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
+                  </DropdownMenuItem>
+                  {selectedChat.is_group_chat && linkedEvent && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleViewEvent}>
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span>View Event</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      requestDeleteChat();
+                    }}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <span>Delete Chat</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {webDesktopChrome && (
+              <DropdownMenu open={showSettingsMenu} onOpenChange={setShowSettingsMenu}>
+                <header
+                  className="flex flex-shrink-0 items-center gap-2 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-3 py-2"
+                  style={{ paddingTop: 'var(--spacing-small, 8px)' }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedChat(null);
+                      window.scrollTo(0, 0);
+                    }}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--neutral-100)]"
+                    aria-label="Back to inbox"
+                  >
+                    <ArrowLeft className="h-5 w-5" style={{ color: 'var(--neutral-900)' }} />
+                  </button>
+                  <h2
+                    className="min-w-0 flex-1 truncate font-bold"
+                    style={{
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-body-size, 20px)',
+                      color: 'var(--neutral-900)',
+                    }}
+                  >
+                    {getChatDisplayName(selectedChat)}
+                  </h2>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--neutral-100)]"
+                      aria-label="More options"
+                    >
+                      <MoreVertical className="h-5 w-5" style={{ color: 'var(--neutral-900)' }} />
+                    </button>
+                  </DropdownMenuTrigger>
+                </header>
+                <DropdownMenuContent align="end" className="w-56" style={{ zIndex: 50 }}>
+                  {selectedChat.is_group_chat && (
+                    <DropdownMenuItem onClick={handleViewUsers}>
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>View Users</span>
+                    </DropdownMenuItem>
+                  )}
+                  {!selectedChat.is_group_chat && (
+                    <>
+                      <DropdownMenuItem onClick={() => handleViewProfile(getOtherUserId(selectedChat))}>
+                        <User className="mr-2 h-4 w-4" />
+                        <span>View Profile</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBlockUser(getOtherUserId(selectedChat))}>
+                        <UserX className="mr-2 h-4 w-4" />
+                        <span>Block User</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuItem onClick={handleMuteNotifications}>
+                    {isMuted ? <Bell className="mr-2 h-4 w-4" /> : <BellOff className="mr-2 h-4 w-4" />}
+                    <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
+                  </DropdownMenuItem>
+                  {selectedChat.is_group_chat && linkedEvent && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleViewEvent}>
+                        <Calendar className="mr-2 h-4 w-4" />
+                        <span>View Event</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      requestDeleteChat();
+                    }}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <span>Delete Chat</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             {/* Messages */}
               <div 
                 ref={messagesScrollRef}
@@ -2401,14 +2537,16 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 aria-busy={isFetchingMessages}
                 aria-label="Chat messages"
                 style={{ 
-                  maxWidth: '353px', 
+                  maxWidth: webDesktopChrome ? '100%' : '353px', 
                   width: '100%', 
                   margin: '0 auto', 
                   paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
                   paddingRight: 'var(--spacing-screen-margin-x, 20px)', 
-                  paddingTop: hideHeader 
-                    ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` 
-                    : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, 
+                  paddingTop: webDesktopChrome
+                    ? `var(--spacing-small, 12px)`
+                    : hideHeader 
+                      ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))` 
+                      : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`, 
                   paddingBottom: composerReservedSpace
                 }}
               >
@@ -2456,20 +2594,21 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
             {/* Message Input */}
             <div
                 style={{ 
-                  position: 'fixed',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
+                  position: webDesktopChrome ? 'relative' : 'fixed',
+                  bottom: webDesktopChrome ? undefined : 0,
+                  left: webDesktopChrome ? undefined : 0,
+                  right: webDesktopChrome ? undefined : 0,
                   width: '100%',
                   paddingTop: 'var(--spacing-grouped, 24px)',
                   paddingBottom: 'calc(var(--spacing-grouped, 24px) + env(safe-area-inset-bottom, 0px))',
                   backgroundColor: 'var(--neutral-50)',
-                  zIndex: 40
+                  zIndex: webDesktopChrome ? undefined : 40,
+                  flexShrink: 0,
                 }}
               >
                 <div 
                   style={{ 
-                    maxWidth: '393px',
+                    maxWidth: webDesktopChrome ? '100%' : '393px',
                     margin: '0 auto',
                     paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
                     paddingRight: 'var(--spacing-screen-margin-x, 20px)'

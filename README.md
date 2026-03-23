@@ -86,9 +86,10 @@ npm run dev
 
 - **Web**: Run and deploy from the **root** of this repo. `npm run dev` starts the Vite dev server; the web app is deployed (e.g. to Vercel) from the root build. The website is unchanged and remains the primary web frontend.
 - **iOS and Android**: Run and build from the **`mobile/`** directory using Expo. See [mobile/README.md](mobile/README.md) for:
-  - How to run: `cd mobile && npx expo run:ios` or `npx expo run:android`
+  - How to run: `cd mobile && npx expo start` or `npx expo run:ios` / `npx expo run:android` (from repo root: `npm run mobile:start`)
   - Environment setup (use the same Supabase project as web)
   - Production builds via EAS (App Store / Play Store)
+- **Web vs app screen parity** (for RN backlog): [mobile/PARITY.md](mobile/PARITY.md)
 - **Root `ios/` and `android/`**: These are **Capacitor** (legacy) projects that wrap the web build for mobile. For new mobile development and store builds, use the Expo app in `mobile/` instead. The Capacitor folders are kept for reference or legacy workflows only.
 
 ## Documentation

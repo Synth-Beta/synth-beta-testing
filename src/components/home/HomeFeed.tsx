@@ -100,6 +100,8 @@ interface HomeFeedProps {
   onMenuClick?: () => void;
   hideHeader?: boolean;
   refreshTrigger?: number;
+  /** Browser lg+: slim toolbar (Events/Reviews + JamBase); no duplicate hamburger — use rail Menu. */
+  webDesktopChrome?: boolean;
 }
 
 export const HomeFeed: React.FC<HomeFeedProps> = ({
@@ -115,6 +117,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   onMenuClick,
   hideHeader = false,
   refreshTrigger = 0,
+  webDesktopChrome = false,
 }) => {
   // Header state
   const [activeCity, setActiveCity] = useState<string | null>(null);
@@ -1887,8 +1890,8 @@ interface FriendEventInterest {
     <div 
       className="min-h-screen" style={{ backgroundColor: 'var(--neutral-50)' }}
     >
-            {/* Mobile Header with dropdown aligned to left content edge */}
-      {!hideHeader && (
+            {/* Mobile / Capacitor: full MobileHeader with hamburger + badge */}
+      {!hideHeader && !webDesktopChrome && (
         <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick} badgeCount={unreadNotificationsCount + unreadFriendRequestsCount}>
           <div
             style={{
@@ -1990,17 +1993,77 @@ interface FriendEventInterest {
           </div>
         </MobileHeader>
       )}
+
+      {/* Web desktop: sticky strip — Events/Reviews + JamBase only (notifications → rail Menu). */}
+      {!hideHeader && webDesktopChrome && (
+        <header
+          className="sticky z-40 flex min-h-[52px] items-center justify-between gap-4 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
+          style={{
+            top: 'var(--onboarding-banner-height, 0px)',
+            paddingTop: 'max(var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)), 8px)',
+          }}
+        >
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                style={{
+                  backgroundColor: 'var(--neutral-50)',
+                  borderColor: dropdownOpen ? 'var(--brand-pink-500)' : 'var(--neutral-200)',
+                  borderWidth: '2px',
+                  color: 'var(--neutral-900)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                }}
+                data-tour="feed-toggle"
+              >
+                <span>{feedTypes.find((ft) => ft.value === selectedFeedType)?.label || 'Events'}</span>
+                <ChevronDown className="h-4 w-4" style={{ color: 'var(--neutral-900)' }} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              style={{
+                backgroundColor: 'var(--neutral-50)',
+                border: '2px solid var(--neutral-200)',
+                borderRadius: 'var(--radius-corner, 10px)',
+                boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                minWidth: '200px',
+              }}
+            >
+              {feedTypes.map((feedType) => (
+                <DropdownMenuItem
+                  key={feedType.value}
+                  onClick={() => setSelectedFeedType(feedType.value)}
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    cursor: 'pointer',
+                    padding: 'var(--spacing-small, 12px)',
+                  }}
+                >
+                  {feedType.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {selectedFeedType === 'events' ? <JamBaseHeaderAttribution variant="inline" /> : <span />}
+        </header>
+      )}
       
-      {/* JamBase Attribution - Top right corner, only for events feed */}
-      {!hideHeader && selectedFeedType === 'events' && (
+      {/* JamBase fixed — mobile header only (desktop uses inline in strip above). */}
+      {!hideHeader && !webDesktopChrome && selectedFeedType === 'events' && (
         <JamBaseHeaderAttribution />
       )}
       <main
-        className="max-w-7xl mx-auto"
+        className={webDesktopChrome ? 'w-full max-w-none mx-auto' : 'max-w-7xl mx-auto'}
         style={{
           paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
           paddingRight: 'var(--spacing-screen-margin-x, 20px)',
           paddingTop: hideHeader
+            ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))`
+            : webDesktopChrome
             ? `calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))`
             : `calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))`,
           paddingBottom: 'var(--spacing-bottom-nav, 32px)',

@@ -1,6 +1,4 @@
 import React from 'react';
-import { SettingsModal } from './SettingsModal';
-import type { SettingsModalView } from './SettingsModal';
 import { EventReviewModal } from './EventReviewModal';
 import { FriendTaggedReviewInviteModal } from './reviews/FriendTaggedReviewInviteModal';
 import type { PrefillEvent } from './reviews/FriendTaggedReviewInviteModal';
@@ -11,9 +9,8 @@ import { NotificationService } from '@/services/notificationService';
 interface GlobalModalsProps {
   userId: string;
   userEmail?: string;
-  showSettings: boolean;
-  settingsInitialView: SettingsModalView;
-  onCloseSettings: () => void;
+  /** For friend-match avatar fallback when the user has no profile photo. */
+  friendMatchSelfDisplayName?: string | null;
   onSignOut: () => void;
   showEventReviewModal: boolean;
   eventReviewPrefill: PrefillEvent | null;
@@ -33,9 +30,7 @@ interface GlobalModalsProps {
 export const GlobalModals = ({
   userId,
   userEmail,
-  showSettings,
-  settingsInitialView,
-  onCloseSettings,
+  friendMatchSelfDisplayName,
   onSignOut,
   showEventReviewModal,
   eventReviewPrefill,
@@ -53,14 +48,6 @@ export const GlobalModals = ({
 }: GlobalModalsProps) => {
   return (
     <>
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={onCloseSettings}
-        onSignOut={onSignOut}
-        userEmail={userEmail}
-        initialView={settingsInitialView}
-      />
-
       {/* Friend Tagged in Review Invite Modal - shows on login when user was tagged */}
       {friendTaggedInviteNotification && (
         <FriendTaggedReviewInviteModal
@@ -89,6 +76,7 @@ export const GlobalModals = ({
       {friendCelebration && (
         <NewFriendCelebrationModal
           friendName={friendCelebration.friendName}
+          currentUserDisplayName={friendMatchSelfDisplayName}
           data={friendCelebration.data}
           isOpen={!!friendCelebration}
           onClose={async () => {

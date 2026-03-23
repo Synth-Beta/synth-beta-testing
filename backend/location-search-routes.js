@@ -5,7 +5,7 @@ const { getSupabaseConfig, getApiKey, reportKeyFailure } = require('./config/api
 const { createRateLimiter } = require('./middleware/rateLimiter');
 const { validateQuery } = require('./middleware/validateInput');
 const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
-const { locationSearchQuerySchema } = require('./validation/schemas');
+const { jambaseLocationSearchGetQuerySchema } = require('./validation/schemas');
 
 const router = express.Router();
 
@@ -14,7 +14,7 @@ const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missi
 const supabase = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
 
 // Sanitization middleware
-const sanitize = createSanitizationMiddleware({ sanitizeQuery: true });
+const sanitize = createSanitizationMiddleware({ sanitizeQuery: true, sanitizeBody: true });
 
 // Major cities for location search
 const CITY_COORDINATES = {
@@ -213,128 +213,133 @@ async function searchEventsFromDatabase(lat, lng, radius = 25, limit = 50) {
   }
 }
 
+/**
+ * Shared JamBase + DB location search (POST supports string city or { lat, lng }; GET only supports string city).
+ */
+async function runJambaseLocationSearch(location, radius, limit, res) {
+  if (!location) {
+    return res.status(400).json({
+      success: false,
+      error: 'Location parameter is required',
+    });
+  }
+
+  let searchCoords;
+  let locationName;
+
+  if (typeof location === 'string') {
+    const cityCoords = searchCity(location);
+    if (!cityCoords) {
+      return res.status(400).json({
+        success: false,
+        error: `City "${location}" not found. Try a major city like "New York" or "Los Angeles"`,
+      });
+    }
+    searchCoords = { lat: cityCoords.lat, lng: cityCoords.lng };
+    locationName = cityCoords.name;
+  } else if (location.lat != null && location.lng != null) {
+    searchCoords = location;
+    locationName = `${Number(location.lat).toFixed(4)}, ${Number(location.lng).toFixed(4)}`;
+  } else {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid location format. Provide city name or {lat, lng} coordinates',
+    });
+  }
+
+  console.log(`🔍 Searching for events near ${locationName} (${searchCoords.lat}, ${searchCoords.lng})`);
+
+  let events = [];
+  let source = 'database';
+
+  try {
+    console.log('📡 Calling JamBase API for location-based events...');
+    events = await fetchEventsFromJamBaseByLocation(searchCoords.lat, searchCoords.lng, radius, limit);
+
+    if (events.length > 0) {
+      console.log(`✅ Found ${events.length} events from JamBase API`);
+      await storeEventsInSupabase(events);
+      source = 'jambase';
+    } else {
+      console.log('📭 No events found from JamBase API, trying database...');
+    }
+  } catch (apiError) {
+    console.warn('⚠️ JamBase API failed, trying database fallback:', apiError.message);
+  }
+
+  if (events.length === 0) {
+    console.log('🗄️ Searching database for events near location...');
+    events = await searchEventsFromDatabase(searchCoords.lat, searchCoords.lng, radius, limit);
+    if (events.length > 0) {
+      console.log(`✅ Found ${events.length} events from database`);
+    } else {
+      console.log('📭 No events found in database either');
+    }
+  }
+
+  return res.json({
+    success: true,
+    events,
+    total: events.length,
+    location: {
+      name: locationName,
+      lat: searchCoords.lat,
+      lng: searchCoords.lng,
+      radius,
+    },
+    source,
+  });
+}
+
+function toBoundedInt(value, fallback, min, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  const bounded = Math.max(min, Math.min(max, Math.trunc(n)));
+  return bounded;
+}
+
 // POST /api/jambase/location-search
 router.post('/api/jambase/location-search',
   sanitize,
   createRateLimiter('strict'),
   async (req, res) => {
-  try {
-    const { location, radius = 25, limit = 50 } = req.body;
-    
-    if (!location) {
-      return res.status(400).json({
-        success: false,
-        error: 'Location parameter is required'
-      });
-    }
-    
-    let searchCoords;
-    let locationName;
-    
-    // Handle different location input formats
-    if (typeof location === 'string') {
-      // Search by city name
-      const cityCoords = searchCity(location);
-      if (!cityCoords) {
-        return res.status(400).json({
-          success: false,
-          error: `City "${location}" not found. Try a major city like "New York" or "Los Angeles"`
-        });
-      }
-      searchCoords = { lat: cityCoords.lat, lng: cityCoords.lng };
-      locationName = cityCoords.name;
-    } else if (location.lat && location.lng) {
-      // Use provided coordinates
-      searchCoords = location;
-      locationName = `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
-    } else {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid location format. Provide city name or {lat, lng} coordinates'
-      });
-    }
-    
-    console.log(`🔍 Searching for events near ${locationName} (${searchCoords.lat}, ${searchCoords.lng})`);
-    
-    // Try JamBase API first
-    let events = [];
-    let source = 'database';
-    
     try {
-      console.log('📡 Calling JamBase API for location-based events...');
-      events = await fetchEventsFromJamBaseByLocation(searchCoords.lat, searchCoords.lng, radius, limit);
-      
-      if (events.length > 0) {
-        console.log(`✅ Found ${events.length} events from JamBase API`);
-        
-        // Store events in Supabase
-        await storeEventsInSupabase(events);
-        source = 'jambase';
-      } else {
-        console.log('📭 No events found from JamBase API, trying database...');
-      }
-    } catch (apiError) {
-      console.warn('⚠️ JamBase API failed, trying database fallback:', apiError.message);
-    }
-    
-    // Fallback to database search if no API results
-    if (events.length === 0) {
-      console.log('🗄️ Searching database for events near location...');
-      events = await searchEventsFromDatabase(searchCoords.lat, searchCoords.lng, radius, limit);
-      
-      if (events.length > 0) {
-        console.log(`✅ Found ${events.length} events from database`);
-      } else {
-        console.log('📭 No events found in database either');
-      }
-    }
-    
-    res.json({
-      success: true,
-      events,
-      total: events.length,
-      location: {
-        name: locationName,
-        lat: searchCoords.lat,
-        lng: searchCoords.lng,
-        radius
-      },
-      source
-    });
-    
-  } catch (error) {
-    console.error('❌ Error in location search:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      message: error.message
-    });
-  }
-});
-
-// GET /api/jambase/location-search (for testing)
-router.get('/api/jambase/location-search', async (req, res) => {
-  try {
-    const { location, radius = 25, limit = 50 } = req.query;
-    
-    if (!location) {
-      return res.status(400).json({
+      const { location, radius = 25, limit = 50 } = req.body;
+      await runJambaseLocationSearch(location, radius, limit, res);
+    } catch (error) {
+      console.error('❌ Error in location search:', error);
+      res.status(500).json({
         success: false,
-        error: 'Location parameter is required'
+        error: 'Internal server error',
+        message: error.message,
       });
     }
-    
-    // Use the same logic as POST endpoint
-    return router.handle({ method: 'POST', body: { location, radius: parseInt(radius), limit: parseInt(limit) } }, res);
-    
-  } catch (error) {
-    console.error('❌ Error in GET location search:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      message: error.message
-    });
   }
-});
+);
+
+// GET /api/jambase/location-search — same cost as POST; must be rate-limited and validated (was unprotected).
+router.get(
+  '/api/jambase/location-search',
+  sanitize,
+  createRateLimiter('strict'),
+  validateQuery(jambaseLocationSearchGetQuerySchema),
+  async (req, res) => {
+    try {
+      const q = req.validatedQuery || req.query;
+      const location = q?.location;
+      // Defensive coercion in case validation middleware is bypassed or altered.
+      const radius = toBoundedInt(q?.radius, 25, 1, 500);
+      const limit = toBoundedInt(q?.limit, 50, 1, 100);
+      await runJambaseLocationSearch(location, radius, limit, res);
+    } catch (error) {
+      console.error('❌ Error in GET location search:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        message: error.message,
+      });
+    }
+  }
+);
 
 module.exports = router;

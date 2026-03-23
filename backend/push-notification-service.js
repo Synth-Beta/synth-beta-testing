@@ -78,9 +78,66 @@ class PushNotificationService {
   }
 
   /**
+   * Expo / React Native apps register `ExponentPushToken[...]` tokens — send via Expo Push API, not raw APNs.
+   * @see https://docs.expo.dev/push-notifications/sending-notifications/
+   */
+  static isExpoPushToken(deviceToken) {
+    return typeof deviceToken === 'string' && deviceToken.startsWith('ExponentPushToken');
+  }
+
+  /**
+   * Send via Expo Push API (requires EXPO_ACCESS_TOKEN from expo.dev).
+   */
+  async sendExpoPushNotification(deviceToken, notification) {
+    const accessToken = process.env.EXPO_ACCESS_TOKEN;
+    if (!accessToken) {
+      console.warn('⚠️  EXPO_ACCESS_TOKEN not set; cannot send Expo push');
+      return { success: false, error: 'EXPO_ACCESS_TOKEN not set' };
+    }
+
+    try {
+      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          to: deviceToken,
+          title: notification.title,
+          body: notification.message,
+          data: notification.data || {},
+          sound: 'default',
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, error: json?.errors?.[0]?.message || res.statusText };
+      }
+      const ticket = json?.data;
+      const status = Array.isArray(ticket) ? ticket[0]?.status : ticket?.status;
+      if (status === 'error') {
+        const errMsg = Array.isArray(ticket) ? ticket[0]?.message : ticket?.message;
+        return { success: false, error: errMsg || 'Expo push error' };
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Expo push send error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Send push notification to a device
    */
   async sendNotification(deviceToken, notification) {
+    if (PushNotificationService.isExpoPushToken(deviceToken)) {
+      return this.sendExpoPushNotification(deviceToken, notification);
+    }
+
     if (!this.apnProvider) {
       return { success: false, error: 'APNs provider not initialized' };
     }
@@ -152,7 +209,7 @@ class PushNotificationService {
       .select('device_token')
       .eq('user_id', userId)
       .eq('is_active', true)
-      .eq('platform', 'ios');
+      .in('platform', ['ios', 'android']);
 
     if (error) {
       console.error('Error fetching device tokens:', error);
@@ -244,7 +301,7 @@ class PushNotificationService {
         .select('user_id, device_token')
         .in('user_id', userIds)
         .eq('is_active', true)
-        .eq('platform', 'ios');
+        .in('platform', ['ios', 'android']);
 
       if (tokensError) {
         console.error('Error fetching device tokens:', tokensError);

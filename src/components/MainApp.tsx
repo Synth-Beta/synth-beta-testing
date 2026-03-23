@@ -2,6 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { BottomNavAdapter } from './BottomNavAdapter';
+import { WebAppShell } from '@/components/layout/WebAppShell';
+import { WebDesktopRail } from '@/components/layout/WebDesktopRail';
+import { useWebLayoutMode } from '@/hooks/useWebLayoutMode';
+import { useMainNavItems, type MainNavCurrentView } from '@/hooks/useMainNavItems';
+import { getWebDesktopMainContentClass, type MainAppViewForLayout } from '@/utils/webMainContentClass';
+import { useMenuNotificationBadgeCount } from '@/hooks/useMenuNotificationBadgeCount';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import { ConcertFeed } from './events/ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
@@ -12,7 +18,7 @@ import { ConcertEvents } from './ConcertEvents';
 import { Event as EventCardEvent } from './EventCard';
 import Auth from '@/pages/Auth';
 import { EventSeeder } from './EventSeeder';
-import type { SettingsModalView } from './SettingsModal';
+import { SettingsModal, type SettingsModalView } from './SettingsModal';
 import { NotificationsPage } from './NotificationsPage';
 import { UnifiedChatView } from './UnifiedChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
@@ -53,6 +59,7 @@ type ViewType =
   | 'streaming-stats'
   | 'profile'
   | 'profile-edit'
+  | 'settings'
   | 'notifications'
   | 'chat'
   | 'analytics'
@@ -91,6 +98,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
+  const layoutMode = useWebLayoutMode();
+  const menuNotificationBadgeCount = useMenuNotificationBadgeCount(user?.id);
+  const webDesktopChrome = layoutMode === 'web-desktop';
 
   // Once the user is authenticated, remember it for this session so we can
   // detect an explicit sign-out later (vs. the initial unauthenticated load).
@@ -148,6 +158,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   } = useEventReviewModals(user?.id, loading);
 
   const { friendCelebration, setFriendCelebration } = useFriendCelebration();
+
+  const hideNavigation = showEventReviewModal;
+  const navViewForBottomNav: ViewType =
+    detailModal.open && (detailModal.type === 'artist' || detailModal.type === 'venue')
+      ? 'onboarding'
+      : currentView;
 
   // Listen for streaming sync completion and show notification
   useEffect(() => {
@@ -347,6 +363,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   }, [sessionExpired]);
 
+  // Defensive auth-state sync: if a signed-in session transitions to signed-out,
+  // force an auth-safe view to prevent rendering authenticated screens with null user.
+  useEffect(() => {
+    if (!loading && !user?.id) {
+      setCurrentView('auth');
+      setMenuOpen(false);
+    }
+  }, [loading, user?.id]);
+
   // Handle API key errors as session expiration
   useEffect(() => {
     const handleApiError = (event: CustomEvent) => {
@@ -360,8 +385,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   }, []);
 
   const [showAuth, setShowAuth] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [settingsInitialView, setSettingsInitialView] = useState<SettingsModalView>('menu');
+  const settingsReturnViewRef = useRef<ViewType>('profile');
   // hasCheckedFriendCelebration removed — celebration is now triggered manually via buttons
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -466,24 +491,37 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }
   };
 
+  // Hide bottom nav / rail when a chat thread is open on phone-style layouts only.
+  // On web-desktop, keep the rail mounted so WebAppShell does not remount and wipe chat selection.
+  const showPrimaryNav =
+    !hideNavigation &&
+    currentView !== 'profile-edit' &&
+    currentView !== 'settings' &&
+    (currentView !== 'chat' || !isChatSelected || layoutMode === 'web-desktop') &&
+    !(USE_NATIVE_NAV && isIosNative);
+
+  const { items: mainNavItems, handleItemClick: handleMainNavItemClick } = useMainNavItems({
+    currentView: navViewForBottomNav as MainNavCurrentView,
+    onViewChange: (v) => handleViewChange(v as ViewType),
+    onOpenEventReview: () => setShowEventReviewModal(true),
+    profileUserId,
+    interactionSource: layoutMode === 'web-desktop' ? 'web_rail' : 'bottom_nav',
+  });
+
   const handleProfileEdit = () => {
     // Navigate to profile edit view
     // Navigating to profile edit
     setCurrentView('profile-edit');
   };
 
-  const openSettingsModal = (view: SettingsModalView = 'menu') => {
+  const openSettingsPage = (view: SettingsModalView = 'menu') => {
+    settingsReturnViewRef.current = currentView;
     setSettingsInitialView(view);
-    setShowSettings(true);
-  };
-
-  const closeSettingsModal = () => {
-    setShowSettings(false);
-    setSettingsInitialView('menu');
+    setCurrentView('settings');
   };
 
   const handleProfileSettings = () => {
-    openSettingsModal('onboarding-preferences');
+    openSettingsPage('menu');
   };
 
   const handleProfileSave = () => {
@@ -494,9 +532,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const handleSignOut = async () => {
     try {
+      setCurrentView('auth');
+      setMenuOpen(false);
       await signOut();
       setShowAuth(false); // Hide auth modal
-      closeSettingsModal(); // Hide settings modal
     } catch (error: any) {
       // Error signing out
     }
@@ -731,6 +770,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
               isEventDetailsOpen
             }
             refreshTrigger={refreshTrigger}
+            webDesktopChrome={webDesktopChrome}
           />
         );
       case 'search':
@@ -744,6 +784,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onViewChange={handleViewChange}
             menuOpen={menuOpen}
             onMenuClick={handleMenuToggle}
+            webDesktopChrome={webDesktopChrome}
           />
         );
       case 'profile':
@@ -767,6 +808,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
               isEventDetailsOpen
             }
             refreshTrigger={refreshTrigger}
+            webDesktopChrome={webDesktopChrome}
           />
         );
       case 'profile-edit':
@@ -775,6 +817,20 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             currentUserId={user.id}
             onBack={() => setCurrentView('profile')}
             onSave={handleProfileSave}
+          />
+        );
+      case 'settings':
+        return (
+          <SettingsModal
+            variant="page"
+            isOpen
+            initialView={settingsInitialView}
+            userEmail={user.email}
+            onSignOut={handleSignOut}
+            onClose={() => {
+              setCurrentView(settingsReturnViewRef.current);
+              setSettingsInitialView('menu');
+            }}
           />
         );
       case 'notifications':
@@ -800,6 +856,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onMenuClick={handleMenuToggle}
             hideHeader={hideNavigation}
             onChatSelected={setIsChatSelected}
+            webDesktopChrome={webDesktopChrome}
           />
         );
       case 'streaming-stats':
@@ -872,17 +929,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     return renderCurrentView();
   }
 
-  const showMainNav = ['feed', 'search', 'profile', 'chat'].includes(currentView);
-  // When a global artist/venue detail modal is open (for example, opened from a review),
-  // we don't want any bottom nav tab to appear selected. We reuse the 'onboarding' view
-  // here because BottomNavAdapter does not mark any tab as active for that value.
-  const navViewForBottomNav: ViewType =
-    detailModal.open && (detailModal.type === 'artist' || detailModal.type === 'venue')
-      ? 'onboarding'
-      : currentView;
-  
-  // Hide header and bottom nav when review modal is open
-  const hideNavigation = showEventReviewModal;
+  const showBottomNavChrome = showPrimaryNav && layoutMode !== 'web-desktop';
+  const showDesktopRail = showPrimaryNav && layoutMode === 'web-desktop';
+  const webDesktopContentClass = showDesktopRail
+    ? getWebDesktopMainContentClass(currentView as MainAppViewForLayout)
+    : '';
 
   const isGlobalArtistOrVenueOpen =
     detailModal.open && (detailModal.type === 'artist' || detailModal.type === 'venue');
@@ -891,7 +942,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     <div 
       className="min-h-screen"
       style={{
-        paddingBottom: 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))',
+        paddingBottom: showBottomNavChrome
+          ? 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
+          : 0,
         backgroundColor: 'var(--neutral-50)',
         // Set CSS variable for top banner height (onboarding + share) so MobileHeader positions below it
         '--onboarding-banner-height': !hideNavigation
@@ -1010,9 +1063,22 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         </div>
       )}
 
-      <div key={currentView} className={transitionClass} style={{ backgroundColor: 'transparent' }}>
+      <WebAppShell
+        enabled={showDesktopRail}
+        rail={
+          <WebDesktopRail
+            items={mainNavItems}
+            onItemClick={handleMainNavItemClick}
+            onOpenMenu={handleMenuToggle}
+            menuBadgeCount={menuNotificationBadgeCount}
+          />
+        }
+        mainContentClassName={webDesktopContentClass}
+        mainKey={currentView}
+        transitionClass={transitionClass}
+      >
         {renderCurrentView()}
-      </div>
+      </WebAppShell>
 
       <GlobalDetailModals
         userId={user?.id ?? ''}
@@ -1040,28 +1106,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         toggleManualArtistFollow={toggleManualArtistFollow}
       />
 
-      {/* New Bottom Navigation - replaces old Navigation */}
-      {/* Show bottom nav on messages list, but hide when a chat is selected */}
-      {!hideNavigation && showMainNav && (currentView !== 'chat' || !isChatSelected) && (
-        !(USE_NATIVE_NAV && isIosNative) && (
-          <BottomNavAdapter
-          currentView={navViewForBottomNav}
-          onViewChange={handleViewChange}
-          onOpenEventReview={() => setShowEventReviewModal(true)}
-          profileUserId={profileUserId}
-        />
-        )
-      )}
-      {!hideNavigation && !showMainNav && currentView !== 'profile-edit' && (currentView !== 'chat' || !isChatSelected) && (
-        !(USE_NATIVE_NAV && isIosNative) && (
-          <BottomNavAdapter
-          currentView={navViewForBottomNav}
-          onViewChange={handleViewChange}
-          onOpenEventReview={() => setShowEventReviewModal(true)}
-          profileUserId={profileUserId}
-        />
-        )
-      )}
+      {showBottomNavChrome ? (
+        <BottomNavAdapter items={mainNavItems} onItemClick={handleMainNavItemClick} />
+      ) : null}
 
       {/* New Side Menu */}
       <SideMenu
@@ -1070,7 +1117,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         onToggle={handleMenuToggle}
         onNavigateToNotifications={handleNavigateToNotifications}
         onNavigateToProfile={handleNavigateToProfile}
-        onNavigateToSettings={() => openSettingsModal()}
+        onNavigateToSettings={() => openSettingsPage()}
         onNavigateToStreamingStats={() => setCurrentView('streaming-stats')}
         onNavigateToVerification={() => {
           handleNavigateToProfile(undefined, 'timeline');
@@ -1081,9 +1128,12 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       <GlobalModals
         userId={user?.id ?? ''}
         userEmail={user?.email}
-        showSettings={showSettings}
-        settingsInitialView={settingsInitialView}
-        onCloseSettings={closeSettingsModal}
+        friendMatchSelfDisplayName={
+          (user?.user_metadata?.full_name as string | undefined) ??
+          (user?.user_metadata?.name as string | undefined) ??
+          user?.email?.split('@')[0] ??
+          null
+        }
         onSignOut={handleSignOut}
         showEventReviewModal={showEventReviewModal}
         eventReviewPrefill={eventReviewPrefill}

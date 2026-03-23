@@ -1,0 +1,71 @@
+name: EAS Mobile Build
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/**'
+      - 'mobile/**'
+    paths:
+      - 'mobile/**'
+      - 'packages/synth-shared/**'
+      - '.github/workflows/eas-mobile-build.yml'
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Build platform
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+      profile:
+        description: EAS build profile
+        required: true
+        default: production
+        type: choice
+        options:
+          - production
+          - preview
+
+concurrency:
+  group: eas-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with EAS (push => both platforms)
+        if: github.event_name == 'push'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli build --platform all --profile production --non-interactive
+
+      - name: Build with EAS (manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli build --platform ${{ inputs.platform }} --profile ${{ inputs.profile }} --non-interactive

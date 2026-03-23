@@ -47,10 +47,9 @@ function getClientIdentifier(req) {
     // Check for Supabase auth header
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      // In a real implementation, you'd decode the JWT here
-      // For now, we'll use IP + a hash of the token if present
+      // Unverified token prefix only splits buckets per credential; does not authenticate the request.
+      // Verifying JWTs here would add crypto cost on every request — acceptable future hardening.
       const token = authHeader.substring(7);
-      // Simple hash for identification (not for security)
       userId = token.substring(0, 16);
     }
   } catch (error) {
@@ -242,7 +241,8 @@ function createRateLimiter(tier = 'moderate') {
       // Rate limit check passed
       next();
     } catch (error) {
-      // If rate limiting fails, log but don't block the request (fail open)
+      // Fail-open: availability over strict enforcement if Redis/Upstash is down.
+      // For stricter posture, run with UPSTASH_REDIS_* set and monitor 429s / Redis health.
       console.error('Rate limiting error:', error);
       console.warn('Rate limiting failed, allowing request (fail-open)');
       next();

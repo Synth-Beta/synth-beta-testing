@@ -1,0 +1,14 @@
+---
+description: Prefer Expo React Native for new mobile UI; Capacitor is legacy WebView; use Swift/Kotlin only inside Expo native modules/plugins when RN cannot cover a capability
+alwaysApply: true
+---
+
+# Mobile stack: Expo first, Capacitor legacy, native code sparingly
+
+**We did not migrate the Capacitor app to Expo in code automatically**—the repo has both. For **new** phone UX, default to **`mobile/`** (Expo Router + React Native) so the UI is real native views, not a WebView.
+
+- **Capacitor** (root `ios/`, `android/` loading Vite `dist`): treat as **legacy / maintenance** while users still run that shell. After edits under `src/`, `index.html`, or `capacitor.config`, still run `npm run ios:build` when that bundle must ship (see `capacitor-ios-sync.mdc`).
+- **Expo (`mobile/`)**: primary place for **new screens, navigation, and gestures** that should feel like a normal app. **Store submission path = EAS** from `mobile/` (`eas build` / `eas submit`), not the root Capacitor projects.
+- **Swift / Kotlin**: do **not** start rewriting RN screens in SwiftUI or Jetpack Compose in parallel. Add native code only where it pays off: **Expo config plugins**, **local Expo modules**, or thin bridges for SDKs React Native does not cover. That keeps one UI codebase (RN) plus small native shims.
+
+**Local dev (Expo):** from repo root run `npm run mobile:start`.

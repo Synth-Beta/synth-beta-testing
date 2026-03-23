@@ -7,8 +7,9 @@ android {
         applicationId "com.synth.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // Keep in sync with mobile/app.json expo.android.versionCode (Expo is source of truth for versioning).
         versionCode 1
-        versionName "1.0"
+        versionName "1.3.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,6 +19,7 @@ android {
     }
     buildTypes {
         release {
+            debuggable false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

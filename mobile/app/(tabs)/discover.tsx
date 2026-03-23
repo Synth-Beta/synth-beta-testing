@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BarChart3, Users, Compass } from 'lucide-react-native';
+import { BarChart3, Users, Search } from 'lucide-react-native';
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -17,6 +17,18 @@ export default function DiscoverScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <Pressable onPress={() => router.push('/(tabs)/search')} style={styles.card}>
+          <View style={[styles.iconContainer, { backgroundColor: SynthTokens.colors.brandPink600 }]}>
+            <Search size={24} color="white" />
+          </View>
+          <View style={styles.cardInfo}>
+            <SynthText variant="h2">Search</SynthText>
+            <SynthText variant="meta" color="secondary">
+              Artists, venues, and shows (same entry as the web Discover flow)
+            </SynthText>
+          </View>
+        </Pressable>
+
         <Pressable
           onPress={() => router.push('/stats')}
           style={styles.card}

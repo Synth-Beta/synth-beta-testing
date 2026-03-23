@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { Session } from '@supabase/supabase-js';
 import {
   useFonts,
   Inter_400Regular,
   Inter_500Medium,
   Inter_700Bold
 } from '@expo-google-fonts/inter';
-import { SynthTokens } from '../src/tokens/SynthTokens';
+import { supabase } from '../src/integrations/supabase/client';
+import { syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
+import { useShareDeepLink } from '../lib/useShareDeepLink';
 
 // Prevent splash screen from hiding until fonts and state are ready
 SplashScreen.preventAutoHideAsync();
@@ -21,6 +24,7 @@ export default function RootLayout() {
   });
 
   const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
   const segments = useSegments();
   const router = useRouter();
 
@@ -37,30 +41,102 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (!cancelled) setSession(s ?? null);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s ?? null);
+    });
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
     if (fontError) throw fontError;
   }, [fontError]);
 
   useEffect(() => {
-    if (fontsLoaded && isOnboardingComplete !== null) {
+    if (fontsLoaded && isOnboardingComplete !== null && session !== undefined) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, isOnboardingComplete]);
+  }, [fontsLoaded, isOnboardingComplete, session]);
 
   useEffect(() => {
-    if (isOnboardingComplete === null) return;
+    if (!session?.user) return;
+    syncExpoPushTokenWithBackend().catch(() => {});
+  }, [session]);
 
-    const inOnboardingGroup = segments[0] === '(onboarding)';
+  useShareDeepLink(Boolean(session?.user && isOnboardingComplete));
 
-    if (!isOnboardingComplete && !inOnboardingGroup) {
-      // Redirect to onboarding if not complete
-      router.replace('/(onboarding)/welcome');
-    } else if (isOnboardingComplete && inOnboardingGroup) {
-      // Redirect to tabs if onboarding is complete
-      router.replace('/(tabs)');
+  useEffect(() => {
+    if (isOnboardingComplete === null || session === undefined) return;
+
+    const seg0 = segments[0];
+
+    // `useSegments()` can be empty at `/` before `app/index.tsx` resolves — otherwise no branch matches and the UI can stall.
+    if (seg0 === undefined) {
+      if (!session) {
+        router.replace(isOnboardingComplete ? '/(auth)/sign-in' : '/(onboarding)/welcome');
+      } else if (!isOnboardingComplete) {
+        router.replace('/(onboarding)/welcome');
+      } else {
+        router.replace('/(tabs)');
+      }
+      return;
     }
-  }, [isOnboardingComplete, segments]);
 
-  if (!fontsLoaded || isOnboardingComplete === null) {
+    const inAuth = seg0 === '(auth)';
+    const inOnboarding = seg0 === '(onboarding)';
+    const needsAuth =
+      seg0 === '(tabs)' ||
+      seg0 === 'chat' ||
+      seg0 === 'event' ||
+      seg0 === 'notifications' ||
+      seg0 === 'stats' ||
+      seg0 === 'modal' ||
+      seg0 === 'profile-edit' ||
+      seg0 === 'my-events' ||
+      seg0 === 'settings';
+
+    if (!session && needsAuth) {
+      if (!isOnboardingComplete) {
+        router.replace('/(onboarding)/welcome');
+      } else {
+        router.replace('/(auth)/sign-in');
+      }
+      return;
+    }
+
+    if (!isOnboardingComplete && needsAuth && session) {
+      router.replace('/(onboarding)/welcome');
+      return;
+    }
+
+    if (session && inAuth) {
+      router.replace(isOnboardingComplete ? '/(tabs)' : '/(onboarding)/welcome');
+      return;
+    }
+
+    if (isOnboardingComplete && inOnboarding) {
+      if (session) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/(auth)/sign-in');
+      }
+      return;
+    }
+
+    if (!isOnboardingComplete && !inOnboarding && !inAuth) {
+      router.replace('/(onboarding)/welcome');
+    }
+  }, [isOnboardingComplete, session, segments, router]);
+
+  if (!fontsLoaded || isOnboardingComplete === null || session === undefined) {
     return null;
   }
 
@@ -68,6 +144,10 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(onboarding)" options={{ headerShown: false, animation: 'fade' }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false, animation: 'fade' }} />
+      <Stack.Screen name="profile-edit" options={{ headerShown: false }} />
+      <Stack.Screen name="my-events" options={{ headerShown: false }} />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
     </Stack>
   );
 }

@@ -12,6 +12,15 @@ import re
 import argparse
 from typing import List, Optional, Tuple
 from bs4 import BeautifulSoup
+import sys
+
+# Windows consoles often default to cp1252; Unicode in prints raises before genre lookup runs.
+if hasattr(sys.stdout, "reconfigure"):
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
 
 # API Credentials
 SPOTIFY_CLIENT_ID = "00c8ab88043a4d53bc3ec13684885ca9"

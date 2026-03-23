@@ -122,9 +122,8 @@ export const SceneCard: React.FC<SceneCardProps> = ({
               }}
             >
               <div
-                className="h-full transition-all duration-300"
+                className={`h-full transition-all duration-300 bg-[image:var(--gradient-brand)] ${progressPercent >= 100 ? 'rounded-[var(--radius-corner,10px)]' : 'rounded-l-[var(--radius-corner,10px)]'}`}
                 style={{ width: `${progressPercent}%`, minWidth: progressPercent > 0 ? '4px' : '0' }}
-                className={`bg-[image:var(--gradient-brand)] ${progressPercent >= 100 ? 'rounded-[length:var(--radius-corner,10px)]' : 'rounded-l-[length:var(--radius-corner,10px)]'}`}
               />
             </div>
           </div>

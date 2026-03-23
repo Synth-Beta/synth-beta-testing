@@ -1,4 +1,5 @@
 import React from 'react';
+import type { CSSProperties } from 'react';
 
 export interface PageShellProps {
   /**
@@ -22,6 +23,22 @@ export interface PageShellProps {
    * Additional classes to apply to the content container.
    */
   contentClassName?: string;
+
+  /**
+   * Override content `paddingTop`. When omitted: if `header` is set, reserves space for MobileHeader (~68px);
+   * if no header, uses safe-area + small gap only (avoids phantom gap on web-desktop).
+   */
+  contentPaddingTop?: string;
+
+  /**
+   * When true (default), applies horizontal screen margin via inline padding.
+   * Set false for full-bleed layouts (e.g. desktop split-pane chat); Tailwind `px-*` on `contentClassName` cannot
+   * override inline padding because inline styles win over classes.
+   */
+  contentHorizontalPadding?: boolean;
+
+  /** Merged into the content wrapper style (e.g. viewport-clipped desktop chat). */
+  contentStyle?: CSSProperties;
 }
 
 const PageShell: React.FC<PageShellProps> = ({
@@ -29,8 +46,14 @@ const PageShell: React.FC<PageShellProps> = ({
   children,
   includeBottomNavPadding = true,
   contentClassName,
+  contentPaddingTop,
+  contentHorizontalPadding = true,
+  contentStyle,
 }) => {
-  const topPadding = 'calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))';
+  const defaultTopPadding = header
+    ? 'calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))'
+    : 'calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))';
+  const topPadding = contentPaddingTop ?? defaultTopPadding;
   const bottomPadding = includeBottomNavPadding
     ? 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))'
     : 'env(safe-area-inset-bottom, 0px)';
@@ -43,8 +66,13 @@ const PageShell: React.FC<PageShellProps> = ({
         style={{
           paddingTop: topPadding,
           paddingBottom: bottomPadding,
-          paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-          paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+          ...(contentHorizontalPadding
+            ? {
+                paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+                paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+              }
+            : {}),
+          ...contentStyle,
         }}
       >
         {children}

@@ -13,8 +13,14 @@
  * no duplicates using the normalized external_entity_ids table.
  */
 
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import JambaseSyncService from '../backend/jambase-sync-service.mjs';
 import { fetchGenresForArtist, isEmptyGenres } from './fetch-artist-genres.mjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Event genres: if and only if the event's genres are empty, use the artist's genres.
@@ -1255,8 +1261,6 @@ async function main() {
   // Ensure output is not buffered for launchd
   if (process.stdout.isTTY === false) {
     // Use relative path for logging (logs directory in project root)
-    const path = require('path');
-    const fs = require('fs');
     const projectRoot = path.resolve(__dirname, '..');
     const logPath = path.join(projectRoot, 'logs', 'launchd-sync.log');
     
@@ -1311,11 +1315,10 @@ main().catch(error => {
   console.error(errorMsg);
   // Also write to error log file directly
   try {
-    require('fs').appendFileSync(
-      '/Users/sloiterstein/Desktop/Synth/synth-beta-testing-main/logs/launchd-sync-error.log',
-      errorMsg,
-      { flag: 'a' }
-    );
+    const projectRoot = path.resolve(__dirname, '..');
+    const errLog = path.join(projectRoot, 'logs', 'launchd-sync-error.log');
+    fs.mkdirSync(path.dirname(errLog), { recursive: true });
+    fs.appendFileSync(errLog, errorMsg, { flag: 'a' });
   } catch (e) {
     // Ignore file write errors
   }

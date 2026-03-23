@@ -1,5 +1,6 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
+// Legacy shell: serves the Vite bundle in a WebView. Primary target for new mobile UX is Expo in `mobile/`.
 const config: CapacitorConfig = {
   appId: 'com.tejpatel.synth',
   appName: 'Synth',

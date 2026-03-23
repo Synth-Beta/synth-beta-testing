@@ -27,6 +27,7 @@ if (process.env.SETLIST_FM_API_KEY) {
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const searchRoutes = require('./search-routes');
 const searchConcertsRoutes = require('./search-concerts');
 const streamingProfileRoutes = require('./streaming-profile-routes');
@@ -36,6 +37,14 @@ const ticketmasterRoutes = require('./ticketmaster-routes');
 const authRoutes = require('./auth-routes');
 
 const app = express();
+
+// Baseline security headers (API server; CSP disabled — not serving HTML)
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
 // Tell Express to trust the first proxy hop (Vercel / Railway / Render / etc.)
 // Without this, req.ip returns the load-balancer IP instead of the real client IP,
@@ -58,10 +67,16 @@ const allowedOrigins = [
   'http://localhost:5177',
   'http://localhost:8080',
   'https://synth-beta-testing.vercel.app',
+  'https://synth.app',
+  'https://www.synth.app',
   'capacitor://localhost',
   'ionic://localhost',
   'http://localhost',
-  'https://localhost'
+  'https://localhost',
+  ...(process.env.ADDITIONAL_CORS_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
 ];
 
 // CORS Configuration - Security hardening

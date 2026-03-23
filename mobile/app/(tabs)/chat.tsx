@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, Pressable } from 'react-native';
+import { StyleSheet, View, FlatList, Pressable, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -12,6 +12,7 @@ import { MessageSquare, Plus } from 'lucide-react-native';
 export default function ChatListScreen() {
   const [chats, setChats] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -21,11 +22,21 @@ export default function ChatListScreen() {
 
   const loadChats = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
     const data = await ChatService.getChats(user.id);
     setChats(data);
     setLoading(false);
+    setRefreshing(false);
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    void loadChats();
   };
 
   const renderItem = ({ item }: { item: ChatThread }) => {
@@ -64,6 +75,9 @@ export default function ChatListScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SynthTokens.colors.brandPink500} />
+        }
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>

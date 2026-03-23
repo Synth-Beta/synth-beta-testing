@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 
 interface JamBaseHeaderAttributionProps {
   className?: string;
+  /** Inline row (e.g. web desktop toolbar) instead of fixed top-right over the hamburger. */
+  variant?: 'fixed' | 'inline';
 }
 
 /**
@@ -13,15 +15,29 @@ interface JamBaseHeaderAttributionProps {
  */
 export const JamBaseHeaderAttribution: React.FC<JamBaseHeaderAttributionProps> = ({
   className,
+  variant = 'fixed',
 }) => {
+  const fixedStyle: React.CSSProperties =
+    variant === 'fixed'
+      ? {
+          position: 'fixed',
+          top: 'calc(env(safe-area-inset-top, 0px) + var(--onboarding-banner-height, 0px) + 12px)',
+          right: 'calc(var(--spacing-screen-margin-x, 20px) + 44px + 12px)',
+          zIndex: 60,
+        }
+      : {
+          position: 'relative',
+          top: 'auto',
+          right: 'auto',
+          zIndex: 1,
+          flexShrink: 0,
+        };
+
   return (
     <div
       className={cn('jambase-header-attribution', className)}
       style={{
-        position: 'fixed',
-        top: 'calc(env(safe-area-inset-top, 0px) + var(--onboarding-banner-height, 0px) + 12px)',
-        right: 'calc(var(--spacing-screen-margin-x, 20px) + 44px + 12px)',
-        zIndex: 60,
+        ...fixedStyle,
         display: 'flex',
         alignItems: 'center',
         padding: '6px 10px',

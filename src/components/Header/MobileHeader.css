@@ -122,3 +122,26 @@
   outline-offset: 2px;
   border-radius: var(--radius-corner, 10px);
 }
+
+/* Inline back chevron next to title — keep fixed width so the title truncates instead of overlapping. */
+.mobile-header__left-button-inline {
+  flex-shrink: 0;
+  width: var(--size-input-height, 44px);
+  height: var(--size-input-height, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 0;
+  border-radius: var(--radius-corner, 10px);
+}
+
+.mobile-header__left-button-inline:focus-visible {
+  outline: 2px solid var(--brand-pink-500);
+  outline-offset: 2px;
+}

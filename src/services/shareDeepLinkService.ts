@@ -12,50 +12,20 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import {
+  parseShareUrl,
+  type ShareContentType,
+  type PendingShareLink,
+} from '@synth/shared';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type ShareContentType = 'event' | 'review' | 'artist' | 'venue';
-
-export interface PendingShareLink {
-  type:      ShareContentType;
-  id:        string;   // eventId / reviewId / artistId / venueId
-  referrerId: string | null; // userId of the person who shared
-}
+export type { ShareContentType, PendingShareLink };
+export { parseShareUrl };
 
 // ─── Storage key ─────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'synth_pending_share_link';
 
-// ─── Parse helpers ────────────────────────────────────────────────────────────
-
-/**
- * Parses a share URL (or URL search string) into a PendingShareLink.
- * Returns null if the URL has no recognised share params.
- *
- * Supports:
- *   ?event=UUID&ref=USERID
- *   ?review=UUID&ref=USERID
- *   ?artist=UUID&ref=USERID
- *   ?venue=UUID&ref=USERID
- */
-export function parseShareUrl(urlOrSearch: string): PendingShareLink | null {
-  try {
-    const params = urlOrSearch.startsWith('http')
-      ? new URL(urlOrSearch).searchParams
-      : new URLSearchParams(urlOrSearch);
-
-    const ref = params.get('ref');
-
-    if (params.get('event'))  return { type: 'event',  id: params.get('event')!,  referrerId: ref };
-    if (params.get('review')) return { type: 'review', id: params.get('review')!, referrerId: ref };
-    if (params.get('artist')) return { type: 'artist', id: params.get('artist')!, referrerId: ref };
-    if (params.get('venue'))  return { type: 'venue',  id: params.get('venue')!,  referrerId: ref };
-  } catch {
-    // malformed URL — ignore
-  }
-  return null;
-}
+// parseShareUrl: @synth/shared (also used by Expo)
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 

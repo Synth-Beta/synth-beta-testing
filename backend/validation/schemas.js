@@ -249,6 +249,16 @@ const appleAuthSchema = Joi.object({
     }),
 }).unknown(false); // Reject unexpected fields
 
+/**
+ * GET /api/jambase/location-search — query params only support a string location (city name).
+ * Coordinate-style searches must use POST with a JSON body.
+ */
+const jambaseLocationSearchGetQuerySchema = Joi.object({
+  location: Joi.string().trim().max(200).required(),
+  radius: Joi.number().integer().min(1).max(500).default(25),
+  limit: Joi.number().integer().min(1).max(100).default(50),
+}).unknown(false);
+
 module.exports = {
   searchConcertSchema,
   streamingProfileUploadSchema,
@@ -256,6 +266,7 @@ module.exports = {
   streamingProfileDeleteSchema,
   setlistSearchQuerySchema,
   locationSearchQuerySchema,
+  jambaseLocationSearchGetQuerySchema,
   concertSearchQuerySchema,
   serviceParamSchema,
   uuidParamSchema,

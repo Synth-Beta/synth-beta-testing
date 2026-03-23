@@ -93,6 +93,9 @@ else
   exit 1
 fi
 
+# SwiftPM requires forward slashes in Package.swift paths (Windows sync may emit backslashes).
+node scripts/normalize-cap-spm-paths.cjs
+
 echo ""
 echo -e "${GREEN}✓ Build and sync complete!${NC}"
 echo -e "${GREEN}You can now open the project in Xcode with:${NC}"

@@ -1,128 +1,170 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Home, Compass, Plus, MessageCircle, User } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { useAnimatedStyle, withSpring, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthTokens } from '../../tokens/SynthTokens';
+import { supabase } from '../../integrations/supabase/client';
+import { useUnreadMessageCount } from '../../hooks/useUnreadMessageCount';
 
-const { width } = Dimensions.get('window');
+/** Matches web [BottomNav.css](src/components/BottomNav/BottomNav.css): pink-050 bar, 2px top border, pill CTA 70×40, brand pink icons. */
+const CTA_WIDTH = 70;
+const CTA_HEIGHT = 40;
+const CTA_RADIUS = 20;
+const ICON_SIZE = 24;
+const INACTIVE_ICON_OPACITY = 0.5;
 
-export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
-    const insets = useSafeAreaInsets();
-    const TAB_BAR_HEIGHT = 83 + insets.bottom;
+/** Tab routes that exist in the navigator but should not show a bar item (e.g. stack-like screens under Tabs). */
+const TAB_BAR_HIDDEN_ROUTE_NAMES = new Set(['search']);
 
-    const onTabPress = (route: any, isFocused: boolean) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
+  const insets = useSafeAreaInsets();
+  const [uid, setUid] = React.useState<string | undefined>(undefined);
 
-        const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-        });
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUid(user?.id));
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUid(session?.user?.id);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
-        if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-        }
-    };
+  const unreadMessages = useUnreadMessageCount(uid);
+  const TAB_BAR_HEIGHT = 56 + insets.bottom;
 
-    const onPlusPress = () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        // In web it goes to /post. For now we emit a custom event or navigate to a post route if exists
-        // navigation.navigate('post'); 
-        console.log('Plus button pressed');
-    };
+  const onTabPress = (route: (typeof state.routes)[0], isFocused: boolean) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    return (
-        <View style={[styles.container, { height: TAB_BAR_HEIGHT, paddingBottom: insets.bottom }]}>
-            <View style={styles.content}>
-                {state.routes.map((route, index) => {
-                    const { options } = descriptors[route.key];
-                    const isFocused = state.index === index;
+    const event = navigation.emit({
+      type: 'tabPress',
+      target: route.key,
+      canPreventDefault: true,
+    });
 
-                    // Skip the center index if we want to place the plus button there manually
-                    // or just handle it if the route is 'post'
-                    if (route.name === 'post') {
-                        return (
-                            <View key={route.key} style={styles.tabItem}>
-                                <TouchableOpacity
-                                    onPress={() => onTabPress(route, isFocused)}
-                                    style={styles.plusButtonContainer}
-                                    activeOpacity={0.8}
-                                >
-                                    <View style={styles.plusButton}>
-                                        <Plus color="white" size={32} strokeWidth={2.5} />
-                                    </View>
-                                </TouchableOpacity>
-                            </View>
-                        );
-                    }
+    if (!isFocused && !event.defaultPrevented) {
+      navigation.navigate(route.name);
+    }
+  };
 
-                    const getIcon = (name: string, color: string) => {
-                        switch (name) {
-                            case 'index': return <Home color={color} size={24} />;
-                            case 'discover': return <Compass color={color} size={24} />;
-                            case 'chat': return <MessageCircle color={color} size={24} />;
-                            case 'profile': return <User color={color} size={24} />;
-                            default: return null;
-                        }
-                    };
+  const visibleRoutes = state.routes.filter(r => !TAB_BAR_HIDDEN_ROUTE_NAMES.has(r.name));
+  const activeRouteName = state.routes[state.index]?.name;
 
-                    const color = isFocused ? SynthTokens.colors.brandPink500 : SynthTokens.colors.neutral400;
+  return (
+    <View style={[styles.container, { minHeight: TAB_BAR_HEIGHT, paddingBottom: insets.bottom }]}>
+      <View style={styles.content}>
+        {visibleRoutes.map(route => {
+          const isFocused = activeRouteName === route.name;
 
-                    return (
-                        <TouchableOpacity
-                            key={route.key}
-                            onPress={() => onTabPress(route, isFocused)}
-                            style={styles.tabItem}
-                            activeOpacity={0.7}
-                        >
-                            {getIcon(route.name, color)}
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
-        </View>
-    );
+          if (route.name === 'post') {
+            return (
+              <View key={route.key} style={styles.tabItem}>
+                <TouchableOpacity
+                  onPress={() => onTabPress(route, isFocused)}
+                  style={styles.ctaPill}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Post"
+                >
+                  <Plus color={SynthTokens.colors.neutral50} size={22} strokeWidth={2.5} />
+                </TouchableOpacity>
+              </View>
+            );
+          }
+
+          const showUnreadDot = route.name === 'chat' && unreadMessages > 0 && !isFocused;
+
+          const iconColor = SynthTokens.colors.brandPink500;
+          const iconOpacity = isFocused ? 1 : INACTIVE_ICON_OPACITY;
+
+          const icon = (() => {
+            switch (route.name) {
+              case 'index':
+                return <Home color={iconColor} size={ICON_SIZE} />;
+              case 'discover':
+                return <Compass color={iconColor} size={ICON_SIZE} />;
+              case 'chat':
+                return <MessageCircle color={iconColor} size={ICON_SIZE} />;
+              case 'profile':
+                return <User color={iconColor} size={ICON_SIZE} />;
+              default:
+                return null;
+            }
+          })();
+
+          return (
+            <TouchableOpacity
+              key={route.key}
+              onPress={() => onTabPress(route, isFocused)}
+              style={styles.tabItem}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isFocused }}
+            >
+              <View style={styles.iconWrap}>
+                <View style={{ opacity: iconOpacity }}>{icon}</View>
+                {showUnreadDot ? <View style={styles.unreadDot} accessibilityLabel="Unread messages" /> : null}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        position: 'absolute',
-        bottom: 0,
-        width: '100%',
-        backgroundColor: SynthTokens.colors.neutral0,
-        borderTopWidth: 1,
-        borderTopColor: SynthTokens.colors.neutral200,
-        borderTopLeftRadius: SynthTokens.radius.corner,
-        borderTopRightRadius: SynthTokens.radius.corner,
-    },
-    content: {
-        flexDirection: 'row',
-        height: 60,
-        alignItems: 'center',
-        justifyContent: 'space-around',
-    },
-    tabItem: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    plusButtonContainer: {
-        top: -20, // Float above baseline
-    },
-    plusButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: SynthTokens.colors.brandPink500,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: SynthTokens.shadow.color,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        elevation: 5,
-    },
+  container: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: SynthTokens.colors.brandPink050,
+    borderTopWidth: 2,
+    borderTopColor: SynthTokens.colors.neutral200,
+    borderTopLeftRadius: SynthTokens.radius.corner,
+    borderTopRightRadius: SynthTokens.radius.corner,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    paddingHorizontal: SynthTokens.spacing.screenMarginX,
+    paddingTop: 12,
+    minHeight: 44,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 44,
+  },
+  iconWrap: {
+    position: 'relative',
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ef4444',
+    borderWidth: 2,
+    borderColor: SynthTokens.colors.brandPink050,
+  },
+  ctaPill: {
+    width: CTA_WIDTH,
+    height: CTA_HEIGHT,
+    borderRadius: CTA_RADIUS,
+    backgroundColor: SynthTokens.colors.brandPink500,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

@@ -44,6 +44,8 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
       />
+      {/* Pushed from Discover / Post; not a tab bar destination */}
+      <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>
   );
 }

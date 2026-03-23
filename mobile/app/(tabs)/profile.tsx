@@ -5,8 +5,9 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { PassportService, PassportEntry, ProfileStats } from '../../src/services/passportService';
 import { supabase } from '../../src/integrations/supabase/client';
-import { Settings, Ticket, MapPin, Users, Star } from 'lucide-react-native';
+import { Settings, Ticket, Pencil, CalendarDays } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
   const [stats, setStats] = useState<ProfileStats | null>(null);
@@ -14,6 +15,7 @@ export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   useEffect(() => {
     loadProfile();
@@ -94,6 +96,21 @@ export default function ProfileScreen() {
             <SynthText variant="h2">{user?.name || 'Your Profile'}</SynthText>
             <SynthText variant="meta" color="secondary">@{user?.name?.toLowerCase().replace(' ', '') || 'username'}</SynthText>
           </View>
+
+          <View style={styles.quickActions}>
+            <Pressable style={styles.quickAction} onPress={() => router.push('/profile-edit')}>
+              <Pencil size={18} color={SynthTokens.colors.brandPink500} />
+              <SynthText variant="meta" style={styles.quickActionLabel}>
+                Edit profile
+              </SynthText>
+            </Pressable>
+            <Pressable style={styles.quickAction} onPress={() => router.push('/my-events')}>
+              <CalendarDays size={18} color={SynthTokens.colors.brandPink500} />
+              <SynthText variant="meta" style={styles.quickActionLabel}>
+                My events
+              </SynthText>
+            </Pressable>
+          </View>
         </View>
 
         {/* Passport Section */}
@@ -153,6 +170,26 @@ const styles = StyleSheet.create({
   },
   bioSection: {
     marginTop: SynthTokens.spacing.md,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: SynthTokens.spacing.md,
+    marginTop: SynthTokens.spacing.lg,
+  },
+  quickAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: SynthTokens.radius.medium,
+    backgroundColor: SynthTokens.colors.brandPink050,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+  },
+  quickActionLabel: {
+    fontWeight: '600',
+    color: SynthTokens.colors.neutral900,
   },
   passportContainer: {
     padding: SynthTokens.spacing.md,

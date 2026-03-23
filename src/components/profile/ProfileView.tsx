@@ -81,6 +81,7 @@ interface ProfileViewProps {
   onMenuClick?: () => void;
   hideHeader?: boolean;
   refreshTrigger?: number; // Trigger to refresh reviews when incremented
+  webDesktopChrome?: boolean;
 }
 
 interface UserProfile {
@@ -152,7 +153,7 @@ interface ConcertReview {
   };
 }
 
-export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, onNavigateToDiscover, menuOpen = false, onMenuClick, hideHeader = false, refreshTrigger = 0 }: ProfileViewProps) => {
+export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSettings, onSignOut, onNavigateToProfile, onNavigateToChat, onNavigateToNotifications, onNavigateToDiscover, menuOpen = false, onMenuClick, hideHeader = false, refreshTrigger = 0, webDesktopChrome = false }: ProfileViewProps) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userEvents, setUserEvents] = useState<JamBaseEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1727,7 +1728,7 @@ const { user, sessionExpired } = useAuth();
     }
   };
 
-  const profileHeader = !hideHeader ? (
+  const profileHeader = !hideHeader && !webDesktopChrome ? (
     !isViewingOwnProfile ? (
       <DropdownMenu>
         <MobileHeader 
@@ -1752,7 +1753,10 @@ const { user, sessionExpired } = useAuth();
             </DropdownMenuTrigger>
           }
         >
-          <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
+          <h1
+            className="min-w-0 truncate font-bold"
+            style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}
+          >
             {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
           </h1>
         </MobileHeader>
@@ -1773,7 +1777,10 @@ const { user, sessionExpired } = useAuth();
         onMenuClick={onMenuClick} 
         alignLeft={true}
       >
-        <h1 className="font-bold truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}>
+        <h1
+          className="min-w-0 truncate font-bold"
+          style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-h2-size, 24px)', fontWeight: 'var(--typography-h2-weight, 700)', lineHeight: 'var(--typography-h2-line-height, 1.3)', color: 'var(--neutral-900)' }}
+        >
           {profile.username ? `@${profile.username}` : profile.name || 'Profile'}
         </h1>
       </MobileHeader>
@@ -1786,6 +1793,58 @@ const { user, sessionExpired } = useAuth();
         className="min-h-screen w-full overflow-x-hidden"
         style={{ backgroundColor: 'var(--neutral-50)' }}
       >
+        {!hideHeader && webDesktopChrome && profile && (
+          !isViewingOwnProfile ? (
+            <DropdownMenu>
+              <header
+                className="sticky z-30 flex items-center gap-3 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
+                style={{
+                  top: 'var(--onboarding-banner-height, 0px)',
+                  paddingTop: 'var(--mobile-header-padding-top, env(safe-area-inset-top, 0px))',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleHeaderBack}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--neutral-100)]"
+                  aria-label="Back"
+                >
+                  <ArrowLeft className="h-6 w-6" style={{ color: 'var(--neutral-900)' }} />
+                </button>
+                <h1
+                  className="min-w-0 flex-1 truncate font-bold"
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-h2-size, 24px)',
+                    fontWeight: 'var(--typography-h2-weight, 700)',
+                    color: 'var(--neutral-900)',
+                  }}
+                >
+                  {profile.name || profile.username || 'Profile'}
+                </h1>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--neutral-100)]"
+                    aria-label="More options"
+                  >
+                    <MoreVertical className="h-5 w-5" style={{ color: 'var(--neutral-900)' }} />
+                  </button>
+                </DropdownMenuTrigger>
+              </header>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setBlockModalOpen(true)}>
+                  <Ban size={16} className="mr-2" />
+                  Block
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setReportModalOpen(true)}>
+                  <Flag size={16} className="mr-2" />
+                  Report
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null
+        )}
         <div className="pt-[12px]">
           <div style={{ position: 'relative' }}>
             <div

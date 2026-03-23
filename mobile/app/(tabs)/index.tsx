@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, RefreshControl } from 'react-native';
+import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
 import { FeedHeader } from '../../src/components/Feed/FeedHeader';
 import { FilterPills, FeedFilter } from '../../src/components/Feed/FilterPills';
@@ -14,6 +15,7 @@ type FeedItem =
   | { type: 'trending', data: TrendingEvent };
 
 export default function FeedScreen() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('For You');
   const [items, setItems] = useState<FeedItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -55,7 +57,7 @@ export default function FeedScreen() {
       return (
         <FriendActivityCard
           activity={item.data}
-          onPress={() => console.log('Network event pressed:', item.data.id)}
+          onPress={() => router.push(`/event/${item.data.id}`)}
         />
       );
     }
@@ -68,15 +70,15 @@ export default function FeedScreen() {
         venue_name={item.data.venue_name}
         event_date={item.data.event_date}
         image_url={item.data.image_url}
-        onPress={() => console.log('Trending event pressed:', item.data.id)}
-        onGoingPress={() => console.log('Going pressed:', item.data.id)}
+        onPress={() => router.push(`/event/${item.data.id}`)}
+        onGoingPress={() => router.push(`/event/${item.data.id}`)}
       />
     );
   };
 
   return (
     <View style={styles.container}>
-      <FeedHeader notificationsCount={3} />
+      <FeedHeader notificationsCount={3} onMenuPress={() => router.push('/notifications')} />
       <FilterPills
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}

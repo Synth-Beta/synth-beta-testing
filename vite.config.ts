@@ -56,6 +56,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         "@src": path.resolve(__dirname, "./src"),
+        "@synth/shared": path.resolve(__dirname, "./packages/synth-shared/src/index.ts"),
       },
     },
     build: {

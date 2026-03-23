@@ -86,13 +86,20 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
     <header className="mobile-header" role="banner">
       <div className="mobile-header__container">
         {/* Content area - can be centered or left-aligned */}
-        <div className={alignLeft ? "mobile-header__left" : "mobile-header__center"} style={leftIcon ? { 
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          paddingLeft: 'var(--spacing-screen-margin-x, 20px)'
-        } : undefined}>
-          {/* Left button - if provided, render inline with content */}
+        <div
+          className={alignLeft ? 'mobile-header__left' : 'mobile-header__center'}
+          style={
+            leftIcon
+              ? {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+                  minWidth: 0,
+                }
+              : undefined
+          }
+        >
           {leftIcon && onLeftIconClick && (
             <button
               className="mobile-header__left-button-inline"
@@ -100,10 +107,10 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
               aria-label="Back"
               type="button"
             >
-              <Icon name={leftIcon} size={35} alt="" color="var(--neutral-900)" />
+              <Icon name={leftIcon} size={28} alt="" color="var(--neutral-900)" />
             </button>
           )}
-          {children}
+          <div className="mobile-header__title-slot min-w-0 flex-1">{children}</div>
         </div>
 
         {/* Right button - hamburger/X or custom icon */}
