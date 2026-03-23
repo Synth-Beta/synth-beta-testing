@@ -1,23 +1,15 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Pressable, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Animated, {
-    FadeIn,
-    ZoomIn,
-    useAnimatedStyle,
-    withSpring
-} from 'react-native-reanimated';
-import { ChevronLeft, Music, CheckCircle2 } from 'lucide-react-native';
+import { ChevronLeft, CheckCircle2 } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthButton } from '../../src/components/SynthButton';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
-import { SynthCard } from '../../src/components/SynthCard';
 
 export default function ConnectScreen() {
     const router = useRouter();
@@ -70,14 +62,12 @@ export default function ConnectScreen() {
                     <ServiceCard
                         name="Spotify"
                         color="#1DB954"
-                        icon="https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_Green.png" // Using a known URL for better UX
                         isConnected={connectedServices.includes('Spotify')}
                         onConnect={() => handleConnect('Spotify')}
                     />
                     <ServiceCard
                         name="Apple Music"
                         color="#FA243C"
-                        icon="https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Apple_Music_logo.svg/1024px-Apple_Music_logo.svg.png"
                         isConnected={connectedServices.includes('Apple Music')}
                         onConnect={() => handleConnect('Apple Music')}
                     />
@@ -95,31 +85,24 @@ export default function ConnectScreen() {
     );
 }
 
-function ServiceCard({ name, color, icon, isConnected, onConnect }: any) {
+function ServiceCard({ name, color, isConnected, onConnect }: any) {
     return (
         <Pressable onPress={isConnected ? undefined : onConnect} style={styles.cardPressable}>
-            <Animated.View
+            <View
                 style={[
                     styles.serviceCard,
                     { borderColor: isConnected ? color : SynthTokens.colors.neutral200 }
                 ]}
             >
                 <View style={styles.cardHeader}>
-                    <Image source={{ uri: icon }} style={styles.serviceLogo} contentFit="contain" />
-                    {isConnected && (
-                        <Animated.View entering={ZoomIn}>
-                            <CheckCircle2 color={color} size={24} />
-                        </Animated.View>
-                    )}
+                    <SynthText variant="accent">{name}</SynthText>
+                    {isConnected ? <CheckCircle2 color={color} size={24} /> : null}
                 </View>
 
-                <View style={styles.cardBody}>
-                    <SynthText variant="accent">{name}</SynthText>
-                    <SynthText variant="meta" color="secondary">
-                        {isConnected ? 'Connected' : 'Click to authorize'}
-                    </SynthText>
-                </View>
-            </Animated.View>
+                <SynthText variant="meta" color="secondary">
+                    {isConnected ? 'Connected' : 'Tap to connect'}
+                </SynthText>
+            </View>
         </Pressable>
     );
 }
@@ -153,7 +136,7 @@ const styles = StyleSheet.create({
         opacity: 0.8,
     },
     cardsContainer: {
-        gap: 20,
+        gap: 14,
     },
     cardPressable: {
         width: '100%',
@@ -161,22 +144,15 @@ const styles = StyleSheet.create({
     serviceCard: {
         backgroundColor: SynthTokens.colors.neutral0,
         borderRadius: SynthTokens.radius.large,
-        padding: 24,
-        borderWidth: 2,
+        padding: 18,
+        borderWidth: 1,
         borderStyle: 'solid',
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
-    },
-    serviceLogo: {
-        height: 32,
-        width: 120,
-    },
-    cardBody: {
-        gap: 4,
+        marginBottom: 8,
     },
     footer: {
         padding: SynthTokens.spacing.xl,

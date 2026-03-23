@@ -6,7 +6,9 @@ import { FeedHeader } from '../../src/components/Feed/FeedHeader';
 import { FilterPills, FeedFilter } from '../../src/components/Feed/FilterPills';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { FriendActivityCard } from '../../src/components/Feed/FriendActivityCard';
+import { SynthText } from '../../src/components/SynthText';
 import { HomeFeedService, NetworkEvent, TrendingEvent } from '../../src/services/homeFeedService';
+import { NotificationService } from '../../src/services/notificationService';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 
@@ -18,12 +20,15 @@ export default function FeedScreen() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FeedFilter>('For You');
   const [items, setItems] = useState<FeedItem[]>([]);
+  const [notificationCount, setNotificationCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchFeed = useCallback(async (filter: FeedFilter) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      const unread = await NotificationService.getUnreadCount(user.id);
+      setNotificationCount(unread);
 
       let feedItems: FeedItem[] = [];
 
@@ -38,6 +43,7 @@ export default function FeedScreen() {
       setItems(feedItems);
     } catch (error) {
       console.error('Error fetching feed:', error);
+      setItems([]);
     } finally {
       setRefreshing(false);
     }
@@ -78,7 +84,7 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
-      <FeedHeader notificationsCount={3} onMenuPress={() => router.push('/notifications')} />
+      <FeedHeader notificationsCount={notificationCount} onMenuPress={() => router.push('/notifications')} />
       <FilterPills
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
@@ -96,7 +102,11 @@ export default function FeedScreen() {
             tintColor={SynthTokens.colors.brandPink500}
           />
         }
-        ListEmptyComponent={<View style={styles.empty} />}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <SynthText variant="meta" color="secondary">No events yet. Pull to refresh or switch filter.</SynthText>
+          </View>
+        }
       />
     </View>
   );
@@ -111,6 +121,9 @@ const styles = StyleSheet.create({
     paddingVertical: SynthTokens.spacing.md,
   },
   empty: {
-    height: 100,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   }
 });

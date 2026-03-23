@@ -87,7 +87,7 @@ export default function ProfileScreen() {
                 <SynthText variant="meta" color="secondary">Friends</SynthText>
               </View>
             </View>
-            <Pressable style={styles.settingsButton}>
+            <Pressable style={styles.settingsButton} onPress={() => router.push('/settings')}>
               <Settings size={22} color={SynthTokens.colors.neutral900} />
             </Pressable>
           </View>

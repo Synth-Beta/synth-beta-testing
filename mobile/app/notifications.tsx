@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, Pressable } from 'react-native';
+import { StyleSheet, View, FlatList, Pressable, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
@@ -12,6 +12,7 @@ import { Bell, ChevronLeft, UserPlus, Heart, MessageSquare } from 'lucide-react-
 export default function NotificationsScreen() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
@@ -20,12 +21,19 @@ export default function NotificationsScreen() {
     }, []);
 
     const loadNotifications = async () => {
+        setRefreshing(true);
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+            setNotifications([]);
+            setLoading(false);
+            setRefreshing(false);
+            return;
+        }
 
         const data = await NotificationService.getNotifications(user.id);
         setNotifications(data);
         setLoading(false);
+        setRefreshing(false);
     };
 
     const getIcon = (type: string) => {
@@ -42,7 +50,10 @@ export default function NotificationsScreen() {
 
         return (
             <Pressable
-                onPress={() => NotificationService.markAsRead(item.id)}
+                onPress={async () => {
+                    await NotificationService.markAsRead(item.id);
+                    setNotifications((prev) => prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n)));
+                }}
                 style={[styles.notificationItem, !item.is_read && styles.unreadItem]}
             >
                 <View style={styles.iconContainer}>
@@ -74,6 +85,9 @@ export default function NotificationsScreen() {
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.listContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={loadNotifications} tintColor={SynthTokens.colors.brandPink500} />
+                }
                 ListEmptyComponent={
                     !loading ? (
                         <View style={styles.empty}>

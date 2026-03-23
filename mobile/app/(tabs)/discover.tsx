@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BarChart3, Users, Search } from 'lucide-react-native';
+import { BarChart3, Users, Search, Bell, CalendarDays } from 'lucide-react-native';
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -14,6 +14,9 @@ export default function DiscoverScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <SynthText variant="h1">Discover</SynthText>
+        <Pressable onPress={() => router.push('/notifications')} style={styles.headerButton}>
+          <Bell size={20} color={SynthTokens.colors.neutral900} />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -42,16 +45,23 @@ export default function DiscoverScreen() {
           </View>
         </Pressable>
 
-        <Pressable
-          style={styles.card}
-          onPress={() => console.log('Connect')}
-        >
+        <Pressable style={styles.card} onPress={() => router.push('/(tabs)/chat')}>
           <View style={[styles.iconContainer, { backgroundColor: SynthTokens.colors.purpleAccent }]}>
             <Users size={24} color="white" />
           </View>
           <View style={styles.cardInfo}>
             <SynthText variant="h2">Connect</SynthText>
             <SynthText variant="meta" color="secondary">Find friends and concert buddies</SynthText>
+          </View>
+        </Pressable>
+
+        <Pressable style={styles.card} onPress={() => router.push('/my-events')}>
+          <View style={[styles.iconContainer, { backgroundColor: SynthTokens.colors.neutral900 }]}>
+            <CalendarDays size={24} color="white" />
+          </View>
+          <View style={styles.cardInfo}>
+            <SynthText variant="h2">My Events</SynthText>
+            <SynthText variant="meta" color="secondary">Manage your saved and created shows</SynthText>
           </View>
         </Pressable>
       </ScrollView>
@@ -65,8 +75,21 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral50,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SynthTokens.spacing.md,
     paddingVertical: SynthTokens.spacing.md,
+  },
+  headerButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
   },
   content: {
     padding: SynthTokens.spacing.md,

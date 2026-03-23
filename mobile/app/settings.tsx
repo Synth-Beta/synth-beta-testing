@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, User, Bell, Shield, CalendarDays, CircleHelp } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 
-/** Parity with web settings / GlobalModals — notifications, account, etc. TBD. */
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -21,12 +20,36 @@ export default function SettingsScreen() {
         <View style={styles.back} />
       </View>
       <ScrollView contentContainerStyle={styles.body}>
-        <SynthText variant="body" color="secondary">
-          Account, notifications, and privacy settings will mirror the web app. Use the website for full settings
-          until this screen is completed.
-        </SynthText>
+        <View style={styles.section}>
+          <SynthText variant="meta" color="secondary" style={styles.sectionTitle}>Account</SynthText>
+          <SettingsRow icon={<User size={18} color={SynthTokens.colors.neutral900} />} label="Edit profile" onPress={() => router.push('/profile-edit')} />
+          <SettingsRow icon={<CalendarDays size={18} color={SynthTokens.colors.neutral900} />} label="My events" onPress={() => router.push('/my-events')} />
+        </View>
+
+        <View style={styles.section}>
+          <SynthText variant="meta" color="secondary" style={styles.sectionTitle}>Preferences</SynthText>
+          <SettingsRow icon={<Bell size={18} color={SynthTokens.colors.neutral900} />} label="Notifications" onPress={() => router.push('/notifications')} />
+          <SettingsRow icon={<Shield size={18} color={SynthTokens.colors.neutral900} />} label="Privacy & safety" />
+        </View>
+
+        <View style={styles.section}>
+          <SynthText variant="meta" color="secondary" style={styles.sectionTitle}>Support</SynthText>
+          <SettingsRow icon={<CircleHelp size={18} color={SynthTokens.colors.neutral900} />} label="Help center" />
+        </View>
       </ScrollView>
     </View>
+  );
+}
+
+function SettingsRow({ icon, label, onPress }: { icon: React.ReactNode; label: string; onPress?: () => void }) {
+  return (
+    <Pressable style={styles.row} onPress={onPress}>
+      <View style={styles.rowLeft}>
+        <View style={styles.rowIcon}>{icon}</View>
+        <SynthText variant="meta">{label}</SynthText>
+      </View>
+      <SynthText variant="meta" color="secondary">{'>'}</SynthText>
+    </Pressable>
   );
 }
 
@@ -42,5 +65,35 @@ const styles = StyleSheet.create({
     borderBottomColor: SynthTokens.colors.neutral200,
   },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  body: { padding: SynthTokens.spacing.lg, paddingBottom: 48 },
+  body: { padding: SynthTokens.spacing.lg, paddingBottom: 48, gap: SynthTokens.spacing.lg },
+  section: {
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderRadius: SynthTokens.radius.large,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    overflow: 'hidden',
+  },
+  sectionTitle: {
+    padding: SynthTokens.spacing.md,
+    paddingBottom: 8,
+  },
+  row: {
+    minHeight: 52,
+    paddingHorizontal: SynthTokens.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: SynthTokens.colors.neutral100,
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  rowIcon: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

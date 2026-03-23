@@ -1,16 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Get Supabase credentials from environment variables or use placeholders for development
-// In a real Expo project, these would be in .env and accessed via process.env.EXPO_PUBLIC_...
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://your-project.supabase.co";
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key";
-
-if (SUPABASE_URL === "https://your-project.supabase.co" || SUPABASE_ANON_KEY === "your-anon-key") {
-    console.warn('⚠️ Supabase credentials not found! Check environment variables.');
-}
-
 import { Platform } from 'react-native';
+
+const PLACEHOLDER_URL = 'https://your-project.supabase.co';
+const PLACEHOLDER_KEY = 'your-anon-key';
+const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ||
+  process.env.VITE_SUPABASE_URL ||
+  PLACEHOLDER_URL;
+const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  PLACEHOLDER_KEY;
+
+export const isSupabaseConfigured =
+  SUPABASE_URL !== PLACEHOLDER_URL && SUPABASE_ANON_KEY !== PLACEHOLDER_KEY;
+if (!isSupabaseConfigured) {
+  console.warn(
+    '⚠️ Supabase credentials missing for mobile. Set EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY.'
+  );
+}
 
 const isWebSSR = Platform.OS === 'web' && typeof window === 'undefined';
 

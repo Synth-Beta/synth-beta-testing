@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Pressable, ScrollView, SafeAreaView, FlatList, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Pressable, SafeAreaView, FlatList, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -18,7 +18,6 @@ export default function VenuesScreen() {
     const [venues, setVenues] = useState<Venue[]>([]);
     const [selectedVenueIds, setSelectedVenueIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [locationError, setLocationError] = useState(false);
 
     useEffect(() => {
         initLocationAndVenues();
@@ -33,12 +32,10 @@ export default function VenuesScreen() {
                 const nearby = await VenueService.getNearbyVenues(location.coords.latitude, location.coords.longitude);
                 setVenues(nearby);
             } else {
-                setLocationError(true);
                 const popular = await VenueService.getPopularVenues();
                 setVenues(popular);
             }
         } catch (error) {
-            setLocationError(true);
             const popular = await VenueService.getPopularVenues();
             setVenues(popular);
         }

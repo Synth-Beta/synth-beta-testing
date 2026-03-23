@@ -76,7 +76,7 @@ export default function WelcomeScreen() {
                 <SynthButton
                     title="I already have an account"
                     variant="ghost"
-                    onPress={() => { }}
+                    onPress={() => router.push('/(auth)/sign-in')}
                     style={styles.secondaryButton}
                 />
             </Animated.View>

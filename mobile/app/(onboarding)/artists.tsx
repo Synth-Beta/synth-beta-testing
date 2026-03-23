@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Pressable, ScrollView, SafeAreaView, TextInput, FlatList } from 'react-native';
+import { StyleSheet, View, Pressable, SafeAreaView, TextInput, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, Search, Check } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
@@ -89,9 +88,7 @@ export default function ArtistsScreen() {
             <FlatList
                 data={artists}
                 keyExtractor={item => item.id}
-                numColumns={2}
                 contentContainerStyle={styles.listContent}
-                columnWrapperStyle={styles.columnWrapper}
                 renderItem={({ item }) => (
                     <ArtistCard
                         artist={item}
@@ -121,24 +118,20 @@ export default function ArtistsScreen() {
 
 function ArtistCard({ artist, selected, onPress }: { artist: Artist, selected: boolean, onPress: () => void }) {
     return (
-        <Pressable onPress={onPress} style={styles.artistCard}>
-            <View style={styles.imageContainer}>
-                <Image
-                    source={{ uri: artist.image_url || 'https://via.placeholder.com/150' }}
-                    style={styles.artistImage}
-                    contentFit="cover"
-                />
-                {selected && (
-                    <View style={styles.overlay}>
-                        <View style={styles.checkCircle}>
-                            <Check color="white" size={16} strokeWidth={3} />
-                        </View>
-                    </View>
-                )}
+        <Pressable onPress={onPress}>
+            <View style={[styles.artistRow, selected && styles.artistRowSelected]}>
+                <View style={styles.artistTextWrap}>
+                    <SynthText variant="accent" style={styles.artistName} numberOfLines={1}>
+                        {artist.name}
+                    </SynthText>
+                    <SynthText variant="meta" color="secondary" numberOfLines={1}>
+                        {artist.genres?.[0] || 'Artist'}
+                    </SynthText>
+                </View>
+                <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                    {selected ? <Check color="white" size={16} strokeWidth={3} /> : null}
+                </View>
             </View>
-            <SynthText variant="meta" style={styles.artistName} numberOfLines={1}>
-                {artist.name}
-            </SynthText>
         </Pressable>
     );
 }
@@ -184,10 +177,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: SynthTokens.spacing.xl,
         paddingBottom: 20,
     },
-    columnWrapper: {
-        justifyContent: 'space-between',
-        marginBottom: 20,
-    },
     textContent: {
         marginBottom: 24,
     },
@@ -197,41 +186,38 @@ const styles = StyleSheet.create({
     subtitle: {
         opacity: 0.8,
     },
-    artistCard: {
-        width: '47%',
+    artistRow: {
+        flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderRadius: SynthTokens.radius.large,
+        padding: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
     },
-    imageContainer: {
-        width: '100%',
-        aspectRatio: 1,
-        borderRadius: SynthTokens.radius.full,
-        overflow: 'hidden',
-        marginBottom: 8,
-        position: 'relative',
+    artistRowSelected: {
+        borderColor: SynthTokens.colors.brandPink500,
     },
-    artistImage: {
-        width: '100%',
-        height: '100%',
-    },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(204, 36, 134, 0.4)', // brand-pink with opacity
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    checkCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: SynthTokens.colors.brandPink500,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: 'white',
+    artistTextWrap: {
+        flex: 1,
+        gap: 2,
     },
     artistName: {
         fontWeight: '600',
-        textAlign: 'center',
+    },
+    checkbox: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        borderWidth: 2,
+        borderColor: SynthTokens.colors.neutral200,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxSelected: {
+        backgroundColor: SynthTokens.colors.brandPink500,
+        borderColor: SynthTokens.colors.brandPink500,
     },
     footer: {
         padding: SynthTokens.spacing.xl,

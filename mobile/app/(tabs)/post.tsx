@@ -4,20 +4,23 @@ import { useRouter } from 'expo-router';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 
-/** Web parity: center CTA opens event review / discovery — full review form ships later. */
 export default function PostScreen() {
   const router = useRouter();
 
   return (
     <View style={styles.container}>
-      <SynthText variant="h2">Post</SynthText>
+      <SynthText variant="h2">Create</SynthText>
       <SynthText variant="body" style={styles.copy} color="secondary">
-        On the web app, this button starts the event review flow. Here you can jump to Search to find a show; the
-        full composer will match web soon.
+        Start from a show, then write your review and share it with friends.
       </SynthText>
       <TouchableOpacity style={styles.cta} onPress={() => router.push('/(tabs)/search')} activeOpacity={0.85}>
         <SynthText variant="meta" style={styles.ctaText}>
-          Search events
+          Find an event
+        </SynthText>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.secondary} onPress={() => router.push('/my-events')} activeOpacity={0.85}>
+        <SynthText variant="meta" style={styles.secondaryText}>
+          Go to my events
         </SynthText>
       </TouchableOpacity>
     </View>
@@ -41,4 +44,14 @@ const styles = StyleSheet.create({
     borderRadius: SynthTokens.radius.medium,
   },
   ctaText: { color: SynthTokens.colors.neutral50, fontWeight: '700' },
+  secondary: {
+    marginTop: SynthTokens.spacing.md,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: SynthTokens.radius.medium,
+    backgroundColor: SynthTokens.colors.neutral0,
+  },
+  secondaryText: { color: SynthTokens.colors.neutral900, fontWeight: '600' },
 });

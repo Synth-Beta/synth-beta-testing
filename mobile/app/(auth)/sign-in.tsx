@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,20 +13,31 @@ import {
 } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getAuthRedirectOrigin } from '@synth/shared';
-import { supabase } from '../../src/integrations/supabase/client';
+import { isSupabaseConfigured, supabase } from '../../src/integrations/supabase/client';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { getAppleSignInCredential } from '../../lib/appleAuth';
 
 export default function SignInScreen() {
   const router = useRouter();
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const ensureConfigured = () => {
+    if (isSupabaseConfigured) return true;
+    setError('Mobile auth is not configured yet. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY.');
+    setMessage(null);
+    return false;
+  };
+
   const onSignInPassword = async () => {
+    if (!ensureConfigured()) return;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -40,6 +52,7 @@ export default function SignInScreen() {
   };
 
   const onSignUpPassword = async () => {
+    if (!ensureConfigured()) return;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -51,7 +64,10 @@ export default function SignInScreen() {
       const { error: e } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: `${origin}/` },
+        options: {
+          emailRedirectTo: `${origin}/`,
+          data: { name: name.trim() || undefined },
+        },
       });
       if (e) throw e;
       setMessage('Check your email to confirm, or sign in if confirmations are off.');
@@ -63,6 +79,7 @@ export default function SignInScreen() {
   };
 
   const onMagicLink = async () => {
+    if (!ensureConfigured()) return;
     setLoading(true);
     setError(null);
     setMessage(null);
@@ -82,6 +99,7 @@ export default function SignInScreen() {
   };
 
   const onForgotPassword = async () => {
+    if (!ensureConfigured()) return;
     if (!email.trim()) {
       setError('Enter your email above, then tap Forgot password.');
       return;
@@ -107,6 +125,7 @@ export default function SignInScreen() {
   };
 
   const onApple = async () => {
+    if (!ensureConfigured()) return;
     if (Platform.OS !== 'ios') return;
     setLoading(true);
     setError(null);
@@ -133,61 +152,92 @@ export default function SignInScreen() {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <LinearGradient
+        colors={['#CC2486', '#B523B8', '#8D1FF4']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Synth</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
+        <View style={styles.card}>
+          <Image source={require('../../assets/images/icon.png')} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.title}>Synth</Text>
+          <Text style={styles.subtitle}>Connect with people at events you love</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={SynthTokens.colors.neutral400}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoCorrect={false}
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={SynthTokens.colors.neutral400}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+          <View style={styles.segmented}>
+            <TouchableOpacity style={[styles.segment, mode === 'signin' && styles.segmentActive]} onPress={() => setMode('signin')} disabled={loading}>
+              <Text style={[styles.segmentText, mode === 'signin' && styles.segmentTextActive]}>Sign In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.segment, mode === 'signup' && styles.segmentActive]} onPress={() => setMode('signup')} disabled={loading}>
+              <Text style={[styles.segmentText, mode === 'signup' && styles.segmentTextActive]}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {message ? <Text style={styles.message}>{message}</Text> : null}
+          {Platform.OS === 'ios' ? (
+            <TouchableOpacity style={[styles.button, styles.apple]} onPress={onApple} disabled={loading}>
+              <Text style={styles.appleText}>Continue with Apple</Text>
+            </TouchableOpacity>
+          ) : null}
 
-        <TouchableOpacity
-          style={[styles.button, styles.primary]}
-          onPress={onSignInPassword}
-          disabled={loading}
-        >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Sign in</Text>}
-        </TouchableOpacity>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-        <TouchableOpacity style={styles.button} onPress={onSignUpPassword} disabled={loading}>
-          <Text style={styles.secondaryText}>Create account</Text>
-        </TouchableOpacity>
+          {mode === 'signup' ? (
+            <TextInput
+              style={styles.input}
+              placeholder="Your name"
+              placeholderTextColor={SynthTokens.colors.neutral400}
+              autoCapitalize="words"
+              value={name}
+              onChangeText={setName}
+            />
+          ) : null}
 
-        <TouchableOpacity style={styles.button} onPress={onMagicLink} disabled={loading}>
-          <Text style={styles.secondaryText}>Email me a magic link</Text>
-        </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={SynthTokens.colors.neutral400}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={SynthTokens.colors.neutral400}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
 
-        <TouchableOpacity style={styles.button} onPress={onForgotPassword} disabled={loading}>
-          <Text style={styles.secondaryText}>Forgot password?</Text>
-        </TouchableOpacity>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {message ? <Text style={styles.message}>{message}</Text> : null}
 
-        {Platform.OS === 'ios' ? (
-          <TouchableOpacity style={[styles.button, styles.apple]} onPress={onApple} disabled={loading}>
-            <Text style={styles.appleText}>Continue with Apple</Text>
+          <TouchableOpacity
+            style={[styles.button, styles.primary]}
+            onPress={mode === 'signin' ? onSignInPassword : onSignUpPassword}
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{mode === 'signin' ? 'Sign In' : 'Create Account'}</Text>}
           </TouchableOpacity>
-        ) : null}
 
-        <TouchableOpacity onPress={() => router.replace('/(onboarding)/welcome')} style={styles.skip}>
-          <Text style={styles.skipText}>Back to onboarding</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={onMagicLink} disabled={loading}>
+            <Text style={styles.secondaryText}>Email me a magic link</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.button} onPress={onForgotPassword} disabled={loading}>
+            <Text style={styles.secondaryText}>Forgot password?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => router.replace('/(onboarding)/welcome')} style={styles.skip}>
+            <Text style={styles.skipText}>Back to onboarding</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -195,14 +245,37 @@ export default function SignInScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: SynthTokens.colors.neutral50 },
-  scroll: { padding: 24, paddingTop: 80 },
+  scroll: { minHeight: '100%', padding: 20, paddingTop: 48, paddingBottom: 40, justifyContent: 'center' },
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderRadius: 30,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 10,
+  },
+  logo: { width: 78, height: 78, borderRadius: 18, alignSelf: 'center', marginBottom: 12 },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: '700',
     color: SynthTokens.colors.neutral900,
-    marginBottom: 8,
+    marginBottom: 6,
+    textAlign: 'center',
   },
-  subtitle: { fontSize: 16, color: SynthTokens.colors.neutral600, marginBottom: 24 },
+  subtitle: { fontSize: 18, color: SynthTokens.colors.neutral600, marginBottom: 18, textAlign: 'center' },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: '#F5F5DC',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  segment: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
+  segmentActive: { backgroundColor: '#fff' },
+  segmentText: { color: SynthTokens.colors.neutral600, fontWeight: '600' },
+  segmentTextActive: { color: SynthTokens.colors.neutral900 },
   input: {
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
@@ -222,10 +295,13 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: SynthTokens.colors.brandPink500 },
   primaryText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   secondaryText: { color: SynthTokens.colors.brandPink500, fontWeight: '600', fontSize: 16 },
-  apple: { backgroundColor: '#000', marginTop: 16 },
+  apple: { backgroundColor: '#000', marginTop: 4 },
   appleText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 12 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e6e6e6' },
+  dividerText: { color: SynthTokens.colors.neutral600, marginHorizontal: 10, fontSize: 16, fontWeight: '500' },
   error: { color: '#dc2626', marginTop: 8 },
   message: { color: SynthTokens.colors.neutral600, marginTop: 8 },
-  skip: { marginTop: 32, alignItems: 'center' },
-  skipText: { color: SynthTokens.colors.neutral400, fontSize: 14 },
+  skip: { marginTop: 22, alignItems: 'center' },
+  skipText: { color: '#8a236d', fontSize: 14, fontWeight: '500' },
 });
