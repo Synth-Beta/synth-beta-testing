@@ -5,6 +5,7 @@ import { UnifiedFeedService, type UnifiedFeedItem } from '@/services/unifiedFeed
 import { UserEventService } from '@/services/userEventService';
 import { SimpleEventRecommendationService } from '@/services/simpleEventRecommendationService';
 import { UserVisibilityService } from '@/services/userVisibilityService';
+import { createFriendRequest, rankFriendSuggestionsForRail } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { HomeFeedHeader, type DateWindow } from './HomeFeedHeader';
 import { MobileHeader } from '@/components/Header/MobileHeader';
@@ -1255,23 +1256,8 @@ interface FriendEventInterest {
 
   const loadFriendSuggestionsForRail = async () => {
     try {
-      // Fetch a larger pool so we can vary the selection each load
       const pool = await FriendsService.getSimilarUsersToFriend(currentUserId, 20);
-
-      // Weighted shuffle: assign each candidate a score that mixes a quality
-      // signal (mutual friends + connection depth) with a fresh random value.
-      // This means stronger matches surface more often but never deterministically,
-      // so the rail feels different on every load/sign-in.
-      const scored = pool.map(u => {
-        const quality =
-          (u.mutual_friends_count ?? 0) * 0.4 +
-          (u.shared_genres_count ?? 0) * 0.3 +
-          (u.connection_depth === 2 ? 0.3 : 0);
-        return { u, score: Math.random() + quality };
-      });
-      scored.sort((a, b) => b.score - a.score);
-
-      setFriendSuggestionsForRail(scored.slice(0, 5).map(s => s.u));
+      setFriendSuggestionsForRail(rankFriendSuggestionsForRail(pool, 5));
     } catch (error) {
       console.error('Error loading friend suggestions for rail:', error);
       setFriendSuggestionsForRail([]);
@@ -1284,36 +1270,17 @@ interface FriendEventInterest {
     setSendingFriendRequests(prev => new Set(prev).add(userId));
     
     try {
-      const { error } = await supabase.rpc('create_friend_request', {
-        receiver_user_id: userId
-      });
-
-      if (error) {
-        // Only remove user if it's a validation/business logic error (already sent, etc.)
-        // Don't remove on actual network/connection failures
-        const errorCode = error.code || error.message || '';
-        const isBusinessError = errorCode.includes('already') || 
-                                errorCode.includes('duplicate') ||
-                                errorCode.includes('invalid') ||
-                                errorCode === '23505' || // PostgreSQL unique constraint
-                                errorCode === 'PGRST204'; // Supabase conflict
-        
-        if (isBusinessError) {
-          shouldRemove = true; // Remove on business logic errors (already sent, etc.)
-        } else {
-          // Network/connection errors - don't remove user, allow retry
-          console.error('Network error sending friend request:', error);
-          // Don't return early - let finally block clear sending state
-          return;
-        }
-        throw error;
+      const result = await createFriendRequest(supabase, userId);
+      if (result.ok) {
+        shouldRemove = true;
+      } else if (result.kind === 'business') {
+        shouldRemove = true;
+      } else {
+        console.error('Network error sending friend request:', result.message);
+        return;
       }
-      
-      // Success - definitely remove user
-      shouldRemove = true;
     } catch (error: any) {
       if (!shouldRemove) {
-        // Network error occurred, don't update UI but still clear sending state in finally
         return;
       }
       console.error('Error sending friend request:', error);
@@ -1532,23 +1499,12 @@ interface FriendEventInterest {
     setSendingFriendRequests(prev => new Set(prev).add(friendUserId));
     
     try {
-      const { error } = await supabase.rpc('create_friend_request', {
-        receiver_user_id: friendUserId,
-      });
-
-      if (error) {
-        if (error.message?.includes('already sent') || error.message?.includes('already friends')) {
-          // Request already sent or already friends
-          setSentFriendRequests(prev => new Set(prev).add(friendUserId));
-      } else {
-          throw error;
-        }
-      } else {
+      const result = await createFriendRequest(supabase, friendUserId);
+      if (result.ok || result.kind === 'business') {
         setSentFriendRequests(prev => new Set(prev).add(friendUserId));
       }
     } catch (error) {
       console.error('Error sending friend request:', error);
-      // You could add a toast notification here if needed
     } finally {
       setSendingFriendRequests(prev => {
         const next = new Set(prev);

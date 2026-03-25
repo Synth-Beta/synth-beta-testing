@@ -27,6 +27,11 @@ The root **`ios/`** and **`android/`** folders (at repo root, next to `mobile/`)
 
 3. Optional (e.g. auth redirects): `EXPO_PUBLIC_SITE_URL` — see [app/(auth)/sign-in.tsx](app/(auth)/sign-in.tsx).
 
+4. **Android — Google sign-in** (same screen slot as iOS “Continue with Apple”): set both in EAS secrets or `.env`, and enable the Google provider in the Supabase dashboard with the same OAuth client IDs.
+
+   - `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` — OAuth **Android** client from [Google Cloud Console](https://console.cloud.google.com/) (package name + SHA-1 from your release/debug keystore as Expo/Android requires).
+   - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` — OAuth **Web application** client (used by Expo’s token exchange). If omitted, the Android client ID is reused as a fallback (works for some setups; prefer setting both explicitly).
+
 ## Local development
 
 From **repo root** (shortcut):

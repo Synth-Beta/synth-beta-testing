@@ -4,6 +4,7 @@ import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { ChevronDown, Menu } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { JamBaseAttributionInline } from './JamBaseAttributionInline';
 
 interface FeedHeaderProps {
     notificationsCount?: number;
@@ -18,12 +19,16 @@ export const FeedHeader: React.FC<FeedHeaderProps> = ({
 
     return (
         <View style={[styles.container, { paddingTop: insets.top + SynthTokens.spacing.sm }]}>
-            <TouchableOpacity style={styles.dropdownPill}>
-                <SynthText variant="meta" style={styles.dropdownText}>Events</SynthText>
-                <ChevronDown size={14} color={SynthTokens.colors.neutral900} />
-            </TouchableOpacity>
+            <View style={styles.leftSlot}>
+                <TouchableOpacity style={styles.dropdownPill}>
+                    <SynthText variant="meta" style={styles.dropdownText}>Events</SynthText>
+                    <ChevronDown size={14} color={SynthTokens.colors.neutral900} />
+                </TouchableOpacity>
+            </View>
 
-            <View style={styles.rightActions}>
+            <JamBaseAttributionInline />
+
+            <View style={styles.rightSlot}>
                 <Pressable onPress={onMenuPress} style={styles.iconButton}>
                     <Menu size={24} color={SynthTokens.colors.neutral900} />
                     {notificationsCount > 0 && (
@@ -43,10 +48,21 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: SynthTokens.spacing.md,
+        paddingHorizontal: SynthTokens.spacing.sm,
         paddingBottom: SynthTokens.spacing.sm,
         backgroundColor: SynthTokens.colors.neutral50,
+        gap: 4,
+    },
+    leftSlot: {
+        flexBasis: '28%',
+        maxWidth: 140,
+        flexShrink: 0,
+    },
+    rightSlot: {
+        flexBasis: '28%',
+        maxWidth: 140,
+        flexShrink: 0,
+        alignItems: 'flex-end',
     },
     dropdownPill: {
         flexDirection: 'row',
@@ -61,10 +77,6 @@ const styles = StyleSheet.create({
     },
     dropdownText: {
         fontWeight: 'bold',
-    },
-    rightActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
     },
     iconButton: {
         padding: SynthTokens.spacing.xs,

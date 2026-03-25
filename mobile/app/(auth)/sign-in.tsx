@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -12,12 +12,23 @@ import {
   View,
 } from 'react-native';
 import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getAuthRedirectOrigin } from '@synth/shared';
 import { isSupabaseConfigured, supabase } from '../../src/integrations/supabase/client';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { getAppleSignInCredential } from '../../lib/appleAuth';
+import { AppleLogoGlyph } from '../../src/components/auth/AppleLogoGlyph';
+import {
+  AndroidGoogleSignInPlaceholder,
+  AndroidGoogleSignInRow,
+} from '../../src/components/auth/AndroidGoogleSignInRow';
+
+/** Matches web `Auth.tsx` primary / link pink. */
+const AUTH_PINK = '#FF3399';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -28,6 +39,16 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const androidGoogleClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim();
+  const webGoogleClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || androidGoogleClientId;
+  const googleAndroidReady = Boolean(androidGoogleClientId && webGoogleClientId);
+
+  useEffect(() => {
+    setError(null);
+    setMessage(null);
+  }, [mode]);
 
   const ensureConfigured = () => {
     if (isSupabaseConfigured) return true;
@@ -153,7 +174,8 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <LinearGradient
-        colors={['#CC2486', '#B523B8', '#8D1FF4']}
+        colors={['#fdf2f8', '#ffffff', '#fce7f3', '#ffffff', '#fdf2f8']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
@@ -175,9 +197,20 @@ export default function SignInScreen() {
 
           {Platform.OS === 'ios' ? (
             <TouchableOpacity style={[styles.button, styles.apple]} onPress={onApple} disabled={loading}>
+              <AppleLogoGlyph size={20} color="#fff" />
               <Text style={styles.appleText}>Continue with Apple</Text>
             </TouchableOpacity>
-          ) : null}
+          ) : googleAndroidReady && androidGoogleClientId && webGoogleClientId ? (
+            <AndroidGoogleSignInRow
+              androidClientId={androidGoogleClientId}
+              webClientId={webGoogleClientId}
+              disabled={loading}
+              setLoading={setLoading}
+              setError={setError}
+            />
+          ) : (
+            <AndroidGoogleSignInPlaceholder />
+          )}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -208,12 +241,20 @@ export default function SignInScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder={mode === 'signup' ? 'Password (min 6 characters)' : 'Password'}
             placeholderTextColor={SynthTokens.colors.neutral400}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
           />
+
+          {mode === 'signin' ? (
+            <View style={styles.forgotRow}>
+              <TouchableOpacity onPress={onForgotPassword} disabled={loading}>
+                <Text style={styles.forgotLink}>Forgot password?</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -223,16 +264,24 @@ export default function SignInScreen() {
             onPress={mode === 'signin' ? onSignInPassword : onSignUpPassword}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{mode === 'signin' ? 'Sign In' : 'Create Account'}</Text>}
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryText}>{mode === 'signin' ? 'Sign In' : 'Sign Up'}</Text>
+            )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={onMagicLink} disabled={loading}>
-            <Text style={styles.secondaryText}>Email me a magic link</Text>
-          </TouchableOpacity>
+          {mode === 'signin' ? (
+            <Text style={styles.troubleText}>
+              Trouble signing in? Double-check your email and password, or use &quot;Forgot password&quot;.
+            </Text>
+          ) : null}
 
-          <TouchableOpacity style={styles.button} onPress={onForgotPassword} disabled={loading}>
-            <Text style={styles.secondaryText}>Forgot password?</Text>
-          </TouchableOpacity>
+          {mode === 'signin' ? (
+            <TouchableOpacity style={styles.magicLinkWrap} onPress={onMagicLink} disabled={loading}>
+              <Text style={styles.magicLinkText}>Email me a magic link</Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity onPress={() => router.replace('/(onboarding)/welcome')} style={styles.skip}>
             <Text style={styles.skipText}>Back to onboarding</Text>
@@ -292,11 +341,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  primary: { backgroundColor: SynthTokens.colors.brandPink500 },
+  primary: { backgroundColor: AUTH_PINK },
   primaryText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  secondaryText: { color: SynthTokens.colors.brandPink500, fontWeight: '600', fontSize: 16 },
-  apple: { backgroundColor: '#000', marginTop: 4 },
+  apple: {
+    backgroundColor: '#000',
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
   appleText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  forgotRow: { alignItems: 'flex-end', marginBottom: 4, marginTop: -4 },
+  forgotLink: { color: AUTH_PINK, fontSize: 16, fontWeight: '600' },
+  troubleText: {
+    marginTop: 16,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666666',
+    lineHeight: 22,
+    paddingHorizontal: 4,
+  },
+  magicLinkWrap: { marginTop: 14, alignItems: 'center', paddingVertical: 8 },
+  magicLinkText: { color: SynthTokens.colors.neutral600, fontSize: 14, fontWeight: '500', textDecorationLine: 'underline' },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 12 },
   dividerLine: { flex: 1, height: 1, backgroundColor: '#e6e6e6' },
   dividerText: { color: SynthTokens.colors.neutral600, marginHorizontal: 10, fontSize: 16, fontWeight: '500' },

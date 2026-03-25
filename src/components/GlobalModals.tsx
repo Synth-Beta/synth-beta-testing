@@ -20,7 +20,12 @@ interface GlobalModalsProps {
   friendTaggedInviteNotification: any;
   onCloseFriendTaggedInviteModal: () => void;
   onWriteReview: (prefill: PrefillEvent) => void;
-  friendCelebration: { notificationId: string; friendName: string; data: CelebrationData } | null;
+  friendCelebration: {
+    notificationId: string;
+    friendId: string;
+    friendName: string;
+    data: CelebrationData;
+  } | null;
   onCloseFriendCelebration: () => void;
   onCelebrationEventClick: (eventId: string) => void;
   onCelebrationArtistClick: (artistId: string, artistName: string) => void;
@@ -75,6 +80,8 @@ export const GlobalModals = ({
       {/* New Friend Celebration Modal - shows on login or realtime when friend_accepted */}
       {friendCelebration && (
         <NewFriendCelebrationModal
+          friendId={friendCelebration.friendId}
+          currentUserId={userId}
           friendName={friendCelebration.friendName}
           currentUserDisplayName={friendMatchSelfDisplayName}
           data={friendCelebration.data}

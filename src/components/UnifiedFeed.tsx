@@ -102,6 +102,7 @@ import { RadiusSearchService } from '@/services/radiusSearchService';
 import { useNavigate } from 'react-router-dom';
 import type { JamBaseEventResponse, JamBaseEvent } from '@/types/eventTypes';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
+import { createFriendRequest } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 
 const DEFAULT_MAP_CENTER: [number, number] = [39.8283, -98.5795];
@@ -471,16 +472,9 @@ export const UnifiedFeed = ({
 
   // Send friend request
   const handleSendFriendRequest = async (userId: string) => {
-    try {
-      const { error } = await supabase.rpc('create_friend_request', {
-        receiver_user_id: userId
-      });
-
-      if (error) throw error;
-
-    } catch (error: any) {
-      console.error('Error sending friend request:', error);
-      throw error;
+    const result = await createFriendRequest(supabase, userId);
+    if (!result.ok && result.kind === 'network') {
+      throw new Error(result.message || 'Network error');
     }
   };
 

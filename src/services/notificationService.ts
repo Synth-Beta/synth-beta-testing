@@ -1,3 +1,4 @@
+import { deleteExpiredFriendAcceptedNotifications as deleteExpiredFriendAcceptedShared } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import type { 
   Notification, 
@@ -113,6 +114,14 @@ export class NotificationService {
       // Get current user ID for filtering (consistent with fallback method)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
+
+      const { removed: removedStaleFriendAccepted } = await deleteExpiredFriendAcceptedShared(
+        supabase,
+        user.id
+      );
+      if (removedStaleFriendAccepted) {
+        cacheService.clearPattern(`notifications_${user.id}_`);
+      }
 
       // Prepare cache key (only for first page, no filters)
       const shouldCache = !filters.offset && !filters.type && filters.is_read === undefined;

@@ -97,11 +97,13 @@ export default function RootLayout() {
       seg0 === 'chat' ||
       seg0 === 'event' ||
       seg0 === 'notifications' ||
+      seg0 === 'friend-requests' ||
       seg0 === 'stats' ||
       seg0 === 'modal' ||
       seg0 === 'profile-edit' ||
       seg0 === 'my-events' ||
-      seg0 === 'settings';
+      seg0 === 'settings' ||
+      seg0 === 'app-menu';
 
     if (!session && needsAuth) {
       if (!isOnboardingComplete) {
@@ -148,6 +150,7 @@ export default function RootLayout() {
       <Stack.Screen name="profile-edit" options={{ headerShown: false }} />
       <Stack.Screen name="my-events" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="app-menu" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
   );
 }

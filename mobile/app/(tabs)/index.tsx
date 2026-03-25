@@ -7,7 +7,13 @@ import { FilterPills, FeedFilter } from '../../src/components/Feed/FilterPills';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { FriendActivityCard } from '../../src/components/Feed/FriendActivityCard';
 import { SynthText } from '../../src/components/SynthText';
-import { HomeFeedService, NetworkEvent, TrendingEvent } from '../../src/services/homeFeedService';
+import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
+import {
+  FriendSuggestion,
+  HomeFeedService,
+  NetworkEvent,
+  TrendingEvent,
+} from '../../src/services/homeFeedService';
 import { NotificationService } from '../../src/services/notificationService';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
@@ -22,6 +28,7 @@ export default function FeedScreen() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
 
   const fetchFeed = useCallback(async (filter: FeedFilter) => {
     try {
@@ -30,20 +37,24 @@ export default function FeedScreen() {
       const unread = await NotificationService.getUnreadCount(user.id);
       setNotificationCount(unread);
 
-      let feedItems: FeedItem[] = [];
+      const [suggestions, feedBlock] = await Promise.all([
+        HomeFeedService.getFriendSuggestionsForRail(user.id, 5),
+        (async (): Promise<FeedItem[]> => {
+          if (filter === 'For You' || filter === 'Following') {
+            const networkEvents = await HomeFeedService.getNetworkEvents(user.id);
+            return networkEvents.map(ev => ({ type: 'network', data: ev }));
+          }
+          const trendingEvents = await HomeFeedService.getTrendingEvents();
+          return trendingEvents.map(ev => ({ type: 'trending', data: ev }));
+        })(),
+      ]);
 
-      if (filter === 'For You' || filter === 'Following') {
-        const networkEvents = await HomeFeedService.getNetworkEvents(user.id);
-        feedItems = networkEvents.map(ev => ({ type: 'network', data: ev }));
-      } else {
-        const trendingEvents = await HomeFeedService.getTrendingEvents();
-        feedItems = trendingEvents.map(ev => ({ type: 'trending', data: ev }));
-      }
-
-      setItems(feedItems);
+      setFriendSuggestions(suggestions);
+      setItems(feedBlock);
     } catch (error) {
       console.error('Error fetching feed:', error);
       setItems([]);
+      setFriendSuggestions([]);
     } finally {
       setRefreshing(false);
     }
@@ -84,11 +95,15 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
-      <FeedHeader notificationsCount={notificationCount} onMenuPress={() => router.push('/notifications')} />
+      <FeedHeader notificationsCount={notificationCount} onMenuPress={() => router.push('/app-menu')} />
       <FilterPills
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
       />
+
+      {friendSuggestions.length > 0 ? (
+        <FriendSuggestionsRail suggestions={friendSuggestions} />
+      ) : null}
 
       <FlashList
         data={items}

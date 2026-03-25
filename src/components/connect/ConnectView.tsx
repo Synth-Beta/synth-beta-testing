@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createFriendRequest } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsReviewService } from '@/services/friendsReviewService';
 import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
@@ -791,18 +792,15 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           if (sendingFriendRequest) return;
                           try {
                             setSendingFriendRequest(true);
-                            const { error } = await supabase.rpc('create_friend_request', {
-                              receiver_user_id: user.recommended_user_id,
-                            });
-
-                            if (error) throw error;
-
-                            setRecommendedUsers((prev) =>
-                              prev.filter((u) => u.recommended_user_id !== user.recommended_user_id)
-                            );
+                            const fr = await createFriendRequest(supabase, user.recommended_user_id);
+                            if (fr.ok || fr.kind === 'business') {
+                              setRecommendedUsers((prev) =>
+                                prev.filter((u) => u.recommended_user_id !== user.recommended_user_id)
+                              );
+                            }
                           } catch (error: any) {
                             console.error('Error sending friend request:', error);
-                            } finally {
+                          } finally {
                             setSendingFriendRequest(false);
                           }
                         }}
@@ -1667,21 +1665,17 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                       if (!selectedReviewDetail.author?.id || sendingFriendRequest) return;
                       try {
                         setSendingFriendRequest(true);
-                        const { error } = await supabase.rpc('create_friend_request', {
-                          receiver_user_id: selectedReviewDetail.author.id
-                        });
-                        
-                        if (error) throw error;
-                        
-                        t/ Update connection to show pending status
-                        setReviewAuthorConnection({
-                          ...reviewAuthorConnection,
-                          label: 'Request Sent',
-                          color: 'blue'
-                        });
+                        const fr = await createFriendRequest(supabase, selectedReviewDetail.author.id);
+                        if (fr.ok || fr.kind === 'business') {
+                          setReviewAuthorConnection({
+                            ...reviewAuthorConnection,
+                            label: 'Request Sent',
+                            color: 'blue'
+                          });
+                        }
                       } catch (error: any) {
                         console.error('Error sending friend request:', error);
-                        } finally {
+                      } finally {
                         setSendingFriendRequest(false);
                       }
                     }}

@@ -45,6 +45,7 @@ import { EventMap } from '@/components/EventMap';
 const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import type { JamBaseEvent } from '@/types/eventTypes';
+import { createFriendRequest } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { PromotionTrackingService } from '@/services/promotionTrackingService';
@@ -2579,13 +2580,10 @@ export function EventDetailsModal({
             }}
             onAddFriend={async (friendUserId: string) => {
               try {
-                // Use RPC function to create friend request (handles all checks)
-                const { error } = await supabase.rpc('create_friend_request', {
-                  receiver_user_id: friendUserId
-                });
-
-                if (error) throw error;
-                console.log('✅ Friend request sent successfully');
+                const fr = await createFriendRequest(supabase, friendUserId);
+                if (fr.ok || fr.kind === 'business') {
+                  console.log('✅ Friend request sent successfully');
+                }
               } catch (error) {
                 console.error('❌ Failed to send friend request:', error);
               }

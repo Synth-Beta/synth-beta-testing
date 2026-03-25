@@ -23,6 +23,7 @@ import {
   Plus,
   User
 } from 'lucide-react';
+import { acceptFriendRequest, createFriendRequest, declineFriendRequest } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsService } from '@/services/friendsService';
 import { useAuth } from '@/hooks/useAuth';
@@ -274,14 +275,14 @@ const { sessionExpired } = useAuth();
 
       if (error) {
         console.error('Error searching users:', error);
-        teturn;
+        return;
       }
 
       setSearchResults(profiles || []);
       console.log('🔍 Set search results:', profiles || []);
     } catch (error) {
       console.error('Error searching users:', error);
-      t finally {
+    } finally {
       setSearchLoading(false);
     }
   };
@@ -297,14 +298,10 @@ const { sessionExpired } = useAuth();
     try {
       console.log('Sending friend request to:', userId);
       
-      // Call the database function to create friend request
-      const { data, error } = await supabase.rpc('create_friend_request', {
-        receiver_user_id: userId
-      });
-
-      if (error) {
-        console.error('Error creating friend request:', error);
-        throw error;
+      const frResult = await createFriendRequest(supabase, userId);
+      if (!frResult.ok && frResult.kind === 'network') {
+        console.error('Error creating friend request:', frResult.message);
+        return;
       }
 
       // Get user details for email notification
@@ -334,10 +331,10 @@ const { sessionExpired } = useAuth();
       // Remove the user from search results to show the request was sent
       setSearchResults(prev => prev.filter(user => user.id !== userId));
       setUserSearchQuery(''); // Clear search
-
-      } catch (error: any) {
+    } catch (error: any) {
       console.error('Error sending friend request:', error);
-      t  };
+    }
+  };
 
   const checkFriendRequestStatus = async (requestId: string) => {
     try {
@@ -366,7 +363,7 @@ const { sessionExpired } = useAuth();
     console.log('🤝 Request ID value:', JSON.stringify(requestId));
     
     if (!requestId) {
-      teturn;
+      return;
     }
 
     // First check if the request is still valid
@@ -374,39 +371,19 @@ const { sessionExpired } = useAuth();
     console.log('🔍 Request status:', requestStatus);
 
     if (requestStatus === 'not_found' || requestStatus === 'accepted' || requestStatus === 'declined') {
-      t/ Refresh notifications to remove the processed request
       fetchNotifications();
       return;
     }
 
     try {
-      // Convert string to UUID if needed
       const uuidRequestId = typeof requestId === 'string' ? requestId : String(requestId);
-      console.log('🤝 Converted request ID:', uuidRequestId);
-
-      const { error } = await supabase.rpc('accept_friend_request', {
-        request_id: uuidRequestId
-      });
-
-      console.log('🤝 Accept friend request result:', error);
-
-      if (error) {
-        console.error('Error accepting friend request:', error);
-        
-        // Handle specific error cases
-        if (error.message.includes('not found') || error.message.includes('already processed')) {
-          t/ Refresh notifications to remove the processed request
-          fetchNotifications();
-          return;
-        }
-        
-        throw error;
+      const result = await acceptFriendRequest(supabase, uuidRequestId);
+      if (!result.ok) {
+        console.error('Error accepting friend request:', result.error);
+        return;
       }
 
-      // Remove the notification from UI immediately
       setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
-      
-      // Refresh friends list
       fetchFriends();
     } catch (error: any) {
       console.error('Error accepting friend request:', error);
@@ -449,31 +426,17 @@ const { sessionExpired } = useAuth();
         console.log('🔍 Debug: Found request ID from database:', actualRequestId);
       }
       
-      const { error } = await supabase.rpc('decline_friend_request', {
-        request_id: actualRequestId
-      });
-
-      console.log('❌ Decline friend request result:', error);
-
-      if (error) {
-        console.error('Error declining friend request:', error);
-        
-        // Handle specific error cases
-        if (error.message.includes('not found') || error.message.includes('already processed')) {
-          t/ Refresh notifications to remove the processed request
-          fetchNotifications();
-          return;
-        }
-        
-        throw error;
+      const result = await declineFriendRequest(supabase, actualRequestId);
+      if (!result.ok) {
+        console.error('Error declining friend request:', result.error);
+        return;
       }
 
-      // Remove the notification from UI immediately
       setNotifications(prev => prev.filter(n => (n.data as any)?.request_id !== requestId));
-
-      } catch (error: any) {
+    } catch (error: any) {
       console.error('Error declining friend request:', error);
-      t  };
+    }
+  };
 
   const getRatingText = (rating: number | 'good' | 'okay' | 'bad') => {
     if (typeof rating === 'number') {
@@ -553,9 +516,10 @@ const { sessionExpired } = useAuth();
     try {
       await ReviewService.deleteEventReview(currentUserId, reviewId);
       fetchReviews(); // Refresh the list
-      } catch (error) {
+    } catch (error) {
       console.error('Error deleting review:', error);
-      t  };
+    }
+  };
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => {

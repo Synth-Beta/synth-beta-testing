@@ -1,67 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Dimensions } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
-import { PassportService, PassportEntry, ProfileStats } from '../../src/services/passportService';
+import { PassportService, ProfileTimelineItem, ProfileStats } from '../../src/services/passportService';
+import { HomeFeedService, FriendSuggestion } from '../../src/services/homeFeedService';
 import { supabase } from '../../src/integrations/supabase/client';
-import { Settings, Ticket, Pencil, CalendarDays } from 'lucide-react-native';
+import { Settings, Pencil, Ticket, Menu, Instagram, Music2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
+
+const PINK = SynthTokens.colors.brandPink500;
 
 export default function ProfileScreen() {
   const [stats, setStats] = useState<ProfileStats | null>(null);
-  const [timeline, setTimeline] = useState<PassportEntry[]>([]);
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
+  const [user, setUser] = useState<{
+    name?: string;
+    username?: string;
+    avatar_url?: string;
+  } | null>(null);
+  const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
+  const loadProfile = useCallback(async () => {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
     if (!authUser) return;
 
-    const { data: userData } = await supabase
+    const { data: userData, error: userRowError } = await supabase
       .from('users')
-      .select('*')
+      .select('name, username, avatar_url')
       .eq('user_id', authUser.id)
       .single();
 
-    const [statsData, timelineData] = await Promise.all([
+    if (userRowError) {
+      console.warn('[profile] users row:', userRowError.message);
+    }
+
+    const [statsData, timelineData, suggestions] = await Promise.all([
       PassportService.getProfileStats(authUser.id),
-      PassportService.getTimeline(authUser.id)
+      PassportService.getTimeline(authUser.id),
+      HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
     ]);
 
-    setUser(userData);
+    setUser(userRowError || !userData ? null : userData);
     setStats(statsData);
     setTimeline(timelineData);
-    setLoading(false);
-  };
+    setFriendSuggestions(suggestions);
+  }, []);
 
-  const renderTimelineItem = (item: PassportEntry, index: number) => {
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadProfile();
+    }, [loadProfile])
+  );
+
+  const handle = user?.username ? `@${user.username}` : '@username';
+  const displayName = user?.name || 'Your Profile';
+
+  const renderTimelineItem = (item: ProfileTimelineItem, index: number) => {
     const date = new Date(item.date).toLocaleDateString('en-US', {
-      month: 'short', year: 'numeric'
+      month: 'short',
+      year: 'numeric',
     });
 
     return (
       <View key={item.id} style={styles.timelineItem}>
         <View style={styles.timelineLeft}>
-          <SynthText variant="meta" color="secondary" style={styles.timelineDate}>{date}</SynthText>
+          <SynthText variant="meta" color="secondary" style={styles.timelineDate}>
+            {date}
+          </SynthText>
           <View style={[styles.timelineDot, index === 0 && styles.activeDot]} />
           {index !== timeline.length - 1 && <View style={styles.timelineLine} />}
         </View>
         <Pressable style={styles.timelineCard}>
           <View style={styles.cardContent}>
-            <SynthText variant="meta" style={styles.bold}>{item.title}</SynthText>
-            <SynthText variant="meta" color="secondary">{item.subtitle}</SynthText>
+            <SynthText variant="meta" style={styles.bold}>
+              {item.title}
+            </SynthText>
+            <SynthText variant="meta" color="secondary">
+              {item.subtitle}
+            </SynthText>
           </View>
-          {item.image_url && (
-            <Image source={{ uri: item.image_url }} style={styles.cardImage} />
-          )}
+          {item.image_url && <Image source={{ uri: item.image_url }} style={styles.cardImage} />}
         </Pressable>
       </View>
     );
@@ -69,55 +98,83 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <View style={styles.topRow}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={[styles.topHeader, { paddingTop: insets.top + 12 }]}>
+          <Text style={styles.handleTop} numberOfLines={1}>
+            {handle}
+          </Text>
+          <Pressable style={styles.menuBtn} onPress={() => router.push('/app-menu')}>
+            <Menu size={24} color={SynthTokens.colors.neutral900} />
+          </Pressable>
+        </View>
+        <View style={styles.headerRule} />
+
+        <View style={styles.profileCard}>
+          <View style={styles.cardTop}>
             <Image
-              source={user?.avatar_url ? { uri: user.avatar_url } : require('../../assets/placeholder-user.png')}
+              source={
+                user?.avatar_url
+                  ? { uri: user.avatar_url }
+                  : require('../../assets/placeholder-user.png')
+              }
               style={styles.avatar}
             />
-            <View style={styles.statsRow}>
-              <View style={styles.stat}>
-                <SynthText variant="h2">{stats?.concert_count || 0}</SynthText>
-                <SynthText variant="meta" color="secondary">Shows</SynthText>
-              </View>
-              <View style={styles.stat}>
-                <SynthText variant="h2">{stats?.friend_count || 0}</SynthText>
-                <SynthText variant="meta" color="secondary">Friends</SynthText>
+            <View style={styles.cardInfo}>
+              <SynthText variant="h2" style={styles.displayName}>
+                {displayName}
+              </SynthText>
+              <SynthText variant="meta" color="secondary" style={styles.handleInCard}>
+                {handle}
+              </SynthText>
+              <View style={styles.statsRow}>
+                <View style={styles.statCol}>
+                  <Text style={styles.statNum}>{stats?.friend_count ?? 0}</Text>
+                  <Text style={styles.statLbl}>Friends</Text>
+                </View>
+                <View style={styles.statCol}>
+                  <Text style={styles.statNum}>{stats?.following_count ?? 0}</Text>
+                  <Text style={styles.statLbl}>Following</Text>
+                </View>
+                <View style={styles.statCol}>
+                  <Text style={styles.statNum}>{stats?.concert_count ?? 0}</Text>
+                  <Text style={styles.statLbl}>Events</Text>
+                </View>
               </View>
             </View>
-            <Pressable style={styles.settingsButton} onPress={() => router.push('/settings')}>
+          </View>
+
+          <View style={styles.actionRow}>
+            <Pressable style={styles.editProfile} onPress={() => router.push('/profile-edit')}>
+              <Pencil size={18} color="#fff" />
+              <Text style={styles.editProfileText}>Edit Profile</Text>
+            </Pressable>
+            <Pressable style={styles.gearBtn} onPress={() => router.push('/settings')}>
               <Settings size={22} color={SynthTokens.colors.neutral900} />
             </Pressable>
           </View>
 
-          <View style={styles.bioSection}>
-            <SynthText variant="h2">{user?.name || 'Your Profile'}</SynthText>
-            <SynthText variant="meta" color="secondary">@{user?.name?.toLowerCase().replace(' ', '') || 'username'}</SynthText>
-          </View>
-
-          <View style={styles.quickActions}>
-            <Pressable style={styles.quickAction} onPress={() => router.push('/profile-edit')}>
-              <Pencil size={18} color={SynthTokens.colors.brandPink500} />
-              <SynthText variant="meta" style={styles.quickActionLabel}>
-                Edit profile
-              </SynthText>
+          <View style={styles.socialRow}>
+            <Pressable style={styles.socialIcon}>
+              <Instagram size={20} color={SynthTokens.colors.neutral900} />
             </Pressable>
-            <Pressable style={styles.quickAction} onPress={() => router.push('/my-events')}>
-              <CalendarDays size={18} color={SynthTokens.colors.brandPink500} />
-              <SynthText variant="meta" style={styles.quickActionLabel}>
-                My events
-              </SynthText>
+            <Pressable style={styles.socialIcon}>
+              <Music2 size={20} color={SynthTokens.colors.neutral900} />
             </Pressable>
           </View>
         </View>
 
-        {/* Passport Section */}
+        {friendSuggestions.length > 0 ? (
+          <View style={styles.railPad}>
+            <FriendSuggestionsRail suggestions={friendSuggestions} />
+          </View>
+        ) : null}
+
         <View style={styles.passportContainer}>
           <View style={styles.sectionHeader}>
-            <Ticket size={20} color={SynthTokens.colors.brandPink500} />
-            <SynthText variant="h2" style={styles.sectionTitle}>Concert Passport</SynthText>
+            <Ticket size={20} color={PINK} />
+            <SynthText variant="h2" style={styles.sectionTitle}>
+              Concert Passport
+            </SynthText>
           </View>
 
           <View style={styles.timeline}>
@@ -125,7 +182,9 @@ export default function ProfileScreen() {
               timeline.map((item, index) => renderTimelineItem(item, index))
             ) : (
               <View style={styles.empty}>
-                <SynthText variant="body" color="secondary">Your concert history will appear here.</SynthText>
+                <SynthText variant="body" color="secondary">
+                  Your concert history will appear here.
+                </SynthText>
               </View>
             )}
           </View>
@@ -138,58 +197,137 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: SynthTokens.colors.neutral50,
-  },
-  header: {
-    paddingHorizontal: SynthTokens.spacing.md,
     backgroundColor: SynthTokens.colors.neutral0,
-    borderBottomWidth: 1,
-    borderBottomColor: SynthTokens.colors.neutral200,
-    paddingBottom: SynthTokens.spacing.xl,
   },
-  topRow: {
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: SynthTokens.spacing.md,
+    paddingBottom: 10,
+  },
+  handleTop: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
+    color: SynthTokens.colors.neutral900,
+  },
+  menuBtn: { padding: 8 },
+  headerRule: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: SynthTokens.colors.neutral200,
+    marginHorizontal: SynthTokens.spacing.md,
+  },
+  profileCard: {
+    marginHorizontal: SynthTokens.spacing.md,
+    marginTop: SynthTokens.spacing.md,
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderRadius: 20,
+    padding: SynthTokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: SynthTokens.colors.neutral100,
+  },
+  cardInfo: {
+    flex: 1,
+  },
+  displayName: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  handleInCard: {
+    marginTop: 2,
+    fontSize: 15,
   },
   statsRow: {
     flexDirection: 'row',
-    gap: SynthTokens.spacing.xl,
+    marginTop: 14,
+    justifyContent: 'space-between',
+    paddingRight: 8,
   },
-  stat: {
+  statCol: {
     alignItems: 'center',
+    minWidth: 72,
   },
-  settingsButton: {
-    padding: 8,
+  statNum: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: SynthTokens.colors.neutral900,
   },
-  bioSection: {
-    marginTop: SynthTokens.spacing.md,
+  statLbl: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: '500',
+    color: SynthTokens.colors.neutral600,
   },
-  quickActions: {
+  actionRow: {
     flexDirection: 'row',
-    gap: SynthTokens.spacing.md,
+    alignItems: 'center',
+    gap: 10,
     marginTop: SynthTokens.spacing.lg,
   },
-  quickAction: {
+  editProfile: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: SynthTokens.radius.medium,
-    backgroundColor: SynthTokens.colors.brandPink050,
+    backgroundColor: PINK,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  editProfileText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  gearBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
+    backgroundColor: SynthTokens.colors.neutral0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  quickActionLabel: {
-    fontWeight: '600',
-    color: SynthTokens.colors.neutral900,
+  socialRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: SynthTokens.spacing.md,
+  },
+  socialIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SynthTokens.colors.neutral0,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  railPad: {
+    marginTop: SynthTokens.spacing.sm,
   },
   passportContainer: {
     padding: SynthTokens.spacing.md,
@@ -228,7 +366,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   activeDot: {
-    backgroundColor: SynthTokens.colors.brandPink500,
+    backgroundColor: PINK,
   },
   timelineLine: {
     position: 'absolute',
@@ -240,7 +378,7 @@ const styles = StyleSheet.create({
   timelineCard: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: SynthTokens.colors.neutral100,
+    backgroundColor: SynthTokens.colors.neutral50,
     borderRadius: SynthTokens.radius.medium,
     marginLeft: SynthTokens.spacing.md,
     padding: SynthTokens.spacing.sm,
@@ -261,5 +399,5 @@ const styles = StyleSheet.create({
   empty: {
     padding: SynthTokens.spacing.xl,
     alignItems: 'center',
-  }
+  },
 });

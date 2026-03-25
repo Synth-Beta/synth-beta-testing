@@ -1,3 +1,4 @@
+import { getSimilarUsersToFriend, rankFriendSuggestionsForRail } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
 
 export interface NetworkEvent {
@@ -22,6 +23,17 @@ export interface TrendingEvent {
     image_url?: string;
     trending_score: number;
     interest_count: number;
+}
+
+/** Same shape as web + {@link @synth/shared#SharedFriendSuggestion}. */
+export interface FriendSuggestion {
+    user_id: string;
+    name: string;
+    avatar_url: string | null;
+    verified?: boolean;
+    connection_depth: number;
+    mutual_friends_count: number;
+    shared_genres_count?: number;
 }
 
 export class HomeFeedService {
@@ -111,6 +123,19 @@ export class HomeFeedService {
             }));
         } catch (error) {
             console.error('Error fetching trending events:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Friend suggestions rail — same pool + ranking as web HomeFeed (via @synth/shared).
+     */
+    static async getFriendSuggestionsForRail(userId: string, maxCards = 5): Promise<FriendSuggestion[]> {
+        try {
+            const pool = await getSimilarUsersToFriend(supabase, userId, 20);
+            return rankFriendSuggestionsForRail(pool, maxCards) as FriendSuggestion[];
+        } catch (error) {
+            console.error('Error loading friend suggestions for rail:', error);
             return [];
         }
     }

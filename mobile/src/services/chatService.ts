@@ -119,4 +119,16 @@ export class ChatService {
             return false;
         }
     }
+
+    /** Remove current user from a chat (same as trash / leave in mobile list UI). */
+    static async leaveChat(chatId: string, userId: string): Promise<boolean> {
+        try {
+            const { error } = await supabase.from('chat_participants').delete().eq('chat_id', chatId).eq('user_id', userId);
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error leaving chat:', error);
+            return false;
+        }
+    }
 }

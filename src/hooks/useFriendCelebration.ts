@@ -5,6 +5,7 @@ import type { CelebrationData } from '@/components/NewFriendCelebrationModal';
 export function useFriendCelebration() {
   const [friendCelebration, setFriendCelebration] = useState<{
     notificationId: string;
+    friendId: string;
     friendName: string;
     data: CelebrationData;
   } | null>(null);
@@ -23,6 +24,7 @@ export function useFriendCelebration() {
             if (result) {
               setFriendCelebration({
                 notificationId: result.notificationId || '',
+                friendId: detail.friendId,
                 friendName: result.friendName,
                 data: result.data,
               });

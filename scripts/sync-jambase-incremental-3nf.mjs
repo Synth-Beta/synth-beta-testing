@@ -1206,16 +1206,28 @@ class IncrementalSync3NF {
   async run() {
     console.log('🔄 Starting Daily Incremental Sync (3NF Compliant)...\n');
 
-    // Get last sync timestamp
-    const lastModifiedAt = await this.getLastSyncTimestamp();
-    if (!lastModifiedAt) {
+    // Get last sync timestamp (DB watermark for incremental JamBase dateModifiedFrom)
+    const dbLastModifiedAt = await this.getLastSyncTimestamp();
+    if (!dbLastModifiedAt) {
       console.log('⚠️  No previous sync found. Run full sync first.');
       return;
     }
 
-    console.log(`📅 Last sync: ${lastModifiedAt}\n`);
+    const fromOverride = process.env.JAMBASE_INCREMENTAL_FROM?.trim();
+    const lastModifiedAt = fromOverride || dbLastModifiedAt;
+    if (fromOverride) {
+      const parsed = Date.parse(fromOverride);
+      if (Number.isNaN(parsed)) {
+        throw new Error(`Invalid JAMBASE_INCREMENTAL_FROM (not a valid date): ${fromOverride}`);
+      }
+      console.log(
+        `📅 JAMBASE_INCREMENTAL_FROM override: ${fromOverride}\n   (DB max last_modified_at is ${dbLastModifiedAt})\n`
+      );
+    }
 
-    // Fetch events modified since last sync
+    console.log(`📅 dateModifiedFrom: ${lastModifiedAt}\n`);
+
+    // Fetch events modified since last sync (or since override — use after a partial run so older pages are not skipped)
     const dateModifiedFrom = new Date(lastModifiedAt).toISOString();
     let currentPage = 1;
     let totalPages = 1;

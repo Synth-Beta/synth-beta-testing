@@ -9,6 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock, Award, Trophy, Flag, Ban, MoreVertical, Trash2 } from 'lucide-react';
 import { FollowersModal } from './FollowersModal';
 import { FollowingModal } from './FollowingModal';
+import { createFriendRequest, rankFriendSuggestionsForRail } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
@@ -870,8 +871,8 @@ const { user, sessionExpired } = useAuth();
 
   const loadProfileFriendSuggestions = async () => {
     try {
-      const suggestions = await FriendsService.getSimilarUsersToFriend(currentUserId, 5);
-      setProfileFriendSuggestions(suggestions);
+      const pool = await FriendsService.getSimilarUsersToFriend(currentUserId, 20);
+      setProfileFriendSuggestions(rankFriendSuggestionsForRail(pool, 5));
     } catch (error) {
       logger.warn('Error loading profile friend suggestions:', error);
       setProfileFriendSuggestions([]);
@@ -880,14 +881,13 @@ const { user, sessionExpired } = useAuth();
 
   const handleSendFriendRequestFromProfile = async (userId: string) => {
     try {
-      const { error } = await supabase.rpc('create_friend_request', {
-        receiver_user_id: userId
-      });
-      if (error) throw error;
-      setProfileFriendSuggestions(prev => prev.filter(s => s.user_id !== userId));
-      } catch (error: any) {
-      logger.error('Error sending friend request:', error);
+      const result = await createFriendRequest(supabase, userId);
+      if (result.ok || result.kind === 'business') {
+        setProfileFriendSuggestions(prev => prev.filter(s => s.user_id !== userId));
       }
+    } catch (error: any) {
+      logger.error('Error sending friend request:', error);
+    }
   };
 
   const handleMusicActionSync = async () => {
@@ -1475,34 +1475,24 @@ const { user, sessionExpired } = useAuth();
       }
 
       logger.debug('Sending friend request to:', targetUserId);
-      
-      // Call the database function to create friend request
-      const { data, error } = await supabase.rpc('create_friend_request', {
-        receiver_user_id: targetUserId
-      });
 
-      if (error) {
-        logger.error('Error creating friend request:', error);
-        throw error;
+      const result = await createFriendRequest(supabase, targetUserId);
+      if (!result.ok) {
+        if (result.kind === 'network') return;
+        logger.error('Error creating friend request:', result.message);
+        return;
       }
 
-      // Get the request ID first before updating status to ensure Cancel button works
-      let requestId: string | null = null;
-      if (data) {
-        requestId = data;
-      } else {
-        // Fetch the request ID if not returned
+      let requestId: string | null = result.requestId ?? null;
+      if (!requestId) {
         requestId = await FriendsService.getPendingRequestId(currentUserId, targetUserId);
       }
-      
-      // Set both state updates together after we have the request ID
-      // This ensures the Cancel button is functional when the UI updates
+
       setPendingRequestId(requestId);
       setFriendStatus('pending_sent');
-      
-      } catch (error: any) {
+    } catch (error: any) {
       logger.error('Error sending friend request:', error);
-      }
+    }
   };
 
   const unfriendUser = async (friendUserId: string) => {

@@ -1,3 +1,10 @@
+import {
+    acceptFriendRequest as acceptFriendRequestShared,
+    declineFriendRequest as declineFriendRequestShared,
+    deleteExpiredFriendAcceptedNotifications as deleteExpiredFriendAcceptedShared,
+    deleteFriendRequestNotificationsByRequestId,
+    pruneStaleFriendRequestNotifications as pruneStaleFriendRequestsShared,
+} from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
 
 export interface Notification {
@@ -12,6 +19,10 @@ export interface Notification {
 }
 
 export class NotificationService {
+    static async deleteExpiredFriendAcceptedNotifications(userId: string): Promise<void> {
+        await deleteExpiredFriendAcceptedShared(supabase, userId);
+    }
+
     static async getUnreadCount(userId: string): Promise<number> {
         try {
             const { count, error } = await supabase
@@ -29,6 +40,8 @@ export class NotificationService {
 
     static async getNotifications(userId: string): Promise<Notification[]> {
         try {
+            await NotificationService.deleteExpiredFriendAcceptedNotifications(userId);
+
             const { data, error } = await supabase
                 .from('notifications')
                 .select('*')
@@ -65,5 +78,31 @@ export class NotificationService {
             console.error('Error marking notification as read:', error);
             return false;
         }
+    }
+
+    static async deleteFriendRequestNotification(userId: string, requestId: string): Promise<void> {
+        const { ok, error } = await deleteFriendRequestNotificationsByRequestId(
+            supabase,
+            userId,
+            requestId
+        );
+        if (!ok && error) {
+            console.error('deleteFriendRequestNotification:', error);
+        }
+    }
+
+    static async acceptFriendRequest(requestId: string): Promise<{ ok: boolean; error?: string }> {
+        return acceptFriendRequestShared(supabase, requestId);
+    }
+
+    static async declineFriendRequest(requestId: string): Promise<{ ok: boolean; error?: string }> {
+        return declineFriendRequestShared(supabase, requestId);
+    }
+
+    static async pruneStaleFriendRequestNotifications(
+        userId: string,
+        notifications: Notification[]
+    ): Promise<Notification[]> {
+        return pruneStaleFriendRequestsShared(supabase, userId, notifications);
     }
 }

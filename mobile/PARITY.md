@@ -14,9 +14,9 @@ Ship-gate tracker for strict visual + behavior parity. A screen is only consider
 
 | Web `ViewType` / area | Expo route(s) | Status | Notes |
 |----------------------|---------------|--------|-------|
-| `auth` | `(auth)/sign-in` | In progress | Unified sign in/sign up + Apple flow restored; visual parity still tuning. |
+| `auth` | `(auth)/sign-in` | In progress | Matched to web `Auth.tsx`: soft pink gradient shell, segmented tabs, black **Continue with Apple** (iOS) / black **Continue with Google** (Android when `EXPO_PUBLIC_GOOGLE_*` set), forgot-password row, trouble footer, magic link link, `#FF3399` primary. **Device QA** (Apple / Google / email / reset). |
 | `onboarding` | `(onboarding)/welcome`, `scene`, `artists`, `venues`, `connect` | In progress | Welcome/auth routing fixed; step styling and spacing still being tightened. |
-| `feed` | `(tabs)/index` | In progress | Data feed is wired; header/filter/card parity still tuning. |
+| `feed` | `(tabs)/index` | In progress | Events pill + **Powered by JamBase** (center) + menu/badge; filter pills; **Who You Should Know** horizontal rail (`get_similar_users_to_friend` + fallbacks); network/trending lists. **Device QA** for layout on small widths + empty/skeleton states. |
 | `search` (Discover) | `(tabs)/search`, `(tabs)/discover` | In progress | Search exists; discover hub was simplified and needs web-structure parity checks. |
 | `post` | `(tabs)/post` | In progress | CTA is present; full web composer parity not complete yet. |
 | `chat` | `(tabs)/chat`, `chat/[id]` | In progress | Thread list works; visual + interaction parity pass pending. |
@@ -38,3 +38,21 @@ Ship-gate tracker for strict visual + behavior parity. A screen is only consider
 ## Ship gate
 
 Do not ship until every in-scope route above is marked complete against all five acceptance checks.
+
+## Splash / launch (Expo vs Capacitor)
+
+- Capacitor iOS uses `LaunchScreen.storyboard` with a full-bleed **Splash** image from native assets (not duplicated in this repo snapshot).
+- Expo uses `app.json` → `splash.image` (`assets/images/splash-icon.png`) and `backgroundColor` **`#FDF2F8`** to align with the web auth shell pink wash rather than a solid brand-magenta flash.
+
+## Manual QA checklist (run on **iOS + Android** before marking any route “complete”)
+
+Automated: from `mobile/`, `npx tsc --noEmit` (and project lint if configured).
+
+1. Cold start: splash appears, then router lands on expected entry (onboarding vs tabs).
+2. **Auth**: Sign In — email/password, forgot password (with email filled), magic link; Sign Up — name/email/password; iOS **Continue with Apple**; Android shows “Apple … iOS” copy.
+3. **Home feed**: header shows Events + JamBase + menu badge; pull-to-refresh; filters switch content; friend rail shows skeleton then cards or hides when empty; **Add** sends request without crashing.
+4. Tabs: Discover, Create/post, Chat, Profile — navigate and back.
+5. **Profile → settings → profile-edit**; **notifications**; **my-events** (signed-in).
+6. Sign out and confirm guards return to auth/onboarding as designed.
+
+Tick each route in the table above only after all five acceptance checks pass for that route.

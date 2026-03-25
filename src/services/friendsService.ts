@@ -5,6 +5,7 @@
  * Ensures no duplicates and consistent behavior across the app
  */
 
+import { getRecommendedFriendsFallback, getSimilarUsersToFriend as getSimilarUsersToFriendShared } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 
@@ -211,30 +212,12 @@ export class FriendsService {
     shared_genres_count?: number;
   }>> {
     try {
-      const { data, error } = await supabase.rpc('get_similar_users_to_friend', {
-        p_user_id: userId,
-        p_limit: limit,
-      });
-      if (error) {
-        if (import.meta.env.DEV) {
-          logger.debug('get_similar_users_to_friend RPC not available, using connection-based fallback');
-        }
-        return this.getRecommendedFriends(userId, limit);
-      }
-      return (data || []).map((r: any) => ({
-        user_id: r.recommended_user_id,
-        name: r.name || 'Unknown User',
-        avatar_url: r.avatar_url ?? null,
-        verified: true,
-        connection_depth: r.connection_degree ?? 3,
-        mutual_friends_count: r.mutual_friends_count ?? 0,
-        shared_genres_count: r.shared_genres_count ?? 0,
-      }));
+      return await getSimilarUsersToFriendShared(supabase, userId, limit);
     } catch (err) {
       if (import.meta.env.DEV) {
         logger.warn('Error getting similar users, using fallback:', err);
       }
-      return this.getRecommendedFriends(userId, limit);
+      return getRecommendedFriendsFallback(supabase, userId, limit);
     }
   }
 
@@ -254,72 +237,7 @@ export class FriendsService {
     shared_genres_count?: number;
   }>> {
     try {
-      // Get 2nd and 3rd degree connections using existing RPC functions
-      const [secondDegreeResult, thirdDegreeResult] = await Promise.all([
-        supabase.rpc('get_second_degree_connections', { target_user_id: userId }),
-        supabase.rpc('get_third_degree_connections', { target_user_id: userId })
-      ]);
-
-      if (secondDegreeResult.error) {
-        logger.error('Error fetching second degree connections:', secondDegreeResult.error);
-      }
-      if (thirdDegreeResult.error) {
-        logger.error('Error fetching third degree connections:', thirdDegreeResult.error);
-      }
-
-      const secondDegree = secondDegreeResult.data || [];
-      const thirdDegree = thirdDegreeResult.data || [];
-
-      // Combine and format the results
-      const recommendations: Array<{
-        user_id: string;
-        name: string;
-        avatar_url: string | null;
-        verified?: boolean;
-        connection_depth: number;
-        mutual_friends_count: number;
-        shared_genres_count?: number;
-      }> = [];
-
-      // Add 2nd degree connections
-      secondDegree.forEach((conn: any) => {
-        recommendations.push({
-          user_id: conn.connected_user_id,
-          name: conn.name || 'Unknown User',
-          avatar_url: conn.avatar_url || null,
-          verified: conn.is_public_profile !== false, // Use profile visibility as proxy
-          connection_depth: 2,
-          mutual_friends_count: conn.mutual_friends_count || 0,
-        });
-      });
-
-      // Add 3rd degree connections
-      thirdDegree.forEach((conn: any) => {
-        recommendations.push({
-          user_id: conn.connected_user_id,
-          name: conn.name || 'Unknown User',
-          avatar_url: conn.avatar_url || null,
-          verified: conn.is_public_profile !== false,
-          connection_depth: 3,
-          mutual_friends_count: conn.mutual_friends_count || 0,
-        });
-      });
-
-      // Sort by mutual friends count (descending), then by connection depth (2nd before 3rd)
-      recommendations.sort((a, b) => {
-        if (a.mutual_friends_count !== b.mutual_friends_count) {
-          return b.mutual_friends_count - a.mutual_friends_count;
-        }
-        return a.connection_depth - b.connection_depth;
-      });
-
-      // Remove duplicates (in case same user appears in both)
-      const uniqueRecommendations = Array.from(
-        new Map(recommendations.map(rec => [rec.user_id, rec])).values()
-      );
-
-      // Return limited results
-      return uniqueRecommendations.slice(0, limit);
+      return await getRecommendedFriendsFallback(supabase, userId, limit);
     } catch (error) {
       logger.error('Error getting recommended friends:', error);
       return [];

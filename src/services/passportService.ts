@@ -1,25 +1,12 @@
+import {
+  fetchPassportUnlockProgress,
+  type PassportUnlockEntry,
+  type PassportUnlockProgress,
+} from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface PassportEntry {
-  id: string;
-  user_id: string;
-  type: 'city' | 'venue' | 'artist' | 'scene' | 'era' | 'festival' | 'artist_milestone';
-  entity_id: string | null; // Legacy external ID (for cities/scenes, or metadata)
-  entity_uuid: string | null; // UUID foreign key (for venues/artists, primary identity)
-  entity_name: string;
-  unlocked_at: string;
-  metadata: Record<string, any>;
-  rarity?: 'common' | 'uncommon' | 'legendary';
-  cultural_context?: string;
-}
-
-export interface PassportProgress {
-  cities: PassportEntry[];
-  venues: PassportEntry[];
-  artists: PassportEntry[];
-  scenes: PassportEntry[];
-  totalCount: number;
-}
+export type PassportEntry = PassportUnlockEntry;
+export type PassportProgress = PassportUnlockProgress;
 
 export interface NextToUnlock {
   type: 'city' | 'venue' | 'artist' | 'scene';
@@ -34,34 +21,7 @@ export class PassportService {
    * Get all passport progress for a user
    */
   static async getPassportProgress(userId: string): Promise<PassportProgress> {
-    try {
-      const { data, error } = await supabase
-        .from('passport_entries')
-        .select('*')
-        .eq('user_id', userId)
-        .order('unlocked_at', { ascending: false });
-
-      if (error) throw error;
-
-      const entries = (data || []) as PassportEntry[];
-
-      return {
-        cities: entries.filter(e => e.type === 'city'),
-        venues: entries.filter(e => e.type === 'venue'),
-        artists: entries.filter(e => e.type === 'artist'),
-        scenes: entries.filter(e => e.type === 'scene'),
-        totalCount: entries.length,
-      };
-    } catch (error) {
-      console.error('Error fetching passport progress:', error);
-      return {
-        cities: [],
-        venues: [],
-        artists: [],
-        scenes: [],
-        totalCount: 0,
-      };
-    }
+    return fetchPassportUnlockProgress(supabase, userId);
   }
 
   /**

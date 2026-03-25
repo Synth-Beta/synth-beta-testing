@@ -1,9 +1,13 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getSynthPlaceholderImage, replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import confetti from 'canvas-confetti';
+import {
+  hasSeenFriendMatchConfetti,
+  markFriendMatchConfettiSeen,
+} from '@/utils/friendMatchConfettiStorage';
 
 export interface CelebrationEvent {
   id: string;
@@ -55,6 +59,8 @@ function initialsFromDisplayName(name?: string | null): string {
 }
 
 interface NewFriendCelebrationModalProps {
+  friendId: string;
+  currentUserId: string;
   friendName: string;
   /** Avatar fallback initials when the current user has no profile photo. */
   currentUserDisplayName?: string | null;
@@ -145,6 +151,8 @@ function SharedFollowGrid({
 }
 
 export function NewFriendCelebrationModal({
+  friendId,
+  currentUserId,
   friendName,
   currentUserDisplayName,
   data,
@@ -157,11 +165,13 @@ export function NewFriendCelebrationModal({
   const sharedArtists = data.shared_artists ?? [];
   const sharedVenues = data.shared_venues ?? [];
   const hasSharedFollows = sharedArtists.length > 0 || sharedVenues.length > 0;
-  const hasFiredConfetti = useRef(false);
 
+  /** One celebration confetti per (you, friend) pair — persists across sessions; View Profile does not open this modal. */
   useEffect(() => {
-    if (!isOpen || hasFiredConfetti.current) return;
-    hasFiredConfetti.current = true;
+    if (!isOpen || !friendId || !currentUserId) return;
+    if (hasSeenFriendMatchConfetti(currentUserId, friendId)) return;
+
+    markFriendMatchConfettiSeen(currentUserId, friendId);
 
     const duration = 3000;
     const end = Date.now() + duration;
@@ -180,14 +190,7 @@ export function NewFriendCelebrationModal({
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
-  }, [isOpen]);
-
-  // Reset confetti flag when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      hasFiredConfetti.current = false;
-    }
-  }, [isOpen]);
+  }, [isOpen, friendId, currentUserId]);
 
   if (!isOpen) return null;
 

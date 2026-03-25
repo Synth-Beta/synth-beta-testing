@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, Heart, X, MessageCircle, User, MapPin, Calendar, Instagram, Camera, ExternalLink, UserPlus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { createFriendRequest } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { DBEvent, Profile } from '@/types/database';
 import { Event } from '@/types/concertSearch';
@@ -267,13 +268,10 @@ const { sessionExpired } = useAuth();
 
   const sendFriendRequest = async (receiverUserId: string) => {
     try {
-      const { data, error } = await supabase.rpc('create_friend_request', {
-        receiver_user_id: receiverUserId
-      });
-      if (error) throw error;
-      } catch (error) {
+      await createFriendRequest(supabase, receiverUserId);
+    } catch (error) {
       console.error('Error sending friend request:', error);
-      }
+    }
   };
 
   const currentUser = users[currentUserIndex];
