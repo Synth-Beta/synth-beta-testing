@@ -55,6 +55,9 @@ synth-native-ios/.build/
 *.sw?
 
 # Xcode / iOS
+# Expo CocoaPods output (huge; also listed in mobile/ios/.gitignore)
+mobile/ios/Pods/
+
 ios/**/DerivedData/
 **/DerivedData/
 **/build/
