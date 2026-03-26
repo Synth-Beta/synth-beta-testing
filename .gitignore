@@ -23,6 +23,7 @@ ios/App/App/public
 .env*.local
 .env.bak
 *.env
+!mobile/ios/.xcode.env
 !.env.example
 backend/.env
 
