@@ -57,6 +57,25 @@ command -v npm >/dev/null 2>&1 || { echo "ci_post_clone: npm still not available
 echo "ci_post_clone: node $(node -v), npm $(npm -v)"
 
 cd "${REPO}/mobile"
+
+# Expo inlines EXPO_PUBLIC_* at bundle time; Xcode Cloud does not load a local .env.
+# Configure these as encrypted workflow environment variables in App Store Connect
+# (same names), or they will be inherited if exported by the runner.
+if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" && -n "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]]; then
+  echo "ci_post_clone: writing mobile/.env from Xcode Cloud env (Supabase)"
+  umask 077
+  {
+    printf '%s\n' "EXPO_PUBLIC_SUPABASE_URL=${EXPO_PUBLIC_SUPABASE_URL}"
+    printf '%s\n' "EXPO_PUBLIC_SUPABASE_ANON_KEY=${EXPO_PUBLIC_SUPABASE_ANON_KEY}"
+  } > .env
+  # Optional mobile vars (Google sign-in on Android, site URL, etc.)
+  [[ -n "${EXPO_PUBLIC_SITE_URL:-}" ]] && printf '%s\n' "EXPO_PUBLIC_SITE_URL=${EXPO_PUBLIC_SITE_URL}" >> .env
+  [[ -n "${EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID:-}" ]] && printf '%s\n' "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=${EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID}" >> .env
+  [[ -n "${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:-}" ]] && printf '%s\n' "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID}" >> .env
+else
+  echo "ci_post_clone: WARNING: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY not set — add them in Xcode Cloud workflow environment (App Store Connect)."
+fi
+
 echo "ci_post_clone: npm ci in mobile/"
 npm ci
 
