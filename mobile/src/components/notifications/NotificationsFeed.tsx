@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
-import { isFriendsHubNotificationType } from '@synth/shared';
+import { isFriendsHubNotificationType, resolveNotificationExpoPath } from '@synth/shared';
 import { NotificationService, Notification } from '../../services/notificationService';
 import { supabase } from '../../integrations/supabase/client';
 import { useRouter } from 'expo-router';
@@ -168,8 +168,36 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
       <View style={[styles.row, !item.is_read && styles.rowUnread]}>
         <Pressable
           onPress={async () => {
+            if (item.type === 'friend_request') {
+              await NotificationService.markAsRead(item.id);
+              setNotifications(prev => prev.map(n => (n.id === item.id ? { ...n, is_read: true } : n)));
+              return;
+            }
             await NotificationService.markAsRead(item.id);
             setNotifications(prev => prev.map(n => (n.id === item.id ? { ...n, is_read: true } : n)));
+
+            let dest = resolveNotificationExpoPath(item.type, item.data, {
+              actorUserId: item.actor_user_id,
+            });
+            if (
+              !dest &&
+              (item.type === 'review_liked' ||
+                item.type === 'review_commented' ||
+                item.type === 'comment_replied')
+            ) {
+              const reviewId = item.data?.review_id;
+              if (reviewId) {
+                const { data } = await supabase
+                  .from('reviews')
+                  .select('event_id')
+                  .eq('id', String(reviewId))
+                  .maybeSingle();
+                if (data?.event_id) dest = { path: `/event/${data.event_id}` };
+              }
+            }
+            if (dest?.path) {
+              router.push(dest.path);
+            }
           }}
           style={styles.rowMain}
         >

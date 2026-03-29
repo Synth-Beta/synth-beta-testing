@@ -37,6 +37,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { createOrGetDirectChat } from '@/services/directChatRpc';
 import { FriendsService } from '@/services/friendsService';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 import { MobileHeader } from '@/components/Header/MobileHeader';
@@ -1120,34 +1121,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         return;
       }
       
-      // Use the database function to create or get existing direct chat
-      const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
-        user1_id: currentUserId,
-        user2_id: userId
-      });
+      const { chatId, error: rpcError } = await createOrGetDirectChat(currentUserId, userId);
 
-      if (error) {
-        console.error('❌ Error creating direct chat:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          ...((error as any).status ? { status: (error as any).status } : {})
-        });
-        
-        // Show more specific error message
-        let errorMessage = "Failed to create chat. Please try again.";
-        if (error.message) {
-          if (error.message.includes('permission') || error.message.includes('policy')) {
-            errorMessage = "Permission denied. Please check your account permissions.";
-          } else if (error.message.includes('foreign key') || error.message.includes('constraint')) {
-            errorMessage = "Invalid user information. Please try again.";
-          } else {
-            errorMessage = error.message;
-          }
-        }
-        
+      if (rpcError || !chatId) {
+        console.error('❌ Error creating direct chat:', rpcError);
         return;
       }
 

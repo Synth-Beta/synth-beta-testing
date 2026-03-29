@@ -11,6 +11,8 @@ export interface ProfileReviewTimelineItem {
   date: string;
   image_url?: string;
   rating?: number;
+  /** Linked event when review is tied to an event row */
+  event_id?: string;
 }
 
 export async function fetchProfileReviewTimeline(
@@ -43,6 +45,7 @@ export async function fetchProfileReviewTimeline(
     return (reviews || []).map((rev: Record<string, unknown>) => {
       const events = rev.events as Record<string, unknown> | undefined;
       const images = events?.images as Array<{ url?: string }> | undefined;
+      const entityId = rev.entity_id as string | undefined;
       return {
         id: String(rev.id),
         type: 'review' as const,
@@ -51,6 +54,7 @@ export async function fetchProfileReviewTimeline(
         date: (events?.event_date as string) || (rev.created_at as string),
         image_url: images?.[0]?.url,
         rating: rev.rating as number | undefined,
+        event_id: entityId,
       };
     });
   } catch (error) {

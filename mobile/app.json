@@ -42,6 +42,12 @@
       "expo-system-ui",
       "expo-image",
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Synth uses photos you choose to attach to your concert reviews."
+        }
+      ],
       "expo-apple-authentication",
       [
         "expo-notifications",

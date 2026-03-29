@@ -1,80 +1,99 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, RefreshControl } from 'react-native';
+import { StyleSheet, View, RefreshControl, ScrollView, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
-import { FeedHeader } from '../../src/components/Feed/FeedHeader';
-import { FilterPills, FeedFilter } from '../../src/components/Feed/FilterPills';
+import { FeedHeader, FeedDisplayMode } from '../../src/components/Feed/FeedHeader';
 import { EventCard } from '../../src/components/Feed/EventCard';
-import { FriendActivityCard } from '../../src/components/Feed/FriendActivityCard';
+import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import { SynthText } from '../../src/components/SynthText';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
 import {
   FriendSuggestion,
   HomeFeedService,
+  NetworkReview,
   NetworkEvent,
   TrendingEvent,
+  UnifiedPersonalizedEvent,
 } from '../../src/services/homeFeedService';
 import { NotificationService } from '../../src/services/notificationService';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 
-type FeedItem =
-  | { type: 'network', data: NetworkEvent }
-  | { type: 'trending', data: TrendingEvent };
+type ListItem =
+  | { kind: 'event'; data: UnifiedPersonalizedEvent }
+  | { kind: 'review'; data: NetworkReview };
 
 export default function FeedScreen() {
   const router = useRouter();
-  const [activeFilter, setActiveFilter] = useState<FeedFilter>('For You');
-  const [items, setItems] = useState<FeedItem[]>([]);
+  const [feedDisplayMode, setFeedDisplayMode] = useState<FeedDisplayMode>('events');
+  const [events, setEvents] = useState<UnifiedPersonalizedEvent[]>([]);
+  const [reviews, setReviews] = useState<NetworkReview[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
+  const [networkEvents, setNetworkEvents] = useState<NetworkEvent[]>([]);
+  const [trendingEvents, setTrendingEvents] = useState<TrendingEvent[]>([]);
 
-  const fetchFeed = useCallback(async (filter: FeedFilter) => {
+  const listData: ListItem[] =
+    feedDisplayMode === 'events'
+      ? events.map(data => ({ kind: 'event', data }))
+      : reviews.map(data => ({ kind: 'review', data }));
+
+  const fetchFeed = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
       const unread = await NotificationService.getUnreadCount(user.id);
       setNotificationCount(unread);
 
-      const [suggestions, feedBlock] = await Promise.all([
-        HomeFeedService.getFriendSuggestionsForRail(user.id, 5),
-        (async (): Promise<FeedItem[]> => {
-          if (filter === 'For You' || filter === 'Following') {
-            const networkEvents = await HomeFeedService.getNetworkEvents(user.id);
-            return networkEvents.map(ev => ({ type: 'network', data: ev }));
-          }
-          const trendingEvents = await HomeFeedService.getTrendingEvents();
-          return trendingEvents.map(ev => ({ type: 'trending', data: ev }));
-        })(),
-      ]);
-
+      const suggestions = await HomeFeedService.getFriendSuggestionsForRail(user.id, 5);
       setFriendSuggestions(suggestions);
-      setItems(feedBlock);
+
+      const [net, trend] = await Promise.all([
+        HomeFeedService.getNetworkEvents(user.id),
+        HomeFeedService.getTrendingEvents(),
+      ]);
+      setNetworkEvents(net.slice(0, 15));
+      setTrendingEvents(trend.slice(0, 15));
+
+      if (feedDisplayMode === 'events') {
+        const unified = await HomeFeedService.getUnifiedPersonalizedEvents(user.id, 50);
+        setEvents(unified);
+      } else {
+        const networkReviews = await HomeFeedService.getNetworkReviews(user.id, 20);
+        setReviews(networkReviews);
+      }
     } catch (error) {
       console.error('Error fetching feed:', error);
-      setItems([]);
+      if (feedDisplayMode === 'events') setEvents([]);
+      else setReviews([]);
       setFriendSuggestions([]);
+      setNetworkEvents([]);
+      setTrendingEvents([]);
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [feedDisplayMode]);
 
   useEffect(() => {
-    fetchFeed(activeFilter);
-  }, [activeFilter, fetchFeed]);
+    void fetchFeed();
+  }, [fetchFeed]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchFeed(activeFilter);
+    void fetchFeed();
   };
 
-  const renderItem = ({ item }: { item: FeedItem }) => {
-    if (item.type === 'network') {
+  const renderItem = ({ item }: { item: ListItem }) => {
+    if (item.kind === 'review') {
       return (
-        <FriendActivityCard
-          activity={item.data}
-          onPress={() => router.push(`/event/${item.data.id}`)}
+        <NetworkReviewCard
+          review={item.data}
+          onPress={
+            item.data.event_id ? () => router.push(`/event/${item.data.event_id}`) : undefined
+          }
         />
       );
     }
@@ -87,28 +106,109 @@ export default function FeedScreen() {
         venue_name={item.data.venue_name}
         event_date={item.data.event_date}
         image_url={item.data.image_url}
+        cornerLabel={item.data.feedLabel}
         onPress={() => router.push(`/event/${item.data.id}`)}
         onGoingPress={() => router.push(`/event/${item.data.id}`)}
       />
     );
   };
 
+  const emptyMessage =
+    feedDisplayMode === 'events'
+      ? 'No events yet. Pull to refresh.'
+      : 'No reviews from friends yet.';
+
   return (
     <View style={styles.container}>
-      <FeedHeader notificationsCount={notificationCount} onMenuPress={() => router.push('/app-menu')} />
-      <FilterPills
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
+      <FeedHeader
+        notificationsCount={notificationCount}
+        onMenuPress={() => router.push('/app-menu')}
+        feedDisplayMode={feedDisplayMode}
+        onFeedDisplayModeChange={setFeedDisplayMode}
       />
 
       {friendSuggestions.length > 0 ? (
         <FriendSuggestionsRail suggestions={friendSuggestions} />
       ) : null}
 
+      {feedDisplayMode === 'events' && networkEvents.length > 0 ? (
+        <View style={styles.railSection}>
+          <SynthText variant="h2" style={styles.railTitle}>
+            From your network
+          </SynthText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.railScroll}
+          >
+            {networkEvents.map(ne => (
+              <Pressable
+                key={`${ne.id}-${ne.friend_id}`}
+                style={styles.miniCard}
+                onPress={() => router.push(`/event/${ne.id}`)}
+              >
+                <Image
+                  source={
+                    ne.image_url
+                      ? { uri: ne.image_url }
+                      : require('../../assets/placeholder-event.png')
+                  }
+                  style={styles.miniImage}
+                />
+                <SynthText variant="meta" numberOfLines={2} style={styles.miniTitle}>
+                  {ne.artist_name || ne.title}
+                </SynthText>
+                <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.miniMeta}>
+                  {ne.friend_name} · {ne.action_type === 'going' ? 'Going' : 'Interested'}
+                </SynthText>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      {feedDisplayMode === 'events' && trendingEvents.length > 0 ? (
+        <View style={styles.railSection}>
+          <SynthText variant="h2" style={styles.railTitle}>
+            Trending near you
+          </SynthText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.railScroll}
+          >
+            {trendingEvents.map(te => (
+              <Pressable
+                key={te.id}
+                style={styles.miniCard}
+                onPress={() => router.push(`/event/${te.id}`)}
+              >
+                <Image
+                  source={
+                    te.image_url
+                      ? { uri: te.image_url }
+                      : require('../../assets/placeholder-event.png')
+                  }
+                  style={styles.miniImage}
+                />
+                <SynthText variant="meta" numberOfLines={2} style={styles.miniTitle}>
+                  {te.artist_name || te.title}
+                </SynthText>
+                <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.miniMeta}>
+                  {te.interest_count ?? 0} interested
+                </SynthText>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
       <FlashList
-        data={items}
+        data={listData}
         renderItem={renderItem}
-        keyExtractor={(item) => `${item.type}-${item.data.id}`}
+        keyExtractor={item =>
+          item.kind === 'event' ? `ev-${item.data.id}` : `rv-${item.data.id}`
+        }
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -119,7 +219,9 @@ export default function FeedScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <SynthText variant="meta" color="secondary">No events yet. Pull to refresh or switch filter.</SynthText>
+            <SynthText variant="meta" color="secondary">
+              {emptyMessage}
+            </SynthText>
           </View>
         }
       />
@@ -140,5 +242,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-  }
+  },
+  railSection: {
+    marginBottom: SynthTokens.spacing.md,
+    paddingHorizontal: SynthTokens.spacing.screenMarginX,
+  },
+  railTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 8,
+    color: SynthTokens.colors.neutral900,
+  },
+  railScroll: { gap: 12, paddingBottom: 4 },
+  miniCard: {
+    width: 168,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+  },
+  miniImage: { width: '100%', height: 96, backgroundColor: SynthTokens.colors.neutral100 },
+  miniTitle: { paddingHorizontal: 8, paddingTop: 8, fontWeight: '600' },
+  miniMeta: { paddingHorizontal: 8, paddingBottom: 8, fontSize: 12 },
 });

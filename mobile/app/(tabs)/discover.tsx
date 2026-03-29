@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -24,6 +24,9 @@ import {
 } from 'lucide-react-native';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { HomeFeedService, TrendingEvent } from '../../src/services/homeFeedService';
+import { SearchService } from '../../src/services/searchService';
+import { supabase } from '../../src/integrations/supabase/client';
+import { MobileScenesRail } from '../../src/components/discover/MobileScenesRail';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
@@ -35,11 +38,15 @@ function DiscoverCalendar({
   year,
   onPrev,
   onNext,
+  selectedDay,
+  onSelectDay,
 }: {
   month: number;
   year: number;
   onPrev: () => void;
   onNext: () => void;
+  selectedDay: number | null;
+  onSelectDay: (day: number) => void;
 }) {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
@@ -90,18 +97,26 @@ function DiscoverCalendar({
           }
           const isToday = isCurrentMonth && cell === todayDate;
           const isPast = isCurrentMonth && cell < todayDate;
+          const isSelected = isCurrentMonth && selectedDay != null && cell === selectedDay;
           return (
-            <View key={`d-${idx}`} style={calStyles.cell}>
+            <Pressable
+              key={`d-${idx}`}
+              style={calStyles.cell}
+              onPress={() => onSelectDay(cell)}
+              accessibilityRole="button"
+              accessibilityLabel={`Day ${cell}`}
+            >
               <Text
                 style={[
                   calStyles.dayNum,
                   isPast && calStyles.dayPast,
                   isToday && calStyles.dayToday,
+                  isSelected && calStyles.daySelected,
                 ]}
               >
                 {cell}
               </Text>
-            </View>
+            </Pressable>
           );
         })}
       </View>
@@ -168,6 +183,13 @@ const calStyles = StyleSheet.create({
   dayToday: {
     color: PINK,
   },
+  daySelected: {
+    color: SynthTokens.colors.neutral900,
+    backgroundColor: PINK_SOFT,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
   dayMuted: {
     fontSize: 13,
     fontWeight: '500',
@@ -185,7 +207,19 @@ export default function DiscoverScreen() {
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
+  const [selectedCalDay, setSelectedCalDay] = useState<number | null>(null);
+  const [calendarEvents, setCalendarEvents] = useState<
+    Awaited<ReturnType<typeof SearchService.getEventsByDateRange>>
+  >([]);
+  const [calLoading, setCalLoading] = useState(false);
   const [trending, setTrending] = useState<TrendingEvent[]>([]);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      setAuthUserId(user?.id ?? null);
+    });
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -193,6 +227,31 @@ export default function DiscoverScreen() {
       setTrending(data.slice(0, 8));
     })();
   }, []);
+
+  useEffect(() => {
+    setSelectedCalDay(null);
+    setCalendarEvents([]);
+  }, [calMonth, calYear]);
+
+  useEffect(() => {
+    if (tab !== 'calendar' || selectedCalDay == null) {
+      setCalendarEvents([]);
+      return;
+    }
+    let cancelled = false;
+    setCalLoading(true);
+    const start = new Date(calYear, calMonth, selectedCalDay, 0, 0, 0, 0);
+    const end = new Date(calYear, calMonth, selectedCalDay, 23, 59, 59, 999);
+    void SearchService.getEventsByDateRange(start.toISOString(), end.toISOString()).then(rows => {
+      if (!cancelled) {
+        setCalendarEvents(rows);
+        setCalLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, selectedCalDay, calMonth, calYear]);
 
   const calPrev = () => {
     if (calMonth === 0) {
@@ -289,8 +348,57 @@ export default function DiscoverScreen() {
         </View>
 
         {tab === 'calendar' ? (
-          <DiscoverCalendar month={calMonth} year={calYear} onPrev={calPrev} onNext={calNext} />
+          <>
+            <DiscoverCalendar
+              month={calMonth}
+              year={calYear}
+              onPrev={calPrev}
+              onNext={calNext}
+              selectedDay={selectedCalDay}
+              onSelectDay={setSelectedCalDay}
+            />
+            {selectedCalDay != null ? (
+              <View style={styles.calResults}>
+                <SynthText variant="meta" style={styles.calResultsTitle}>
+                  {new Date(calYear, calMonth, selectedCalDay).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </SynthText>
+                {calLoading ? (
+                  <SynthText variant="meta" color="secondary">
+                    Loading events…
+                  </SynthText>
+                ) : calendarEvents.length === 0 ? (
+                  <SynthText variant="meta" color="secondary">
+                    No events on this date.
+                  </SynthText>
+                ) : (
+                  calendarEvents.map(ev => (
+                    <EventCard
+                      key={ev.id}
+                      id={ev.id}
+                      title={ev.title}
+                      artist_name={ev.artist_name}
+                      venue_name={ev.venue_name}
+                      event_date={ev.event_date}
+                      image_url={ev.image_url}
+                      onPress={() => router.push(`/event/${ev.id}`)}
+                      onGoingPress={() => router.push(`/event/${ev.id}`)}
+                    />
+                  ))
+                )}
+              </View>
+            ) : (
+              <SynthText variant="meta" color="secondary" style={styles.calHint}>
+                Tap a date to see shows that day.
+              </SynthText>
+            )}
+          </>
         ) : null}
+
+        <MobileScenesRail userId={authUserId} />
 
         <SynthText variant="meta" style={styles.trendingLabel}>
           Trending near you
@@ -460,4 +568,7 @@ const styles = StyleSheet.create({
     color: SynthTokens.colors.neutral900,
     marginTop: 8,
   },
+  calHint: { marginTop: 4, marginBottom: 4 },
+  calResults: { gap: 8, marginTop: 4 },
+  calResultsTitle: { fontWeight: '700', fontSize: 15, marginBottom: 4 },
 });

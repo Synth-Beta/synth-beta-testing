@@ -2,6 +2,8 @@ import { supabase } from '../integrations/supabase/client';
 
 export interface EventDetail {
     id: string;
+    artist_id?: string | null;
+    venue_id?: string | null;
     title: string;
     artist_name: string;
     venue_name: string;
@@ -39,6 +41,8 @@ export class EventService {
 
             return {
                 id: data.id,
+                artist_id: data.artist_id ?? data.artist_uuid ?? null,
+                venue_id: data.venue_id ?? data.venue_uuid ?? null,
                 title: data.title,
                 artist_name: data.artists?.name || data.artist_name || '',
                 venue_name: data.venues?.name || data.venue_name || '',

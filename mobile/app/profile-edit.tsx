@@ -12,9 +12,12 @@ export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [name, setName] = React.useState('');
   const [username, setUsername] = React.useState('');
   const [locationCity, setLocationCity] = React.useState('');
   const [bio, setBio] = React.useState('');
+  const [instagramHandle, setInstagramHandle] = React.useState('');
+  const [gender, setGender] = React.useState('');
 
   React.useEffect(() => {
     const load = async () => {
@@ -23,13 +26,16 @@ export default function ProfileEditScreen() {
         if (!user) return;
         const { data } = await supabase
           .from('users')
-          .select('username, location_city, bio')
+          .select('name, username, location_city, bio, instagram_handle, gender')
           .eq('user_id', user.id)
           .single();
         if (data) {
+          setName((data as { name?: string }).name || '');
           setUsername(data.username || '');
-          setLocationCity((data as any).location_city || '');
-          setBio((data as any).bio || '');
+          setLocationCity((data as { location_city?: string }).location_city || '');
+          setBio((data as { bio?: string }).bio || '');
+          setInstagramHandle((data as { instagram_handle?: string }).instagram_handle || '');
+          setGender((data as { gender?: string }).gender || '');
         }
       } finally {
         setLoading(false);
@@ -46,9 +52,12 @@ export default function ProfileEditScreen() {
       const { error } = await supabase
         .from('users')
         .update({
+          name: name.trim() || null,
           username: username.trim() || null,
           location_city: locationCity.trim() || null,
           bio: bio.trim() || null,
+          instagram_handle: instagramHandle.trim() || null,
+          gender: gender.trim() || null,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user.id);
@@ -73,8 +82,14 @@ export default function ProfileEditScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.card}>
+          <SynthText variant="meta" color="secondary">Display name</SynthText>
+          <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={SynthTokens.colors.neutral400} />
           <SynthText variant="meta" color="secondary">Username</SynthText>
           <TextInput value={username} onChangeText={setUsername} style={styles.input} placeholder="username" placeholderTextColor={SynthTokens.colors.neutral400} autoCapitalize="none" />
+          <SynthText variant="meta" color="secondary">Instagram</SynthText>
+          <TextInput value={instagramHandle} onChangeText={setInstagramHandle} style={styles.input} placeholder="@handle" placeholderTextColor={SynthTokens.colors.neutral400} autoCapitalize="none" />
+          <SynthText variant="meta" color="secondary">Gender (optional)</SynthText>
+          <TextInput value={gender} onChangeText={setGender} style={styles.input} placeholder="How you identify" placeholderTextColor={SynthTokens.colors.neutral400} />
           <SynthText variant="meta" color="secondary">City</SynthText>
           <TextInput value={locationCity} onChangeText={setLocationCity} style={styles.input} placeholder="Los Angeles, CA" placeholderTextColor={SynthTokens.colors.neutral400} />
           <SynthText variant="meta" color="secondary">Bio</SynthText>

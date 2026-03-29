@@ -37,3 +37,15 @@ export {
   type UserStreamingStatsSnapshot,
   fetchUserStreamingStatsSnapshot,
 } from './streamingStatsCore';
+export { expoPathForShareTarget } from './expoEntityRoutes';
+export {
+  resolveNotificationExpoPath,
+  type NotificationNavResult,
+  type NotificationNavContext,
+} from './notificationNavigation';
+export { getOrCreateDirectChat } from './directChat';
+
+/** AsyncStorage / SecureStore key for mobile review wizard drafts (parity with web local draft concept). */
+export function mobileReviewDraftStorageKey(userId: string): string {
+  return `synth.reviewDraft.v1.${userId}`;
+}

@@ -124,6 +124,12 @@ export default function EventDetailScreen() {
                             style={{ flex: 1 }}
                         />
                         <SynthButton
+                            title="Review"
+                            variant="secondary"
+                            onPress={() => id && router.push(`/review-compose?eventId=${id}`)}
+                            style={{ flex: 1 }}
+                        />
+                        <SynthButton
                             title="Tickets"
                             variant="secondary"
                             onPress={() => console.log('Link:', event?.ticket_url)}
@@ -238,6 +244,7 @@ const styles = StyleSheet.create({
     },
     actionRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: SynthTokens.spacing.md,
         marginVertical: SynthTokens.spacing.xl,
     },

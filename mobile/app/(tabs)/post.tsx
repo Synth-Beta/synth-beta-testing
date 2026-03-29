@@ -9,18 +9,26 @@ export default function PostScreen() {
 
   return (
     <View style={styles.container}>
-      <SynthText variant="h2">Create</SynthText>
+      <SynthText variant="h2">Add a review</SynthText>
       <SynthText variant="body" style={styles.copy} color="secondary">
-        Start from a show, then write your review and share it with friends.
+        Open a show, then capture ratings and notes—same data as the web app (overall score + write-up).
       </SynthText>
-      <TouchableOpacity style={styles.cta} onPress={() => router.push('/(tabs)/search')} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.cta}
+        onPress={() => router.push('/(tabs)/search')}
+        activeOpacity={0.85}
+      >
         <SynthText variant="meta" style={styles.ctaText}>
-          Find an event
+          Search for an event
         </SynthText>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.secondary} onPress={() => router.push('/my-events')} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.secondary}
+        onPress={() => router.push('/my-events')}
+        activeOpacity={0.85}
+      >
         <SynthText variant="meta" style={styles.secondaryText}>
-          Go to my events
+          My events (unreviewed & past)
         </SynthText>
       </TouchableOpacity>
     </View>

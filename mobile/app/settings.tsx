@@ -6,6 +6,7 @@ import {
   User,
   Bell,
   Shield,
+  KeyRound,
   CalendarDays,
   CircleHelp,
   Users,
@@ -81,7 +82,16 @@ export default function SettingsScreen() {
             label="Notification preferences"
             onPress={() => router.push('/notifications')}
           />
-          <DrawerRow icon={<Shield size={22} color={SynthTokens.colors.neutral900} />} label="Privacy & safety" />
+          <DrawerRow
+            icon={<Shield size={22} color={SynthTokens.colors.neutral900} />}
+            label="Privacy & safety"
+            onPress={() => router.push('/settings/privacy')}
+          />
+          <DrawerRow
+            icon={<KeyRound size={22} color={SynthTokens.colors.neutral900} />}
+            label="Account security"
+            onPress={() => router.push('/settings/security')}
+          />
         </View>
 
         <SynthText variant="meta" color="secondary" style={styles.groupLabel}>

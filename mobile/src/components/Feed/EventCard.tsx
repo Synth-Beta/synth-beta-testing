@@ -19,6 +19,8 @@ interface EventCardProps {
     venue_name: string;
     event_date: string;
     image_url?: string;
+    /** Optional top-left badge (e.g. RECOMMENDED) matching web feed */
+    cornerLabel?: string;
     onPress?: () => void;
     onGoingPress?: () => void;
 }
@@ -29,6 +31,7 @@ export const EventCard: React.FC<EventCardProps> = ({
     venue_name,
     event_date,
     image_url,
+    cornerLabel,
     onPress,
     onGoingPress
 }) => {
@@ -53,6 +56,13 @@ export const EventCard: React.FC<EventCardProps> = ({
                 />
 
                 <View style={styles.content}>
+                    {cornerLabel ? (
+                        <View style={styles.cornerLabelWrap} pointerEvents="none">
+                            <SynthText variant="meta" style={styles.cornerLabelText}>
+                                {cornerLabel}
+                            </SynthText>
+                        </View>
+                    ) : null}
                     <View style={styles.topRow}>
                         <View style={styles.dateBadge}>
                             <SynthText variant="meta" color="white" style={styles.dateText}>
@@ -109,6 +119,22 @@ const styles = StyleSheet.create({
     },
     pressed: {
         transform: [{ scale: 0.98 }],
+    },
+    cornerLabelWrap: {
+        position: 'absolute',
+        top: SynthTokens.spacing.sm,
+        left: SynthTokens.spacing.sm,
+        zIndex: 4,
+        backgroundColor: SynthTokens.colors.brandPink500,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    cornerLabelText: {
+        color: SynthTokens.colors.neutral0,
+        fontWeight: '800',
+        fontSize: 11,
+        letterSpacing: 0.5,
     },
     imageContainer: {
         width: '100%',

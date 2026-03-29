@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { parseShareUrl } from '@synth/shared';
+import { parseShareUrl, expoPathForShareTarget } from '@synth/shared';
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled share link type: ${String(value)}`);
@@ -28,7 +28,7 @@ export function useShareDeepLink(enabled: boolean) {
           break;
         case 'artist':
         case 'venue':
-          router.push('/(tabs)/search');
+          router.push(expoPathForShareTarget(pending.type, pending.id));
           break;
         default:
           assertNever(pending.type);

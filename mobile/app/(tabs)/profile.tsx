@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { SynthText } from '../../src/components/SynthText';
@@ -6,14 +6,29 @@ import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { PassportService, ProfileTimelineItem, ProfileStats } from '../../src/services/passportService';
 import { HomeFeedService, FriendSuggestion } from '../../src/services/homeFeedService';
 import { supabase } from '../../src/integrations/supabase/client';
-import { Settings, Pencil, Ticket, Menu, Instagram, Music2 } from 'lucide-react-native';
+import { Settings, Pencil, Menu, Instagram, Music2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
+import {
+  InterestedEventItem,
+  MyEventsService,
+  MyReviewListItem,
+} from '../../src/services/myEventsService';
+import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
 
 const PINK = SynthTokens.colors.brandPink500;
 
+type ProfileTab = 'events' | 'interested' | 'passport';
+type EventsMode = 'reviews' | 'rankings' | 'unreviewed';
+
 export default function ProfileScreen() {
+  const [profileTab, setProfileTab] = useState<ProfileTab>('passport');
+  const [eventsMode, setEventsMode] = useState<EventsMode>('reviews');
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
+  const [unreviewed, setUnreviewed] = useState<InterestedEventItem[]>([]);
+  const [interested, setInterested] = useState<InterestedEventItem[]>([]);
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
   const [user, setUser] = useState<{
@@ -30,6 +45,7 @@ export default function ProfileScreen() {
       data: { user: authUser },
     } = await supabase.auth.getUser();
     if (!authUser) return;
+    setAuthUserId(authUser.id);
 
     const { data: userData, error: userRowError } = await supabase
       .from('users')
@@ -41,16 +57,23 @@ export default function ProfileScreen() {
       console.warn('[profile] users row:', userRowError.message);
     }
 
-    const [statsData, timelineData, suggestions] = await Promise.all([
-      PassportService.getProfileStats(authUser.id),
-      PassportService.getTimeline(authUser.id),
-      HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
-    ]);
+    const [statsData, timelineData, suggestions, interestedRows, reviewRows, unrevRows] =
+      await Promise.all([
+        PassportService.getProfileStats(authUser.id),
+        PassportService.getTimeline(authUser.id),
+        HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
+        MyEventsService.getInterestedEvents(authUser.id),
+        MyEventsService.getMyReviews(authUser.id),
+        MyEventsService.getUnreviewedPastAttended(authUser.id),
+      ]);
 
     setUser(userRowError || !userData ? null : userData);
     setStats(statsData);
     setTimeline(timelineData);
     setFriendSuggestions(suggestions);
+    setInterested(interestedRows);
+    setReviews(reviewRows);
+    setUnreviewed(unrevRows);
   }, []);
 
   useEffect(() => {
@@ -66,35 +89,42 @@ export default function ProfileScreen() {
   const handle = user?.username ? `@${user.username}` : '@username';
   const displayName = user?.name || 'Your Profile';
 
-  const renderTimelineItem = (item: ProfileTimelineItem, index: number) => {
-    const date = new Date(item.date).toLocaleDateString('en-US', {
-      month: 'short',
-      year: 'numeric',
-    });
+  const groupedByStar = useMemo(() => {
+    const map = new Map<number, MyReviewListItem[]>();
+    for (const rv of reviews) {
+      const r = rv.rating != null ? Math.round(rv.rating) : 0;
+      const key = Math.min(5, Math.max(1, r));
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(rv);
+    }
+    for (const [, list] of map) {
+      list.sort((a, b) => (a.rank_order ?? 999) - (b.rank_order ?? 999));
+    }
+    return map;
+  }, [reviews]);
 
-    return (
-      <View key={item.id} style={styles.timelineItem}>
-        <View style={styles.timelineLeft}>
-          <SynthText variant="meta" color="secondary" style={styles.timelineDate}>
-            {date}
-          </SynthText>
-          <View style={[styles.timelineDot, index === 0 && styles.activeDot]} />
-          {index !== timeline.length - 1 && <View style={styles.timelineLine} />}
-        </View>
-        <Pressable style={styles.timelineCard}>
-          <View style={styles.cardContent}>
-            <SynthText variant="meta" style={styles.bold}>
-              {item.title}
-            </SynthText>
-            <SynthText variant="meta" color="secondary">
-              {item.subtitle}
-            </SynthText>
-          </View>
-          {item.image_url && <Image source={{ uri: item.image_url }} style={styles.cardImage} />}
-        </Pressable>
+  const renderReviewRow = (item: MyReviewListItem) => (
+    <Pressable
+      style={styles.reviewCard}
+      onPress={() => item.event_id && router.push(`/event/${item.event_id}`)}
+    >
+      <Image
+        source={item.image_url ? { uri: item.image_url } : require('../../assets/placeholder-event.png')}
+        style={styles.reviewThumb}
+      />
+      <View style={{ flex: 1 }}>
+        <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
+          {item.artist_name || item.title}
+        </SynthText>
+        <SynthText variant="meta" color="secondary" numberOfLines={1}>
+          {item.venue_name}
+        </SynthText>
+        <SynthText variant="meta" color="secondary" style={styles.reviewStar}>
+          {item.rating != null ? `${item.rating.toFixed(1)}★` : ''}
+        </SynthText>
       </View>
-    );
-  };
+    </Pressable>
+  );
 
   return (
     <View style={styles.container}>
@@ -163,32 +193,156 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <View style={styles.profileTabs}>
+          {(['events', 'interested', 'passport'] as const).map(t => (
+            <Pressable
+              key={t}
+              onPress={() => setProfileTab(t)}
+              style={[styles.profileTab, profileTab === t && styles.profileTabOn]}
+            >
+              <SynthText variant="meta" style={[styles.profileTabTxt, profileTab === t && styles.profileTabTxtOn]}>
+                {t === 'events' ? 'Events' : t === 'interested' ? 'Interested' : 'Passport'}
+              </SynthText>
+            </Pressable>
+          ))}
+        </View>
+
+        {profileTab === 'events' ? (
+          <View style={styles.tabPanel}>
+            <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
+              Same modes as web profile → Events: Reviews, Rankings, and Unreviewed.
+            </SynthText>
+            <View style={styles.eventsSegment}>
+              {(['reviews', 'rankings', 'unreviewed'] as const).map(m => (
+                <Pressable
+                  key={m}
+                  onPress={() => setEventsMode(m)}
+                  style={[styles.segBtn, eventsMode === m && styles.segBtnOn]}
+                >
+                  <Text style={[styles.segTxt, eventsMode === m && styles.segTxtOn]}>
+                    {m === 'reviews' ? 'Reviews' : m === 'rankings' ? 'Rankings' : 'Unreviewed'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {eventsMode === 'reviews' ? (
+              reviews.length === 0 ? (
+                <SynthText variant="body" color="secondary">
+                  No reviews yet. Attend a show and write one from the event page.
+                </SynthText>
+              ) : (
+                reviews.map(r => <React.Fragment key={r.id}>{renderReviewRow(r)}</React.Fragment>)
+              )
+            ) : null}
+            {eventsMode === 'rankings' ? (
+              reviews.length === 0 ? (
+                <SynthText variant="body" color="secondary">
+                  No ranked reviews yet.
+                </SynthText>
+              ) : (
+                Array.from(groupedByStar.entries())
+                  .sort((a, b) => b[0] - a[0])
+                  .map(([star, items]) => (
+                    <View key={star}>
+                      <SynthText variant="meta" style={styles.groupHeader}>
+                        {star}★ ({items.length})
+                      </SynthText>
+                      {items.map(r => (
+                        <React.Fragment key={r.id}>{renderReviewRow(r)}</React.Fragment>
+                      ))}
+                    </View>
+                  ))
+              )
+            ) : null}
+            {eventsMode === 'unreviewed' ? (
+              unreviewed.length === 0 ? (
+                <SynthText variant="body" color="secondary">
+                  No unreviewed past shows. You are all caught up.
+                </SynthText>
+              ) : (
+                unreviewed.slice(0, 20).map(ev => (
+                  <View key={ev.event_id} style={styles.unrevRow}>
+                    <Pressable
+                      style={styles.unrevMain}
+                      onPress={() => router.push(`/event/${ev.event_id}`)}
+                    >
+                      <Image
+                        source={
+                          ev.image_url
+                            ? { uri: ev.image_url }
+                            : require('../../assets/placeholder-event.png')
+                        }
+                        style={styles.reviewThumb}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
+                          {ev.artist_name || ev.title}
+                        </SynthText>
+                        <SynthText variant="meta" color="secondary" numberOfLines={1}>
+                          {ev.venue_name}
+                        </SynthText>
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      style={styles.reviewMiniCta}
+                      onPress={() => router.push(`/review-compose?eventId=${ev.event_id}`)}
+                    >
+                      <SynthText variant="meta" style={styles.reviewMiniCtaTxt}>
+                        Review
+                      </SynthText>
+                    </Pressable>
+                  </View>
+                ))
+              )
+            ) : null}
+            <Pressable style={styles.tabCta} onPress={() => router.push('/my-events')}>
+              <SynthText variant="meta" style={styles.tabCtaTxt}>
+                Open full My Events
+              </SynthText>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {profileTab === 'interested' ? (
+          <View style={styles.tabPanel}>
+            {interested.length === 0 ? (
+              <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
+                No interested shows yet.
+              </SynthText>
+            ) : (
+              interested.slice(0, 12).map(ev => (
+                <Pressable
+                  key={ev.event_id}
+                  style={styles.interestedRow}
+                  onPress={() => router.push(`/event/${ev.event_id}`)}
+                >
+                  <SynthText variant="meta" style={styles.interestedTitle} numberOfLines={1}>
+                    {ev.artist_name || ev.title}
+                  </SynthText>
+                  <SynthText variant="meta" color="secondary" numberOfLines={1}>
+                    {ev.venue_name}
+                  </SynthText>
+                </Pressable>
+              ))
+            )}
+          </View>
+        ) : null}
+
         {friendSuggestions.length > 0 ? (
           <View style={styles.railPad}>
             <FriendSuggestionsRail suggestions={friendSuggestions} />
           </View>
         ) : null}
 
-        <View style={styles.passportContainer}>
-          <View style={styles.sectionHeader}>
-            <Ticket size={20} color={PINK} />
-            <SynthText variant="h2" style={styles.sectionTitle}>
-              Concert Passport
-            </SynthText>
+        {profileTab === 'passport' && authUserId ? (
+          <View style={styles.passportContainer}>
+            <ProfilePassportPanel
+              userId={authUserId}
+              timeline={timeline}
+              displayName={displayName}
+            />
           </View>
-
-          <View style={styles.timeline}>
-            {timeline.length > 0 ? (
-              timeline.map((item, index) => renderTimelineItem(item, index))
-            ) : (
-              <View style={styles.empty}>
-                <SynthText variant="body" color="secondary">
-                  Your concert history will appear here.
-                </SynthText>
-              </View>
-            )}
-          </View>
-        </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -329,72 +483,97 @@ const styles = StyleSheet.create({
   railPad: {
     marginTop: SynthTokens.spacing.sm,
   },
-  passportContainer: {
-    padding: SynthTokens.spacing.md,
+  profileTabs: {
+    flexDirection: 'row',
+    marginHorizontal: SynthTokens.spacing.md,
+    marginTop: SynthTokens.spacing.md,
+    backgroundColor: SynthTokens.colors.neutral100,
+    borderRadius: 14,
+    padding: 4,
+    gap: 4,
   },
-  sectionHeader: {
+  profileTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  profileTabOn: {
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+  },
+  profileTabTxt: { fontWeight: '700', color: SynthTokens.colors.neutral600, fontSize: 13 },
+  profileTabTxtOn: { color: SynthTokens.colors.neutral900 },
+  tabPanel: { paddingHorizontal: SynthTokens.spacing.md, marginTop: SynthTokens.spacing.md, gap: 10 },
+  tabBlurb: { lineHeight: 20 },
+  tabCta: {
+    alignSelf: 'flex-start',
+    backgroundColor: PINK,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  tabCtaTxt: { color: '#fff', fontWeight: '800' },
+  eventsSegment: {
+    flexDirection: 'row',
+    backgroundColor: SynthTokens.colors.neutral100,
+    borderRadius: 12,
+    padding: 4,
+    gap: 4,
+  },
+  segBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  segBtnOn: { backgroundColor: SynthTokens.colors.neutral900 },
+  segTxt: { fontWeight: '700', fontSize: 12, color: SynthTokens.colors.neutral600 },
+  segTxtOn: { color: SynthTokens.colors.neutral0 },
+  reviewCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SynthTokens.spacing.sm,
-    marginBottom: SynthTokens.spacing.xl,
+    gap: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: 14,
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  timeline: {
-    paddingLeft: 4,
-  },
-  timelineItem: {
+  reviewThumb: { width: 56, height: 56, borderRadius: 10 },
+  reviewTitle: { fontWeight: '800' },
+  reviewStar: { marginTop: 4 },
+  groupHeader: { fontWeight: '800', marginTop: 12, marginBottom: 8, fontSize: 15 },
+  unrevRow: {
     flexDirection: 'row',
-    marginBottom: SynthTokens.spacing.lg,
-  },
-  timelineLeft: {
     alignItems: 'center',
-    width: 60,
+    gap: 8,
+    marginBottom: 10,
+    padding: 10,
+    borderRadius: 14,
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
   },
-  timelineDate: {
-    fontSize: 12,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  timelineDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: SynthTokens.colors.neutral200,
-    zIndex: 1,
-  },
-  activeDot: {
+  unrevMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  reviewMiniCta: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     backgroundColor: PINK,
   },
-  timelineLine: {
-    position: 'absolute',
-    top: 32,
-    bottom: -32,
-    width: 2,
-    backgroundColor: SynthTokens.colors.neutral200,
+  reviewMiniCtaTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  interestedRow: {
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: SynthTokens.colors.neutral200,
   },
-  timelineCard: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: SynthTokens.colors.neutral50,
-    borderRadius: SynthTokens.radius.medium,
-    marginLeft: SynthTokens.spacing.md,
-    padding: SynthTokens.spacing.sm,
-    alignItems: 'center',
-  },
-  cardContent: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  cardImage: {
-    width: 50,
-    height: 50,
-    borderRadius: SynthTokens.radius.small,
-  },
-  bold: {
-    fontWeight: 'bold',
+  interestedTitle: { fontWeight: '800' },
+  passportContainer: {
+    paddingHorizontal: SynthTokens.spacing.md,
+    paddingBottom: SynthTokens.spacing.lg,
   },
   empty: {
     padding: SynthTokens.spacing.xl,
