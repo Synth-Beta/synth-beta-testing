@@ -242,12 +242,16 @@ export default function DiscoverScreen() {
     setCalLoading(true);
     const start = new Date(calYear, calMonth, selectedCalDay, 0, 0, 0, 0);
     const end = new Date(calYear, calMonth, selectedCalDay, 23, 59, 59, 999);
-    void SearchService.getEventsByDateRange(start.toISOString(), end.toISOString()).then(rows => {
-      if (!cancelled) {
-        setCalendarEvents(rows);
-        setCalLoading(false);
-      }
-    });
+    void SearchService.getEventsByDateRange(start.toISOString(), end.toISOString())
+      .then(rows => {
+        if (!cancelled) setCalendarEvents(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setCalendarEvents([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCalLoading(false);
+      });
     return () => {
       cancelled = true;
     };

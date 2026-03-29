@@ -30,7 +30,7 @@ const EVENT_SUMMARY_TYPES = new Set([
 
 /**
  * Returns an Expo Router path when the notification should deep-link; otherwise null (stay on list).
- * friend_request: null (Accept/Decline only; matches web).
+ * friend_request: null here — Expo `NotificationsFeed` marks read then navigates to `/user/:id` or `/friend-requests`.
  */
 export function resolveNotificationExpoPath(
   type: string,
