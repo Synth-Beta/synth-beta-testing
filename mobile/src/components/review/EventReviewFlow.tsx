@@ -638,9 +638,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     </SynthText>
                     {(
                         [
-                            { v: '1min' as const, t: '1 Minute', d: 'Quick — overall + brief text' },
-                            { v: '3min' as const, t: '3 Minutes', d: 'Artist + venue + story' },
-                            { v: '5min' as const, t: '5 Minutes', d: 'Full breakdown + categories' },
+                            { v: '1min' as const, minutes: '1', t: '1 minute', d: 'Quick — overall + brief text' },
+                            { v: '3min' as const, minutes: '3', t: '3 minutes', d: 'Artist + venue + story' },
+                            { v: '5min' as const, minutes: '5', t: '5 minutes', d: 'Full breakdown + categories' },
                         ] as const
                     ).map((opt) => {
                         const sel = formData.reviewDuration === opt.v;
@@ -653,10 +653,22 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                     setTimeout(() => nextStep(), 120);
                                 }}
                             >
-                                <SynthText variant="accent">{opt.t}</SynthText>
-                                <SynthText variant="meta" color="secondary">
-                                    {opt.d}
-                                </SynthText>
+                                <View style={styles.durationCardInner}>
+                                    <View style={[styles.durationBadge, sel && styles.durationBadgeOn]}>
+                                        <SynthText variant="h2" style={styles.durationBadgeTxt}>
+                                            {opt.minutes}
+                                        </SynthText>
+                                        <SynthText variant="meta" color="secondary" style={styles.durationBadgeSub}>
+                                            min
+                                        </SynthText>
+                                    </View>
+                                    <View style={styles.durationTextCol}>
+                                        <SynthText variant="accent">{opt.t}</SynthText>
+                                        <SynthText variant="meta" color="secondary">
+                                            {opt.d}
+                                        </SynthText>
+                                    </View>
+                                </View>
                             </Pressable>
                         );
                     })}
@@ -1281,13 +1293,46 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: SynthTokens.colors.neutral200,
         borderRadius: 16,
-        padding: 16,
+        padding: 14,
         marginTop: 12,
         backgroundColor: '#fff',
     },
     durationCardOn: {
         borderColor: SynthTokens.colors.brandPink500,
         backgroundColor: SynthTokens.colors.brandPink050,
+    },
+    durationCardInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    durationBadge: {
+        width: 64,
+        height: 64,
+        borderRadius: 14,
+        backgroundColor: SynthTokens.colors.neutral100,
+        borderWidth: 2,
+        borderColor: SynthTokens.colors.neutral200,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    durationBadgeOn: {
+        borderColor: SynthTokens.colors.brandPink500,
+        backgroundColor: SynthTokens.colors.neutral0,
+    },
+    durationBadgeTxt: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: SynthTokens.colors.brandPink500,
+        lineHeight: 26,
+    },
+    durationBadgeSub: {
+        fontSize: 11,
+        marginTop: -2,
+    },
+    durationTextCol: {
+        flex: 1,
+        minWidth: 0,
     },
     err: { color: SynthTokens.colors.error },
     rowBetween: {

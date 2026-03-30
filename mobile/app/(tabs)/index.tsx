@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { StyleSheet, View, RefreshControl, ScrollView, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { FlashList } from '@shopify/flash-list';
@@ -91,9 +91,7 @@ export default function FeedScreen() {
       return (
         <NetworkReviewCard
           review={item.data}
-          onPress={
-            item.data.event_id ? () => router.push(`/event/${item.data.event_id}`) : undefined
-          }
+          onPress={() => router.push(`/review/${item.data.id}`)}
         />
       );
     }
@@ -104,11 +102,11 @@ export default function FeedScreen() {
         title={item.data.title}
         artist_name={item.data.artist_name}
         venue_name={item.data.venue_name}
+        venue_city={item.data.venue_city}
         event_date={item.data.event_date}
         image_url={item.data.image_url}
         cornerLabel={item.data.feedLabel}
         onPress={() => router.push(`/event/${item.data.id}`)}
-        onGoingPress={() => router.push(`/event/${item.data.id}`)}
       />
     );
   };
@@ -117,6 +115,87 @@ export default function FeedScreen() {
     feedDisplayMode === 'events'
       ? 'No events yet. Pull to refresh.'
       : 'No reviews from friends yet.';
+
+  const listHeader = useMemo(
+    () => (
+      <>
+        {friendSuggestions.length > 0 ? (
+          <FriendSuggestionsRail suggestions={friendSuggestions} />
+        ) : null}
+        {feedDisplayMode === 'events' && networkEvents.length > 0 ? (
+          <View style={styles.railSection}>
+            <SynthText variant="h2" style={styles.railTitle}>
+              From your network
+            </SynthText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.railScroll}
+            >
+              {networkEvents.map(ne => (
+                <Pressable
+                  key={`${ne.id}-${ne.friend_id}`}
+                  style={styles.miniCard}
+                  onPress={() => router.push(`/event/${ne.id}`)}
+                >
+                  <Image
+                    source={
+                      ne.image_url
+                        ? { uri: ne.image_url }
+                        : require('../../assets/placeholder-event.png')
+                    }
+                    style={styles.miniImage}
+                  />
+                  <SynthText variant="meta" numberOfLines={2} style={styles.miniTitle}>
+                    {ne.artist_name || ne.title}
+                  </SynthText>
+                  <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.miniMeta}>
+                    {ne.friend_name} · {ne.action_type === 'going' ? 'Going' : 'Interested'}
+                  </SynthText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+        {feedDisplayMode === 'events' && trendingEvents.length > 0 ? (
+          <View style={styles.railSection}>
+            <SynthText variant="h2" style={styles.railTitle}>
+              Trending near you
+            </SynthText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.railScroll}
+            >
+              {trendingEvents.map(te => (
+                <Pressable
+                  key={te.id}
+                  style={styles.miniCard}
+                  onPress={() => router.push(`/event/${te.id}`)}
+                >
+                  <Image
+                    source={
+                      te.image_url
+                        ? { uri: te.image_url }
+                        : require('../../assets/placeholder-event.png')
+                    }
+                    style={styles.miniImage}
+                  />
+                  <SynthText variant="meta" numberOfLines={2} style={styles.miniTitle}>
+                    {te.artist_name || te.title}
+                  </SynthText>
+                  <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.miniMeta}>
+                    {te.interest_count ?? 0} interested
+                  </SynthText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+      </>
+    ),
+    [friendSuggestions, networkEvents, trendingEvents, feedDisplayMode, router]
+  );
 
   return (
     <View style={styles.container}>
@@ -127,88 +206,13 @@ export default function FeedScreen() {
         onFeedDisplayModeChange={setFeedDisplayMode}
       />
 
-      {friendSuggestions.length > 0 ? (
-        <FriendSuggestionsRail suggestions={friendSuggestions} />
-      ) : null}
-
-      {feedDisplayMode === 'events' && networkEvents.length > 0 ? (
-        <View style={styles.railSection}>
-          <SynthText variant="h2" style={styles.railTitle}>
-            From your network
-          </SynthText>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.railScroll}
-          >
-            {networkEvents.map(ne => (
-              <Pressable
-                key={`${ne.id}-${ne.friend_id}`}
-                style={styles.miniCard}
-                onPress={() => router.push(`/event/${ne.id}`)}
-              >
-                <Image
-                  source={
-                    ne.image_url
-                      ? { uri: ne.image_url }
-                      : require('../../assets/placeholder-event.png')
-                  }
-                  style={styles.miniImage}
-                />
-                <SynthText variant="meta" numberOfLines={2} style={styles.miniTitle}>
-                  {ne.artist_name || ne.title}
-                </SynthText>
-                <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.miniMeta}>
-                  {ne.friend_name} · {ne.action_type === 'going' ? 'Going' : 'Interested'}
-                </SynthText>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
-
-      {feedDisplayMode === 'events' && trendingEvents.length > 0 ? (
-        <View style={styles.railSection}>
-          <SynthText variant="h2" style={styles.railTitle}>
-            Trending near you
-          </SynthText>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.railScroll}
-          >
-            {trendingEvents.map(te => (
-              <Pressable
-                key={te.id}
-                style={styles.miniCard}
-                onPress={() => router.push(`/event/${te.id}`)}
-              >
-                <Image
-                  source={
-                    te.image_url
-                      ? { uri: te.image_url }
-                      : require('../../assets/placeholder-event.png')
-                  }
-                  style={styles.miniImage}
-                />
-                <SynthText variant="meta" numberOfLines={2} style={styles.miniTitle}>
-                  {te.artist_name || te.title}
-                </SynthText>
-                <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.miniMeta}>
-                  {te.interest_count ?? 0} interested
-                </SynthText>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
-
       <FlashList
         data={listData}
         renderItem={renderItem}
         keyExtractor={item =>
           item.kind === 'event' ? `ev-${item.data.id}` : `rv-${item.data.id}`
         }
+        ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl

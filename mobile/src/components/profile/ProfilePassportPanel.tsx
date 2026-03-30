@@ -22,17 +22,16 @@ import { PassportIdentityService } from '../../services/passportIdentityService'
 import type { PassportIdentity } from '../../services/passportIdentityService';
 import { PassportAchievementService, type AchievementDisplay } from '../../services/passportAchievementService';
 import { BucketListService, type BucketListItem } from '../../services/bucketListService';
-import { MusicTasteService, type MusicTasteSummary } from '../../services/musicTasteService';
+import { PassportTravelTrackerPanel } from './PassportTravelTrackerPanel';
 
 const PINK = SynthTokens.colors.brandPink500;
 
-type SubTab = 'identity' | 'stamps' | 'achievements' | 'timeline' | 'bucket' | 'taste';
+type SubTab = 'identity' | 'stamps' | 'achievements' | 'timeline' | 'bucket';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'identity', label: 'Identity' },
   { key: 'stamps', label: 'Stamps' },
   { key: 'achievements', label: 'Achievements' },
-  { key: 'taste', label: 'Taste' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'bucket', label: 'Bucket' },
 ];
@@ -74,7 +73,6 @@ export function ProfilePassportPanel({
   const [achievements, setAchievements] = useState<AchievementDisplay[]>([]);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>(timelineProp ?? []);
   const [bucket, setBucket] = useState<BucketListItem[]>([]);
-  const [taste, setTaste] = useState<MusicTasteSummary | null>(null);
 
   const [stampType, setStampType] = useState<StampTypeFilter>('all');
   const [stampRarity, setStampRarity] = useState<RarityFilter>('all');
@@ -90,13 +88,12 @@ export function ProfilePassportPanel({
       }
       setIdentity(id);
 
-      const [stampList, nextHints, ach, tl, b, tasteRes] = await Promise.all([
+      const [stampList, nextHints, ach, tl, b] = await Promise.all([
         PassportService.getStampsByRarity(userId),
         PassportService.getNextToUnlock(userId),
         PassportAchievementService.getBehavioralAchievements(userId),
         timelineProp?.length ? Promise.resolve(timelineProp) : PassportService.getTimeline(userId),
         BucketListService.getBucketList(userId),
-        MusicTasteService.getUserMusicTaste(userId).catch(() => null),
       ]);
 
       setStamps(stampList);
@@ -104,7 +101,6 @@ export function ProfilePassportPanel({
       setAchievements(ach);
       setTimeline(tl);
       setBucket(b);
-      setTaste(tasteRes);
     } finally {
       setLoading(false);
     }
@@ -166,11 +162,6 @@ export function ProfilePassportPanel({
   };
 
   const fanLabel = identity ? PassportIdentityService.getFanTypeDisplay(identity.fan_type) : null;
-
-  const maxGenreCount = useMemo(
-    () => Math.max(...(taste?.topGenres.map(g => g.count) ?? [0]), 1),
-    [taste]
-  );
 
   const renderStampCard = (s: PassportEntry) => (
     <View
@@ -284,11 +275,12 @@ export function ProfilePassportPanel({
                   Home base: {identity.home_city}
                 </SynthText>
               ) : null}
+              <PassportTravelTrackerPanel userId={userId} />
             </View>
           ) : null}
 
           {subTab === 'stamps' ? (
-            <ScrollView style={styles.stampList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+            <View>
               {nextToUnlock.length > 0 ? (
                 <View style={styles.nextSection}>
                   <SynthText variant="meta" style={styles.sectionLabel}>
@@ -394,7 +386,7 @@ export function ProfilePassportPanel({
               ) : (
                 filteredStamps.map(s => renderStampCard(s))
               )}
-            </ScrollView>
+            </View>
           ) : null}
 
           {subTab === 'achievements' ? (
@@ -403,7 +395,7 @@ export function ProfilePassportPanel({
                 No achievements loaded.
               </SynthText>
             ) : (
-              <ScrollView style={styles.stampList} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              <View>
                 {achievements.map(a => {
                   const pct = a.goal > 0 ? Math.min(100, (a.progress / a.goal) * 100) : 0;
                   return (
@@ -441,62 +433,8 @@ export function ProfilePassportPanel({
                     </View>
                   );
                 })}
-              </ScrollView>
+              </View>
             )
-          ) : null}
-
-          {subTab === 'taste' ? (
-            <View style={styles.card}>
-              {!taste ? (
-                <SynthText variant="body" color="secondary">
-                  Could not load taste summary.
-                </SynthText>
-              ) : (
-                <>
-                  <SynthText variant="body" style={styles.tasteDesc}>
-                    {taste.description}
-                  </SynthText>
-                  {taste.topArtists.length > 0 ? (
-                    <View style={styles.mt12}>
-                      <SynthText variant="meta" style={styles.sectionLabel}>
-                        Top artists
-                      </SynthText>
-                      <View style={styles.badgeWrap}>
-                        {taste.topArtists.slice(0, 8).map((a, idx) => (
-                          <View key={`${a.name}-${idx}`} style={styles.badge}>
-                            <Text style={styles.badgeTxt}>{a.name}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  ) : null}
-                  {taste.topGenres.length > 0 ? (
-                    <View style={styles.mt12}>
-                      <SynthText variant="meta" style={styles.sectionLabel}>
-                        Top genres
-                      </SynthText>
-                      {taste.topGenres.slice(0, 8).map(g => (
-                        <View key={g.genre} style={styles.genreRow}>
-                          <View style={styles.genreTop}>
-                            <SynthText variant="meta" numberOfLines={1} style={{ flex: 1 }}>
-                              {g.genre}
-                            </SynthText>
-                            <SynthText variant="meta" color="secondary">
-                              {g.count}
-                            </SynthText>
-                          </View>
-                          <View style={styles.barTrack}>
-                            <View
-                              style={[styles.barFill, { width: `${(g.count / maxGenreCount) * 100}%` }]}
-                            />
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-                </>
-              )}
-            </View>
           ) : null}
 
           {subTab === 'timeline' ? (
@@ -575,7 +513,6 @@ const styles = StyleSheet.create({
   mt8: { marginTop: 8 },
   mt12: { marginTop: 12 },
   mt4: { marginTop: 4 },
-  stampList: { maxHeight: 520 },
   sectionLabel: { fontWeight: '800', marginBottom: 8, marginTop: 4, color: SynthTokens.colors.neutral900 },
   nextSection: { marginBottom: 16 },
   nextCard: {
@@ -651,19 +588,6 @@ const styles = StyleSheet.create({
     backgroundColor: PINK,
   },
   progressTxt: { textAlign: 'right', marginTop: 4 },
-  tasteDesc: { lineHeight: 22 },
-  badgeWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: SynthTokens.colors.neutral100,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-  },
-  badgeTxt: { fontSize: 12, fontWeight: '600', color: SynthTokens.colors.neutral900 },
-  genreRow: { marginBottom: 10 },
-  genreTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   bold: { fontWeight: '700' },
   timeline: { marginTop: 4 },
   timelineItem: { flexDirection: 'row', marginBottom: 4 },

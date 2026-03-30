@@ -1,35 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  Pressable,
+  Text,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { StatsService, StreamingStats } from '../src/services/statsService';
+import { isStreamingLinked } from '../src/services/streamingConnectionService';
 import { supabase } from '../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Music, Mic2, BarChart3, TrendingUp, ChevronLeft } from 'lucide-react-native';
+import { getExpoSiteUrl } from '../src/utils/siteUrl';
 
 const PINK = SynthTokens.colors.brandPink500;
 
 export default function StreamingStatsScreen() {
   const [stats, setStats] = useState<StreamingStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [linked, setLinked] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  useEffect(() => {
-    loadStats();
-  }, []);
+  const loadStats = useCallback(async (isRefresh: boolean) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
 
-  const loadStats = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setStats(null);
+      setLinked(false);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    const connected = await isStreamingLinked(user.id);
+    setLinked(connected);
 
     const data = await StatsService.getStats(user.id);
-    setStats(data);
+    setStats(
+      data ?? {
+        top_artists: [],
+        top_genres: [],
+        total_listening_hours: 0,
+      }
+    );
     setLoading(false);
+    setRefreshing(false);
+  }, []);
+
+  useEffect(() => {
+    void loadStats(false);
+  }, [loadStats]);
+
+  const openStreamingOnWeb = () => {
+    void WebBrowser.openBrowserAsync(`${getExpoSiteUrl()}/streaming-stats`);
   };
+
+  const showConnectCards = !linked;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={PINK} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -41,64 +87,103 @@ export default function StreamingStatsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: SynthTokens.spacing.md }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void loadStats(true)}
+            tintColor={PINK}
+          />
+        }
       >
         <View style={styles.titleBlock}>
           <View style={styles.titleRow}>
             <Music size={28} color={PINK} />
-            <Text style={styles.pageTitle}>Streaming Stats</Text>
+            <Text style={styles.pageTitle}>Streaming stats</Text>
           </View>
           <SynthText variant="body" color="secondary" style={styles.subtitle}>
-            Your music journey this year
+            Your music journey on Synth
           </SynthText>
         </View>
 
-        <View style={styles.statCard}>
-          <TrendingUp size={28} color={PINK} />
-          <Text style={styles.bigNumber}>{stats?.total_listening_hours ?? 0}</Text>
-          <SynthText variant="meta" color="secondary">
-            Hours played
-          </SynthText>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Mic2 size={22} color={SynthTokens.colors.neutral900} />
-            <Text style={styles.sectionTitle}>Top Artists</Text>
-          </View>
-          {(stats?.top_artists ?? []).map((artist: { name: string; popularity?: number }, index: number) => (
-            <View key={artist.name} style={styles.artistRow}>
-              <Text style={styles.rankText}>{index + 1}</Text>
-              <View style={styles.artistInfo}>
-                <Text style={styles.artistName}>{artist.name}</Text>
-                <View style={styles.popularityBarContainer}>
-                  <View style={[styles.popularityBar, { width: `${artist.popularity || 0}%` }]} />
-                </View>
-              </View>
-            </View>
-          ))}
-          {!loading && (!stats?.top_artists || stats.top_artists.length === 0) ? (
-            <SynthText variant="meta" color="secondary">
-              Connect streaming to see your top artists.
+        {showConnectCards ? (
+          <View style={styles.connectBlock}>
+            <SynthText variant="body" color="secondary" style={styles.connectCopy}>
+              Connect Spotify or Apple Music to import listening data and see top artists and genres. OAuth happens on
+              the web for now—tap below, sign in, and connect your account.
             </SynthText>
-          ) : null}
-        </View>
+            <Pressable style={styles.connectCardSpotify} onPress={openStreamingOnWeb}>
+              <Text style={styles.connectCardTitle}>Connect Spotify</Text>
+              <SynthText variant="meta" color="secondary">
+                Open streaming stats on the web
+              </SynthText>
+            </Pressable>
+            <Pressable style={styles.connectCardApple} onPress={openStreamingOnWeb}>
+              <Text style={styles.connectCardTitleApple}>Connect Apple Music</Text>
+              <SynthText variant="meta" color="secondary">
+                Same flow on the web
+              </SynthText>
+            </Pressable>
+          </View>
+        ) : null}
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <BarChart3 size={22} color={SynthTokens.colors.neutral900} />
-            <Text style={styles.sectionTitle}>Top Genres</Text>
-          </View>
-          <View style={styles.genresContainer}>
-            {(stats?.top_genres ?? []).map((genre: { genre: string; count: number }) => (
-              <View key={genre.genre} style={styles.genrePill}>
-                <Text style={styles.genreName}>{genre.genre}</Text>
-                <SynthText variant="meta" color="secondary">
-                  {genre.count} plays
-                </SynthText>
+        {linked ? (
+          <>
+            <View style={styles.statCard}>
+              <TrendingUp size={28} color={PINK} />
+              <Text style={styles.bigNumber}>{stats?.total_listening_hours ?? 0}</Text>
+              <SynthText variant="meta" color="secondary">
+                Hours played
+              </SynthText>
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Mic2 size={22} color={SynthTokens.colors.neutral900} />
+                <Text style={styles.sectionTitle}>Top artists</Text>
               </View>
-            ))}
-          </View>
-        </View>
+              {(stats?.top_artists ?? []).map(
+                (artist: { name: string; popularity?: number }, index: number) => (
+                  <View key={artist.name} style={styles.artistRow}>
+                    <Text style={styles.rankText}>{index + 1}</Text>
+                    <View style={styles.artistInfo}>
+                      <Text style={styles.artistName}>{artist.name}</Text>
+                      <View style={styles.popularityBarContainer}>
+                        <View style={[styles.popularityBar, { width: `${artist.popularity || 0}%` }]} />
+                      </View>
+                    </View>
+                  </View>
+                )
+              )}
+              {(!stats?.top_artists || stats.top_artists.length === 0) && (
+                <SynthText variant="meta" color="secondary">
+                  No artist data yet.
+                </SynthText>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <BarChart3 size={22} color={SynthTokens.colors.neutral900} />
+                <Text style={styles.sectionTitle}>Top genres</Text>
+              </View>
+              <View style={styles.genresContainer}>
+                {(stats?.top_genres ?? []).map((genre: { genre: string; count: number }) => (
+                  <View key={genre.genre} style={styles.genrePill}>
+                    <Text style={styles.genreName}>{genre.genre}</Text>
+                    <SynthText variant="meta" color="secondary">
+                      {genre.count} plays
+                    </SynthText>
+                  </View>
+                ))}
+              </View>
+              {(!stats?.top_genres || stats.top_genres.length === 0) && (
+                <SynthText variant="meta" color="secondary">
+                  No genre breakdown yet.
+                </SynthText>
+              )}
+            </View>
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -108,6 +193,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: SynthTokens.colors.neutral0,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   topBar: {
     paddingHorizontal: SynthTokens.spacing.sm,
@@ -136,6 +225,34 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     lineHeight: 22,
+  },
+  connectBlock: { gap: 14, marginBottom: SynthTokens.spacing.xl },
+  connectCopy: { lineHeight: 22, marginBottom: 4 },
+  connectCardSpotify: {
+    borderRadius: 16,
+    padding: 18,
+    backgroundColor: '#15803d',
+    borderWidth: 1,
+    borderColor: '#166534',
+  },
+  connectCardApple: {
+    borderRadius: 16,
+    padding: 18,
+    backgroundColor: '#dc2626',
+    borderWidth: 1,
+    borderColor: '#b91c1c',
+  },
+  connectCardTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: SynthTokens.colors.neutral0,
+    marginBottom: 4,
+  },
+  connectCardTitleApple: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: SynthTokens.colors.neutral0,
+    marginBottom: 4,
   },
   statCard: {
     backgroundColor: SynthTokens.colors.neutral0,

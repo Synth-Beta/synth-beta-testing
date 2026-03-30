@@ -7,6 +7,7 @@ export interface UnifiedPersonalizedEvent {
     title: string;
     artist_name: string;
     venue_name: string;
+    venue_city?: string;
     event_date: string;
     image_url?: string;
     /** Short label for corner badge (e.g. RECOMMENDED) derived from RPC context */
@@ -114,6 +115,7 @@ export class HomeFeedService {
                     title: (payload.title as string) || '',
                     artist_name: (payload.artist_name as string) || '',
                     venue_name: (payload.venue_name as string) || '',
+                    venue_city: (payload.venue_city as string) || (payload.city as string) || undefined,
                     event_date: (payload.event_date as string) || '',
                     image_url,
                     feedLabel,
@@ -134,7 +136,7 @@ export class HomeFeedService {
     private static async getFallbackUpcomingEvents(limit: number): Promise<UnifiedPersonalizedEvent[]> {
         const { data, error } = await supabase
             .from('events')
-            .select('id, title, artist_name, venue_name, event_date, images')
+            .select('id, title, artist_name, venue_name, venue_city, event_date, images')
             .gte('event_date', new Date().toISOString())
             .order('event_date', { ascending: true })
             .limit(limit);
@@ -149,6 +151,7 @@ export class HomeFeedService {
             title: event.title || '',
             artist_name: event.artist_name || '',
             venue_name: event.venue_name || '',
+            venue_city: event.venue_city || undefined,
             event_date: event.event_date || '',
             image_url: event.images?.[0]?.url,
             feedLabel: undefined,

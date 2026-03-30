@@ -119,7 +119,6 @@ export default function ArtistDetailScreen() {
                   event_date={e.event_date}
                   image_url={e.image_url}
                   onPress={() => router.push(`/event/${e.id}`)}
-                  onGoingPress={() => router.push(`/event/${e.id}`)}
                 />
               ))
             )}

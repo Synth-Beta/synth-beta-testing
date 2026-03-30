@@ -96,12 +96,14 @@ export default function RootLayout() {
       seg0 === '(tabs)' ||
       seg0 === 'chat' ||
       seg0 === 'event' ||
+      seg0 === 'review' ||
       seg0 === 'notifications' ||
       seg0 === 'friend-requests' ||
       seg0 === 'stats' ||
       seg0 === 'modal' ||
       seg0 === 'profile-edit' ||
       seg0 === 'my-events' ||
+      seg0 === 'interested-events' ||
       seg0 === 'settings' ||
       seg0 === 'app-menu';
 

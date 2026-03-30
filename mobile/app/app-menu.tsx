@@ -18,7 +18,6 @@ import {
   Settings,
   Sparkles,
   Check,
-  BarChart3,
 } from 'lucide-react-native';
 import { supabase } from '../src/integrations/supabase/client';
 import { SynthTokens } from '../src/tokens/SynthTokens';
@@ -141,17 +140,6 @@ export default function AppMenuScreen() {
             router.push('/settings');
           }}
         />
-
-        {accountType === 'creator' || accountType === 'business' || accountType === 'admin' ? (
-          <MenuRow
-            icon={<BarChart3 size={22} color={SynthTokens.colors.neutral900} />}
-            label="Analytics"
-            onPress={() => {
-              close();
-              router.push('/analytics');
-            }}
-          />
-        ) : null}
 
         {isVerifiedAdmin ? (
           <View style={styles.verifiedCard}>

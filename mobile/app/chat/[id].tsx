@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
@@ -41,24 +41,91 @@ export default function ChatThreadScreen() {
         }
     };
 
-    const renderMessage = ({ item }: { item: Message }) => (
-        <View style={[
-            styles.messageWrapper,
-            item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper
-        ]}>
-            <View style={[
-                styles.messageBubble,
-                item.is_mine ? styles.myBubble : styles.theirBubble
-            ]}>
-                <SynthText variant="meta" color={item.is_mine ? 'white' : 'primary'}>
-                    {item.content}
+    const renderMessage = ({ item }: { item: Message }) => {
+        const meta = item.metadata ?? {};
+        const eventTitle =
+            (typeof meta.title === 'string' && meta.title) ||
+            (typeof meta.event_title === 'string' && meta.event_title) ||
+            (typeof meta.artist_name === 'string' && typeof meta.venue_name === 'string'
+                ? `${meta.artist_name} @ ${meta.venue_name}`
+                : null) ||
+            'Shared event';
+
+        if (item.message_type === 'event_share' && item.shared_event_id) {
+            return (
+                <View
+                    style={[
+                        styles.messageWrapper,
+                        item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper,
+                    ]}
+                >
+                    <Pressable
+                        onPress={() => router.push(`/event/${item.shared_event_id}`)}
+                        style={[styles.shareCard, item.is_mine ? styles.shareCardMine : styles.shareCardTheirs]}
+                    >
+                        <Text style={[styles.shareLabel, item.is_mine ? styles.shareLabelOnPink : styles.shareLabelMuted]}>EVENT</Text>
+                        <SynthText variant="body" style={item.is_mine ? styles.shareTitleLight : styles.shareTitleDark}>
+                            {eventTitle}
+                        </SynthText>
+                        {item.content && item.content !== 'Message' ? (
+                            <SynthText variant="meta" color="secondary" style={styles.shareHint} numberOfLines={3}>
+                                {item.content}
+                            </SynthText>
+                        ) : null}
+                    </Pressable>
+                    <SynthText variant="meta" color="secondary" style={styles.messageTime}>
+                        {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </SynthText>
+                </View>
+            );
+        }
+
+        if (item.message_type === 'review_share' && item.shared_review_id) {
+            const snippet =
+                (typeof meta.review_text === 'string' && meta.review_text) ||
+                (typeof meta.custom_message === 'string' && meta.custom_message) ||
+                item.content;
+            return (
+                <View
+                    style={[
+                        styles.messageWrapper,
+                        item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper,
+                    ]}
+                >
+                    <Pressable
+                        onPress={() => router.push(`/review/${item.shared_review_id}`)}
+                        style={[styles.shareCard, item.is_mine ? styles.shareCardMine : styles.shareCardTheirs]}
+                    >
+                        <Text style={[styles.shareLabel, item.is_mine ? styles.shareLabelOnPink : styles.shareLabelMuted]}>REVIEW</Text>
+                        <SynthText variant="body" style={item.is_mine ? styles.shareTitleLight : styles.shareTitleDark} numberOfLines={3}>
+                            {snippet}
+                        </SynthText>
+                    </Pressable>
+                    <SynthText variant="meta" color="secondary" style={styles.messageTime}>
+                        {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </SynthText>
+                </View>
+            );
+        }
+
+        return (
+            <View
+                style={[
+                    styles.messageWrapper,
+                    item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper,
+                ]}
+            >
+                <View style={[styles.messageBubble, item.is_mine ? styles.myBubble : styles.theirBubble]}>
+                    <SynthText variant="meta" color={item.is_mine ? 'white' : 'primary'}>
+                        {item.content}
+                    </SynthText>
+                </View>
+                <SynthText variant="meta" color="secondary" style={styles.messageTime}>
+                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </SynthText>
             </View>
-            <SynthText variant="meta" color="secondary" style={styles.messageTime}>
-                {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </SynthText>
-        </View>
-    );
+        );
+    };
 
     return (
         <KeyboardAvoidingView
@@ -192,5 +259,42 @@ const styles = StyleSheet.create({
     },
     sendDisabled: {
         opacity: 0.5,
-    }
+    },
+    shareCard: {
+        maxWidth: '100%',
+        borderRadius: 16,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+    },
+    shareCardMine: {
+        backgroundColor: SynthTokens.colors.brandPink600,
+        borderColor: SynthTokens.colors.brandPink700,
+    },
+    shareCardTheirs: {
+        backgroundColor: SynthTokens.colors.neutral0,
+    },
+    shareLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        marginBottom: 6,
+        letterSpacing: 0.8,
+    },
+    shareLabelOnPink: {
+        color: 'rgba(255,255,255,0.92)',
+    },
+    shareLabelMuted: {
+        color: SynthTokens.colors.brandPink500,
+    },
+    shareTitleLight: {
+        color: SynthTokens.colors.neutral0,
+        fontWeight: '700',
+    },
+    shareTitleDark: {
+        color: SynthTokens.colors.neutral900,
+        fontWeight: '700',
+    },
+    shareHint: {
+        marginTop: 8,
+    },
 });

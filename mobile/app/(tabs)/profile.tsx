@@ -106,7 +106,7 @@ export default function ProfileScreen() {
   const renderReviewRow = (item: MyReviewListItem) => (
     <Pressable
       style={styles.reviewCard}
-      onPress={() => item.event_id && router.push(`/event/${item.event_id}`)}
+      onPress={() => router.push(`/review/${item.id}`)}
     >
       <Image
         source={item.image_url ? { uri: item.image_url } : require('../../assets/placeholder-event.png')}

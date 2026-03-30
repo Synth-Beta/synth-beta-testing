@@ -389,7 +389,6 @@ export default function DiscoverScreen() {
                       event_date={ev.event_date}
                       image_url={ev.image_url}
                       onPress={() => router.push(`/event/${ev.id}`)}
-                      onGoingPress={() => router.push(`/event/${ev.id}`)}
                     />
                   ))
                 )}
@@ -417,7 +416,6 @@ export default function DiscoverScreen() {
             event_date={ev.event_date}
             image_url={ev.image_url}
             onPress={() => router.push(`/event/${ev.id}`)}
-            onGoingPress={() => router.push(`/event/${ev.id}`)}
           />
         ))}
       </ScrollView>

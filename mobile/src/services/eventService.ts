@@ -21,12 +21,39 @@ export interface FriendAttending {
     avatar_url?: string;
 }
 
+const EVENT_UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export class EventService {
+    /**
+     * Normalize route param to `events.id` (UUID). Non-UUID values may resolve via `external_entity_ids`.
+     */
+    static async resolveCanonicalEventId(raw: string): Promise<string | null> {
+        const id = raw?.trim();
+        if (!id) return null;
+        if (EVENT_UUID_RE.test(id)) return id;
+        try {
+            const { data, error } = await supabase
+                .from('external_entity_ids')
+                .select('entity_uuid')
+                .eq('entity_type', 'event')
+                .eq('external_id', id)
+                .maybeSingle();
+            if (error || !data?.entity_uuid) return null;
+            return data.entity_uuid as string;
+        } catch {
+            return null;
+        }
+    }
+
     /**
      * Get detailed event info
      */
     static async getEventById(eventId: string): Promise<EventDetail | null> {
         try {
+            const canonical = await this.resolveCanonicalEventId(eventId);
+            if (!canonical) return null;
+
             const { data, error } = await supabase
                 .from('events')
                 .select(`
@@ -34,7 +61,7 @@ export class EventService {
           artists(name, images),
           venues(name, city, address)
         `)
-                .eq('id', eventId)
+                .eq('id', canonical)
                 .maybeSingle();
 
             if (error || !data) return null;
@@ -108,12 +135,15 @@ export class EventService {
      */
     static async toggleInteraction(userId: string, eventId: string, type: 'going' | 'interested'): Promise<boolean> {
         try {
+            const canonical = await this.resolveCanonicalEventId(eventId);
+            if (!canonical) return false;
+
             // Check current
             const { data: existing } = await supabase
                 .from('user_event_relationships')
                 .select('*')
                 .eq('user_id', userId)
-                .eq('event_id', eventId)
+                .eq('event_id', canonical)
                 .maybeSingle();
 
             if (existing && existing.relationship_type === type) {
@@ -122,18 +152,21 @@ export class EventService {
                     .from('user_event_relationships')
                     .delete()
                     .eq('user_id', userId)
-                    .eq('event_id', eventId);
+                    .eq('event_id', canonical);
                 return !error;
             } else {
                 // Upsert new
                 const { error } = await supabase
                     .from('user_event_relationships')
-                    .upsert({
-                        user_id: userId,
-                        event_id: eventId,
-                        relationship_type: type,
-                        updated_at: new Date().toISOString(),
-                    }, { onConflict: 'user_id,event_id' });
+                    .upsert(
+                        {
+                            user_id: userId,
+                            event_id: canonical,
+                            relationship_type: type,
+                            updated_at: new Date().toISOString(),
+                        },
+                        { onConflict: 'user_id,event_id' }
+                    );
                 return !error;
             }
         } catch (error) {

@@ -20,12 +20,18 @@ export interface ChatThread {
     unread_count: number;
 }
 
+export type ChatMessageType = 'text' | 'event_share' | 'review_share' | 'system';
+
 export interface Message {
     id: string;
     content: string;
     sender_id: string;
     created_at: string;
     is_mine: boolean;
+    message_type: ChatMessageType;
+    shared_event_id?: string | null;
+    shared_review_id?: string | null;
+    metadata?: Record<string, unknown> | null;
 }
 
 export class ChatService {
@@ -135,20 +141,90 @@ export class ChatService {
         try {
             const { data, error } = await supabase
                 .from('messages')
-                .select('*')
+                .select(
+                    'id, chat_id, sender_id, content, is_encrypted, created_at, message_type, shared_event_id, shared_review_id, metadata'
+                )
                 .eq('chat_id', chatId)
                 .order('created_at', { ascending: true })
-                .limit(50);
+                .limit(100);
 
             if (error) throw error;
 
-            return (data || []).map((msg: any) => ({
-                id: msg.id,
-                content: msg.content,
-                sender_id: msg.sender_id,
-                created_at: msg.created_at,
-                is_mine: msg.sender_id === userId,
-            }));
+            const rows = data || [];
+            const messageIds = rows.map((m: { id: string }) => m.id);
+            let eventIdByMessageId = new Map<string, string>();
+            if (messageIds.length > 0) {
+                const { data: shares } = await supabase
+                    .from('event_shares')
+                    .select('message_id, event_id')
+                    .eq('chat_id', chatId)
+                    .in('message_id', messageIds);
+                eventIdByMessageId = new Map(
+                    (shares || []).map((s: { message_id: string; event_id: string }) => [s.message_id, s.event_id])
+                );
+            }
+
+            const parseMeta = (raw: unknown): Record<string, unknown> | null => {
+                if (raw == null) return null;
+                if (typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>;
+                if (typeof raw === 'string') {
+                    try {
+                        const p = JSON.parse(raw) as unknown;
+                        return p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>) : null;
+                    } catch {
+                        return null;
+                    }
+                }
+                return null;
+            };
+
+            return rows.map((msg: any) => {
+                const meta = parseMeta(msg.metadata);
+                const fallbackEvent = eventIdByMessageId.get(msg.id);
+                const eventId =
+                    msg.shared_event_id ?? (meta?.event_id != null ? String(meta.event_id) : null) ?? fallbackEvent ?? null;
+                const rawType = msg.message_type as string | null | undefined;
+                const isEncrypted = Boolean(msg.is_encrypted);
+                let content = typeof msg.content === 'string' ? msg.content : '';
+                if (isEncrypted || looksLikeOpaquePreview(content)) {
+                    content = 'Message';
+                }
+
+                const reviewId =
+                    msg.shared_review_id != null && String(msg.shared_review_id).trim().length > 0
+                        ? String(msg.shared_review_id).trim()
+                        : meta?.review_id != null && String(meta.review_id).trim().length > 0
+                          ? String(meta.review_id).trim()
+                          : null;
+
+                // Only label as share types when we have a resolvable id (avoids event_share/review_share with null FKs).
+                let messageType: ChatMessageType;
+                if (rawType === 'system') {
+                    messageType = 'system';
+                } else if (reviewId) {
+                    messageType = 'review_share';
+                } else if (
+                    eventId &&
+                    rawType !== 'review_share' &&
+                    (rawType === 'event_share' || rawType === 'text' || rawType == null || rawType === '')
+                ) {
+                    messageType = 'event_share';
+                } else {
+                    messageType = 'text';
+                }
+
+                return {
+                    id: msg.id,
+                    content,
+                    sender_id: msg.sender_id,
+                    created_at: msg.created_at,
+                    is_mine: msg.sender_id === userId,
+                    message_type: messageType,
+                    shared_event_id: messageType === 'event_share' ? eventId : null,
+                    shared_review_id: messageType === 'review_share' ? reviewId : null,
+                    metadata: meta,
+                };
+            });
         } catch (error) {
             console.error('Error fetching messages:', error);
             return [];

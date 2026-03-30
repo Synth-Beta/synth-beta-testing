@@ -61,5 +61,16 @@ target 'Synth' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Xcode Cloud prints hundreds of warnings from Expo/RN/third-party Pods (Sendable,
+    # deprecated iOS APIs, umbrella headers, etc.). We do not own that source; suppress
+    # warnings on Pod targets only so app code in the Synth project still warns normally.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |cfg|
+        cfg.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        # Xcode 14+ — silences Swift warnings in dependencies (expo-modules-core, etc.)
+        cfg.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+      end
+    end
   end
 end

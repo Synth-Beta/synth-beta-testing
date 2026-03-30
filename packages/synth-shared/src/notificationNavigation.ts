@@ -91,6 +91,8 @@ export function resolveNotificationExpoPath(
   }
 
   if (type === 'review_liked' || type === 'review_commented' || type === 'comment_replied') {
+    const reviewId = str(d.review_id);
+    if (reviewId) return { path: `/review/${reviewId}` };
     if (eventId) return { path: `/event/${eventId}` };
     return null;
   }

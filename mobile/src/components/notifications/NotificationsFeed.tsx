@@ -194,14 +194,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
                 item.type === 'comment_replied')
             ) {
               const reviewId = item.data?.review_id;
-              if (reviewId) {
-                const { data } = await supabase
-                  .from('reviews')
-                  .select('event_id')
-                  .eq('id', String(reviewId))
-                  .maybeSingle();
-                if (data?.event_id) dest = { path: `/event/${data.event_id}` };
-              }
+              if (reviewId) dest = { path: `/review/${String(reviewId)}` };
             }
             if (dest?.path) {
               router.push(dest.path);
