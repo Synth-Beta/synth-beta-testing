@@ -13,19 +13,47 @@ import * as WebBrowser from 'expo-web-browser';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { StatsService, StreamingStats } from '../src/services/statsService';
-import { isStreamingLinked } from '../src/services/streamingConnectionService';
+import {
+  getStreamingLinkStatus,
+  type StreamingLinkStatus,
+  type StreamingProvider,
+} from '../src/services/streamingConnectionService';
 import { supabase } from '../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Music, Mic2, BarChart3, TrendingUp, ChevronLeft } from 'lucide-react-native';
+import { Music, Mic2, BarChart3, TrendingUp, ChevronLeft, RefreshCw } from 'lucide-react-native';
 import { getExpoSiteUrl } from '../src/utils/siteUrl';
 
 const PINK = SynthTokens.colors.brandPink500;
+
+function hasAnyStats(stats: StreamingStats | null): boolean {
+  if (!stats) return false;
+  return (
+    (stats.top_artists?.length ?? 0) > 0 ||
+    (stats.top_genres?.length ?? 0) > 0 ||
+    (stats.total_listening_hours ?? 0) > 0
+  );
+}
+
+function providerLabel(provider: StreamingProvider): string {
+  switch (provider) {
+    case 'spotify':
+      return 'Spotify';
+    case 'apple-music':
+      return 'Apple Music';
+    default:
+      return 'Streaming';
+  }
+}
 
 export default function StreamingStatsScreen() {
   const [stats, setStats] = useState<StreamingStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [linked, setLinked] = useState(false);
+  const [linkStatus, setLinkStatus] = useState<StreamingLinkStatus>({
+    linked: false,
+    provider: 'unknown',
+    profileUrl: null,
+  });
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -38,14 +66,14 @@ export default function StreamingStatsScreen() {
     } = await supabase.auth.getUser();
     if (!user) {
       setStats(null);
-      setLinked(false);
+      setLinkStatus({ linked: false, provider: 'unknown', profileUrl: null });
       setLoading(false);
       setRefreshing(false);
       return;
     }
 
-    const connected = await isStreamingLinked(user.id);
-    setLinked(connected);
+    const status = await getStreamingLinkStatus(user.id);
+    setLinkStatus(status);
 
     const data = await StatsService.getStats(user.id);
     setStats(
@@ -63,11 +91,18 @@ export default function StreamingStatsScreen() {
     void loadStats(false);
   }, [loadStats]);
 
-  const openStreamingOnWeb = () => {
-    void WebBrowser.openBrowserAsync(`${getExpoSiteUrl()}/streaming-stats`);
+  const openStreamingOnWeb = (provider?: StreamingProvider) => {
+    const base = `${getExpoSiteUrl()}/streaming-stats`;
+    const url =
+      provider && provider !== 'unknown'
+        ? `${base}?connect=${encodeURIComponent(provider)}&source=expo`
+        : `${base}?source=expo`;
+    void WebBrowser.openBrowserAsync(url);
   };
 
+  const linked = linkStatus.linked;
   const showConnectCards = !linked;
+  const showSyncingEmptyState = linked && !hasAnyStats(stats);
 
   if (loading) {
     return (
@@ -101,7 +136,7 @@ export default function StreamingStatsScreen() {
             <Text style={styles.pageTitle}>Streaming stats</Text>
           </View>
           <SynthText variant="body" color="secondary" style={styles.subtitle}>
-            Your music journey on Synth
+            {linked ? `${providerLabel(linkStatus.provider)} connected` : 'Your music journey on Synth'}
           </SynthText>
         </View>
 
@@ -111,13 +146,19 @@ export default function StreamingStatsScreen() {
               Connect Spotify or Apple Music to import listening data and see top artists and genres. OAuth happens on
               the web for now—tap below, sign in, and connect your account.
             </SynthText>
-            <Pressable style={styles.connectCardSpotify} onPress={openStreamingOnWeb}>
+            <Pressable
+              style={styles.connectCardSpotify}
+              onPress={() => openStreamingOnWeb('spotify')}
+            >
               <Text style={styles.connectCardTitle}>Connect Spotify</Text>
               <SynthText variant="meta" color="secondary">
                 Open streaming stats on the web
               </SynthText>
             </Pressable>
-            <Pressable style={styles.connectCardApple} onPress={openStreamingOnWeb}>
+            <Pressable
+              style={styles.connectCardApple}
+              onPress={() => openStreamingOnWeb('apple-music')}
+            >
               <Text style={styles.connectCardTitleApple}>Connect Apple Music</Text>
               <SynthText variant="meta" color="secondary">
                 Same flow on the web
@@ -126,7 +167,32 @@ export default function StreamingStatsScreen() {
           </View>
         ) : null}
 
-        {linked ? (
+        {showSyncingEmptyState ? (
+          <View style={styles.syncingCard}>
+            <View style={styles.syncingTitleRow}>
+              <Music size={22} color={SynthTokens.colors.neutral900} />
+              <Text style={styles.syncingTitle}>Connected, syncing…</Text>
+            </View>
+            <SynthText variant="body" color="secondary" style={styles.syncingCopy}>
+              We haven’t pulled your listening data into Synth yet. This can take a moment after connecting. Tap refresh
+              to try again, or open the web streaming page to re-sync.
+            </SynthText>
+            <View style={styles.syncingActionsRow}>
+              <Pressable style={styles.refreshBtn} onPress={() => void loadStats(true)}>
+                <RefreshCw size={18} color={SynthTokens.colors.neutral0} />
+                <Text style={styles.refreshBtnText}>Refresh</Text>
+              </Pressable>
+              <Pressable
+                style={styles.openWebBtn}
+                onPress={() => openStreamingOnWeb(linkStatus.provider)}
+              >
+                <Text style={styles.openWebBtnText}>Open on web</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {linked && !showSyncingEmptyState ? (
           <>
             <View style={styles.statCard}>
               <TrendingUp size={28} color={PINK} />
@@ -253,6 +319,68 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: SynthTokens.colors.neutral0,
     marginBottom: 4,
+  },
+  syncingCard: {
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderRadius: 20,
+    padding: SynthTokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    marginBottom: SynthTokens.spacing.xl,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  syncingTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  syncingTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: SynthTokens.colors.neutral900,
+  },
+  syncingCopy: {
+    lineHeight: 22,
+    marginBottom: 14,
+  },
+  syncingActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  refreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    backgroundColor: PINK,
+  },
+  refreshBtnText: {
+    color: SynthTokens.colors.neutral0,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  openWebBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    backgroundColor: SynthTokens.colors.neutral0,
+  },
+  openWebBtnText: {
+    color: SynthTokens.colors.neutral900,
+    fontSize: 14,
+    fontWeight: '800',
   },
   statCard: {
     backgroundColor: SynthTokens.colors.neutral0,

@@ -22,6 +22,8 @@ export interface Notification {
     /** Populated when actor_name was missing / was a raw id */
     actor_user_id?: string | null;
     event_title?: string;
+    title?: string;
+    message?: string;
     created_at: string;
     is_read: boolean;
     data: any;
@@ -73,6 +75,8 @@ export class NotificationService {
                     actor_user_id: actorUserId,
                     actor_avatar: n.data?.actor_avatar,
                     event_title: n.data?.event_title,
+                    title: n.title ?? undefined,
+                    message: n.message ?? undefined,
                     created_at: n.created_at,
                     is_read: n.is_read,
                     data: n.data,

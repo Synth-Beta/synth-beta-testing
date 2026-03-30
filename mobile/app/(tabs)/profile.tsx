@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Text } from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, Text, Linking, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -7,6 +7,7 @@ import { PassportService, ProfileTimelineItem, ProfileStats } from '../../src/se
 import { HomeFeedService, FriendSuggestion } from '../../src/services/homeFeedService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { Settings, Pencil, Menu, Instagram, Music2 } from 'lucide-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
@@ -16,6 +17,10 @@ import {
   MyReviewListItem,
 } from '../../src/services/myEventsService';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
+import {
+  getStreamingLinkStatus,
+  type StreamingLinkStatus,
+} from '../../src/services/streamingConnectionService';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -36,6 +41,11 @@ export default function ProfileScreen() {
     username?: string;
     avatar_url?: string;
   } | null>(null);
+  const [streaming, setStreaming] = useState<StreamingLinkStatus>({
+    linked: false,
+    provider: 'unknown',
+    profileUrl: null,
+  });
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -57,7 +67,7 @@ export default function ProfileScreen() {
       console.warn('[profile] users row:', userRowError.message);
     }
 
-    const [statsData, timelineData, suggestions, interestedRows, reviewRows, unrevRows] =
+    const [statsData, timelineData, suggestions, interestedRows, reviewRows, unrevRows, streamingStatus] =
       await Promise.all([
         PassportService.getProfileStats(authUser.id),
         PassportService.getTimeline(authUser.id),
@@ -65,6 +75,7 @@ export default function ProfileScreen() {
         MyEventsService.getInterestedEvents(authUser.id),
         MyEventsService.getMyReviews(authUser.id),
         MyEventsService.getUnreviewedPastAttended(authUser.id),
+        getStreamingLinkStatus(authUser.id),
       ]);
 
     setUser(userRowError || !userData ? null : userData);
@@ -74,6 +85,7 @@ export default function ProfileScreen() {
     setInterested(interestedRows);
     setReviews(reviewRows);
     setUnreviewed(unrevRows);
+    setStreaming(streamingStatus);
   }, []);
 
   useEffect(() => {
@@ -88,6 +100,26 @@ export default function ProfileScreen() {
 
   const handle = user?.username ? `@${user.username}` : '@username';
   const displayName = user?.name || 'Your Profile';
+
+  const openStreaming = useCallback(async () => {
+    if (streaming.linked && streaming.profileUrl) {
+      const url = String(streaming.profileUrl).trim();
+      if (!url) {
+        router.push('/stats');
+        return;
+      }
+      const can = await Linking.canOpenURL(url);
+      if (!can) {
+        Alert.alert('Unable to open link', 'Please connect your streaming account again from Streaming Stats.');
+        router.push('/stats');
+        return;
+      }
+      await Linking.openURL(url);
+      return;
+    }
+
+    router.push('/stats');
+  }, [router, streaming.linked, streaming.profileUrl]);
 
   const groupedByStar = useMemo(() => {
     const map = new Map<number, MyReviewListItem[]>();
@@ -187,8 +219,14 @@ export default function ProfileScreen() {
             <Pressable style={styles.socialIcon}>
               <Instagram size={20} color={SynthTokens.colors.neutral900} />
             </Pressable>
-            <Pressable style={styles.socialIcon}>
-              <Music2 size={20} color={SynthTokens.colors.neutral900} />
+            <Pressable style={styles.socialIcon} onPress={() => void openStreaming()}>
+              {streaming.provider === 'spotify' ? (
+                <FontAwesome5 name="spotify" size={20} color={SynthTokens.colors.neutral900} />
+              ) : streaming.provider === 'apple-music' ? (
+                <FontAwesome5 name="apple" size={20} color={SynthTokens.colors.neutral900} />
+              ) : (
+                <Music2 size={20} color={SynthTokens.colors.neutral900} />
+              )}
             </Pressable>
           </View>
         </View>

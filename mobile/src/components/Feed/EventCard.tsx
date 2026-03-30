@@ -48,12 +48,18 @@ export const EventCard: React.FC<EventCardProps> = ({
     title?.trim() ||
     (artist_name && venue_name ? `${artist_name} at ${venue_name}` : artist_name || venue_name || 'Event');
 
-  const formattedDate = new Date(event_date).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const formattedDate = (() => {
+    if (!event_date) return 'Date TBA';
+    const d = new Date(event_date);
+    const t = d.getTime();
+    if (!Number.isFinite(t)) return 'Date TBA';
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  })();
 
   const venueName = venue_name?.trim();
   const venueCity = venue_city?.trim();

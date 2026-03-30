@@ -16,9 +16,28 @@ import { NotificationService, Notification } from '../../services/notificationSe
 import { supabase } from '../../integrations/supabase/client';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronLeft, UserPlus, Heart, MessageSquare, Menu } from 'lucide-react-native';
+import { Bell, ChevronLeft, UserPlus, Heart, MessageSquare, Menu, Music2, MapPin } from 'lucide-react-native';
 
 const PINK = SynthTokens.colors.brandPink500;
+
+function formatTimeAgo(createdAt: string | null | undefined): string {
+  if (!createdAt) return '—';
+
+  const date = new Date(createdAt);
+  const time = date.getTime();
+  if (Number.isNaN(time)) return '—';
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
 
 export type NotificationsFeedProps = {
   /** When true, this is the dedicated Friend Requests screen (filtered list + title). */
@@ -72,20 +91,33 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
     switch (type) {
       case 'friend_request':
         return <UserPlus size={20} color={PINK} />;
+      case 'friend_accepted':
+        return <UserPlus size={20} color={PINK} />;
       case 'review_liked':
         return <Heart size={20} color={SynthTokens.colors.error} />;
-      case 'message':
+      case 'review_commented':
+      case 'comment_replied':
         return <MessageSquare size={20} color={PINK} />;
+      case 'message':
+      case 'chat_message':
+        return <MessageSquare size={20} color={PINK} />;
+      case 'artist_new_event':
+      case 'venue_new_event':
+      case 'follows_new_events_summary':
+      case 'bucket_list_new_events_summary':
+      case 'friends_event_interest_summary':
+        return <Music2 size={20} color={PINK} />;
+      case 'event_interest':
+      case 'friend_rsvp_going':
+      case 'friend_rsvp_changed':
+      case 'friend_review_posted':
+      case 'friend_attended_same_event':
+      case 'event_attendance_reminder':
+      case 'event_reminder':
+        return <MapPin size={20} color={PINK} />;
       default:
         return <Bell size={20} color={SynthTokens.colors.neutral600} />;
     }
-  };
-
-  const bodyFor = (item: Notification) => {
-    if (item.type === 'friend_request') return 'wants to be friends';
-    if (item.type === 'friend_accepted') return 'You are now friends';
-    if (item.type === 'message') return 'sent you a message';
-    return 'interacted with your post';
   };
 
   const friendRequestId = (item: Notification): string | null => {
@@ -155,10 +187,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
   };
 
   const renderItem = ({ item }: { item: Notification }) => {
-    const time = new Date(item.created_at).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    });
+    const time = formatTimeAgo(item.created_at);
 
     const requestId = friendRequestId(item);
     const showFriendActions = item.type === 'friend_request' && requestId;
@@ -204,10 +233,14 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
         >
           <View style={styles.iconCircle}>{getIcon(item.type)}</View>
           <View style={styles.content}>
-            <Text style={styles.rowText}>
-              <Text style={styles.actor}>{item.actor_name || 'Someone'}</Text>
-              {` ${bodyFor(item)}`}
+            <Text style={styles.rowTitle} numberOfLines={2}>
+              {item.title || 'Notification'}
             </Text>
+            {item.message ? (
+              <Text style={styles.rowBody} numberOfLines={3}>
+                {item.message}
+              </Text>
+            ) : null}
             <SynthText variant="meta" color="secondary" style={styles.timeText}>
               {time}
             </SynthText>
@@ -369,14 +402,18 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 14,
   },
-  rowText: {
+  rowTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '700',
     color: SynthTokens.colors.neutral900,
     lineHeight: 22,
   },
-  actor: {
-    fontWeight: '700',
+  rowBody: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: SynthTokens.colors.neutral600,
+    lineHeight: 21,
+    marginTop: 4,
   },
   timeText: {
     fontSize: 13,

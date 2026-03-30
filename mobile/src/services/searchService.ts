@@ -5,6 +5,7 @@ export interface SearchResult {
     title: string;
     artist_name: string;
     venue_name: string;
+    venue_city?: string;
     event_date: string;
     image_url?: string;
 }
@@ -50,6 +51,7 @@ export class SearchService {
                 title: event.title,
                 artist_name: event.artist_name,
                 venue_name: event.venue_name,
+                venue_city: event.venue_city ?? undefined,
                 event_date: event.event_date,
                 image_url: event.images?.[0]?.url || undefined,
             }));
@@ -59,24 +61,46 @@ export class SearchService {
         }
     }
 
-    static async getEventsByDateRange(start: string, end: string): Promise<SearchResult[]> {
+    static async getEventsByDateRange(
+        start: string,
+        end: string,
+        opts?: { latitude?: number | null; longitude?: number | null; radiusMiles?: number; limit?: number }
+    ): Promise<SearchResult[]> {
         try {
-            const { data, error } = await supabase
-                .from('events')
-                .select('*')
-                .gte('event_date', start)
-                .lte('event_date', end)
-                .order('event_date', { ascending: true });
+            const startMs = new Date(start).getTime();
+            const endMs = new Date(end).getTime();
+            const filterDay = Number.isFinite(startMs) && Number.isFinite(endMs);
+
+            // Use backend RPC for fast spatial + indexed filtering.
+            // Calendar RPC signature only supports a minimum date; we still filter client-side to the selected day.
+            const { data, error } = await supabase.rpc('get_calendar_events', {
+                p_latitude: opts?.latitude ?? null,
+                p_longitude: opts?.longitude ?? null,
+                p_radius_miles: opts?.radiusMiles ?? null,
+                p_min_date: start,
+                p_genres: null,
+                p_limit: opts?.limit ?? 200,
+            });
 
             if (error) throw error;
 
-            return (data || []).map(event => ({
+            const rows = (data || []) as Array<any>;
+
+            const filtered = filterDay
+                ? rows.filter(ev => {
+                    const t = new Date(ev.event_date).getTime();
+                    return Number.isFinite(t) && t >= startMs && t <= endMs;
+                })
+                : rows;
+
+            return filtered.map(event => ({
                 id: event.id,
                 title: event.title,
                 artist_name: event.artist_name,
                 venue_name: event.venue_name,
+                venue_city: event.venue_city ?? undefined,
                 event_date: event.event_date,
-                image_url: event.images?.[0]?.url || undefined,
+                image_url: event.event_media_url ?? undefined,
             }));
         } catch (error) {
             console.error('Error fetching calendar events:', error);

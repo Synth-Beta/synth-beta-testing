@@ -71,6 +71,23 @@ export interface FriendSuggestion {
 }
 
 export class HomeFeedService {
+    private static getFeedLabelFromContext(context: any): UnifiedPersonalizedEvent['feedLabel'] {
+        const labelFrom = (v: unknown): string | undefined =>
+            typeof v === 'string' && v.trim().length ? v.trim().toLowerCase() : undefined;
+
+        const source = labelFrom(context?.source) || labelFrom(context?.category) || labelFrom(context?.kind);
+        const because = labelFrom(context?.because);
+        const combined = [source, because].filter(Boolean).join(' ');
+
+        if (combined.includes('trend')) return 'TRENDING';
+        if (combined.includes('follow')) return 'FOLLOWING';
+        if (combined.includes('friend') || combined.includes('network')) return 'FRIENDS';
+        if (combined.includes('recommend') || combined.includes('suggest') || combined.includes('for you'))
+            return 'RECOMMENDED';
+
+        return undefined;
+    }
+
     /**
      * Unified home events feed (matches web reliance on get_personalized_feed_v3).
      */
@@ -99,13 +116,7 @@ export class HomeFeedService {
             const rows = (data ?? []).filter((r: { type?: string }) => r.type === 'event');
             const mapped: UnifiedPersonalizedEvent[] = rows.map((row: any) => {
                 const payload = row.payload || {};
-                const because = row.context?.because as string | undefined;
-                const feedLabel =
-                    typeof because === 'string' && because.toLowerCase().includes('suggested')
-                        ? 'RECOMMENDED'
-                        : typeof because === 'string' && because.toLowerCase().includes('friend')
-                          ? 'FRIENDS'
-                          : undefined;
+                const feedLabel = this.getFeedLabelFromContext(row.context);
 
                 const imgs = payload.images;
                 const image_url = Array.isArray(imgs) && imgs[0]?.url ? imgs[0].url : payload.poster_image_url;
@@ -114,7 +125,11 @@ export class HomeFeedService {
                     id: (payload.event_id as string) || (row.id as string),
                     title: (payload.title as string) || '',
                     artist_name: (payload.artist_name as string) || '',
-                    venue_name: (payload.venue_name as string) || '',
+                    venue_name:
+                        (payload.venue_name as string) ||
+                        (payload.venue_address as string) ||
+                        (payload.venue_city as string) ||
+                        '',
                     venue_city: (payload.venue_city as string) || (payload.city as string) || undefined,
                     event_date: (payload.event_date as string) || '',
                     image_url,
@@ -150,7 +165,7 @@ export class HomeFeedService {
             id: event.id,
             title: event.title || '',
             artist_name: event.artist_name || '',
-            venue_name: event.venue_name || '',
+            venue_name: event.venue_name || event.venue_address || event.venue_city || '',
             venue_city: event.venue_city || undefined,
             event_date: event.event_date || '',
             image_url: event.images?.[0]?.url,

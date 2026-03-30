@@ -25,7 +25,6 @@ import {
     VenueSearchRow,
     UserSearchRow,
 } from '../services/searchService';
-import { EventCard } from './Feed/EventCard';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -86,16 +85,38 @@ export default function SearchScreen() {
     const renderRow = ({ item }: { item: Row }) => {
         if (item.kind === 'event') {
             const e = item.data;
+            const dateLabel = (() => {
+                const d = new Date(e.event_date);
+                const t = d.getTime();
+                if (!Number.isFinite(t)) return 'Date TBA';
+                return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            })();
+            const sub =
+                [e.venue_name, e.venue_city].filter(Boolean).join(' · ') ||
+                e.artist_name ||
+                'Event';
             return (
-                <EventCard
-                    id={e.id}
-                    title={e.title}
-                    artist_name={e.artist_name}
-                    venue_name={e.venue_name}
-                    event_date={e.event_date}
-                    image_url={e.image_url}
-                    onPress={() => router.push(`/event/${e.id}`)}
-                />
+                <Pressable
+                    style={styles.entityRow}
+                    onPress={() => {
+                        Keyboard.dismiss();
+                        router.push(`/event/${e.id}`);
+                    }}
+                >
+                    <View style={[styles.entityAvatar, styles.entityFallback]}>
+                        <SynthText variant="meta" style={styles.entityFallbackText}>
+                            {dateLabel}
+                        </SynthText>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <SynthText variant="meta" style={styles.entityTitle} numberOfLines={1}>
+                            {e.title || e.artist_name || 'Event'}
+                        </SynthText>
+                        <SynthText variant="meta" color="secondary" numberOfLines={1}>
+                            {sub}
+                        </SynthText>
+                    </View>
+                </Pressable>
             );
         }
         if (item.kind === 'artist') {

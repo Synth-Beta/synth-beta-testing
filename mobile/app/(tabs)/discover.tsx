@@ -27,6 +27,7 @@ import { HomeFeedService, TrendingEvent } from '../../src/services/homeFeedServi
 import { SearchService } from '../../src/services/searchService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { MobileScenesRail } from '../../src/components/discover/MobileScenesRail';
+import { getCurrentLatLng, type LatLng } from '../../src/services/locationService';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
@@ -204,6 +205,7 @@ export default function DiscoverScreen() {
   const [locationLabel] = useState('Washington DC, DC');
   const [showLocationPill, setShowLocationPill] = useState(true);
   const [tab, setTab] = useState<'calendar' | 'tour'>('calendar');
+  const [coords, setCoords] = useState<LatLng | null>(null);
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -229,6 +231,13 @@ export default function DiscoverScreen() {
   }, []);
 
   useEffect(() => {
+    void (async () => {
+      const loc = await getCurrentLatLng();
+      setCoords(loc);
+    })();
+  }, []);
+
+  useEffect(() => {
     setSelectedCalDay(null);
     setCalendarEvents([]);
   }, [calMonth, calYear]);
@@ -242,7 +251,12 @@ export default function DiscoverScreen() {
     setCalLoading(true);
     const start = new Date(calYear, calMonth, selectedCalDay, 0, 0, 0, 0);
     const end = new Date(calYear, calMonth, selectedCalDay, 23, 59, 59, 999);
-    void SearchService.getEventsByDateRange(start.toISOString(), end.toISOString())
+    void SearchService.getEventsByDateRange(start.toISOString(), end.toISOString(), {
+      latitude: coords?.latitude ?? null,
+      longitude: coords?.longitude ?? null,
+      radiusMiles: 50,
+      limit: 200,
+    })
       .then(rows => {
         if (!cancelled) setCalendarEvents(rows);
       })
@@ -255,7 +269,7 @@ export default function DiscoverScreen() {
     return () => {
       cancelled = true;
     };
-  }, [tab, selectedCalDay, calMonth, calYear]);
+  }, [tab, selectedCalDay, calMonth, calYear, coords]);
 
   const calPrev = () => {
     if (calMonth === 0) {
@@ -359,7 +373,10 @@ export default function DiscoverScreen() {
               onPrev={calPrev}
               onNext={calNext}
               selectedDay={selectedCalDay}
-              onSelectDay={setSelectedCalDay}
+              onSelectDay={day => {
+                if (calLoading) return;
+                setSelectedCalDay(day);
+              }}
             />
             {selectedCalDay != null ? (
               <View style={styles.calResults}>
@@ -386,6 +403,7 @@ export default function DiscoverScreen() {
                       title={ev.title}
                       artist_name={ev.artist_name}
                       venue_name={ev.venue_name}
+                      venue_city={ev.venue_city}
                       event_date={ev.event_date}
                       image_url={ev.image_url}
                       onPress={() => router.push(`/event/${ev.id}`)}
