@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { toLocalYmd } from '../utils/localYmd';
 
 export interface SearchResult {
     id: string;
@@ -35,12 +36,13 @@ export class SearchService {
     static async searchEvents(keyword: string): Promise<SearchResult[]> {
         try {
             if (!keyword) return [];
+            const nowIso = new Date().toISOString();
 
             const { data, error } = await supabase
                 .from('events')
                 .select('*')
                 .or(`artist_name.ilike.%${keyword}%,title.ilike.%${keyword}%,venue_name.ilike.%${keyword}%`)
-                .gte('event_date', new Date().toISOString())
+                .gte('event_date', nowIso)
                 .order('event_date', { ascending: true })
                 .limit(20);
 
@@ -67,17 +69,17 @@ export class SearchService {
         opts?: { latitude?: number | null; longitude?: number | null; radiusMiles?: number; limit?: number }
     ): Promise<SearchResult[]> {
         try {
-            const startMs = new Date(start).getTime();
-            const endMs = new Date(end).getTime();
-            const filterDay = Number.isFinite(startMs) && Number.isFinite(endMs);
+            const startDay = String(start).slice(0, 10);
+            const endDay = String(end).slice(0, 10);
+            const sameDay = startDay.length === 10 && startDay === endDay;
 
             // Use backend RPC for fast spatial + indexed filtering.
-            // Calendar RPC signature only supports a minimum date; we still filter client-side to the selected day.
+            // Calendar RPC signature only supports a minimum date; we filter client-side to the selected day.
             const { data, error } = await supabase.rpc('get_calendar_events', {
                 p_latitude: opts?.latitude ?? null,
                 p_longitude: opts?.longitude ?? null,
                 p_radius_miles: opts?.radiusMiles ?? null,
-                p_min_date: start,
+                p_min_date: startDay,
                 p_genres: null,
                 p_limit: opts?.limit ?? 200,
             });
@@ -86,10 +88,13 @@ export class SearchService {
 
             const rows = (data || []) as Array<any>;
 
-            const filtered = filterDay
+            const filtered = sameDay
                 ? rows.filter(ev => {
-                    const t = new Date(ev.event_date).getTime();
-                    return Number.isFinite(t) && t >= startMs && t <= endMs;
+                    const raw = ev?.event_date;
+                    if (!raw) return false;
+                    const d = new Date(String(raw));
+                    if (!Number.isFinite(d.getTime())) return false;
+                    return toLocalYmd(d) === startDay;
                 })
                 : rows;
 

@@ -89,7 +89,7 @@ export class HomeFeedService {
     }
 
     /**
-     * Unified home events feed (matches web reliance on get_personalized_feed_v3).
+     * Unified home events feed (matches web reliance on get_personalized_feed_v5).
      */
     static async getUnifiedPersonalizedEvents(
         userId: string,
@@ -98,39 +98,48 @@ export class HomeFeedService {
         cityLng: number | null = null,
         radiusMiles = 50
     ): Promise<UnifiedPersonalizedEvent[]> {
+        const debug = {
+            userId,
+            limit,
+            cityLat,
+            cityLng,
+            radiusMiles,
+        };
         try {
-            const { data, error } = await supabase.rpc('get_personalized_feed_v3', {
+            const rpcPayload = {
                 p_user_id: userId,
+                p_section: null,
                 p_limit: limit,
                 p_offset: 0,
                 p_city_lat: cityLat,
                 p_city_lng: cityLng,
                 p_radius_miles: radiusMiles,
-            });
+                p_include_past: false,
+                p_city_filter: null,
+                p_state_filter: null,
+                p_max_days_ahead: 180,
+            };
+
+            const { data, error } = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
 
             if (error) {
-                console.warn('[homeFeed] get_personalized_feed_v3:', error.message);
+                console.warn('[homeFeed] get_personalized_feed_v5:', error.message);
                 return await this.getFallbackUpcomingEvents(limit);
             }
 
-            const rawRows = data ?? [];
-            const rows = rawRows.filter((r: { type?: string }) => r.type === 'event');
-            if (rows.length === 0 && rawRows.length > 0) {
-                console.warn(
-                    '[homeFeed] get_personalized_feed_v3 returned',
-                    rawRows.length,
-                    'rows but none with type === "event"; check RPC payload shape'
-                );
-            }
+            const rows = (data ?? []) as Array<any>;
             const mapped: UnifiedPersonalizedEvent[] = rows.map((row: any) => {
                 const payload = row.payload || {};
-                const feedLabel = this.getFeedLabelFromContext(row.context);
-
+                const eventId = payload.id ?? row.id;
                 const imgs = payload.images;
-                const image_url = Array.isArray(imgs) && imgs[0]?.url ? imgs[0].url : payload.poster_image_url;
+                const image_url =
+                    (Array.isArray(imgs) && imgs[0]?.url ? imgs[0]?.url : null) ??
+                    payload.event_media_url ??
+                    payload.poster_image_url ??
+                    undefined;
 
                 return {
-                    id: (payload.event_id as string) || (row.id as string),
+                    id: String(eventId ?? ''),
                     title: (payload.title as string) || '',
                     artist_name: (payload.artist_name as string) || '',
                     venue_name:
@@ -138,29 +147,43 @@ export class HomeFeedService {
                         (payload.venue_address as string) ||
                         (payload.venue_city as string) ||
                         '',
-                    venue_city: (payload.venue_city as string) || (payload.city as string) || undefined,
+                    venue_city: (payload.venue_city as string) || undefined,
                     event_date: (payload.event_date as string) || '',
                     image_url,
-                    feedLabel,
+                    feedLabel: this.getFeedLabelFromContext({
+                        source: row.section,
+                        because: payload?.context?.because ?? row.context?.because,
+                        category: payload?.context?.category ?? row.context?.category,
+                        kind: payload?.context?.kind ?? row.context?.kind,
+                    }),
                 };
             });
 
             if (mapped.length === 0) {
-                return await this.getFallbackUpcomingEvents(limit);
+                const fallback = await this.getFallbackUpcomingEvents(limit);
+                if (fallback.length === 0) {
+                    console.warn('[homeFeed] v5 returned 0 rows and fallback also returned 0', debug);
+                }
+                return fallback;
             }
 
             return mapped;
         } catch (e) {
             console.error('[homeFeed] getUnifiedPersonalizedEvents', e);
-            return await this.getFallbackUpcomingEvents(limit);
+            const fallback = await this.getFallbackUpcomingEvents(limit);
+            if (fallback.length === 0) {
+                console.warn('[homeFeed] exception and fallback returned 0', debug);
+            }
+            return fallback;
         }
     }
 
     private static async getFallbackUpcomingEvents(limit: number): Promise<UnifiedPersonalizedEvent[]> {
+        const nowIso = new Date().toISOString();
         const { data, error } = await supabase
             .from('events')
             .select('id, title, artist_name, venue_name, venue_city, event_date, images')
-            .gte('event_date', new Date().toISOString())
+            .gte('event_date', nowIso)
             .order('event_date', { ascending: true })
             .limit(limit);
 

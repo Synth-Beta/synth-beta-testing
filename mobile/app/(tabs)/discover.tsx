@@ -28,6 +28,7 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { MobileScenesRail } from '../../src/components/discover/MobileScenesRail';
 import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/DiscoverCalEventsSkeleton';
 import { getCurrentLatLng, type LatLng } from '../../src/services/locationService';
+import { toLocalYmd } from '../../src/utils/localYmd';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
@@ -241,9 +242,8 @@ export default function DiscoverScreen() {
     }
     let cancelled = false;
     setCalLoading(true);
-    const start = new Date(calYear, calMonth, selectedCalDay, 0, 0, 0, 0);
-    const end = new Date(calYear, calMonth, selectedCalDay, 23, 59, 59, 999);
-    void SearchService.getEventsByDateRange(start.toISOString(), end.toISOString(), {
+    const day = toLocalYmd(new Date(calYear, calMonth, selectedCalDay));
+    void SearchService.getEventsByDateRange(day, day, {
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
       radiusMiles: 50,
