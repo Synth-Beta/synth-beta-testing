@@ -15,11 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { supabase } from '../src/integrations/supabase/client';
-import {
-  InterestedEventItem,
-  MyEventsService,
-  MyReviewListItem,
-} from '../src/services/myEventsService';
+import { MyEventsService, MyReviewListItem, ProfileUnreviewedItem } from '../src/services/myEventsService';
 
 type ViewMode = 'reviews' | 'rankings' | 'unreviewed';
 
@@ -31,7 +27,7 @@ export default function MyEventsScreen() {
   const insets = useSafeAreaInsets();
   const [viewMode, setViewMode] = useState<ViewMode>('reviews');
   const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
-  const [unreviewed, setUnreviewed] = useState<InterestedEventItem[]>([]);
+  const [unreviewed, setUnreviewed] = useState<ProfileUnreviewedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -46,7 +42,7 @@ export default function MyEventsScreen() {
     }
     const [r, u] = await Promise.all([
       MyEventsService.getMyReviews(user.id),
-      MyEventsService.getUnreviewedPastAttended(user.id),
+      MyEventsService.getProfileUnreviewedQueue(user.id),
     ]);
     setReviews(r);
     setUnreviewed(u);
@@ -108,9 +104,17 @@ export default function MyEventsScreen() {
     </Pressable>
   );
 
-  const renderUnreviewed = (item: InterestedEventItem) => (
+  const reviewComposeHref = (item: ProfileUnreviewedItem) =>
+    item.event_id ? `/review-compose?eventId=${item.event_id}` : '/review-compose';
+
+  const renderUnreviewed = (item: ProfileUnreviewedItem) => (
     <View style={styles.card}>
-      <Pressable style={styles.cardMain} onPress={() => router.push(`/event/${item.event_id}`)}>
+      <Pressable
+        style={styles.cardMain}
+        onPress={() =>
+          item.event_id ? router.push(`/event/${item.event_id}`) : router.push(reviewComposeHref(item))
+        }
+      >
         <Image
           source={item.image_url ? { uri: item.image_url } : require('../assets/placeholder-event.png')}
           style={styles.thumb}
@@ -120,13 +124,14 @@ export default function MyEventsScreen() {
             {item.artist_name || item.title}
           </SynthText>
           <SynthText variant="meta" color="secondary" numberOfLines={1}>
-            {item.venue_name}
+            {item.kind === 'draft' ? 'Draft · ' : ''}
+            {item.venue_name || (item.kind === 'draft' ? 'Finish your review' : '')}
           </SynthText>
         </View>
       </Pressable>
-      <Pressable style={styles.miniCta} onPress={() => router.push(`/review-compose?eventId=${item.event_id}`)}>
+      <Pressable style={styles.miniCta} onPress={() => router.push(reviewComposeHref(item))}>
         <SynthText variant="meta" style={styles.miniCtaText}>
-          Review
+          {item.kind === 'draft' ? 'Continue' : 'Review'}
         </SynthText>
       </Pressable>
     </View>
@@ -198,7 +203,7 @@ export default function MyEventsScreen() {
       ) : (
         <FlatList
           data={unreviewed}
-          keyExtractor={i => i.event_id}
+          keyExtractor={i => `${i.kind}-${i.reviewId}`}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PINK} />}
           contentContainerStyle={styles.list}
           ListEmptyComponent={

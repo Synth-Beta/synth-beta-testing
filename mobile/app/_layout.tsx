@@ -99,13 +99,18 @@ export default function RootLayout() {
       seg0 === 'review' ||
       seg0 === 'notifications' ||
       seg0 === 'friend-requests' ||
+      seg0 === 'profile-friends' ||
+      seg0 === 'profile-following' ||
       seg0 === 'stats' ||
       seg0 === 'modal' ||
       seg0 === 'profile-edit' ||
       seg0 === 'my-events' ||
       seg0 === 'interested-events' ||
       seg0 === 'settings' ||
-      seg0 === 'app-menu';
+      seg0 === 'app-menu' ||
+      seg0 === 'user' ||
+      seg0 === 'artist' ||
+      seg0 === 'venue';
 
     if (!session && needsAuth) {
       if (!isOnboardingComplete) {

@@ -23,10 +23,10 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { EventCard } from '../../src/components/Feed/EventCard';
-import { HomeFeedService, TrendingEvent } from '../../src/services/homeFeedService';
 import { SearchService } from '../../src/services/searchService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { MobileScenesRail } from '../../src/components/discover/MobileScenesRail';
+import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/DiscoverCalEventsSkeleton';
 import { getCurrentLatLng, type LatLng } from '../../src/services/locationService';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -214,20 +214,12 @@ export default function DiscoverScreen() {
     Awaited<ReturnType<typeof SearchService.getEventsByDateRange>>
   >([]);
   const [calLoading, setCalLoading] = useState(false);
-  const [trending, setTrending] = useState<TrendingEvent[]>([]);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data: { user } }) => {
       setAuthUserId(user?.id ?? null);
     });
-  }, []);
-
-  useEffect(() => {
-    void (async () => {
-      const data = await HomeFeedService.getTrendingEvents();
-      setTrending(data.slice(0, 8));
-    })();
   }, []);
 
   useEffect(() => {
@@ -388,9 +380,7 @@ export default function DiscoverScreen() {
                   })}
                 </SynthText>
                 {calLoading ? (
-                  <SynthText variant="meta" color="secondary">
-                    Loading events…
-                  </SynthText>
+                  <DiscoverCalEventsSkeleton />
                 ) : calendarEvents.length === 0 ? (
                   <SynthText variant="meta" color="secondary">
                     No events on this date.
@@ -420,22 +410,6 @@ export default function DiscoverScreen() {
         ) : null}
 
         <MobileScenesRail userId={authUserId} />
-
-        <SynthText variant="meta" style={styles.trendingLabel}>
-          Trending near you
-        </SynthText>
-        {trending.map(ev => (
-          <EventCard
-            key={ev.id}
-            id={ev.id}
-            title={ev.title}
-            artist_name={ev.artist_name}
-            venue_name={ev.venue_name}
-            event_date={ev.event_date}
-            image_url={ev.image_url}
-            onPress={() => router.push(`/event/${ev.id}`)}
-          />
-        ))}
       </ScrollView>
     </View>
   );
@@ -581,12 +555,6 @@ const styles = StyleSheet.create({
   },
   segTextActive: {
     color: PINK,
-  },
-  trendingLabel: {
-    fontWeight: '700',
-    fontSize: 16,
-    color: SynthTokens.colors.neutral900,
-    marginTop: 8,
   },
   calHint: { marginTop: 4, marginBottom: 4 },
   calResults: { gap: 8, marginTop: 4 },

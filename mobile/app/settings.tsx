@@ -6,7 +6,6 @@ import {
   ScrollView,
   Text,
   Switch,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -24,14 +23,8 @@ import {
   UserX,
   LogOut,
   ChevronRight,
-  Users,
-  Music2,
-  Heart,
-  CalendarDays,
-  CircleHelp,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { supabase } from '../src/integrations/supabase/client';
@@ -40,7 +33,7 @@ import {
   getCurrentUserSettingsPreferences,
   updateCurrentUserSettingsPreferences,
 } from '../src/services/userSettingsPreferencesService';
-import { getExpoSiteUrl } from '../src/utils/siteUrl';
+import { SettingsScreenSkeleton } from '../src/components/skeletons/SettingsScreenSkeleton';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -209,16 +202,8 @@ export default function SettingsScreen() {
     }
   };
 
-  const openHelp = () => {
-    void WebBrowser.openBrowserAsync(getExpoSiteUrl());
-  };
-
   if (loading) {
-    return (
-      <View style={[styles.root, styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={PINK} />
-      </View>
-    );
+    return <SettingsScreenSkeleton paddingTop={insets.top} />;
   }
 
   if (!userId) {
@@ -279,11 +264,11 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <SettingsSection title="Privacy & notifications" />
+        <SettingsSection title="Privacy & Notifications" />
         <View style={styles.card}>
           <ToggleRow
             icon={isPublicProfile ? Eye : EyeOff}
-            label="Public profile"
+            label="Public Profile"
             description={isPublicProfile ? 'Visible to all users' : 'Only visible to friends'}
             value={isPublicProfile}
             onValueChange={onTogglePublic}
@@ -297,7 +282,7 @@ export default function SettingsScreen() {
           <RowDivider />
           <ToggleRow
             icon={Bell}
-            label="Push notifications"
+            label="Push Notifications"
             description={enablePush ? 'Enabled' : 'Disabled'}
             value={enablePush}
             onValueChange={onTogglePush}
@@ -306,59 +291,52 @@ export default function SettingsScreen() {
           <RowDivider />
           <ToggleRow
             icon={Mail}
-            label="Email notifications"
+            label="Email Notifications"
             description={enableEmails ? 'Enabled' : 'Disabled'}
             value={enableEmails}
             onValueChange={onToggleEmails}
             disabled={loadingPreferences}
           />
-          <RowDivider />
-          <NavRow
-            icon={Shield}
-            label="More privacy & safety"
-            onPress={() => router.push('/settings/privacy')}
-          />
-        </View>
-
-        <SettingsSection title="Shortcuts" />
-        <View style={styles.card}>
-          <NavRow icon={Users} label="Friends" onPress={() => router.push('/friend-requests')} />
-          <RowDivider />
-          <NavRow icon={Bell} label="Notifications" onPress={() => router.push('/notifications')} />
-          <RowDivider />
-          <NavRow icon={Music2} label="Streaming stats" onPress={() => router.push('/stats')} />
-          <RowDivider />
-          <NavRow icon={Heart} label="Interested" onPress={() => router.push('/interested-events')} />
-          <RowDivider />
-          <NavRow icon={CalendarDays} label="My events" onPress={() => router.push('/my-events')} />
         </View>
 
         <SettingsSection title="Account" />
         <View style={styles.card}>
-          <NavRow icon={User} label="Edit profile" onPress={() => router.push('/profile-edit')} />
+          <AccountNavRow
+            icon={User}
+            label="Profile & Preferences"
+            description="Edit profile, music taste, location"
+            onPress={() => router.push('/profile-edit')}
+          />
           <RowDivider />
-          <NavRow icon={Lock} label="Security" onPress={() => router.push('/settings/security')} />
+          <AccountNavRow
+            icon={Lock}
+            label="Security"
+            description="Change password or email address"
+            onPress={() => router.push('/settings/security')}
+          />
           <RowDivider />
-          <NavRow
+          <AccountNavRow
             icon={CheckCircle}
-            label="Verification status"
+            label="Verification Status"
+            description="Track your verification progress"
             rightBadge={verified ? 'Verified' : undefined}
             onPress={() => router.push('/settings/verification')}
           />
           <RowDivider />
-          <NavRow icon={Shield} label="Parental controls" onPress={() => router.push('/settings/parental')} />
+          <AccountNavRow
+            icon={Shield}
+            label="Parental Controls"
+            description="Age verification and safety settings"
+            onPress={() => router.push('/settings/parental')}
+          />
         </View>
 
-        <SettingsSection title="Support" />
+        <SettingsSection title="Danger Zone" />
         <View style={styles.card}>
-          <NavRow icon={CircleHelp} label="Help center" onPress={openHelp} />
-        </View>
-
-        <SettingsSection title="Danger zone" />
-        <View style={styles.card}>
-          <NavRow
+          <AccountNavRow
             icon={UserX}
-            label="Delete account"
+            label="Delete Account"
+            description="Permanently remove your account"
             danger
             onPress={() => router.push('/settings/delete-account')}
           />
@@ -432,30 +410,41 @@ function ToggleRow({
   );
 }
 
-function NavRow({
+function AccountNavRow({
   icon: Icon,
   label,
+  description,
   onPress,
   danger,
   rightBadge,
 }: {
   icon: React.ComponentType<{ size?: number; color?: string }>;
   label: string;
+  description: string;
   onPress: () => void;
   danger?: boolean;
   rightBadge?: string;
 }) {
   return (
-    <Pressable style={styles.navRow} onPress={onPress}>
+    <Pressable style={styles.accountNavRow} onPress={onPress}>
       <View style={styles.iconBubble}>
         <Icon size={20} color={danger ? SynthTokens.colors.error : PINK} />
       </View>
-      <Text style={[styles.rowTitle, danger && styles.dangerText]}>{label}</Text>
-      {rightBadge ? (
-        <View style={styles.badge}>
-          <Text style={styles.badgeTxt}>{rightBadge}</Text>
+      <View style={styles.accountNavMid}>
+        <View style={styles.accountNavTitleRow}>
+          <Text style={[styles.rowTitle, styles.accountNavTitleSingle, danger && styles.dangerText]} numberOfLines={2}>
+            {label}
+          </Text>
+          {rightBadge ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeTxt}>{rightBadge}</Text>
+            </View>
+          ) : null}
         </View>
-      ) : null}
+        <SynthText variant="meta" color="secondary" numberOfLines={2}>
+          {description}
+        </SynthText>
+      </View>
       <ChevronRight size={20} color={SynthTokens.colors.neutral400} />
     </Pressable>
   );
@@ -535,12 +524,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
-  navRow: {
+  accountNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 52,
-    paddingVertical: 10,
+    minHeight: 56,
+    paddingVertical: 12,
     paddingHorizontal: 14,
   },
   iconBubble: {
@@ -552,7 +541,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   toggleMid: { flex: 1, minWidth: 0 },
-  rowTitle: { fontSize: 16, fontWeight: '600', color: SynthTokens.colors.neutral900, marginBottom: 2 },
+  accountNavMid: { flex: 1, minWidth: 0 },
+  accountNavTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 2,
+  },
+  accountNavTitleSingle: { marginBottom: 0 },
+  rowTitle: { fontSize: 16, fontWeight: '600', color: SynthTokens.colors.neutral900 },
   dangerText: { color: SynthTokens.colors.error },
   warningNote: { paddingHorizontal: 14, paddingBottom: 10, marginTop: -4 },
   badge: {
@@ -560,7 +558,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: '#ecfdf5',
-    marginRight: 4,
   },
   badgeTxt: { fontSize: 11, fontWeight: '700', color: '#047857' },
   signOutBtn: {

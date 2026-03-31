@@ -113,7 +113,15 @@ export class HomeFeedService {
                 return await this.getFallbackUpcomingEvents(limit);
             }
 
-            const rows = (data ?? []).filter((r: { type?: string }) => r.type === 'event');
+            const rawRows = data ?? [];
+            const rows = rawRows.filter((r: { type?: string }) => r.type === 'event');
+            if (rows.length === 0 && rawRows.length > 0) {
+                console.warn(
+                    '[homeFeed] get_personalized_feed_v3 returned',
+                    rawRows.length,
+                    'rows but none with type === "event"; check RPC payload shape'
+                );
+            }
             const mapped: UnifiedPersonalizedEvent[] = rows.map((row: any) => {
                 const payload = row.payload || {};
                 const feedLabel = this.getFeedLabelFromContext(row.context);

@@ -7,6 +7,7 @@ import { EventCard } from '../../src/components/Feed/EventCard';
 import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import { SynthText } from '../../src/components/SynthText';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
+import { FeedListSkeleton } from '../../src/components/skeletons/FeedListSkeleton';
 import {
   FriendSuggestion,
   HomeFeedService,
@@ -16,7 +17,7 @@ import {
 import { NotificationService } from '../../src/services/notificationService';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
-import { getCurrentLatLng, type LatLng } from '../../src/services/locationService';
+import { getCurrentLatLng } from '../../src/services/locationService';
 
 type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
@@ -29,27 +30,26 @@ export default function FeedScreen() {
   const [reviews, setReviews] = useState<NetworkReview[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [feedLoading, setFeedLoading] = useState(true);
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
-  const [coords, setCoords] = useState<LatLng | null>(null);
 
   const listData: ListItem[] =
     feedDisplayMode === 'events'
       ? events.map(data => ({ kind: 'event', data }))
       : reviews.map(data => ({ kind: 'review', data }));
 
-  useEffect(() => {
-    void (async () => {
-      const loc = await getCurrentLatLng();
-      setCoords(loc);
-    })();
-  }, []);
-
   const fetchFeed = useCallback(async () => {
     try {
+      const loc = await getCurrentLatLng();
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setEvents([]);
+        setReviews([]);
+        setFriendSuggestions([]);
+        return;
+      }
       const unread = await NotificationService.getUnreadCount(user.id);
       setNotificationCount(unread);
 
@@ -60,8 +60,8 @@ export default function FeedScreen() {
         const unified = await HomeFeedService.getUnifiedPersonalizedEvents(
           user.id,
           50,
-          coords?.latitude ?? null,
-          coords?.longitude ?? null,
+          loc?.latitude ?? null,
+          loc?.longitude ?? null,
           50
         );
         setEvents(unified);
@@ -76,8 +76,14 @@ export default function FeedScreen() {
       setFriendSuggestions([]);
     } finally {
       setRefreshing(false);
+      setFeedLoading(false);
     }
-  }, [feedDisplayMode, coords]);
+  }, [feedDisplayMode]);
+
+  const handleFeedDisplayModeChange = useCallback((mode: FeedDisplayMode) => {
+    setFeedDisplayMode(mode);
+    setFeedLoading(true);
+  }, []);
 
   useEffect(() => {
     void fetchFeed();
@@ -135,32 +141,38 @@ export default function FeedScreen() {
         notificationsCount={notificationCount}
         onMenuPress={() => router.push('/app-menu')}
         feedDisplayMode={feedDisplayMode}
-        onFeedDisplayModeChange={setFeedDisplayMode}
+        onFeedDisplayModeChange={handleFeedDisplayModeChange}
       />
 
-      <FlashList
-        data={listData}
-        renderItem={renderItem}
-        keyExtractor={item =>
-          item.kind === 'event' ? `ev-${item.data.id}` : `rv-${item.data.id}`
-        }
-        ListHeaderComponent={listHeader}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={SynthTokens.colors.brandPink500}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <SynthText variant="meta" color="secondary">
-              {emptyMessage}
-            </SynthText>
-          </View>
-        }
-      />
+      {feedLoading ? (
+        <View style={styles.skeletonWrap}>
+          <FeedListSkeleton />
+        </View>
+      ) : (
+        <FlashList
+          data={listData}
+          renderItem={renderItem}
+          keyExtractor={item =>
+            item.kind === 'event' ? `ev-${item.data.id}` : `rv-${item.data.id}`
+          }
+          ListHeaderComponent={listHeader}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={SynthTokens.colors.brandPink500}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <SynthText variant="meta" color="secondary">
+                {emptyMessage}
+              </SynthText>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -169,6 +181,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: SynthTokens.colors.neutral50,
+  },
+  skeletonWrap: {
+    flex: 1,
   },
   listContent: {
     paddingVertical: SynthTokens.spacing.md,

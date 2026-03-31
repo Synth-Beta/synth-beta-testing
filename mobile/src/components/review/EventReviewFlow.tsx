@@ -7,7 +7,6 @@ import {
     ScrollView,
     TextInput,
     Pressable,
-    Switch,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
@@ -512,6 +511,73 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         return [];
     }, [flow, formData]);
 
+    /** Final step: matches web `PrivacySubmitStep` — summary + public/private choice (not a bare switch). */
+    const renderPrivacySubmitSection = () => (
+        <View style={styles.section}>
+            <SynthText variant="meta" color="brand" style={styles.center}>
+                FINAL STEP
+            </SynthText>
+            <SynthText variant="h2" style={styles.center}>
+                Review & share
+            </SynthText>
+            <SynthText variant="meta" color="secondary" style={[styles.center, styles.mb8]}>
+                Take a final look at your ratings and choose who can see your review.
+            </SynthText>
+            {formData.selectedArtist?.name && formData.selectedVenue?.name ? (
+                <SynthText variant="body" style={styles.center}>
+                    {formData.selectedArtist.name} @ {formData.selectedVenue.name}
+                </SynthText>
+            ) : null}
+            {formData.eventDate ? (
+                <SynthText variant="meta" color="secondary" style={styles.center}>
+                    {formData.eventDate}
+                </SynthText>
+            ) : null}
+            <SynthText variant="body" style={[styles.mt12, styles.center]}>
+                Overall {averageRatingForSummary.toFixed(1)} / 5
+            </SynthText>
+            {categoryBreakdown.length > 0 ? (
+                <View style={styles.mt8}>
+                    {categoryBreakdown.map(c => (
+                        <SynthText key={c.label} variant="meta" color="secondary">
+                            {c.label}: {c.rating ? c.rating.toFixed(1) : '—'}
+                        </SynthText>
+                    ))}
+                </View>
+            ) : null}
+            <SynthText variant="body" style={styles.privacySectionTitle}>
+                Who can see this review?
+            </SynthText>
+            <View style={styles.privacyGroup}>
+                <Pressable
+                    style={[styles.privacyCard, formData.isPublic && styles.privacyCardOn]}
+                    onPress={() => updateFormData({ isPublic: true })}
+                >
+                    <SynthText variant="body" style={styles.privacyCardTitle}>
+                        Public
+                    </SynthText>
+                    <SynthText variant="meta" color="secondary">
+                        Everyone can see your review. Help the community decide where to go.
+                    </SynthText>
+                </Pressable>
+                <Pressable
+                    style={[styles.privacyCard, !formData.isPublic && styles.privacyCardOn]}
+                    onPress={() => updateFormData({ isPublic: false })}
+                >
+                    <SynthText variant="body" style={styles.privacyCardTitle}>
+                        Private
+                    </SynthText>
+                    <SynthText variant="meta" color="secondary">
+                        Only you can see this review. You can always share it later.
+                    </SynthText>
+                </Pressable>
+            </View>
+            <SynthText variant="meta" color="secondary" style={[styles.center, styles.mt12]}>
+                By submitting, you agree to our terms of service and community guidelines.
+            </SynthText>
+        </View>
+    );
+
     const handleSubmit = useCallback(async () => {
         if (!userId) return;
         setLoading(true);
@@ -631,16 +697,37 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             return (
                 <View style={styles.section}>
                     <SynthText variant="meta" color="brand" style={styles.center}>
-                        GET STARTED
+                        Get Started
                     </SynthText>
                     <SynthText variant="h2" style={styles.center}>
                         How much time do you want to spend?
                     </SynthText>
+                    <SynthText variant="meta" color="secondary" style={[styles.center, styles.mb8]}>
+                        Choose the review style that works best for you.
+                    </SynthText>
                     {(
                         [
-                            { v: '1min' as const, minutes: '1', t: '1 minute', d: 'Quick — overall + brief text' },
-                            { v: '3min' as const, minutes: '3', t: '3 minutes', d: 'Artist + venue + story' },
-                            { v: '5min' as const, minutes: '5', t: '5 minutes', d: 'Full breakdown + categories' },
+                            {
+                                v: '1min' as const,
+                                minutes: '1',
+                                t: '1 Minute',
+                                sub: 'Quick Review',
+                                d: 'Overall rating + brief text',
+                            },
+                            {
+                                v: '3min' as const,
+                                minutes: '3',
+                                t: '3 Minutes',
+                                sub: 'Standard Review',
+                                d: 'Key ratings + text + photos',
+                            },
+                            {
+                                v: '5min' as const,
+                                minutes: '5',
+                                t: '5 Minutes',
+                                sub: 'Detailed Review',
+                                d: 'Full category breakdown + story',
+                            },
                         ] as const
                     ).map((opt) => {
                         const sel = formData.reviewDuration === opt.v;
@@ -664,6 +751,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                     </View>
                                     <View style={styles.durationTextCol}>
                                         <SynthText variant="accent">{opt.t}</SynthText>
+                                        <SynthText variant="meta" color="brand">
+                                            {opt.sub}
+                                        </SynthText>
                                         <SynthText variant="meta" color="secondary">
                                             {opt.d}
                                         </SynthText>
@@ -826,19 +916,8 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 }
                 if (currentStep === 4) {
                     return (
-                        <View style={styles.section}>
-                            <SynthText variant="h2">Submit</SynthText>
-                            <SynthText variant="body">
-                                {formData.selectedArtist?.name} · {formData.selectedVenue?.name}
-                            </SynthText>
-                            <SynthText variant="body">Overall {averageRatingForSummary.toFixed(1)} / 5</SynthText>
-                            <View style={styles.rowBetween}>
-                                <SynthText variant="body">Public review</SynthText>
-                                <Switch
-                                    value={formData.isPublic}
-                                    onValueChange={(v) => updateFormData({ isPublic: v })}
-                                />
-                            </View>
+                        <View>
+                            {renderPrivacySubmitSection()}
                             {errors.reviewText ? (
                                 <SynthText variant="meta" style={styles.err}>
                                     {errors.reviewText}
@@ -977,27 +1056,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 );
             }
             if (currentStep === 6) {
-                const avg =
-                    formData.artistPerformanceRating > 0 && formData.venueRating > 0
-                        ? (formData.artistPerformanceRating + formData.venueRating) / 2
-                        : formData.rating;
-                return (
-                    <View style={styles.section}>
-                        <SynthText variant="h2">Submit</SynthText>
-                        <SynthText variant="body">
-                            Avg rating: {Number(avg).toFixed(1)} / 5
-                        </SynthText>
-                        {categoryBreakdown.map((c) => (
-                            <SynthText key={c.label} variant="meta" color="secondary">
-                                {c.label}: {c.rating ? c.rating.toFixed(1) : '—'}
-                            </SynthText>
-                        ))}
-                        <View style={styles.rowBetween}>
-                            <SynthText variant="body">Public</SynthText>
-                            <Switch value={formData.isPublic} onValueChange={(v) => updateFormData({ isPublic: v })} />
-                        </View>
-                    </View>
-                );
+                return renderPrivacySubmitSection();
             }
         }
 
@@ -1145,21 +1204,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 );
             }
             if (currentStep === 9) {
-                return (
-                    <View style={styles.section}>
-                        <SynthText variant="h2">Submit</SynthText>
-                        <SynthText variant="body">Average {averageRatingForSummary.toFixed(1)} / 5</SynthText>
-                        {categoryBreakdown.map((c) => (
-                            <SynthText key={c.label} variant="meta" color="secondary">
-                                {c.label}: {c.rating ? c.rating.toFixed(1) : '—'}
-                            </SynthText>
-                        ))}
-                        <View style={styles.rowBetween}>
-                            <SynthText variant="body">Public</SynthText>
-                            <Switch value={formData.isPublic} onValueChange={(v) => updateFormData({ isPublic: v })} />
-                        </View>
-                    </View>
-                );
+                return renderPrivacySubmitSection();
             }
         }
 
@@ -1224,7 +1269,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             <ActivityIndicator color="#fff" />
                         ) : (
                             <SynthText variant="body" style={styles.primaryBtnText}>
-                                Submit review
+                                Submit Review
                             </SynthText>
                         )}
                     </Pressable>
@@ -1335,6 +1380,25 @@ const styles = StyleSheet.create({
         minWidth: 0,
     },
     err: { color: SynthTokens.colors.error },
+    privacySectionTitle: {
+        marginTop: 16,
+        fontSize: 16,
+        fontWeight: '600',
+        color: SynthTokens.colors.neutral900,
+    },
+    privacyGroup: { gap: 12, marginTop: 8 },
+    privacyCard: {
+        borderWidth: 2,
+        borderColor: SynthTokens.colors.neutral200,
+        borderRadius: 12,
+        padding: 14,
+        backgroundColor: SynthTokens.colors.neutral0,
+    },
+    privacyCardOn: {
+        borderColor: SynthTokens.colors.brandPink500,
+        backgroundColor: SynthTokens.colors.brandPink050,
+    },
+    privacyCardTitle: { fontWeight: '600', marginBottom: 4, color: SynthTokens.colors.neutral900 },
     rowBetween: {
         flexDirection: 'row',
         justifyContent: 'space-between',

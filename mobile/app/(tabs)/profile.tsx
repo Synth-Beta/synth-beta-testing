@@ -15,6 +15,7 @@ import {
   InterestedEventItem,
   MyEventsService,
   MyReviewListItem,
+  ProfileUnreviewedItem,
 } from '../../src/services/myEventsService';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
 import {
@@ -32,7 +33,7 @@ export default function ProfileScreen() {
   const [eventsMode, setEventsMode] = useState<EventsMode>('reviews');
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
-  const [unreviewed, setUnreviewed] = useState<InterestedEventItem[]>([]);
+  const [unreviewed, setUnreviewed] = useState<ProfileUnreviewedItem[]>([]);
   const [interested, setInterested] = useState<InterestedEventItem[]>([]);
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
@@ -40,6 +41,7 @@ export default function ProfileScreen() {
     name?: string;
     username?: string;
     avatar_url?: string;
+    instagram_handle?: string | null;
   } | null>(null);
   const [streaming, setStreaming] = useState<StreamingLinkStatus>({
     linked: false,
@@ -59,7 +61,7 @@ export default function ProfileScreen() {
 
     const { data: userData, error: userRowError } = await supabase
       .from('users')
-      .select('name, username, avatar_url')
+      .select('name, username, avatar_url, instagram_handle')
       .eq('user_id', authUser.id)
       .single();
 
@@ -74,7 +76,7 @@ export default function ProfileScreen() {
         HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
         MyEventsService.getInterestedEvents(authUser.id),
         MyEventsService.getMyReviews(authUser.id),
-        MyEventsService.getUnreviewedPastAttended(authUser.id),
+        MyEventsService.getProfileUnreviewedQueue(authUser.id),
         getStreamingLinkStatus(authUser.id),
       ]);
 
@@ -100,6 +102,27 @@ export default function ProfileScreen() {
 
   const handle = user?.username ? `@${user.username}` : '@username';
   const displayName = user?.name || 'Your Profile';
+
+  const openInstagram = useCallback(async () => {
+    const raw = user?.instagram_handle?.trim();
+    if (!raw) {
+      Alert.alert('Instagram', 'Add your Instagram handle in Edit Profile.');
+      return;
+    }
+    const handle = raw.replace(/^@+/, '');
+    if (!handle) return;
+    const url = `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+    try {
+      const can = await Linking.canOpenURL(url);
+      if (!can) {
+        Alert.alert('Unable to open Instagram', 'Please try again later.');
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Unable to open Instagram', 'Please try again later.');
+    }
+  }, [user?.instagram_handle]);
 
   const openStreaming = useCallback(async () => {
     if (streaming.linked && streaming.profileUrl) {
@@ -134,6 +157,16 @@ export default function ProfileScreen() {
     }
     return map;
   }, [reviews]);
+
+  const reviewComposeHref = (item: ProfileUnreviewedItem) =>
+    item.event_id ? `/review-compose?eventId=${item.event_id}` : '/review-compose';
+
+  const goToFriends = useCallback(() => router.push('/profile-friends'), [router]);
+  const goToFollowing = useCallback(() => router.push('/profile-following'), [router]);
+  const goToEventsStat = useCallback(() => {
+    setProfileTab('events');
+    setEventsMode('reviews');
+  }, []);
 
   const renderReviewRow = (item: MyReviewListItem) => (
     <Pressable
@@ -189,18 +222,18 @@ export default function ProfileScreen() {
                 {handle}
               </SynthText>
               <View style={styles.statsRow}>
-                <View style={styles.statCol}>
+                <Pressable style={styles.statCol} onPress={goToFriends} accessibilityRole="button">
                   <Text style={styles.statNum}>{stats?.friend_count ?? 0}</Text>
                   <Text style={styles.statLbl}>Friends</Text>
-                </View>
-                <View style={styles.statCol}>
+                </Pressable>
+                <Pressable style={styles.statCol} onPress={goToFollowing} accessibilityRole="button">
                   <Text style={styles.statNum}>{stats?.following_count ?? 0}</Text>
                   <Text style={styles.statLbl}>Following</Text>
-                </View>
-                <View style={styles.statCol}>
-                  <Text style={styles.statNum}>{stats?.concert_count ?? 0}</Text>
+                </Pressable>
+                <Pressable style={styles.statCol} onPress={goToEventsStat} accessibilityRole="button">
+                  <Text style={styles.statNum}>{stats?.reviewed_events_count ?? 0}</Text>
                   <Text style={styles.statLbl}>Events</Text>
-                </View>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -216,8 +249,20 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.socialRow}>
-            <Pressable style={styles.socialIcon}>
-              <Instagram size={20} color={SynthTokens.colors.neutral900} />
+            <Pressable
+              style={styles.socialIcon}
+              onPress={() => void openInstagram()}
+              accessibilityRole="button"
+              accessibilityLabel="Open Instagram"
+            >
+              <Instagram
+                size={20}
+                color={
+                  user?.instagram_handle?.trim()
+                    ? SynthTokens.colors.neutral900
+                    : SynthTokens.colors.neutral400
+                }
+              />
             </Pressable>
             <Pressable style={styles.socialIcon} onPress={() => void openStreaming()}>
               {streaming.provider === 'spotify' ? (
@@ -298,35 +343,40 @@ export default function ProfileScreen() {
                   No unreviewed past shows. You are all caught up.
                 </SynthText>
               ) : (
-                unreviewed.slice(0, 20).map(ev => (
-                  <View key={ev.event_id} style={styles.unrevRow}>
+                unreviewed.slice(0, 20).map(item => (
+                  <View key={`${item.kind}-${item.reviewId}`} style={styles.unrevRow}>
                     <Pressable
                       style={styles.unrevMain}
-                      onPress={() => router.push(`/event/${ev.event_id}`)}
+                      onPress={() =>
+                        item.event_id
+                          ? router.push(`/event/${item.event_id}`)
+                          : router.push(reviewComposeHref(item))
+                      }
                     >
                       <Image
                         source={
-                          ev.image_url
-                            ? { uri: ev.image_url }
+                          item.image_url
+                            ? { uri: item.image_url }
                             : require('../../assets/placeholder-event.png')
                         }
                         style={styles.reviewThumb}
                       />
                       <View style={{ flex: 1 }}>
                         <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
-                          {ev.artist_name || ev.title}
+                          {item.artist_name || item.title}
                         </SynthText>
                         <SynthText variant="meta" color="secondary" numberOfLines={1}>
-                          {ev.venue_name}
+                          {item.kind === 'draft' ? 'Draft · ' : ''}
+                          {item.venue_name || (item.kind === 'draft' ? 'Finish your review' : '')}
                         </SynthText>
                       </View>
                     </Pressable>
                     <Pressable
                       style={styles.reviewMiniCta}
-                      onPress={() => router.push(`/review-compose?eventId=${ev.event_id}`)}
+                      onPress={() => router.push(reviewComposeHref(item))}
                     >
                       <SynthText variant="meta" style={styles.reviewMiniCtaTxt}>
-                        Review
+                        {item.kind === 'draft' ? 'Continue' : 'Review'}
                       </SynthText>
                     </Pressable>
                   </View>
