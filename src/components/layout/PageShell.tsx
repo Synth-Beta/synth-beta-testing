@@ -50,8 +50,11 @@ const PageShell: React.FC<PageShellProps> = ({
   contentHorizontalPadding = true,
   contentStyle,
 }) => {
+  // When a header is present it is sticky/in-flow and already occupies
+  // (safe-area-inset-top + 68px).  Content only needs the 12 px gap.
+  // When there is no header the safe area must be applied here instead.
   const defaultTopPadding = header
-    ? 'calc(env(safe-area-inset-top, 0px) + 68px + var(--spacing-small, 12px))'
+    ? 'var(--spacing-small, 12px)'
     : 'calc(env(safe-area-inset-top, 0px) + var(--spacing-small, 12px))';
   const topPadding = contentPaddingTop ?? defaultTopPadding;
   const bottomPadding = includeBottomNavPadding

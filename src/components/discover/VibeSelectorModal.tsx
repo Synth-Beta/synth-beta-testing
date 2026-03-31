@@ -137,6 +137,10 @@ export const VibeSelectorModal: React.FC<VibeSelectorModalProps> = ({
   };
 
   const handlePointerDown: React.PointerEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as Element;
+    if (target.closest('button, a, input, select, textarea, [role="button"]')) {
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     setIsDragging(true);
     startYRef.current = event.clientY;
@@ -263,16 +267,11 @@ export const VibeSelectorModal: React.FC<VibeSelectorModalProps> = ({
             transform: `translateY(${dragY}px)`,
             transition: isDragging ? 'none' : 'transform 180ms ease-out',
           }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
         >
-          <div
-            className="flex justify-center mt-4 px-4"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerEnd}
-            onPointerCancel={handlePointerEnd}
-          >
-            <div className="h-1.5 w-20 rounded-full bg-neutral-600"></div>
-          </div>
           <SheetHeader>
             <SheetTitle>Browse by Vibe</SheetTitle>
             <SheetDescription>

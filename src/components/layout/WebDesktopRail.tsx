@@ -53,7 +53,7 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
                 key={item.id}
                 type="button"
                 onClick={() => onItemClick(item)}
-                className="mx-1 flex items-center justify-center gap-2 rounded-full py-3 font-semibold shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                className="mx-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 font-semibold shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
                 style={{
                   backgroundColor: 'var(--brand-pink-500, #FF3399)',
                   color: 'var(--neutral-50)',
@@ -61,8 +61,13 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
                 }}
                 aria-label={item.label}
               >
-                <Icon name={item.icon as any} size={22} alt="" ariaHidden />
-                <span className="text-[15px]">{item.label}</span>
+                <Icon name={item.icon as any} size={22} color="var(--neutral-50)" alt="" ariaHidden />
+                <span
+                  className="text-[15px]"
+                  style={{ color: 'var(--neutral-50)', fontFamily: 'var(--font-family)' }}
+                >
+                  {item.label}
+                </span>
               </button>
             );
           }

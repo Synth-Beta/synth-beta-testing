@@ -10,6 +10,8 @@ import { JamBaseAttribution } from '@/components/attribution';
 import {
   iosModal,
   iosModalBackdrop,
+  iosHeader,
+  iosIconButton,
   glassCard,
   glassCardLight,
   textStyles,
@@ -351,7 +353,12 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
         aria-label={`Venue details: ${venueName}`}
         style={{
           position: 'fixed',
-          inset: 0,
+          left: 0,
+          right: 0,
+          top: useInternalHeader
+            ? 'var(--onboarding-banner-height, 0px)'
+            : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
@@ -362,104 +369,83 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
         {useInternalHeader && (
           <div
             style={{
+              ...iosHeader,
               position: 'sticky',
               top: 0,
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
               zIndex: 7000,
-              backgroundColor: 'var(--neutral-50)',
-              boxShadow: '0 4px 4px 0 var(--shadow-color)',
-              paddingTop: 'var(--mobile-header-padding-top, env(safe-area-inset-top, 0px))',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            <div
+            <button
+              onClick={onClose}
+              type="button"
+              aria-label="Back"
               style={{
-                height: 68,
-                display: 'flex',
-                alignItems: 'center',
-                paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-                paddingRight: 'var(--spacing-screen-margin-x, 20px)',
-                paddingTop: 12,
-                paddingBottom: 12,
-                boxSizing: 'border-box',
+                ...iosIconButton,
+                width: 44,
+                height: 44,
+                minWidth: 44,
+                minHeight: 44,
+                flex: '0 0 auto',
               }}
             >
+              <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+            </button>
+
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                marginLeft: 6,
+                marginRight: 6,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              {(() => {
+                const TitleTag = venueTitleVariant === 'h1' ? 'h1' : 'h2';
+                const titleTypography =
+                  venueTitleVariant === 'h1' ? textStyles.largeTitle : textStyles.title2;
+                const titleStyles: React.CSSProperties = {
+                  ...titleTypography,
+                  color: 'var(--neutral-900)',
+                  margin: 0,
+                  textAlign: 'left',
+                  lineHeight: 1.2,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: venueTitleWrap ? '-webkit-box' : 'block',
+                  whiteSpace: venueTitleWrap ? 'normal' : 'nowrap',
+                  WebkitLineClamp: venueTitleWrap ? 2 : 1,
+                  WebkitBoxOrient: venueTitleWrap ? 'vertical' : undefined,
+                };
+
+                return (
+                  <TitleTag ref={venueTitleRef} style={titleStyles}>
+                    {venueName}
+                  </TitleTag>
+                );
+              })()}
+            </div>
+
+            <div style={{ flex: '0 0 auto' }}>
               <button
-                onClick={onClose}
+                onClick={() => setShareModalOpen(true)}
                 type="button"
-                aria-label="Back"
+                aria-label="Share"
                 style={{
+                  ...iosIconButton,
                   width: 44,
                   height: 44,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  margin: 0,
-                  cursor: 'pointer',
-                  flex: '0 0 auto',
+                  minWidth: 44,
+                  minHeight: 44,
                 }}
               >
-                <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+                <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
               </button>
-
-              <div
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  marginLeft: 6,
-                  marginRight: 6,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                {(() => {
-                  const TitleTag = venueTitleVariant === 'h1' ? 'h1' : 'h2';
-                  const titleTypography =
-                    venueTitleVariant === 'h1' ? textStyles.largeTitle : textStyles.title2;
-                  const titleStyles: React.CSSProperties = {
-                    ...titleTypography,
-                    color: 'var(--neutral-900)',
-                    margin: 0,
-                    textAlign: 'left',
-                    lineHeight: 1.2,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    display: venueTitleWrap ? '-webkit-box' : 'block',
-                    whiteSpace: venueTitleWrap ? 'normal' : 'nowrap',
-                    WebkitLineClamp: venueTitleWrap ? 2 : 1,
-                    WebkitBoxOrient: venueTitleWrap ? 'vertical' : undefined,
-                  };
-
-                  return (
-                    <TitleTag ref={venueTitleRef} style={titleStyles}>
-                      {venueName}
-                    </TitleTag>
-                  );
-                })()}
-              </div>
-
-              <div style={{ flex: '0 0 auto' }}>
-                <button
-                  onClick={() => setShareModalOpen(true)}
-                  type="button"
-                  aria-label="Share"
-                  style={{
-                    width: 44,
-                    height: 44,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    margin: 0,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -470,7 +456,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
             paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
             paddingRight: 'var(--spacing-screen-margin-x, 20px)',
             paddingTop: 'var(--spacing-small, 12px)',
-            paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))',
+            paddingBottom: 'var(--spacing-bottom-nav, 32px)',
           }}
         >
         {loading ? (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
@@ -40,22 +40,11 @@ interface SettingsModalProps {
   onSignOut: () => void;
   userEmail?: string;
   initialView?: SettingsModalView;
-  /** Full-screen route (no dialog); use with MainApp `currentView === 'settings'`. */
-  variant?: 'modal' | 'page';
 }
 
-export const SettingsModal = ({
-  isOpen,
-  onClose,
-  onSignOut,
-  userEmail,
-  initialView,
-  variant = 'modal',
-}: SettingsModalProps) => {
-  const effectiveOpen = variant === 'page' || isOpen;
-  useViewTracking('view', 'settings', { source: variant === 'page' ? 'settings_page' : 'settings' }, undefined, {
-    enabled: effectiveOpen,
-  });
+export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialView }: SettingsModalProps) => {
+  // Track settings view when modal opens
+  useViewTracking('view', 'settings', { source: 'settings' }, undefined, { enabled: isOpen });
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [view, setView] = useState<SettingsModalView>('menu');
@@ -80,12 +69,12 @@ export const SettingsModal = ({
   const { user } = useAuth();
 
   useEffect(() => {
-    if (effectiveOpen) {
+    if (isOpen) {
       setView(initialView ?? 'menu');
-    } else if (variant !== 'page') {
+    } else {
       setView('menu');
     }
-  }, [initialView, effectiveOpen, variant]);
+  }, [initialView, isOpen]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -276,7 +265,7 @@ export const SettingsModal = ({
   };
 
   useEffect(() => {
-    if (effectiveOpen && user?.id) {
+    if (isOpen && user?.id) {
       UserVisibilityService.getUserVisibilitySettings(user.id).then(settings => {
         if (settings) {
           setIsPublicProfile(settings.is_public_profile);
@@ -308,7 +297,7 @@ export const SettingsModal = ({
           }
         });
     }
-  }, [effectiveOpen, user?.id]);
+  }, [isOpen, user?.id]);
 
   // Derive initial for avatar fallback
   const nameInitial = (userDisplayName || userEmail || 'U')[0].toUpperCase();
@@ -321,60 +310,29 @@ export const SettingsModal = ({
     view === 'parental-controls' ? 'Parental Controls' :
     view === 'delete-account' ? 'Delete Account' : 'Settings';
 
-  const settingsTitle = view === 'menu' ? 'Settings' : subViewTitle;
-  const showSettingsBack = variant === 'page' || view !== 'menu';
-
-  const settingsHeaderBar =
-    variant === 'page' ? (
-      <div
-        className="flex flex-shrink-0 items-center gap-1 border-b border-gray-200 bg-[var(--neutral-50)] px-2 py-2"
-        style={{
-          paddingTop: 'max(8px, env(safe-area-inset-top, 0px))',
-        }}
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent
+        className="max-w-md w-[95vw] max-h-[90vh] p-0 overflow-hidden"
+        style={{ display: 'flex', flexDirection: 'column', borderRadius: 20 }}
       >
-        {showSettingsBack ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (view !== 'menu') handleBack();
-              else handleClose();
-            }}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg hover:bg-black/5"
-            aria-label={view !== 'menu' ? 'Back' : 'Close settings'}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-        ) : (
-          <div className="h-10 w-10 flex-shrink-0" aria-hidden />
-        )}
-        <h2 className="min-w-0 flex-1 truncate text-center text-base font-semibold leading-tight">{settingsTitle}</h2>
-        <div className="h-10 w-10 flex-shrink-0" aria-hidden />
-      </div>
-    ) : (
-      <div className="flex flex-shrink-0 items-center gap-1 border-b border-gray-100 px-3 pb-3 pt-4">
-        {showSettingsBack ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (view !== 'menu') handleBack();
-              else handleClose();
-            }}
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg hover:bg-black/5"
-            aria-label={view !== 'menu' ? 'Back' : 'Close settings'}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-        ) : (
-          <div className="h-10 w-10 flex-shrink-0" aria-hidden />
-        )}
-        <DialogTitle className="m-0 min-w-0 flex-1 truncate text-center text-base font-semibold leading-tight">
-          {settingsTitle}
-        </DialogTitle>
-        <div className="h-10 w-10 flex-shrink-0" aria-hidden />
-      </div>
-    );
+        {/* ─── Header bar ────────────────────────────────────────────────── */}
+        <DialogHeader className="px-5 pb-4 flex-shrink-0 border-b border-gray-100" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}>
+          <DialogTitle className="flex items-center gap-2 type-meta font-semibold">
+            {view !== 'menu' && (
+              <button
+                onClick={handleBack}
+                className="flex items-center gap-1 text-synth-pink font-medium text-sm mr-1 -ml-1 hover:opacity-70 transition-opacity"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+            )}
+            {view === 'menu' ? 'Settings' : subViewTitle}
+          </DialogTitle>
+        </DialogHeader>
 
-  const settingsScrollBody = (
+        {/* ─── Scrollable body ────────────────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
 
           {/* ══════════════════════════════════════════════════════════════
@@ -684,25 +642,6 @@ export const SettingsModal = ({
           )}
 
         </div>
-  );
-
-  if (variant === 'page') {
-    return (
-      <div
-        className="flex min-h-screen w-full flex-col bg-[var(--neutral-50)]"
-        style={{ paddingBottom: 'var(--spacing-bottom-nav, 0px)' }}
-      >
-        {settingsHeaderBar}
-        {settingsScrollBody}
-      </div>
-    );
-  }
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-md flex-col overflow-hidden rounded-[20px] p-0">
-        {settingsHeaderBar}
-        {settingsScrollBody}
       </DialogContent>
     </Dialog>
   );
