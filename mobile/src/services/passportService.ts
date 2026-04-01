@@ -8,6 +8,7 @@ import {
   type ProfileStatsSummary,
 } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
+import { todayLocalYmd } from '../utils/localYmd';
 
 export type ProfileStats = ProfileStatsSummary;
 /** Review-based concert timeline rows (not passport stamp entries). */
@@ -92,7 +93,7 @@ export class PassportService {
       const { data: upcomingEvents } = await supabase
         .from('events')
         .select('artist_id, artists!inner(name)')
-        .gte('event_date', new Date().toISOString())
+        .gte('event_date', todayLocalYmd())
         .not('artist_id', 'is', null)
         .limit(10);
 

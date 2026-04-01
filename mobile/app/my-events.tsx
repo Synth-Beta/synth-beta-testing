@@ -112,7 +112,9 @@ export default function MyEventsScreen() {
       <Pressable
         style={styles.cardMain}
         onPress={() =>
-          item.event_id ? router.push(`/event/${item.event_id}`) : router.push(reviewComposeHref(item))
+          item.event_id
+            ? router.push((`/event/${item.event_id}` as any))
+            : router.push((reviewComposeHref(item) as any))
         }
       >
         <Image
@@ -129,7 +131,7 @@ export default function MyEventsScreen() {
           </SynthText>
         </View>
       </Pressable>
-      <Pressable style={styles.miniCta} onPress={() => router.push(reviewComposeHref(item))}>
+      <Pressable style={styles.miniCta} onPress={() => router.push((reviewComposeHref(item) as any))}>
         <SynthText variant="meta" style={styles.miniCtaText}>
           {item.kind === 'draft' ? 'Continue' : 'Review'}
         </SynthText>

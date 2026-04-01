@@ -1,5 +1,6 @@
 import { getSimilarUsersToFriend, rankFriendSuggestionsForRail } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
+import { todayLocalYmd } from '../utils/localYmd';
 
 /** Single event row from personalized feed RPC (unified recommended / social / trending ordering). */
 export interface UnifiedPersonalizedEvent {
@@ -130,7 +131,12 @@ export class HomeFeedService {
             const rows = (data ?? []) as Array<any>;
             const mapped: UnifiedPersonalizedEvent[] = rows.map((row: any) => {
                 const payload = row.payload || {};
-                const eventId = payload.id ?? row.id;
+                // Prefer canonical UUID when available (web expects UUID for event navigation).
+                const eventId =
+                    payload.event_id ??
+                    payload.event_uuid ??
+                    payload.id ??
+                    row.id;
                 const imgs = payload.images;
                 const image_url =
                     (Array.isArray(imgs) && imgs[0]?.url ? imgs[0]?.url : null) ??
@@ -179,11 +185,12 @@ export class HomeFeedService {
     }
 
     private static async getFallbackUpcomingEvents(limit: number): Promise<UnifiedPersonalizedEvent[]> {
-        const nowIso = new Date().toISOString();
+        // Match other mobile filters: local calendar day, not UTC from toISOString().
+        const today = todayLocalYmd();
         const { data, error } = await supabase
             .from('events')
             .select('id, title, artist_name, venue_name, venue_city, event_date, images')
-            .gte('event_date', nowIso)
+            .gte('event_date', today)
             .order('event_date', { ascending: true })
             .limit(limit);
 
@@ -398,7 +405,7 @@ export class HomeFeedService {
                 .from('events')
                 .select('*, user_event_relationships(count)')
                 .order('event_date', { ascending: true })
-                .gte('event_date', new Date().toISOString())
+                .gte('event_date', todayLocalYmd())
                 .limit(10);
 
             if (error) throw error;

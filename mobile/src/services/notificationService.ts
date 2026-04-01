@@ -131,6 +131,20 @@ export class NotificationService {
         }
     }
 
+    static async markAllAsRead(userId: string): Promise<boolean> {
+        try {
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('user_id', userId)
+                .eq('is_read', false);
+            return !error;
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+            return false;
+        }
+    }
+
     static async deleteFriendRequestNotification(userId: string, requestId: string): Promise<void> {
         const { ok, error } = await deleteFriendRequestNotificationsByRequestId(
             supabase,

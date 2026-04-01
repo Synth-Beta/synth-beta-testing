@@ -10,6 +10,7 @@ import { ChatService } from '../../src/services/chatService';
 import { Image as ExpoImage } from 'expo-image';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
+import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
 import type { MyReviewListItem } from '../../src/services/myEventsService';
 import { PassportService, type ProfileTimelineItem } from '../../src/services/passportService';
 
@@ -201,9 +202,7 @@ export default function PublicUserProfileScreen() {
           )}
         </View>
         {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={SynthTokens.colors.brandPink500} />
-          </View>
+          <ProfileScreenSkeleton />
         ) : !profile ? (
           <View style={styles.centered}>
             <SynthText variant="body" color="secondary">

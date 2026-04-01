@@ -1,5 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
-import { toLocalYmd } from '../utils/localYmd';
+import { toLocalYmd, todayLocalYmd } from '../utils/localYmd';
 
 export interface SearchResult {
     id: string;
@@ -36,13 +36,13 @@ export class SearchService {
     static async searchEvents(keyword: string): Promise<SearchResult[]> {
         try {
             if (!keyword) return [];
-            const nowIso = new Date().toISOString();
+            const today = todayLocalYmd();
 
             const { data, error } = await supabase
                 .from('events')
                 .select('*')
                 .or(`artist_name.ilike.%${keyword}%,title.ilike.%${keyword}%,venue_name.ilike.%${keyword}%`)
-                .gte('event_date', nowIso)
+                .gte('event_date', today)
                 .order('event_date', { ascending: true })
                 .limit(20);
 

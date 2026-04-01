@@ -27,6 +27,8 @@ import {
 } from '../services/searchService';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SearchResultsSkeleton } from './skeletons/SearchResultsSkeleton';
+import { EventService } from '../services/eventService';
 
 type Row =
     | { kind: 'event'; data: SearchResult }
@@ -100,7 +102,9 @@ export default function SearchScreen() {
                     style={styles.entityRow}
                     onPress={() => {
                         Keyboard.dismiss();
-                        router.push(`/event/${e.id}`);
+                        void EventService.toEventRouteId(e.id).then((rid) => {
+                            router.push(`/event/${rid}` as any);
+                        });
                     }}
                 >
                     <View style={[styles.entityAvatar, styles.entityFallback]}>
@@ -284,7 +288,9 @@ export default function SearchScreen() {
                 contentContainerStyle={styles.listContent}
                 onScrollBeginDrag={Keyboard.dismiss}
                 ListEmptyComponent={
-                    emptyText ? (
+                    loading && keyword.trim().length >= 2 ? (
+                        <SearchResultsSkeleton />
+                    ) : emptyText ? (
                         <View style={styles.empty}>
                             <SynthText variant="body" color="secondary">
                                 {emptyText}

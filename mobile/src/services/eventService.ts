@@ -13,6 +13,8 @@ export interface EventDetail {
     venue_city?: string;
     venue_address?: string;
     ticket_url?: string;
+    latitude?: number | null;
+    longitude?: number | null;
 }
 
 export interface FriendAttending {
@@ -40,10 +42,22 @@ export class EventService {
                 .eq('external_id', id)
                 .maybeSingle();
             if (error || !data?.entity_uuid) return null;
+            if (__DEV__) {
+                console.debug('[EventService] resolved event id', { raw: id, canonical: data.entity_uuid });
+            }
             return data.entity_uuid as string;
         } catch {
             return null;
         }
+    }
+
+    /**
+     * Route-safe event id: canonical UUID when resolvable, else original.
+     * Use this before navigating to `/event/[id]` to avoid “Event not found”.
+     */
+    static async toEventRouteId(raw: string): Promise<string> {
+        const canonical = await this.resolveCanonicalEventId(raw);
+        return canonical ?? raw;
     }
 
     /**
@@ -52,19 +66,33 @@ export class EventService {
     static async getEventById(eventId: string): Promise<EventDetail | null> {
         try {
             const canonical = await this.resolveCanonicalEventId(eventId);
-            if (!canonical) return null;
+            if (!canonical) {
+                if (__DEV__) {
+                    console.debug('[EventService] getEventById: unable to resolve canonical id', { raw: eventId });
+                }
+                return null;
+            }
 
             const { data, error } = await supabase
                 .from('events')
                 .select(`
           *,
           artists(name, images),
-          venues(name, city, address)
+          venues(name, city, address, latitude, longitude)
         `)
                 .eq('id', canonical)
                 .maybeSingle();
 
-            if (error || !data) return null;
+            if (error || !data) {
+                if (__DEV__) {
+                    console.debug('[EventService] getEventById: not found', {
+                        raw: eventId,
+                        canonical,
+                        error: error?.message,
+                    });
+                }
+                return null;
+            }
 
             return {
                 id: data.id,
@@ -79,6 +107,18 @@ export class EventService {
                 venue_city: data.venues?.city || data.venue_city,
                 venue_address: data.venues?.address || data.venue_address,
                 ticket_url: data.ticket_urls?.[0],
+                latitude:
+                    typeof data.latitude === 'number'
+                        ? data.latitude
+                        : typeof data.venues?.latitude === 'number'
+                          ? data.venues.latitude
+                          : null,
+                longitude:
+                    typeof data.longitude === 'number'
+                        ? data.longitude
+                        : typeof data.venues?.longitude === 'number'
+                          ? data.venues.longitude
+                          : null,
             };
         } catch (error) {
             console.error('Error fetching event detail:', error);

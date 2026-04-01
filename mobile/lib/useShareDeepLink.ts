@@ -21,14 +21,14 @@ export function useShareDeepLink(enabled: boolean) {
     const navigateForParsed = (pending: NonNullable<ReturnType<typeof parseShareUrl>>) => {
       switch (pending.type) {
         case 'event':
-          router.push(`/event/${pending.id}`);
+          router.push(`/event/${pending.id}` as any);
           break;
         case 'review':
-          router.push(`/event/${pending.id}`);
+          router.push(`/event/${pending.id}` as any);
           break;
         case 'artist':
         case 'venue':
-          router.push(expoPathForShareTarget(pending.type, pending.id));
+          router.push(expoPathForShareTarget(pending.type, pending.id) as any);
           break;
         default:
           assertNever(pending.type);

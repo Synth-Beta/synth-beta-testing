@@ -11,6 +11,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
+import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
 import {
   InterestedEventItem,
   MyEventsService,
@@ -31,6 +32,7 @@ type EventsMode = 'reviews' | 'rankings' | 'unreviewed';
 export default function ProfileScreen() {
   const [profileTab, setProfileTab] = useState<ProfileTab>('passport');
   const [eventsMode, setEventsMode] = useState<EventsMode>('reviews');
+  const [loading, setLoading] = useState(true);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
   const [unreviewed, setUnreviewed] = useState<ProfileUnreviewedItem[]>([]);
@@ -53,10 +55,14 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const loadProfile = useCallback(async () => {
+    setLoading(true);
     const {
       data: { user: authUser },
     } = await supabase.auth.getUser();
-    if (!authUser) return;
+    if (!authUser) {
+      setLoading(false);
+      return;
+    }
     setAuthUserId(authUser.id);
 
     const { data: userData, error: userRowError } = await supabase
@@ -88,6 +94,7 @@ export default function ProfileScreen() {
     setReviews(reviewRows);
     setUnreviewed(unrevRows);
     setStreaming(streamingStatus);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -190,6 +197,8 @@ export default function ProfileScreen() {
       </View>
     </Pressable>
   );
+
+  if (loading) return <ProfileScreenSkeleton />;
 
   return (
     <View style={styles.container}>
@@ -349,8 +358,8 @@ export default function ProfileScreen() {
                       style={styles.unrevMain}
                       onPress={() =>
                         item.event_id
-                          ? router.push(`/event/${item.event_id}`)
-                          : router.push(reviewComposeHref(item))
+                          ? router.push((`/event/${item.event_id}` as any))
+                          : router.push((reviewComposeHref(item) as any))
                       }
                     >
                       <Image
@@ -373,7 +382,7 @@ export default function ProfileScreen() {
                     </Pressable>
                     <Pressable
                       style={styles.reviewMiniCta}
-                      onPress={() => router.push(reviewComposeHref(item))}
+                      onPress={() => router.push((reviewComposeHref(item) as any))}
                     >
                       <SynthText variant="meta" style={styles.reviewMiniCtaTxt}>
                         {item.kind === 'draft' ? 'Continue' : 'Review'}

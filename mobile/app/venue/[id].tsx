@@ -14,6 +14,10 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 import { EventCard } from '../../src/components/Feed/EventCard';
+import { EventService } from '../../src/services/eventService';
+import { isUuid } from '../../src/utils/isUuid';
+import { SynthMap } from '../../src/components/maps/SynthMap';
+import { todayLocalYmd } from '../../src/utils/localYmd';
 
 export default function VenueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,6 +26,8 @@ export default function VenueDetailScreen() {
   const [name, setName] = useState('');
   const [city, setCity] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [venueId, setVenueId] = useState<string | null>(null);
+  const [latLng, setLatLng] = useState<{ latitude: number; longitude: number } | null>(null);
   const [events, setEvents] = useState<
     Array<{
       id: string;
@@ -38,11 +44,27 @@ export default function VenueDetailScreen() {
     if (!id) return;
     setLoading(true);
     try {
-      const { data: venue } = await supabase
-        .from('venues')
-        .select('name, city, image_url')
-        .eq('id', id)
-        .maybeSingle();
+      const raw = String(id);
+      let resolvedId: string | null = null;
+      let venue: any = null;
+
+      if (isUuid(raw)) {
+        resolvedId = raw;
+        const { data } = await supabase
+          .from('venues')
+          .select('id, name, city, image_url, latitude, longitude')
+          .eq('id', raw)
+          .maybeSingle();
+        venue = data;
+      } else {
+        const { data } = await supabase
+          .from('venues')
+          .select('id, name, city, image_url, latitude, longitude')
+          .ilike('name', raw)
+          .maybeSingle();
+        venue = data;
+        resolvedId = data?.id ?? null;
+      }
       const venueName =
         venue != null
           ? ((venue as { name?: string }).name?.trim() || 'Venue')
@@ -51,16 +73,22 @@ export default function VenueDetailScreen() {
         setName(venueName);
         setCity((venue as { city?: string }).city || null);
         setImageUrl((venue as { image_url?: string }).image_url || null);
+        setVenueId(resolvedId);
+        const lat = (venue as any).latitude;
+        const lng = (venue as any).longitude;
+        setLatLng(typeof lat === 'number' && typeof lng === 'number' ? { latitude: lat, longitude: lng } : null);
       } else {
         setName('Venue');
         setCity(null);
         setImageUrl(null);
+        setVenueId(null);
+        setLatLng(null);
       }
       const { data: evs } = await supabase
         .from('events')
         .select('id, title, artist_name, venue_name, event_date, images')
-        .eq('venue_id', id)
-        .gte('event_date', new Date().toISOString().split('T')[0])
+        .eq('venue_id', resolvedId ?? raw)
+        .gte('event_date', todayLocalYmd())
         .order('event_date', { ascending: true })
         .limit(25);
       const mapped =
@@ -111,6 +139,14 @@ export default function VenueDetailScreen() {
             {imageUrl ? (
               <Image source={{ uri: imageUrl }} style={styles.hero} resizeMode="cover" />
             ) : null}
+            {latLng ? (
+              <SynthMap
+                latitude={latLng.latitude}
+                longitude={latLng.longitude}
+                title={name || 'Venue'}
+                subtitle={city || undefined}
+              />
+            ) : null}
             <SynthText variant="meta" color="secondary" style={styles.sub}>
               Upcoming shows
             </SynthText>
@@ -128,7 +164,11 @@ export default function VenueDetailScreen() {
                   venue_name={e.venue_name}
                   event_date={e.event_date}
                   image_url={e.image_url}
-                  onPress={() => router.push(`/event/${e.id}`)}
+                  onPress={() => {
+                    void EventService.toEventRouteId(e.id).then(rid => {
+                      router.push(`/event/${rid}` as any);
+                    });
+                  }}
                 />
               ))
             )}

@@ -16,7 +16,8 @@ import { NotificationService, Notification } from '../../services/notificationSe
 import { supabase } from '../../integrations/supabase/client';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronLeft, UserPlus, Heart, MessageSquare, Menu, Music2, MapPin } from 'lucide-react-native';
+import { Bell, ChevronLeft, UserPlus, Heart, MessageSquare, Menu, Music2, MapPin, CheckCheck } from 'lucide-react-native';
+import { NotificationsSkeleton } from '../skeletons/NotificationsSkeleton';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -49,6 +50,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyNotificationId, setBusyNotificationId] = useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -63,14 +65,19 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
     } = await supabase.auth.getUser();
     if (!user) {
       setNotifications([]);
+      setUnreadCount(0);
       setLoading(false);
       setRefreshing(false);
       return;
     }
 
-    const data = await NotificationService.getNotifications(user.id);
+    const [data, unread] = await Promise.all([
+      NotificationService.getNotifications(user.id),
+      NotificationService.getUnreadCount(user.id),
+    ]);
     const pruned = await NotificationService.pruneStaleFriendRequestNotifications(user.id, data);
     setNotifications(pruned);
+    setUnreadCount(unread);
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -81,6 +88,25 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
 
   const onUserRefresh = useCallback(() => {
     void loadNotifications(true);
+  }, [loadNotifications]);
+
+  const handleMarkAllAsRead = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setBusyNotificationId('ALL');
+    try {
+      const ok = await NotificationService.markAllAsRead(user.id);
+      if (!ok) {
+        Alert.alert('Could not update', 'Please try again.');
+        return;
+      }
+      await loadNotifications(false);
+    } finally {
+      setBusyNotificationId(null);
+    }
   }, [loadNotifications]);
 
   const listData = friendsOnly
@@ -226,7 +252,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
               if (reviewId) dest = { path: `/review/${String(reviewId)}` };
             }
             if (dest?.path) {
-              router.push(dest.path);
+              router.push(dest.path as any);
             }
           }}
           style={styles.rowMain}
@@ -280,10 +306,35 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
         <Pressable onPress={() => router.back()} style={styles.headerBtn} accessibilityLabel="Back">
           <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
         </Pressable>
-        <Text style={styles.headerTitle}>{title}</Text>
-        <Pressable style={styles.headerBtn} onPress={() => router.push('/app-menu')}>
-          <Menu size={24} color={SynthTokens.colors.neutral900} />
-        </Pressable>
+        <View style={styles.headerTitleWrap}>
+          <Text style={styles.headerTitle}>{title}</Text>
+          {!friendsOnly && unreadCount > 0 ? (
+            <View style={styles.unreadPill} accessibilityLabel={`${unreadCount} unread notifications`}>
+              <Text style={styles.unreadPillText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>
+            </View>
+          ) : null}
+        </View>
+        {!friendsOnly && unreadCount > 0 ? (
+          <Pressable
+            style={styles.headerAction}
+            onPress={() => void handleMarkAllAsRead()}
+            accessibilityLabel="Mark all notifications as read"
+            disabled={busyNotificationId === 'ALL'}
+          >
+            {busyNotificationId === 'ALL' ? (
+              <ActivityIndicator color={PINK} size="small" />
+            ) : (
+              <>
+                <CheckCheck size={18} color={PINK} />
+                <Text style={styles.headerActionText}>Mark all</Text>
+              </>
+            )}
+          </Pressable>
+        ) : (
+          <Pressable style={styles.headerBtn} onPress={() => router.push('/app-menu' as any)}>
+            <Menu size={24} color={SynthTokens.colors.neutral900} />
+          </Pressable>
+        )}
       </View>
 
       <FlatList
@@ -296,9 +347,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
         }
         ListEmptyComponent={
           loading ? (
-            <View style={styles.empty}>
-              <ActivityIndicator color={PINK} size="large" />
-            </View>
+            <NotificationsSkeleton />
           ) : (
             <View style={styles.empty}>
               <SynthText variant="body" color="secondary">
@@ -327,6 +376,11 @@ const styles = StyleSheet.create({
     borderBottomColor: SynthTokens.colors.neutral200,
     backgroundColor: SynthTokens.colors.neutral0,
   },
+  headerTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   headerBtn: {
     width: 44,
     height: 44,
@@ -337,6 +391,37 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: SynthTokens.colors.neutral900,
+  },
+  unreadPill: {
+    backgroundColor: SynthTokens.colors.error,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 24,
+  },
+  unreadPillText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  headerAction: {
+    height: 44,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(204, 36, 134, 0.25)',
+    backgroundColor: 'rgba(253, 242, 248, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  headerActionText: {
+    color: PINK,
+    fontWeight: '700',
+    fontSize: 12,
   },
   listContent: {
     paddingBottom: 32,

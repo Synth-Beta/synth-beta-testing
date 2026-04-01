@@ -14,6 +14,10 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 import { EventCard } from '../../src/components/Feed/EventCard';
+import { ArtistScreenSkeleton } from '../../src/components/skeletons/ArtistScreenSkeleton';
+import { EventService } from '../../src/services/eventService';
+import { isUuid } from '../../src/utils/isUuid';
+import { todayLocalYmd } from '../../src/utils/localYmd';
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,6 +25,7 @@ export default function ArtistDetailScreen() {
   const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [artistId, setArtistId] = useState<string | null>(null);
   const [events, setEvents] = useState<
     Array<{
       id: string;
@@ -37,11 +42,27 @@ export default function ArtistDetailScreen() {
     if (!id) return;
     setLoading(true);
     try {
-      const { data: artist } = await supabase
-        .from('artists')
-        .select('name, image_url')
-        .eq('id', id)
-        .maybeSingle();
+      const raw = String(id);
+      let resolvedId: string | null = null;
+      let artist: any = null;
+
+      if (isUuid(raw)) {
+        resolvedId = raw;
+        const { data } = await supabase
+          .from('artists')
+          .select('id, name, image_url')
+          .eq('id', raw)
+          .maybeSingle();
+        artist = data;
+      } else {
+        const { data } = await supabase
+          .from('artists')
+          .select('id, name, image_url')
+          .ilike('name', raw)
+          .maybeSingle();
+        artist = data;
+        resolvedId = data?.id ?? null;
+      }
       const artistName =
         artist != null
           ? ((artist as { name?: string }).name?.trim() || 'Artist')
@@ -49,15 +70,17 @@ export default function ArtistDetailScreen() {
       if (artist) {
         setName(artistName);
         setImageUrl((artist as { image_url?: string }).image_url || null);
+        setArtistId(resolvedId);
       } else {
         setName('Artist');
         setImageUrl(null);
+        setArtistId(null);
       }
       const { data: evs } = await supabase
         .from('events')
         .select('id, title, artist_name, venue_name, event_date, images')
-        .eq('artist_id', id)
-        .gte('event_date', new Date().toISOString().split('T')[0])
+        .eq('artist_id', resolvedId ?? raw)
+        .gte('event_date', todayLocalYmd())
         .order('event_date', { ascending: true })
         .limit(25);
       const mapped =
@@ -93,9 +116,7 @@ export default function ArtistDetailScreen() {
           <View style={styles.iconBtn} />
         </View>
         {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={SynthTokens.colors.brandPink500} />
-          </View>
+          <ArtistScreenSkeleton />
         ) : (
           <ScrollView contentContainerStyle={styles.body}>
             {imageUrl ? (
@@ -118,7 +139,11 @@ export default function ArtistDetailScreen() {
                   venue_name={e.venue_name}
                   event_date={e.event_date}
                   image_url={e.image_url}
-                  onPress={() => router.push(`/event/${e.id}`)}
+                  onPress={() => {
+                    void EventService.toEventRouteId(e.id).then(rid => {
+                      router.push(`/event/${rid}` as any);
+                    });
+                  }}
                 />
               ))
             )}

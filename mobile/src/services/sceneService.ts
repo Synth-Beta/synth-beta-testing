@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { todayLocalYmd } from '../utils/localYmd';
 
 /** Minimal event shape for scene detail lists (web uses fuller JamBaseEvent). */
 export type JamBaseEvent = Record<string, unknown>;
@@ -244,7 +245,7 @@ export class SceneService {
       let eventsQuery = supabase
         .from('events')
         .select('id')
-        .gte('event_date', new Date().toISOString());
+        .gte('event_date', todayLocalYmd());
 
       // Apply scene filters
       if (scene.participating_artists && scene.participating_artists.length > 0) {
@@ -291,7 +292,7 @@ export class SceneService {
       let query = supabase
         .from('events')
         .select('id', { count: 'exact', head: true })
-        .gte('event_date', new Date().toISOString());
+        .gte('event_date', todayLocalYmd());
 
       // Apply scene filters - use JamBase IDs
       if (scene.participating_artists && scene.participating_artists.length > 0) {
@@ -571,7 +572,7 @@ export class SceneService {
         const artistQueryPromise = supabase
           .from('events')
           .select('*')
-          .gte('event_date', new Date().toISOString())
+          .gte('event_date', todayLocalYmd())
           .not('artist_id', 'is', null)
           .order('event_date', { ascending: true })
           .limit(200)
@@ -611,7 +612,7 @@ export class SceneService {
         const venueQueryPromise = supabase
           .from('events')
           .select('*')
-          .gte('event_date', new Date().toISOString())
+          .gte('event_date', todayLocalYmd())
           .order('event_date', { ascending: true })
           .limit(500) // Get more events to filter
           .then(({ data: venueEvents, error }) => {
@@ -662,7 +663,7 @@ export class SceneService {
           supabase
             .from('events')
             .select('*')
-            .gte('event_date', new Date().toISOString())
+            .gte('event_date', todayLocalYmd())
             .in('venue_city', participating_cities)
             .order('event_date', { ascending: true })
             .limit(50)
@@ -679,7 +680,7 @@ export class SceneService {
           supabase
             .from('events')
             .select('*')
-            .gte('event_date', new Date().toISOString())
+            .gte('event_date', todayLocalYmd())
             .overlaps('genres', participating_genres)
             .order('event_date', { ascending: true })
             .limit(50)
