@@ -38,6 +38,7 @@ export default function FeedScreen() {
   const [feedLoading, setFeedLoading] = useState(true);
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
 
   const listData: ListItem[] =
     feedDisplayMode === 'events'
@@ -52,11 +53,13 @@ export default function FeedScreen() {
       } = await supabase.auth.getUser();
       if (!user) {
         setReferralCode(null);
+        setViewerUserId(null);
         setEvents([]);
         setReviews([]);
         setFriendSuggestions([]);
         return;
       }
+      setViewerUserId(user.id);
       const { data: me } = await supabase
         .from('users')
         .select('referral_code')
@@ -85,6 +88,7 @@ export default function FeedScreen() {
     } catch (error) {
       console.error('Error fetching feed:', error);
       setReferralCode(null);
+      setViewerUserId(null);
       if (feedDisplayMode === 'events') setEvents([]);
       else setReviews([]);
       setFriendSuggestions([]);
@@ -113,6 +117,7 @@ export default function FeedScreen() {
       return (
         <NetworkReviewCard
           review={item.data}
+          currentUserId={viewerUserId}
           onPress={() => router.push(`/review/${item.data.id}`)}
         />
       );

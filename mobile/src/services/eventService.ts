@@ -83,6 +83,26 @@ export class EventService {
         }
     }
 
+    /** Web share landing (matches `ShareService.getReviewUrl`). */
+    static async shareReviewLink(
+        reviewId: string,
+        meta: { headline: string; snippet?: string }
+    ): Promise<void> {
+        const url = `${getExpoSiteUrl()}/share?review=${encodeURIComponent(reviewId)}`;
+        const message = meta.snippet
+            ? `${meta.headline}\n\n"${meta.snippet}"\n\n${url}`
+            : `${meta.headline}\n\n${url}`;
+        try {
+            if (Platform.OS === 'ios') {
+                await Share.share({ message, title: meta.headline, url });
+            } else {
+                await Share.share({ message, title: meta.headline });
+            }
+        } catch {
+            /* user dismissed share sheet */
+        }
+    }
+
     /**
      * Get detailed event info
      */

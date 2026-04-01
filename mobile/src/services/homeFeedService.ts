@@ -1,5 +1,6 @@
 import { getSimilarUsersToFriend, rankFriendSuggestionsForRail } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
+import { ReviewEngagementService } from './reviewEngagementService';
 import { todayLocalYmd } from '../utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
@@ -22,9 +23,17 @@ export interface UnifiedPersonalizedEvent {
     ticket_url?: string;
 }
 
+export type ReviewThumbnailCrop = {
+    xPct: number;
+    yPct: number;
+    zoom: number;
+};
+
 export interface NetworkReview {
     id: string;
     event_id?: string;
+    artist_id?: string;
+    venue_id?: string;
     author: {
         id: string;
         name: string;
@@ -34,12 +43,19 @@ export interface NetworkReview {
     rating?: number;
     content?: string;
     photos?: string[];
+    /** Cover photo index when `photos` has multiple entries */
+    thumbnail_index?: number;
+    thumbnail_crop?: ReviewThumbnailCrop | null;
     artist_image_url?: string;
     event_info?: {
         artist_name?: string;
         venue_name?: string;
         event_date?: string;
     };
+    likes_count?: number;
+    comments_count?: number;
+    shares_count?: number;
+    is_liked_by_user?: boolean;
     connection_degree: 1 | 2;
 }
 
@@ -337,6 +353,9 @@ export class HomeFeedService {
           rating,
           review_text,
           photos,
+          likes_count,
+          comments_count,
+          shares_count,
           created_at,
           events (
             id,
@@ -397,36 +416,49 @@ export class HomeFeedService {
                 venues?.forEach(v => venuesMap.set(v.id, v.name));
             }
 
-            return reviews
-                .filter((review: any) => usersMap.has(review.user_id))
-                .map((review: any) => {
-                    const user = usersMap.get(review.user_id)!;
-                    const artistId = review.artist_id || review.events?.artist_id;
-                    const venueId = review.venue_id || review.events?.venue_id;
-                    const artistData = artistId ? artistsMap.get(artistId) : undefined;
-                    const venueName = venueId ? venuesMap.get(venueId) : undefined;
+            const filtered = reviews.filter((review: any) => usersMap.has(review.user_id));
+            const reviewIdsForLikes = filtered.map((r: any) => String(r.id));
+            let likedIds = new Set<string>();
+            try {
+                likedIds = await ReviewEngagementService.getReviewIdsLikedByUser(userId, reviewIdsForLikes);
+            } catch (engErr) {
+                console.error('[homeFeed] getReviewIdsLikedByUser', engErr);
+            }
 
-                    return {
-                        id: review.id,
-                        event_id: review.event_id || review.events?.id,
-                        author: {
-                            id: review.user_id,
-                            name: user.name || 'User',
-                            avatar_url: user.avatar_url || undefined,
-                        },
-                        created_at: review.created_at,
-                        rating: review.rating ?? undefined,
-                        content: review.review_text ?? undefined,
-                        photos: review.photos ?? undefined,
-                        artist_image_url: artistData?.image_url || undefined,
-                        event_info: {
-                            artist_name: artistData?.name,
-                            venue_name: venueName,
-                            event_date: review.events?.event_date,
-                        },
-                        connection_degree: 1 as const,
-                    };
-                });
+            return filtered.map((review: any) => {
+                const user = usersMap.get(review.user_id)!;
+                const artistId = review.artist_id || review.events?.artist_id;
+                const venueId = review.venue_id || review.events?.venue_id;
+                const artistData = artistId ? artistsMap.get(artistId) : undefined;
+                const venueName = venueId ? venuesMap.get(venueId) : undefined;
+
+                return {
+                    id: String(review.id),
+                    event_id: review.event_id || review.events?.id,
+                    artist_id: artistId != null ? String(artistId) : undefined,
+                    venue_id: venueId != null ? String(venueId) : undefined,
+                    author: {
+                        id: review.user_id,
+                        name: user.name || 'User',
+                        avatar_url: user.avatar_url || undefined,
+                    },
+                    created_at: review.created_at,
+                    rating: review.rating ?? undefined,
+                    content: review.review_text ?? undefined,
+                    photos: review.photos ?? undefined,
+                    artist_image_url: artistData?.image_url || undefined,
+                    event_info: {
+                        artist_name: artistData?.name,
+                        venue_name: venueName,
+                        event_date: review.events?.event_date,
+                    },
+                    likes_count: typeof review.likes_count === 'number' ? review.likes_count : 0,
+                    comments_count: typeof review.comments_count === 'number' ? review.comments_count : 0,
+                    shares_count: typeof review.shares_count === 'number' ? review.shares_count : 0,
+                    is_liked_by_user: likedIds.has(String(review.id)),
+                    connection_degree: 1 as const,
+                };
+            });
         } catch (error) {
             console.error('[homeFeed] getNetworkReviews', error);
             return [];

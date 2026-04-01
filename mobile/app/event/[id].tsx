@@ -14,6 +14,7 @@ import { BlurView } from 'expo-blur';
 import { EventDetailsSkeleton } from '../../src/components/skeletons/EventDetailsSkeleton';
 import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import type { NetworkReview } from '../../src/services/homeFeedService';
+import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
 import { SynthMap } from '../../src/components/maps/SynthMap';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -32,6 +33,7 @@ export default function EventDetailScreen() {
     const [needsAuth, setNeedsAuth] = useState(false);
     const [reviews, setReviews] = useState<NetworkReview[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
+    const [sessionUserId, setSessionUserId] = useState<string | null>(null);
 
     useEffect(() => {
         void loadData();
@@ -55,12 +57,14 @@ export default function EventDetailScreen() {
         } = await supabase.auth.getUser();
         if (!user) {
             setNeedsAuth(true);
+            setSessionUserId(null);
             setEvent(null);
             setFriends([]);
             setLoading(false);
             return;
         }
 
+        setSessionUserId(user.id);
         const eventData = await EventService.getEventById(id);
         setEvent(eventData);
 
@@ -81,7 +85,7 @@ export default function EventDetailScreen() {
 
             const friendsData = await EventService.getFriendsAttending(eventData.id, user.id);
             setFriends(friendsData);
-            void loadReviewsForEvent(eventData.id, eventData);
+            void loadReviewsForEvent(eventData.id, eventData, user.id);
         } else {
             setFriends([]);
             setReviews([]);
@@ -89,7 +93,7 @@ export default function EventDetailScreen() {
         setLoading(false);
     };
 
-    const loadReviewsForEvent = async (eventUuid: string, eventInfo: EventDetail) => {
+    const loadReviewsForEvent = async (eventUuid: string, eventInfo: EventDetail, viewerId: string) => {
         setReviewsLoading(true);
         try {
             const { data, error } = await supabase
@@ -98,9 +102,14 @@ export default function EventDetailScreen() {
                     `
           id,
           user_id,
+          artist_id,
+          venue_id,
           rating,
           review_text,
           photos,
+          likes_count,
+          comments_count,
+          shares_count,
           created_at,
           users:user_id (
             id,
@@ -116,25 +125,77 @@ export default function EventDetailScreen() {
                 setReviews([]);
                 return;
             }
-            const mapped: NetworkReview[] = (data || []).map((rv: any) => ({
-                id: String(rv.id),
-                event_id: eventUuid,
-                author: {
-                    id: String(rv.user_id),
-                    name: rv.users?.name || 'User',
-                    avatar_url: rv.users?.avatar_url || undefined,
-                },
-                created_at: String(rv.created_at),
-                rating: rv.rating != null ? Number(rv.rating) : undefined,
-                content: rv.review_text || undefined,
-                photos: Array.isArray(rv.photos) ? rv.photos : undefined,
-                connection_degree: 1,
-                event_info: {
-                    artist_name: eventInfo.artist_name,
-                    venue_name: eventInfo.venue_name,
-                    event_date: eventInfo.event_date,
-                },
-            }));
+            const rows = data || [];
+            const reviewIds = rows.map((rv: any) => String(rv.id));
+            let likedIds = new Set<string>();
+            try {
+                likedIds = await ReviewEngagementService.getReviewIdsLikedByUser(viewerId, reviewIds);
+            } catch (engErr) {
+                console.error('[event] getReviewIdsLikedByUser', engErr);
+            }
+
+            const artistIdSet = new Set<string>();
+            const venueIdSet = new Set<string>();
+            for (const rv of rows as { artist_id?: string | null; venue_id?: string | null }[]) {
+                const a = rv.artist_id ?? eventInfo.artist_id;
+                const v = rv.venue_id ?? eventInfo.venue_id;
+                if (a != null) artistIdSet.add(String(a));
+                if (v != null) venueIdSet.add(String(v));
+            }
+
+            const artistsMap = new Map<string, { name: string; image_url: string | null }>();
+            if (artistIdSet.size > 0) {
+                const { data: artists } = await supabase
+                    .from('artists')
+                    .select('id, name, image_url')
+                    .in('id', Array.from(artistIdSet));
+                artists?.forEach(a => artistsMap.set(String(a.id), { name: a.name, image_url: a.image_url }));
+            }
+
+            const venuesMap = new Map<string, string>();
+            if (venueIdSet.size > 0) {
+                const { data: venues } = await supabase
+                    .from('venues')
+                    .select('id, name')
+                    .in('id', Array.from(venueIdSet));
+                venues?.forEach(v => venuesMap.set(String(v.id), v.name));
+            }
+
+            const mapped: NetworkReview[] = rows.map((rv: any) => {
+                const artistIdStr =
+                    rv.artist_id != null ? String(rv.artist_id) : eventInfo.artist_id != null ? String(eventInfo.artist_id) : undefined;
+                const venueIdStr =
+                    rv.venue_id != null ? String(rv.venue_id) : eventInfo.venue_id != null ? String(eventInfo.venue_id) : undefined;
+                const artistRow = artistIdStr ? artistsMap.get(artistIdStr) : undefined;
+                const venueNameResolved = venueIdStr ? venuesMap.get(venueIdStr) : undefined;
+
+                return {
+                    id: String(rv.id),
+                    event_id: eventUuid,
+                    artist_id: artistIdStr,
+                    venue_id: venueIdStr,
+                    author: {
+                        id: String(rv.user_id),
+                        name: rv.users?.name || 'User',
+                        avatar_url: rv.users?.avatar_url || undefined,
+                    },
+                    created_at: String(rv.created_at),
+                    rating: rv.rating != null ? Number(rv.rating) : undefined,
+                    content: rv.review_text || undefined,
+                    photos: Array.isArray(rv.photos) ? rv.photos : undefined,
+                    artist_image_url: artistRow?.image_url ?? undefined,
+                    likes_count: typeof rv.likes_count === 'number' ? rv.likes_count : 0,
+                    comments_count: typeof rv.comments_count === 'number' ? rv.comments_count : 0,
+                    shares_count: typeof rv.shares_count === 'number' ? rv.shares_count : 0,
+                    is_liked_by_user: likedIds.has(String(rv.id)),
+                    connection_degree: 1,
+                    event_info: {
+                        artist_name: artistRow?.name ?? eventInfo.artist_name,
+                        venue_name: venueNameResolved ?? eventInfo.venue_name,
+                        event_date: eventInfo.event_date,
+                    },
+                };
+            });
             setReviews(mapped);
         } finally {
             setReviewsLoading(false);
@@ -448,6 +509,7 @@ export default function EventDetailScreen() {
                                     <NetworkReviewCard
                                         key={rv.id}
                                         review={rv}
+                                        currentUserId={sessionUserId}
                                         onPress={() => router.push(`/review/${rv.id}`)}
                                     />
                                 ))}
