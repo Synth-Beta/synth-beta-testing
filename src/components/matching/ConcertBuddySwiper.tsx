@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Heart, X, Music, MapPin, Calendar, Sparkles, Loader2, MessageCircle } from 'lucide-react';
 import MatchingService, { PotentialMatch } from '@/services/matchingService';
 import { supabase } from '@/integrations/supabase/client';
@@ -265,9 +265,9 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {currentUser.shared_artists.slice(0, 5).map((artist, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {artist}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -279,23 +279,23 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
                   <p className="text-xs text-gray-500 mb-2">Profile Highlights</p>
                   <div className="flex flex-wrap gap-2">
                     {currentUser.gender && (
-                      <Badge variant="outline" className="text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {currentUser.gender}
-                      </Badge>
+                      </span>
                     )}
                     {currentUser.birthday && (() => {
                       const age = calculateAge(currentUser.birthday);
                       if (age === null) return null;
                       return (
-                        <Badge variant="outline" className="text-xs">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           {age} years old
-                        </Badge>
+                        </span>
                       );
                     })()}
                     {currentUser.instagram_handle && (
-                      <Badge variant="outline" className="text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         @{currentUser.instagram_handle}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 </div>

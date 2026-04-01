@@ -389,7 +389,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{
-      background: 'linear-gradient(45deg, #fdf2f8 0%, #ffffff 25%, #fce7f3 50%, #ffffff 75%, #fdf2f8 100%)',
+      background: 'linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, #fce7f3 50%, var(--neutral-0) 75%, #fdf2f8 100%)',
       backgroundSize: '400% 400%',
       animation: 'elegant-shift 20s ease infinite'
     }}>

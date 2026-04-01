@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { 
   ExternalLink, 
   Calendar, 
@@ -69,23 +69,17 @@ export function NewsCard({ article, className = '' }: NewsCardProps) {
         {/* Header with source badge */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Badge 
-              variant="secondary" 
-              className="flex items-center gap-1 text-xs bg-pink-100 text-pink-700 hover:bg-pink-200"
-            >
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <Newspaper className="w-3 h-3" />
               {article.source}
-            </Badge>
+            </span>
             
             {/* Show "For You" badge for high-scoring personalized articles */}
             {article.relevance_score && article.relevance_score > 50 && (
-              <Badge 
-                variant="secondary" 
-                className="flex items-center gap-1 text-xs bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border-purple-200"
-              >
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 <Star className="w-3 h-3 fill-purple-500" />
                 For You
-              </Badge>
+              </span>
             )}
           </div>
           

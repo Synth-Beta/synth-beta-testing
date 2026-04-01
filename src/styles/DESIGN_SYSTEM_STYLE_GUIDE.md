@@ -32,6 +32,7 @@ The following areas are not yet fully standardized and may have inconsistent imp
 - **Loading states**: Spinner and skeleton patterns are not standardized.
 - **Toast notifications**: Toast/alert notification system is not standardized.
 - **Tooltips**: Tooltip component and usage patterns are not standardized.
+- **Standalone .svg files cannot use CSS variables. The hex values in these files must be updated manually during a rebrand. 
 
 ---
 
@@ -43,7 +44,7 @@ The following areas are not yet fully standardized and may have inconsistent imp
 - [ ] All spacing uses design tokens (no arbitrary values)
 - [ ] All colors use design tokens (no hardcoded hex or Tailwind colors)
 - [ ] All buttons follow button guidelines (height, padding, radius, shadow)
-- [ ] All icons use standard sizes (16px, 24px, 35px, 60px)
+- [ ] All icons use standard sizes (24px, 35px, 60px)
 - [ ] All corner radius values are 10px (except chips/pills which use 999px, and circular elements which use 50%)
 - [ ] Everything that is supposed to be clickable should meet 44px × 44px minimum touch target
 - [ ] All pages use 20px horizontal margins
@@ -85,13 +86,13 @@ All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardco
 
 | Token | Value | Usage | Do Not Use For |
 |-------|-------|-------|----------------|
-| `--neutral-0` | `#FFFFFF` | Pure white | General backgrounds (use neutral-50) |
-| `--neutral-50` | `#FCFCFC` | Base app background, surfaces, cards | Text |
-| `--neutral-100` | `#F5F5F5` | Subtle surfaces, cards | Text, borders |
-| `--neutral-200` | `#E6E6E6` | Dividers, borders | Text, backgrounds |
-| `--neutral-400` | `#8A8F98` | Disabled text/icons | Active text, primary actions |
-| `--neutral-600` | `#5D646F` | Secondary text, metadata, icons | Primary text, headings |
-| `--neutral-900` | `#0E0E0E` | Primary text, headings | Backgrounds, borders |
+| `--neutral-0` | `var(--neutral-0)` | Pure white | General backgrounds (use neutral-50) |
+| `--neutral-50` | `var(--neutral-50)` | Base app background, surfaces, cards | Text |
+| `--neutral-100` | `var(--neutral-100)` | Subtle surfaces, cards | Text, borders |
+| `--neutral-200` | `var(--neutral-200)` | Dividers, borders | Text, backgrounds |
+| `--neutral-400` | `var(--neutral-400)` | Disabled text/icons | Active text, primary actions |
+| `--neutral-600` | `var(--neutral-600)` | Secondary text, metadata, icons | Primary text, headings |
+| `--neutral-900` | `var(--neutral-900)` | Primary text, headings | Backgrounds, borders |
 
 **Semantic Usage:**
 - **Background**: `--neutral-50` for page backgrounds, `--neutral-100` for card backgrounds
@@ -105,13 +106,13 @@ All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardco
 
 | Token | Value | Usage | Do Not Use For |
 |-------|-------|-------|----------------| 
-| `--brand-pink-050` | `#FDF2F7` | Subtle pink surface, hover states | Text, borders |
-| `--brand-pink-500` | `#CC2486` | Primary brand color, buttons, links | Backgrounds (except buttons) |
-| `--brand-pink-600` | `#951A6D` | Hover states | Default states |
+| `--brand-pink-050` | `var(--brand-pink-050)` | Subtle pink surface, hover states | Text, borders |
+| `var(--brand-pink-500)` | `var(--brand-pink-500)` | Primary brand color, buttons, links | Backgrounds (except buttons) |
+| `--brand-pink-600` | `var(--brand-pink-600)` | Hover states | Default states |
 | `--brand-pink-700` | `#7B1559` | Active/pressed states | Default or hover states |
 
 **Semantic Usage:**
-- **Primary Actions**: `--brand-pink-500` for primary buttons, links, active states
+- **Primary Actions**: `var(--brand-pink-500)` for primary buttons, links, active states
 - **Hover**: `--brand-pink-600` for hover states on primary elements
 - **Active**: `--brand-pink-700` for pressed/active states
 - **Surface**: `--brand-pink-050` for subtle pink backgrounds
@@ -123,8 +124,8 @@ All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardco
 | `--status-success-050` | `#E6F4ED` | Success surface | Text, borders |
 | `--status-success-500` | `#2E8B63` | Success text, borders, icons | Backgrounds |
 | `--status-warning-050` | `#FFF6D6` | Warning surface | Text, borders |
-| `--status-warning-500` | `#B88900` | Warning text, borders, icons | Backgrounds |
-| `--status-error-050` | `#FDECEA` | Error surface | Text, borders |
+| `--status-warning-500` | `var(--status-warning-500)` | Warning text, borders, icons | Backgrounds |
+| `--status-error-050` | `var(--status-error-050)` | Error surface | Text, borders |
 | `--status-error-500` | `#C62828` | Error text, borders, icons | Backgrounds |
 
 **Semantic Usage:**
@@ -146,8 +147,8 @@ All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardco
 
 | Token | Value | Usage | Do Not Use For |
 |-------|-------|-------|----------------|
-| `--state-disabled-bg` | `#E6E6E6` | Disabled button background | Active elements |
-| `--state-disabled-text` | `#5D646F` | Disabled text/icons | Active text |
+| `--state-disabled-bg` | `var(--neutral-200)` | Disabled button background | Active elements |
+| `--state-disabled-text` | `var(--neutral-600)` | Disabled text/icons | Active text |
 | `--overlay-50` | `rgba(14, 14, 14, 0.5)` | Modal overlays, drawer overlays | Content backgrounds |
 | `--overlay-20` | `rgba(14, 14, 14, 0.2)` | Light overlays | Content backgrounds |
 
@@ -165,13 +166,44 @@ All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardco
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--gradient-brand` | `linear-gradient(135deg, #CC2486 0%, #8D1FF4 100%)` | Brand gradient for avatars, special elements |
-| `--gradient-soft` | `linear-gradient(180deg, #FFFFFF 0%, #FDF2F7 100%)` | Soft gradient for backgrounds |
+| `--gradient-brand` | `linear-gradient(135deg, var(--brand-pink-500) 0%, #8D1FF4 100%)` | Brand gradient for avatars, special elements |
+| `--gradient-soft` | `linear-gradient(180deg, var(--neutral-0) 0%, var(--brand-pink-050) 100%)` | Soft gradient for backgrounds |
 
 **Usage Rules:**
 - Gradients MUST have sufficient contrast with text overlays (WCAG 2.1 AA)
 - Use gradients sparingly for special elements (avatars, hero sections)
 - Do not use gradients for buttons (use solid colors)
+
+#### Sizing Tokens
+
+| Token | Value | Use Case |
+|-------|-------|----------|
+| `--size-input-height` | `44px` | Input height, icon-only button size, header content height |
+| `--size-button-height` | `36px` | Primary and secondary button height |
+| `--size-popup-width` | `calc(100vw - 40px)` | Modal and popup width |
+
+#### Shadow Tokens
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--shadow-color` | `rgba(0, 0, 0, 0.25)` | Shadow tint for all elevated surfaces |
+| `--shadow-default` | `0 4px 4px 0 rgba(0, 0, 0, 0.25)` | Standard elevation shadow (buttons, elevated cards) |
+| `--shadow-modal` | `0 4px 12px 0 rgba(0, 0, 0, 0.25)` | Modal and popup shadow |
+
+#### Border Tokens
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--border-default` | `1px solid var(--neutral-200)` | Cards, inputs, modals, dividers |
+| `--border-brand` | `2px solid var(--brand-pink-500)` | Secondary buttons, tertiary chips, focus rings |
+
+#### Z-Index Tokens
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--z-index-nav` | `80` | Bottom navigation |
+| `--z-index-overlay` | `90` | Overlay/backdrop behind modals |
+| `--z-index-modal` | `100` | Modals and popups |
 
 ### Typography
 
@@ -234,7 +266,8 @@ var(--font-family) = 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ro
 | **Grouped** | 24px | Spacing between grouped sections, larger gaps | `var(--spacing-grouped, 24px)` | `gap: 'var(--spacing-grouped, 24px)'` |
 | **Big Section** | 60px | Major section breaks, large spacing between major UI sections | `var(--spacing-big-section, 60px)` | `marginBottom: 'var(--spacing-big-section, 60px)'` |
 | **Screen Margin X** | 20px | Horizontal margins for all page content (left and right) | `var(--spacing-screen-margin-x, 20px)` | `paddingLeft: 'var(--spacing-screen-margin-x, 20px)'`, `paddingRight: 'var(--spacing-screen-margin-x, 20px)'` |
-| **Bottom Nav** | 32px | Space between end of content and bottom of page | `var(--spacing-bottom-nav, 32px)` | `paddingBottom: 'var(--spacing-bottom-nav, 32px)'` |
+| **Bottom Nav** | 112px | Total space reserved at bottom of page content (80px nav height + 32px breathing room bottom padding) | `var(--spacing-bottom-nav, 112px)` | `paddingBottom: 'var(--spacing-bottom-nav, 112px)'` |
+| **Bottom Nav Gap** | 32px | Empty space between end of page content and top of bottom nav | `var(--spacing-bottom-nav-gap, 32px)` | `paddingBottom: 'var(--spacing-bottom-nav-gap, 32px)'` |
 
 **Spacing Rules:**
 
@@ -245,10 +278,11 @@ var(--font-family) = 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ro
    - Different components in same section: `12px` (`var(--spacing-small, 12px)`)
    - Different sections: `24px` (`var(--spacing-grouped, 24px)`)
    - Major sections: `60px` (`var(--spacing-big-section, 60px)`)
-4. **Bottom Navigation Spacing**: 
+4. **Bottom Navigation Spacing**:
    - Bottom navigation visual height is `80px` (defined in Figma)
-   - Spacing between end of content and bottom of page is `32px` (`var(--spacing-bottom-nav, 32px)`)
-   - Content should end `32px` above the bottom of the page
+   - Reserve `112px` total space at the bottom (`var(--spacing-bottom-nav, 112px)`) to cover the nav height plus breathing room
+   - Maintain `32px` gap between the end of content and the top of the bottom nav (`var(--spacing-bottom-nav-gap, 32px)`)
+   - Content should end `32px` above the bottom nav
    - This spacing is intentionally asymmetric with top spacing (12px below header) to maintain visual hierarchy
 5. **Never use arbitrary spacing**: Avoid values like `8px`, `10px`, `16px`, `18px`, `32px`, etc. Use the predefined tokens.
 
@@ -259,7 +293,7 @@ var(--font-family) = 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ro
   paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
   paddingRight: 'var(--spacing-screen-margin-x, 20px)',
   paddingTop: 'calc(env(safe-area-inset-top, 0px) + 68px + 12px)',
-  paddingBottom: 'var(--spacing-bottom-nav, 32px)'
+  paddingBottom: 'var(--spacing-bottom-nav-gap, 32px)'
 }}>
   <div style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
     Content
@@ -365,9 +399,9 @@ Shadows indicate elevation above the page surface, not default styling.
 
 | Variant | Height | Background | Text/Icon | Border | Use Case |
 |---------|--------|------------|-----------|--------|----------|
-| **Primary** | 36px | `--brand-pink-500` | `--neutral-50` | None | Primary actions, CTAs |
-| **Secondary** | 36px | `--neutral-50` | `--brand-pink-500` | 2px `--brand-pink-500` | Secondary actions |
-| **Tertiary** | 25px | `--brand-pink-050` | `--brand-pink-500` | 2px `--brand-pink-500` | Labels, chips, tags |
+| **Primary** | 36px | `var(--brand-pink-500)` | `--neutral-50` | None | Primary actions, CTAs |
+| **Secondary** | 36px | `--neutral-50` | `var(--brand-pink-500)` | 2px `var(--brand-pink-500)` | Secondary actions |
+| **Tertiary** | 25px | `--brand-pink-050` | `var(--brand-pink-500)` | 2px `var(--brand-pink-500)` | Labels, chips, tags |
 | **Disabled** | 36px | `--state-disabled-bg` | `--state-disabled-text` | None | Disabled state |
 
 **Button Specifications:**
@@ -499,7 +533,7 @@ Shadows indicate elevation above the page surface, not default styling.
 - **Safe Area**: Add `env(safe-area-inset-bottom, 0px)` BELOW bottom nav
 - **Content Spacing**: `112px` (`var(--spacing-bottom-nav, 112px)`) total space reserved at bottom
   - Includes: `80px` bottom nav height + `32px` breathing room between content and bottom nav
-  - Content should end `32px` above the bottom nav
+  - Use `var(--spacing-bottom-nav-gap, 32px)` for the gap, so content ends `32px` above the bottom nav
   - This spacing is intentionally asymmetric with top spacing (12px below header) to maintain visual hierarchy
 
 **Back Button:**
@@ -580,8 +614,7 @@ import { type IconName } from '@/config/icons';
 
 | Size | Value | Use Case |
 |------|-------|----------|
-| **Small** | 19px | Small icons (tertiary buttons, clear buttons, inline icons) |
-| **Standard** | 24px | Default icon size (most icons) |
+| **Small** | 24px | Small and standard icons (tertiary buttons, clear buttons, inline icons) |
 | **Medium** | 35px | Medium-sized icons |
 | **Large** | 60px | Large icons (empty states, feature icons) |
 
@@ -653,7 +686,7 @@ import { type IconName } from '@/config/icons';
 - **UI components**: 3:1 contrast ratio minimum
 
 **Current Contrast Status:**
-- ✅ Primary button: `--brand-pink-500` on `--neutral-50` = 4.8:1 (Pass)
+- ✅ Primary button: `var(--brand-pink-500)` on `--neutral-50` = 4.8:1 (Pass)
 - ✅ Body text: `--neutral-900` on `--neutral-50` = 16.6:1 (Pass)
 - ✅ Secondary text: `--neutral-600` on `--neutral-50` = 4.6:1 (Pass)
 - ✅ Disabled button: `--state-disabled-text` on `--state-disabled-bg` = 3.4:1 (Pass)

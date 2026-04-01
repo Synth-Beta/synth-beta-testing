@@ -739,9 +739,9 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
   // Show loading screen while step 3 loads
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-[#fcfcfc] flex items-center justify-center">
+      <div className="fixed inset-0 z-[9999] bg-[var(--neutral-50)] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#cc2486] mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--brand-pink-500)] mx-auto"></div>
           <p className="text-lg font-medium text-gray-700">{loadingMessage}</p>
         </div>
       </div>
@@ -766,10 +766,10 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       disableOverlayClose={false}
       styles={{
         options: {
-          primaryColor: '#cc2486',
-          textColor: '#0e0e0e',
-          backgroundColor: '#fcfcfc',
-          arrowColor: '#fcfcfc',
+          primaryColor: 'var(--brand-pink-500)',
+          textColor: 'var(--neutral-900)',
+          backgroundColor: 'var(--neutral-50)',
+          arrowColor: 'var(--neutral-50)',
           overlayColor: 'rgba(0, 0, 0, 0)',
           zIndex: 10000,
           width: 'max(320px, min(393px, 90vw))',
@@ -785,7 +785,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           textAlign: 'left',
         },
         buttonNext: {
-          backgroundColor: '#cc2486',
+          backgroundColor: 'var(--brand-pink-500)',
           borderRadius: 8,
           fontSize: 14,
           padding: '10px 20px',
@@ -798,14 +798,14 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           zIndex: 10001,
         },
         buttonBack: {
-          color: '#5d646f',
+          color: 'var(--neutral-600)',
           fontSize: 14,
           marginRight: 10,
           border: 'none',
           outline: 'none',
         },
         buttonSkip: {
-          color: '#5d646f',
+          color: 'var(--neutral-600)',
           fontSize: 14,
           border: 'none',
           outline: 'none',

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ArrowLeft, Heart, X, MessageCircle, User, MapPin, Calendar, Instagram, Camera, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -331,9 +331,9 @@ const { sessionExpired } = useAuth();
 
         {/* Progress */}
         <div className="flex justify-center mb-6">
-          <Badge variant="secondary">
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             {currentUserIndex + 1} of {users.length}
-          </Badge>
+          </span>
         </div>
 
         {/* User Card - Clickable */}
@@ -374,9 +374,9 @@ const { sessionExpired } = useAuth();
                   </p>
                 )}
                 
-                <Badge className="mb-4">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   Also interested in {getEventName()}
-                </Badge>
+                </span>
                 
                 <p className="text-xs text-muted-foreground">
                   Tap to view full profile
@@ -457,18 +457,18 @@ const { sessionExpired } = useAuth();
                 {(currentUser.gender || currentUser.birthday) && (
                   <div className="flex items-center justify-center gap-3 mt-3">
                     {currentUser.gender && (
-                      <Badge variant="secondary" className="text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {currentUser.gender}
-                      </Badge>
+                      </span>
                     )}
                     {currentUser.birthday && (
-                      <Badge variant="secondary" className="text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {(() => {
                           const age = calculateAge(currentUser.birthday);
                           if (age === null) return null;
                           return `${age} years old`;
                         })()}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 )}
@@ -520,9 +520,9 @@ const { sessionExpired } = useAuth();
                     <MapPin className="w-3 h-3" />
                     <span className="truncate">{getEventLocation()}</span>
                   </div>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     Interested in {getEventName()}
-                  </Badge>
+                  </span>
                 </div>
               </div>
 

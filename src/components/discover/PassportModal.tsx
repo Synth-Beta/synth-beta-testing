@@ -499,8 +499,8 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                         key={achievement.id || achievement.type}
                         className={`flex gap-[6px] items-center px-6 py-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-full max-w-full ${
                           achievement.unlocked
-                            ? 'bg-[#fcfcfc] border border-[#5d646f]'
-                            : 'bg-[rgba(201,201,201,0.5)] border border-[#5d646f]'
+                            ? 'bg-[var(--neutral-50)] border border-[var(--neutral-600)]'
+                            : 'bg-[rgba(201,201,201,0.5)] border border-[var(--neutral-600)]'
                         }`}
                       >
                         {/* Icon */}
@@ -516,7 +516,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                           </p>
                           
                           {/* Description */}
-                          <p className="font-normal leading-[normal] text-[#5d646f] text-[16px] break-words whitespace-pre-wrap">
+                          <p className="font-normal leading-[normal] text-[var(--neutral-600)] text-[16px] break-words whitespace-pre-wrap">
                             {achievement.description}
                           </p>
                           
@@ -547,15 +547,15 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                             /* Progress Section */
                             <div className="w-full mt-1">
                               {/* Progress Bar */}
-                              <div className="bg-[rgba(201,201,201,0.5)] border border-[#5d646f] h-[10px] rounded-[10px] overflow-hidden relative w-full mb-1">
+                              <div className="bg-[rgba(201,201,201,0.5)] border border-[var(--neutral-600)] h-[10px] rounded-[10px] overflow-hidden relative w-full mb-1">
                                 <div
-                                  className="absolute bg-[#cc2486] border border-[#5d646f] h-[10px] rounded-l-[10px]"
+                                  className="absolute bg-[var(--brand-pink-500)] border border-[var(--neutral-600)] h-[10px] rounded-l-[10px]"
                                             style={{ width: `${progressPercent}%` }}
                                 />
                                         </div>
                               
                               {/* Progress Text */}
-                              <p className="font-normal leading-[normal] text-[#5d646f] text-[16px] text-right w-full">
+                              <p className="font-normal leading-[normal] text-[var(--neutral-600)] text-[16px] text-right w-full">
                                 {achievement.progress}/{achievement.goal}
                                         </p>
                       </div>

@@ -22,7 +22,7 @@ import { trackInteraction } from '@/services/interactionTrackingService';
  * - Gap: 43px
  * - Border radius: 10px 10px 0 0
  * - Border: 2px solid rgba(201,201,201,0.5) (Grey50)
- * - Background: LightPink (#FDF2F7)
+ * - Background: LightPink (var(--brand-pink-050))
  */
 export const BottomNav: React.FC = () => {
   const navigate = useNavigate();

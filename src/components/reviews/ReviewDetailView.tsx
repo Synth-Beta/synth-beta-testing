@@ -416,7 +416,7 @@ export function ReviewDetailView({
 
   if (loading || !reviewData) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50, #fcfcfc)' }}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)' }}>
         <div className="text-center">
           <p className="text-lg" style={{ color: 'var(--neutral-600)' }}>Loading review...</p>
         </div>
@@ -504,7 +504,7 @@ export function ReviewDetailView({
     <div 
       className="fixed inset-0 z-50 overflow-y-auto"
       style={{ 
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--neutral-0)',
         WebkitOverflowScrolling: 'touch',
         zIndex: 100,
       }}
@@ -610,7 +610,7 @@ export function ReviewDetailView({
                     width: '220px',
                     borderRadius: 'var(--radius-corner, 10px)',
                     boxShadow: '0 4px 12px 0 var(--shadow-color)',
-                    background: 'var(--neutral-50, #fcfcfc)',
+                    background: 'var(--neutral-50)',
                     border: '1px solid rgba(0, 0, 0, 0.06)',
                     overflow: 'hidden',
                     zIndex: 50,
@@ -674,8 +674,8 @@ export function ReviewDetailView({
                     gap: 8,
                     padding: '14px 20px',
                     borderRadius: 14,
-                    border: '2px solid var(--brand-pink-500, #FF3399)',
-                    background: 'var(--brand-pink-500, #FF3399)',
+                    border: '2px solid var(--brand-pink-500)',
+                    background: 'var(--brand-pink-500)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     width: 'fit-content',
@@ -722,11 +722,11 @@ export function ReviewDetailView({
                     overflow: 'hidden',
                   }}
                 >
-                  <MapPin size={20} style={{ color: 'var(--brand-pink-500, #FF3399)', flexShrink: 0 }} />
+                  <MapPin size={20} style={{ color: 'var(--brand-pink-500)', flexShrink: 0 }} />
                   <span style={{ 
                     fontWeight: 600, 
                     fontSize: 16, 
-                    color: 'var(--brand-pink-500, #FF3399)',
+                    color: 'var(--brand-pink-500)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -775,18 +775,18 @@ export function ReviewDetailView({
                       gap: 8,
                       padding: '6px 12px',
                       borderRadius: 999,
-                      border: '2px solid var(--brand-pink-500, #FF3399)',
-                      background: '#FFFFFF',
+                      border: '2px solid var(--brand-pink-500)',
+                      background: 'var(--neutral-0)',
                       cursor: 'pointer',
                       maxWidth: '100%',
                     }}
                   >
-                    <Avatar className="w-7 h-7" style={{ border: '2px solid var(--brand-pink-500, #FF3399)' }}>
+                    <Avatar className="w-7 h-7" style={{ border: '2px solid var(--brand-pink-500)' }}>
                       <AvatarImage src={attendee.avatar_url || undefined} alt={attendee.name} />
                       <AvatarFallback
                         style={{
-                          background: 'var(--brand-pink-500, #FF3399)',
-                          color: '#FFFFFF',
+                          background: 'var(--brand-pink-500)',
+                          color: 'var(--neutral-0)',
                           fontWeight: 600,
                         }}
                       >
@@ -799,7 +799,7 @@ export function ReviewDetailView({
                         fontSize: 'var(--typography-meta-size, 16px)',
                         fontWeight: 'var(--typography-meta-weight, 500)',
                         lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        color: 'var(--brand-pink-500, #FF3399)',
+                        color: 'var(--brand-pink-500)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -887,7 +887,7 @@ export function ReviewDetailView({
                         {category.name}
                       </p>
                       {category.feedback && (
-                        <p className="text-base" style={{ color: 'var(--neutral-600, #5d646f)' }}>
+                        <p className="text-base" style={{ color: 'var(--neutral-600, var(--neutral-600))' }}>
                           "{category.feedback}"
                         </p>
                       )}
@@ -1000,7 +1000,7 @@ export function ReviewDetailView({
               width: 'var(--size-input-height, 44px)',
               height: 'var(--size-input-height, 44px)',
               padding: 0,
-              backgroundColor: 'var(--brand-pink-500, #FF3399)',
+              backgroundColor: 'var(--brand-pink-500)',
               color: 'var(--neutral-50)',
               borderRadius: 'var(--radius-corner, 10px)',
               boxShadow: '0 4px 4px 0 var(--shadow-color)',
@@ -1009,7 +1009,7 @@ export function ReviewDetailView({
               e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--brand-pink-500, #FF3399)';
+              e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
             }}
             onClick={handleShare}
             aria-label="Share review"
@@ -1102,7 +1102,7 @@ export function ReviewDetailView({
             style={{
               width: '100%',
               maxWidth: 460,
-              backgroundColor: 'var(--neutral-50, #fcfcfc)',
+              backgroundColor: 'var(--neutral-50)',
               borderRadius: 'var(--radius-corner, 10px)',
               boxShadow: '0 4px 12px 0 var(--shadow-color)',
               position: 'relative',
@@ -1175,7 +1175,7 @@ export function ReviewDetailView({
               onClick={confirmDelete}
               disabled={isDeleting}
               style={{
-                backgroundColor: 'var(--brand-pink-500, #FF3399)',
+                backgroundColor: 'var(--brand-pink-500)',
                 color: 'var(--neutral-50)',
                 height: 'var(--size-input-height, 44px)',
                 boxShadow: '0 4px 4px 0 var(--shadow-color)',

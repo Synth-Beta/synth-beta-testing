@@ -22,7 +22,8 @@ export const spacing = {
   bigSection: 60,
   screenMarginX: 20,
   menuItemRowHeight: 48,
-  bottomNav: 32, // Space above bottom navigation and after page content
+  bottomNav: 112, // Total space reserved at bottom (nav height + breathing room)
+  bottomNavGap: 32, // Gap between content and bottom navigation
 } as const;
 
 /**
@@ -31,6 +32,7 @@ export const spacing = {
 export const sizing = {
   buttonHeight: 36,
   inputHeight: 44,
+  popupWidth: 'calc(100vw - 40px)',
 } as const;
 
 /**
@@ -82,16 +84,16 @@ export const typography = {
  * Use CSS variables in styles, but these are available for TypeScript usage
  */
 export const colors = {
-  offWhite: '#FCFCFC',
-  offBlack: '#0E0E0E',
+  offWhite: 'var(--neutral-50)',
+  offBlack: 'var(--neutral-900)',
   offBlack50: 'rgba(14, 14, 14, 0.5)',
   grey50: 'rgba(201, 201, 201, 0.5)',
   lightGrey: '#C9C9C9',
-  darkGrey: '#5D646F',
-  synthPink: '#CC2486',
-  darkPink: '#951A6D',
+  darkGrey: 'var(--neutral-600)',
+  synthPink: 'var(--brand-pink-500)',
+  darkPink: 'var(--brand-pink-600)',
   mediumPink: '#B00056',
-  lightPink: '#FDF2F7',
+  lightPink: 'var(--brand-pink-050)',
   purple: '#8D1FF4',
   lilac: '#D9D3E1',
   darkBlue: '#1F66EA',
@@ -108,18 +110,34 @@ export const colors = {
  * CSS gradient strings for use in inline styles
  */
 export const gradients = {
-  pinkPurple: 'linear-gradient(135deg, #CC2486 0%, #8D1FF4 100%)',
+  pinkPurple: 'linear-gradient(135deg, var(--brand-pink-500) 0%, #8D1FF4 100%)',
   appleMusic: 'linear-gradient(135deg, #FF4E6B 0%, #FF0436 100%)',
+} as const;
+
+export const shadows = {
+  color: 'rgba(0, 0, 0, 0.25)',
+  default: '0 4px 4px 0 rgba(0, 0, 0, 0.25)',
+  modal: '0 4px 12px 0 rgba(0, 0, 0, 0.25)',
+} as const;
+
+export const borders = {
+  default: '1px solid var(--neutral-200)',
+  brand: '2px solid var(--brand-pink-500)',
+} as const;
+
+export const zIndices = {
+  nav: 80,
+  overlay: 90,
+  modal: 100,
 } as const;
 
 /**
  * Icon Size Tokens (common icon sizes in pixels)
  */
 export const iconSizes = {
-  small: 16,
-  medium: 24,
-  large: 32,
-  xlarge: 48,
+  small: 24,
+  medium: 35,
+  large: 60,
 } as const;
 
 /**
@@ -131,5 +149,8 @@ export type Radii = typeof radii;
 export type Typography = typeof typography;
 export type Colors = typeof colors;
 export type Gradients = typeof gradients;
+export type Shadows = typeof shadows;
+export type Borders = typeof borders;
+export type ZIndices = typeof zIndices;
 export type IconSizes = typeof iconSizes;
 

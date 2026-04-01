@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Badge } from './ui/badge'
 import { supabase } from '../integrations/supabase/client'
 import { useAuth } from '../hooks/useAuth'
 
@@ -123,13 +122,10 @@ export const ConnectionDegreeBadge: React.FC<ConnectionDegreeBadgeProps> = ({
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <Badge 
-        className={`${getBadgeStyles(connectionInfo.color)} font-semibold px-3 py-1 border-2 border-black`}
-        style={{ backgroundColor: 'yellow', color: 'black' }} // Temporary debugging
-      >
+      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
         <span className="mr-1">{getDegreeIcon(connectionInfo.degree)}</span>
         {connectionInfo.label}
-      </Badge>
+      </span>
       
       {connectionInfo.mutual_friends_count > 0 && (
         <span className="text-sm text-gray-600">

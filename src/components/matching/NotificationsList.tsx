@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Bell, Heart, MessageCircle, UserPlus, X } from 'lucide-react';
 import MatchingService from '@/services/matchingService';
 
@@ -117,9 +117,9 @@ export function NotificationsList() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Notifications</h1>
           {unreadCount > 0 && (
-            <Badge variant="destructive" className="px-2 py-1">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               {unreadCount} unread
-            </Badge>
+            </span>
           )}
         </div>
         <p className="text-gray-600">Stay updated on your matches and activity</p>

@@ -3,7 +3,7 @@ import { SpotifyStats } from './SpotifyStats';
 import { AppleMusicStats } from './AppleMusicStats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Music, CheckCircle, AlertCircle } from 'lucide-react';
 import { appleMusicService } from '@/services/appleMusicService';
 import { spotifyService } from '@/services/spotifyService';
@@ -295,9 +295,9 @@ export const UnifiedStreamingStats = ({
                     <Music className="w-4 h-4 text-red-500" />
                     Profile Sync
                   </CardTitle>
-                  <Badge variant={syncStatus === 'success' ? 'default' : 'secondary'}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     Last sync: {formatLastSyncTime(lastSyncTime)}
-                  </Badge>
+                  </span>
                 </div>
               </CardHeader>
               <CardContent>

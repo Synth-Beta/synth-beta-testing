@@ -67,7 +67,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, onThumbn
             fontSize: 'var(--typography-meta-size, 16px)',
             fontWeight: 'var(--typography-meta-weight, 500)',
             lineHeight: 'var(--typography-meta-line-height, 1.5)',
-            color: isNearLimit ? 'var(--status-warning-500, #B88900)' : 'var(--neutral-600)'
+            color: isNearLimit ? 'var(--status-warning-500, var(--status-warning-500))' : 'var(--neutral-600)'
           }}>
             {characterCount}/{maxCharacters}
           </span>

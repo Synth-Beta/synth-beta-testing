@@ -37,13 +37,17 @@ export function WebAppShell({
   children,
   rightAside,
 }: WebAppShellProps) {
-  if (!enabled) {
-    return (
-      <div key={mainKey} className={transitionClass} style={{ backgroundColor: 'transparent' }}>
-        {children}
-      </div>
-    );
-  }
+if (!enabled) {
+  return (
+    <div
+      key={mainKey}
+      className={`${transitionClass} flex-1 flex flex-col`}
+      style={{ backgroundColor: 'transparent', minHeight: 0 }}
+    >
+      {children}
+    </div>
+  );
+}
 
   return (
     <div

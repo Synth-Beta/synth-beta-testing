@@ -4,7 +4,7 @@ import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Calendar, MapPin, Music, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { format, parseISO } from 'date-fns';
 import { JamBaseEventResponse } from '@/types/eventTypes';
 import { formatPrice } from '@/utils/currencyUtils';
@@ -238,10 +238,10 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
                       {event.artist_name}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs ml-2">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     <Music className="w-3 h-3 mr-1" />
                     Event
-                  </Badge>
+                  </span>
                 </div>
                 
                 <div className="space-y-2 mb-3">
@@ -274,9 +274,9 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
                   {event.genres && event.genres.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {event.genres.slice(0, 3).map((genre, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           {genre}
-                        </Badge>
+                        </span>
                       ))}
                     </div>
                   )}

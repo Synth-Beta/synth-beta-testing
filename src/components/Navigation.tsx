@@ -60,7 +60,7 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                 key="plus"
                 onClick={handlePlusClick}
                 aria-label="Create"
-                className="h-[40px] w-[70px] bg-[#cc2486] rounded-[20px] flex items-center justify-center hover:bg-[#b01f75] transition-colors flex-shrink-0"
+                className="h-[40px] w-[70px] bg-[var(--brand-pink-500)] rounded-[20px] flex items-center justify-center hover:bg-[#b01f75] transition-colors flex-shrink-0"
                 data-tour="create-review"
                 type="button"
               >
@@ -81,9 +81,9 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                 type="button"
               >
                 <Home 
-                  className="w-6 h-6 text-[#cc2486]" 
+                  className="w-6 h-6 text-[var(--brand-pink-500)]" 
                   strokeWidth={2} 
-                  fill={isActive ? "#cc2486" : "none"}
+                  fill={isActive ? "var(--brand-pink-500)" : "none"}
                   aria-hidden="true"
                 />
               </button>
@@ -113,11 +113,11 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                       cx="12" 
                       cy="12" 
                       r="11" 
-                      fill="#cc2486"
+                      fill="var(--brand-pink-500)"
                     />
                   </svg>
                 ) : (
-                  <Compass className="w-6 h-6 text-[#cc2486]" strokeWidth={2} aria-hidden="true" />
+                  <Compass className="w-6 h-6 text-[var(--brand-pink-500)]" strokeWidth={2} aria-hidden="true" />
                 )}
               </button>
             );
@@ -137,9 +137,9 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
               type="button"
             >
               <Icon 
-                className="w-6 h-6 text-[#cc2486]" 
+                className="w-6 h-6 text-[var(--brand-pink-500)]" 
                 strokeWidth={2} 
-                fill={isActive ? "#cc2486" : "none"}
+                fill={isActive ? "var(--brand-pink-500)" : "none"}
                 aria-hidden="true"
               />
             </button>

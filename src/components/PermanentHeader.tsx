@@ -26,7 +26,7 @@ export const PermanentHeader: React.FC<PermanentHeaderProps> = ({
         paddingTop: 0
       }}
     >
-      <div className="flex items-center justify-between h-[59px] px-5 pb-4 bg-[#fcfcfc]">
+      <div className="flex items-center justify-between h-[59px] px-5 pb-4 bg-[var(--neutral-50)]">
         {/* Left side: Synth Logo and Text */}
         <div className="flex items-center gap-[3px]">
           <div className="relative shrink-0 w-[50px] h-[50px]">
@@ -37,7 +37,7 @@ export const PermanentHeader: React.FC<PermanentHeaderProps> = ({
             />
           </div>
           <p
-            className="font-['Inter',sans-serif] font-bold h-[52px] leading-[normal] not-italic relative shrink-0 text-[36px] text-[#0e0e0e] w-[93px] whitespace-pre-wrap"
+            className="font-['Inter',sans-serif] font-bold h-[52px] leading-[normal] not-italic relative shrink-0 text-[36px] text-[var(--neutral-900)] w-[93px] whitespace-pre-wrap"
             style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
           >
             ynth
@@ -48,7 +48,7 @@ export const PermanentHeader: React.FC<PermanentHeaderProps> = ({
         <div className="relative">
           <NotificationBell
           onClick={onNavigateToNotifications}
-            className="bg-[#cc2486] hover:bg-[#b01f75] p-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-[44px] h-[44px] flex items-center justify-center transition-colors border-0"
+            className="bg-[var(--brand-pink-500)] hover:bg-[#b01f75] p-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-[44px] h-[44px] flex items-center justify-center transition-colors border-0"
           />
         </div>
       </div>

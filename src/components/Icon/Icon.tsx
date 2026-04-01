@@ -24,7 +24,7 @@ export interface IconProps {
   /**
    * Color for the icon (CSS color value or design token)
    * If provided, applies this color via CSS. If not provided, icon inherits parent color.
-   * Examples: "#CC2486", "var(--brand-pink-500)", "currentColor"
+   * Examples: "var(--brand-pink-500)", "var(--brand-pink-500)", "currentColor"
    */
   color?: string;
   
@@ -62,7 +62,7 @@ export interface IconProps {
  * 
  * Usage:
  *   <Icon name="house" size={24} alt="Home" />
- *   <Icon name="heart" size={35} color="#CC2486" />
+ *   <Icon name="heart" size={35} color="var(--brand-pink-500)" />
  *   <Icon name="house" color="var(--brand-pink-500)" />
  * 
  * Note: For clickable icons in buttons, wrap this component in a 44x44 clickable area

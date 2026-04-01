@@ -43,7 +43,7 @@ export function EventReviewModal({
             : 'Fill out the concert review form to share your experience.'}
         </DialogDescription>
         {isEditFlow ? (
-          <div className="relative flex-1 overflow-y-auto bg-[#fcfcfc]">
+          <div className="relative flex-1 overflow-y-auto bg-[var(--neutral-50)]">
             {/* Close X (matches default dialog close affordance) */}
             <button
               type="button"

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Music, ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CustomSetlistSong, ReviewCustomSetlistPayload } from '@/services/reviewService';
@@ -86,9 +86,9 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
                         {song.song_name}
                       </span>
                       {song.cover_artist && (
-                        <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 mt-1">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           Cover: {song.cover_artist}
-                        </Badge>
+                        </span>
                       )}
                       {song.notes && (
                         <p className="text-xs text-gray-600 mt-1 italic">
@@ -113,9 +113,9 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
               <div className="flex items-center gap-2 mb-2">
                 <User className="w-5 h-5 text-purple-600" />
                 <h4 className="font-semibold text-purple-900">Custom Setlist</h4>
-                <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   {totalSongs} song{totalSongs !== 1 ? 's' : ''}
-                </Badge>
+                </span>
               </div>
               <p className="text-xs text-purple-600">User-created setlist for this show</p>
             </div>
@@ -145,9 +145,9 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
                     </span>
                     {song.cover_artist && (
                       <div className="mt-1">
-                        <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           Cover: {song.cover_artist}
-                        </Badge>
+                        </span>
                       </div>
                     )}
                     {song.notes && (
@@ -295,9 +295,9 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
         {/* Songs badge and date - directly under Setlist title, aligned with text */}
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-2">
-            <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               {totalSongs} songs
-            </Badge>
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="w-6 h-6" style={{ color: 'var(--neutral-600)' }} />
@@ -325,9 +325,9 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
             {Object.entries(sets).map(([setNumber, songs]) => (
               <div key={setNumber} className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="font-medium border-purple-300 text-purple-700">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {songs[0]?.setName || `Set ${setNumber}`}
-                  </Badge>
+                  </span>
                   <span className="text-sm text-purple-600">
                     {songs.length} song{songs.length !== 1 ? 's' : ''}
                   </span>
@@ -343,14 +343,14 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
                         {song.name}
                       </span>
                       {song.cover && (
-                        <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           {song.cover.artist}
-                        </Badge>
+                        </span>
                       )}
                       {song.tape && (
-                        <Badge variant="outline" className="text-xs border-purple-300 text-purple-600">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           Tape
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   ))}

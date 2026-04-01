@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1900,10 +1900,10 @@ const { user, sessionExpired } = useAuth();
                     onFollowersClick={() => { setFollowersModalType('friends'); setShowFollowersModal(true); }}
                     onFollowingClick={() => setShowFollowingModal(true)}
                     customSubtitle={!isViewingOwnProfile && profile.last_active_at ? (
-                      <Badge variant="secondary" className="flex items-center gap-1 bg-green-100 text-green-700 border-green-200" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', width: 'fit-content' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         <Clock size={16} />
                         {UserVisibilityService.formatLastActive(profile.last_active_at)}
-                      </Badge>
+                      </span>
                     ) : undefined}
                   />
 
@@ -2256,7 +2256,7 @@ const { user, sessionExpired } = useAuth();
                     ) : isAppleMusic ? (
                       <img src={appleMusicLogo} alt="Apple Music" width={24} height={24} />
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--neutral-900)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-list-music" style={{ width: '24px', height: '24px', flexShrink: 0 }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-list-music" style={{ width: '24px', height: '24px', flexShrink: 0, stroke: 'var(--neutral-900)' }}>
                         <path d="M16 5H3"/>
                         <path d="M11 12H3"/>
                         <path d="M11 19H3"/>
@@ -2773,10 +2773,10 @@ const { user, sessionExpired } = useAuth();
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <Badge variant="outline" className="text-orange-600 border-orange-300">
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                         <Calendar className="w-3 h-3 mr-1" />
                                         Needs Review
-                                      </Badge>
+                                      </span>
                                     </div>
                                   </div>
 
@@ -2906,10 +2906,10 @@ const { user, sessionExpired } = useAuth();
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <Badge variant="outline" style={{ color: 'var(--info-blue-500)', borderColor: 'var(--info-blue-500)' }}>
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                         <Edit className="w-3 h-3 mr-1" />
                                         Draft
-                                      </Badge>
+                                      </span>
                                     </div>
                                   </div>
 

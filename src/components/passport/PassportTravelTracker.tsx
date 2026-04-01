@@ -7,7 +7,7 @@ import { MapPin, Calendar, Music, Star, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Fix for default markers in React Leaflet
@@ -20,7 +20,7 @@ const createPinkMarkerIcon = () => {
   return divIcon({
     className: 'travel-tracker-marker',
     html: `<div style="
-      background-color: #CC2486;
+      background-color: var(--brand-pink-500);
       color: white;
       border: 3px solid white;
       border-radius: 50%;
@@ -31,7 +31,7 @@ const createPinkMarkerIcon = () => {
       justify-content: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     ">
-      <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FCFCFC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-music2-icon lucide-music-2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-music2-icon lucide-music-2" style="stroke: var(--neutral-50);">
         <circle cx="8" cy="18" r="4"/>
         <path d="M12 18V2l7 4"/>
       </svg>
@@ -304,13 +304,9 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
               Travel Tracker
             </h2>
           </div>
-          <Badge variant="secondary" style={{
-            backgroundColor: 'var(--neutral-100)',
-            color: 'var(--neutral-900)',
-            border: '1px solid var(--neutral-200)'
-          }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             {reviews.length} {reviews.length === 1 ? 'show' : 'shows'}
-          </Badge>
+          </span>
         </div>
         
         {/* Map Content */}
@@ -560,14 +556,14 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
                 {(selectedReview.mood_tags?.length || selectedReview.genre_tags?.length) && (
                   <div className="flex flex-wrap gap-2 pt-2 border-t">
                     {selectedReview.mood_tags?.map((tag, idx) => (
-                      <Badge key={`mood-${idx}`} variant="secondary" className="text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {tag}
-                      </Badge>
+                      </span>
                     ))}
                     {selectedReview.genre_tags?.map((tag, idx) => (
-                      <Badge key={`genre-${idx}`} variant="outline" className="text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {tag}
-                      </Badge>
+                      </span>
                     ))}
                   </div>
                 )}

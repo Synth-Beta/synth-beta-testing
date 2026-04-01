@@ -197,7 +197,7 @@ export default function SignInScreen() {
 
           {Platform.OS === 'ios' ? (
             <TouchableOpacity style={[styles.button, styles.apple]} onPress={onApple} disabled={loading}>
-              <AppleLogoGlyph size={20} color="#fff" />
+              <AppleLogoGlyph size={20} color="var(--neutral-0)" />
               <Text style={styles.appleText}>Continue with Apple</Text>
             </TouchableOpacity>
           ) : googleAndroidReady && androidGoogleClientId && webGoogleClientId ? (
@@ -265,7 +265,7 @@ export default function SignInScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="var(--neutral-0)" />
             ) : (
               <Text style={styles.primaryText}>{mode === 'signin' ? 'Sign In' : 'Sign Up'}</Text>
             )}
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   segment: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
-  segmentActive: { backgroundColor: '#fff' },
+  segmentActive: { backgroundColor: 'var(--neutral-0)' },
   segmentText: { color: SynthTokens.colors.neutral600, fontWeight: '600' },
   segmentTextActive: { color: SynthTokens.colors.neutral900 },
   input: {
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--neutral-0)',
     color: SynthTokens.colors.neutral900,
   },
   button: {
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primary: { backgroundColor: AUTH_PINK },
-  primaryText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  primaryText: { color: 'var(--neutral-0)', fontWeight: '600', fontSize: 16 },
   apple: {
     backgroundColor: '#000',
     marginTop: 4,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  appleText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  appleText: { color: 'var(--neutral-0)', fontWeight: '600', fontSize: 16 },
   forgotRow: { alignItems: 'flex-end', marginBottom: 4, marginTop: -4 },
   forgotLink: { color: AUTH_PINK, fontSize: 16, fontWeight: '600' },
   troubleText: {
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   magicLinkWrap: { marginTop: 14, alignItems: 'center', paddingVertical: 8 },
   magicLinkText: { color: SynthTokens.colors.neutral600, fontSize: 14, fontWeight: '500', textDecorationLine: 'underline' },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e6e6e6' },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'var(--neutral-200)' },
   dividerText: { color: SynthTokens.colors.neutral600, marginHorizontal: 10, fontSize: 16, fontWeight: '500' },
   error: { color: '#dc2626', marginTop: 8 },
   message: { color: SynthTokens.colors.neutral600, marginTop: 8 },

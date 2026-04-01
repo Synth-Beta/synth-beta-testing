@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Users, MessageCircle, Lock, Globe, UserPlus, UserMinus, Loader2 } from 'lucide-react';
 import EventGroupService, { EventGroup } from '@/services/eventGroupService';
 
@@ -71,14 +71,14 @@ const [isProcessing, setIsProcessing] = useState(false);
                   </p>
                 )}
               </div>
-              <Badge variant="outline" className="flex-shrink-0">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {group.is_public ? (
                   <Globe className="h-3 w-3 mr-1" />
                 ) : (
                   <Lock className="h-3 w-3 mr-1" />
                 )}
                 {group.is_public ? 'Public' : 'Private'}
-              </Badge>
+              </span>
             </div>
 
             {/* Group Info */}
@@ -90,10 +90,10 @@ const [isProcessing, setIsProcessing] = useState(false);
                 </span>
               </div>
               {isMember && group.chat_id && (
-                <Badge variant="secondary" className="text-xs">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   <MessageCircle className="h-3 w-3 mr-1" />
                   Chat Active
-                </Badge>
+                </span>
               )}
             </div>
 

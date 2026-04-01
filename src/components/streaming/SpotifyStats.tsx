@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -566,9 +566,9 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
                         {track.album.name}
                       </p>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       {track.popularity}%
-                    </Badge>
+                    </span>
                   </div>
                 ))
               )}
@@ -616,9 +616,9 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
                         {artist.followers.total.toLocaleString()} followers
                       </p>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       {artist.popularity}%
-                    </Badge>
+                    </span>
                   </div>
                 ))
               )}
@@ -684,9 +684,9 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
             </h4>
             <div className="flex flex-wrap gap-2">
               {listeningStats.topGenres.map((genre) => (
-                <Badge key={genre} variant="outline" className="text-xs">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   {genre}
-                </Badge>
+                </span>
               ))}
             </div>
           </div>

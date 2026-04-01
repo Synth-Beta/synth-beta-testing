@@ -3,7 +3,7 @@ import { Search, MapPin, Calendar, Heart, Music, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
@@ -233,10 +233,10 @@ useEffect(() => {
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                 />
                 <div className="absolute top-3 left-3">
-                  <Badge className="bg-primary/90 text-primary-foreground">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     <Music className="w-3 h-3 mr-1" />
                     Concert
-                  </Badge>
+                  </span>
                 </div>
                 {concert.price_range && (
                   <div className="absolute top-3 right-3 bg-background/90 text-foreground px-2 py-1 rounded-full text-xs font-semibold">
@@ -297,18 +297,14 @@ useEffect(() => {
                 {concert.genres && concert.genres.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {concert.genres.slice(0, 2).map((genre, index) => (
-                      <Badge 
-                        key={index}
-                        variant="outline"
-                        className={`text-xs ${getGenreColor(genre)}`}
-                      >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {genre}
-                      </Badge>
+                      </span>
                     ))}
                     {concert.genres.length > 2 && (
-                      <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         +{concert.genres.length - 2}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 )}

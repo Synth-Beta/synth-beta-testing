@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { ArrowLeft, MessageCircle, Heart, MapPin, Calendar, Instagram, Camera, ExternalLink, X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
@@ -348,9 +348,9 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
             <MessageCircle className="w-4 h-4 mr-2" />
             Requests
             {pendingInvitations.length > 0 && (
-              <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {pendingInvitations.length}
-              </Badge>
+              </span>
             )}
           </Button>
         </div>
@@ -392,9 +392,9 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                                 Wants to connect at {getEventName(invitation.event)}
                               </p>
                             </div>
-                            <Badge variant="outline" className="bg-orange-100 text-orange-800">
+                            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                               Pending
-                            </Badge>
+                            </span>
                           </div>
 
                           <div className="space-y-2 mb-4">
@@ -502,10 +502,10 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                               })()}
                             </p>
                           </div>
-                          <Badge variant="secondary">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             <Heart className="w-3 h-3 mr-1" />
                             Match
-                          </Badge>
+                          </span>
                         </div>
 
                         <div className="space-y-2 mb-4">
@@ -564,14 +564,14 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                             </p>
                             <div className="flex flex-wrap gap-1">
                               {match.other_user_events.slice(0, 3).map((event) => (
-                                <Badge key={event.id} variant="outline" className="text-xs">
+                                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                   {getEventName(event)}
-                                </Badge>
+                                </span>
                               ))}
                               {match.other_user_events.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
+                                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                   +{match.other_user_events.length - 3} more
-                                </Badge>
+                                </span>
                               )}
                             </div>
                           </div>

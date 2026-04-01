@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, Music, Ticket, ExternalLink, Clock } from 'lucide-react';
 import { safeFormatEventDateTime } from '@/lib/dateUtils';
@@ -68,12 +68,12 @@ export function ConcertSearchResults({ event, isNewEvent, source, currentUserId 
               >
                 View Details
               </Button>
-              <Badge variant={isNewEvent ? "default" : "secondary"}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {isNewEvent ? "Added to Database" : "Found in Database"}
-              </Badge>
-              <Badge variant="outline">
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {source === 'jambase' ? 'JamBase' : 'Database'}
-              </Badge>
+              </span>
             </div>
           </div>
 
@@ -186,9 +186,9 @@ export function ConcertSearchResults({ event, isNewEvent, source, currentUserId 
               <p className="text-sm font-medium mb-2">Genres:</p>
               <div className="flex flex-wrap gap-1">
                 {event.genres.map((genre, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {genre}
-                  </Badge>
+                  </span>
                 ))}
               </div>
             </div>

@@ -63,7 +63,7 @@ import { Button } from '@/components/ui/button';
 
 const ACQUISITION_SOURCE_COLOR_MAP: Record<string, string> = {
   'Friends or Family': '#f97316',
-  Instagram: '#ec4899',
+  Instagram: 'var(--brand-pink-500)',
   TikTok: '#312e81',
   Reddit: '#f87171',
   LinkedIn: '#0ea5e9',
@@ -928,9 +928,9 @@ export default function AdminAnalyticsDashboard() {
                     />
                     <Bar 
                       dataKey="value" 
-                      fill="#ec4899" 
                       radius={[8, 8, 0, 0]}
                       name="New Users"
+                      style={{ fill: 'var(--brand-pink-500)' }}
                     />
                   </BarChart>
                 </ResponsiveContainer>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -2028,10 +2028,10 @@ export const UnifiedFeed = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className="synth-badge text-xs">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       <Calendar className="w-3 h-3 mr-1" />
                       {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                    </Badge>
+                    </span>
                   </div>
                 </div>
               )}
@@ -2568,10 +2568,10 @@ export const UnifiedFeed = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className="synth-badge text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         <Calendar className="w-3 h-3 mr-1" />
                           {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                      </Badge>
+                      </span>
                     </div>
                   </div>
                   )}
@@ -3466,15 +3466,15 @@ export const UnifiedFeed = ({
                   {/* Event Status Badge */}
                   <div className="flex items-center gap-2">
                     {selectedReviewDetail.event_info?.event_date && new Date(selectedReviewDetail.event_info.event_date) < new Date() ? (
-                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         <Calendar className="w-3 h-3 mr-1" />
                         Past Event
-                      </Badge>
+                      </span>
                     ) : (
-                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         <Calendar className="w-3 h-3 mr-1" />
                         Upcoming
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 </div>

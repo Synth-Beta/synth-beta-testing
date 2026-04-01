@@ -11,7 +11,7 @@ import 'leaflet/dist/leaflet.css';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { format } from 'date-fns';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,7 +32,7 @@ const createNumberedIcon = (number: number) => {
   return divIcon({
     className: 'numbered-marker',
     html: `<div style="
-      background-color: #ec4899;
+      background-color: var(--brand-pink-500);
       color: white;
       border: 2px solid white;
       border-radius: 50%;
@@ -669,13 +669,9 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                                 <Icon name="music" size={16} color="var(--brand-pink-500)" />
                                 <div className="flex items-center gap-1 flex-wrap">
                                   {selectedArtist.genres.slice(0, 3).map((genre, idx) => (
-                                    <Badge 
-                                      key={idx} 
-                                      variant="secondary" 
-                                      className="text-xs bg-white/80 text-foreground border-synth-pink/20"
-                                    >
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                       {genre}
-                                    </Badge>
+                                    </span>
                                   ))}
                                   {selectedArtist.genres.length > 3 && (
                                     <span className="text-xs text-muted-foreground">
@@ -777,7 +773,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                       const arrowSvg = `
                         <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
                           <g transform="translate(10,10) rotate(${angleDeg}) translate(-10,-10)">
-                            <polygon points="10,2 4,16 16,16" fill="#ec4899" stroke="white" stroke-width="1.5"/>
+                          <polygon points="10,2 4,16 16,16" stroke="white" stroke-width="1.5" style="fill: var(--brand-pink-500);"/>
                           </g>
                         </svg>
                       `;
@@ -790,7 +786,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                               [lat2, lng2],
                         ]}
                         pathOptions={{
-                          color: '#ec4899',
+                          color: 'var(--brand-pink-500)',
                           weight: 3,
                           opacity: 0.7,
                         }}

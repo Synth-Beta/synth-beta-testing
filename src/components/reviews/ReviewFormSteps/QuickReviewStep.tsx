@@ -175,7 +175,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
                 fontSize: 'var(--typography-meta-size, 16px)',
                 fontWeight: 'var(--typography-meta-weight, 500)',
                 lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                color: isNearLimit ? 'var(--status-warning-500, #B88900)' : 'var(--neutral-600)',
+                color: isNearLimit ? 'var(--status-warning-500, var(--status-warning-500))' : 'var(--neutral-600)',
               }}
             >
               {characterCount}/{maxCharacters}
@@ -263,8 +263,8 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
                 onClick={handleAddSetlist}
                 className="btn-synth-primary flex items-center justify-center gap-2 w-full"
                 style={{
-                  backgroundColor: 'var(--brand-pink-500, #FF3399)',
-                  borderColor: 'var(--brand-pink-500, #FF3399)',
+                  backgroundColor: 'var(--brand-pink-500)',
+                  borderColor: 'var(--brand-pink-500)',
                   color: 'white',
                   fontFamily: 'var(--font-family)',
                   fontSize: 'var(--typography-meta-size, 16px)',
@@ -275,7 +275,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
                   e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-500, #FF3399)';
+                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
                 }}
               >
                 <Plus style={{ width: 24, height: 24, color: 'white' }} />

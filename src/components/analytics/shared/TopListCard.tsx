@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { cn } from '@/lib/utils';
 
 interface TopListItem {
@@ -87,9 +87,9 @@ export function TopListCard({
                 {/* Count and optional badge */}
                 <div className="flex items-center gap-2">
                   {item.badge && (
-                    <Badge variant="secondary" className="text-xs bg-synth-pink/10 text-synth-pink">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       {item.badge}
-                    </Badge>
+                    </span>
                   )}
                   <div className="text-right">
                     <div className="font-bold text-lg text-gray-900">

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { 
   TrendingDown, 
   Users, 
@@ -85,12 +85,12 @@ export function ConversionFunnelChart({
             {title}
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-blue-600 border-blue-200">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               {formatNumber(totalUsers)} Total Users
-            </Badge>
-            <Badge variant="outline" className="text-green-600 border-green-200">
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               {finalConversion.toFixed(1)}% Final Conversion
-            </Badge>
+            </span>
           </div>
         </div>
       </CardHeader>
@@ -113,12 +113,9 @@ export function ConversionFunnelChart({
                         <span className="text-sm font-medium text-gray-900">
                           {stage.stage_name}
                         </span>
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs ${getDropOffColor(dropOffSeverity)}`}
-                        >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           {stage.conversion_rate.toFixed(1)}% conversion
-                        </Badge>
+                        </span>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900">
@@ -216,9 +213,9 @@ export function ConversionFunnelChart({
             {Array.from(new Set(stages.flatMap(s => s.key_actions)))
               .slice(0, 6)
               .map((action, index) => (
-                <Badge key={index} variant="secondary" className="text-xs">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   {action}
-                </Badge>
+                </span>
               ))}
           </div>
         </div>

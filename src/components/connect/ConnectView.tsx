@@ -10,7 +10,7 @@ import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Loader2, Users, MessageCircle, Sparkles, Calendar, MapPin, Bell, UserPlus, Star, Heart, Share2, Bookmark, Images, Play, X, UserCheck } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -769,9 +769,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                         >
                           {user.name || 'User'}
                         </h3>
-                        <Badge variant="outline" className="text-xs mb-2">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           {user.connection_label}
-                        </Badge>
+                        </span>
                       </div>
 
                       {user.recommendation_reasons && user.recommendation_reasons.length > 0 && (
@@ -1140,9 +1140,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-gray-900 truncate">{interest.userName}</p>
-                      <Badge variant="outline" className="text-xs">
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {interest.connectionLabel}
-                      </Badge>
+                      </span>
                     </div>
                     {createdAtLabel && (
                       <p className="text-xs text-muted-foreground">
@@ -1633,17 +1633,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{selectedReviewDetail.author?.name || 'User'}</span>
                     {reviewAuthorConnection && reviewAuthorConnection.degree > 0 && (
-                      <Badge 
-                        variant="secondary" 
-                        className={`text-xs ${
-                          reviewAuthorConnection.color === 'dark-green' ? 'bg-green-100 text-green-700 border-green-200' :
-                          reviewAuthorConnection.color === 'light-green' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                          reviewAuthorConnection.color === 'yellow' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                          'bg-gray-100 text-gray-700 border-gray-200'
-                        }`}
-                      >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                         {reviewAuthorConnection.label}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                   <div className="text-xs text-gray-500">
@@ -1748,9 +1740,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     </h2>
                     <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 mb-3">
                       {selectedReviewDetail.event_info?.artist_name && (
-                        <Badge variant="secondary" className="cursor-pointer hover:bg-indigo-100">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           {selectedReviewDetail.event_info.artist_name}
-                        </Badge>
+                        </span>
                       )}
                       {selectedReviewDetail.event_info?.event_date && (
                         <span>• {new Date(selectedReviewDetail.event_info.event_date).toLocaleDateString('en-US', { 
@@ -1847,9 +1839,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Mood</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.moodTags.map((tag, idx) => (
-                              <Badge key={idx} variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {tag}
-                              </Badge>
+                              </span>
                             ))}
                           </div>
                         </div>
@@ -1859,9 +1851,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Genre</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.genreTags.map((tag, idx) => (
-                              <Badge key={idx} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {tag}
-                              </Badge>
+                              </span>
                             ))}
                           </div>
                         </div>
@@ -1871,9 +1863,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Context</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.contextTags.map((tag, idx) => (
-                              <Badge key={idx} variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {tag}
-                              </Badge>
+                              </span>
                             ))}
                           </div>
                         </div>
@@ -1883,9 +1875,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Venue Tags</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.venueTags.map((tag, idx) => (
-                              <Badge key={idx} variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {tag}
-                              </Badge>
+                              </span>
                             ))}
                           </div>
                         </div>
@@ -1895,9 +1887,9 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Artist Tags</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.artistTags.map((tag, idx) => (
-                              <Badge key={idx} variant="outline" className="bg-pink-50 text-pink-700 border-pink-200">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {tag}
-                              </Badge>
+                              </span>
                             ))}
                           </div>
                         </div>

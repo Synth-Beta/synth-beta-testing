@@ -8,11 +8,11 @@ Generated from tokens.json via Style Dictionary.
 import { SynthTokens } from '@/tokens/SynthTokens'
 
 // CORRECT
-backgroundColor: SynthTokens.colors.brandPink500  // #CC2486
-color: SynthTokens.colors.neutral900              // #0E0E0E
+backgroundColor: SynthTokens.colors.brandPink500  // var(var(--brand-pink-500))
+color: SynthTokens.colors.neutral900              // var(--neutral-900)
 
 // WRONG — never do this
-backgroundColor: '#CC2486'
+backgroundColor: 'var(var(--brand-pink-500))'
 backgroundColor: 'pink'
 
 ## Usage — Typography
@@ -33,4 +33,4 @@ import { SynthText } from '@/components/SynthText'
 ## Gradients
 Use expo-linear-gradient (not CSS gradients)
 import { LinearGradient } from 'expo-linear-gradient'
-<LinearGradient colors={['#CC2486', '#8D1FF4']} start={[0,0]} end={[1,1]}>
+<LinearGradient colors={['var(var(--brand-pink-500))', '#8D1FF4']} start={[0,0]} end={[1,1]}>

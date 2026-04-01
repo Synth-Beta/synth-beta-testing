@@ -202,7 +202,9 @@ export function useMainNavItems({
     }
     if (item.isActive && !item.skipReloadWhenActive) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      window.location.reload();
+      // Do not call window.location.reload() — on iOS native it tears down
+      // the React app and removes the synthNativeTabSelected event listener,
+      // causing subsequent tab taps to be silently dropped during the reload.
     } else {
       item.onActivate();
     }

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { SearchBar } from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
@@ -552,18 +552,25 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             <div className="space-y-4 p-2">
               <div className="flex flex-wrap gap-2">
                 {availableGenres.map((genre) => (
-                  <Badge
-                    key={genre}
-                    variant={filters.genres.includes(genre) ? 'default' : 'outline'}
-                    className={`cursor-pointer transition-all duration-200 ${
-                      filters.genres.includes(genre) 
-                        ? 'bg-synth-pink text-white hover:bg-synth-pink-dark' 
-                        : 'hover:bg-synth-pink/10 hover:text-synth-pink hover:border-synth-pink/30'
-                    }`}
+                  <span
                     onClick={() => handleGenreToggle(genre)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      height: '25px',
+                      padding: '0 var(--spacing-small, 12px)',
+                      gap: 'var(--spacing-inline, 6px)',
+                      backgroundColor: 'var(--brand-pink-050)',
+                      color: 'var(--brand-pink-500)',
+                      border: '2px solid var(--brand-pink-500)',
+                      borderRadius: '999px',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                    }}
                   >
                     {genre}
-                  </Badge>
+                  </span>
                 ))}
               </div>
               
@@ -1030,37 +1037,37 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2 bg-white/40 backdrop-blur-sm rounded-2xl p-3 border border-white/20">
           {filters.genres.map((genre) => (
-            <Badge key={genre} variant="secondary" className="flex items-center gap-1 bg-synth-pink/20 text-synth-pink border-synth-pink/30 hover:bg-synth-pink/30 transition-colors">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <Music className="h-3 w-3" />
               {genre}
               <X 
                 className="h-3 w-3 cursor-pointer hover:text-destructive" 
                 onClick={() => handleGenreToggle(genre)}
               />
-            </Badge>
+            </span>
           ))}
           {deduplicateCities(filters.selectedCities || []).map((city, index) => (
-            <Badge key={`selected-city-${city}-${index}`} variant="secondary" className="flex items-center gap-1 bg-synth-beige/30 text-synth-black border-synth-beige-dark hover:bg-synth-beige/50 transition-colors">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <MapPin className="h-3 w-3" />
               {city}
               <X 
                 className="h-3 w-3 cursor-pointer hover:text-destructive" 
                 onClick={() => onFiltersChange({ ...filters, selectedCities: (filters.selectedCities || []).filter(c => c !== city) })}
               />
-            </Badge>
+            </span>
           ))}
           {(filters.dateRange.from || filters.dateRange.to) && (
-            <Badge variant="secondary" className="flex items-center gap-1 bg-synth-pink/20 text-synth-pink border-synth-pink/30 hover:bg-synth-pink/30 transition-colors">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <CalendarIcon className="h-3 w-3" />
               {getDateRangeText()}
               <X 
                 className="h-3 w-3 cursor-pointer hover:text-destructive" 
                 onClick={handleDateRangeClear}
               />
-            </Badge>
+            </span>
           )}
           {filters.daysOfWeek.length > 0 && (
-            <Badge variant="secondary" className="flex items-center gap-1 bg-synth-beige/30 text-synth-black border-synth-beige-dark hover:bg-synth-beige/50 transition-colors">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <CalendarIcon className="h-3 w-3" />
               {filters.daysOfWeek.length === 7 ? 'All Days' : 
                filters.daysOfWeek.sort().map(d => ['Su', 'M', 'T', 'W', 'Th', 'F', 'Sa'][d]).join(', ')}
@@ -1068,7 +1075,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                 className="h-3 w-3 cursor-pointer hover:text-destructive" 
                 onClick={() => onFiltersChange({ ...filters, daysOfWeek: [] })}
               />
-            </Badge>
+            </span>
           )}
         </div>
       )}

@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import type { JamBaseEvent } from '@/types/eventTypes';
@@ -1378,9 +1378,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                   )}
                 </p>
               </div>
-              <Badge variant="secondary" className="bg-white text-pink-600 border-pink-100">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {formData.selectedSetlist.songCount} songs
-              </Badge>
+              </span>
             </div>
             <ul className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
               {(formData.selectedSetlist.songs || []).slice(0, 8).map((song: any, index: number) => (
@@ -1464,9 +1464,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                   )}
                 </p>
               </div>
-              <Badge variant="secondary" className="bg-white text-pink-600 border-pink-100">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {formData.selectedSetlist.songCount} songs
-              </Badge>
+              </span>
             </div>
             <ul className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
               {(formData.selectedSetlist.songs || []).slice(0, 8).map((song: any, index: number) => (

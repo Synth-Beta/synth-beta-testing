@@ -42,7 +42,7 @@ const MobilePreview: React.FC = () => {
               className="w-full h-full object-contain"
             />
           </div>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#cc2486] mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand-pink-500)] mx-auto"></div>
           <p className="text-sm text-gray-600">Loading...</p>
         </div>
       </div>
@@ -152,7 +152,7 @@ const MobilePreview: React.FC = () => {
     <div
       className="min-h-screen"
       style={{
-        backgroundColor: 'var(--off-white, #fcfcfc)',
+        backgroundColor: 'var(--off-white)',
         paddingTop: 'calc(59px + env(safe-area-inset-top, 0px))',
         paddingBottom: 'max(100px, calc(100px + env(safe-area-inset-bottom, 0px)))',
       }}

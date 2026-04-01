@@ -118,7 +118,7 @@ struct EventShareModalView: View {
                 if !isRendering {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 13))
-                        .foregroundColor(Color(hex: "#CC2486"))
+                        .foregroundColor(SynthColor.brandPink500)
                 }
             }
 
@@ -186,7 +186,7 @@ struct EventShareModalView: View {
             // Subtle top gradient glow
             LinearGradient(
                 colors: [
-                    Color(hex: "#CC2486").opacity(0.07),
+                    SynthColor.brandPink500.opacity(0.07),
                     Color.clear
                 ],
                 startPoint: .top, endPoint: .center
@@ -292,7 +292,7 @@ struct ShareActionButton: View {
                     Circle()
                         .fill(isPrimary
                               ? LinearGradient(
-                                    colors: [Color(hex: "#CC2486"), Color(hex: "#8D1FF4")],
+                                    colors: [SynthColor.brandPink500, Color(hex: "#8D1FF4")],
                                     startPoint: .topLeading, endPoint: .bottomTrailing
                                 )
                               : LinearGradient(

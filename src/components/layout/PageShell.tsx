@@ -68,7 +68,6 @@ const PageShell: React.FC<PageShellProps> = ({
         className={contentClassName ? `page-shell__content ${contentClassName}` : 'page-shell__content'}
         style={{
           paddingTop: topPadding,
-          paddingBottom: bottomPadding,
           ...(contentHorizontalPadding
             ? {
                 paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
@@ -79,6 +78,9 @@ const PageShell: React.FC<PageShellProps> = ({
         }}
       >
         {children}
+        {/* Physical spacer instead of padding-bottom: padding-bottom on overflow:auto containers
+            is unreliable in WebKit — the space isn't always included in the scroll area. */}
+        <div aria-hidden="true" style={{ height: bottomPadding, flexShrink: 0 }} />
       </div>
     </div>
   );

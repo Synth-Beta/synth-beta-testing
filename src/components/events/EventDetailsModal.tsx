@@ -73,6 +73,7 @@ import {
   animations
 } from '@/styles/glassmorphism';
 import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
+import { useWebLayoutMode } from '@/hooks/useWebLayoutMode';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -89,6 +90,8 @@ interface EventDetailsModalProps {
   /** Called when user selects a different event from venue/artist modal so parent can sync state */
   onEventChange?: (event: JamBaseEvent, isInterested?: boolean) => void;
 }
+
+const DESKTOP_RAIL_WIDTH = 220;
 
 export function EventDetailsModal({
   event,
@@ -198,6 +201,30 @@ export function EventDetailsModal({
     actualEvent?.title ?? ''
   );
   const { isCreator, isAdmin, isBusiness } = useAccountType();
+  const layoutMode = useWebLayoutMode();
+  const isWebDesktop = layoutMode === 'web-desktop';
+  const modalContainerStyle: React.CSSProperties = {
+    ...iosModal,
+    zIndex: 60,
+    background: 'var(--neutral-50, var(--neutral-50))',
+    pointerEvents: 'auto',
+    overflowY: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    ...(isWebDesktop
+      ? {
+          left: `${DESKTOP_RAIL_WIDTH}px`,
+          width: `calc(100% - ${DESKTOP_RAIL_WIDTH}px)`,
+          maxWidth: 'none',
+          margin: 0,
+          borderRadius: 0,
+          paddingTop: 0,
+          paddingBottom: 0,
+          height: '100vh',
+          minHeight: '100vh',
+        }
+      : {}),
+  };
 
   // 🎯 TRACKING: View duration tracking
   const viewStartTime = useRef<number | null>(null);
@@ -1253,30 +1280,22 @@ export function EventDetailsModal({
   return (
     <>
     {/* Backdrop (kept below bottom nav so nav stays visually on top) */}
-    <div 
+    <div
       style={{
         ...iosModalBackdrop,
         zIndex: 55,
+        ...(isWebDesktop
+          ? {
+              left: `${DESKTOP_RAIL_WIDTH}px`,
+              width: `calc(100% - ${DESKTOP_RAIL_WIDTH}px)`,
+            }
+          : {}),
       }}
       onClick={onClose}
     />
     
     {/* Modal Container (also below bottom nav z-index 40) */}
-    <div 
-      className="fixed inset-0 overflow-hidden"
-      style={{
-        ...iosModal,
-        zIndex: 60,
-        background: 'var(--neutral-50, #FCFCFC)',
-        pointerEvents: 'auto',
-        // Make content scroll independently so header never scrolls away.
-        overflowY: 'hidden',
-        paddingTop: 0,
-        paddingBottom: 0,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <div className="fixed inset-0 overflow-hidden" style={modalContainerStyle}>
       {/* iOS-style Header with glassmorphism */}
       {!hasNativeEventHeader && (
       <div

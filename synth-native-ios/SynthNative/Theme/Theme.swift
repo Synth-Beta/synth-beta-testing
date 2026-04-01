@@ -8,14 +8,14 @@
 import SwiftUI
 
 enum SynthColor {
-    static let neutral0 = Color(hex: "#FFFFFF")
-    static let neutral50 = Color(hex: "#FCFCFC")
-    static let neutral100 = Color(hex: "#F5F5F5")
-    static let neutral200 = Color(hex: "#E6E6E6")
-    static let neutral400 = Color(hex: "#8A8F98")
-    static let neutral600 = Color(hex: "#5D646F")
-    static let neutral900 = Color(hex: "#0E0E0E")
-    static let brandPink500 = Color(hex: "#CC2486")
+    static let neutral0 = Color(hex: "var(--neutral-0)")
+    static let neutral50 = Color(hex: "var(--neutral-50)")
+    static let neutral100 = Color(hex: "var(--neutral-100)")
+    static let neutral200 = Color(hex: "var(--neutral-200)")
+    static let neutral400 = Color(hex: "var(--neutral-400)")
+    static let neutral600 = Color(hex: "var(--neutral-600)")
+    static let neutral900 = Color(hex: "var(--neutral-900)")
+    static let brandPink500 = Color(hex: "var(var(--brand-pink-500))")
 }
 
 enum SynthTypography {

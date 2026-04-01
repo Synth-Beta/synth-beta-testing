@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Progress } from '@/components/ui/progress';
 import { MapPin, Calendar, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { seedDCEvents } from '@/scripts/seedDCEvents';
@@ -99,12 +99,12 @@ export function EventSeeder() {
                 <div>
                   <h4 className="font-medium text-green-900">Seeding Complete!</h4>
                   <div className="flex gap-4 mt-2">
-                    <Badge variant="outline" className="bg-white">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       📡 {result.fetched} Fetched
-                    </Badge>
-                    <Badge variant="outline" className="bg-white">
+                    </span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       💾 {result.saved} Saved
-                    </Badge>
+                    </span>
                   </div>
                   <p className="text-sm text-green-700 mt-2">
                     Events are now available in the Events tab and search functionality

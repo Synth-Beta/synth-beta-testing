@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+
 import { 
   User, 
   MessageCircle, 
@@ -107,33 +107,33 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
             {(friend.gender || friend.birthday) && (
               <div className="flex items-center justify-center gap-2 mb-2 w-full">
                 {friend.gender && (
-                  <Badge variant="secondary" className="text-xs">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {friend.gender}
-                  </Badge>
+                  </span>
                 )}
                 {friend.birthday && (() => {
                   const age = calculateAge(friend.birthday);
                   if (age === null) return null;
                   return (
-                    <Badge variant="secondary" className="text-xs">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       {age} years old
-                    </Badge>
+                    </span>
                   );
                 })()}
               </div>
             )}
             
             {friend.last_active_at && (
-              <Badge variant="secondary" className="mb-2 flex items-center gap-1 text-xs mx-auto w-fit">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 <Clock className="w-3 h-3" />
                 {UserVisibilityService.formatLastActive(friend.last_active_at)}
-              </Badge>
+              </span>
             )}
             
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <User className="w-3 h-3 mr-1" />
               Friend
-            </Badge>
+            </span>
           </div>
 
           {/* Bio Section */}
@@ -160,18 +160,18 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
           <div>
             <h3 className="font-semibold text-gray-900 mb-2 text-sm">Music Preferences</h3>
             <div className="flex flex-wrap gap-1">
-              <Badge variant="outline" className="text-xs">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 <Music className="w-3 h-3 mr-1" />
                 Concert Lover
-              </Badge>
-              <Badge variant="outline" className="text-xs">
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 <Heart className="w-3 h-3 mr-1" />
                 Live Music
-              </Badge>
-              <Badge variant="outline" className="text-xs">
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 <Star className="w-3 h-3 mr-1" />
                 Music Enthusiast
-              </Badge>
+              </span>
             </div>
           </div>
 

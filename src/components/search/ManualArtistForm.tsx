@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+
 import { Music, Loader2, X, AlertCircle } from 'lucide-react';
 import { MissingEntityRequestService } from '@/services/missingEntityRequestService';
 interface ManualArtistFormProps {
@@ -160,7 +160,7 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
             {genreTags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {genreTags.map((genre) => (
-                  <Badge key={genre} variant="secondary" className="gap-1">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {genre}
                     <button
                       type="button"
@@ -170,7 +170,7 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
                     >
                       <X className="h-3 w-3" />
                     </button>
-                  </Badge>
+                  </span>
                 ))}
               </div>
             )}

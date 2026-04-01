@@ -456,7 +456,7 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
               style={{
                 width: 24,
                 height: 24,
-                background: 'linear-gradient(135deg, #CC2486 0%, #8D1FF4 100%)',
+                background: 'linear-gradient(135deg, var(--brand-pink-500) 0%, #8D1FF4 100%)',
                 borderRadius: 12,
                 display: 'flex',
                 alignItems: 'center',

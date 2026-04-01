@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 
 interface DatabaseStatusProps {
   currentUserId: string;
@@ -80,7 +80,7 @@ export const DatabaseStatus = ({ currentUserId }: DatabaseStatusProps) => {
               <div className="space-y-1">
                 {tableInfo.map((column: any) => (
                   <div key={column.column_name} className="flex items-center gap-2 text-sm">
-                    <Badge variant="outline">{column.column_name}</Badge>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{column.column_name}</span>
                     <span className="text-muted-foreground">{column.data_type}</span>
                     <span className="text-muted-foreground">
                       {column.is_nullable === 'YES' ? '(nullable)' : '(required)'}
@@ -98,15 +98,15 @@ export const DatabaseStatus = ({ currentUserId }: DatabaseStatusProps) => {
             <h4 className="font-semibold mb-2">Migration Status:</h4>
             <div className="space-y-1 text-sm">
               <div className="flex items-center gap-2">
-                <Badge variant={profileData?.instagram_handle !== undefined ? "default" : "destructive"}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   Instagram Handle
-                </Badge>
+                </span>
                 {profileData?.instagram_handle !== undefined ? '✅' : '❌'}
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={profileData?.music_streaming_profile !== undefined ? "default" : "destructive"}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   Music Streaming Profile
-                </Badge>
+                </span>
                 {profileData?.music_streaming_profile !== undefined ? '✅' : '❌'}
               </div>
             </div>

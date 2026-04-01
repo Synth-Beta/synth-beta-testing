@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { 
   Calendar, 
   MapPin, 
@@ -210,9 +210,9 @@ export function ReviewMessageCard({
           <p className="text-white text-xs font-medium">Concert Review</p>
         </div>
         {isPastEvent && (
-          <Badge variant="secondary" className="text-xs">
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             Past Event
-          </Badge>
+          </span>
         )}
       </div>
 
@@ -291,14 +291,14 @@ export function ReviewMessageCard({
         {review.genres && review.genres.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {review.genres.slice(0, 3).map((genre, index) => (
-              <Badge key={index} variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {genre}
-              </Badge>
+              </span>
             ))}
             {review.genres.length > 3 && (
-              <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 +{review.genres.length - 3}
-              </Badge>
+              </span>
             )}
           </div>
         )}

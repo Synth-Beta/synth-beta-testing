@@ -43,13 +43,14 @@ const MobilePreview: React.FC = () => {
         </Routes>
       </main>
 
-      <BottomNav />
+      {!menuOpen && <BottomNav />}
 
       {/* Side Menu */}
       <SideMenu
         isOpen={menuOpen}
         onClose={handleMenuClose}
         onToggle={handleMenuToggle}
+        anchor="right"
       />
     </div>
   );

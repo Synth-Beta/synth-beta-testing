@@ -67,7 +67,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 // Custom marker icon for events with brand-pink color
-// Using CSS filter to change the default blue marker to brand-pink-500 (#EC4899)
+// Using CSS filter to change the default blue marker to brand-pink-500 (var(--brand-pink-500))
 const eventIcon = new Icon({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,
@@ -221,8 +221,8 @@ export const EventMap: React.FC<EventMapProps> = ({
             center={center}
             radius={radiusMiles * 1609.34} // Convert miles to meters
             pathOptions={{
-              color: '#ec4899',
-              fillColor: '#ec4899',
+              color: 'var(--brand-pink-500)',
+              fillColor: 'var(--brand-pink-500)',
               fillOpacity: 0.1,
               weight: 2,
               opacity: 0.6

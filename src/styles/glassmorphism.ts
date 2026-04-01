@@ -123,7 +123,7 @@ export const iosModal: CSSProperties = {
   maxWidth: 390,
   height: '100vh',
   margin: '0 auto',
-  background: 'var(--neutral-50, #FCFCFC)',
+  background: 'var(--neutral-50, var(--neutral-50))',
   paddingTop: 'env(safe-area-inset-top, 47px)',
   paddingBottom: 'env(safe-area-inset-bottom, 34px)',
   overflowY: 'auto',
@@ -194,8 +194,8 @@ export const iosPrimaryButton: CSSProperties = {
   height: 50,
   minWidth: 44,
   padding: '0 24px',
-  background: 'var(--brand-pink-500, #CC2486)',
-  color: '#FFFFFF',
+  background: 'var(--brand-pink-500)',
+  color: 'var(--neutral-0)',
   fontSize: 17,
   fontWeight: 600,
   borderRadius: 12,
@@ -215,7 +215,7 @@ export const iosSecondaryButton: CSSProperties = {
   background: 'rgba(255, 255, 255, 0.8)',
   backdropFilter: 'blur(20px)',
   WebkitBackdropFilter: 'blur(20px)',
-  color: 'var(--brand-pink-500, #CC2486)',
+  color: 'var(--brand-pink-500)',
   fontSize: 17,
   fontWeight: 600,
   borderRadius: 12,
@@ -271,7 +271,7 @@ export const heroContentOverlay: CSSProperties = {
   left: 0,
   right: 0,
   padding: '20px',
-  color: '#FFFFFF',
+  color: 'var(--neutral-0)',
 };
 
 // ============================================
@@ -332,7 +332,7 @@ export const sectionHeader: CSSProperties = {
 export const sectionTitle: CSSProperties = {
   fontSize: 20,
   fontWeight: 700,
-  color: 'var(--neutral-900, #0E0E0E)',
+  color: 'var(--neutral-900, var(--neutral-900))',
   margin: 0,
 };
 
@@ -403,7 +403,7 @@ export const textStyles = {
     fontSize: 13,
     fontWeight: 400,
     lineHeight: 1.4,
-    color: 'var(--neutral-600, #5D646F)',
+    color: 'var(--neutral-600, var(--neutral-600))',
   } as CSSProperties,
   
   /** Caption text */
@@ -411,7 +411,7 @@ export const textStyles = {
     fontSize: 12,
     fontWeight: 400,
     lineHeight: 1.3,
-    color: 'var(--neutral-600, #5D646F)',
+    color: 'var(--neutral-600, var(--neutral-600))',
   } as CSSProperties,
 };
 
@@ -425,7 +425,7 @@ export const badge: CSSProperties = {
   alignItems: 'center',
   padding: '4px 10px',
   background: 'rgba(204, 36, 134, 0.1)',
-  color: 'var(--brand-pink-500, #CC2486)',
+  color: 'var(--brand-pink-500)',
   fontSize: 13,
   fontWeight: 500,
   borderRadius: 8,
@@ -527,12 +527,12 @@ export const eventCardPreset = {
   } as CSSProperties,
   title: {
     ...textStyles.title2,
-    color: 'var(--neutral-900, #0E0E0E)',
+    color: 'var(--neutral-900, var(--neutral-900))',
     marginBottom: 4,
   } as CSSProperties,
   subtitle: {
     ...textStyles.callout,
-    color: 'var(--brand-pink-500, #CC2486)',
+    color: 'var(--brand-pink-500)',
     marginBottom: 12,
   } as CSSProperties,
   meta: {

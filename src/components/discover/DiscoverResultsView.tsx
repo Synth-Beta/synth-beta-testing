@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Icon } from '@/components/Icon/Icon';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -303,9 +303,9 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
               <Button variant="outline" size="sm" className="p-2 relative flex-shrink-0">
                 <Icon name="music" size={16} color="var(--neutral-900)" />
                 {filters.genres && filters.genres.length > 0 && (
-                  <Badge variant="secondary" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-xs flex items-center justify-center">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {filters.genres.length}
-                  </Badge>
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -341,9 +341,9 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
               <Button variant="outline" size="sm" className="p-2 relative flex-shrink-0">
                 <Icon name="location" size={16} color="var(--neutral-900)" />
                 {filters.cities && filters.cities.length > 0 && (
-                  <Badge variant="secondary" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-xs flex items-center justify-center">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {filters.cities.length}
-                  </Badge>
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -415,7 +415,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
         {hasActiveFilters && (
           <div className="flex items-center gap-2 flex-wrap mb-4">
             {filters.dateRange?.from && (
-              <Badge variant="secondary" className="gap-1">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 Date: {format(filters.dateRange.from, 'MMM d')}
                 {filters.dateRange.to && ` - ${format(filters.dateRange.to, 'MMM d')}`}
                 <button
@@ -424,10 +424,10 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                 >
                   <Icon name="x" size={16} color="var(--neutral-900)" />
                 </button>
-              </Badge>
+              </span>
             )}
             {filters.genres?.map((genre) => (
-              <Badge key={genre} variant="secondary" className="gap-1">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {genre}
                 <button
                   onClick={() => handleGenreToggle(genre)}
@@ -435,10 +435,10 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                 >
                   <Icon name="x" size={16} color="var(--neutral-900)" />
                 </button>
-              </Badge>
+              </span>
             ))}
             {filters.cities?.map((city) => (
-              <Badge key={city} variant="secondary" className="gap-1">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {city}
                 <button
                   onClick={() => {
@@ -451,7 +451,7 @@ export const DiscoverResultsView: React.FC<DiscoverResultsViewProps> = ({
                 >
                   <Icon name="x" size={16} color="var(--neutral-900)" />
                 </button>
-              </Badge>
+              </span>
             ))}
           </div>
         )}

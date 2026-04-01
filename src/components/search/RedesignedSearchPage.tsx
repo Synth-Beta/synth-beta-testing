@@ -4,7 +4,7 @@ import { SearchBar } from '@/components/SearchBar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
+
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Music, Users, Calendar, MapPin, Search, Grid3x3 } from 'lucide-react';
@@ -470,9 +470,9 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                   Explore venues on the map
                 </h2>
-                <Badge variant="secondary" className="text-xs">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   {mapLoading ? 'Loading…' : `${mapVenues.length.toLocaleString()} venues`}
-                </Badge>
+                </span>
               </div>
 
               {mapLoading && mapVenues.length === 0 ? (
@@ -558,7 +558,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                      : activeResults.length === 0) && (
                     <div className="flex flex-col gap-[6px] items-center justify-center p-12 text-center">
                       {/* Large icon (60px), dark grey - using Search icon */}
-                      <Search className="w-[60px] h-[60px]" style={{ color: 'var(--color-dark-grey, #5D646F)' }} />
+                      <Search className="w-[60px] h-[60px]" style={{ color: 'var(--color-dark-grey, var(--neutral-600))' }} />
                       {/* Description - Meta typography, dark grey */}
                       <p style={{ 
                         fontFamily: 'var(--font-family)',
@@ -857,7 +857,7 @@ const UserResults: React.FC<{
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-semibold truncate">{user.name}</span>
-              {user.verified && <Badge variant="outline">Verified</Badge>}
+              {user.verified && <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>Verified</span>}
             </div>
             {user.username && (
               <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
@@ -953,9 +953,9 @@ const ArtistResults: React.FC<{
             {artist.genres && artist.genres.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-1">
                 {artist.genres.slice(0, 3).map((genre) => (
-                  <Badge key={genre} variant="secondary" className="text-xs">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                           {genre}
-                                        </Badge>
+                                        </span>
                                       ))}
                                     </div>
                                   )}
@@ -1285,7 +1285,7 @@ const AllResults: React.FC<{
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-sm truncate">{user.name}</span>
-                      {user.verified && <Badge variant="outline" className="text-xs">Verified</Badge>}
+                      {user.verified && <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>Verified</span>}
                     </div>
                     {user.bio && (
                       <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{user.bio}</p>
@@ -1338,9 +1338,9 @@ const AllResults: React.FC<{
                     {artist.genres && artist.genres.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {artist.genres.slice(0, 2).map((genre) => (
-                          <Badge key={genre} variant="secondary" className="text-xs">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {genre}
-                          </Badge>
+                          </span>
                         ))}
                       </div>
                     )}

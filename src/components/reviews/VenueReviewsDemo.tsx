@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Star, MapPin, Plus, TrendingUp } from 'lucide-react';
 import { ReviewService, VenueStats, TagCount, ReviewWithEngagement } from '@/services/reviewService';
 import { SwiftUIReviewCard } from './SwiftUIReviewCard';
@@ -197,9 +197,9 @@ const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {popularTags.map((tag) => (
-                    <Badge key={tag.tag} variant="secondary" className="text-xs">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       {tag.tag.replace('-', ' ')} ({tag.count})
-                    </Badge>
+                    </span>
                   ))}
                 </div>
               </div>

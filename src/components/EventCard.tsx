@@ -5,7 +5,6 @@ import { Heart, X, Calendar, MapPin, Users, Star, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ProgressiveImage } from "@/components/ui/ProgressiveImage"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { isEventPast, getEventStatus } from "@/utils/eventStatusUtils"
 import { useSetlist } from "@/hooks/useSetlist"
 import { getFallbackEventImage, replaceJambasePlaceholder } from "@/utils/eventImageFallbacks"
@@ -124,32 +123,32 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
 
         <div className="space-y-3 bg-muted/30 rounded-xl p-4">
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <Calendar className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <Calendar className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">
               {event.date} at {event.time}
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <MapPin className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <MapPin className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">{event.venue}</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <Users className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <Users className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">{event.attendeeCount} interested</span>
           </div>
           {/* Setlist information for past events */}
           {isPast && (
             <div className="flex items-center gap-3 text-sm text-foreground">
-              <Music className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+              <Music className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
               <div className="flex items-center gap-2">
                 {setlistLoading ? (
                   <span className="text-muted-foreground">Loading setlist...</span>
                 ) : hasSetlist ? (
                   <>
                     <span className="font-medium">Setlist available</span>
-                    <Badge variant="secondary" className="text-xs">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       {songCount} songs
-                    </Badge>
+                    </span>
                   </>
                 ) : (
                   <span className="text-muted-foreground">No setlist available</span>

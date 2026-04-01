@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
+
 import { TrendingUp, Star, Crown } from 'lucide-react';
 
 interface PromotedEventBadgeProps {
@@ -27,13 +27,10 @@ export function PromotedEventBadge({ promotionTier, className = '' }: PromotedEv
   const Icon = config.icon;
 
   return (
-    <Badge 
-      variant="secondary" 
-      className={`flex items-center gap-1 text-xs font-medium ${config.className} ${className}`}
-    >
+    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
       <Icon className={`w-3 h-3 ${config.iconClassName}`} />
       {config.text}
-    </Badge>
+    </span>
   );
 }
 

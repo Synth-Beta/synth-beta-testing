@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Separator } from '@/components/ui/separator';
 import { Music, ExternalLink, Calendar, MapPin, X, Loader2 } from 'lucide-react';
 import { SetlistService, type SetlistData } from '@/services/setlistService';
@@ -321,14 +321,14 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                               {setlist.artist.name}
                             </CardTitle>
                             {isExactDateMatch && (
-                              <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 Exact Match
-                              </Badge>
+                              </span>
                             )}
                             {isSelected && (
-                              <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 Selected
-                              </Badge>
+                              </span>
                             )}
                           </div>
                           <div className="space-y-1 text-sm text-gray-600">
@@ -349,9 +349,9 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                           </div>
                         </div>
                         <div className="text-right">
-                          <Badge variant="secondary" className="mb-2">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {setlist.songCount} songs
-                          </Badge>
+                          </span>
                           <div className="text-xs text-gray-500">
                             {Object.keys(sets).length} set{Object.keys(sets).length !== 1 ? 's' : ''}
                           </div>
@@ -370,9 +370,9 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                         {Object.entries(sets).map(([setNumber, songs]) => (
                           <div key={setNumber} className="space-y-2">
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="font-medium">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {songs[0]?.setName || `Set ${setNumber}`}
-                              </Badge>
+                              </span>
                               <span className="text-sm text-gray-500">
                                 {songs.length} song{songs.length !== 1 ? 's' : ''}
                               </span>
@@ -388,14 +388,14 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                                     {song.name}
                                   </span>
                                   {song.cover && (
-                                    <Badge variant="secondary" className="text-xs">
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                       {song.cover.artist}
-                                    </Badge>
+                                    </span>
                                   )}
                                   {song.tape && (
-                                    <Badge variant="outline" className="text-xs">
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                       Tape
-                                    </Badge>
+                                    </span>
                                   )}
                                 </div>
                               ))}

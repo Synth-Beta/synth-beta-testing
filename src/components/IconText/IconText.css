@@ -20,7 +20,7 @@
   font-size: var(--typography-body-size, 20px);
   font-weight: var(--typography-body-weight, 500);
   line-height: var(--typography-body-line-height, 1.5);
-  color: var(--color-off-black, #0E0E0E);
+  color: var(--color-off-black, var(--neutral-900));
   font-family: var(--font-family);
 }
 
@@ -44,7 +44,7 @@
 }
 
 .icon-text--clickable:focus-visible {
-  outline: 2px solid var(--color-synth-pink, #CC2486);
+  outline: 2px solid var(--color-synth-pink, var(--brand-pink-500));
   outline-offset: 2px;
   border-radius: var(--radius-corner, 10px);
 }

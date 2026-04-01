@@ -65,7 +65,7 @@ export interface MobileHeaderProps {
  * - Hamburger button on the right (44x44 hit area)
  * 
  * Design specifications from Figma:
- * - Background: OffWhite (#FCFCFC)
+ * - Background: OffWhite (var(--neutral-50))
  * - Box shadow: 0 4px 4px rgba(0,0,0,0.25)
  * - Header content centered
  * - Hamburger button: 44x44 hit area

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { 
   Pin, PinOff, Calendar, Music, MapPin, Star, Award, 
   Sparkles, TrendingUp, Camera, FileText, Users, Zap, Plus, Edit2 
@@ -329,10 +329,10 @@ useEffect(() => {
                     {/* Actions */}
                     <div className="flex flex-col items-end gap-2 shrink-0">
                       {entry.is_pinned && (
-                        <Badge className="bg-synth-pink text-white border-0 text-xs">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           <Pin className="w-3 h-3 mr-1 fill-current" />
                           Pinned
-                        </Badge>
+                        </span>
                       )}
                       {canEdit && (
                         <div className="flex gap-1">

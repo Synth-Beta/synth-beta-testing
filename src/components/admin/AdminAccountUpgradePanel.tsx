@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Textarea } from '@/components/ui/textarea';
 import { CheckCircle2, XCircle, Clock, User, Building2, Music } from 'lucide-react';
 
@@ -111,24 +111,24 @@ useEffect(() => {
     switch (status) {
       case 'pending':
         return (
-          <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             <Clock className="w-3 h-3 mr-1" />
             Pending
-          </Badge>
+          </span>
         );
       case 'approved':
         return (
-          <Badge variant="outline" className="text-green-600 border-green-600">
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             <CheckCircle2 className="w-3 h-3 mr-1" />
             Approved
-          </Badge>
+          </span>
         );
       case 'denied':
         return (
-          <Badge variant="outline" className="text-red-600 border-red-600">
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             <XCircle className="w-3 h-3 mr-1" />
             Denied
-          </Badge>
+          </span>
         );
       default:
         return null;

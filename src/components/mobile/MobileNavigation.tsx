@@ -19,7 +19,7 @@ interface MobileNavigationProps {
  * - Border: Grey50 (rgba(201,201,201,0.5)) on top
  * - Corner radius: 10px (top corners only)
  * - Spacing: 43px gap between items, 23px horizontal padding, 20px vertical padding
- * - Plus button: 40px height, 70px width, SynthPink (#cc2486) background, 20px corner radius
+ * - Plus button: 40px height, 70px width, SynthPink (var(--brand-pink-500)) background, 20px corner radius
  * - Icon size: 24px
  */
 export const MobileNavigation: React.FC<MobileNavigationProps> = ({
@@ -113,7 +113,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             style={{
               width: '70px',
               height: '40px',
-              backgroundColor: 'var(--synth-pink, #cc2486)',
+              backgroundColor: 'var(--synth-pink, var(--brand-pink-500))',
               borderRadius: '20px',
             }}
           >

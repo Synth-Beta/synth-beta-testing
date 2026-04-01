@@ -66,7 +66,7 @@ export function TrendingBadge({ eventId, className }: TrendingBadgeProps) {
         paddingLeft: 'var(--spacing-small, 12px)',
         paddingRight: 'var(--spacing-small, 12px)',
         borderRadius: 'var(--radius-corner, 10px)',
-        background: 'linear-gradient(135deg, #f97316 0%, #ec4899 100%)',
+        background: 'linear-gradient(135deg, #f97316 0%, var(--brand-pink-500) 100%)',
         border: '2px solid var(--brand-pink-500)',
         fontFamily: 'var(--font-family)',
         fontSize: 'var(--typography-meta-size, 16px)',

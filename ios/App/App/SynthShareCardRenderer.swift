@@ -79,7 +79,7 @@ private enum CardColor {
     static let textPrimary   = Color.white
     static let textSecondary = Color(white: 1, opacity: 0.55)
     static let textTertiary  = Color(white: 1, opacity: 0.35)
-    static let brandPink     = Color(hex: "#CC2486")
+    static let brandPink     = SynthColor.brandPink500
     static let brandPurple   = Color(hex: "#8D1FF4")
     static let starYellow    = Color(hex: "#FCDC5F")
     static let footerLine    = Color(white: 1, opacity: 0.08)
@@ -91,7 +91,7 @@ private enum CardGradient {
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
     static let accentLine = LinearGradient(
-        colors: [CardColor.brandPink, CardColor.brandPurple, Color(hex: "#CC2486").opacity(0)],
+        colors: [CardColor.brandPink, CardColor.brandPurple, SynthColor.brandPink500.opacity(0)],
         startPoint: .leading, endPoint: .trailing
     )
     static let darkOverlay = LinearGradient(
@@ -588,7 +588,7 @@ class SynthShareCardRenderer {
         let logoRect = CGRect(x: 22, y: 50, width: 28, height: 28)
         let logoPath = UIBezierPath(roundedRect: logoRect, cornerRadius: 7)
         ctx.addPath(logoPath.cgPath)
-        UIColor(hex: "#CC2486").setFill()
+        UIColor(SynthColor.brandPink500).setFill()
         ctx.fillPath()
 
         // "Synth" wordmark
@@ -626,14 +626,14 @@ class SynthShareCardRenderer {
         // Badge
         let badgeAttrs: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 10, weight: .bold),
-            .foregroundColor: UIColor(hex: "#CC2486"),
+            .foregroundColor: UIColor(SynthColor.brandPink500),
             .kern: 1.8
         ]
         data.badge.uppercased().draw(at: CGPoint(x: lx, y: y), withAttributes: badgeAttrs)
         y += 18
 
         // Accent line
-        ctx.setFillColor(UIColor(hex: "#CC2486").cgColor)
+        ctx.setFillColor(UIColor(SynthColor.brandPink500).cgColor)
         ctx.fill(CGRect(x: lx, y: y, width: rw * 0.6, height: 2))
         y += 12
 
@@ -706,7 +706,7 @@ class SynthShareCardRenderer {
         let logoRect = CGRect(x: 22, y: H - 40, width: 22, height: 22)
         let logoPath = UIBezierPath(roundedRect: logoRect, cornerRadius: 5)
         ctx.addPath(logoPath.cgPath)
-        UIColor(hex: "#CC2486").setFill()
+        UIColor(SynthColor.brandPink500).setFill()
         ctx.fillPath()
 
         // URL

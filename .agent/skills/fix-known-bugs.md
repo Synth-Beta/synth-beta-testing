@@ -5,7 +5,7 @@ the primary task:
 
 1. tailwind.config.ts synth.pink value
    WRONG:   #FF3399
-   CORRECT: #CC2486
+   CORRECT: var(var(--brand-pink-500))
    
 2. SceneCard.tsx inline styles
    Pattern to find: style={{ fontSize: 'var(--...)', ... }}

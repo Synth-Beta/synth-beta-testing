@@ -20,12 +20,18 @@ struct AppShellView: View {
                         destinationView(for: destination)
                     }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        BottomNav(
-                            items: bottomNavItems,
-                            activeIndex: selectedTab.rawValue,
-                            onSelect: handleTabSelection
-                        )
-                        .ignoresSafeArea(.keyboard, edges: .bottom)
+                        if menuOpen {
+                            Color.clear
+                                .frame(height: SynthSizes.bottomNavHeight)
+                                .ignoresSafeArea(.keyboard, edges: .bottom)
+                        } else {
+                            BottomNav(
+                                items: bottomNavItems,
+                                activeIndex: selectedTab.rawValue,
+                                onSelect: handleTabSelection
+                            )
+                            .ignoresSafeArea(.keyboard, edges: .bottom)
+                        }
                     }
             }
             .toolbar(.hidden, for: .navigationBar)

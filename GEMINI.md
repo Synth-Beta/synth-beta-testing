@@ -38,7 +38,7 @@ These are the structural foundation. Breaking them breaks everything.
 - SynthColor.* and SynthTypography.* Swift enums
 - NativeEventHeaderView + SynthDeepLinkRouter wiring in AppDelegate.swift
 - ContentView.swift Capacitor WebView bridge
-- CSS variable names like --brand-pink-500 (100s of components use these)
+- CSS variable names like var(--brand-pink-500) (100s of components use these)
 
 ---
 
@@ -46,34 +46,34 @@ These are the structural foundation. Breaking them breaks everything.
 Use ONLY these values. Do not invent new colors.
 
 ### Base
-- Background:     #FCFCFC (neutral-50) — light mode app bg
-- Surface/Card:   #F5F5F5 (neutral-100)
-- Dividers:       #E6E6E6 (neutral-200)
-- Disabled:       #8A8F98 (neutral-400)
-- Secondary text: #5D646F (neutral-600)
-- Primary text:   #0E0E0E (neutral-900)
-- Pure white:     #FFFFFF (neutral-0)
+- Background:     var(--neutral-50) (neutral-50) — light mode app bg
+- Surface/Card:   var(--neutral-100) (neutral-100)
+- Dividers:       var(--neutral-200) (neutral-200)
+- Disabled:       var(--neutral-400) (neutral-400)
+- Secondary text: var(--neutral-600) (neutral-600)
+- Primary text:   var(--neutral-900) (neutral-900)
+- Pure white:     var(--neutral-0) (neutral-0)
 
 ### Brand
-- Primary pink:   #CC2486 (brand-pink-500) ← THE real brand pink
-- Hover state:    #951A6D (brand-pink-600)
+- Primary pink:   var(var(--brand-pink-500)) (brand-pink-500) ← THE real brand pink
+- Hover state:    var(--brand-pink-600) (brand-pink-600)
 - Pressed state:  #7B1559 (brand-pink-700)
-- Subtle surface: #FDF2F7 (brand-pink-050)
+- Subtle surface: var(--brand-pink-050) (brand-pink-050)
 - Purple accent:  #8D1FF4 (gradient end only)
 
 ### Gradients
-- Brand gradient: 135deg, #CC2486 → #8D1FF4
-- Soft gradient:  180deg, #FFFFFF → #FDF2F7
+- Brand gradient: 135deg, var(var(--brand-pink-500)) → #8D1FF4
+- Soft gradient:  180deg, var(--neutral-0) → var(--brand-pink-050)
 
 ### Status
 - Success: #2E8B63
 - Error:   #C62828
-- Warning: #B88900
+- Warning: var(--status-warning-500)
 - Stars:   #FCDC5F
 
 ### ⚠️ KNOWN BUG TO FIX
 tailwind.config.ts has synth.pink: #FF3399 — this is WRONG.
-It should be #CC2486. Fix this when you see it. Do not use #FF3399 
+It should be var(var(--brand-pink-500)). Fix this when you see it. Do not use #FF3399 
 anywhere.
 
 ---
@@ -203,12 +203,12 @@ dark mode. No toggle exists yet. When implementing dark mode:
 - Add @media (prefers-color-scheme: dark) overrides to tokens.css only
 - Swift Theme.swift must stay in sync with any new dark values
 - Spotify-style dark: background #0A0A0A, cards #1A1A1A, 
-  keep brand pink #CC2486 as accent
+  keep brand pink var(var(--brand-pink-500)) as accent
 
 ---
 
 ## KNOWN BUGS — FIX ON SIGHT
-1. tailwind.config.ts synth.pink: #FF3399 → change to #CC2486
+1. tailwind.config.ts synth.pink: #FF3399 → change to var(var(--brand-pink-500))
 2. SceneCard.tsx 50+ inline styles → replace with CSS token classes
 3. pulse-glow animation on box-shadow → replace with drop-shadow filter
 4. No prefers-reduced-motion anywhere → add to all CSS animations

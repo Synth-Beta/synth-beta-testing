@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { 
   Clock, 
   Activity, 
@@ -78,12 +78,9 @@ export function SessionAnalyticsCard({
             <Activity className="w-5 h-5 text-synth-pink" />
             {title}
           </CardTitle>
-          <Badge 
-            variant="outline" 
-            className={`${getEngagementScoreColor(metrics.engagementScore)} border-current`}
-          >
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             {getEngagementScoreLabel(metrics.engagementScore)}
-          </Badge>
+          </span>
         </div>
       </CardHeader>
       

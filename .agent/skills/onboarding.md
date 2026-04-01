@@ -13,8 +13,8 @@ screen and the first thing new users see.
 
 ## Design Rules
 - Fully native SwiftUI — NO WebView for any onboarding screen
-- Background: brand gradient (135deg, #CC2486 → #8D1FF4) on step 1
-  Subsequent steps: #FCFCFC with brand pink accents
+- Background: brand gradient (135deg, var(var(--brand-pink-500)) → #8D1FF4) on step 1
+  Subsequent steps: var(--neutral-50) with brand pink accents
 - Progress: subtle dot indicator, NOT a progress bar
 - Transitions: .spring(response: 0.4, dampingFraction: 0.8) slide
 - Selection states: brand pink border + checkmark, scale 1.03 on select

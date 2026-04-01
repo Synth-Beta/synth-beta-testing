@@ -32,7 +32,7 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
     // Desktop / large-screen: simple centered card, no iPhone chrome
     return (
       <div className="flex justify-center py-6">
-        <div data-review-scroll="true" className="w-full max-w-3xl rounded-xl border border-gray-200 bg-[#fcfcfc] shadow-md max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4">
+        <div data-review-scroll="true" className="w-full max-w-3xl rounded-xl border border-gray-200 bg-[var(--neutral-50)] shadow-md max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4">
           {children}
         </div>
       </div>
@@ -41,9 +41,9 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
 
   return (
     <div className="flex justify-center py-4">
-      <div className="relative w-full max-w-[420px] rounded-3xl border border-gray-200 bg-[#fcfcfc] shadow-lg overflow-hidden">
+      <div className="relative w-full max-w-[420px] rounded-3xl border border-gray-200 bg-[var(--neutral-50)] shadow-lg overflow-hidden">
         {/* Status bar / dynamic island */}
-        <div className="h-[47px] bg-[#fcfcfc] border-b border-gray-200 flex items-end justify-center px-3 pt-1">
+        <div className="h-[47px] bg-[var(--neutral-50)] border-b border-gray-200 flex items-end justify-center px-3 pt-1">
           <div className="flex-1 flex items-center">
             <span className="text-[13px] font-semibold text-black ml-1">9:41</span>
           </div>
@@ -73,7 +73,7 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
           >
             <button
               type="button"
-              className="flex flex-col items-center text-xs text-[#cc2486]"
+              className="flex flex-col items-center text-xs text-[var(--brand-pink-500)]"
               tabIndex={-1}
             >
               <Home className="w-5 h-5" aria-hidden="true" />
@@ -81,7 +81,7 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
             </button>
             <button
               type="button"
-              className="flex flex-col items-center text-xs text-[#cc2486]"
+              className="flex flex-col items-center text-xs text-[var(--brand-pink-500)]"
               tabIndex={-1}
             >
               <Search className="w-5 h-5" aria-hidden="true" />
@@ -89,14 +89,14 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
             </button>
             <button
               type="button"
-              className="flex items-center justify-center rounded-full bg-[#cc2486] text-white w-[70px] h-10 shadow-sm"
+              className="flex items-center justify-center rounded-full bg-[var(--brand-pink-500)] text-white w-[70px] h-10 shadow-sm"
               tabIndex={-1}
             >
               <Plus className="w-5 h-5" aria-hidden="true" />
             </button>
             <button
               type="button"
-              className="flex flex-col items-center text-xs text-[#cc2486]"
+              className="flex flex-col items-center text-xs text-[var(--brand-pink-500)]"
               tabIndex={-1}
             >
               <MessageCircle className="w-5 h-5" aria-hidden="true" />
@@ -104,7 +104,7 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
             </button>
             <button
               type="button"
-              className="flex flex-col items-center text-xs text-[#cc2486]"
+              className="flex flex-col items-center text-xs text-[var(--brand-pink-500)]"
               tabIndex={-1}
             >
               <User className="w-5 h-5" aria-hidden="true" />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from '@/components/Icon/Icon';
 import { cn } from '@/lib/utils';
@@ -107,16 +107,16 @@ export const PassportBadge: React.FC<PassportBadgeProps> = ({
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h4 className="font-semibold text-sm">{entry.entity_name}</h4>
               {isUnlocked && entry.rarity && (
-                <Badge variant="outline" className={cn('text-xs', rarityStyles.badge)}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   {rarityStyles.icon}
                   <span className="ml-1 capitalize">{entry.rarity}</span>
-                </Badge>
+                </span>
               )}
               {isUnlocked && !entry.rarity && (
-                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   <Icon name="check" size={16} className="mr-1" />
                   Unlocked
-                </Badge>
+                </span>
               )}
               {!isUnlocked && (
                 <Icon name="lock" size={16} color="var(--neutral-400)" />

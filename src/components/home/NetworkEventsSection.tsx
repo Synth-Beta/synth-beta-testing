@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+
 import { Star, Calendar, Heart, Bookmark, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -102,10 +102,10 @@ export const NetworkEventsSection: React.FC<NetworkEventsSectionProps> = ({
                 {getActionLabel(event.action_type, event.rating)}
               </span>
               {isSecondDegree && (
-                <Badge variant="outline" className="text-xs">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   <Users className="h-3 w-3 mr-1" />
                   Friend of Friend
-                </Badge>
+                </span>
               )}
             </div>
             <h4 className="font-semibold text-sm mb-1 truncate">{event.title}</h4>

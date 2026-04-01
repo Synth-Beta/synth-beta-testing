@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Separator } from '@/components/ui/separator';
 import { Music, ExternalLink, Calendar, MapPin } from 'lucide-react';
 
@@ -102,9 +102,9 @@ export const SetlistDisplay: React.FC<SetlistDisplayProps> = ({ setlist, classNa
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="text-xs">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               {setlist.songCount} songs
-            </Badge>
+            </span>
             {setlist.url && (
               <a
                 href={setlist.url}
@@ -118,9 +118,9 @@ export const SetlistDisplay: React.FC<SetlistDisplayProps> = ({ setlist, classNa
           </div>
         </div>
         {setlist.tour && (
-          <Badge variant="outline" className="w-fit">
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             {setlist.tour}
-          </Badge>
+          </span>
         )}
         {setlist.info && (
           <p className="text-sm text-muted-foreground italic">{setlist.info}</p>
@@ -132,9 +132,9 @@ export const SetlistDisplay: React.FC<SetlistDisplayProps> = ({ setlist, classNa
           <div key={setName} className="space-y-3">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-lg">{setName}</h3>
-              <Badge variant="outline" className="text-xs">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {songs.length} songs
-              </Badge>
+              </span>
             </div>
             
             <div className="grid gap-2">
@@ -151,14 +151,14 @@ export const SetlistDisplay: React.FC<SetlistDisplayProps> = ({ setlist, classNa
                     <div className="flex items-center gap-2">
                       <span className="font-medium truncate">{song.name}</span>
                       {song.cover && (
-                        <Badge variant="secondary" className="text-xs">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           {song.cover.artist}
-                        </Badge>
+                        </span>
                       )}
                       {song.tape && (
-                        <Badge variant="outline" className="text-xs">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           Tape
-                        </Badge>
+                        </span>
                       )}
                     </div>
                     {song.info && (

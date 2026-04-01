@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Music } from 'lucide-react';
 import { musicTasteService, type MusicTasteSummary } from '@/services/musicTasteService';
 
@@ -50,7 +50,7 @@ export function MusicTasteCard({ userId }: MusicTasteCardProps) {
                 <div className="text-xs text-muted-foreground mb-1">Top Artists</div>
                 <div className="flex flex-wrap gap-1">
                   {summary.topArtists.slice(0, 5).map((a, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">{a.name}</Badge>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{a.name}</span>
                   ))}
                 </div>
               </div>
@@ -61,7 +61,7 @@ export function MusicTasteCard({ userId }: MusicTasteCardProps) {
                 <div className="text-xs text-muted-foreground mb-1">Top Genres</div>
                 <div className="flex flex-wrap gap-1">
                   {summary.topGenres.slice(0, 6).map((g, idx) => (
-                    <Badge key={idx} variant="outline" className="text-xs">{g.genre}</Badge>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{g.genre}</span>
                   ))}
                 </div>
               </div>

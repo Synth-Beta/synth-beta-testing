@@ -52,13 +52,13 @@ const ComponentShowcase: React.FC = () => {
               marginBottom: 'var(--spacing-grouped, 24px)'
             }}>
               {[
-                { name: 'neutral-0', value: '#FFFFFF', label: 'Neutral 0' },
-                { name: 'neutral-50', value: '#FCFCFC', label: 'Neutral 50' },
-                { name: 'neutral-100', value: '#F5F5F5', label: 'Neutral 100' },
-                { name: 'neutral-200', value: '#E6E6E6', label: 'Neutral 200' },
-                { name: 'neutral-400', value: '#8A8F98', label: 'Neutral 400' },
-                { name: 'neutral-600', value: '#5D646F', label: 'Neutral 600' },
-                { name: 'neutral-900', value: '#0E0E0E', label: 'Neutral 900' },
+                { name: 'neutral-0', value: 'var(--neutral-0)', label: 'Neutral 0' },
+                { name: 'neutral-50', value: 'var(--neutral-50)', label: 'Neutral 50' },
+                { name: 'neutral-100', value: 'var(--neutral-100)', label: 'Neutral 100' },
+                { name: 'neutral-200', value: 'var(--neutral-200)', label: 'Neutral 200' },
+                { name: 'neutral-400', value: 'var(--neutral-400)', label: 'Neutral 400' },
+                { name: 'neutral-600', value: 'var(--neutral-600)', label: 'Neutral 600' },
+                { name: 'neutral-900', value: 'var(--neutral-900)', label: 'Neutral 900' },
               ].map((color) => (
                 <div key={color.name} style={{ 
                   display: 'flex', 
@@ -109,9 +109,9 @@ const ComponentShowcase: React.FC = () => {
               marginBottom: 'var(--spacing-grouped, 24px)'
             }}>
               {[
-                { name: 'brand-pink-050', value: '#FDF2F7', label: 'Brand Pink 050' },
-                { name: 'brand-pink-500', value: '#CC2486', label: 'Brand Pink 500' },
-                { name: 'brand-pink-600', value: '#951A6D', label: 'Brand Pink 600' },
+                { name: 'brand-pink-050', value: 'var(--brand-pink-050)', label: 'Brand Pink 050' },
+                { name: 'brand-pink-500', value: 'var(--brand-pink-500)', label: 'Brand Pink 500' },
+                { name: 'brand-pink-600', value: 'var(--brand-pink-600)', label: 'Brand Pink 600' },
                 { name: 'brand-pink-700', value: '#7B1559', label: 'Brand Pink 700' },
               ].map((color) => (
                 <div key={color.name} style={{ 
@@ -166,8 +166,8 @@ const ComponentShowcase: React.FC = () => {
                 { name: 'status-success-050', value: '#E6F4ED', label: 'Success 050' },
                 { name: 'status-success-500', value: '#2E8B63', label: 'Success 500' },
                 { name: 'status-warning-050', value: '#FFF6D6', label: 'Warning 050' },
-                { name: 'status-warning-500', value: '#B88900', label: 'Warning 500' },
-                { name: 'status-error-050', value: '#FDECEA', label: 'Error 050' },
+                { name: 'status-warning-500', value: 'var(--status-warning-500)', label: 'Warning 500' },
+                { name: 'status-error-050', value: 'var(--status-error-050)', label: 'Error 050' },
                 { name: 'status-error-500', value: '#C62828', label: 'Error 500' },
               ].map((color) => (
                 <div key={color.name} style={{ 
@@ -271,8 +271,8 @@ const ComponentShowcase: React.FC = () => {
               marginBottom: 'var(--spacing-grouped, 24px)'
             }}>
               {[
-                { name: 'state-disabled-bg', value: '#E6E6E6', label: 'Disabled BG' },
-                { name: 'state-disabled-text', value: '#8A8F98', label: 'Disabled Text' },
+                { name: 'state-disabled-bg', value: 'var(--neutral-200)', label: 'Disabled BG' },
+                { name: 'state-disabled-text', value: 'var(--neutral-400)', label: 'Disabled Text' },
                 { name: 'overlay-50', value: 'rgba(14, 14, 14, 0.5)', label: 'Overlay 50%' },
                 { name: 'overlay-20', value: 'rgba(14, 14, 14, 0.2)', label: 'Overlay 20%' },
               ].map((color) => (
@@ -394,8 +394,8 @@ const ComponentShowcase: React.FC = () => {
               marginBottom: 'var(--spacing-grouped, 24px)'
             }}>
               {[
-                { name: 'gradient-brand', value: 'linear-gradient(135deg, #CC2486 0%, #8D1FF4 100%)', label: 'Brand Gradient' },
-                { name: 'gradient-soft', value: 'linear-gradient(180deg, #FFFFFF 0%, #FDF2F7 100%)', label: 'Soft Gradient' },
+                { name: 'gradient-brand', value: 'linear-gradient(135deg, var(--brand-pink-500) 0%, #8D1FF4 100%)', label: 'Brand Gradient' },
+                { name: 'gradient-soft', value: 'linear-gradient(180deg, var(--neutral-0) 0%, var(--brand-pink-050) 100%)', label: 'Soft Gradient' },
               ].map((gradient) => (
                 <div key={gradient.name} style={{ 
                   display: 'flex', 
@@ -1102,7 +1102,7 @@ const ComponentShowcase: React.FC = () => {
             </div>
             <div className="component-variant">
               <p className="component-variant__label">Interactive - Tap to rate</p>
-              <p style={{ fontSize: 'var(--typography-meta-size, 16px)', color: 'var(--color-dark-grey, #5D646F)', marginBottom: '6px', fontFamily: 'var(--font-family)' }}>tap or swipe/drag to rate</p>
+              <p style={{ fontSize: 'var(--typography-meta-size, 16px)', color: 'var(--color-dark-grey, var(--neutral-600))', marginBottom: '6px', fontFamily: 'var(--font-family)' }}>tap or swipe/drag to rate</p>
               <StarRating 
                 value={0} 
                 interactive 
@@ -1163,7 +1163,7 @@ const ComponentShowcase: React.FC = () => {
                 width: '100%', 
                 margin: '0 auto',
                 padding: '24px 0',
-                backgroundColor: 'var(--color-off-white, #FCFCFC)',
+                backgroundColor: 'var(--color-off-white, var(--neutral-50))',
                 borderRadius: '10px',
                 paddingLeft: '20px',
                 paddingRight: '20px'
@@ -1174,7 +1174,7 @@ const ComponentShowcase: React.FC = () => {
                     fontFamily: 'var(--font-family)',
                     fontSize: 'var(--typography-meta-size, 16px)',
                     fontWeight: 'var(--typography-meta-weight, 500)',
-                    color: '#5D646F',
+                    color: 'var(--neutral-600)',
                     lineHeight: 'var(--typography-meta-line-height, 1.5)'
                   }}>
                     <span style={{ fontWeight: 'var(--typography-meta-weight, 700)' }}>Monday</span>

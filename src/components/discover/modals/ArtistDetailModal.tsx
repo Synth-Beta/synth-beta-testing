@@ -355,7 +355,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
-          background: 'var(--neutral-50, #FCFCFC)',
+          background: 'var(--neutral-50, var(--neutral-50))',
           zIndex: useInternalHeader ? 6001 : 26,
         }}
       >

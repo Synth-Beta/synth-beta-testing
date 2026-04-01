@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { TrendingUp, Users, Bookmark, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -41,9 +41,9 @@ export const TrendingEventsSection: React.FC<TrendingEventsSectionProps> = ({
                   </p>
                 </div>
                 {event.trending_label && (
-                  <Badge variant="secondary" className="ml-2 flex-shrink-0">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     {event.trending_label}
-                  </Badge>
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-4 text-xs text-muted-foreground">

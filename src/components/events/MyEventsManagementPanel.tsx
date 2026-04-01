@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Calendar, Plus, RefreshCw, MapPin, Clock, Users, Loader2, Edit, Trash2 } from 'lucide-react';
 import { useAccountType } from '@/hooks/useAccountType';
 import EventManagementService from '@/services/eventManagementService';
@@ -141,9 +141,9 @@ const [createdEvents, setCreatedEvents] = useState<any[]>([]);
           )}
 
           {event.age_restriction && (
-            <Badge variant="outline" className="text-xs">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               {event.age_restriction}
-            </Badge>
+            </span>
           )}
         </div>
       </CardContent>

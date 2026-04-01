@@ -2,7 +2,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Star, Globe, Lock, Check, Info, Calendar, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
@@ -287,9 +287,9 @@ export function PrivacySubmitStep({
                 <div className="flex items-center space-x-2">
                   <Globe className="w-5 h-5 text-blue-600" />
                   <span className="font-medium text-gray-900">Public</span>
-                  <Badge variant="secondary" className="text-xs">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                     Recommended
-                  </Badge>
+                  </span>
                 </div>
                 <p className="text-sm text-gray-600 mt-1">
                   Everyone can see your review. Help the community decide where to go.

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -48,6 +48,20 @@ const SOURCE_LABELS: Record<string, string> = {
   fallback: 'Suggested for you both',
 };
 
+const PILL_STYLE: CSSProperties = {
+  borderRadius: '999px',
+  border: '2px solid var(--brand-pink-500)',
+  backgroundColor: 'var(--brand-pink-050)',
+  color: 'var(--brand-pink-500)',
+  minHeight: 25,
+  padding: '0 var(--spacing-small, 12px)',
+  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 'var(--spacing-inline, 6px)',
+  justifyContent: 'center',
+};
+
 function initialsFromDisplayName(name?: string | null): string {
   const t = name?.trim();
   if (!t) return '?';
@@ -87,7 +101,10 @@ function EventCard({
   const content = (
     <div className="rounded-lg border bg-muted/40 p-3 text-left hover:bg-muted/60 transition-colors">
       {label && (
-        <span className="inline-block text-xs font-medium text-[#CC2486] mb-1.5 px-2 py-0.5 rounded-full bg-[#CC2486]/10">
+        <span
+          className="text-xs font-medium mb-1.5"
+          style={PILL_STYLE}
+        >
           {label}
         </span>
       )}
@@ -309,13 +326,13 @@ export function NewFriendCelebrationModal({
         {/* Avatars - Venn overlap, friend on top, synth pink border */}
         <div className="flex justify-center py-6">
           <div className="relative flex items-center">
-            <Avatar className="h-36 w-36 border-[4px] shrink-0" style={{ borderColor: '#CC2486', marginRight: -20 }}>
+            <Avatar className="h-36 w-36 border-[4px] shrink-0" style={{ borderColor: 'var(--brand-pink-500)', marginRight: -20 }}>
               <AvatarImage src={data.current_user_avatar_url} />
               <AvatarFallback className="bg-muted text-foreground text-3xl font-bold">
                 {initialsFromDisplayName(currentUserDisplayName ?? 'You')}
               </AvatarFallback>
             </Avatar>
-            <Avatar className="h-36 w-36 border-[4px] shrink-0 relative z-10" style={{ borderColor: '#CC2486' }}>
+            <Avatar className="h-36 w-36 border-[4px] shrink-0 relative z-10" style={{ borderColor: 'var(--brand-pink-500)' }}>
               <AvatarImage src={data.friend_avatar_url} />
               <AvatarFallback className="bg-muted text-foreground text-3xl font-bold">
                 {initialsFromDisplayName(friendName)}
@@ -345,35 +362,33 @@ export function NewFriendCelebrationModal({
           {data.shared_genres.length > 0 && (
             <div>
               <h3 className="font-semibold text-foreground mb-2">Shared genres</h3>
-              <div className="flex flex-wrap gap-2">
-                {data.shared_genres.map((g) => {
-                  const genreName = typeof g === 'string' ? g : g.genre;
-                  const matchPct = typeof g === 'string' ? null : g.match_pct;
-                  return (
-                    <span
-                      key={genreName}
-                      className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium',
-                        'bg-white text-[#CC2486] border border-[#CC2486]/30'
-                      )}
-                    >
-                      {genreName}
-                      {matchPct != null && (
+                  <div className="flex flex-wrap gap-2">
+                    {data.shared_genres.map((g) => {
+                      const genreName = typeof g === 'string' ? g : g.genre;
+                      const matchPct = typeof g === 'string' ? null : g.match_pct;
+                      return (
                         <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            color: '#CC2486',
-                            opacity: 0.7,
-                          }}
+                          key={genreName}
+                          className="text-sm font-medium"
+                          style={PILL_STYLE}
                         >
-                          {matchPct}%
+                          {genreName}
+                          {matchPct != null && (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: 'var(--brand-pink-500)',
+                                opacity: 0.7,
+                              }}
+                            >
+                              {matchPct}%
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
             </div>
           )}
 

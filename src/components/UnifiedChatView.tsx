@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { SearchBar } from '@/components/SearchBar';
-import { Badge } from '@/components/ui/badge';
+
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
@@ -53,7 +53,7 @@ import { fetchUserChats, sendEncryptedMessage, decryptChatMessage } from '@/serv
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
-import { Badge as VerifiedBadge } from '@/components/ui/badge';
+
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { toast } from '@/hooks/use-toast';
@@ -2058,9 +2058,26 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   }
 
   return (
-    <PageShell header={chatHeader}>
+    <PageShell
+      header={chatHeader}
+      includeBottomNavPadding={false}
+      contentHorizontalPadding={false}
+      contentPaddingTop={selectedChat ? '0px' : undefined}
+      contentStyle={
+        selectedChat
+          ? {
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              paddingBottom: 0,
+              overflowY: 'hidden',
+            }
+          : undefined
+      }
+    >
       <div
-        className="flex w-full max-w-[393px] mx-auto" style={{ backgroundColor: 'var(--neutral-50)' }}
+        className="flex w-full max-w-[393px] mx-auto flex-1 min-h-0"
+        style={{ backgroundColor: 'var(--neutral-50)' }}
       >
       {/* Settings Menu Dropdown - Positioned relative to header */}
       {selectedChat && (
@@ -2339,18 +2356,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           </p>
                           {chat.is_group_chat && chat.is_verified && (
                             <div className="flex items-center gap-2 mt-2">
-                                <Badge 
-                                  variant="default" 
-                              className="text-xs font-medium"
-                              style={{
-                                backgroundColor: 'var(--status-success-050)',
-                                color: 'var(--status-success-500)',
-                                border: '1px solid var(--status-success-500)'
-                              }}
-                                >
+                                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                   <Shield className="w-3 h-3 mr-1" />
                                   Verified {chat.entity_type ? chat.entity_type.charAt(0).toUpperCase() + chat.entity_type.slice(1) : 'Chat'}
-                                </Badge>
+                                </span>
                             </div>
                           )}
                         </div>
@@ -2380,14 +2389,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       {/* Right Side - Messages */}
       {selectedChat && (
         <div
-          className="w-full flex flex-col"
+          className="w-full flex flex-col flex-1 min-h-0"
           style={{
-            position: 'fixed',
-            left: 0,
-            right: 0,
-            top: 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px + var(--spacing-small, 12px))',
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
             backgroundColor: 'var(--neutral-50)',
+            overflow: 'hidden',
           }}
           onTouchStart={handleChatTouchStart}
           onTouchMove={handleChatTouchMove}
@@ -2455,15 +2460,14 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
             </div>
 
             {/* Message Input */}
-            <div
-                style={{
-                  flexShrink: 0,
-                  marginTop: 'auto',
-                  paddingTop: 'var(--spacing-small, 12px)',
-                  paddingBottom: 'var(--spacing-small, 12px)',
-                  backgroundColor: 'var(--neutral-50)',
-                  borderTop: '1px solid var(--neutral-200)',
-                }}
+            <div 
+            style={{
+              flexShrink: 0,
+              paddingTop: 'var(--spacing-small, 12px)',
+              paddingBottom: 'calc(var(--spacing-small, 12px) + env(safe-area-inset-bottom, 0px))',
+              backgroundColor: 'var(--neutral-50)',
+              borderTop: '1px solid var(--neutral-200)',
+              }}
               >
                 <div 
                   style={{ 
@@ -2811,9 +2815,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       </h2>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 mb-3">
                         {selectedReviewDetail.event_info?.artist_name && (
-                          <Badge variant="secondary" className="cursor-pointer hover:bg-indigo-100">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {selectedReviewDetail.event_info.artist_name}
-                          </Badge>
+                          </span>
                         )}
                       </div>
                       {selectedReviewDetail.event_info?.venue_name && (
@@ -2962,9 +2966,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                               )}
                             </h3>
                             {participant.verified && (
-                              <Badge variant="default" className="text-[10px]" style={{ backgroundColor: 'var(--status-success-500)', color: 'var(--neutral-50)' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 ✓ Verified
-                              </Badge>
+                              </span>
                             )}
                           </div>
                           {participant.bio && (
@@ -2974,9 +2978,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           )}
                           <div className="flex items-center gap-3 mt-1">
                             {isAdmin && (
-                              <Badge variant="default" className="text-[12px]" style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 Admin
-                              </Badge>
+                              </span>
                             )}
                             <span className="text-[12px]" style={{ color: 'var(--neutral-600)' }}>
                               Joined {format(parseISO(participant.joined_at), 'MMM d, yyyy')}

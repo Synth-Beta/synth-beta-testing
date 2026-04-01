@@ -4,7 +4,7 @@ import { Icon } from '@/components/Icon/Icon';
 import { SceneService, type SceneDetail } from '@/services/sceneService';
 import { CompactEventCard } from './CompactEventCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { HorizontalCarousel } from './HorizontalCarousel';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
@@ -571,12 +571,9 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   <h2 className="text-xl font-bold">Your Progress</h2>
                   <p className="text-sm text-muted-foreground">Track your journey through this scene</p>
                 </div>
-                <Badge 
-                  variant={progress.discovery_state === 'completed' ? 'default' : 'secondary'}
-                  className="text-sm px-3 py-1"
-                >
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   {progress.discovery_state.replace('_', ' ')}
-                </Badge>
+                </span>
               </div>
 
               {/* Overall Progress Bar */}
@@ -1140,9 +1137,9 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                             <Icon name="calendar" size={16} color="var(--neutral-900)" />
                             {eventCount} {eventCount === 1 ? 'upcoming event' : 'upcoming events'}
                           </span>
-                          <Badge variant="secondary" className="text-xs">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             Genre
-                          </Badge>
+                          </span>
                         </div>
                       </div>
                     </div>

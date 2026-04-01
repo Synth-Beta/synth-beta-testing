@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Smile, Image, Video, Music, Heart, Zap, Fire } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
@@ -115,21 +115,21 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
         />
         <div className="flex justify-between items-center">
           <div className="flex space-x-2">
-            <Badge variant="outline" className="text-xs">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <Image className="w-3 h-3 mr-1" />
               Photos coming soon
-            </Badge>
-            <Badge variant="outline" className="text-xs">
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <Video className="w-3 h-3 mr-1" />
               Videos coming soon
-            </Badge>
+            </span>
           </div>
           <span style={{
             fontFamily: 'var(--font-family)',
             fontSize: 'var(--typography-meta-size, 16px)',
             fontWeight: 'var(--typography-meta-weight, 500)',
             lineHeight: 'var(--typography-meta-line-height, 1.5)',
-            color: isNearLimit ? 'var(--status-warning-500, #B88900)' : 'var(--neutral-600)'
+            color: isNearLimit ? 'var(--status-warning-500, var(--status-warning-500))' : 'var(--neutral-600)'
           }}>
             {characterCount}/{maxCharacters}
           </span>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Music, Star, Calendar, X, Heart, HeartOff } from 'lucide-react';
 import type { Artist } from '@/types/concertSearch';
@@ -60,9 +60,9 @@ export function ArtistSelector({
                 )}
               </CardTitle>
               {artist.jambase_artist_id && (
-                <Badge variant="outline" className="text-xs mt-1">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   JamBase Verified
-                </Badge>
+                </span>
               )}
             </div>
           </div>
@@ -113,13 +113,9 @@ export function ArtistSelector({
           <div className="mb-4">
             <div className="flex flex-wrap gap-1">
               {artist.genres.map((genre, index) => (
-                <Badge
-                  key={index}
-                  variant="secondary"
-                  className="text-xs px-2 py-1"
-                >
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   {genre}
-                </Badge>
+                </span>
               ))}
             </div>
           </div>

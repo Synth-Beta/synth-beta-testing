@@ -79,7 +79,20 @@ struct IconView: View {
         }
 
         return """
-        <html><head><meta name="viewport" content="width=\(size),height=\(size)"/></head>
+        <html><head><meta name="viewport" content="width=\(size),height=\(size)"/>
+        <style>:root {
+            --brand-pink-050: \(SynthColorHex.brandPink050);
+            --brand-pink-500: \(SynthColorHex.brandPink500);
+            --brand-pink-600: \(SynthColorHex.brandPink600);
+            --brand-pink-700: \(SynthColorHex.brandPink700);
+            --neutral-0: \(SynthColorHex.neutral0);
+            --neutral-50: \(SynthColorHex.neutral50);
+            --neutral-100: \(SynthColorHex.neutral100);
+            --neutral-200: \(SynthColorHex.neutral200);
+            --neutral-400: \(SynthColorHex.neutral400);
+            --neutral-600: \(SynthColorHex.neutral600);
+            --neutral-900: \(SynthColorHex.neutral900);
+        }</style></head>
         <body style="margin:0;padding:0;background:transparent;"><div style="width:\(size)px;height:\(size)px;">\(svg)</div></body></html>
         """
     }
@@ -107,16 +120,29 @@ struct IconView: View {
 private struct SVGWebView: UIViewRepresentable {
     let html: String
 
+    class Coordinator {
+        var lastHTML: String = ""
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
         webView.scrollView.isScrollEnabled = false
+        // Prevent the icon WKWebView from consuming touch events that belong
+        // to the parent SwiftUI Button.
+        webView.isUserInteractionEnabled = false
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
+        // Only reload when the HTML actually changes to avoid the blank-flash
+        // that occurs during every async WKWebView load cycle.
+        guard html != context.coordinator.lastHTML else { return }
+        context.coordinator.lastHTML = html
         webView.loadHTMLString(html, baseURL: nil)
     }
 }

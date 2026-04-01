@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+
 import { CheckCircle, Circle, Sparkles, TrendingUp } from 'lucide-react';
 import { useTrustScoreBreakdown } from '@/hooks/useVerification';
 import { getCriterionDescription } from '@/utils/verificationUtils';
@@ -75,12 +75,9 @@ export function VerificationProgressWidget({
                 Verification Progress
               </h4>
             </div>
-            <Badge 
-              variant={isCloseToVerification ? 'default' : 'secondary'}
-              className="text-xs"
-            >
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               {breakdown.criteriaMet}/4 criteria
-            </Badge>
+            </span>
           </div>
 
           {/* Progress Bar */}

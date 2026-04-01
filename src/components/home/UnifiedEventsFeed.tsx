@@ -910,9 +910,9 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                 </>
               ) : (
                 <>
-                  <span>Load More</span>
+                  <span className="text-inherit">Load More</span>
                   <svg
-                    className="w-4 h-4"
+                    className="w-4 h-4 text-inherit"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"

@@ -45,6 +45,7 @@ import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { fetchEventForModal } from '@/services/eventLookupService';
 import { useEventDetailsFromVenue } from '@/hooks/useEventDetailsFromVenue';
 import { useGlobalDetailModal } from '@/hooks/useGlobalDetailModal';
 import { useEventReviewModals } from '@/hooks/useEventReviewModals';
@@ -500,6 +501,16 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     (currentView !== 'chat' || !isChatSelected || layoutMode === 'web-desktop') &&
     !(USE_NATIVE_NAV && isIosNative);
 
+  const showBottomNavChrome =
+    showPrimaryNav && layoutMode !== 'web-desktop' && !(currentView === 'chat' && isChatSelected);
+  const showDesktopRail = showPrimaryNav && layoutMode === 'web-desktop';
+  const webDesktopContentClass = showDesktopRail
+    ? getWebDesktopMainContentClass(currentView as MainAppViewForLayout)
+    : '';
+  const sideMenuAnchor: 'left' | 'right' = layoutMode === 'web-desktop' ? 'left' : 'right';
+  const isGlobalArtistOrVenueOpen =
+    detailModal.open && (detailModal.type === 'artist' || detailModal.type === 'venue');
+
   const { items: mainNavItems, handleItemClick: handleMainNavItemClick } = useMainNavItems({
     currentView: navViewForBottomNav as MainNavCurrentView,
     onViewChange: (v) => handleViewChange(v as ViewType),
@@ -575,30 +586,22 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   const handleNavigateToEvent = async (eventId: string) => {
     try {
-      // Fetch event data from database using events table with JOINs to get normalized artist/venue names via foreign keys
-      const { data: eventData, error } = await supabase
-        .from('events')
-        .select('*, artists(name), venues(name)')
-        .eq('id', eventId)
-        .single();
-
+      const { event: normalizedEvent, error } = await fetchEventForModal(eventId);
       if (error) {
         console.error('Error fetching event:', error);
         return;
       }
 
-      if (eventData) {
-        const normalizedEvent = {
-          ...eventData,
-          artist_name: (eventData.artists?.name) || null,
-          venue_name: (eventData.venues?.name) || null,
-        };
-        localStorage.setItem('selectedEvent', JSON.stringify(normalizedEvent));
-        setCurrentView('feed');
-        window.dispatchEvent(new CustomEvent('open-event-details', {
-          detail: { event: normalizedEvent }
-        }));
+      if (!normalizedEvent) {
+        console.warn('Event not found for id:', eventId);
+        return;
       }
+
+      localStorage.setItem('selectedEvent', JSON.stringify(normalizedEvent));
+      setCurrentView('feed');
+      window.dispatchEvent(new CustomEvent('open-event-details', {
+        detail: { event: normalizedEvent }
+      }));
     } catch (error) {
       console.error('Error navigating to event:', error);
     }
@@ -640,6 +643,53 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       }
     },
   });
+
+  // Notify the native Swift layer when the side menu opens/closes so the
+  // native BottomNav can be hidden behind the menu overlay.
+  useEffect(() => {
+    if (!isIosNative) return;
+    window.dispatchEvent(new CustomEvent('synthMenuStateChanged', { detail: { open: menuOpen } }));
+  }, [menuOpen, isIosNative]);
+
+  useEffect(() => {
+    if (!isIosNative) return;
+    const shouldHideNav = currentView === 'chat' && isChatSelected;
+    window.dispatchEvent(new CustomEvent('synthMenuStateChanged', { detail: { open: shouldHideNav } }));
+  }, [isIosNative, currentView, isChatSelected]);
+
+  // Keep the native BottomNav selected-tab indicator in sync with the React
+  // view so internal navigations (back button, notifications, deep links, side
+  // menu items) are reflected in the native UI.
+  useEffect(() => {
+    if (!isIosNative) return;
+    const viewToTabIndex: Partial<Record<ViewType, number>> = {
+      feed: 0,
+      search: 1,
+      chat: 3,
+      profile: 4,
+    };
+    const index = viewToTabIndex[currentView];
+    if (typeof index === 'number') {
+      window.dispatchEvent(new CustomEvent('synthActiveTabChanged', { detail: { index } }));
+    }
+  }, [currentView, isIosNative]);
+
+  useEffect(() => {
+    if (!isIosNative) return;
+
+    const handleNativeTabSelected = (event: Event) => {
+      const index = (event as CustomEvent<{ index?: number }>).detail?.index;
+      if (typeof index !== 'number') return;
+      const navItem = mainNavItems[index];
+      if (!navItem) return;
+      handleMainNavItemClick(navItem);
+    };
+
+    window.addEventListener('synthNativeTabSelected', handleNativeTabSelected as EventListener);
+    return () => {
+      window.removeEventListener('synthNativeTabSelected', handleNativeTabSelected as EventListener);
+    };
+  }, [isIosNative, mainNavItems, handleMainNavItemClick]);
 
   const handleNavigateToProfile = (userId?: string, tab?: 'timeline' | 'interested') => {
     setCurrentView('profile');
@@ -929,19 +979,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     return renderCurrentView();
   }
 
-  const showBottomNavChrome = showPrimaryNav && layoutMode !== 'web-desktop';
-  const showDesktopRail = showPrimaryNav && layoutMode === 'web-desktop';
-  const webDesktopContentClass = showDesktopRail
-    ? getWebDesktopMainContentClass(currentView as MainAppViewForLayout)
-    : '';
-
-  const isGlobalArtistOrVenueOpen =
-    detailModal.open && (detailModal.type === 'artist' || detailModal.type === 'venue');
-
   return (
-    <div 
-      className="min-h-screen"
+    <div
+      className="flex h-full flex-col"
       style={{
+        height: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
         paddingBottom: showBottomNavChrome
           ? 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
           : 0,
@@ -1106,7 +1150,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         toggleManualArtistFollow={toggleManualArtistFollow}
       />
 
-      {showBottomNavChrome ? (
+      {showBottomNavChrome && !menuOpen ? (
         <BottomNavAdapter items={mainNavItems} onItemClick={handleMainNavItemClick} />
       ) : null}
 
@@ -1123,6 +1167,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           handleNavigateToProfile(undefined, 'timeline');
         }}
         onSignOut={handleSignOut}
+        anchor={sideMenuAnchor}
       />
 
       <GlobalModals

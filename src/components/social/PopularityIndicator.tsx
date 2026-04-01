@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
+
 import { Star, Crown, Sparkles } from 'lucide-react';
 
 interface PopularityIndicatorProps {
@@ -56,10 +56,10 @@ export function PopularityIndicator({
   const Icon = popularity.icon;
 
   return (
-    <Badge className={`${popularity.className} ${className}`}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
       <Icon className="h-3 w-3 mr-1 fill-current" />
       {popularity.label}
-    </Badge>
+    </span>
   );
 }
 

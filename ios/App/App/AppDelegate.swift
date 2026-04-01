@@ -168,6 +168,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         config.userContentController.add(self, name: "setBadgeCount")
         config.userContentController.add(self, name: "synthNativeAuth")
         config.userContentController.add(self, name: "synthDeepLinkReady")
+        config.userContentController.add(self, name: "synthMenuState")
+        config.userContentController.add(self, name: "synthActiveTab")
         let script = """
             (function() {
                 window.addEventListener('RequestAppleSignIn', function() {
@@ -192,6 +194,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                         window.webkit.messageHandlers.synthDeepLinkReady.postMessage({});
                     }
                 };
+                // Relay side-menu open/close state to the native layer so the
+                // native BottomNav can be hidden when the menu is visible.
+                window.addEventListener('synthMenuStateChanged', function(e) {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.synthMenuState) {
+                        window.webkit.messageHandlers.synthMenuState.postMessage({ open: !!(e.detail && e.detail.open) });
+                    }
+                });
+                // Relay the active tab index so the native BottomNav selection
+                // stays in sync when React navigates internally.
+                window.addEventListener('synthActiveTabChanged', function(e) {
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.synthActiveTab) {
+                        var idx = e.detail && typeof e.detail.index === 'number' ? e.detail.index : -1;
+                        if (idx >= 0) {
+                            window.webkit.messageHandlers.synthActiveTab.postMessage({ index: idx });
+                        }
+                    }
+                });
             })();
         """
         config.userContentController.addUserScript(
@@ -642,6 +661,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         } else if message.name == "synthDeepLinkReady" {
             // Web layer is mounted and listening — flush any pending universal link
             SynthDeepLinkRouter.shared.markWebLayerReady()
+        } else if message.name == "synthMenuState" {
+            let open = (message.body as? [String: Any])?["open"] as? Bool ?? false
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: Notification.Name("SynthMenuStateChanged"),
+                    object: nil,
+                    userInfo: ["open": open]
+                )
+            }
+        } else if message.name == "synthActiveTab" {
+            if let index = (message.body as? [String: Any])?["index"] as? Int {
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("SynthActiveTabChanged"),
+                        object: nil,
+                        userInfo: ["index": index]
+                    )
+                }
+            }
         } else if message.name == "synthNativeAuth" {
             guard let body = message.body as? [String: Any],
                   let action = body["action"] as? String else {

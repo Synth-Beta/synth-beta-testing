@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { useAuth } from '@/hooks/useAuth';
 import { Heart, MessageCircle, Trash2, Image as ImageIcon, Upload } from 'lucide-react';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
@@ -61,9 +61,9 @@ const [photos, setPhotos] = useState<EventPhoto[]>([]);
           }}
         />
         {photo.is_featured && (
-          <Badge className="absolute top-2 right-2 bg-yellow-500">
+          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
             ⭐ Featured
-          </Badge>
+          </span>
         )}
       </div>
 

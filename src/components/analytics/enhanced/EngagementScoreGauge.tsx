@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { 
   Activity, 
   TrendingUp, 
@@ -83,12 +83,9 @@ export function EngagementScoreGauge({
             {title}
           </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge 
-              variant="outline" 
-              className={`${getScoreColor(metrics.score)} border-current`}
-            >
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               {getScoreLabel(metrics.score)}
-            </Badge>
+            </span>
             {trend && (
               <div className={`flex items-center gap-1 text-xs ${
                 trend.isPositive ? 'text-green-600' : 'text-red-600'

@@ -49,6 +49,25 @@ final class SynthDeepLinkRouter {
         }
     }
 
+    /// Signals to the web layer that the native bottom navigation selected a tab.
+    func notifyTabSelected(index: Int) {
+        let script = """
+        (function() {
+            try {
+                window.dispatchEvent(new CustomEvent('synthNativeTabSelected', {
+                    detail: { index: \(index) }
+                }));
+            } catch(e) {
+                console.error('synthNativeTabSelected dispatch error:', e);
+            }
+        })();
+        """
+
+        DispatchQueue.main.async {
+            self.evaluateOnAvailableWebView(script: script)
+        }
+    }
+
     // MARK: - Private
 
     private func isSynthShareUrl(_ url: URL) -> Bool {

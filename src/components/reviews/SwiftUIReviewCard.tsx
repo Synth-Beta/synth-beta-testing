@@ -751,7 +751,7 @@ export function SwiftUIReviewCard({
                     width: 'var(--size-input-height, 44px)',
                     height: 'var(--size-input-height, 44px)',
                     padding: 0,
-                    backgroundColor: 'var(--brand-pink-500, #FF3399)',
+                    backgroundColor: 'var(--brand-pink-500)',
                     color: 'var(--neutral-50)',
                     borderRadius: 'var(--radius-corner, 10px)',
                     boxShadow: '0 4px 4px 0 var(--shadow-color)',
@@ -760,7 +760,7 @@ export function SwiftUIReviewCard({
                     e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--brand-pink-500, #FF3399)';
+                    e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -797,7 +797,7 @@ export function SwiftUIReviewCard({
       <div
         style={{
           ...iosModal,
-          background: 'var(--neutral-50, #FCFCFC)',
+          background: 'var(--neutral-50, var(--neutral-50))',
           position: 'relative',
           height: 'auto',
           minHeight: '100vh',
@@ -901,17 +901,17 @@ export function SwiftUIReviewCard({
                     gap: 8,
                     padding: '6px 12px',
                     borderRadius: 999,
-                    border: '2px solid var(--brand-pink-500, #FF3399)',
-                    background: '#FFFFFF',
+                    border: '2px solid var(--brand-pink-500)',
+                    background: 'var(--neutral-0)',
                     maxWidth: '100%',
                   }}
                 >
-                  <Avatar className="w-7 h-7" style={{ border: '2px solid var(--brand-pink-500, #FF3399)' }}>
+                  <Avatar className="w-7 h-7" style={{ border: '2px solid var(--brand-pink-500)' }}>
                     <AvatarImage src={attendee.avatar_url || undefined} alt={attendee.name} />
                     <AvatarFallback
                       style={{
-                        background: 'var(--brand-pink-500, #FF3399)',
-                        color: '#FFFFFF',
+                        background: 'var(--brand-pink-500)',
+                        color: 'var(--neutral-0)',
                         fontWeight: 600,
                       }}
                     >
@@ -924,7 +924,7 @@ export function SwiftUIReviewCard({
                       fontSize: 'var(--typography-meta-size, 16px)',
                       fontWeight: 'var(--typography-meta-weight, 500)',
                       lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      color: 'var(--brand-pink-500, #FF3399)',
+                      color: 'var(--brand-pink-500)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',

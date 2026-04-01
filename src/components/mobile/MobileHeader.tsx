@@ -18,7 +18,7 @@ interface MobileHeaderProps {
  * - Notification bell on the right
  * 
  * Design specifications:
- * - Background: OffWhite (#fcfcfc)
+ * - Background: OffWhite (`var(--off-white)`)
  * - Height: 59px
  * - Horizontal padding: 20px (matching design tokens)
  * - Shadow: 0px 4px 4px 0px rgba(0,0,0,0.25)
@@ -44,7 +44,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
       className={`fixed left-0 right-0 z-50 ${className || ''}`}
       style={{
         top: 'env(safe-area-inset-top, 0px)',
-        backgroundColor: 'var(--off-white, #fcfcfc)',
+        backgroundColor: 'var(--off-white)',
         boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25)',
       }}
       role="banner"
@@ -95,7 +95,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
                 fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
                 fontSize: '36px',
                 lineHeight: 'normal',
-                color: '#0e0e0e',
+                color: 'var(--neutral-900)',
                 width: '93px',
                 height: '52px',
               }}
@@ -113,7 +113,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
           style={{
             width: '44px',
             height: '44px',
-            backgroundColor: 'var(--synth-pink, #cc2486)',
+            backgroundColor: 'var(--synth-pink, var(--brand-pink-500))',
             borderRadius: 'var(--corner-radius, 10px)',
             boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25)',
           }}

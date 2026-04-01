@@ -10,9 +10,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Vite accidental config cache (do not commit)
-vite.config.ts.timestamp-*.mjs
-
 node_modules
 dist
 dist-ssr
@@ -23,7 +20,6 @@ ios/App/App/public
 .env*.local
 .env.bak
 *.env
-!mobile/ios/.xcode.env
 !.env.example
 backend/.env
 
@@ -55,9 +51,6 @@ synth-native-ios/.build/
 *.sw?
 
 # Xcode / iOS
-# Expo CocoaPods output (huge; also listed in mobile/ios/.gitignore)
-mobile/ios/Pods/
-
 ios/**/DerivedData/
 **/DerivedData/
 **/build/
@@ -82,3 +75,4 @@ ios/**/DerivedData/
 *.xcodeproj/*.mode2v3
 *.xcodeproj/*.perspectivev3
 *.xcodeproj/*.userdata
+ios/debug.xcconfig

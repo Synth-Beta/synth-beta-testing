@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Star, Heart, MessageCircle, Calendar, MapPin, Music } from 'lucide-react';
 import { format } from 'date-fns';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
@@ -75,9 +75,9 @@ export const PostsGrid = ({ posts, onPostClick }: PostsGridProps) => {
                 {/* Overlay badges */}
                 <div className="absolute top-2 right-2">
                   {post.badge && (
-                    <Badge variant="secondary" className="text-xs">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       {post.badge}
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </div>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { Badge } from './ui/badge'
 import { supabase } from '../integrations/supabase/client'
 import { useAuth } from '../hooks/useAuth'
 
@@ -53,11 +52,11 @@ export const WorkingConnectionBadge: React.FC<WorkingConnectionBadgeProps> = ({ 
   }
 
   if (loading) {
-    return <Badge variant="outline">Loading...</Badge>
+    return <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>Loading...</span>
   }
 
   if (!connectionInfo) {
-    return <Badge variant="outline">No connection</Badge>
+    return <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>No connection</span>
   }
 
   // Determine badge styling based on degree
@@ -80,13 +79,10 @@ export const WorkingConnectionBadge: React.FC<WorkingConnectionBadgeProps> = ({ 
   }
 
   return (
-    <Badge 
-      variant={getBadgeVariant(connectionInfo.degree)}
-      className={`${getBadgeColor(connectionInfo.degree)} font-medium`}
-    >
+    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
       {connectionInfo.label}
       {connectionInfo.degree === 2 || connectionInfo.degree === 3 ? 
         ` (${connectionInfo.mutual_friends_count})` : ''}
-    </Badge>
+    </span>
   )
 }

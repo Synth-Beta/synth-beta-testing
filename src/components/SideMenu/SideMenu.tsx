@@ -14,7 +14,7 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { notificationService } from '@/services/notificationService';
 
 export interface SideMenuProps {
-  /**
+/**
    * Whether the menu is open
    */
   isOpen: boolean;
@@ -28,6 +28,11 @@ export interface SideMenuProps {
    * Callback when hamburger/X button is clicked (for swapping icon)
    */
   onToggle?: () => void;
+
+  /**
+   * Side of the screen where the drawer should appear.
+   */
+  anchor?: 'left' | 'right';
 
   /**
    * Navigation callbacks
@@ -44,15 +49,14 @@ export interface SideMenuProps {
    */
   onSignOut?: () => void;
 }
-
 /**
  * SideMenu Component
  *
- * Right-side drawer menu that slides in from the right.
+ * Left-side drawer menu that slides in from the left.
  *
  * Layout:
- * - Drawer width = screen width - 78px
- * - 78px overlay (OffBlack50) on the left
+ * - Drawer width = min(320px, 85vw)
+ * - Overlay (OffBlack50) fills the right side outside of the drawer
  * - Safe area spacer + 44px header bar with X button
  * - UserInfo component at top of content
  *
@@ -76,6 +80,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onNavigateToVerification,
   onNavigateToStreamingStats,
   onSignOut,
+  anchor = 'left',
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -194,18 +199,21 @@ export const SideMenu: React.FC<SideMenuProps> = ({
     return null;
   }
 
+  const overlayClassName = `side-menu__overlay${anchor === 'right' ? ' side-menu__overlay--right' : ''}`;
+  const drawerClassName = `side-menu__drawer${anchor === 'right' ? ' side-menu__drawer--right' : ''}`;
+
   return (
-    <>
-      {/* Overlay (78px on the left) */}
+    <div className="side-menu">
+      {/* Overlay (right side, outside of drawer) */}
       <div
-        className="side-menu__overlay"
+        className={overlayClassName}
         onClick={handleOverlayClick}
         aria-hidden="true"
       />
 
-      {/* Drawer (screen width - 78px) */}
+      {/* Drawer (min(320px, 85vw)) */}
       <aside
-        className="side-menu__drawer"
+        className={drawerClassName}
         role="dialog"
         aria-modal="true"
         aria-label="Navigation menu"
@@ -346,7 +354,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
           </div>
         </div>
       </aside>
-    </>
+    </div>
   );
 };
 

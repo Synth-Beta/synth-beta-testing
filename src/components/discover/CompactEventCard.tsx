@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Icon } from '@/components/Icon/Icon';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -96,9 +96,9 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         {(socialProofCount !== undefined || reasonLabel) && (
           <div className="flex items-center gap-2">
             {socialProofCount !== undefined && socialProofCount > 0 && (
-              <Badge variant="secondary" className="text-xs">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {socialProofCount} {socialProofCount === 1 ? 'person' : 'people'}
-              </Badge>
+              </span>
             )}
             {reasonLabel && (
               <span className="text-xs text-muted-foreground">{reasonLabel}</span>

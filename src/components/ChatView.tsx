@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { 
   MessageCircle, 
@@ -74,6 +74,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
   const [friends, setFriends] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const shouldSmoothScrollRef = useRef(false);
 // Settings menu state
   const [isMuted, setIsMuted] = useState(false);
   const [linkedEvent, setLinkedEvent] = useState<any>(null);
@@ -122,11 +123,12 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
   }, [selectedChat, mutedChats]);
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(shouldSmoothScrollRef.current ? 'smooth' : 'instant');
+    shouldSmoothScrollRef.current = false;
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior: ScrollBehavior = 'instant') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   };
 
   const createOrFindDirectChat = async (targetUserId: string) => {
@@ -437,7 +439,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
     if (!newMessage.trim() || !selectedChat) return;
 
     const messageText = newMessage.trim();
-    setNewMessage('');
+      setNewMessage('');
 
     try {
       // Encrypt and send message
@@ -455,6 +457,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       }
 
       // Refresh messages
+      shouldSmoothScrollRef.current = true;
       fetchMessages(selectedChat.id);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -752,10 +755,10 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto h-screen flex">
+    <div className="w-full bg-[var(--neutral-50)] overflow-hidden" style={{ height: '100dvh' }}>
+      <div className="mx-auto flex h-full w-full max-w-6xl">
         {/* Sidebar - Chat List */}
-        <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+        <div className="w-1/3 flex flex-col" style={{ backgroundColor: 'var(--neutral-50)', borderRight: '1px solid var(--neutral-200)' }}>
           {/* Header */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
@@ -779,7 +782,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
             
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
               <Input
                 placeholder="Search chats..."
                 value={searchQuery}
@@ -793,7 +796,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           <div className="flex-1 overflow-y-auto">
             {chats.length === 0 ? (
               <div className="p-4 text-center">
-                <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                 <h3 className="font-semibold gradient-text mb-1">No Chats Yet</h3>
                 <p className="text-sm text-gray-600">Start a conversation with your friends!</p>
               </div>
@@ -812,7 +815,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                     <div className="flex items-center gap-3">
                       {chat.type === 'group' ? (
                         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-100 to-white flex items-center justify-center">
-                          <Users className="w-5 h-5 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                          <Users className="w-5 h-5 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                         </div>
                       ) : (
                         <Avatar className="w-10 h-10">
@@ -841,9 +844,9 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                         </p>
                       </div>
                       {chat.unread_count > 0 && (
-                        <Badge className="gradient-badge text-xs">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                           {chat.unread_count}
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -854,7 +857,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         </div>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {selectedChat ? (
             <>
               {/* Chat Header */}
@@ -961,10 +964,17 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div
+                className="flex-1 min-h-0 overflow-y-auto space-y-4 pt-4"
+                style={{
+                  paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+                  paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+                  paddingBottom: 'var(--spacing-small, 12px)'
+                }}
+              >
                 {messages.length === 0 ? (
                   <div className="text-center py-8">
-                    <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                    <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                     <h3 className="font-semibold gradient-text mb-1">No Messages Yet</h3>
                     <p className="text-sm text-gray-600">Start the conversation!</p>
                   </div>
@@ -1005,7 +1015,17 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
               </div>
 
               {/* Message Input */}
-              <div className="p-4 border-t border-gray-200 bg-white/70 backdrop-blur-sm" style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}>
+              <div
+                className="w-full"
+                style={{
+                  backgroundColor: 'var(--neutral-50)',
+                  borderTop: '1px solid var(--neutral-200)',
+                  paddingTop: 'var(--spacing-small, 12px)',
+                  paddingLeft: 'var(--spacing-small, 12px)',
+                  paddingRight: 'var(--spacing-small, 12px)',
+                  paddingBottom: 'calc(var(--spacing-small, 12px) + env(safe-area-inset-bottom, 0px))'
+                }}
+              >
                 <div className="flex gap-2">
                   <Input
                     placeholder="Type a message..."
@@ -1027,7 +1047,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <MessageCircle className="w-16 h-16 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                 <h3 className="text-xl font-semibold gradient-text mb-2">Select a Chat</h3>
                 <p className="text-gray-600">Choose a conversation to start chatting</p>
               </div>

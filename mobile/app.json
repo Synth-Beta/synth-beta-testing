@@ -23,7 +23,7 @@
       "package": "com.tejpatel.synth",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#CC2486",
+        "backgroundColor": "var(var(--brand-pink-500))",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -34,8 +34,8 @@
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png",
-      "themeColor": "#CC2486",
-      "backgroundColor": "#FCFCFC"
+      "themeColor": "var(var(--brand-pink-500))",
+      "backgroundColor": "var(--neutral-50)"
     },
     "plugins": [
       "expo-router",
@@ -53,7 +53,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#CC2486",
+          "color": "var(var(--brand-pink-500))",
           "sounds": []
         }
       ]

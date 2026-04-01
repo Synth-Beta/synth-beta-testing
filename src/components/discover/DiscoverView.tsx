@@ -27,6 +27,7 @@ const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
+import { fetchEventForModal } from '@/services/eventLookupService';
 
 type DiscoverDetailView =
   | { type: 'artist'; id: string; name: string }
@@ -235,28 +236,26 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const handleEventClickFromVenue = async (eventId: string) => {
     if (!eventId) return;
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*, artists(name), venues(name)')
-        .eq('id', eventId)
-        .single();
-
-      if (!error && data) {
-        const normalizedEvent = {
-          ...data,
-          artist_name: (data.artists as any)?.name || data.artist_name || null,
-          venue_name: (data.venues as any)?.name || data.venue_name || null,
-        };
-        setSelectedEvent(normalizedEvent);
-        const interested = await UserEventService.isUserInterested(currentUserId, eventId);
-        setSelectedEventInterested(interested);
-        setEventDetailsOpen(true);
-        setDetailView({
-          type: 'event',
-          id: eventId,
-          name: normalizedEvent.artist_name || normalizedEvent.name || 'Event',
-        });
+      const { event: eventData, error } = await fetchEventForModal(eventId);
+      if (error) {
+        console.error('Error opening event from venue:', error);
+        return;
       }
+
+      if (!eventData) {
+        console.warn('Event not found from venue click:', eventId);
+        return;
+      }
+
+      setSelectedEvent(eventData);
+      const interested = await UserEventService.isUserInterested(currentUserId, eventData.id);
+      setSelectedEventInterested(interested);
+      setEventDetailsOpen(true);
+      setDetailView({
+        type: 'event',
+        id: eventId,
+        name: eventData.artist_name || eventData.title || 'Event',
+      });
     } catch (err) {
       console.error('Error opening event from venue:', err);
     }

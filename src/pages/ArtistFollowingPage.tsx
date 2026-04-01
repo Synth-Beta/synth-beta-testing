@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -602,9 +602,9 @@ export function ArtistFollowingPage() {
               <h2 className="text-xl font-bold">
                 {rightContentType === 'artist' ? `${selectedArtist?.artist_name}'s Events` : 'Upcoming Events'}
               </h2>
-              <Badge variant="secondary" className="bg-pink-100 text-pink-700">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {rightContentType === 'artist' ? selectedArtist?.upcomingEvents.length : allUpcomingEvents.length}
-              </Badge>
+              </span>
             </div>
             <div className="flex items-center gap-3">
               {/* Filter Controls */}
@@ -775,9 +775,9 @@ export function ArtistFollowingPage() {
               <h1 className="text-2xl font-bold">
                 {isOwnProfile ? 'Following' : `${displayName}'s Following`}
               </h1>
-              <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {followedArtists.length + followedVenues.length}
-              </Badge>
+              </span>
             </div>
           </div>
           
@@ -853,9 +853,9 @@ export function ArtistFollowingPage() {
                               {artist.upcomingEvents.length} upcoming events
                             </p>
                             {artist.upcomingEvents.length > 0 && (
-                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {artist.upcomingEvents.length}
-                              </Badge>
+                              </span>
                             )}
                           </div>
                         </div>
@@ -898,9 +898,9 @@ export function ArtistFollowingPage() {
                               {venue.upcomingEvents.length} upcoming events
                             </p>
                             {venue.upcomingEvents.length > 0 && (
-                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {venue.upcomingEvents.length}
-                              </Badge>
+                              </span>
                             )}
                           </div>
                         </div>

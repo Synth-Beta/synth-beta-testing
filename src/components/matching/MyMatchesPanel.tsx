@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Heart, MessageCircle, Calendar, MapPin, Loader2, Users } from 'lucide-react';
 import MatchingService, { Match } from '@/services/matchingService';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
@@ -80,10 +80,10 @@ const [matches, setMatches] = useState<Match[]>([]);
                   </p>
                 )}
               </div>
-              <Badge variant="default" className="bg-pink-500 flex-shrink-0">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 <Heart className="h-3 w-3 mr-1 fill-current" />
                 Match
-              </Badge>
+              </span>
             </div>
 
             {/* Event Info */}

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { 
   TrendingUp, 
   TrendingDown,
@@ -96,22 +96,22 @@ export function TrendLineChart({
           {showTrend && (
             <div className="flex items-center gap-2">
               {trend.direction === 'up' && (
-                <Badge variant="outline" className="text-green-600 border-green-200">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   <TrendingUp className="w-3 h-3 mr-1" />
                   +{trend.percentage.toFixed(1)}%
-                </Badge>
+                </span>
               )}
               {trend.direction === 'down' && (
-                <Badge variant="outline" className="text-red-600 border-red-200">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   <TrendingDown className="w-3 h-3 mr-1" />
                   -{trend.percentage.toFixed(1)}%
-                </Badge>
+                </span>
               )}
               {trend.direction === 'flat' && (
-                <Badge variant="outline" className="text-gray-600 border-gray-200">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   <Target className="w-3 h-3 mr-1" />
                   Stable
-                </Badge>
+                </span>
               )}
             </div>
           )}

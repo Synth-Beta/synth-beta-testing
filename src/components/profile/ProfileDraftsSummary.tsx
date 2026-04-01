@@ -20,7 +20,7 @@ export function ProfileDraftsSummary({ draftCount, onClick }: ProfileDraftsSumma
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full overflow-hidden rounded-2xl shadow-md bg-gradient-to-br from-[#0e0e0e] via-[#1a1a1a] to-[#3b0b22] text-left focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-background"
+      className="relative w-full overflow-hidden rounded-2xl shadow-md bg-gradient-to-br from-[var(--neutral-900)] via-[#1a1a1a] to-[#3b0b22] text-left focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 focus:ring-offset-background"
     >
       <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_top,_rgba(255,51,153,0.85),_transparent_55%),_radial-gradient(circle_at_bottom,_rgba(186,104,200,0.8),_transparent_55%)]" />
       <div className="relative px-4 py-6 flex items-center justify-between">

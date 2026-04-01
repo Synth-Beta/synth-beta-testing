@@ -3,6 +3,7 @@ import { PersonalizedFeedService, type PersonalizedEvent, type FeedItem } from '
 import { HomeFeedService, type NetworkEvent, type EventList, type TrendingEvent, type NetworkReview } from '@/services/homeFeedService';
 import { UnifiedFeedService, type UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { UserEventService } from '@/services/userEventService';
+import { fetchEventForModal } from '@/services/eventLookupService';
 import { SimpleEventRecommendationService } from '@/services/simpleEventRecommendationService';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { createFriendRequest, rankFriendSuggestionsForRail } from '@synth/shared';
@@ -1776,40 +1777,22 @@ interface FriendEventInterest {
     }
 
     try {
-      // Query events table with JOINs to get artist and venue names via foreign keys
-      const { data, error } = await supabase
-        .from('events')
-        .select('*, artists(name), venues(name)')
-        .eq('id', eventId)
-        .single();
+      const { event: eventData, error } = await fetchEventForModal(eventId);
 
       if (error) {
         console.error('Error fetching event details:', error);
         return;
       }
 
-      if (data) {
-        // Normalize the event data to include artist_name and venue_name from JOINed data
-        // Properly handle null/undefined cases from JOIN operations (bug fix)
-        const artistName = Array.isArray(data.artists) && data.artists.length > 0
-          ? data.artists[0]?.name
-          : (data.artists as any)?.name || data.artist_name || null;
-        
-        const venueName = Array.isArray(data.venues) && data.venues.length > 0
-          ? data.venues[0]?.name
-          : (data.venues as any)?.name || data.venue_name || null;
-        
-        const normalizedEvent = {
-          ...data,
-          artist_name: artistName,
-          venue_name: venueName,
-        };
-        
-        setSelectedEvent(normalizedEvent);
-        const interested = await UserEventService.isUserInterested(currentUserId, normalizedEvent.id);
-        setSelectedEventInterested(interested);
-        setEventDetailsOpen(true);
+      if (!eventData) {
+        console.warn('Event not found for id:', eventId);
+        return;
       }
+
+      setSelectedEvent(eventData);
+      const interested = await UserEventService.isUserInterested(currentUserId, eventData.id);
+      setSelectedEventInterested(interested);
+      setEventDetailsOpen(true);
     } catch (error) {
       console.error('Error fetching event details:', error);
     }

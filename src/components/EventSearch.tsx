@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -341,16 +341,13 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
               <h4 className="font-medium text-sm truncate">
                 {event.title || event.event_name}
               </h4>
-              <Badge 
-                variant={event.jambase_event_id ? "default" : "secondary"}
-                className="text-xs"
-              >
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 {event.jambase_event_id ? 'JamBase' : 'Manual'}
-              </Badge>
+              </span>
               {isUpcoming && (
-                <Badge variant="outline" className="text-xs text-green-600 border-green-300">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                   Upcoming
-                </Badge>
+                </span>
               )}
             </div>
             
@@ -571,21 +568,14 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
                             {artist.name}
                           </h3>
                           {artist.popularity_score && artist.popularity_score > 0 && (
-                            <Badge variant="outline" className="text-xs">
+                            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                               Popular
-                            </Badge>
+                            </span>
                           )}
                           {(artist as any).source && (
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                (artist as any).source === 'database' 
-                                  ? 'text-green-600 border-green-300' 
-                                  : 'text-blue-600 border-blue-300'
-                              }`}
-                            >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                               {(artist as any).source === 'database' ? 'Database' : 'JamBase'}
-                            </Badge>
+                            </span>
                           )}
                         </div>
                         
@@ -598,13 +588,9 @@ export function EventSearch({ userId, onEventSelect, className }: EventSearchPro
                         {artist.genres && artist.genres.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {artist.genres.slice(0, 3).map((genre, genreIndex) => (
-                              <Badge
-                                key={genreIndex}
-                                variant="secondary"
-                                className="text-xs px-2 py-0.5"
-                              >
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 {genre}
-                              </Badge>
+                              </span>
                             ))}
                             {artist.genres.length > 3 && (
                               <span className="text-xs text-gray-500">

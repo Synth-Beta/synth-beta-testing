@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+
 import { Target, Users, TrendingUp, BarChart3, MapPin, Clock } from 'lucide-react';
 import { SkeletonCard } from '@/components/analytics/shared/SkeletonCard';
 
@@ -376,17 +376,9 @@ export function NetworkAnalyticsView() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{city.networkCompleteness.toFixed(0)}%</td>
                         <td className="px-4 py-3">
-                          <Badge 
-                            variant="outline"
-                            className={
-                              city.status === 'sustainable' ? 'border-green-500 text-green-700' :
-                              city.status === 'near_critical' ? 'border-blue-500 text-blue-700' :
-                              city.status === 'building' ? 'border-yellow-500 text-yellow-700' :
-                              'border-red-500 text-red-700'
-                            }
-                          >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {city.status}
-                          </Badge>
+                          </span>
                         </td>
                       </tr>
                     );

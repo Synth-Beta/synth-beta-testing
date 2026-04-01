@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
@@ -721,14 +721,14 @@ const { sessionExpired } = useAuth();
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             <Music className="w-3 h-3 mr-1" />
                             News
-                          </Badge>
-                          <Badge className={`${getRatingColor(review.rating)} border text-xs`}>
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {getRatingIcon(review.rating)}
                             <span className="ml-1">{getRatingText(review.rating)}</span>
-                          </Badge>
+                          </span>
                         </div>
                       </div>
 
@@ -820,14 +820,14 @@ const { sessionExpired } = useAuth();
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             <Globe className="w-3 h-3 mr-1" />
                             Public
-                          </Badge>
-                          <Badge className={`${getRatingColor(review.rating)} border text-xs`}>
+                          </span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {getRatingIcon(review.rating)}
                             <span className="ml-1">{getRatingText(review.rating)}</span>
-                          </Badge>
+                          </span>
                         </div>
                       </div>
 

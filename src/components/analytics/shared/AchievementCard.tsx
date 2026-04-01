@@ -7,7 +7,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+
 import { cn } from '@/lib/utils';
 import { Lock, Check } from 'lucide-react';
 
@@ -52,10 +52,10 @@ export function AchievementCard({
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm text-gray-900">{name}</span>
             {unlocked && (
-              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                 <Check className="w-3 h-3 mr-1" />
                 Unlocked
-              </Badge>
+              </span>
             )}
             {!unlocked && (
               <Lock className="w-3 h-3 text-gray-400" />
@@ -99,10 +99,10 @@ export function AchievementCard({
           </div>
           
           {unlocked ? (
-            <Badge className="bg-yellow-500 text-white border-0">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <Check className="w-4 h-4 mr-1" />
               Unlocked!
-            </Badge>
+            </span>
           ) : (
             <div className="flex items-center gap-1 text-gray-400">
               <Lock className="w-4 h-4" />

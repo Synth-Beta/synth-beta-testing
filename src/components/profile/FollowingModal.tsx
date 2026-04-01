@@ -168,7 +168,7 @@ export function FollowingModal({
             <DialogTitle className="text-center text-lg font-semibold">Following</DialogTitle>
             <button
               onClick={onClose}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#cc2486] flex items-center justify-center hover:bg-[#b01f75] transition-colors"
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[var(--brand-pink-500)] flex items-center justify-center hover:bg-[#b01f75] transition-colors"
               aria-label="Close dialog"
               type="button"
             >
@@ -193,7 +193,7 @@ export function FollowingModal({
             <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
               {loading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-[#cc2486] mr-2" />
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-pink-500)] mr-2" />
                   <span className="text-muted-foreground">Loading...</span>
                 </div>
               ) : error ? (
@@ -228,7 +228,7 @@ export function FollowingModal({
                               />
                             ) : null}
                             <AvatarFallback className="bg-[#fdf2f7]">
-                              <Music className="w-6 h-6 text-[#cc2486]" />
+                              <Music className="w-6 h-6 text-[var(--brand-pink-500)]" />
                             </AvatarFallback>
                           </Avatar>
 
@@ -267,7 +267,7 @@ export function FollowingModal({
                               />
                             ) : null}
                             <AvatarFallback className="bg-[#fdf2f7]">
-                              <MapPin className="w-6 h-6 text-[#cc2486]" />
+                              <MapPin className="w-6 h-6 text-[var(--brand-pink-500)]" />
                             </AvatarFallback>
                           </Avatar>
 

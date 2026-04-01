@@ -20,20 +20,20 @@ export const TopRightMenu: React.FC<TopRightMenuProps> = () => {
         <Button
           variant="ghost"
           className={`p-2 h-8 w-8 flex items-center justify-center transition-colors rounded ${
-            isOpen ? 'bg-[#951a6d]' : 'bg-transparent hover:bg-gray-100'
+            isOpen ? 'bg-[var(--brand-pink-600)]' : 'bg-transparent hover:bg-gray-100'
           }`}
           aria-label="Menu"
         >
           {/* Three horizontal lines icon */}
           <div className="flex flex-col gap-1.5">
             <div className={`h-0.5 w-5 transition-colors ${
-              isOpen ? 'bg-white' : 'bg-[#0e0e0e]'
+              isOpen ? 'bg-white' : 'bg-[var(--neutral-900)]'
             }`} />
             <div className={`h-0.5 w-5 transition-colors ${
-              isOpen ? 'bg-white' : 'bg-[#0e0e0e]'
+              isOpen ? 'bg-white' : 'bg-[var(--neutral-900)]'
             }`} />
             <div className={`h-0.5 w-5 transition-colors ${
-              isOpen ? 'bg-white' : 'bg-[#0e0e0e]'
+              isOpen ? 'bg-white' : 'bg-[var(--neutral-900)]'
             }`} />
           </div>
         </Button>

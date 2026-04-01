@@ -55,7 +55,7 @@ export default {
 				warning: 'hsl(var(--warning))',
 				// Synth Brand Colors
 				synth: {
-					pink: '#CC2486',
+					pink: 'rgb(204 36 134 / <alpha-value>)',
 					'pink-light': '#FF66B3',
 					'pink-dark': '#E6007A',
 					beige: '#F5F5DC',
