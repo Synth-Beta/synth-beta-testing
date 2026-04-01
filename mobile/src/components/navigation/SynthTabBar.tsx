@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Home, Compass, Plus, MessageCircle, User } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +17,17 @@ const INACTIVE_ICON_OPACITY = 0.5;
 
 /** Tab routes that exist in the navigator but should not show a bar item (e.g. stack-like screens under Tabs). */
 const TAB_BAR_HIDDEN_ROUTE_NAMES = new Set(['search']);
+
+/** Icon row + top padding (matches `minHeight: 44` + `paddingTop: 12`). */
+export const TAB_BAR_CORE_HEIGHT = 56;
+
+/**
+ * Extra bottom padding for scrollable tab content so it clears this bar + home indicator.
+ * Cards use `elevation` on Android; this bar must sit above them in z-order too.
+ */
+export function tabBarBottomContentPadding(safeAreaBottom: number, extra = 8): number {
+  return TAB_BAR_CORE_HEIGHT + safeAreaBottom + extra;
+}
 
 export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
   const insets = useSafeAreaInsets();
@@ -121,6 +132,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 200,
+    elevation: Platform.OS === 'android' ? 24 : 0,
     backgroundColor: SynthTokens.colors.brandPink050,
     borderTopWidth: 2,
     borderTopColor: SynthTokens.colors.neutral200,

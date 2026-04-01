@@ -18,6 +18,8 @@ import { ArtistScreenSkeleton } from '../../src/components/skeletons/ArtistScree
 import { EventService } from '../../src/services/eventService';
 import { isUuid } from '../../src/utils/isUuid';
 import { todayLocalYmd } from '../../src/utils/localYmd';
+import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
+import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,8 +34,12 @@ export default function ArtistDetailScreen() {
       title: string;
       artist_name: string;
       venue_name: string;
+      venue_city?: string;
       event_date: string;
       image_url?: string;
+      artist_id?: string;
+      venue_id?: string;
+      ticket_url?: string;
     }>
   >([]);
   const [loading, setLoading] = useState(true);
@@ -78,20 +84,27 @@ export default function ArtistDetailScreen() {
       }
       const { data: evs } = await supabase
         .from('events')
-        .select('id, title, artist_name, venue_name, event_date, images')
+        .select('id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls')
         .eq('artist_id', resolvedId ?? raw)
         .gte('event_date', todayLocalYmd())
         .order('event_date', { ascending: true })
         .limit(25);
       const mapped =
-        (evs || []).map((e: any) => ({
-          id: e.id,
-          title: e.title || 'Event',
-          artist_name: e.artist_name || artistName,
-          venue_name: e.venue_name || '',
-          event_date: e.event_date,
-          image_url: e.images?.[0]?.url,
-        })) ?? [];
+        (evs || []).map((e: any) => {
+          const rawImg = pickFeedImageUrlFromPayload(e) ?? e.images?.[0]?.url;
+          return {
+            id: e.id,
+            title: e.title || 'Event',
+            artist_name: e.artist_name || artistName,
+            venue_name: e.venue_name || '',
+            venue_city: e.venue_city ?? undefined,
+            event_date: e.event_date,
+            image_url: resolveFeedImageUri(rawImg) ?? undefined,
+            artist_id: e.artist_id != null ? String(e.artist_id) : resolvedId ?? undefined,
+            venue_id: e.venue_id != null ? String(e.venue_id) : undefined,
+            ticket_url: getCompliantEventLinkFromPayload(e) ?? undefined,
+          };
+        }) ?? [];
       setEvents(mapped);
     } finally {
       setLoading(false);
@@ -137,8 +150,12 @@ export default function ArtistDetailScreen() {
                   title={e.title}
                   artist_name={e.artist_name}
                   venue_name={e.venue_name}
+                  venue_city={e.venue_city}
                   event_date={e.event_date}
                   image_url={e.image_url}
+                  ticket_url={e.ticket_url}
+                  artist_id={e.artist_id}
+                  venue_id={e.venue_id}
                   onPress={() => {
                     void EventService.toEventRouteId(e.id).then(rid => {
                       router.push(`/event/${rid}` as any);

@@ -9,7 +9,7 @@ import { SynthTokens } from '../../tokens/SynthTokens';
 export const JamBaseAttributionInline: React.FC = () => {
   return (
     <View style={styles.wrap} pointerEvents="box-none">
-      <Text style={styles.text} numberOfLines={2}>
+      <Text style={styles.text} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>
         Powered by{' '}
         <Text
           style={styles.link}
@@ -33,13 +33,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   text: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
     color: SynthTokens.colors.neutral600,
     textAlign: 'center',
   },
   link: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
     color: SynthTokens.colors.neutral600,
     textDecorationLine: 'underline',

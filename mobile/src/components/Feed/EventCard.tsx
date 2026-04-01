@@ -1,18 +1,23 @@
-import React, { useCallback, useState } from 'react';
-import { StyleSheet, View, Pressable, Dimensions, Share, Text } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View, Pressable, Dimensions, Text, Linking } from 'react-native';
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
-import { Heart, MapPin, Calendar, Share2 } from 'lucide-react-native';
+import { Heart, MapPin, Calendar, Share2, Ticket, Music } from 'lucide-react-native';
 import { supabase } from '../../integrations/supabase/client';
 import { EventService } from '../../services/eventService';
+import { resolveFeedImageUri } from '../../utils/eventImages';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - SynthTokens.spacing.screenMarginX * 2;
 const ASPECT_RATIO = 16 / 10;
 const IMAGE_HEIGHT = CARD_WIDTH / ASPECT_RATIO;
+const CARD_RADIUS = SynthTokens.radius.corner;
 
 const PINK = SynthTokens.colors.brandPink500;
+
+const PLACEHOLDER = require('../../../assets/placeholder-event.png');
 
 export interface EventCardProps {
   id: string;
@@ -28,6 +33,10 @@ export interface EventCardProps {
   onPress?: () => void;
   /** If known from feed, avoids wrong initial Interested state */
   initialInterested?: boolean;
+  interested_count?: number;
+  ticket_url?: string;
+  artist_id?: string;
+  venue_id?: string;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -41,8 +50,19 @@ export const EventCard: React.FC<EventCardProps> = ({
   cornerLabel,
   onPress,
   initialInterested = false,
+  interested_count = 0,
+  ticket_url: ticketUrlProp,
+  artist_id,
+  venue_id,
 }) => {
+  const router = useRouter();
   const [interested, setInterested] = useState(initialInterested);
+
+  useEffect(() => {
+    setInterested(initialInterested);
+  }, [id, initialInterested]);
+
+  const resolvedUri = resolveFeedImageUri(image_url);
 
   const headline =
     title?.trim() ||
@@ -66,16 +86,11 @@ export const EventCard: React.FC<EventCardProps> = ({
   const locationLine =
     venueName && venueCity ? `${venueName} · ${venueCity}` : venueName || venueCity || '';
 
-  const onShare = useCallback(async () => {
-    try {
-      await Share.share({
-        message: `${headline} — ${formattedDate}`,
-        title: headline,
-      });
-    } catch {
-      /* user dismissed */
-    }
-  }, [headline, formattedDate]);
+  const artistLine = artist_name?.trim() || '';
+
+  const onShare = useCallback(() => {
+    void EventService.shareEventLink(id, { headline, formattedDate });
+  }, [id, headline, formattedDate]);
 
   const onToggleInterested = useCallback(async () => {
     const {
@@ -86,76 +101,149 @@ export const EventCard: React.FC<EventCardProps> = ({
     if (ok) setInterested(prev => !prev);
   }, [id]);
 
+  const openTickets = useCallback(async () => {
+    const u = ticketUrlProp?.trim();
+    if (!u) return;
+    const ok = await Linking.canOpenURL(u);
+    if (ok) await Linking.openURL(u);
+  }, [ticketUrlProp]);
+
+  const goArtist = useCallback(() => {
+    if (!artist_id) return;
+    router.push(`/artist/${artist_id}` as any);
+  }, [artist_id, router]);
+
+  const goVenue = useCallback(() => {
+    if (!venue_id) return;
+    router.push(`/venue/${venue_id}` as any);
+  }, [venue_id, router]);
+
+  const interestedLabel =
+    interested_count > 0
+      ? `${interested_count} ${interested_count === 1 ? 'person' : 'people'} interested`
+      : null;
+
   return (
-    <View style={styles.container}>
-      <Pressable onPress={onPress} style={({ pressed }) => [styles.cardPress, pressed && styles.pressed]}>
-        <View style={styles.imageWrap}>
-          <Image
-            source={image_url ? { uri: image_url } : require('../../../assets/placeholder-event.png')}
-            style={styles.image}
-            contentFit="cover"
-            transition={200}
-          />
-          {cornerLabel ? (
-            <View style={styles.cornerLabelWrap} pointerEvents="none">
-              <Text style={styles.cornerLabelText}>{cornerLabel.toUpperCase()}</Text>
+    <View style={styles.shadowShell}>
+      <View style={styles.cardFace}>
+        <Pressable onPress={onPress} style={({ pressed }) => [pressed && styles.pressed]}>
+          <View style={styles.imageWrap}>
+            <Image
+              source={resolvedUri ? { uri: resolvedUri } : PLACEHOLDER}
+              style={styles.image}
+              contentFit="cover"
+              transition={200}
+            />
+            {cornerLabel ? (
+              <View style={styles.cornerLabelWrap} pointerEvents="none">
+                <Text style={styles.cornerLabelText}>{cornerLabel.toUpperCase()}</Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.heroTextPad}>
+            <SynthText variant="h2" numberOfLines={2} style={styles.headline}>
+              {headline}
+            </SynthText>
+          </View>
+
+          <View style={styles.detailsPad}>
+            {artistLine && artist_id ? (
+              <Pressable onPress={goArtist} style={styles.inlineLinkRow} hitSlop={6}>
+                <Music size={16} color={PINK} />
+                <SynthText variant="meta" color="brand" numberOfLines={1} style={styles.linkMeta}>
+                  {artistLine}
+                </SynthText>
+              </Pressable>
+            ) : artistLine ? (
+              <View style={styles.metaRow}>
+                <Music size={16} color={PINK} />
+                <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.metaTxt}>
+                  {artistLine}
+                </SynthText>
+              </View>
+            ) : null}
+
+            <View style={styles.metaRow}>
+              <MapPin size={16} color={PINK} />
+              {venue_id && venueName ? (
+                <View style={styles.venueLine}>
+                  <Pressable onPress={goVenue} hitSlop={6}>
+                    <SynthText variant="meta" color="brand" numberOfLines={1} style={styles.metaTxt}>
+                      {venueName}
+                    </SynthText>
+                  </Pressable>
+                  {venueCity ? (
+                    <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.metaTxt}>
+                      {` · ${venueCity}`}
+                    </SynthText>
+                  ) : null}
+                </View>
+              ) : (
+                <SynthText variant="meta" color="secondary" numberOfLines={2} style={styles.metaTxt}>
+                  {locationLine || 'Venue TBA'}
+                </SynthText>
+              )}
             </View>
+
+            <View style={styles.metaRow}>
+              <Calendar size={16} color={PINK} />
+              <SynthText variant="meta" color="secondary" style={styles.metaTxt}>
+                {formattedDate}
+              </SynthText>
+            </View>
+
+            {interestedLabel ? (
+              <SynthText variant="meta" color="secondary" style={styles.interestedLine}>
+                {interestedLabel}
+              </SynthText>
+            ) : null}
+          </View>
+        </Pressable>
+
+        <View style={styles.actions}>
+          <Pressable
+            onPress={() => void onToggleInterested()}
+            style={[styles.interestedBtn, interested && styles.interestedBtnOn]}
+          >
+            <Heart
+              size={18}
+              color={PINK}
+              fill={interested ? PINK : 'transparent'}
+              strokeWidth={2}
+            />
+            <Text style={styles.interestedBtnTxt}>Interested</Text>
+          </Pressable>
+          {ticketUrlProp?.trim() ? (
+            <Pressable onPress={() => void openTickets()} style={styles.ticketBtn} accessibilityLabel="Tickets">
+              <Ticket size={20} color={PINK} />
+            </Pressable>
           ) : null}
+          <Pressable onPress={onShare} style={styles.shareBtn} accessibilityLabel="Share event">
+            <Share2 size={20} color={PINK} />
+          </Pressable>
         </View>
-
-        <View style={styles.body}>
-          <SynthText variant="h2" numberOfLines={2} style={styles.headline}>
-            {headline}
-          </SynthText>
-          <View style={styles.metaRow}>
-            <MapPin size={16} color={PINK} />
-            <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.metaTxt}>
-              {locationLine}
-            </SynthText>
-          </View>
-          <View style={styles.metaRow}>
-            <Calendar size={16} color={PINK} />
-            <SynthText variant="meta" color="secondary" style={styles.metaTxt}>
-              {formattedDate}
-            </SynthText>
-          </View>
-        </View>
-      </Pressable>
-
-      <View style={styles.actions}>
-        <Pressable onPress={() => void onToggleInterested()} style={[styles.interestedBtn, interested && styles.interestedBtnOn]}>
-          <Heart
-            size={18}
-            color={PINK}
-            fill={interested ? PINK : 'transparent'}
-            strokeWidth={2}
-          />
-          <Text style={styles.interestedBtnTxt}>Interested</Text>
-        </Pressable>
-        <Pressable onPress={onShare} style={styles.shareBtn} accessibilityLabel="Share event">
-          <Share2 size={20} color={PINK} />
-        </Pressable>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderRadius: SynthTokens.radius.corner,
+  shadowShell: {
     marginHorizontal: SynthTokens.spacing.screenMarginX,
     marginBottom: SynthTokens.spacing.lg,
-    overflow: 'hidden',
     shadowColor: SynthTokens.shadow.color,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardFace: {
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderRadius: CARD_RADIUS,
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
   },
-  cardPress: {},
   pressed: {
     opacity: 0.96,
   },
@@ -164,6 +252,9 @@ const styles = StyleSheet.create({
     height: IMAGE_HEIGHT,
     backgroundColor: SynthTokens.colors.neutral100,
     position: 'relative',
+    borderTopLeftRadius: CARD_RADIUS,
+    borderTopRightRadius: CARD_RADIUS,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
@@ -184,10 +275,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.6,
   },
-  body: {
+  heroTextPad: {
     paddingHorizontal: SynthTokens.spacing.md,
     paddingTop: SynthTokens.spacing.md,
     paddingBottom: SynthTokens.spacing.sm,
+    backgroundColor: SynthTokens.colors.neutral0,
+  },
+  detailsPad: {
+    paddingHorizontal: SynthTokens.spacing.md,
+    paddingBottom: SynthTokens.spacing.sm,
+    backgroundColor: SynthTokens.colors.neutral0,
   },
   headline: {
     fontSize: 18,
@@ -201,9 +298,30 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 6,
   },
-  metaTxt: {
+  inlineLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  linkMeta: {
     flex: 1,
     fontSize: 15,
+    fontWeight: '600',
+  },
+  venueLine: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  metaTxt: {
+    flexShrink: 1,
+    fontSize: 15,
+  },
+  interestedLine: {
+    marginTop: 4,
+    fontSize: 14,
   },
   actions: {
     flexDirection: 'row',
@@ -211,6 +329,10 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: SynthTokens.spacing.md,
     paddingBottom: SynthTokens.spacing.md,
+    paddingTop: 2,
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderBottomLeftRadius: CARD_RADIUS,
+    borderBottomRightRadius: CARD_RADIUS,
   },
   interestedBtn: {
     flex: 1,
@@ -231,6 +353,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: PINK,
+  },
+  ticketBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: SynthTokens.radius.corner,
+    borderWidth: 2,
+    borderColor: PINK,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SynthTokens.colors.neutral0,
   },
   shareBtn: {
     width: 48,

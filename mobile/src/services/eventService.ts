@@ -1,4 +1,6 @@
+import { Platform, Share } from 'react-native';
 import { supabase } from '../integrations/supabase/client';
+import { getExpoSiteUrl } from '../utils/siteUrl';
 
 export interface EventDetail {
     id: string;
@@ -58,6 +60,27 @@ export class EventService {
     static async toEventRouteId(raw: string): Promise<string> {
         const canonical = await this.resolveCanonicalEventId(raw);
         return canonical ?? raw;
+    }
+
+    /**
+     * Open native share sheet with a tappable web/event URL (canonical id when resolvable).
+     */
+    static async shareEventLink(
+        eventId: string,
+        meta: { headline: string; formattedDate: string }
+    ): Promise<void> {
+        const routeId = await this.toEventRouteId(eventId);
+        const url = `${getExpoSiteUrl()}/event/${encodeURIComponent(routeId)}`;
+        const message = `${meta.headline} — ${meta.formattedDate}\n\n${url}`;
+        try {
+            if (Platform.OS === 'ios') {
+                await Share.share({ message, title: meta.headline, url });
+            } else {
+                await Share.share({ message, title: meta.headline });
+            }
+        } catch {
+            /* user dismissed share sheet */
+        }
     }
 
     /**

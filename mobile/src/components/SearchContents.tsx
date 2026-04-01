@@ -29,6 +29,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SearchResultsSkeleton } from './skeletons/SearchResultsSkeleton';
 import { EventService } from '../services/eventService';
+import { tabBarBottomContentPadding } from './navigation/SynthTabBar';
 
 type Row =
     | { kind: 'event'; data: SearchResult }
@@ -285,7 +286,10 @@ export default function SearchScreen() {
                 data={rows}
                 renderItem={renderRow}
                 keyExtractor={(item, index) => `${item.kind}-${index}-${JSON.stringify(item.data)}`}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={[
+                    styles.listContent,
+                    { paddingBottom: tabBarBottomContentPadding(insets.bottom) },
+                ]}
                 onScrollBeginDrag={Keyboard.dismiss}
                 ListEmptyComponent={
                     loading && keyword.trim().length >= 2 ? (
@@ -371,7 +375,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     listContent: {
-        paddingVertical: SynthTokens.spacing.md,
+        paddingTop: SynthTokens.spacing.md,
     },
     empty: {
         padding: SynthTokens.spacing.xl,

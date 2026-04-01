@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Dimensions, Pressable, Share, Linking } from 'react-native';
+import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -141,16 +141,24 @@ export default function EventDetailScreen() {
         }
     };
 
-    const handleShare = async () => {
+    const handleShare = () => {
         if (!event) return;
-        try {
-            await Share.share({
-                message: `Check out ${event.artist_name} at ${event.venue_name}!`,
-                url: event.ticket_url || 'https://synth.app',
-            });
-        } catch (error) {
-            console.error('Error sharing:', error);
+        const headline =
+            event.title?.trim() ||
+            `${event.artist_name || 'Show'}${event.venue_name ? ` at ${event.venue_name}` : ''}`;
+        let formattedDate = 'Date TBA';
+        if (event.event_date) {
+            const d = new Date(event.event_date);
+            if (Number.isFinite(d.getTime())) {
+                formattedDate = d.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                });
+            }
         }
+        void EventService.shareEventLink(event.id, { headline, formattedDate });
     };
 
     const handleToggleGoing = async () => {

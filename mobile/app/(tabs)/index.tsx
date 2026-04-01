@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { StyleSheet, View, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { FeedHeader, FeedDisplayMode } from '../../src/components/Feed/FeedHeader';
 import { EventCard } from '../../src/components/Feed/EventCard';
@@ -20,6 +21,7 @@ import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 import { getCurrentLatLng } from '../../src/services/locationService';
 import { EventService } from '../../src/services/eventService';
+import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
 
 type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
@@ -27,6 +29,7 @@ type ListItem =
 
 export default function FeedScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [feedDisplayMode, setFeedDisplayMode] = useState<FeedDisplayMode>('events');
   const [events, setEvents] = useState<UnifiedPersonalizedEvent[]>([]);
   const [reviews, setReviews] = useState<NetworkReview[]>([]);
@@ -125,6 +128,11 @@ export default function FeedScreen() {
         event_date={item.data.event_date}
         image_url={item.data.image_url}
         cornerLabel={item.data.feedLabel}
+        initialInterested={Boolean(item.data.user_is_interested)}
+        interested_count={item.data.interested_count}
+        ticket_url={item.data.ticket_url}
+        artist_id={item.data.artist_id}
+        venue_id={item.data.venue_id}
         onPress={() => {
           void EventService.toEventRouteId(item.data.id).then((rid) => {
             router.push(`/event/${rid}` as any);
@@ -172,7 +180,10 @@ export default function FeedScreen() {
             item.kind === 'event' ? `ev-${item.data.id}` : `rv-${item.data.id}`
           }
           ListHeaderComponent={listHeader}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: tabBarBottomContentPadding(insets.bottom) },
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -202,7 +213,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingVertical: SynthTokens.spacing.md,
+    paddingTop: SynthTokens.spacing.md,
   },
   empty: {
     height: 120,

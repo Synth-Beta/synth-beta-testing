@@ -78,7 +78,9 @@ export const FeedHeader: React.FC<FeedHeaderProps> = ({
                 </TouchableOpacity>
             </View>
 
-            <JamBaseAttributionInline />
+            <View style={styles.centerSlot}>
+                <JamBaseAttributionInline />
+            </View>
 
             <View style={styles.rightSlot}>
                 <Pressable onPress={onMenuPress} style={styles.iconButton}>
@@ -103,18 +105,28 @@ const styles = StyleSheet.create({
         paddingHorizontal: SynthTokens.spacing.sm,
         paddingBottom: SynthTokens.spacing.sm,
         backgroundColor: SynthTokens.colors.neutral50,
-        gap: 4,
+        gap: 2,
+        minHeight: 44,
     },
     leftSlot: {
-        flexBasis: '28%',
-        maxWidth: 140,
+        flexBasis: '26%',
+        maxWidth: 132,
         flexShrink: 0,
+        zIndex: 2,
     },
     rightSlot: {
-        flexBasis: '28%',
-        maxWidth: 140,
+        flexBasis: '26%',
+        maxWidth: 132,
         flexShrink: 0,
+        minWidth: 48,
         alignItems: 'flex-end',
+        justifyContent: 'center',
+        zIndex: 2,
+    },
+    centerSlot: {
+        flex: 1,
+        minWidth: 0,
+        zIndex: 1,
     },
     dropdownPill: {
         flexDirection: 'row',
