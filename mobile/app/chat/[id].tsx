@@ -1,34 +1,132 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Send, Image as ImageIcon } from 'lucide-react-native';
+import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar } from 'lucide-react-native';
+import { Image } from 'expo-image';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { ChatService, Message } from '../../src/services/chatService';
+import { EventService, type EventDetail } from '../../src/services/eventService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const PINK = SynthTokens.colors.brandPink500;
+
+type ReviewCardInfo = {
+    headline: string;
+    subtitle: string;
+    rating: number | null;
+};
+
+function formatEventWhen(iso: string | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isPlaceholderContent(s: string): boolean {
+    const t = s.trim();
+    return t === 'Message' || t === '[Unable to decrypt message]' || t === '[Encrypted message]';
+}
 
 export default function ChatThreadScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState('');
     const [userId, setUserId] = useState<string | null>(null);
+    const [eventById, setEventById] = useState<Record<string, EventDetail | null>>({});
+    const [reviewById, setReviewById] = useState<Record<string, ReviewCardInfo>>({});
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
 
-    useEffect(() => {
-        loadMessages();
-    }, [id]);
-
-    const loadMessages = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
+    const loadMessages = useCallback(async () => {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
         if (!user) return;
         setUserId(user.id);
 
         const data = await ChatService.getMessages(id, user.id);
         setMessages(data);
-    };
+    }, [id]);
+
+    useEffect(() => {
+        void loadMessages();
+    }, [loadMessages]);
+
+    useEffect(() => {
+        let cancelled = false;
+        void (async () => {
+            const evIds = [
+                ...new Set(
+                    messages
+                        .filter(m => m.message_type === 'event_share' && m.shared_event_id)
+                        .map(m => m.shared_event_id as string)
+                ),
+            ];
+            const revIds = [
+                ...new Set(
+                    messages
+                        .filter(m => m.message_type === 'review_share' && m.shared_review_id)
+                        .map(m => m.shared_review_id as string)
+                ),
+            ];
+
+            const nextEvents: Record<string, EventDetail | null> = {};
+            await Promise.all(
+                evIds.map(async eid => {
+                    nextEvents[eid] = await EventService.getEventById(eid);
+                })
+            );
+
+            const nextReviews: Record<string, ReviewCardInfo> = {};
+            if (revIds.length > 0) {
+                const { data: revRows } = await supabase
+                    .from('reviews')
+                    .select(
+                        `
+            id,
+            review_text,
+            rating,
+            events ( title, artist_name, venue_name )
+          `
+                    )
+                    .in('id', revIds);
+                (revRows || []).forEach((row: any) => {
+                    const ev = row.events;
+                    const headline =
+                        (ev?.title as string) ||
+                        (ev?.artist_name && ev?.venue_name
+                            ? `${ev.artist_name} @ ${ev.venue_name}`
+                            : 'Shared review');
+                    const subtitle =
+                        typeof row.review_text === 'string' && row.review_text.trim()
+                            ? row.review_text.trim().slice(0, 120) + (row.review_text.length > 120 ? '…' : '')
+                            : '';
+                    nextReviews[row.id as string] = {
+                        headline,
+                        subtitle,
+                        rating: typeof row.rating === 'number' ? row.rating : null,
+                    };
+                });
+                revIds.forEach(rid => {
+                    if (!nextReviews[rid]) {
+                        nextReviews[rid] = { headline: 'Shared review', subtitle: '', rating: null };
+                    }
+                });
+            }
+
+            if (!cancelled) {
+                setEventById(nextEvents);
+                setReviewById(nextReviews);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [messages]);
 
     const handleSend = async () => {
         if (!inputText.trim() || !userId) return;
@@ -36,22 +134,38 @@ export default function ChatThreadScreen() {
         const success = await ChatService.sendMessage(id, userId, inputText);
         if (success) {
             setInputText('');
-            loadMessages();
+            await loadMessages();
             setTimeout(() => flatListRef.current?.scrollToEnd(), 200);
         }
     };
 
+    const openEvent = async (eventId: string) => {
+        const routeId = await EventService.toEventRouteId(eventId);
+        router.push(`/event/${routeId}`);
+    };
+
     const renderMessage = ({ item }: { item: Message }) => {
         const meta = item.metadata ?? {};
+        const ev = item.shared_event_id ? eventById[item.shared_event_id] : undefined;
+        const customNote = typeof meta.custom_message === 'string' ? meta.custom_message.trim() : '';
+
         const eventTitle =
+            ev?.title ||
             (typeof meta.title === 'string' && meta.title) ||
             (typeof meta.event_title === 'string' && meta.event_title) ||
             (typeof meta.artist_name === 'string' && typeof meta.venue_name === 'string'
                 ? `${meta.artist_name} @ ${meta.venue_name}`
                 : null) ||
+            (ev?.artist_name && ev?.venue_name ? `${ev.artist_name} @ ${ev.venue_name}` : null) ||
             'Shared event';
 
+        const eventWhen = formatEventWhen(ev?.event_date);
+        const eventPlace = ev?.venue_city || ev?.venue_name || '';
+
         if (item.message_type === 'event_share' && item.shared_event_id) {
+            const showEventSpinner = !(item.shared_event_id in eventById);
+            const showHint =
+                (customNote || (!isPlaceholderContent(item.content) ? item.content : '')).trim() || null;
             return (
                 <View
                     style={[
@@ -60,16 +174,50 @@ export default function ChatThreadScreen() {
                     ]}
                 >
                     <Pressable
-                        onPress={() => router.push(`/event/${item.shared_event_id}`)}
+                        onPress={() => void openEvent(item.shared_event_id!)}
                         style={[styles.shareCard, item.is_mine ? styles.shareCardMine : styles.shareCardTheirs]}
                     >
-                        <Text style={[styles.shareLabel, item.is_mine ? styles.shareLabelOnPink : styles.shareLabelMuted]}>EVENT</Text>
-                        <SynthText variant="body" style={item.is_mine ? styles.shareTitleLight : styles.shareTitleDark}>
-                            {eventTitle}
-                        </SynthText>
-                        {item.content && item.content !== 'Message' ? (
+                        <Text style={[styles.shareLabel, item.is_mine ? styles.shareLabelOnPink : styles.shareLabelMuted]}>
+                            UPCOMING EVENT
+                        </Text>
+                        {showEventSpinner ? (
+                            <ActivityIndicator color={item.is_mine ? SynthTokens.colors.neutral0 : PINK} style={{ marginVertical: 8 }} />
+                        ) : (
+                            <>
+                                {ev?.image_url ? (
+                                    <Image source={{ uri: ev.image_url }} style={styles.shareImage} contentFit="cover" />
+                                ) : null}
+                                <SynthText variant="body" style={item.is_mine ? styles.shareTitleLight : styles.shareTitleDark}>
+                                    {eventTitle}
+                                </SynthText>
+                                {eventWhen ? (
+                                    <View style={styles.shareMetaRow}>
+                                        <Calendar size={14} color={item.is_mine ? 'rgba(255,255,255,0.85)' : PINK} />
+                                        <SynthText
+                                            variant="meta"
+                                            style={[styles.shareMetaText, item.is_mine ? styles.shareMetaOnPink : styles.shareMetaDark]}
+                                        >
+                                            {eventWhen}
+                                        </SynthText>
+                                    </View>
+                                ) : null}
+                                {eventPlace ? (
+                                    <View style={styles.shareMetaRow}>
+                                        <MapPin size={14} color={item.is_mine ? 'rgba(255,255,255,0.85)' : SynthTokens.colors.neutral600} />
+                                        <SynthText
+                                            variant="meta"
+                                            style={[styles.shareMetaText, item.is_mine ? styles.shareMetaOnPink : styles.shareMetaDark]}
+                                            numberOfLines={2}
+                                        >
+                                            {eventPlace}
+                                        </SynthText>
+                                    </View>
+                                ) : null}
+                            </>
+                        )}
+                        {showHint ? (
                             <SynthText variant="meta" color="secondary" style={styles.shareHint} numberOfLines={3}>
-                                {item.content}
+                                “{showHint}”
                             </SynthText>
                         ) : null}
                     </Pressable>
@@ -81,10 +229,14 @@ export default function ChatThreadScreen() {
         }
 
         if (item.message_type === 'review_share' && item.shared_review_id) {
+            const showReviewSpinner = !(item.shared_review_id in reviewById);
+            const rc = reviewById[item.shared_review_id];
             const snippet =
+                rc?.subtitle ||
                 (typeof meta.review_text === 'string' && meta.review_text) ||
                 (typeof meta.custom_message === 'string' && meta.custom_message) ||
-                item.content;
+                (!isPlaceholderContent(item.content) ? item.content : '');
+            const headline = rc?.headline || 'Review';
             return (
                 <View
                     style={[
@@ -97,9 +249,32 @@ export default function ChatThreadScreen() {
                         style={[styles.shareCard, item.is_mine ? styles.shareCardMine : styles.shareCardTheirs]}
                     >
                         <Text style={[styles.shareLabel, item.is_mine ? styles.shareLabelOnPink : styles.shareLabelMuted]}>REVIEW</Text>
-                        <SynthText variant="body" style={item.is_mine ? styles.shareTitleLight : styles.shareTitleDark} numberOfLines={3}>
-                            {snippet}
-                        </SynthText>
+                        {showReviewSpinner ? (
+                            <ActivityIndicator color={item.is_mine ? SynthTokens.colors.neutral0 : PINK} style={{ marginVertical: 8 }} />
+                        ) : (
+                            <>
+                                <SynthText
+                                    variant="body"
+                                    style={item.is_mine ? styles.shareTitleLight : styles.shareTitleDark}
+                                    numberOfLines={2}
+                                >
+                                    {headline}
+                                </SynthText>
+                                {rc && rc.rating != null ? (
+                                    <View style={styles.ratingRow}>
+                                        <Star size={14} color={item.is_mine ? SynthTokens.colors.neutral0 : PINK} fill={PINK} />
+                                        <Text style={[styles.ratingText, item.is_mine && styles.ratingTextLight]}>
+                                            {rc.rating.toFixed(1)}
+                                        </Text>
+                                    </View>
+                                ) : null}
+                            </>
+                        )}
+                        {snippet ? (
+                            <SynthText variant="meta" color="secondary" style={styles.shareHint} numberOfLines={4}>
+                                {snippet}
+                            </SynthText>
+                        ) : null}
                     </Pressable>
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -137,7 +312,9 @@ export default function ChatThreadScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft size={24} color={SynthTokens.colors.neutral900} />
                 </Pressable>
-                <SynthText variant="h2" style={styles.headerTitle}>Chat</SynthText>
+                <SynthText variant="h2" style={styles.headerTitle}>
+                    Chat
+                </SynthText>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -145,7 +322,7 @@ export default function ChatThreadScreen() {
                 ref={flatListRef}
                 data={messages}
                 renderItem={renderMessage}
-                keyExtractor={(item) => item.id}
+                keyExtractor={item => item.id}
                 contentContainerStyle={styles.messageList}
                 onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
             />
@@ -162,7 +339,7 @@ export default function ChatThreadScreen() {
                     multiline
                 />
                 <Pressable
-                    onPress={handleSend}
+                    onPress={() => void handleSend()}
                     style={[styles.sendButton, !inputText.trim() && styles.sendDisabled]}
                     disabled={!inputText.trim()}
                 >
@@ -200,7 +377,7 @@ const styles = StyleSheet.create({
     },
     messageWrapper: {
         marginBottom: SynthTokens.spacing.md,
-        maxWidth: '80%',
+        maxWidth: '88%',
     },
     myMessageWrapper: {
         alignSelf: 'flex-end',
@@ -262,10 +439,12 @@ const styles = StyleSheet.create({
     },
     shareCard: {
         maxWidth: '100%',
+        minWidth: 260,
         borderRadius: 16,
         padding: 14,
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,
+        overflow: 'hidden',
     },
     shareCardMine: {
         backgroundColor: SynthTokens.colors.brandPink600,
@@ -273,6 +452,13 @@ const styles = StyleSheet.create({
     },
     shareCardTheirs: {
         backgroundColor: SynthTokens.colors.neutral0,
+    },
+    shareImage: {
+        width: '100%',
+        height: 120,
+        borderRadius: 12,
+        marginBottom: 10,
+        backgroundColor: SynthTokens.colors.neutral100,
     },
     shareLabel: {
         fontSize: 10,
@@ -296,5 +482,35 @@ const styles = StyleSheet.create({
     },
     shareHint: {
         marginTop: 8,
+    },
+    shareMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 6,
+    },
+    shareMetaText: {
+        flex: 1,
+        fontSize: 13,
+    },
+    shareMetaOnPink: {
+        color: 'rgba(255,255,255,0.92)',
+    },
+    shareMetaDark: {
+        color: SynthTokens.colors.neutral600,
+    },
+    ratingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 6,
+    },
+    ratingText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: SynthTokens.colors.neutral900,
+    },
+    ratingTextLight: {
+        color: SynthTokens.colors.neutral0,
     },
 });

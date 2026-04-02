@@ -1,5 +1,7 @@
 import { getOrCreateDirectChat } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
+import { encryptMessage } from './chatEncryptionService';
+import { decryptChatMessage } from './chatDecrypt';
 
 const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -40,7 +42,6 @@ export class ChatService {
      */
     static async getChats(userId: string): Promise<ChatThread[]> {
         try {
-            // First get chat IDs where user is participant
             const { data: participants } = await supabase
                 .from('chat_participants')
                 .select('chat_id')
@@ -50,10 +51,10 @@ export class ChatService {
 
             const chatIds = participants.map((p: { chat_id: string }) => p.chat_id);
 
-            // Get chats with latest messages
             const { data: chats, error } = await supabase
                 .from('chats')
-                .select(`
+                .select(
+                    `
           id,
           chat_name,
           is_group_chat,
@@ -64,7 +65,8 @@ export class ChatService {
             created_at,
             is_encrypted
           )
-        `)
+        `
+                )
                 .in('id', chatIds)
                 .order('updated_at', { ascending: false });
 
@@ -99,35 +101,52 @@ export class ChatService {
                 }
             }
 
-            return list.map((chat: any) => {
-                const isGroup = !!chat.is_group_chat;
-                let title = chat.chat_name || 'Chat';
-                if (!isGroup) {
-                    const otherUid = chatToOtherUserId.get(chat.id);
-                    const peerName = otherUid ? userIdToName.get(otherUid) : undefined;
-                    if (peerName) {
-                        title = peerName;
-                    } else if (UUID_RE.test(String(title))) {
-                        title = 'Direct Chat';
+            const rows = await Promise.all(
+                list.map(async (chat: any) => {
+                    const isGroup = !!chat.is_group_chat;
+                    let title = chat.chat_name || 'Chat';
+                    if (!isGroup) {
+                        const otherUid = chatToOtherUserId.get(chat.id);
+                        const peerName = otherUid ? userIdToName.get(otherUid) : undefined;
+                        if (peerName) {
+                            title = peerName;
+                        } else if (UUID_RE.test(String(title))) {
+                            title = 'Direct Chat';
+                        }
+                    } else if (!title) {
+                        title = 'Group Chat';
                     }
-                } else if (!title) {
-                    title = 'Group Chat';
-                }
 
-                let preview = chat.messages?.content as string | undefined;
-                if (chat.messages?.is_encrypted || (preview && looksLikeOpaquePreview(preview))) {
-                    preview = 'Message';
-                }
-                if (!preview) preview = 'No messages yet';
+                    let preview = chat.messages?.content as string | undefined;
+                    if (chat.messages?.is_encrypted && preview) {
+                        try {
+                            preview = await decryptChatMessage(
+                                {
+                                    content: preview,
+                                    chat_id: chat.id,
+                                    is_encrypted: chat.messages.is_encrypted,
+                                },
+                                userId
+                            );
+                        } catch {
+                            preview = '[Encrypted message]';
+                        }
+                    } else if (preview && looksLikeOpaquePreview(preview)) {
+                        preview = 'Message';
+                    }
+                    if (!preview) preview = 'No messages yet';
 
-                return {
-                    id: chat.id,
-                    chat_name: title,
-                    latest_message: preview,
-                    latest_message_at: chat.messages?.created_at || chat.updated_at,
-                    unread_count: 0,
-                };
-            });
+                    return {
+                        id: chat.id,
+                        chat_name: title,
+                        latest_message: preview,
+                        latest_message_at: chat.messages?.created_at || chat.updated_at,
+                        unread_count: 0,
+                    };
+                })
+            );
+
+            return rows;
         } catch (error) {
             console.error('Error fetching chats:', error);
             return [];
@@ -178,53 +197,74 @@ export class ChatService {
                 return null;
             };
 
-            return rows.map((msg: any) => {
-                const meta = parseMeta(msg.metadata);
-                const fallbackEvent = eventIdByMessageId.get(msg.id);
-                const eventId =
-                    msg.shared_event_id ?? (meta?.event_id != null ? String(meta.event_id) : null) ?? fallbackEvent ?? null;
-                const rawType = msg.message_type as string | null | undefined;
-                const isEncrypted = Boolean(msg.is_encrypted);
-                let content = typeof msg.content === 'string' ? msg.content : '';
-                if (isEncrypted || looksLikeOpaquePreview(content)) {
-                    content = 'Message';
-                }
+            const mapped = await Promise.all(
+                rows.map(async (msg: any) => {
+                    const meta = parseMeta(msg.metadata);
+                    const fallbackEvent = eventIdByMessageId.get(msg.id);
+                    const eventId =
+                        msg.shared_event_id ??
+                        (meta?.event_id != null ? String(meta.event_id) : null) ??
+                        fallbackEvent ??
+                        null;
+                    const rawType = msg.message_type as string | null | undefined;
+                    const isEncryptedFlag = Boolean(msg.is_encrypted);
 
-                const reviewId =
-                    msg.shared_review_id != null && String(msg.shared_review_id).trim().length > 0
-                        ? String(msg.shared_review_id).trim()
-                        : meta?.review_id != null && String(meta.review_id).trim().length > 0
-                          ? String(meta.review_id).trim()
-                          : null;
+                    let rawContent = typeof msg.content === 'string' ? msg.content : '';
+                    let content = rawContent;
 
-                // Only label as share types when we have a resolvable id (avoids event_share/review_share with null FKs).
-                let messageType: ChatMessageType;
-                if (rawType === 'system') {
-                    messageType = 'system';
-                } else if (reviewId) {
-                    messageType = 'review_share';
-                } else if (
-                    eventId &&
-                    rawType !== 'review_share' &&
-                    (rawType === 'event_share' || rawType === 'text' || rawType == null || rawType === '')
-                ) {
-                    messageType = 'event_share';
-                } else {
-                    messageType = 'text';
-                }
+                    if (isEncryptedFlag) {
+                        content = await decryptChatMessage(
+                            {
+                                content: rawContent,
+                                chat_id: chatId,
+                                is_encrypted: true,
+                            },
+                            userId
+                        );
+                    } else if (looksLikeOpaquePreview(content)) {
+                        content = 'Message';
+                    }
 
-                return {
-                    id: msg.id,
-                    content,
-                    sender_id: msg.sender_id,
-                    created_at: msg.created_at,
-                    is_mine: msg.sender_id === userId,
-                    message_type: messageType,
-                    shared_event_id: messageType === 'event_share' ? eventId : null,
-                    shared_review_id: messageType === 'review_share' ? reviewId : null,
-                    metadata: meta,
-                };
-            });
+                    const reviewId =
+                        msg.shared_review_id != null && String(msg.shared_review_id).trim().length > 0
+                            ? String(msg.shared_review_id).trim()
+                            : meta?.review_id != null && String(meta.review_id).trim().length > 0
+                              ? String(meta.review_id).trim()
+                              : null;
+
+                    const isEventShare =
+                        rawType !== 'system' &&
+                        rawType !== 'review_share' &&
+                        !reviewId &&
+                        (rawType === 'event_share' ||
+                            (eventId != null && (rawType === 'text' || rawType == null || rawType === '')));
+
+                    let messageType: ChatMessageType;
+                    if (rawType === 'system') {
+                        messageType = 'system';
+                    } else if (reviewId) {
+                        messageType = 'review_share';
+                    } else if (isEventShare && eventId) {
+                        messageType = 'event_share';
+                    } else {
+                        messageType = 'text';
+                    }
+
+                    return {
+                        id: msg.id,
+                        content,
+                        sender_id: msg.sender_id,
+                        created_at: msg.created_at,
+                        is_mine: msg.sender_id === userId,
+                        message_type: messageType,
+                        shared_event_id: messageType === 'event_share' ? eventId : null,
+                        shared_review_id: messageType === 'review_share' ? reviewId : null,
+                        metadata: meta,
+                    } satisfies Message;
+                })
+            );
+
+            return mapped;
         } catch (error) {
             console.error('Error fetching messages:', error);
             return [];
@@ -232,25 +272,20 @@ export class ChatService {
     }
 
     /**
-     * Send a message
+     * Send a message (encrypted, matches web `sendEncryptedMessage`).
      */
     static async sendMessage(chatId: string, userId: string, content: string): Promise<boolean> {
         try {
-            const { error } = await supabase
-                .from('messages')
-                .insert({
-                    chat_id: chatId,
-                    sender_id: userId,
-                    content: content,
-                    is_encrypted: false, // Simplified for now
-                });
+            const encryptedContent = await encryptMessage(content, chatId, userId);
+            const { error } = await supabase.from('messages').insert({
+                chat_id: chatId,
+                sender_id: userId,
+                content: encryptedContent,
+                is_encrypted: true,
+            });
 
             if (!error) {
-                // Update chat latest message
-                await supabase
-                    .from('chats')
-                    .update({ updated_at: new Date().toISOString() })
-                    .eq('id', chatId);
+                await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', chatId);
             }
 
             return !error;
