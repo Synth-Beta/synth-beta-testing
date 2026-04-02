@@ -276,13 +276,27 @@ export class ChatService {
      */
     static async sendMessage(chatId: string, userId: string, content: string): Promise<boolean> {
         try {
-            const encryptedContent = await encryptMessage(content, chatId, userId);
-            const { error } = await supabase.from('messages').insert({
-                chat_id: chatId,
-                sender_id: userId,
-                content: encryptedContent,
-                is_encrypted: true,
-            });
+            let payload: { chat_id: string; sender_id: string; content: string; is_encrypted: boolean };
+            try {
+                const encryptedContent = await encryptMessage(content, chatId, userId);
+                payload = {
+                    chat_id: chatId,
+                    sender_id: userId,
+                    content: encryptedContent,
+                    is_encrypted: true,
+                };
+            } catch {
+                // If crypto isn't available in the installed binary, don't crash or block chat entirely.
+                // This keeps the app usable until a new native build ships.
+                payload = {
+                    chat_id: chatId,
+                    sender_id: userId,
+                    content,
+                    is_encrypted: false,
+                };
+            }
+
+            const { error } = await supabase.from('messages').insert(payload);
 
             if (!error) {
                 await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', chatId);

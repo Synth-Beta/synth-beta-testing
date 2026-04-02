@@ -1,4 +1,3 @@
-import '../src/lib/cryptoInstall';
 import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';

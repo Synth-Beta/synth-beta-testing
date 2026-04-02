@@ -5,6 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ensureCryptoInstalled } from '../lib/cryptoInstall';
 
 const chatKeyStorage = {
     getItem: (key: string) => AsyncStorage.getItem(key),
@@ -24,6 +25,10 @@ const KEY_DERIVATION_SALT = new Uint8Array([
 
 async function getOrCreateChatKey(chatId: string, _userId: string): Promise<CryptoKey> {
     const storageKey = `chat_key_${chatId}`;
+
+    if (!ensureCryptoInstalled()) {
+        throw new Error('Crypto unavailable');
+    }
 
     const storedKeyData = await chatKeyStorage.getItem(storageKey);
     if (storedKeyData) {
@@ -76,6 +81,7 @@ export async function encryptMessage(message: string, chatId: string, userId: st
     if (!message || typeof message !== 'string') throw new Error('Message must be a non-empty string');
     if (!chatId || typeof chatId !== 'string') throw new Error('ChatId must be a non-empty string');
     if (!userId || typeof userId !== 'string') throw new Error('UserId must be a non-empty string');
+    if (!ensureCryptoInstalled()) throw new Error('Crypto unavailable');
 
     const key = await getOrCreateChatKey(chatId, userId);
     const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
@@ -108,6 +114,7 @@ export async function decryptMessage(encryptedMessage: string, chatId: string, u
     }
     if (!chatId || typeof chatId !== 'string') throw new Error('ChatId must be a non-empty string');
     if (!userId || typeof userId !== 'string') throw new Error('UserId must be a non-empty string');
+    if (!ensureCryptoInstalled()) throw new Error('Crypto unavailable');
 
     const key = await getOrCreateChatKey(chatId, userId);
     if (encryptedMessage.length < IV_LENGTH * 2) throw new Error('Encrypted message is too short to be valid');
