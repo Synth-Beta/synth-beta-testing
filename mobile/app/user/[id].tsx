@@ -13,6 +13,9 @@ import { ProfilePassportPanel } from '../../src/components/profile/ProfilePasspo
 import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
 import type { MyReviewListItem } from '../../src/services/myEventsService';
 import { PassportService, type ProfileTimelineItem } from '../../src/services/passportService';
+import { EventService } from '../../src/services/eventService';
+import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
+import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 
 export default function PublicUserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -353,19 +356,31 @@ export default function PublicUserProfileScreen() {
                     No interested events yet.
                   </SynthText>
                 ) : (
-                  interestedEvents.map((ev: any) => (
-                    <EventCard
-                      key={ev.id}
-                      id={ev.id}
-                      title={ev.title}
-                      artist_name={ev.artist_name}
-                      venue_name={ev.venue_name}
-                      venue_city={ev.venue_city}
-                      event_date={ev.event_date}
-                      image_url={ev.images?.[0]?.url}
-                      onPress={() => router.push(`/event/${ev.id}`)}
-                    />
-                  ))
+                  interestedEvents.map((ev: any) => {
+                    const rawImg =
+                      pickFeedImageUrlFromPayload(ev) ?? ev.images?.[0]?.url ?? undefined;
+                    return (
+                      <EventCard
+                        key={ev.id}
+                        id={ev.id}
+                        title={ev.title}
+                        artist_name={ev.artist_name}
+                        venue_name={ev.venue_name}
+                        venue_city={ev.venue_city}
+                        event_date={ev.event_date}
+                        image_url={resolveFeedImageUri(rawImg) ?? undefined}
+                        initialInterested
+                        ticket_url={getCompliantEventLinkFromPayload(ev) ?? undefined}
+                        artist_id={ev.artist_id != null ? String(ev.artist_id) : undefined}
+                        venue_id={ev.venue_id != null ? String(ev.venue_id) : undefined}
+                        onPress={() => {
+                          void EventService.toEventRouteId(ev.id).then(rid => {
+                            router.push(`/event/${rid}` as any);
+                          });
+                        }}
+                      />
+                    );
+                  })
                 )}
               </View>
             ) : null}

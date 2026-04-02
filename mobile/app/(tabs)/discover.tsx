@@ -30,6 +30,7 @@ import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/Discov
 import { getCurrentLatLng, type LatLng } from '../../src/services/locationService';
 import { toLocalYmd } from '../../src/utils/localYmd';
 import { EventService } from '../../src/services/eventService';
+import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
@@ -301,7 +302,10 @@ export default function DiscoverScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: tabBarBottomContentPadding(insets.bottom) },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -397,6 +401,9 @@ export default function DiscoverScreen() {
                       venue_city={ev.venue_city}
                       event_date={ev.event_date}
                       image_url={ev.image_url}
+                      ticket_url={ev.ticket_url}
+                      artist_id={ev.artist_id}
+                      venue_id={ev.venue_id}
                       onPress={() => {
                         void EventService.toEventRouteId(ev.id).then(rid => {
                           router.push(`/event/${rid}` as any);
@@ -462,7 +469,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: SynthTokens.spacing.md,
-    paddingBottom: 120,
     gap: SynthTokens.spacing.md,
   },
   dualActions: {

@@ -19,6 +19,7 @@ import {
   ProfileUnreviewedItem,
 } from '../../src/services/myEventsService';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
+import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
 import {
   getStreamingLinkStatus,
   type StreamingLinkStatus,
@@ -202,7 +203,10 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: tabBarBottomContentPadding(insets.bottom) }}
+      >
         <View style={[styles.topHeader, { paddingTop: insets.top + 12 }]}>
           <Text style={styles.handleTop} numberOfLines={1}>
             {handle}

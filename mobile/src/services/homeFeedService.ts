@@ -1,6 +1,9 @@
 import { getSimilarUsersToFriend, rankFriendSuggestionsForRail } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
+import { ReviewEngagementService } from './reviewEngagementService';
 import { todayLocalYmd } from '../utils/localYmd';
+import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
+import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
 
 /** Single event row from personalized feed RPC (unified recommended / social / trending ordering). */
 export interface UnifiedPersonalizedEvent {
@@ -13,11 +16,24 @@ export interface UnifiedPersonalizedEvent {
     image_url?: string;
     /** Short label for corner badge (e.g. RECOMMENDED) derived from RPC context */
     feedLabel?: string;
+    artist_id?: string;
+    venue_id?: string;
+    interested_count?: number;
+    user_is_interested?: boolean;
+    ticket_url?: string;
 }
+
+export type ReviewThumbnailCrop = {
+    xPct: number;
+    yPct: number;
+    zoom: number;
+};
 
 export interface NetworkReview {
     id: string;
     event_id?: string;
+    artist_id?: string;
+    venue_id?: string;
     author: {
         id: string;
         name: string;
@@ -27,12 +43,19 @@ export interface NetworkReview {
     rating?: number;
     content?: string;
     photos?: string[];
+    /** Cover photo index when `photos` has multiple entries */
+    thumbnail_index?: number;
+    thumbnail_crop?: ReviewThumbnailCrop | null;
     artist_image_url?: string;
     event_info?: {
         artist_name?: string;
         venue_name?: string;
         event_date?: string;
     };
+    likes_count?: number;
+    comments_count?: number;
+    shares_count?: number;
+    is_liked_by_user?: boolean;
     connection_degree: 1 | 2;
 }
 
@@ -89,8 +112,100 @@ export class HomeFeedService {
         return undefined;
     }
 
+    /** Map one v5 RPC row like web `PersonalizationEngineV5.rowToEvent` + feed image picker. */
+    private static mapFeedV5RowToUnifiedEvent(row: any): UnifiedPersonalizedEvent {
+        const p = row.payload || {};
+        const ctx = row.context || {};
+        const eventId = p.id ?? p.event_id ?? p.event_uuid ?? row.id;
+
+        const rawImage = pickFeedImageUrlFromPayload(p);
+        const image_url = resolveFeedImageUri(rawImage) ?? undefined;
+
+        const titleRaw = p.title != null ? String(p.title).trim() : '';
+        const artist_name = p.artist_name != null ? String(p.artist_name).trim() : '';
+        const venueNameRaw = p.venue_name != null ? String(p.venue_name).trim() : '';
+        const venueAddrRaw = p.venue_address != null ? String(p.venue_address).trim() : '';
+        const venue_name = venueNameRaw || venueAddrRaw || '';
+
+        const ticketUrl = getCompliantEventLinkFromPayload(p);
+
+        const interestedRaw = ctx.total_interest_count;
+        const interested_count =
+            typeof interestedRaw === 'number' && Number.isFinite(interestedRaw) ? interestedRaw : 0;
+
+        return {
+            id: String(eventId ?? ''),
+            title: titleRaw || 'Untitled Event',
+            artist_name,
+            venue_name,
+            venue_city: p.venue_city != null && String(p.venue_city).trim() ? String(p.venue_city).trim() : undefined,
+            event_date: p.event_date != null ? String(p.event_date) : '',
+            image_url,
+            feedLabel: this.getFeedLabelFromContext({
+                source: row.section,
+                because: p?.context?.because ?? ctx?.because,
+                category: p?.context?.category ?? ctx?.category,
+                kind: p?.context?.kind ?? ctx?.kind,
+            }),
+            artist_id: p.artist_id != null && String(p.artist_id) ? String(p.artist_id) : undefined,
+            venue_id: p.venue_id != null && String(p.venue_id) ? String(p.venue_id) : undefined,
+            interested_count,
+            user_is_interested: Boolean(ctx.user_is_interested),
+            ticket_url: ticketUrl ?? undefined,
+        };
+    }
+
+    private static isCachedFeedWrapperMissing(error: any): boolean {
+        return (
+            error &&
+            (error.code === '42883' ||
+                error.code === 'PGRST116' ||
+                error.code === 'PGRST204' ||
+                /get_or_refresh_feed_v5_cached/.test(String(error.message || '')))
+        );
+    }
+
+    private static async fetchPersonalizedFeedV5Rows(rpcPayload: {
+        p_user_id: string;
+        p_section: null;
+        p_limit: number;
+        p_offset: number;
+        p_city_lat: number | null;
+        p_city_lng: number | null;
+        p_radius_miles: number;
+        p_include_past: boolean;
+        p_city_filter: null;
+        p_state_filter: null;
+        p_max_days_ahead: number;
+    }): Promise<{ rows: any[]; error: any }> {
+        let data: any;
+        let error: any;
+
+        try {
+            const cachedResult = await supabase.rpc('get_or_refresh_feed_v5_cached', {
+                ...rpcPayload,
+                p_ttl_seconds: 600,
+            });
+            data = cachedResult.data;
+            error = cachedResult.error;
+        } catch (rpcErr: any) {
+            error = rpcErr;
+        }
+
+        if (this.isCachedFeedWrapperMissing(error)) {
+            const direct = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+            data = direct.data;
+            error = direct.error;
+        }
+
+        if (error) {
+            return { rows: [], error };
+        }
+        return { rows: (data ?? []) as any[], error: null };
+    }
+
     /**
-     * Unified home events feed (matches web reliance on get_personalized_feed_v5).
+     * Unified home events feed (matches web: cached v5 when available, same row mapping as web).
      */
     static async getUnifiedPersonalizedEvents(
         userId: string,
@@ -109,61 +224,45 @@ export class HomeFeedService {
         try {
             const rpcPayload = {
                 p_user_id: userId,
-                p_section: null,
+                p_section: null as null,
                 p_limit: limit,
                 p_offset: 0,
                 p_city_lat: cityLat,
                 p_city_lng: cityLng,
                 p_radius_miles: radiusMiles,
                 p_include_past: false,
-                p_city_filter: null,
-                p_state_filter: null,
+                p_city_filter: null as null,
+                p_state_filter: null as null,
                 p_max_days_ahead: 180,
             };
 
-            const { data, error } = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+            let { rows, error } = await this.fetchPersonalizedFeedV5Rows(rpcPayload);
 
             if (error) {
-                console.warn('[homeFeed] get_personalized_feed_v5:', error.message);
+                console.warn('[homeFeed] personalized feed v5:', error.message ?? error);
                 return await this.getFallbackUpcomingEvents(limit);
             }
 
-            const rows = (data ?? []) as Array<any>;
-            const mapped: UnifiedPersonalizedEvent[] = rows.map((row: any) => {
-                const payload = row.payload || {};
-                // Prefer canonical UUID when available (web expects UUID for event navigation).
-                const eventId =
-                    payload.event_id ??
-                    payload.event_uuid ??
-                    payload.id ??
-                    row.id;
-                const imgs = payload.images;
-                const image_url =
-                    (Array.isArray(imgs) && imgs[0]?.url ? imgs[0]?.url : null) ??
-                    payload.event_media_url ??
-                    payload.poster_image_url ??
-                    undefined;
+            if (
+                rows.length === 0 &&
+                cityLat != null &&
+                cityLng != null &&
+                Number.isFinite(cityLat) &&
+                Number.isFinite(cityLng)
+            ) {
+                const retry = await this.fetchPersonalizedFeedV5Rows({
+                    ...rpcPayload,
+                    p_city_lat: null,
+                    p_city_lng: null,
+                });
+                if (!retry.error && retry.rows.length > 0) {
+                    rows = retry.rows;
+                }
+            }
 
-                return {
-                    id: String(eventId ?? ''),
-                    title: (payload.title as string) || '',
-                    artist_name: (payload.artist_name as string) || '',
-                    venue_name:
-                        (payload.venue_name as string) ||
-                        (payload.venue_address as string) ||
-                        (payload.venue_city as string) ||
-                        '',
-                    venue_city: (payload.venue_city as string) || undefined,
-                    event_date: (payload.event_date as string) || '',
-                    image_url,
-                    feedLabel: this.getFeedLabelFromContext({
-                        source: row.section,
-                        because: payload?.context?.because ?? row.context?.because,
-                        category: payload?.context?.category ?? row.context?.category,
-                        kind: payload?.context?.kind ?? row.context?.kind,
-                    }),
-                };
-            });
+            const mapped: UnifiedPersonalizedEvent[] = rows
+                .map((row: any) => this.mapFeedV5RowToUnifiedEvent(row))
+                .filter(e => e.id.length > 0);
 
             if (mapped.length === 0) {
                 const fallback = await this.getFallbackUpcomingEvents(limit);
@@ -189,7 +288,7 @@ export class HomeFeedService {
         const today = todayLocalYmd();
         const { data, error } = await supabase
             .from('events')
-            .select('id, title, artist_name, venue_name, venue_city, event_date, images')
+            .select('id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls')
             .gte('event_date', today)
             .order('event_date', { ascending: true })
             .limit(limit);
@@ -199,16 +298,30 @@ export class HomeFeedService {
             return [];
         }
 
-        return (data || []).map((event: any) => ({
-            id: event.id,
-            title: event.title || '',
-            artist_name: event.artist_name || '',
-            venue_name: event.venue_name || event.venue_address || event.venue_city || '',
-            venue_city: event.venue_city || undefined,
-            event_date: event.event_date || '',
-            image_url: event.images?.[0]?.url,
-            feedLabel: undefined,
-        }));
+        return (data || []).map((event: any) => {
+            const rawImg = pickFeedImageUrlFromPayload({
+                images: event.images,
+                poster_image_url: undefined,
+                event_media_url: undefined,
+                media_urls: undefined,
+            });
+            const image_url = resolveFeedImageUri(rawImg ?? event.images?.[0]?.url) ?? undefined;
+            return {
+                id: event.id,
+                title: event.title?.trim() ? String(event.title) : 'Untitled Event',
+                artist_name: event.artist_name || '',
+                venue_name: event.venue_name || '',
+                venue_city: event.venue_city || undefined,
+                event_date: event.event_date || '',
+                image_url,
+                feedLabel: undefined,
+                artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
+                venue_id: event.venue_id != null ? String(event.venue_id) : undefined,
+                interested_count: 0,
+                user_is_interested: false,
+                ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
+            } satisfies UnifiedPersonalizedEvent;
+        });
     }
 
     /**
@@ -240,6 +353,9 @@ export class HomeFeedService {
           rating,
           review_text,
           photos,
+          likes_count,
+          comments_count,
+          shares_count,
           created_at,
           events (
             id,
@@ -300,36 +416,49 @@ export class HomeFeedService {
                 venues?.forEach(v => venuesMap.set(v.id, v.name));
             }
 
-            return reviews
-                .filter((review: any) => usersMap.has(review.user_id))
-                .map((review: any) => {
-                    const user = usersMap.get(review.user_id)!;
-                    const artistId = review.artist_id || review.events?.artist_id;
-                    const venueId = review.venue_id || review.events?.venue_id;
-                    const artistData = artistId ? artistsMap.get(artistId) : undefined;
-                    const venueName = venueId ? venuesMap.get(venueId) : undefined;
+            const filtered = reviews.filter((review: any) => usersMap.has(review.user_id));
+            const reviewIdsForLikes = filtered.map((r: any) => String(r.id));
+            let likedIds = new Set<string>();
+            try {
+                likedIds = await ReviewEngagementService.getReviewIdsLikedByUser(userId, reviewIdsForLikes);
+            } catch (engErr) {
+                console.error('[homeFeed] getReviewIdsLikedByUser', engErr);
+            }
 
-                    return {
-                        id: review.id,
-                        event_id: review.event_id || review.events?.id,
-                        author: {
-                            id: review.user_id,
-                            name: user.name || 'User',
-                            avatar_url: user.avatar_url || undefined,
-                        },
-                        created_at: review.created_at,
-                        rating: review.rating ?? undefined,
-                        content: review.review_text ?? undefined,
-                        photos: review.photos ?? undefined,
-                        artist_image_url: artistData?.image_url || undefined,
-                        event_info: {
-                            artist_name: artistData?.name,
-                            venue_name: venueName,
-                            event_date: review.events?.event_date,
-                        },
-                        connection_degree: 1 as const,
-                    };
-                });
+            return filtered.map((review: any) => {
+                const user = usersMap.get(review.user_id)!;
+                const artistId = review.artist_id || review.events?.artist_id;
+                const venueId = review.venue_id || review.events?.venue_id;
+                const artistData = artistId ? artistsMap.get(artistId) : undefined;
+                const venueName = venueId ? venuesMap.get(venueId) : undefined;
+
+                return {
+                    id: String(review.id),
+                    event_id: review.event_id || review.events?.id,
+                    artist_id: artistId != null ? String(artistId) : undefined,
+                    venue_id: venueId != null ? String(venueId) : undefined,
+                    author: {
+                        id: review.user_id,
+                        name: user.name || 'User',
+                        avatar_url: user.avatar_url || undefined,
+                    },
+                    created_at: review.created_at,
+                    rating: review.rating ?? undefined,
+                    content: review.review_text ?? undefined,
+                    photos: review.photos ?? undefined,
+                    artist_image_url: artistData?.image_url || undefined,
+                    event_info: {
+                        artist_name: artistData?.name,
+                        venue_name: venueName,
+                        event_date: review.events?.event_date,
+                    },
+                    likes_count: typeof review.likes_count === 'number' ? review.likes_count : 0,
+                    comments_count: typeof review.comments_count === 'number' ? review.comments_count : 0,
+                    shares_count: typeof review.shares_count === 'number' ? review.shares_count : 0,
+                    is_liked_by_user: likedIds.has(String(review.id)),
+                    connection_degree: 1 as const,
+                };
+            });
         } catch (error) {
             console.error('[homeFeed] getNetworkReviews', error);
             return [];

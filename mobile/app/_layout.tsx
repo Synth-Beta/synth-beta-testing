@@ -1,3 +1,4 @@
+import '../src/lib/cryptoInstall';
 import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -10,11 +11,16 @@ import {
   Inter_700Bold
 } from '@expo-google-fonts/inter';
 import { supabase } from '../src/integrations/supabase/client';
+import { OnboardingService } from '../src/services/onboardingService';
 import { syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
 import { useShareDeepLink } from '../lib/useShareDeepLink';
 
 // Prevent splash screen from hiding until fonts and state are ready
 SplashScreen.preventAutoHideAsync();
+
+const ONBOARDING_STORAGE_KEY = 'HAS_COMPLETED_ONBOARDING';
+/** First wizard step — skip marketing welcome unless user opens tour from sign-in */
+const ONBOARDING_FLOW_ENTRY = '/(onboarding)/scene';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -23,7 +29,9 @@ export default function RootLayout() {
     'Inter-Bold': Inter_700Bold,
   });
 
-  const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
+  const [storageOnboardingComplete, setStorageOnboardingComplete] = useState<boolean | null>(null);
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
+  const [onboardingEffectiveReady, setOnboardingEffectiveReady] = useState(false);
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const segments = useSegments();
   const router = useRouter();
@@ -31,13 +39,13 @@ export default function RootLayout() {
   useEffect(() => {
     async function loadOnboardingStatus() {
       try {
-        const value = await AsyncStorage.getItem('HAS_COMPLETED_ONBOARDING');
-        setIsOnboardingComplete(value === 'true');
-      } catch (e) {
-        setIsOnboardingComplete(false);
+        const value = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
+        setStorageOnboardingComplete(value === 'true');
+      } catch {
+        setStorageOnboardingComplete(false);
       }
     }
-    loadOnboardingStatus();
+    void loadOnboardingStatus();
   }, []);
 
   useEffect(() => {
@@ -57,14 +65,59 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    if (session === undefined) return;
+    if (storageOnboardingComplete === null) return;
+
+    if (!session?.user) {
+      setIsOnboardingComplete(storageOnboardingComplete);
+      setOnboardingEffectiveReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    setOnboardingEffectiveReady(false);
+    void (async () => {
+      try {
+        const fromServer = await OnboardingService.isOnboardingCompletedInProfile(session.user.id);
+        if (cancelled) return;
+        const effective = storageOnboardingComplete || fromServer;
+        setIsOnboardingComplete(effective);
+        if (fromServer) {
+          try {
+            await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('[root] onboarding profile fetch', err);
+        setIsOnboardingComplete(storageOnboardingComplete);
+      } finally {
+        if (!cancelled) setOnboardingEffectiveReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, storageOnboardingComplete]);
+
+  useEffect(() => {
     if (fontError) throw fontError;
   }, [fontError]);
 
+  const routingReady =
+    fontsLoaded &&
+    session !== undefined &&
+    storageOnboardingComplete !== null &&
+    onboardingEffectiveReady;
+
   useEffect(() => {
-    if (fontsLoaded && isOnboardingComplete !== null && session !== undefined) {
+    if (routingReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, isOnboardingComplete, session]);
+  }, [routingReady]);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -74,16 +127,16 @@ export default function RootLayout() {
   useShareDeepLink(Boolean(session?.user && isOnboardingComplete));
 
   useEffect(() => {
-    if (isOnboardingComplete === null || session === undefined) return;
+    if (!routingReady) return;
 
     const seg0 = segments[0];
 
     // `useSegments()` can be empty at `/` before `app/index.tsx` resolves — otherwise no branch matches and the UI can stall.
     if (seg0 === undefined) {
       if (!session) {
-        router.replace(isOnboardingComplete ? '/(auth)/sign-in' : '/(onboarding)/welcome');
+        router.replace('/(auth)/sign-in');
       } else if (!isOnboardingComplete) {
-        router.replace('/(onboarding)/welcome');
+        router.replace(ONBOARDING_FLOW_ENTRY);
       } else {
         router.replace('/(tabs)');
       }
@@ -113,21 +166,17 @@ export default function RootLayout() {
       seg0 === 'venue';
 
     if (!session && needsAuth) {
-      if (!isOnboardingComplete) {
-        router.replace('/(onboarding)/welcome');
-      } else {
-        router.replace('/(auth)/sign-in');
-      }
+      router.replace('/(auth)/sign-in');
       return;
     }
 
     if (!isOnboardingComplete && needsAuth && session) {
-      router.replace('/(onboarding)/welcome');
+      router.replace(ONBOARDING_FLOW_ENTRY);
       return;
     }
 
     if (session && inAuth) {
-      router.replace(isOnboardingComplete ? '/(tabs)' : '/(onboarding)/welcome');
+      router.replace(isOnboardingComplete ? '/(tabs)' : ONBOARDING_FLOW_ENTRY);
       return;
     }
 
@@ -141,11 +190,15 @@ export default function RootLayout() {
     }
 
     if (!isOnboardingComplete && !inOnboarding && !inAuth) {
-      router.replace('/(onboarding)/welcome');
+      if (session) {
+        router.replace(ONBOARDING_FLOW_ENTRY);
+      } else {
+        router.replace('/(auth)/sign-in');
+      }
     }
-  }, [isOnboardingComplete, session, segments, router]);
+  }, [routingReady, isOnboardingComplete, session, segments, router]);
 
-  if (!fontsLoaded || isOnboardingComplete === null || session === undefined) {
+  if (!routingReady) {
     return null;
   }
 

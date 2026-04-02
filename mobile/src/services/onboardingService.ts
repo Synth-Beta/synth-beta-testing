@@ -8,6 +8,21 @@ export interface OnboardingData {
 
 export class OnboardingService {
     /**
+     * Read onboarding flag from `users` (auth `user_id`). Used on cold start when
+     * AsyncStorage was cleared but Supabase session remains (e.g. reinstall).
+     */
+    static async isOnboardingCompletedInProfile(userId: string): Promise<boolean> {
+        const { data, error } = await supabase
+            .from('users')
+            .select('onboarding_completed')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data?.onboarding_completed === true;
+    }
+
+    /**
      * Mark onboarding as complete in Supabase and AsyncStorage
      */
     static async completeOnboarding(userId: string): Promise<void> {

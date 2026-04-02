@@ -1,5 +1,7 @@
 import { supabase } from '../integrations/supabase/client';
 import { toLocalYmd, todayLocalYmd } from '../utils/localYmd';
+import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
+import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
 
 export interface SearchResult {
     id: string;
@@ -9,6 +11,9 @@ export interface SearchResult {
     venue_city?: string;
     event_date: string;
     image_url?: string;
+    artist_id?: string;
+    venue_id?: string;
+    ticket_url?: string;
 }
 
 export type SearchScope = 'events' | 'artists' | 'venues' | 'users';
@@ -48,15 +53,22 @@ export class SearchService {
 
             if (error) throw error;
 
-            return (data || []).map(event => ({
-                id: event.id,
-                title: event.title,
-                artist_name: event.artist_name,
-                venue_name: event.venue_name,
-                venue_city: event.venue_city ?? undefined,
-                event_date: event.event_date,
-                image_url: event.images?.[0]?.url || undefined,
-            }));
+            return (data || []).map(event => {
+                const rawImg =
+                    pickFeedImageUrlFromPayload(event) ?? event.images?.[0]?.url ?? undefined;
+                return {
+                    id: event.id,
+                    title: event.title,
+                    artist_name: event.artist_name,
+                    venue_name: event.venue_name,
+                    venue_city: event.venue_city ?? undefined,
+                    event_date: event.event_date,
+                    image_url: resolveFeedImageUri(rawImg) ?? undefined,
+                    artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
+                    venue_id: event.venue_id != null ? String(event.venue_id) : undefined,
+                    ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
+                };
+            });
         } catch (error) {
             console.error('Error searching events:', error);
             return [];
@@ -98,15 +110,23 @@ export class SearchService {
                 })
                 : rows;
 
-            return filtered.map(event => ({
-                id: event.id,
-                title: event.title,
-                artist_name: event.artist_name,
-                venue_name: event.venue_name,
-                venue_city: event.venue_city ?? undefined,
-                event_date: event.event_date,
-                image_url: event.event_media_url ?? undefined,
-            }));
+            return filtered.map(event => {
+                const rawImg =
+                    pickFeedImageUrlFromPayload(event) ??
+                    (typeof event.event_media_url === 'string' ? event.event_media_url : undefined);
+                return {
+                    id: event.id,
+                    title: event.title,
+                    artist_name: event.artist_name,
+                    venue_name: event.venue_name,
+                    venue_city: event.venue_city ?? undefined,
+                    event_date: event.event_date,
+                    image_url: resolveFeedImageUri(rawImg) ?? undefined,
+                    artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
+                    venue_id: event.venue_id != null ? String(event.venue_id) : undefined,
+                    ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
+                };
+            });
         } catch (error) {
             console.error('Error fetching calendar events:', error);
             return [];

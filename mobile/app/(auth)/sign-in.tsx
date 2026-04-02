@@ -283,8 +283,8 @@ export default function SignInScreen() {
             </TouchableOpacity>
           ) : null}
 
-          <TouchableOpacity onPress={() => router.replace('/(onboarding)/welcome')} style={styles.skip}>
-            <Text style={styles.skipText}>Back to onboarding</Text>
+          <TouchableOpacity onPress={() => router.push('/(onboarding)/welcome')} style={styles.skip}>
+            <Text style={styles.skipText}>New to Synth? Take a quick tour</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
