@@ -18,6 +18,8 @@ import { useShareDeepLink } from '../lib/useShareDeepLink';
 SplashScreen.preventAutoHideAsync();
 
 const ONBOARDING_STORAGE_KEY = 'HAS_COMPLETED_ONBOARDING';
+/** First wizard step — skip marketing welcome unless user opens tour from sign-in */
+const ONBOARDING_FLOW_ENTRY = '/(onboarding)/scene';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -133,7 +135,7 @@ export default function RootLayout() {
       if (!session) {
         router.replace('/(auth)/sign-in');
       } else if (!isOnboardingComplete) {
-        router.replace('/(onboarding)/welcome');
+        router.replace(ONBOARDING_FLOW_ENTRY);
       } else {
         router.replace('/(tabs)');
       }
@@ -168,12 +170,12 @@ export default function RootLayout() {
     }
 
     if (!isOnboardingComplete && needsAuth && session) {
-      router.replace('/(onboarding)/welcome');
+      router.replace(ONBOARDING_FLOW_ENTRY);
       return;
     }
 
     if (session && inAuth) {
-      router.replace(isOnboardingComplete ? '/(tabs)' : '/(onboarding)/welcome');
+      router.replace(isOnboardingComplete ? '/(tabs)' : ONBOARDING_FLOW_ENTRY);
       return;
     }
 
@@ -188,7 +190,7 @@ export default function RootLayout() {
 
     if (!isOnboardingComplete && !inOnboarding && !inAuth) {
       if (session) {
-        router.replace('/(onboarding)/welcome');
+        router.replace(ONBOARDING_FLOW_ENTRY);
       } else {
         router.replace('/(auth)/sign-in');
       }
