@@ -61,7 +61,7 @@ export function CityStatusCard({ metrics, onClick }: CityStatusCardProps) {
         {/* MAU Progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">MAU Progress</span>
+            <span className="var(--neutral-600)">MAU Progress</span>
             <span className="font-semibold text-gray-900">
               {metrics.currentMAU.toLocaleString()} / {metrics.targetMAU.toLocaleString()}
             </span>
@@ -81,7 +81,7 @@ export function CityStatusCard({ metrics, onClick }: CityStatusCardProps) {
             <div className="text-xs text-gray-500">WoW Growth</div>
             <div className={`flex items-center gap-1 text-sm font-semibold ${
               metrics.wowGrowth > 0 ? 'text-green-600' : 
-              metrics.wowGrowth < 0 ? 'text-red-600' : 'text-gray-600'
+              metrics.wowGrowth < 0 ? 'text-red-600' : 'var(--neutral-600)'
             }`}>
               {metrics.wowGrowth > 0 ? (
                 <TrendingUp className="w-3 h-3" />

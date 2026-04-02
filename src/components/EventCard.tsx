@@ -175,7 +175,7 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
               <Button
                 variant="outline"
                 size="lg"
-                className="hover-button flex-1 border-2 border-gray-300 hover:border-gray-400 hover:text-gray-600 h-14 text-base font-semibold transition-all duration-200"
+                className="hover-button flex-1 border-2 border-gray-300 hover:border-gray-400 hover:var(--neutral-600) h-14 text-base font-semibold transition-all duration-200"
                 aria-label="View event details and setlist"
               >
                 {hasSetlist ? (

@@ -95,7 +95,7 @@ export function ShowRanking({ shows, onChange }: ShowRankingProps) {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-gray-900">Rank Multiple Shows (Optional)</h3>
-            <p className="text-sm text-gray-600">Add other shows you attended and rate them. If any share the same star rating, order those tied shows.</p>
+            <p className="text-sm var(--neutral-600)">Add other shows you attended and rate them. If any share the same star rating, order those tied shows.</p>
           </div>
           <Button type="button" variant="outline" onClick={addShow} className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
@@ -166,7 +166,7 @@ export function ShowRanking({ shows, onChange }: ShowRankingProps) {
 
                   {groupedByRating.get(s.rating)?.length! > 1 && (
                     <div className="mt-3 flex items-center justify-between bg-gray-50 border rounded p-2">
-                      <p className="text-xs text-gray-600">Tied at {s.rating}★. Order within tie:</p>
+                      <p className="text-xs var(--neutral-600)">Tied at {s.rating}★. Order within tie:</p>
                       <div className="flex items-center gap-2">
                         <Button type="button" variant="outline" onClick={() => moveWithinTie(s.rating, s.id, 'up')} style={{
                           width: 'var(--size-input-height, 44px)',

@@ -152,7 +152,7 @@ const [isProcessing, setIsProcessing] = useState(false);
                         {notification.actor_name?.charAt(0) || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs var(--neutral-600)">
                       {notification.actor_name || 'Someone'}
                     </span>
                   </div>
@@ -171,7 +171,7 @@ const [isProcessing, setIsProcessing] = useState(false);
 
                 {/* Review Preview */}
                 {notification.review_text && (
-                  <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 mb-2">
+                  <div className="text-xs var(--neutral-600) bg-gray-50 rounded p-2 mb-2">
                     <span className="italic">"{notification.review_text.substring(0, 100)}..."</span>
                     {notification.rating && (
                       <span className="ml-2 font-medium">

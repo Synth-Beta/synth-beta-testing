@@ -289,10 +289,10 @@ export function CustomSetlistInput({ setlists, onChange, className, disabled = f
                     className="h-11 w-11 flex items-center justify-center rounded-md"
                     aria-label="Delete setlist"
                   >
-                    <Trash2 className="w-4 h-4 text-gray-600" />
+                    <Trash2 className="w-4 h-4 var(--neutral-600)" />
                   </button>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600 mb-3">
+                <p className="text-xs sm:text-sm var(--neutral-600) mb-3">
                   {setlist.songs.length} {setlist.songs.length === 1 ? 'song' : 'songs'}
                 </p>
                 <Button
@@ -540,10 +540,10 @@ export function CustomSetlistInput({ setlists, onChange, className, disabled = f
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-gray-900">{song.song_name}</div>
                             {song.cover_artist && (
-                              <div className="text-xs text-gray-600 mt-1">Cover: {song.cover_artist}</div>
+                              <div className="text-xs var(--neutral-600) mt-1">Cover: {song.cover_artist}</div>
                             )}
                             {song.notes && (
-                              <div className="text-xs text-gray-600 mt-1 italic">"{song.notes}"</div>
+                              <div className="text-xs var(--neutral-600) mt-1 italic">"{song.notes}"</div>
                             )}
                           </div>
                         </div>

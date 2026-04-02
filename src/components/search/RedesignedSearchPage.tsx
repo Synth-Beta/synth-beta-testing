@@ -558,7 +558,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                      : activeResults.length === 0) && (
                     <div className="flex flex-col gap-[6px] items-center justify-center p-12 text-center">
                       {/* Large icon (60px), dark grey - using Search icon */}
-                      <Search className="w-[60px] h-[60px]" style={{ color: 'var(--color-dark-grey, var(--neutral-600))' }} />
+                      <Search className="w-[60px] h-[60px]" style={{ color: 'var(--neutral-600, var(--neutral-600))' }} />
                       {/* Description - Meta typography, dark grey */}
                       <p style={{ 
                         fontFamily: 'var(--font-family)',

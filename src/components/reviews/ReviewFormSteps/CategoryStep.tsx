@@ -121,7 +121,7 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
       <header className="text-center space-y-2">
         <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Step</p>
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 break-words">{config.title}</h2>
-        <p className="text-xs sm:text-sm text-gray-600 max-w-full mx-auto break-words">{config.subtitle}</p>
+        <p className="text-xs sm:text-sm var(--neutral-600) max-w-full mx-auto break-words">{config.subtitle}</p>
       </header>
 
       <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-4 sm:p-6 shadow-sm text-center space-y-4 w-full max-w-full overflow-x-hidden">

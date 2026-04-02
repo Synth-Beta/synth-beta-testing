@@ -70,7 +70,7 @@ export function PromotionROICalculator({
         <div className="text-center p-6 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-center gap-2 mb-2">
             {getROIIcon()}
-            <span className="text-sm text-gray-600">Return on Investment</span>
+            <span className="text-sm var(--neutral-600)">Return on Investment</span>
           </div>
           <div className="flex items-center justify-center gap-2 mb-2">
             <span className={`text-4xl font-bold ${roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -78,7 +78,7 @@ export function PromotionROICalculator({
             </span>
             {getROIBadge()}
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm var(--neutral-600)">
             {roi >= 0 
               ? `You earned ${formatCurrency(profit)} more than you spent`
               : `You lost ${formatCurrency(Math.abs(profit))} on this promotion`
@@ -89,7 +89,7 @@ export function PromotionROICalculator({
         {/* Financial Breakdown */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm var(--neutral-600)">
               <DollarSign className="h-4 w-4" />
               <span>Total Cost</span>
             </div>
@@ -99,7 +99,7 @@ export function PromotionROICalculator({
           </div>
           
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm var(--neutral-600)">
               <TrendingUp className="h-4 w-4" />
               <span>Revenue Attributed</span>
             </div>
@@ -112,7 +112,7 @@ export function PromotionROICalculator({
         {/* Profit/Loss */}
         <div className="p-4 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Net Profit/Loss</span>
+            <span className="text-sm var(--neutral-600)">Net Profit/Loss</span>
             <span className={`text-lg font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {profit >= 0 ? '+' : ''}{formatCurrency(profit)}
             </span>
@@ -122,7 +122,7 @@ export function PromotionROICalculator({
         {/* Break-Even Analysis */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-gray-600" />
+            <Target className="h-4 w-4 var(--neutral-600)" />
             <span className="text-sm font-medium text-gray-700">Break-Even Analysis</span>
           </div>
           

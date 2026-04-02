@@ -509,18 +509,18 @@ export const MusicTagsStep = ({
           <Button
             type="button"
             variant="outline"
-            className="gap-2 border-green-500 text-neutral-900 hover:bg-green-50 hover:text-neutral-900"
+            className="gap-2 border-green-500 var(--neutral-900) hover:bg-green-50 hover:var(--neutral-900)"
             onClick={handleConnectSpotify}
             disabled={spotifyConnecting}
           >
             {spotifyConnecting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-neutral-900" />
+                <Loader2 className="w-4 h-4 animate-spin var(--neutral-900)" />
                 Connecting…
               </>
             ) : (
               <>
-                <LogIn className="w-4 h-4 text-neutral-900" />
+                <LogIn className="w-4 h-4 var(--neutral-900)" />
                 Connect Spotify
               </>
             )}
@@ -528,18 +528,18 @@ export const MusicTagsStep = ({
           <Button
             type="button"
             variant="outline"
-            className="gap-2 border-red-500 text-neutral-900 hover:bg-red-50 hover:text-neutral-900"
+            className="gap-2 border-red-500 var(--neutral-900) hover:bg-red-50 hover:var(--neutral-900)"
             onClick={handleConnectAppleMusic}
             disabled={appleMusicSyncing}
           >
             {appleMusicSyncing ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-neutral-900" />
+                <Loader2 className="w-4 h-4 animate-spin var(--neutral-900)" />
                 Syncing…
               </>
             ) : (
               <>
-                <LogIn className="w-4 h-4 text-neutral-900" />
+                <LogIn className="w-4 h-4 var(--neutral-900)" />
                 Connect Apple Music
               </>
             )}

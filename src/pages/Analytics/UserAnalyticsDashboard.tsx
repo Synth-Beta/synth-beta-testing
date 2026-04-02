@@ -156,7 +156,7 @@ const [loading, setLoading] = useState(true);
             <TrendingUp className="w-8 h-8 text-synth-pink" />
             <h1 className="gradient-text text-3xl font-bold">My Concert Stats</h1>
           </div>
-          <p className="text-gray-600">Your personal concert journey at a glance</p>
+          <p className="var(--neutral-600)">Your personal concert journey at a glance</p>
           
           <div className="mt-4 flex items-center justify-center gap-3">
             <Button
@@ -193,7 +193,7 @@ const [loading, setLoading] = useState(true);
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900">Upgrade to Premium</h3>
-                    <p className="text-sm text-gray-600">Unlock all-time stats, export data, and go ad-free</p>
+                    <p className="text-sm var(--neutral-600)">Unlock all-time stats, export data, and go ad-free</p>
                   </div>
                 </div>
                 <Button className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600">
@@ -337,19 +337,19 @@ const [loading, setLoading] = useState(true);
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg">
                   <div className="text-3xl font-bold text-gray-900">{reviewStats.review_count}</div>
-                  <div className="text-sm text-gray-600">Reviews</div>
+                  <div className="text-sm var(--neutral-600)">Reviews</div>
                 </div>
                 <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
                   <div className="text-3xl font-bold text-gray-900">{reviewStats.avg_rating.toFixed(1)}</div>
-                  <div className="text-sm text-gray-600">Avg Rating</div>
+                  <div className="text-sm var(--neutral-600)">Avg Rating</div>
                 </div>
                 <div className="text-center p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-lg">
                   <div className="text-3xl font-bold text-gray-900">{reviewStats.total_likes}</div>
-                  <div className="text-sm text-gray-600">Total Likes</div>
+                  <div className="text-sm var(--neutral-600)">Total Likes</div>
                 </div>
                 <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg">
                   <div className="text-3xl font-bold text-gray-900">{reviewStats.total_comments}</div>
-                  <div className="text-sm text-gray-600">Comments</div>
+                  <div className="text-sm var(--neutral-600)">Comments</div>
                 </div>
               </div>
               
@@ -360,7 +360,7 @@ const [loading, setLoading] = useState(true);
                     <span className="text-sm font-semibold text-yellow-900">Most Helpful Review</span>
                   </div>
                   <p className="text-sm text-gray-700">{reviewStats.most_liked_review.event_name}</p>
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs var(--neutral-600) mt-1">
                     {reviewStats.most_liked_review.likes_count} likes
                   </p>
                 </div>

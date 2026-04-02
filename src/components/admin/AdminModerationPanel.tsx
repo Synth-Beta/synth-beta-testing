@@ -243,7 +243,7 @@ const [loading, setLoading] = useState(true);
                 <p className="font-semibold text-sm">
                   {FLAG_REASONS[flag.flag_reason as keyof typeof FLAG_REASONS]?.label || flag.flag_reason}
                 </p>
-                <p className="text-xs text-gray-600 capitalize">
+                <p className="text-xs var(--neutral-600) capitalize">
                   {ContentModerationService.getContentTypeDisplayName(flag.content_type)}
                 </p>
               </div>
@@ -271,7 +271,7 @@ const [loading, setLoading] = useState(true);
   if (!isAdmin()) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-gray-600">Access denied. Admin privileges required.</p>
+        <p className="var(--neutral-600)">Access denied. Admin privileges required.</p>
       </div>
     );
   }
@@ -280,7 +280,7 @@ const [loading, setLoading] = useState(true);
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Content Moderation</h2>
-        <p className="text-gray-600">Review and moderate flagged content</p>
+        <p className="var(--neutral-600)">Review and moderate flagged content</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -460,7 +460,7 @@ const [loading, setLoading] = useState(true);
                       </p>
                     )}
                     {selectedFlag.review_notes && (
-                      <p className="text-sm text-gray-600 mt-2">{selectedFlag.review_notes}</p>
+                      <p className="text-sm var(--neutral-600) mt-2">{selectedFlag.review_notes}</p>
                     )}
                   </div>
                 )}
@@ -470,7 +470,7 @@ const [loading, setLoading] = useState(true);
             <Card>
               <CardContent className="py-12 text-center">
                 <Flag className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 text-lg font-medium">Select a flag to review</p>
+                <p className="var(--neutral-600) text-lg font-medium">Select a flag to review</p>
                 <p className="text-sm text-gray-500 mt-1">
                   Choose a flagged content item from the list to begin moderation
                 </p>

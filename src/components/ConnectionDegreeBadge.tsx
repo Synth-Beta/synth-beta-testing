@@ -128,7 +128,7 @@ export const ConnectionDegreeBadge: React.FC<ConnectionDegreeBadgeProps> = ({
       </span>
       
       {connectionInfo.mutual_friends_count > 0 && (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm var(--neutral-600)">
           {connectionInfo.mutual_friends_count} mutual {connectionInfo.mutual_friends_count === 1 ? 'friend' : 'friends'}
         </span>
       )}

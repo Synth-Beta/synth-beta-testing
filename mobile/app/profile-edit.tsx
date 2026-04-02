@@ -10,6 +10,7 @@ import { supabase } from '../src/integrations/supabase/client';
 export default function ProfileEditScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const bottomPadding = SynthTokens.spacing.bottomNav + insets.bottom;
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [name, setName] = React.useState('');
@@ -80,7 +81,7 @@ export default function ProfileEditScreen() {
         <SynthText variant="h2">Edit profile</SynthText>
         <View style={styles.back} />
       </View>
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={[styles.body, { paddingBottom: bottomPadding }]}>
         <View style={styles.card}>
           <SynthText variant="meta" color="secondary">Display name</SynthText>
           <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={SynthTokens.colors.neutral400} />

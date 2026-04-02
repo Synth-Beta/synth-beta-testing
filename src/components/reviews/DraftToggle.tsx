@@ -177,7 +177,7 @@ const loadDrafts = async () => {
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <div className="text-sm text-gray-600 mb-2">
+                      <div className="text-sm var(--neutral-600) mb-2">
                         {formatDraftPreview(draft.draft_data)}
                       </div>
                       <div className="text-xs text-gray-400">

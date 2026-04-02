@@ -80,7 +80,44 @@ The following areas are not yet fully standardized and may have inconsistent imp
 
 ### Color Palette
 
-All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardcoded hex values or Tailwind color classes.
+All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardcoded hex values or Tailwind color classes. 
+
+### Changing Brand Colors (Rebrand Guide)
+When rebranding the app, here is exactly what to update and where the remaining hardcoded values live.
+
+#### Step 1: Update src/styles/tokens.css
+This is the only place you need to change colors for 99% of the app. Find the token definition lines and replace the hex values:
+css--brand-pink-500: #CC2486; /* ← change this hex to your new primary color */ and so on
+
+#### Step 2: Update src/config/tokens.ts
+Mirror the same hex changes here so TypeScript consumers stay in sync with the CSS.
+
+#### Step 3: Update Theme.swift
+The iOS native layer has its own color definitions that do not read from CSS variables. Find the SynthColor enum and update the matching hex values. Also update SynthColorHex which is the string version used in some native components.
+
+#### Step 4: Update standalone .svg files
+SVG files cannot use CSS variables. Do a find-and-replace across all .svg files in the project for each hex value
+
+#### Step 5: Update config and manifest files
+These files take raw hex values and cannot use CSS variables:
+
+manifest.json or manifest.webmanifest — find theme_color and update
+Any capacitor.config.ts color values
+Any <meta name="theme-color"> tags in index.html
+
+What you do NOT need to touch:
+
+Any .tsx, .ts, or .css file that uses var(--brand-pink-500) — these update automatically from Step 1
+Any SVG fill or stroke set via a style prop in JSX — these also update automatically
+The --gradient-brand token will need its hex values updated manually in tokens.css since gradients cannot reference other CSS variables
+
+How to verify the rebrand is complete:
+Run these searches in your codebase and confirm the only remaining results are in tokens.css definition lines, .svg files, Theme.swift, and config/manifest files:
+#CC2486
+#951A6D
+#7B1559
+#FDF2F7
+Any match outside those expected locations is a missed token that needs to be converted to var(--brand-pink-500) via a style prop or CSS rule.
 
 #### Neutrals
 
@@ -107,9 +144,9 @@ All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardco
 | Token | Value | Usage | Do Not Use For |
 |-------|-------|-------|----------------| 
 | `--brand-pink-050` | `var(--brand-pink-050)` | Subtle pink surface, hover states | Text, borders |
-| `var(--brand-pink-500)` | `var(--brand-pink-500)` | Primary brand color, buttons, links | Backgrounds (except buttons) |
+| `--brand-pink-500` | `var(--brand-pink-500)` | Primary brand color, buttons, links | Backgrounds (except buttons) |
 | `--brand-pink-600` | `var(--brand-pink-600)` | Hover states | Default states |
-| `--brand-pink-700` | `#7B1559` | Active/pressed states | Default or hover states |
+| `--brand-pink-700` | `var(--brand-pink-700)` | Active/pressed states | Default or hover states |
 
 **Semantic Usage:**
 - **Primary Actions**: `var(--brand-pink-500)` for primary buttons, links, active states
@@ -121,12 +158,12 @@ All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardco
 
 | Token | Value | Usage | Do Not Use For |
 |-------|-------|-------|----------------|
-| `--status-success-050` | `#E6F4ED` | Success surface | Text, borders |
-| `--status-success-500` | `#2E8B63` | Success text, borders, icons | Backgrounds |
-| `--status-warning-050` | `#FFF6D6` | Warning surface | Text, borders |
+| `--status-success-050` | `var(--status-success-050)` | Success surface | Text, borders |
+| `--status-success-500` | `var(--status-success-500)` | Success text, borders, icons | Backgrounds |
+| `--status-warning-050` | `var(--status-warning-050)` | Warning surface | Text, borders |
 | `--status-warning-500` | `var(--status-warning-500)` | Warning text, borders, icons | Backgrounds |
 | `--status-error-050` | `var(--status-error-050)` | Error surface | Text, borders |
-| `--status-error-500` | `#C62828` | Error text, borders, icons | Backgrounds |
+| `--status-error-500` | `var(--status-error-500)` | Error text, borders, icons | Backgrounds |
 
 **Semantic Usage:**
 - **Success**: Use for positive actions, confirmations, completed states
@@ -137,8 +174,8 @@ All colors MUST use design tokens from `src/styles/tokens.css`. Never use hardco
 
 | Token | Value | Usage | Do Not Use For |
 |-------|-------|-------|----------------|
-| `--info-blue-050` | `#F0F6FE` | Info surface | Text, borders |
-| `--info-blue-500` | `#1F66EA` | Info text, borders, icons, links | Backgrounds |
+| `--info-blue-050` | `var(--info-blue-050)` | Info surface | Text, borders |
+| `--info-blue-500` | `var(--info-blue-500)` | Info text, borders, icons, links | Backgrounds |
 
 **Semantic Usage:**
 - **Info**: Use for informational messages, links, informational badges

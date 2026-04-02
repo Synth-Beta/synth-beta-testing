@@ -160,6 +160,7 @@ interface EventReviewFlowProps {
 
 export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted }: EventReviewFlowProps) {
     const insets = useSafeAreaInsets();
+    const scrollPaddingBottom = SynthTokens.spacing.bottomNav + insets.bottom + 96;
     const {
         formData,
         errors,
@@ -1248,7 +1249,10 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 </View>
                 <View style={styles.back} />
             </View>
-            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            <ScrollView
+                contentContainerStyle={[styles.scroll, { paddingBottom: scrollPaddingBottom }]}
+                keyboardShouldPersistTaps="handled"
+            >
                 {stepContent}
             </ScrollView>
             <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
@@ -1291,7 +1295,7 @@ const styles = StyleSheet.create({
     headerMid: { flex: 1 },
     back: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     center: { textAlign: 'center' },
-    scroll: { padding: 20, paddingBottom: 120 },
+    scroll: { padding: 20 },
     section: { gap: 8 },
     mt8: { marginTop: 8 },
     mt12: { marginTop: 12 },

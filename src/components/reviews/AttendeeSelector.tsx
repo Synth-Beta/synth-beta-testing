@@ -242,7 +242,7 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
               )}
               <button
                 onClick={() => handleRemoveAttendee(index)}
-                className="ml-1 text-gray-400 hover:text-gray-600"
+                className="ml-1 text-gray-400 hover:var(--neutral-600)"
               >
                 <X className="h-4 w-4" />
               </button>

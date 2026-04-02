@@ -169,8 +169,8 @@ export const AllDetailModal: React.FC<AllDetailModalProps> = ({
                         key={i}
                         size={16}
                         style={{
-                          color: i < Math.floor(rating) ? 'var(--color-yellow)' : 'var(--neutral-300)',
-                          fill: i < Math.floor(rating) ? 'var(--color-yellow)' : 'none',
+                          color: i < Math.floor(rating) ? 'var(--rating-star)' : 'var(--neutral-300)',
+                          fill: i < Math.floor(rating) ? 'var(--rating-star)' : 'none',
                         }}
                       />
                     ))}

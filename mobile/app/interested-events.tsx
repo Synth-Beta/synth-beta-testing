@@ -11,6 +11,7 @@ import { InterestedEventItem, MyEventsService } from '../src/services/myEventsSe
 export default function InterestedEventsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const bottomPadding = SynthTokens.spacing.bottomNav + insets.bottom;
   const [items, setItems] = useState<InterestedEventItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -49,7 +50,7 @@ export default function InterestedEventsScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />
         }
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: bottomPadding }]}
         ListEmptyComponent={
           <SynthText variant="body" color="secondary" style={styles.empty}>
             No interested events yet.

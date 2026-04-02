@@ -244,7 +244,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
 
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Event Details</h2>
-        <p className="text-sm text-gray-600">Tell us about the concert you attended</p>
+        <p className="text-sm var(--neutral-600)">Tell us about the concert you attended</p>
       </div>
       {/* Horizontal row: Artist, Venue, Date */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">

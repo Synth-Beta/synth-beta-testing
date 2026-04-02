@@ -35,7 +35,7 @@ export function ConcertSearchResults({ event, isNewEvent, source, currentUserId 
         <CardContent>
           <div className="text-center py-8">
             <Music className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No events found matching your search criteria.</p>
+            <p className="var(--neutral-600)">No events found matching your search criteria.</p>
             <p className="text-sm text-gray-500 mt-2">
               Try adjusting your search terms or searching for a different date.
             </p>
@@ -58,7 +58,7 @@ export function ConcertSearchResults({ event, isNewEvent, source, currentUserId 
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-xl font-semibold">{event.title || event.event_name}</h3>
-              <p className="text-gray-600">{event.artist_name}</p>
+              <p className="var(--neutral-600)">{event.artist_name}</p>
             </div>
             <div className="flex gap-2">
               <Button 
@@ -121,7 +121,7 @@ export function ConcertSearchResults({ event, isNewEvent, source, currentUserId 
 
           {event.description && (
             <div>
-              <p className="text-sm text-gray-600">{event.description}</p>
+              <p className="text-sm var(--neutral-600)">{event.description}</p>
             </div>
           )}
 

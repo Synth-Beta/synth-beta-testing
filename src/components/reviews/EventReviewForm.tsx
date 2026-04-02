@@ -1371,7 +1371,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 <p className="text-sm font-semibold text-gray-900">
                   {formData.selectedSetlist.artist?.name || formData.selectedArtist?.name}
                 </p>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs var(--neutral-600)">
                   {formData.selectedSetlist.venue?.name}
                   {formData.selectedSetlist.eventDate && (
                     <> • {formatSetlistDate(formData.selectedSetlist.eventDate)}</>
@@ -1457,7 +1457,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 <p className="text-sm font-semibold text-gray-900">
                   {formData.selectedSetlist.artist?.name || formData.selectedArtist?.name}
                 </p>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs var(--neutral-600)">
                   {formData.selectedSetlist.venue?.name}
                   {formData.selectedSetlist.eventDate && (
                     <> • {formatSetlistDate(formData.selectedSetlist.eventDate)}</>

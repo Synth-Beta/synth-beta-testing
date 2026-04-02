@@ -132,7 +132,7 @@ export function EngagementScoreGauge({
               <div className={`text-3xl font-bold ${getScoreColor(metrics.score)}`}>
                 {metrics.score}
               </div>
-              <div className="text-sm text-gray-600">/ 100</div>
+              <div className="text-sm var(--neutral-600)">/ 100</div>
             </div>
           </div>
         </div>
@@ -157,7 +157,7 @@ export function EngagementScoreGauge({
                   <p className="text-sm font-medium text-gray-900">
                     {Math.floor(metrics.sessionDuration / 60000)}m
                   </p>
-                  <p className="text-xs text-gray-600">Session Time</p>
+                  <p className="text-xs var(--neutral-600)">Session Time</p>
                 </div>
               </div>
               
@@ -167,7 +167,7 @@ export function EngagementScoreGauge({
                   <p className="text-sm font-medium text-gray-900">
                     {metrics.interactionCount}
                   </p>
-                  <p className="text-xs text-gray-600">Interactions</p>
+                  <p className="text-xs var(--neutral-600)">Interactions</p>
                 </div>
               </div>
             </div>
@@ -175,26 +175,26 @@ export function EngagementScoreGauge({
             {/* Content Engagement */}
             <div className="grid grid-cols-3 gap-2">
               <div className="flex items-center gap-1 p-2 bg-gray-50 rounded-lg">
-                <Eye className="w-3 h-3 text-gray-600" />
+                <Eye className="w-3 h-3 var(--neutral-600)" />
                 <div>
                   <p className="text-xs font-medium text-gray-900">{metrics.pageViews}</p>
-                  <p className="text-xs text-gray-600">Views</p>
+                  <p className="text-xs var(--neutral-600)">Views</p>
                 </div>
               </div>
               
               <div className="flex items-center gap-1 p-2 bg-gray-50 rounded-lg">
-                <Heart className="w-3 h-3 text-gray-600" />
+                <Heart className="w-3 h-3 var(--neutral-600)" />
                 <div>
                   <p className="text-xs font-medium text-gray-900">{metrics.likes}</p>
-                  <p className="text-xs text-gray-600">Likes</p>
+                  <p className="text-xs var(--neutral-600)">Likes</p>
                 </div>
               </div>
               
               <div className="flex items-center gap-1 p-2 bg-gray-50 rounded-lg">
-                <Activity className="w-3 h-3 text-gray-600" />
+                <Activity className="w-3 h-3 var(--neutral-600)" />
                 <div>
                   <p className="text-xs font-medium text-gray-900">{metrics.shares}</p>
-                  <p className="text-xs text-gray-600">Shares</p>
+                  <p className="text-xs var(--neutral-600)">Shares</p>
                 </div>
               </div>
             </div>

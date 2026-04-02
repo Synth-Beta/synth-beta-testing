@@ -522,7 +522,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                           
                           {achievement.unlocked ? (
                             /* Unlocked Badge */
-                            <div className="bg-[#fdf2f7] flex gap-3 h-[25px] items-center px-3 py-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] mt-1">
+                            <div className="bg-[var(--brand-pink-050)] flex gap-3 h-[25px] items-center px-3 py-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] mt-1">
                               <svg
                                 width="15"
                                 height="12"

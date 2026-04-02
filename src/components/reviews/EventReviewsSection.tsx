@@ -226,7 +226,7 @@ export function EventReviewsSection({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Reviews</h2>
-          <p className="text-gray-600">See what others thought about this event</p>
+          <p className="var(--neutral-600)">See what others thought about this event</p>
         </div>
         {userId && (
           <Button

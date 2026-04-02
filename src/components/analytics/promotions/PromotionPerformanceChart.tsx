@@ -100,7 +100,7 @@ export function PromotionPerformanceChart({ data, className = '' }: PromotionPer
           {/* Summary Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
             <div className="text-center">
-              <div className="flex items-center justify-center gap-1 text-sm text-gray-600 mb-1">
+              <div className="flex items-center justify-center gap-1 text-sm var(--neutral-600) mb-1">
                 <Eye className="h-4 w-4" />
                 <span>Total Impressions</span>
               </div>
@@ -110,7 +110,7 @@ export function PromotionPerformanceChart({ data, className = '' }: PromotionPer
             </div>
             
             <div className="text-center">
-              <div className="flex items-center justify-center gap-1 text-sm text-gray-600 mb-1">
+              <div className="flex items-center justify-center gap-1 text-sm var(--neutral-600) mb-1">
                 <MousePointer className="h-4 w-4" />
                 <span>Total Clicks</span>
               </div>
@@ -120,7 +120,7 @@ export function PromotionPerformanceChart({ data, className = '' }: PromotionPer
             </div>
             
             <div className="text-center">
-              <div className="flex items-center justify-center gap-1 text-sm text-gray-600 mb-1">
+              <div className="flex items-center justify-center gap-1 text-sm var(--neutral-600) mb-1">
                 <Target className="h-4 w-4" />
                 <span>Total Conversions</span>
               </div>
@@ -130,7 +130,7 @@ export function PromotionPerformanceChart({ data, className = '' }: PromotionPer
             </div>
             
             <div className="text-center">
-              <div className="flex items-center justify-center gap-1 text-sm text-gray-600 mb-1">
+              <div className="flex items-center justify-center gap-1 text-sm var(--neutral-600) mb-1">
                 <span>Total Spend</span>
               </div>
               <p className="text-lg font-semibold">

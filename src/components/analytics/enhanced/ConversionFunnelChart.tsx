@@ -121,7 +121,7 @@ export function ConversionFunnelChart({
                         <p className="text-sm font-medium text-gray-900">
                           {formatNumber(stage.users_entered)} → {formatNumber(stage.users_completed)}
                         </p>
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs var(--neutral-600)">
                           {stage.average_time_spent.toFixed(1)}m avg time
                         </p>
                       </div>
@@ -187,7 +187,7 @@ export function ConversionFunnelChart({
                       <p className="text-xs font-medium text-gray-900">
                         {stage.stage_name} Stage
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs var(--neutral-600)">
                         {stage.drop_off_rate.toFixed(1)}% drop-off rate - {stage.optimization_opportunities[0]}
                       </p>
                     </div>

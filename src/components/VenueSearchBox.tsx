@@ -297,7 +297,7 @@ export function VenueSearchBox({
                 <MapPin className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No venues found</h3>
-              <p className="text-sm text-gray-600 mb-4">Try a different search term or add this venue:</p>
+              <p className="text-sm var(--neutral-600) mb-4">Try a different search term or add this venue:</p>
               {query.trim() && (
                 <Button
                   type="button"

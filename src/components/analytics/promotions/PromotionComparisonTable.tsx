@@ -163,17 +163,17 @@ export function PromotionComparisonTable({ promotions, className = '' }: Promoti
         <div className="mt-6 pt-4 border-t">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Total Promotions</p>
+              <p className="text-sm var(--neutral-600) mb-1">Total Promotions</p>
               <p className="text-lg font-semibold">{promotions.length}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Total Spend</p>
+              <p className="text-sm var(--neutral-600) mb-1">Total Spend</p>
               <p className="text-lg font-semibold">
                 {formatCurrency(promotions.reduce((sum, p) => sum + p.total_spend, 0))}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Avg. CTR</p>
+              <p className="text-sm var(--neutral-600) mb-1">Avg. CTR</p>
               <p className="text-lg font-semibold">
                 {formatPercentage(
                   promotions.reduce((sum, p) => sum + p.ctr, 0) / promotions.length
@@ -181,7 +181,7 @@ export function PromotionComparisonTable({ promotions, className = '' }: Promoti
               </p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Avg. ROI</p>
+              <p className="text-sm var(--neutral-600) mb-1">Avg. ROI</p>
               <p className="text-lg font-semibold">
                 {formatPercentage(
                   promotions.reduce((sum, p) => sum + p.roi, 0) / promotions.length

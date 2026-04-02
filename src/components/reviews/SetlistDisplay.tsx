@@ -91,7 +91,7 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
                         </span>
                       )}
                       {song.notes && (
-                        <p className="text-xs text-gray-600 mt-1 italic">
+                        <p className="text-xs var(--neutral-600) mt-1 italic">
                           "{song.notes}"
                         </p>
                       )}

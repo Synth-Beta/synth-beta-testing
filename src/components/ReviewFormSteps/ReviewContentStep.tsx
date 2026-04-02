@@ -44,7 +44,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Share Your Experience</h2>
-        <p className="text-sm text-gray-600">Tell others about your concert experience (optional)</p>
+        <p className="text-sm var(--neutral-600)">Tell others about your concert experience (optional)</p>
       </div>
 
       {/* Emoji Reaction */}
@@ -92,7 +92,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData }: Review
                 className="flex flex-col items-center space-y-1 p-2 h-auto hover:bg-white"
               >
                 <span className="text-xl">{emoji}</span>
-                <span className="text-xs text-gray-600">{label}</span>
+                <span className="text-xs var(--neutral-600)">{label}</span>
               </Button>
             ))}
           </div>

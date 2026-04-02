@@ -105,7 +105,7 @@ export function NotificationsList() {
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading notifications...</p>
+          <p className="var(--neutral-600)">Loading notifications...</p>
         </div>
       </div>
     );
@@ -122,7 +122,7 @@ export function NotificationsList() {
             </span>
           )}
         </div>
-        <p className="text-gray-600">Stay updated on your matches and activity</p>
+        <p className="var(--neutral-600)">Stay updated on your matches and activity</p>
       </div>
 
       {notifications.length === 0 ? (
@@ -130,7 +130,7 @@ export function NotificationsList() {
           <div className="text-center">
             <Bell className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Notifications</h3>
-            <p className="text-gray-600 text-sm">
+            <p className="var(--neutral-600) text-sm">
               You'll see notifications here when you get matches or messages.
             </p>
           </div>
@@ -157,7 +157,7 @@ export function NotificationsList() {
                         <h3 className={`font-medium ${!notification.is_read ? 'text-purple-900' : 'text-gray-900'}`}>
                           {notification.title}
                         </h3>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm var(--neutral-600) mt-1">
                           {notification.message}
                         </p>
                         
@@ -172,7 +172,7 @@ export function NotificationsList() {
                               />
                             ) : (
                               <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-                                <span className="text-xs font-medium text-gray-600">
+                                <span className="text-xs font-medium var(--neutral-600)">
                                   {notification.actor_profile.name?.charAt(0)}
                                 </span>
                               </div>

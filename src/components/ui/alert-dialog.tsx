@@ -20,7 +20,7 @@ const AlertDialogOverlay = React.forwardRef<
       className
     )}
     style={{
-      backgroundColor: 'var(--overlay-50, rgba(14, 14, 14, 0.5))',
+      backgroundColor: 'var(--overlay-50, var(--overlay-50))',
       ...props.style
     }}
     {...props}

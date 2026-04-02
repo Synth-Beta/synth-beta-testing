@@ -106,7 +106,7 @@ export function PrivacySubmitStep({
       <div className="text-center space-y-2">
         <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Final Step</p>
         <h2 className="text-2xl font-semibold text-gray-900">Review & Share</h2>
-        <p className="text-sm text-gray-600 max-w-2xl mx-auto">
+        <p className="text-sm var(--neutral-600) max-w-2xl mx-auto">
           Take a final look at your ratings, highlight anything fans should know, and choose who can see your review.
         </p>
       </div>
@@ -291,7 +291,7 @@ export function PrivacySubmitStep({
                     Recommended
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm var(--neutral-600) mt-1">
                   Everyone can see your review. Help the community decide where to go.
                 </p>
               </div>
@@ -324,10 +324,10 @@ export function PrivacySubmitStep({
               </div>
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
-                  <Lock className="w-5 h-5 text-gray-600" />
+                  <Lock className="w-5 h-5 var(--neutral-600)" />
                   <span className="font-medium text-gray-900">Private</span>
                 </div>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm var(--neutral-600) mt-1">
                   Only you can see this review. You can always share it later.
                 </p>
               </div>
@@ -338,8 +338,8 @@ export function PrivacySubmitStep({
 
       <div className="bg-gray-50 rounded-lg p-4">
         <div className="flex items-start space-x-2">
-          <Info className="w-4 h-4 text-gray-600 mt-0.5" />
-          <div className="text-sm text-gray-600">
+          <Info className="w-4 h-4 var(--neutral-600) mt-0.5" />
+          <div className="text-sm var(--neutral-600)">
             <p className="font-medium mb-1">About privacy:</p>
             <ul className="space-y-1 text-xs">
               <li>• Public reviews help the community discover amazing shows</li>

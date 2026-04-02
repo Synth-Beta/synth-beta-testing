@@ -127,7 +127,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                       <span className="text-lg">{reason.icon}</span>
                       <span className="font-medium text-sm">{reason.label}</span>
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">{reason.description}</p>
+                    <p className="text-xs var(--neutral-600) mt-1">{reason.description}</p>
                   </div>
                 </label>
               ))}

@@ -93,7 +93,7 @@ export function SessionAnalyticsCard({
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900">Session Duration</p>
-              <p className="text-xs text-gray-600">Total time spent</p>
+              <p className="text-xs var(--neutral-600)">Total time spent</p>
             </div>
           </div>
           <div className="text-right">
@@ -119,7 +119,7 @@ export function SessionAnalyticsCard({
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900">Engagement Score</p>
-              <p className="text-xs text-gray-600">0-100 scale</p>
+              <p className="text-xs var(--neutral-600)">0-100 scale</p>
             </div>
           </div>
           <div className="text-right">
@@ -140,18 +140,18 @@ export function SessionAnalyticsCard({
         {/* Interaction Stats */}
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-            <MousePointer className="w-4 h-4 text-gray-600" />
+            <MousePointer className="w-4 h-4 var(--neutral-600)" />
             <div>
               <p className="text-sm font-medium text-gray-900">{metrics.interactionCount}</p>
-              <p className="text-xs text-gray-600">Interactions</p>
+              <p className="text-xs var(--neutral-600)">Interactions</p>
             </div>
           </div>
           
           <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-            <Eye className="w-4 h-4 text-gray-600" />
+            <Eye className="w-4 h-4 var(--neutral-600)" />
             <div>
               <p className="text-sm font-medium text-gray-900">{metrics.pageViews}</p>
-              <p className="text-xs text-gray-600">Page Views</p>
+              <p className="text-xs var(--neutral-600)">Page Views</p>
             </div>
           </div>
         </div>
@@ -159,8 +159,8 @@ export function SessionAnalyticsCard({
         {/* Bounce Rate */}
         <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
           <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-gray-600" />
-            <span className="text-sm text-gray-600">Bounce Rate</span>
+            <Users className="w-4 h-4 var(--neutral-600)" />
+            <span className="text-sm var(--neutral-600)">Bounce Rate</span>
           </div>
           <span className={`text-sm font-medium ${
             metrics.bounceRate > 70 ? 'text-red-600' : 
@@ -185,7 +185,7 @@ export function SessionAnalyticsCard({
                   style={{ width: `${metrics.engagementScore}%` }}
                 />
               </div>
-              <span className="text-xs text-gray-600">
+              <span className="text-xs var(--neutral-600)">
                 {metrics.engagementScore >= 80 ? 'Excellent' :
                  metrics.engagementScore >= 60 ? 'Good' :
                  metrics.engagementScore >= 40 ? 'Fair' : 'Poor'}

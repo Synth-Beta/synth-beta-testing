@@ -26,7 +26,7 @@ export function StepIndicator({ currentStep, totalSteps, steps, className }: Ste
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-200",
                   isCompleted && "bg-green-500 text-white",
                   isCurrent && "bg-blue-500 text-white",
-                  !isCompleted && !isCurrent && "bg-gray-200 text-gray-600"
+                  !isCompleted && !isCurrent && "bg-gray-200 var(--neutral-600)"
                 )}
               >
                 {isCompleted ? (

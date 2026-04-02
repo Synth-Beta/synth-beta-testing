@@ -119,7 +119,7 @@ export const FullScreenImageModal: React.FC<FullScreenImageModalProps> = ({
               type="button"
               aria-label="Close image"
               onClick={() => onOpenChange(false)}
-              className="absolute -top-[6px] right-0 translate-y-[-100%] h-11 w-11 rounded-full bg-white flex items-center justify-center text-neutral-900"
+              className="absolute -top-[6px] right-0 translate-y-[-100%] h-11 w-11 rounded-full bg-white flex items-center justify-center var(--neutral-900)"
             >
               <X className="h-6 w-6" />
             </button>

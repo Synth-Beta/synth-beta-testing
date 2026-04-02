@@ -128,7 +128,7 @@ export function ReviewList({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-lg text-gray-900">Reviews</h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm var(--neutral-600)">
               {totalReviews} review{totalReviews !== 1 ? 's' : ''}
               {averageRating > 0 && (
                 <span className="ml-2">

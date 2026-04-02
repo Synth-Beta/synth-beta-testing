@@ -352,7 +352,7 @@ const eventsPerPage = 10;
               )}
             </div>
             
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm var(--neutral-600) mb-2">
               {event.artist_name} at {event.venue_name}
             </p>
             
@@ -471,7 +471,7 @@ const eventsPerPage = 10;
             <Music className="h-5 w-5" />
             Event Search
           </CardTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm var(--neutral-600)">
             Search for an artist to browse their past and upcoming events
           </p>
         </CardHeader>
@@ -558,7 +558,7 @@ const eventsPerPage = 10;
                         </div>
                         
                         {artist.description && (
-                          <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                          <p className="text-sm var(--neutral-600) line-clamp-2 mb-2">
                             {artist.description}
                           </p>
                         )}
@@ -624,7 +624,7 @@ const eventsPerPage = 10;
                   <div>
                     <h3 className="font-semibold text-gray-900">{selectedArtist.name}</h3>
                     {selectedArtist.description && (
-                      <p className="text-sm text-gray-600 line-clamp-1">
+                      <p className="text-sm var(--neutral-600) line-clamp-1">
                         {selectedArtist.description}
                       </p>
                     )}
@@ -639,7 +639,7 @@ const eventsPerPage = 10;
                   variant="ghost"
                   size="sm"
                   onClick={clearSearch}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:var(--neutral-600)"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -662,7 +662,7 @@ const eventsPerPage = 10;
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                    <span className="ml-2 text-gray-600">Loading upcoming events...</span>
+                    <span className="ml-2 var(--neutral-600)">Loading upcoming events...</span>
                   </div>
                 ) : error ? (
                   <div className="text-center py-12">
@@ -688,7 +688,7 @@ const eventsPerPage = 10;
                   <div className="text-center py-12">
                     <Music className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <h3 className="font-semibold text-gray-900 mb-1">No Upcoming Events</h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm var(--neutral-600)">
                       No upcoming concerts found for {selectedArtist.name}
                     </p>
                   </div>
@@ -699,7 +699,7 @@ const eventsPerPage = 10;
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                    <span className="ml-2 text-gray-600">Loading past events...</span>
+                    <span className="ml-2 var(--neutral-600)">Loading past events...</span>
                   </div>
                 ) : error ? (
                   <div className="text-center py-12">
@@ -725,7 +725,7 @@ const eventsPerPage = 10;
                   <div className="text-center py-12">
                     <Music className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <h3 className="font-semibold text-gray-900 mb-1">No Past Events</h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm var(--neutral-600)">
                       No past concerts found for {selectedArtist.name}
                     </p>
                   </div>
@@ -739,7 +739,7 @@ const eventsPerPage = 10;
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <h3 className="font-semibold text-gray-900 mb-1">Search for an Artist</h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm var(--neutral-600)">
                 Type an artist name above to find their events
               </p>
             </div>

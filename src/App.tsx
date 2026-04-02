@@ -32,8 +32,6 @@ const StreamingStatsPage = React.lazy(() => import("./pages/StreamingStatsPage")
 const ArtistFollowingPage = React.lazy(() => import("./pages/ArtistFollowingPage").then(m => ({ default: m.ArtistFollowingPage })));
 const ResetPassword = React.lazy(() => import("./pages/ResetPassword").then(m => ({ default: m.default })));
 const NotFound = React.lazy(() => import("./pages/NotFound").then(m => ({ default: m.default })));
-const ComponentShowcase = React.lazy(() => import("./pages/mobile/ComponentShowcase").then(m => ({ default: m.default })));
-const MobilePreview = React.lazy(() => import("./pages/mobile/MobilePreview").then(m => ({ default: m.default })));
 
 // Component to handle deep links and auth callbacks
 // Must be inside BrowserRouter to use useLocation and useNavigate
@@ -254,11 +252,7 @@ const App = () => {
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/not-found" element={<NotFound />} />
-              {/* Component showcase route */}
-              <Route path="/components" element={<ComponentShowcase />} />
-              {/* Mobile preview route for beta testing */}
-              <Route path="/mobile-preview/*" element={<MobilePreview />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+{/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

@@ -73,7 +73,7 @@ export function PrivacySubmitStep({
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Privacy & Submit</h2>
-        <p className="text-sm text-gray-600">Choose who can see your review</p>
+        <p className="text-sm var(--neutral-600)">Choose who can see your review</p>
       </div>
 
       {/* Review Summary */}
@@ -161,7 +161,7 @@ export function PrivacySubmitStep({
                   <span className="font-medium text-gray-900">Public</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>Recommended</span>
                 </div>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm var(--neutral-600) mt-1">
                   Everyone can see your review. Help others discover great concerts!
                 </p>
               </div>
@@ -195,10 +195,10 @@ export function PrivacySubmitStep({
               </div>
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
-                  <Lock className="w-5 h-5 text-gray-600" />
+                  <Lock className="w-5 h-5 var(--neutral-600)" />
                   <span className="font-medium text-gray-900">Private</span>
                 </div>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm var(--neutral-600) mt-1">
                   Only you can see this review. You can change this later.
                 </p>
               </div>
@@ -210,8 +210,8 @@ export function PrivacySubmitStep({
       {/* Privacy Info */}
       <div className="bg-gray-50 rounded-lg p-4">
         <div className="flex items-start space-x-2">
-          <Info className="w-4 h-4 text-gray-600 mt-0.5" />
-          <div className="text-sm text-gray-600">
+          <Info className="w-4 h-4 var(--neutral-600) mt-0.5" />
+          <div className="text-sm var(--neutral-600)">
             <p className="font-medium mb-1">About privacy:</p>
             <ul className="space-y-1 text-xs">
               <li>• Public reviews help the community discover great concerts</li>

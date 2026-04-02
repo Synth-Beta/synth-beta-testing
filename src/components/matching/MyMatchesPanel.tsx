@@ -75,7 +75,7 @@ const [matches, setMatches] = useState<Match[]>([]);
               <div className="flex-1">
                 <h3 className="font-semibold text-lg">{match.matched_user?.name}</h3>
                 {match.matched_user?.bio && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
+                  <p className="text-sm var(--neutral-600) line-clamp-2">
                     {match.matched_user.bio}
                   </p>
                 )}
@@ -99,11 +99,11 @@ const [matches, setMatches] = useState<Match[]>([]);
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{match.event.title}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                    <div className="flex items-center gap-2 text-xs var(--neutral-600) mt-1">
                       <Calendar className="h-3 w-3" />
                       <span>{formatDate(match.event.event_date)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <div className="flex items-center gap-2 text-xs var(--neutral-600)">
                       <MapPin className="h-3 w-3" />
                       <span className="truncate">{match.event.venue_name}</span>
                     </div>
@@ -138,7 +138,7 @@ const [matches, setMatches] = useState<Match[]>([]);
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">My Concert Buddy Matches</h2>
-        <p className="text-gray-600">People you matched with for events</p>
+        <p className="var(--neutral-600)">People you matched with for events</p>
       </div>
 
       {loading ? (
@@ -150,7 +150,7 @@ const [matches, setMatches] = useState<Match[]>([]);
           <CardContent className="py-12 text-center">
             <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Matches Yet</h3>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="var(--neutral-600) text-sm mb-4">
               Start swiping on events to find concert buddies!
             </p>
             <p className="text-xs text-gray-500">

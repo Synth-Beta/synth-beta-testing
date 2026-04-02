@@ -279,7 +279,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
               <h3 className="text-lg font-semibold mb-2">
                 {errorType === 'generic' ? 'Something Went Wrong' : 'Setlist not found'}
               </h3>
-              <p className="text-gray-600 mb-6 max-w-lg mx-auto whitespace-pre-wrap">
+              <p className="var(--neutral-600) mb-6 max-w-lg mx-auto whitespace-pre-wrap">
                 {error}
               </p>
 
@@ -296,7 +296,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
 
           {!loading && !error && setlists.length > 0 && (
             <div className="space-y-6">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm var(--neutral-600)">
                 Found {setlists.length} setlist{setlists.length !== 1 ? 's' : ''} for {artistName}
               </div>
               
@@ -331,7 +331,7 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                               </span>
                             )}
                           </div>
-                          <div className="space-y-1 text-sm text-gray-600">
+                          <div className="space-y-1 text-sm var(--neutral-600)">
                             <div className="flex items-center gap-2">
                               <Calendar className="h-4 w-4" />
                               {formatDate(setlist.eventDate)}

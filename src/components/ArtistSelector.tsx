@@ -92,7 +92,7 @@ export function ArtistSelector({
               variant="ghost"
               size="sm"
               onClick={onRemove}
-              className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+              className="h-8 w-8 p-0 text-gray-400 hover:var(--neutral-600)"
             >
               <X className="w-4 h-4" />
             </Button>
@@ -103,7 +103,7 @@ export function ArtistSelector({
       <CardContent className="pt-0">
         {artist.description && (
           <div className="mb-4">
-            <p className="text-sm text-gray-600 leading-relaxed">
+            <p className="text-sm var(--neutral-600) leading-relaxed">
               {artist.description}
             </p>
           </div>

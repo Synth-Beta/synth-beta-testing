@@ -18,7 +18,7 @@ interface MobileHeaderProps {
  * - Notification bell on the right
  * 
  * Design specifications:
- * - Background: OffWhite (`var(--off-white)`)
+ * - Background: OffWhite (`var(--neutral-50)`)
  * - Height: 59px
  * - Horizontal padding: 20px (matching design tokens)
  * - Shadow: 0px 4px 4px 0px rgba(0,0,0,0.25)
@@ -44,7 +44,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
       className={`fixed left-0 right-0 z-50 ${className || ''}`}
       style={{
         top: 'env(safe-area-inset-top, 0px)',
-        backgroundColor: 'var(--off-white)',
+        backgroundColor: 'var(--neutral-50)',
         boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25)',
       }}
       role="banner"
@@ -53,8 +53,8 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
         className="flex items-center justify-between"
         style={{
           height: '59px',
-          paddingLeft: 'var(--margin-horizontal, 20px)',
-          paddingRight: 'var(--margin-horizontal, 20px)',
+          paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+          paddingRight: 'var(--spacing-screen-margin-x, 20px)',
           paddingBottom: '16px',
         }}
       >
@@ -113,8 +113,8 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
           style={{
             width: '44px',
             height: '44px',
-            backgroundColor: 'var(--synth-pink, var(--brand-pink-500))',
-            borderRadius: 'var(--corner-radius, 10px)',
+            backgroundColor: 'var(--brand-pink-500, var(--brand-pink-500))',
+            borderRadius: 'var(--radius-corner, 10px)',
             boxShadow: '0px 4px 4px 0px rgba(0, 0, 0, 0.25)',
           }}
         >

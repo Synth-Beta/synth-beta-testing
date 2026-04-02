@@ -125,7 +125,7 @@ const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
                 {venue.name}
               </CardTitle>
               {venue.address && (
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm var(--neutral-600) mt-1">
                   {[
                     venue.address.addressLocality,
                     venue.address.addressRegion
@@ -156,7 +156,7 @@ const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
                 <p className="text-2xl font-bold text-gray-900">
                   {stats.average_overall_rating.toFixed(1)}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm var(--neutral-600)">
                   {stats.total_reviews} {stats.total_reviews === 1 ? 'review' : 'reviews'}
                 </p>
               </div>
@@ -170,7 +170,7 @@ const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
                   <p className="text-lg font-semibold text-yellow-600">
                     {stats.average_artist_rating.toFixed(1)}
                   </p>
-                  <p className="text-xs text-gray-600">Artist Performance</p>
+                  <p className="text-xs var(--neutral-600)">Artist Performance</p>
                 </div>
               )}
 
@@ -183,7 +183,7 @@ const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
                   <p className="text-lg font-semibold text-green-600">
                     {stats.average_venue_rating.toFixed(1)}
                   </p>
-                  <p className="text-xs text-gray-600">Venue Experience</p>
+                  <p className="text-xs var(--neutral-600)">Venue Experience</p>
                 </div>
               )}
             </div>
@@ -234,7 +234,7 @@ const [reviews, setReviews] = useState<PublicReviewWithProfile[]>([]);
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No reviews yet
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="var(--neutral-600) mb-4">
                 Be the first to share your experience at {venue.name}!
               </p>
               {user && (

@@ -370,7 +370,7 @@ export function ArtistFollowingPage() {
                 >
                   {selectedArtist.artist_name}
                 </button>
-                <p className="text-gray-600">
+                <p className="var(--neutral-600)">
                   Following since {format(new Date(selectedArtist.created_at), 'MMM d, yyyy')}
                 </p>
               </div>
@@ -414,7 +414,7 @@ export function ArtistFollowingPage() {
                             <h4 className="font-medium text-lg">{event.title}</h4>
                           </div>
                           {((event as any).sourceName) && (
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-sm var(--neutral-600) mt-1">
                               via{' '}
                               <button
                                 onClick={(e) => {
@@ -428,7 +428,7 @@ export function ArtistFollowingPage() {
                             </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                        <div className="flex items-center gap-4 text-sm var(--neutral-600) mb-2">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
                             {format(new Date(event.event_date), 'MMM d, yyyy')}
@@ -491,7 +491,7 @@ export function ArtistFollowingPage() {
                 >
                   {selectedVenue.venue_name}
                 </button>
-                <p className="text-gray-600">
+                <p className="var(--neutral-600)">
                   {selectedVenue.venue_city}, {selectedVenue.venue_state}
                 </p>
                 <p className="text-sm text-gray-500">
@@ -535,10 +535,10 @@ export function ArtistFollowingPage() {
                         <div className="mb-2">
                           <h4 className="font-medium text-lg">{event.title}</h4>
                           {event.artist_name && (
-                            <p className="text-sm text-gray-600">{event.artist_name}</p>
+                            <p className="text-sm var(--neutral-600)">{event.artist_name}</p>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                        <div className="flex items-center gap-4 text-sm var(--neutral-600) mb-2">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
                             {format(new Date(event.event_date), 'MMM d, yyyy')}
@@ -677,7 +677,7 @@ export function ArtistFollowingPage() {
                         <h4 className="font-medium text-lg">{event.title}</h4>
                       </div>
                       {((event as any).sourceName) && (
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm var(--neutral-600) mt-1">
                           via{' '}
                           <button
                             onClick={(e) => {
@@ -691,7 +691,7 @@ export function ArtistFollowingPage() {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                    <div className="flex items-center gap-4 text-sm var(--neutral-600) mb-2">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
                         {format(new Date(event.event_date), 'MMM d, yyyy')}
@@ -728,7 +728,7 @@ export function ArtistFollowingPage() {
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin text-pink-500 mx-auto mb-4" />
-            <p className="text-gray-600">Loading followed artists...</p>
+            <p className="var(--neutral-600)">Loading followed artists...</p>
           </div>
         </div>
       </div>
@@ -811,7 +811,7 @@ export function ArtistFollowingPage() {
             <h2 className="font-semibold text-gray-900">
               {activeTab === 'artists' ? 'Followed Artists' : 'Followed Venues'}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm var(--neutral-600) mt-1">
               {activeTab === 'artists' 
                 ? `Click an artist to view their details • ${followedArtists.reduce((sum, a) => sum + a.upcomingEvents.length, 0)} upcoming events`
                 : `Click a venue to view their details • ${followedVenues.reduce((sum, v) => sum + v.upcomingEvents.length, 0)} upcoming events`

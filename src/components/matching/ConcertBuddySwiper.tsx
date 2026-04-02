@@ -123,7 +123,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
     if (score >= 80) return 'text-green-600 bg-green-100';
     if (score >= 60) return 'text-blue-600 bg-blue-100';
     if (score >= 40) return 'text-yellow-600 bg-yellow-100';
-    return 'text-gray-600 bg-gray-100';
+    return 'var(--neutral-600) bg-gray-100';
   };
 
   if (loading) {
@@ -142,14 +142,14 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
             {interestedCount === 0 ? (
               <>
                 <h3 className="text-lg font-semibold mb-2">No One Going Yet</h3>
-                <p className="text-gray-600 text-sm">
+                <p className="var(--neutral-600) text-sm">
                   Be the first to show interest in this event! Share it with friends to meet people going.
                 </p>
               </>
             ) : (
               <>
                 <h3 className="text-lg font-semibold mb-2">All Caught Up!</h3>
-                <p className="text-gray-600 text-sm">
+                <p className="var(--neutral-600) text-sm">
                   You've swiped through everyone going to this event. Check back later for new people!
                 </p>
               </>
@@ -165,7 +165,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
         <CardContent className="py-12 text-center">
           <Sparkles className="h-16 w-16 text-purple-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">All Done!</h3>
-          <p className="text-gray-600 text-sm mb-4">
+          <p className="var(--neutral-600) text-sm mb-4">
             You've reviewed all people going to this event
           </p>
           <Button onClick={loadPotentialMatches} variant="outline">
@@ -186,10 +186,10 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
   return (
     <div className="max-w-md mx-auto">
       {/* Progress Indicator */}
-      <div className="mb-4 flex items-center justify-between text-sm text-gray-600">
+      <div className="mb-4 flex items-center justify-between text-sm var(--neutral-600)">
         <span aria-hidden="true" />
         <div className="flex flex-col items-end">
-          <span className="font-semibold text-neutral-900">
+          <span className="font-semibold var(--neutral-900)">
             Meet People Going to {eventTitle}
           </span>
           <button
@@ -251,7 +251,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
 
               {/* Music Info */}
               {currentUser.music_streaming_profile && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm var(--neutral-600)">
                   <Music className="h-4 w-4" />
                   <span>Has Spotify connected</span>
                 </div>
@@ -336,7 +336,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
         </div>
 
         {/* Instructions */}
-        <div className="mt-6 text-center text-sm text-gray-600">
+        <div className="mt-6 text-center text-sm var(--neutral-600)">
           <p>Swipe right if you'd like to meet up at this event</p>
           <p className="text-xs mt-1">
             If they swipe right too, you'll match and can chat!

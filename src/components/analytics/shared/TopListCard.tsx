@@ -67,7 +67,7 @@ export function TopListCard({
                       index === 0 && 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white shadow-lg',
                       index === 1 && 'bg-gradient-to-br from-gray-300 to-gray-500 text-white shadow-md',
                       index === 2 && 'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md',
-                      index >= 3 && 'bg-gray-100 text-gray-600'
+                      index >= 3 && 'bg-gray-100 var(--neutral-600)'
                     )}
                   >
                     {index + 1}

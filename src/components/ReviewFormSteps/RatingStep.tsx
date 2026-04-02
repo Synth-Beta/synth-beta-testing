@@ -32,7 +32,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
     <div className="space-y-6">
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Rate Your Experience</h2>
-        <p className="text-sm text-gray-600">How would you rate this concert overall?</p>
+        <p className="text-sm var(--neutral-600)">How would you rate this concert overall?</p>
       </div>
 
       {/* Star Rating */}
@@ -138,7 +138,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
       {/* Rating Guidelines */}
       <div className="bg-gray-50 rounded-lg p-4">
         <h4 className="text-sm font-medium text-gray-900 mb-2">Rating Guidelines</h4>
-        <div className="space-y-1 text-xs text-gray-600">
+        <div className="space-y-1 text-xs var(--neutral-600)">
           <p><strong>5 stars (Amazing):</strong> One of the best concerts you've ever been to</p>
           <p><strong>4 stars (Good):</strong> Great concert, would definitely go again</p>
           <p><strong>3 stars (Average):</strong> Decent show, nothing special but not bad</p>

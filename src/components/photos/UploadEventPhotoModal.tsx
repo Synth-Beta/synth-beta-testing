@@ -145,7 +145,7 @@ const [isUploading, setIsUploading] = useState(false);
                 className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-purple-400 transition-colors"
               >
                 <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 font-medium mb-1">Click to upload photo</p>
+                <p className="var(--neutral-600) font-medium mb-1">Click to upload photo</p>
                 <p className="text-xs text-gray-500">JPG, PNG, or WebP (max 5MB)</p>
                 <input
                   ref={fileInputRef}

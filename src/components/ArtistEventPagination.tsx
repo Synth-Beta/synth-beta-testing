@@ -143,7 +143,7 @@ export function ArtistEventPagination({
               )}
             </div>
             
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm var(--neutral-600) mb-2">
               {event.artist_name} at {event.venue_name}
             </p>
             
@@ -279,7 +279,7 @@ export function ArtistEventPagination({
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                  <span className="ml-2 text-gray-600">Loading upcoming events...</span>
+                  <span className="ml-2 var(--neutral-600)">Loading upcoming events...</span>
                 </div>
               ) : error ? (
                 <div className="text-center py-12">
@@ -305,7 +305,7 @@ export function ArtistEventPagination({
                 <div className="text-center py-12">
                   <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <h3 className="font-semibold text-gray-900 mb-1">No Upcoming Events</h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm var(--neutral-600)">
                     No upcoming concerts found for {artist.name}
                   </p>
                 </div>
@@ -316,7 +316,7 @@ export function ArtistEventPagination({
               {isLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                  <span className="ml-2 text-gray-600">Loading past events...</span>
+                  <span className="ml-2 var(--neutral-600)">Loading past events...</span>
                 </div>
               ) : error ? (
                 <div className="text-center py-12">
@@ -342,7 +342,7 @@ export function ArtistEventPagination({
                 <div className="text-center py-12">
                   <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <h3 className="font-semibold text-gray-900 mb-1">No Past Events</h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm var(--neutral-600)">
                     No past concerts found for {artist.name}
                   </p>
                 </div>

@@ -14,7 +14,7 @@ export function CustomerSegmentation({ insights, className = '' }: CustomerSegme
         <div className="text-center py-12">
           <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Customer Data</h3>
-          <p className="text-gray-600">
+          <p className="var(--neutral-600)">
             Start hosting events to see your customer segmentation
           </p>
         </div>
@@ -152,11 +152,11 @@ export function CustomerSegmentation({ insights, className = '' }: CustomerSegme
                       <span className="font-medium text-gray-900">{insight.customer_segment}</span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-right text-gray-600">{insight.count}</td>
-                  <td className="py-3 px-4 text-right text-gray-600">{insight.percentage}%</td>
-                  <td className="py-3 px-4 text-right text-gray-600">{insight.avg_events_attended}</td>
-                  <td className="py-3 px-4 text-right text-gray-600">${insight.avg_spending}</td>
-                  <td className="py-3 px-4 text-right text-gray-600">{insight.loyalty_score}</td>
+                  <td className="py-3 px-4 text-right var(--neutral-600)">{insight.count}</td>
+                  <td className="py-3 px-4 text-right var(--neutral-600)">{insight.percentage}%</td>
+                  <td className="py-3 px-4 text-right var(--neutral-600)">{insight.avg_events_attended}</td>
+                  <td className="py-3 px-4 text-right var(--neutral-600)">${insight.avg_spending}</td>
+                  <td className="py-3 px-4 text-right var(--neutral-600)">{insight.loyalty_score}</td>
                 </tr>
               ))}
             </tbody>

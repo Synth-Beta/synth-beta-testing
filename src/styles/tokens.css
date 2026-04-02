@@ -152,38 +152,5 @@
      ============================================ */
   
   --radius-corner: 10px;
-  
-  /* ============================================
-     LEGACY COMPATIBILITY
-     (DEPRECATED - Will be removed after migration)
-     ============================================ */
-  
-  /* Map old token names to new ones for backward compatibility during migration */
-  --color-off-white: var(--neutral-50);
-  --color-off-black: var(--neutral-900);
-  --color-off-black-50: var(--overlay-50);
-  --color-grey-50: var(--state-disabled-bg);
-  --color-light-grey: var(--neutral-200);
-  --color-dark-grey: var(--neutral-600);
-  --color-synth-pink: var(--brand-pink-500);
-  --color-dark-pink: var(--brand-pink-600);
-  --color-medium-pink: var(--brand-pink-700);
-  --color-light-pink: var(--brand-pink-050);
-  --color-purple: #8D1FF4; /* Used in gradient only */
-  --color-dark-blue: var(--info-blue-500);
-  --color-light-blue: var(--info-blue-050);
-  --color-success-green: var(--status-success-500);
-  --color-light-green: var(--status-success-050);
-  --color-red: var(--status-error-500);
-  --color-yellow: var(--rating-star);
-  --synth-pink: var(--brand-pink-500);
-  --off-white: var(--neutral-50);
-  --light-pink: var(--brand-pink-050);
-  --grey50: var(--state-disabled-bg);
-  --margin-horizontal: var(--spacing-screen-margin-x);
-  --corner-radius: var(--radius-corner);
-  
-  /* Legacy gradient mappings */
-  --gradient-pink-purple: var(--gradient-brand);
 }
 

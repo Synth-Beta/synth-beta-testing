@@ -295,7 +295,7 @@ export default function AdminAnalyticsDashboard() {
                 <Shield className="w-8 h-8 text-red-600" />
                 <h1 className="gradient-text text-3xl font-bold">Admin Analytics</h1>
               </div>
-              <p className="text-gray-600">
+              <p className="var(--neutral-600)">
                 Platform-wide analytics, system health, and business intelligence
               </p>
             </div>
@@ -405,7 +405,7 @@ export default function AdminAnalyticsDashboard() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">North Star Metric</h3>
-                  <p className="text-sm text-gray-600">Engaged Concert Intent per User (ECI/U)</p>
+                  <p className="text-sm var(--neutral-600)">Engaged Concert Intent per User (ECI/U)</p>
                 </div>
               </div>
               
@@ -414,7 +414,7 @@ export default function AdminAnalyticsDashboard() {
                   <div className="text-3xl font-bold text-pink-600 mb-1">
                     {northStarMetric?.eci_per_user || 0}
                   </div>
-                  <div className="text-sm text-gray-600">Average ECI per User</div>
+                  <div className="text-sm var(--neutral-600)">Average ECI per User</div>
                   <div className="text-xs text-gray-500">This month</div>
                 </div>
                 
@@ -422,7 +422,7 @@ export default function AdminAnalyticsDashboard() {
                   <div className="text-3xl font-bold text-blue-600 mb-1">
                     {northStarMetric?.total_engaged_users || 0}
                   </div>
-                  <div className="text-sm text-gray-600">Engaged Users</div>
+                  <div className="text-sm var(--neutral-600)">Engaged Users</div>
                   <div className="text-xs text-gray-500">Active this month</div>
                 </div>
                 
@@ -430,7 +430,7 @@ export default function AdminAnalyticsDashboard() {
                   <div className="text-3xl font-bold text-green-600 mb-1">
                     {northStarMetric?.total_concert_intents || 0}
                   </div>
-                  <div className="text-sm text-gray-600">Total Concert Intents</div>
+                  <div className="text-sm var(--neutral-600)">Total Concert Intents</div>
                   <div className="text-xs text-gray-500">Saves + RSVPs + Shares</div>
                 </div>
               </div>
@@ -441,15 +441,15 @@ export default function AdminAnalyticsDashboard() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center p-3 bg-white rounded-lg">
                     <div className="text-lg font-semibold text-pink-600">{northStarMetric?.breakdown.saves || 0}</div>
-                    <div className="text-xs text-gray-600">Saves</div>
+                    <div className="text-xs var(--neutral-600)">Saves</div>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg">
                     <div className="text-lg font-semibold text-blue-600">{northStarMetric?.breakdown.rsvps || 0}</div>
-                    <div className="text-xs text-gray-600">RSVPs</div>
+                    <div className="text-xs var(--neutral-600)">RSVPs</div>
                   </div>
                   <div className="text-center p-3 bg-white rounded-lg">
                     <div className="text-lg font-semibold text-purple-600">{northStarMetric?.breakdown.shares || 0}</div>
-                    <div className="text-xs text-gray-600">Shares</div>
+                    <div className="text-xs var(--neutral-600)">Shares</div>
                   </div>
                 </div>
               </div>
@@ -536,17 +536,17 @@ export default function AdminAnalyticsDashboard() {
                         {featureUsage.slice(0, 15).map((feature, index) => (
                           <tr key={feature.feature_name} className="border-b border-gray-100">
                             <td className="py-3 px-4 font-medium text-gray-900">{feature.feature_name}</td>
-                            <td className="py-3 px-4 text-gray-600">
+                            <td className="py-3 px-4 var(--neutral-600)">
                               <span className="inline-flex items-center px-2 py-1 rounded text-xs bg-purple-100 text-purple-700">
                                 {feature.feature_category}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-right text-gray-600">{feature.total_uses.toLocaleString()}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{feature.unique_users.toLocaleString()}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{feature.uses_last_7d.toLocaleString()}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{feature.uses_last_30d.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right var(--neutral-600)">{feature.total_uses.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right var(--neutral-600)">{feature.unique_users.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right var(--neutral-600)">{feature.uses_last_7d.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right var(--neutral-600)">{feature.uses_last_30d.toLocaleString()}</td>
                             <td className="py-3 px-4 text-right">
-                              <span className={`font-semibold ${feature.growth_rate > 0 ? 'text-green-600' : feature.growth_rate < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                              <span className={`font-semibold ${feature.growth_rate > 0 ? 'text-green-600' : feature.growth_rate < 0 ? 'text-red-600' : 'var(--neutral-600)'}`}>
                                 {feature.growth_rate > 0 ? '+' : ''}{feature.growth_rate.toFixed(1)}%
                               </span>
                             </td>
@@ -590,10 +590,10 @@ export default function AdminAnalyticsDashboard() {
                         {featureAdoptionFunnel.map((funnel) => (
                           <tr key={funnel.feature_name} className="border-b border-gray-100">
                             <td className="py-3 px-4 font-medium text-gray-900">{funnel.feature_name}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{funnel.discovery_count.toLocaleString()}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{funnel.trial_count.toLocaleString()}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{funnel.adoption_count.toLocaleString()}</td>
-                            <td className="py-3 px-4 text-right text-gray-600">{funnel.retention_count.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right var(--neutral-600)">{funnel.discovery_count.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right var(--neutral-600)">{funnel.trial_count.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right var(--neutral-600)">{funnel.adoption_count.toLocaleString()}</td>
+                            <td className="py-3 px-4 text-right var(--neutral-600)">{funnel.retention_count.toLocaleString()}</td>
                             <td className="py-3 px-4 text-right">
                               <span className="font-semibold text-blue-600">{funnel.discovery_to_trial_rate.toFixed(1)}%</span>
                             </td>
@@ -657,7 +657,7 @@ export default function AdminAnalyticsDashboard() {
                               <span className="font-medium text-gray-900">{query.query}</span>
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="text-sm text-gray-600">{query.count} searches</span>
+                              <span className="text-sm var(--neutral-600)">{query.count} searches</span>
                               <span className="text-sm font-semibold text-green-600">{query.click_rate.toFixed(1)}% click rate</span>
                             </div>
                           </div>
@@ -1065,7 +1065,7 @@ export default function AdminAnalyticsDashboard() {
                               {new Date(response.created_at).toLocaleDateString()}
                             </p>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm var(--neutral-600) mt-1">
                             {response.other_acquisition_source}
                           </p>
                         </div>
@@ -1137,7 +1137,7 @@ export default function AdminAnalyticsDashboard() {
                         {otherModalResponses.map((response) => (
                           <div
                             key={response.id}
-                            className="grid grid-cols-[180px,1fr] gap-4 px-4 py-3 text-sm text-gray-600"
+                            className="grid grid-cols-[180px,1fr] gap-4 px-4 py-3 text-sm var(--neutral-600)"
                           >
                             <span className="font-semibold text-gray-900">
                               {new Date(response.created_at).toLocaleString()}
@@ -1241,10 +1241,10 @@ export default function AdminAnalyticsDashboard() {
                       {userSegments.map((segment) => (
                         <tr key={segment.segment} className="border-b border-gray-100">
                           <td className="py-3 px-4 font-medium text-gray-900">{segment.segment}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{segment.count}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{segment.percentage}%</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{segment.avg_sessions}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{segment.retention_rate}%</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{segment.count}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{segment.percentage}%</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{segment.avg_sessions}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{segment.retention_rate}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1404,7 +1404,7 @@ export default function AdminAnalyticsDashboard() {
                 <Trophy className="w-8 h-8 text-yellow-500" />
                 <h2 className="gradient-text text-2xl font-bold">Platform Achievements</h2>
               </div>
-              <p className="text-gray-600 text-sm">
+              <p className="var(--neutral-600) text-sm">
                 Track your platform milestones and growth metrics
               </p>
             </div>
@@ -1505,7 +1505,7 @@ export default function AdminAnalyticsDashboard() {
                   <div className="text-3xl font-bold text-green-600 mb-1">
                     {activeUserMetrics?.verification_stats.total_verified || 0}
                   </div>
-                  <div className="text-sm text-gray-600">Verified Users</div>
+                  <div className="text-sm var(--neutral-600)">Verified Users</div>
                   <div className="text-xs text-gray-500">
                     {activeUserMetrics?.total_active_users > 0 
                       ? `${Math.round((activeUserMetrics.verification_stats.total_verified / activeUserMetrics.total_active_users) * 100)}% of active users`
@@ -1516,21 +1516,21 @@ export default function AdminAnalyticsDashboard() {
                   <div className="text-3xl font-bold text-blue-600 mb-1">
                     {activeUserMetrics?.verification_stats.avg_trust_score || 0}%
                   </div>
-                  <div className="text-sm text-gray-600">Avg Trust Score</div>
+                  <div className="text-sm var(--neutral-600)">Avg Trust Score</div>
                   <div className="text-xs text-gray-500">Across active users</div>
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-purple-600 mb-1">
                     {activeUserMetrics?.verification_stats.avg_verification_progress || 0}/8
                   </div>
-                  <div className="text-sm text-gray-600">Avg Progress</div>
+                  <div className="text-sm var(--neutral-600)">Avg Progress</div>
                   <div className="text-xs text-gray-500">Criteria met</div>
                 </div>
                 <div className="text-center">
                   <div className="text-3xl font-bold text-orange-600 mb-1">
                     {activeUserMetrics?.verification_stats.users_near_verification || 0}
                   </div>
-                  <div className="text-sm text-gray-600">Near Verification</div>
+                  <div className="text-sm var(--neutral-600)">Near Verification</div>
                   <div className="text-xs text-gray-500">40%+ trust score</div>
                 </div>
               </div>

@@ -280,7 +280,7 @@ export function EventMessageCard({
         {/* Price */}
         {event.price_range && (
           <div className="text-sm">
-            <span className="text-gray-600">Price: </span>
+            <span className="var(--neutral-600)">Price: </span>
             <span className="font-semibold text-gray-900">{event.price_range}</span>
           </div>
         )}

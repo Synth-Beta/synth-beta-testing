@@ -96,7 +96,7 @@ export function NewsCard({ article, className = '' }: NewsCardProps) {
 
         {/* Description */}
         {article.description && (
-          <p className="text-gray-600 text-sm mb-3 line-clamp-3 leading-relaxed">
+          <p className="var(--neutral-600) text-sm mb-3 line-clamp-3 leading-relaxed">
             {truncateText(article.description)}
           </p>
         )}

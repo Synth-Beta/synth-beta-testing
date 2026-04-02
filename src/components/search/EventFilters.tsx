@@ -664,7 +664,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                     <label className="text-sm font-medium text-gray-700">
                       Search Radius
                     </label>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm var(--neutral-600)">
                       {filters.radiusMiles} miles
                     </span>
                   </div>
@@ -702,7 +702,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                 {isLoadingCities ? (
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    <span className="text-sm text-gray-600">Loading cities...</span>
+                    <span className="text-sm var(--neutral-600)">Loading cities...</span>
                   </div>
                 ) : (
                   filteredCities.map((cityData, index) => {

@@ -325,7 +325,7 @@ export const NotificationsPage = ({
       case 'event_reminder':
         return 'text-purple-600';
       default:
-        return 'text-gray-600';
+        return 'var(--neutral-600)';
     }
   };
 

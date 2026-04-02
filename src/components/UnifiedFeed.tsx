@@ -2084,7 +2084,7 @@ export const UnifiedFeed = ({
                     </div>
                   </div>
                   {item.event_data && (
-                    <div className="space-y-2 text-sm text-gray-600">
+                    <div className="space-y-2 text-sm var(--neutral-600)">
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-synth-pink" />
                         {item.event_data.venue_name && (
@@ -2416,7 +2416,7 @@ export const UnifiedFeed = ({
                 <h1 className="text-3xl font-bold text-gray-900">{normalizedHeaderTitle}</h1>
               )}
               {shouldShowHeaderSubtitle && (
-                <p className="text-gray-600 mt-2">{normalizedHeaderSubtitle}</p>
+                <p className="var(--neutral-600) mt-2">{normalizedHeaderSubtitle}</p>
             )}
           </div>
         </div>
@@ -2604,7 +2604,7 @@ export const UnifiedFeed = ({
                         </div>
                       </div>
                       {item.event_data && (
-                        <div className="space-y-2 text-sm text-gray-600">
+                        <div className="space-y-2 text-sm var(--neutral-600)">
                         <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4 text-synth-pink" />
                             <span>{item.event_data.venue_name}</span>
@@ -3452,7 +3452,7 @@ export const UnifiedFeed = ({
                       <h2 className="text-lg font-semibold mb-1">
                         {selectedReviewDetail.event_info?.event_name || 'Concert Review'}
                       </h2>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm var(--neutral-600)">
                         {selectedReviewDetail.event_info?.artist_name} • {selectedReviewDetail.event_info?.event_date ? new Date(selectedReviewDetail.event_info.event_date).toLocaleDateString() : 'Date unknown'}
                       </p>
                       {selectedReviewDetail.event_info?.venue_name && (

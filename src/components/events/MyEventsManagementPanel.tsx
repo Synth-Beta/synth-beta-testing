@@ -93,7 +93,7 @@ const [createdEvents, setCreatedEvents] = useState<any[]>([]);
               <p className="text-purple-600 font-medium mb-1">{event.artist_name}</p>
             )}
             {event.venue_name && (
-              <div className="flex items-center gap-1 text-gray-600 text-sm">
+              <div className="flex items-center gap-1 var(--neutral-600) text-sm">
                 <MapPin className="h-4 w-4" />
                 <span>{event.venue_name}</span>
               </div>
@@ -123,7 +123,7 @@ const [createdEvents, setCreatedEvents] = useState<any[]>([]);
       <CardContent className="pt-0">
         <div className="space-y-2">
           {event.event_date && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm var(--neutral-600)">
               <Calendar className="h-4 w-4" />
               <span>{formatDate(event.event_date)}</span>
               <Clock className="h-4 w-4 ml-2" />
@@ -132,7 +132,7 @@ const [createdEvents, setCreatedEvents] = useState<any[]>([]);
           )}
           
           {(event.venue_capacity || event.estimated_attendance) && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm var(--neutral-600)">
               <Users className="h-4 w-4" />
               {event.venue_capacity && <span>Capacity: {event.venue_capacity.toLocaleString()}</span>}
               {event.venue_capacity && event.estimated_attendance && <span>•</span>}
@@ -156,7 +156,7 @@ const [createdEvents, setCreatedEvents] = useState<any[]>([]);
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-12">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">My Events</h1>
-            <p className="text-gray-600 mb-8">
+            <p className="var(--neutral-600) mb-8">
               Only business, creator, and admin accounts can create events.
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
@@ -181,7 +181,7 @@ const [createdEvents, setCreatedEvents] = useState<any[]>([]);
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">My Events</h1>
-              <p className="text-gray-600">Manage your created events</p>
+              <p className="var(--neutral-600)">Manage your created events</p>
             </div>
             <div className="flex gap-2">
               <Button
@@ -210,7 +210,7 @@ const [createdEvents, setCreatedEvents] = useState<any[]>([]);
               <Card>
                 <CardContent className="py-12 text-center">
                   <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-4">You haven't created any events yet</p>
+                  <p className="var(--neutral-600) mb-4">You haven't created any events yet</p>
                   <Button onClick={() => setShowCreateModal(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Your First Event

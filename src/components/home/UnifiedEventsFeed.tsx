@@ -773,7 +773,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     return (
       <div className="swift-ui-feed-container flex items-center justify-center">
         <div className="text-center py-12 px-4">
-          <p className="text-lg font-semibold text-neutral-900 mb-2">No events found</p>
+          <p className="text-lg font-semibold var(--neutral-900) mb-2">No events found</p>
           <p className="text-sm text-neutral-600">Try adjusting your filters or check back later</p>
         </div>
       </div>

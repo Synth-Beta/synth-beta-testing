@@ -125,7 +125,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
             <p className="text-2xl font-bold mt-1">
               ${tierInfo.price}
             </p>
-            <p className="text-xs text-gray-600">{tierInfo.duration_days} days</p>
+            <p className="text-xs var(--neutral-600)">{tierInfo.duration_days} days</p>
           </div>
           {isSelected && (
             <div className={`w-6 h-6 rounded-full flex items-center justify-center ${bgColors[tier]}`}>
@@ -165,7 +165,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
           <p className="text-sm text-gray-700">
             {event.artist_name} at {event.venue_name}
           </p>
-          <p className="text-xs text-gray-600 mt-1">{formatDate(event.event_date)}</p>
+          <p className="text-xs var(--neutral-600) mt-1">{formatDate(event.event_date)}</p>
         </div>
 
         {/* Promotion Tiers */}

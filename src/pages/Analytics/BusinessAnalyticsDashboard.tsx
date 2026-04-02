@@ -322,7 +322,7 @@ export default function BusinessAnalyticsDashboard() {
                 <Building2 className="w-8 h-8 text-blue-600" />
                 <h1 className="gradient-text text-3xl font-bold">Business Analytics</h1>
               </div>
-              <p className="text-gray-600">
+              <p className="var(--neutral-600)">
                 Track your venue performance, revenue, and customer insights
               </p>
             </div>
@@ -583,10 +583,10 @@ export default function BusinessAnalyticsDashboard() {
                           <td className="py-3 px-4 font-medium text-gray-900">
                             {new Date(insight.date).toLocaleDateString()}
                           </td>
-                          <td className="py-3 px-4 text-right text-gray-600">${insight.revenue}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.ticket_clicks}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.conversion_rate}%</td>
-                          <td className="py-3 px-4 text-right text-gray-600">${insight.avg_ticket_price}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">${insight.revenue}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.ticket_clicks}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.conversion_rate}%</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">${insight.avg_ticket_price}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -649,11 +649,11 @@ export default function BusinessAnalyticsDashboard() {
                       {customerInsights.map((insight) => (
                         <tr key={insight.customer_segment} className="border-b border-gray-100">
                           <td className="py-3 px-4 font-medium text-gray-900">{insight.customer_segment}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.count}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.percentage}%</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.avg_events_attended}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">${insight.avg_spending}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.loyalty_score}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.count}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.percentage}%</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.avg_events_attended}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">${insight.avg_spending}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.loyalty_score}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -672,7 +672,7 @@ export default function BusinessAnalyticsDashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">VIP Customers</h3>
-                  <p className="text-sm text-gray-600">Your most engaged and valuable customers</p>
+                  <p className="text-sm var(--neutral-600)">Your most engaged and valuable customers</p>
                 </div>
                 <button
                   onClick={loadVIPData}
@@ -687,7 +687,7 @@ export default function BusinessAnalyticsDashboard() {
               {vipLoading ? (
                 <div className="text-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
-                  <p className="text-gray-600">Loading VIP customers...</p>
+                  <p className="var(--neutral-600)">Loading VIP customers...</p>
                 </div>
               ) : vipCustomers.length === 0 ? (
                 <div className="text-center py-12">
@@ -812,14 +812,14 @@ export default function BusinessAnalyticsDashboard() {
                       {eventPerformance.map((event) => (
                         <tr key={event.event_id} className="border-b border-gray-100">
                           <td className="py-3 px-4 font-medium text-gray-900">{event.title}</td>
-                          <td className="py-3 px-4 text-gray-600">{event.artist_name}</td>
-                          <td className="py-3 px-4 text-gray-600">
+                          <td className="py-3 px-4 var(--neutral-600)">{event.artist_name}</td>
+                          <td className="py-3 px-4 var(--neutral-600)">
                             {new Date(event.event_date).toLocaleDateString()}
                           </td>
-                          <td className="py-3 px-4 text-right text-gray-600">{event.total_views}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{event.total_interested}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">${event.revenue_generated}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{event.avg_rating}/5</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{event.total_views}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{event.total_interested}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">${event.revenue_generated}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{event.avg_rating}/5</td>
                         </tr>
                       ))}
                     </tbody>
@@ -853,11 +853,11 @@ export default function BusinessAnalyticsDashboard() {
                       {artistPerformance.map((artist) => (
                         <tr key={artist.artist_name} className="border-b border-gray-100">
                           <td className="py-3 px-4 font-medium text-gray-900">{artist.artist_name}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{artist.events_count}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{artist.total_views}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">${artist.total_revenue}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{artist.avg_rating}/5</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{artist.repeat_rate}%</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{artist.events_count}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{artist.total_views}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">${artist.total_revenue}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{artist.avg_rating}/5</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{artist.repeat_rate}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -881,7 +881,7 @@ export default function BusinessAnalyticsDashboard() {
                 <Trophy className="w-8 h-8 text-yellow-500" />
                 <h2 className="gradient-text text-2xl font-bold">Business Achievements</h2>
               </div>
-              <p className="text-gray-600 text-sm">
+              <p className="var(--neutral-600) text-sm">
                 Track your business milestones and growth metrics
               </p>
             </div>
@@ -947,7 +947,7 @@ export default function BusinessAnalyticsDashboard() {
                     </div>
                   )}
                 </div>
-                <p className="text-gray-600">Track your venue's event promotion performance and ROI</p>
+                <p className="var(--neutral-600)">Track your venue's event promotion performance and ROI</p>
                 {promotionLastUpdate && (
                   <p className="text-xs text-gray-500 mt-1">
                     Last updated: {promotionLastUpdate.toLocaleTimeString()}
@@ -981,7 +981,7 @@ export default function BusinessAnalyticsDashboard() {
             {promotionLoading ? (
               <div className="text-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
-                <p className="text-gray-600">Loading promotion data...</p>
+                <p className="var(--neutral-600)">Loading promotion data...</p>
               </div>
             ) : promotionMetrics.length === 0 ? (
               <div className="text-center py-12">
@@ -1012,19 +1012,19 @@ export default function BusinessAnalyticsDashboard() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm text-gray-600">Impressions</p>
+                          <p className="text-sm var(--neutral-600)">Impressions</p>
                           <p className="text-xl font-bold">{promotion.impressions.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Clicks</p>
+                          <p className="text-sm var(--neutral-600)">Clicks</p>
                           <p className="text-xl font-bold">{promotion.clicks.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Conversions</p>
+                          <p className="text-sm var(--neutral-600)">Conversions</p>
                           <p className="text-xl font-bold text-green-600">{promotion.conversions.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">CTR</p>
+                          <p className="text-sm var(--neutral-600)">CTR</p>
                           <p className="text-xl font-bold">{((promotion.clicks / promotion.impressions) * 100).toFixed(1)}%</p>
                         </div>
                       </div>

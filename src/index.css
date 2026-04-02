@@ -78,7 +78,7 @@ body,
 
   /* Shimmer effect for skeleton cards */
   .animate-shimmer {
-    background: linear-gradient(90deg, #fdf2f7 0%, #fce7f3 40%, #fdf2f7 100%);
+    background: linear-gradient(90deg, var(--brand-pink-050) 0%, #fce7f3 40%, var(--brand-pink-050) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
@@ -412,7 +412,7 @@ body,
 
   .tab-button {
     @apply px-6 py-3 text-sm font-medium transition-all duration-200;
-    @apply text-gray-600 hover:text-pink-500 relative z-10;
+    @apply var(--neutral-600) hover:text-pink-500 relative z-10;
     cursor: pointer;
   }
 
@@ -476,7 +476,7 @@ body,
   }
 
   .nav-button:not(.active) {
-    @apply text-gray-600 hover:text-pink-500 hover:scale-110;
+    @apply var(--neutral-600) hover:text-pink-500 hover:scale-110;
   }
 
   /* Enhanced header styles */

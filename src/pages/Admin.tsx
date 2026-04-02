@@ -195,7 +195,7 @@ export default function Admin() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin text-pink-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+          <p className="var(--neutral-600)">Loading...</p>
         </div>
       </div>
     );
@@ -213,7 +213,7 @@ export default function Admin() {
         <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
           <Shield className="w-16 h-16 text-red-600 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600 mb-6">
+          <p className="var(--neutral-600) mb-6">
             You need administrator privileges to access this page.
           </p>
           <button
@@ -238,7 +238,7 @@ export default function Admin() {
                 <Shield className="w-8 h-8 text-pink-600" />
                 <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               </div>
-              <p className="text-gray-600">
+              <p className="var(--neutral-600)">
                 Manage users and monitor platform activity
               </p>
             </div>
@@ -267,14 +267,14 @@ export default function Admin() {
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <Users className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-gray-600">Total Users</span>
+              <span className="text-sm font-medium var(--neutral-600)">Total Users</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{totalUsers.toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <Shield className="w-5 h-5 text-green-600" />
-              <span className="text-sm font-medium text-gray-600">Verified Users</span>
+              <span className="text-sm font-medium var(--neutral-600)">Verified Users</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">
               {users.filter(u => u.verified).length}
@@ -283,7 +283,7 @@ export default function Admin() {
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <Users className="w-5 h-5 text-purple-600" />
-              <span className="text-sm font-medium text-gray-600">Active Users</span>
+              <span className="text-sm font-medium var(--neutral-600)">Active Users</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">
               {users.filter(u => {
@@ -297,7 +297,7 @@ export default function Admin() {
           <div className="bg-white rounded-xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <Shield className="w-5 h-5 text-red-600" />
-              <span className="text-sm font-medium text-gray-600">Moderation Issues</span>
+              <span className="text-sm font-medium var(--neutral-600)">Moderation Issues</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">
               {users.filter(u => u.moderation_status !== 'good_standing').length}
@@ -360,12 +360,12 @@ export default function Admin() {
           {loading ? (
             <div className="p-12 text-center">
               <RefreshCw className="w-8 h-8 animate-spin text-pink-600 mx-auto mb-4" />
-              <p className="text-gray-600">Loading users...</p>
+              <p className="var(--neutral-600)">Loading users...</p>
             </div>
           ) : users.length === 0 ? (
             <div className="p-12 text-center">
               <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">No users found</p>
+              <p className="var(--neutral-600)">No users found</p>
             </div>
           ) : (
             <>

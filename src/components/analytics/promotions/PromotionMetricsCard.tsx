@@ -67,7 +67,7 @@ export function PromotionMetricsCard({ promotion, className = '' }: PromotionMet
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm var(--neutral-600)">
               <Eye className="h-4 w-4" />
               <span>Impressions</span>
             </div>
@@ -75,7 +75,7 @@ export function PromotionMetricsCard({ promotion, className = '' }: PromotionMet
           </div>
           
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm var(--neutral-600)">
               <MousePointer className="h-4 w-4" />
               <span>Clicks</span>
             </div>
@@ -83,7 +83,7 @@ export function PromotionMetricsCard({ promotion, className = '' }: PromotionMet
           </div>
           
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm var(--neutral-600)">
               <Target className="h-4 w-4" />
               <span>Conversions</span>
             </div>
@@ -91,7 +91,7 @@ export function PromotionMetricsCard({ promotion, className = '' }: PromotionMet
           </div>
           
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm var(--neutral-600)">
               <DollarSign className="h-4 w-4" />
               <span>Revenue</span>
             </div>
@@ -104,22 +104,22 @@ export function PromotionMetricsCard({ promotion, className = '' }: PromotionMet
         {/* Performance Metrics */}
         <div className="grid grid-cols-2 gap-4 pt-4 border-t">
           <div className="space-y-1">
-            <p className="text-sm text-gray-600">Click-through Rate</p>
+            <p className="text-sm var(--neutral-600)">Click-through Rate</p>
             <p className="text-lg font-semibold">{formatPercentage(promotion.ctr)}</p>
           </div>
           
           <div className="space-y-1">
-            <p className="text-sm text-gray-600">Conversion Rate</p>
+            <p className="text-sm var(--neutral-600)">Conversion Rate</p>
             <p className="text-lg font-semibold">{formatPercentage(promotion.conversion_rate)}</p>
           </div>
           
           <div className="space-y-1">
-            <p className="text-sm text-gray-600">Cost per Click</p>
+            <p className="text-sm var(--neutral-600)">Cost per Click</p>
             <p className="text-lg font-semibold">{formatCurrency(promotion.cost_per_click)}</p>
           </div>
           
           <div className="space-y-1">
-            <p className="text-sm text-gray-600">Cost per Conversion</p>
+            <p className="text-sm var(--neutral-600)">Cost per Conversion</p>
             <p className="text-lg font-semibold">{formatCurrency(promotion.cost_per_conversion)}</p>
           </div>
         </div>
@@ -133,7 +133,7 @@ export function PromotionMetricsCard({ promotion, className = '' }: PromotionMet
               ) : (
                 <TrendingDown className="h-5 w-5 text-red-600" />
               )}
-              <span className="text-sm text-gray-600">Return on Investment</span>
+              <span className="text-sm var(--neutral-600)">Return on Investment</span>
             </div>
             <p className={`text-xl font-bold ${promotion.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {promotion.roi >= 0 ? '+' : ''}{formatPercentage(promotion.roi)}

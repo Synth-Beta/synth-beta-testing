@@ -245,12 +245,12 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
                 </div>
                 
                 <div className="space-y-2 mb-3">
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <div className="flex items-center gap-2 text-xs var(--neutral-600)">
                     <MapPin className="w-3 h-3 flex-shrink-0" />
                     <span className="truncate">{event.venue_name}</span>
                   </div>
                   
-                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                  <div className="flex items-center gap-2 text-xs var(--neutral-600)">
                     <Calendar className="w-3 h-3 flex-shrink-0" />
                     <span>
                       {(() => {

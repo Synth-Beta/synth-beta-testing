@@ -99,7 +99,7 @@ export function RevenueAttributionChart({
           </CardTitle>
           <div className="text-right">
             <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</p>
-            <p className="text-sm text-gray-600">Total Revenue</p>
+            <p className="text-sm var(--neutral-600)">Total Revenue</p>
           </div>
         </div>
       </CardHeader>
@@ -116,7 +116,7 @@ export function RevenueAttributionChart({
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900 capitalize">{source.source}</h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm var(--neutral-600)">
                       {source.attribution_window}h attribution window
                     </p>
                   </div>
@@ -126,7 +126,7 @@ export function RevenueAttributionChart({
                   <p className="text-lg font-bold text-gray-900">
                     {formatCurrency(source.revenue)}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm var(--neutral-600)">
                     {source.percentage.toFixed(1)}% of total
                   </p>
                 </div>
@@ -155,7 +155,7 @@ export function RevenueAttributionChart({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600">
+                  <span className="text-xs var(--neutral-600)">
                     Confidence: {(source.confidence_score * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -219,7 +219,7 @@ export function RevenueAttributionChart({
                   <span className="text-gray-700">
                     {source.source} drives {source.percentage.toFixed(1)}% of revenue
                   </span>
-                  <span className="text-gray-600">
+                  <span className="var(--neutral-600)">
                     {source.attribution_window}h window
                   </span>
                 </div>

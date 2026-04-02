@@ -30,7 +30,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, onThumbn
       <header className="text-center space-y-2">
         <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Almost there</p>
         <h2 className="text-2xl font-semibold text-gray-900">Share the story</h2>
-        <p className="text-sm text-gray-600 max-w-xl mx-auto">
+        <p className="text-sm var(--neutral-600) max-w-xl mx-auto">
           Bring the show to life with a short recap and any photos you snapped.
         </p>
       </header>

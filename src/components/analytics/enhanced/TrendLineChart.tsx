@@ -165,7 +165,7 @@ export function TrendLineChart({
           </svg>
 
           {/* Y-Axis Labels */}
-          <div className="absolute left-0 top-4 bottom-4 flex flex-col justify-between text-xs text-gray-600">
+          <div className="absolute left-0 top-4 bottom-4 flex flex-col justify-between text-xs var(--neutral-600)">
             <span>{formatValue(maxValue)}</span>
             <span>{formatValue((maxValue + minValue) / 2)}</span>
             <span>{formatValue(minValue)}</span>
@@ -202,7 +202,7 @@ export function TrendLineChart({
           <div className="space-y-1">
             {data.slice(-5).map((point, index) => (
               <div key={index} className="flex items-center justify-between text-xs">
-                <span className="text-gray-600">{formatDate(point.date)}</span>
+                <span className="var(--neutral-600)">{formatDate(point.date)}</span>
                 <span className="font-medium text-gray-900">{formatValue(point.value)}</span>
                 {point.label && (
                   <span className="text-gray-500">{point.label}</span>

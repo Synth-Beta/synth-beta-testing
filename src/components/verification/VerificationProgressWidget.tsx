@@ -67,7 +67,7 @@ export function VerificationProgressWidget({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className={`w-4 h-4 ${
-                isCloseToVerification ? 'text-blue-600' : 'text-gray-600'
+                isCloseToVerification ? 'text-blue-600' : 'var(--neutral-600)'
               }`} />
               <h4 className={`font-semibold text-sm ${
                 isCloseToVerification ? 'text-blue-900' : 'text-gray-900'
@@ -86,7 +86,7 @@ export function VerificationProgressWidget({
               value={(breakdown.criteriaMet / 4) * 100} 
               className="h-2"
             />
-            <p className="text-xs text-gray-600">
+            <p className="text-xs var(--neutral-600)">
               {criteriaNeeded > 0 ? (
                 <>
                   <span className="font-medium">{criteriaNeeded} more criteria</span> needed for verification

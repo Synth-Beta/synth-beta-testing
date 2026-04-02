@@ -109,7 +109,7 @@ export const FollowArtistsModal = ({
                 type="button"
                 aria-label="Close"
                 onClick={() => onOpenChange(false)}
-                className="flex items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-neutral-900 shadow-sm"
+                className="flex items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 var(--neutral-900) shadow-sm"
                 style={{
                   width: '44px',
                   height: '44px',

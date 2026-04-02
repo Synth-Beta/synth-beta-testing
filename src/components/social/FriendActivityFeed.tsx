@@ -146,7 +146,7 @@ export function FriendActivityFeed({ limit = 10 }: { limit?: number }) {
       <Card>
         <CardContent className="py-8 text-center">
           <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-600 text-sm">No friend activity yet</p>
+          <p className="var(--neutral-600) text-sm">No friend activity yet</p>
           <p className="text-xs text-gray-500 mt-1">
             When your friends mark events as interested, they'll appear here
           </p>
@@ -190,11 +190,11 @@ export function FriendActivityFeed({ limit = 10 }: { limit?: number }) {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{activity.event_title}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
+                    <div className="flex items-center gap-2 text-xs var(--neutral-600) mt-1">
                       <Calendar className="h-3 w-3" />
                       <span>{formatEventDate(activity.event_date)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                    <div className="flex items-center gap-2 text-xs var(--neutral-600)">
                       <MapPin className="h-3 w-3" />
                       <span className="truncate">{activity.event_venue_name}</span>
                     </div>

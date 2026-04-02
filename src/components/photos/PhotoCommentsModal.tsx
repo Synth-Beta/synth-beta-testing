@@ -112,7 +112,7 @@ const [comments, setComments] = useState<PhotoComment[]>([]);
             ) : comments.length === 0 ? (
               <div className="text-center py-8">
                 <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600 text-sm">No comments yet</p>
+                <p className="var(--neutral-600) text-sm">No comments yet</p>
                 <p className="text-xs text-gray-500 mt-1">Be the first to comment!</p>
               </div>
             ) : (

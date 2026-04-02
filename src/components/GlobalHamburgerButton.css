@@ -15,7 +15,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-off-white, var(--neutral-50));
+  background: var(--neutral-50, var(--neutral-50));
   border: none;
   border-radius: var(--radius-corner, 10px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -57,7 +57,7 @@
 }
 
 .global-hamburger-button:focus-visible {
-  outline: 2px solid var(--color-synth-pink, var(--brand-pink-500));
+  outline: 2px solid var(--brand-pink-500, var(--brand-pink-500));
   outline-offset: 2px;
   border-radius: var(--radius-corner, 10px);
 }

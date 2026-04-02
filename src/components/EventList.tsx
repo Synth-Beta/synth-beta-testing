@@ -44,7 +44,7 @@ export const EventList = ({ events, onEventLike }: EventListProps) => {
           <SynthSLogo size="sm" className="hover-icon" />
           <h1 className="gradient-text text-2xl font-bold">Discover Events</h1>
         </div>
-        <p className="text-gray-600 text-sm">Find concerts, festivals, and amazing events near you</p>
+        <p className="var(--neutral-600) text-sm">Find concerts, festivals, and amazing events near you</p>
       </div>
 
       {/* Search & Filter Controls */}
@@ -106,7 +106,7 @@ export const EventList = ({ events, onEventLike }: EventListProps) => {
             
             <div className="p-4">
               <h3 className="font-semibold text-card-foreground mb-2 gradient-text">{event.title}</h3>
-              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{event.description}</p>
+              <p className="text-sm var(--neutral-600) mb-3 line-clamp-2">{event.description}</p>
               
               <div className="space-y-1 mb-4">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -140,7 +140,7 @@ export const EventList = ({ events, onEventLike }: EventListProps) => {
           <div className="text-gray-400 mb-4">
             <Search className="w-12 h-12 mx-auto hover-icon" />
           </div>
-          <p className="text-gray-600 text-lg font-medium mb-2">No events found</p>
+          <p className="var(--neutral-600) text-lg font-medium mb-2">No events found</p>
           <p className="text-gray-500 text-sm">Try adjusting your search or filter criteria</p>
         </div>
       )}

@@ -74,7 +74,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
       <header className="text-center space-y-2">
         <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Quick Review</p>
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 break-words">Share your experience</h2>
-        <p className="text-xs sm:text-sm text-gray-600 max-w-full mx-auto break-words">
+        <p className="text-xs sm:text-sm var(--neutral-600) max-w-full mx-auto break-words">
           Rate the overall experience and share a brief recap.
         </p>
       </header>
@@ -218,7 +218,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
       {/* Optional Setlist */}
         <div className="space-y-3 w-full max-w-full overflow-x-hidden">
         <p className="text-sm sm:text-base font-semibold text-gray-900">Setlist (Optional)</p>
-        <p className="text-xs sm:text-sm text-gray-600 break-words">
+        <p className="text-xs sm:text-sm var(--neutral-600) break-words">
           Option to upload photos &amp; video, plus add the setlist if you remember it.
         </p>
         
@@ -239,7 +239,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <p className="text-xs sm:text-sm text-gray-600 break-words">
+            <p className="text-xs sm:text-sm var(--neutral-600) break-words">
               {formData.selectedSetlist.artist?.name} - {formatSetlistDate(formData.selectedSetlist.eventDate)}
             </p>
             <p className="text-xs text-gray-500 mt-1">

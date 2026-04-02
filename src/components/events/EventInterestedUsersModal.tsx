@@ -68,7 +68,7 @@ export function EventInterestedUsersModal({
           {user.avatar_url ? (
             <AvatarImage src={user.avatar_url} alt={user.name || user.username || 'User'} />
           ) : null}
-          <AvatarFallback className="bg-[#fdf2f7]">
+          <AvatarFallback className="bg-[var(--brand-pink-050)]">
             {(user.name || user.username || 'U').slice(0, 1).toUpperCase()}
           </AvatarFallback>
         </Avatar>

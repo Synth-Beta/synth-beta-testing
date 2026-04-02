@@ -15,7 +15,7 @@ interface MobileNavigationProps {
  * Uses SVG icons from /src/assets/icons with selected variants for active states.
  * 
  * Design specifications:
- * - Background: LightPink (#fdf2f7)
+ * - Background: LightPink (var(--brand-pink-050))
  * - Border: Grey50 (rgba(201,201,201,0.5)) on top
  * - Corner radius: 10px (top corners only)
  * - Spacing: 43px gap between items, 23px horizontal padding, 20px vertical padding
@@ -51,8 +51,8 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
       <div
         className="w-full"
         style={{
-          backgroundColor: 'var(--light-pink, #fdf2f7)',
-          borderTop: '2px solid var(--grey50, rgba(201, 201, 201, 0.5))',
+          backgroundColor: 'var(--brand-pink-050, var(--brand-pink-050))',
+          borderTop: '2px solid var(--state-disabled-bg, rgba(201, 201, 201, 0.5))',
           borderTopLeftRadius: '10px',
           borderTopRightRadius: '10px',
           margin: 0,
@@ -113,7 +113,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             style={{
               width: '70px',
               height: '40px',
-              backgroundColor: 'var(--synth-pink, var(--brand-pink-500))',
+              backgroundColor: 'var(--brand-pink-500, var(--brand-pink-500))',
               borderRadius: '20px',
             }}
           >

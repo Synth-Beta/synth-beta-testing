@@ -61,7 +61,7 @@ export function AchievementCard({
               <Lock className="w-3 h-3 text-gray-400" />
             )}
           </div>
-          <p className="text-xs text-gray-600">{description}</p>
+          <p className="text-xs var(--neutral-600)">{description}</p>
           {!unlocked && (
             <div className="mt-1">
               <Progress value={progressPercent} className="h-1" />
@@ -94,7 +94,7 @@ export function AchievementCard({
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">{name}</h3>
-              <p className="text-sm text-gray-600">{description}</p>
+              <p className="text-sm var(--neutral-600)">{description}</p>
             </div>
           </div>
           
@@ -114,7 +114,7 @@ export function AchievementCard({
         {!unlocked && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Progress</span>
+              <span className="var(--neutral-600)">Progress</span>
               <span className="font-semibold text-gray-900">
                 {progress}/{goal} ({Math.round(progressPercent)}%)
               </span>

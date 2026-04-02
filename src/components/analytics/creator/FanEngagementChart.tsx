@@ -14,7 +14,7 @@ export function FanEngagementChart({ performance, className = '' }: FanEngagemen
         <div className="text-center py-12">
           <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Performance Data</h3>
-          <p className="text-gray-600">
+          <p className="var(--neutral-600)">
             Start creating content to see your engagement trends
           </p>
         </div>
@@ -90,7 +90,7 @@ export function FanEngagementChart({ performance, className = '' }: FanEngagemen
             day: 'numeric' 
           })}
         </p>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm var(--neutral-600)">
           {peakDay.event_views} event views • {peakDay.profile_visits} profile visits • {peakDay.engagement_rate}% engagement
         </p>
       </div>
@@ -101,7 +101,7 @@ export function FanEngagementChart({ performance, className = '' }: FanEngagemen
         <div className="space-y-2">
           {performance.slice(-7).map((day) => (
             <div key={day.date} className="flex items-center gap-4">
-              <div className="w-20 text-sm text-gray-600">
+              <div className="w-20 text-sm var(--neutral-600)">
                 {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </div>
               <div className="flex-1 flex items-center gap-2">
@@ -111,7 +111,7 @@ export function FanEngagementChart({ performance, className = '' }: FanEngagemen
                     className="bg-blue-500 h-3 rounded-full transition-all duration-300"
                     style={{ width: `${(day.event_views / maxViews) * 100}%` }}
                   />
-                  <span className="absolute right-2 top-0 text-xs text-gray-600 leading-3">
+                  <span className="absolute right-2 top-0 text-xs var(--neutral-600) leading-3">
                     {day.event_views}
                   </span>
                 </div>
@@ -121,7 +121,7 @@ export function FanEngagementChart({ performance, className = '' }: FanEngagemen
                     className="bg-green-500 h-3 rounded-full transition-all duration-300"
                     style={{ width: `${(day.profile_visits / maxVisits) * 100}%` }}
                   />
-                  <span className="absolute right-2 top-0 text-xs text-gray-600 leading-3">
+                  <span className="absolute right-2 top-0 text-xs var(--neutral-600) leading-3">
                     {day.profile_visits}
                   </span>
                 </div>

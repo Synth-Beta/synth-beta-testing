@@ -68,7 +68,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
       <div className="space-y-4 h-full flex flex-col">
         <div className="text-center min-h-[84px] md:min-h-[96px] flex flex-col items-center justify-end">
           <Label className={cn('font-medium text-gray-900', size === 'large' ? 'text-lg' : 'text-sm')}>{label}</Label>
-          <p className={cn('text-gray-600 mt-1', size === 'large' ? 'text-sm' : 'text-xs')}>{description}</p>
+          <p className={cn('var(--neutral-600) mt-1', size === 'large' ? 'text-sm' : 'text-xs')}>{description}</p>
         </div>
         <div className="flex items-center justify-center gap-2 md:gap-2 flex-nowrap">
           {Array.from({ length: 5 }, (_, i) => {
@@ -130,7 +130,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
     <div className="space-y-8">
       <div className="text-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Rate Your Experience</h2>
-        <p className="text-sm text-gray-600">Rate each aspect of the event and share your thoughts</p>
+        <p className="text-sm var(--neutral-600)">Rate each aspect of the event and share your thoughts</p>
       </div>
 
       {/* Large Overall Rating Display at Top - now interactive */}

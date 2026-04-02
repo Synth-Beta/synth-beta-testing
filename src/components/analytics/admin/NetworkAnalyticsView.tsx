@@ -121,7 +121,7 @@ export function NetworkAnalyticsView() {
             <Target className="w-6 h-6 text-synth-pink" />
             Network Effect Analytics
           </h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm var(--neutral-600) mt-1">
             Track critical mass and network effect metrics across all expansion phases
           </p>
         </div>
@@ -231,19 +231,19 @@ export function NetworkAnalyticsView() {
                       </div>
                       <div className="pt-4 border-t space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Users with 3+ friends:</span>
+                          <span className="var(--neutral-600)">Users with 3+ friends:</span>
                           <span className="font-semibold">
                             {activationMetrics.usersWith3PlusFriends} ({((activationMetrics.usersWith3PlusFriends / activationMetrics.totalUsers) * 100).toFixed(1)}%)
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Users with 5+ friends:</span>
+                          <span className="var(--neutral-600)">Users with 5+ friends:</span>
                           <span className="font-semibold">
                             {activationMetrics.usersWith5PlusFriends} ({((activationMetrics.usersWith5PlusFriends / activationMetrics.totalUsers) * 100).toFixed(1)}%)
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Users with 7+ friends:</span>
+                          <span className="var(--neutral-600)">Users with 7+ friends:</span>
                           <span className="font-semibold">
                             {activationMetrics.usersWith7PlusFriends} ({((activationMetrics.usersWith7PlusFriends / activationMetrics.totalUsers) * 100).toFixed(1)}%)
                           </span>
@@ -272,19 +272,19 @@ export function NetworkAnalyticsView() {
                     <>
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Events with 0 rankings:</span>
+                          <span className="var(--neutral-600)">Events with 0 rankings:</span>
                           <span className="font-semibold">{contentHealth.eventsWith0Rankings}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Events with 1-2 rankings:</span>
+                          <span className="var(--neutral-600)">Events with 1-2 rankings:</span>
                           <span className="font-semibold">{contentHealth.eventsWith1to2Rankings}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Events with 3-5 rankings:</span>
+                          <span className="var(--neutral-600)">Events with 3-5 rankings:</span>
                           <span className="font-semibold text-green-600">{contentHealth.eventsWith3to5Rankings}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Events with 6+ rankings:</span>
+                          <span className="var(--neutral-600)">Events with 6+ rankings:</span>
                           <span className="font-semibold text-green-600">{contentHealth.eventsWith6PlusRankings}</span>
                         </div>
                       </div>
@@ -293,7 +293,7 @@ export function NetworkAnalyticsView() {
                           <div className="text-3xl font-bold text-purple-600">
                             {contentHealth.coverageScore.toFixed(1)}%
                           </div>
-                          <div className="text-sm text-gray-600">Event Coverage Score</div>
+                          <div className="text-sm var(--neutral-600)">Event Coverage Score</div>
                           <p className="text-xs text-gray-400 mt-1">
                             {contentHealth.totalEvents} total events
                           </p>
@@ -330,14 +330,14 @@ export function NetworkAnalyticsView() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">City</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Phase</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">MAU</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">% Complete</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">WoW Growth</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">W2 Retention</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Network %</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold var(--neutral-600) uppercase">City</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold var(--neutral-600) uppercase">Phase</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold var(--neutral-600) uppercase">MAU</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold var(--neutral-600) uppercase">% Complete</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold var(--neutral-600) uppercase">WoW Growth</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold var(--neutral-600) uppercase">W2 Retention</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold var(--neutral-600) uppercase">Network %</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold var(--neutral-600) uppercase">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -356,14 +356,14 @@ export function NetworkAnalyticsView() {
                         onClick={() => setSelectedCity(city.city)}
                       >
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{city.city}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Phase {phase}</td>
+                        <td className="px-4 py-3 text-sm var(--neutral-600)">Phase {phase}</td>
                         <td className="px-4 py-3 text-sm text-gray-900">
                           {city.currentMAU.toLocaleString()} / {city.targetMAU.toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{city.percentComplete.toFixed(1)}%</td>
+                        <td className="px-4 py-3 text-sm var(--neutral-600)">{city.percentComplete.toFixed(1)}%</td>
                         <td className={`px-4 py-3 text-sm font-medium ${
                           city.wowGrowth > 0 ? 'text-green-600' : 
-                          city.wowGrowth < 0 ? 'text-red-600' : 'text-gray-600'
+                          city.wowGrowth < 0 ? 'text-red-600' : 'var(--neutral-600)'
                         }`}>
                           {city.wowGrowth > 0 ? '+' : ''}{city.wowGrowth.toFixed(1)}%
                         </td>
@@ -374,7 +374,7 @@ export function NetworkAnalyticsView() {
                         }`}>
                           {city.week2Retention.toFixed(1)}%
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{city.networkCompleteness.toFixed(0)}%</td>
+                        <td className="px-4 py-3 text-sm var(--neutral-600)">{city.networkCompleteness.toFixed(0)}%</td>
                         <td className="px-4 py-3">
                           <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {city.status}

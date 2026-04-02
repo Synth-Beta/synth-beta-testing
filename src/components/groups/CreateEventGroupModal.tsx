@@ -183,7 +183,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                     <Globe className="h-4 w-4 text-green-600" />
                     <span className="font-medium text-sm">Public</span>
                   </div>
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs var(--neutral-600) mt-1">
                     Anyone can find and join this group
                   </p>
                 </div>
@@ -203,7 +203,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
                     <Lock className="h-4 w-4 text-blue-600" />
                     <span className="font-medium text-sm">Private</span>
                   </div>
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs var(--neutral-600) mt-1">
                     Only you can invite members
                   </p>
                 </div>

@@ -26,7 +26,7 @@ export const TAB_BAR_CORE_HEIGHT = 56;
  * Cards use `elevation` on Android; this bar must sit above them in z-order too.
  */
 export function tabBarBottomContentPadding(safeAreaBottom: number, extra = 8): number {
-  return TAB_BAR_CORE_HEIGHT + safeAreaBottom + extra;
+  return TAB_BAR_CORE_HEIGHT + SynthTokens.spacing.bottomNav + safeAreaBottom + extra;
 }
 
 export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {

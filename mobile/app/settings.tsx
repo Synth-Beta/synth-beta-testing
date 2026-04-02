@@ -40,6 +40,7 @@ const PINK = SynthTokens.colors.brandPink500;
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const bottomPadding = SynthTokens.spacing.bottomNav + insets.bottom;
 
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
@@ -235,7 +236,10 @@ export default function SettingsScreen() {
         <View style={styles.headerIcon} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.body, { paddingBottom: bottomPadding }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profileCard}>
           <View style={styles.avatarWrap}>
             {avatarUrl ? (
@@ -465,7 +469,7 @@ const styles = StyleSheet.create({
   },
   headerIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '700', color: SynthTokens.colors.neutral900 },
-  body: { padding: SynthTokens.spacing.md, paddingBottom: 48, gap: 12 },
+  body: { padding: SynthTokens.spacing.md, gap: 12 },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',

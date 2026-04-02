@@ -80,7 +80,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
           <DialogTitle className="flex items-center gap-2">
             {isBlocked ? (
               <>
-                <UserX className="h-5 w-5 text-gray-600" />
+                <UserX className="h-5 w-5 var(--neutral-600)" />
                 Unblock User
               </>
             ) : (
@@ -114,7 +114,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
           )}
           <div>
             <p className="font-semibold">{user.name}</p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm var(--neutral-600)">
               {isBlocked ? 'Currently blocked' : 'Will be blocked'}
             </p>
           </div>

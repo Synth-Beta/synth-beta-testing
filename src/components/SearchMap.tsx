@@ -356,7 +356,7 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
           </div>
           
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Search radius:</span>
+            <span className="text-sm var(--neutral-600)">Search radius:</span>
             <Select value={radiusMiles.toString()} onValueChange={(value) => setRadiusMiles(Number(value))}>
               <SelectTrigger className="w-24">
                 <SelectValue />
@@ -417,7 +417,7 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
           </div>
         )}
         {upcomingEvents.length > 0 && (
-          <div className="mt-4 text-sm text-gray-600">
+          <div className="mt-4 text-sm var(--neutral-600)">
             Showing {upcomingEvents.length} events on the map
           </div>
         )}

@@ -566,7 +566,7 @@ const { sessionExpired } = useAuth();
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Concert Feed</h1>
-            <p className="text-gray-600 mt-2">Discover concerts and reviews from friends and the community</p>
+            <p className="var(--neutral-600) mt-2">Discover concerts and reviews from friends and the community</p>
           </div>
           
           {/* Right side icons */}
@@ -626,7 +626,7 @@ const { sessionExpired } = useAuth();
                     <div className="text-center py-8 bg-gray-50 rounded-lg">
                       <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">No Reviews Yet</h3>
-                      <p className="text-gray-600 text-sm">Be the first to share a concert review!</p>
+                      <p className="var(--neutral-600) text-sm">Be the first to share a concert review!</p>
                       <Button
                         onClick={handleAddReview}
                         className="mt-4 bg-pink-500 hover:bg-pink-600 text-white"
@@ -687,7 +687,7 @@ const { sessionExpired } = useAuth();
                   <div className="text-center py-8 bg-gray-50 rounded-lg">
                     <Star className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Recommendations Yet</h3>
-                    <p className="text-gray-600 text-sm">We're working on personalized recommendations for you!</p>
+                    <p className="var(--neutral-600) text-sm">We're working on personalized recommendations for you!</p>
                   </div>
                 </div>
               </div>
@@ -701,7 +701,7 @@ const { sessionExpired } = useAuth();
                 <div className="text-center py-12">
                   <Music className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No Concert News Yet</h3>
-                  <p className="text-gray-600">Stay tuned for the latest concert news and updates!</p>
+                  <p className="var(--neutral-600)">Stay tuned for the latest concert news and updates!</p>
                 </div>
               ) : (
                 reviews.map((review) => (
@@ -736,7 +736,7 @@ const { sessionExpired } = useAuth();
                         <h4 className="text-lg font-semibold text-gray-900 mb-1">
                           {review.event_title}
                         </h4>
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-sm var(--neutral-600) mb-2">
                           {review.venue_name} • {(() => {
                             try {
                               return format(parseISO(review.event_date), 'MMM d, yyyy');
@@ -800,7 +800,7 @@ const { sessionExpired } = useAuth();
                 <div className="text-center py-12">
                   <Globe className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No Public Reviews Yet</h3>
-                  <p className="text-gray-600">No public reviews have been shared yet.</p>
+                  <p className="var(--neutral-600)">No public reviews have been shared yet.</p>
                 </div>
               ) : (
                 reviews.map((review) => (
@@ -835,7 +835,7 @@ const { sessionExpired } = useAuth();
                         <h4 className="text-lg font-semibold text-gray-900 mb-1">
                           {review.event_title}
                         </h4>
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-sm var(--neutral-600) mb-2">
                           {review.venue_name} • {(() => {
                             try {
                               return format(parseISO(review.event_date), 'MMM d, yyyy');
@@ -911,7 +911,7 @@ const { sessionExpired } = useAuth();
               </Button>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Your Chats</h1>
-                <p className="text-sm text-gray-600">All your conversations</p>
+                <p className="text-sm var(--neutral-600)">All your conversations</p>
               </div>
             </div>
           </div>
@@ -938,7 +938,7 @@ const { sessionExpired } = useAuth();
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 truncate">{friend.name}</h3>
-                            <p className="text-sm text-gray-600 truncate">@{friend.username}</p>
+                            <p className="text-sm var(--neutral-600) truncate">@{friend.username}</p>
                           </div>
                         </div>
                         
@@ -966,7 +966,7 @@ const { sessionExpired } = useAuth();
             <div className="text-center py-12">
               <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Friends Yet</h3>
-                <p className="text-gray-600 mb-4">Add friends to start conversations!</p>
+                <p className="var(--neutral-600) mb-4">Add friends to start conversations!</p>
                 <Button
                   onClick={() => {
                     setShowChatModal(false);
@@ -998,7 +998,7 @@ const { sessionExpired } = useAuth();
               </Button>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Notifications & Search</h1>
-                <p className="text-sm text-gray-600">Find users and see your matches</p>
+                <p className="text-sm var(--neutral-600)">Find users and see your matches</p>
               </div>
             </div>
           </div>
@@ -1021,7 +1021,7 @@ const { sessionExpired } = useAuth();
             {searchLoading ? (
               <div className="text-center py-6">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="text-gray-600 mt-2 text-sm">Searching...</p>
+                <p className="var(--neutral-600) mt-2 text-sm">Searching...</p>
               </div>
             ) : searchResults.length > 0 ? (
               <div className="space-y-3">
@@ -1036,7 +1036,7 @@ const { sessionExpired } = useAuth();
                       </Avatar>
                       <div>
                         <h3 className="font-semibold text-gray-900">{user.name || 'Unknown User'}</h3>
-                        <p className="text-sm text-gray-600">@{user.username || user.email}</p>
+                        <p className="text-sm var(--neutral-600)">@{user.username || user.email}</p>
                       </div>
                     </div>
                     <Button
@@ -1054,7 +1054,7 @@ const { sessionExpired } = useAuth();
               <div className="text-center py-6 bg-gray-50 rounded-lg">
                 <Search className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                 <h3 className="font-semibold text-gray-900 mb-1">No Users Found</h3>
-                <p className="text-sm text-gray-600">Try searching with a different email or username</p>
+                <p className="text-sm var(--neutral-600)">Try searching with a different email or username</p>
               </div>
             ) : null}
 
@@ -1074,7 +1074,7 @@ const { sessionExpired } = useAuth();
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900">{notification.title}</h3>
-                        <p className="text-sm text-gray-600">{notification.message}</p>
+                        <p className="text-sm var(--neutral-600)">{notification.message}</p>
                         <p className="text-xs text-gray-500 mt-1">
                           {(() => {
                             try {
@@ -1121,7 +1121,7 @@ const { sessionExpired } = useAuth();
                 <div className="text-center py-6 bg-gray-50 rounded-lg">
                   <Bell className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                   <h3 className="font-semibold text-gray-900 mb-1">No Notifications</h3>
-                  <p className="text-sm text-gray-600">You'll see matches and friend requests here</p>
+                  <p className="text-sm var(--neutral-600)">You'll see matches and friend requests here</p>
                 </div>
               )}
             </div>
@@ -1144,7 +1144,7 @@ const { sessionExpired } = useAuth();
               </Button>
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Chat with Friends</h1>
-                <p className="text-sm text-gray-600">Start conversations with your friends</p>
+                <p className="text-sm var(--neutral-600)">Start conversations with your friends</p>
               </div>
             </div>
           </div>
@@ -1165,7 +1165,7 @@ const { sessionExpired } = useAuth();
                       <div>
                         <h3 className="font-semibold text-gray-900 text-lg">{friend.name}</h3>
                         {friend.bio && (
-                          <p className="text-sm text-gray-600 line-clamp-2">{friend.bio}</p>
+                          <p className="text-sm var(--neutral-600) line-clamp-2">{friend.bio}</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
                           Friends since {(() => {
@@ -1230,7 +1230,7 @@ const { sessionExpired } = useAuth();
               <div className="text-center py-12">
                 <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No Friends Yet</h3>
-                <p className="text-gray-600 mb-4">Add some friends to start chatting!</p>
+                <p className="var(--neutral-600) mb-4">Add some friends to start chatting!</p>
                 <Button
                   onClick={() => {
                     setShowFriendsChatModal(false);

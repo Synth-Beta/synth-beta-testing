@@ -56,7 +56,7 @@ export function MetricCard({
     <Card className={cn('glass-card inner-glow floating-shadow', className)}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-gray-600">
+          <CardTitle className="text-sm font-medium var(--neutral-600)">
             {title}
           </CardTitle>
           {icon && <div className="text-synth-pink">{icon}</div>}

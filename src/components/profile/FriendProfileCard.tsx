@@ -79,7 +79,7 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
             </Avatar>
             
             <h2 className="text-2xl font-bold text-gray-900 mb-1">{friend.name}</h2>
-            <p className="text-gray-600 mb-2">@{friend.username}</p>
+            <p className="var(--neutral-600) mb-2">@{friend.username}</p>
             
             {/* Gender and Age Display */}
             {(friend.gender || friend.birthday) && (
@@ -116,7 +116,7 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
           )}
 
           {/* Member Since */}
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm var(--neutral-600)">
             <Calendar className="w-4 h-4" />
             <span>Member since {(() => {
               try {
@@ -150,11 +150,11 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
           <div>
             <h3 className="font-semibold text-gray-900 mb-3">Recent Activity</h3>
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm var(--neutral-600)">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span>Active now</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm var(--neutral-600)">
                 <Music className="w-4 h-4" />
                 <span>Recently reviewed a concert</span>
               </div>

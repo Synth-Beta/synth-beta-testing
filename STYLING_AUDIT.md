@@ -8,18 +8,18 @@
 | #8A8F98 | `var(--neutral-400)` |✅
 | #5D646F | `var(--neutral-600)` |✅
 | #0E0E0E | `var(--neutral-900)` |✅
-| #CC2486 | `var(var(--brand-pink-500))` |✅
+| #CC2486 | `var(--brand-pink-500)` |✅
 | #951A6D | `var(--brand-pink-600)` |✅
-| #FDF2F7 | `var(--brand-pink-050)` |
-| #B88900 | `var(--status-warning-500)` |
-| #FDECEA | `var(--status-error-050)` |
-| rgba(14, 14, 14, 0.5) | `var(--overlay-50)` |
-| rgba(14, 14, 14, 0.2) | `var(--overlay-20)` |
-| text-gray-600 | `var(--neutral-600)` |
-| text-neutral-900 | `var(--neutral-900)` |
+| #FDF2F7 | `var(--brand-pink-050)` |✅
+| #B88900 | `var(--status-warning-500)` |✅
+| #FDECEA | `var(--status-error-050)` |✅
+| rgba(14, 14, 14, 0.5) | `var(--overlay-50)` |✅
+| rgba(14, 14, 14, 0.2) | `var(--overlay-20)` |✅
+| text-gray-600 | `var(--neutral-600)` |✅
+| text-neutral-900 | `var(--neutral-900)` |✅
 | text-white | `var(--neutral-0)` |
 | text-black | `var(--neutral-900)` |
-| text-synth-pink | `var(var(--brand-pink-500))` |
+| text-synth-pink | `var(--brand-pink-500)` |
 | text-pink-600 | `var(--brand-pink-600)` |
 | text-yellow-500 | `var(--rating-star)` |
 | text-blue-500 | `var(--info-blue-500)` |
@@ -30,7 +30,7 @@
 | #EC4899 | define a brand/promotion token (reuse `var(--brand-pink-500)` or add `--color-ec4899`) |✅
 | #F472B6 | define a brand/promotion token (e.g., `--color-f472b6`) |
 | #1DB954 | define a `--spotify-green` token and use it instead of raw hex |
-| #FF3399 | define a brighter pink token (or reuse `var(--brand-pink-500)` with `var(var(--brand-pink-500))`) |
+| #FF3399 | define a brighter pink token (or reuse `var(--brand-pink-500)`) |
 | #FCE7F3 | define a light surface token (maybe `--neutral-soft`) that ties back to `--neutral-50` |
 | #EF4444 | `var(--status-error-500)` (red alert text/button fallback) |
 
@@ -56,9 +56,8 @@
 | 12px | `var(--spacing-small)` |
 | 20px | `var(--spacing-screen-margin-x)` |
 | 24px | `var(--spacing-grouped)` |
-| 32px | `var(--spacing-bottom-nav-gap)` |
+| 32px | `var(--spacing-bottom-nav)` |
 | 60px | `var(--spacing-big-section)` |
-| 112px | `var(--spacing-bottom-nav)` |
 | 36px | `var(--size-button-height)` |
 | 44px | `var(--size-input-height)` |
 | `p-5` | horizontal/vertical padding should reuse `var(--spacing-screen-margin-x)` or `var(--spacing-small)`, not Tailwind shorthand |

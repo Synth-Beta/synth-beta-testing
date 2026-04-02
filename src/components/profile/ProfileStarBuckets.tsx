@@ -121,7 +121,7 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
           <p className="text-sm font-bold text-gray-900 break-words leading-tight line-clamp-2">{artistName}</p>
         </div>
         {/* Venue - starts at consistent position */}
-        <p className="text-xs text-gray-600 break-words leading-tight">{venueName}</p>
+        <p className="text-xs var(--neutral-600) break-words leading-tight">{venueName}</p>
         <p className="text-[11px] text-gray-400 leading-tight shrink-0">
           {dateStr ? (() => {
             // Parse YYYY-MM-DD string in local timezone to avoid date shifting

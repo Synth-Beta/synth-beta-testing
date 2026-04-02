@@ -227,7 +227,7 @@ export function FollowingModal({
                                 alt={artist.artist_name || 'Artist'}
                               />
                             ) : null}
-                            <AvatarFallback className="bg-[#fdf2f7]">
+                            <AvatarFallback className="bg-[var(--brand-pink-050)]">
                               <Music className="w-6 h-6 text-[var(--brand-pink-500)]" />
                             </AvatarFallback>
                           </Avatar>
@@ -266,7 +266,7 @@ export function FollowingModal({
                                 alt={venue.venue_name || 'Venue'}
                               />
                             ) : null}
-                            <AvatarFallback className="bg-[#fdf2f7]">
+                            <AvatarFallback className="bg-[var(--brand-pink-050)]">
                               <MapPin className="w-6 h-6 text-[var(--brand-pink-500)]" />
                             </AvatarFallback>
                           </Avatar>

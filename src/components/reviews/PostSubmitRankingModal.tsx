@@ -288,7 +288,7 @@ export function PostSubmitRankingModal({
                           {review.event_title || review.artist_name || 'Concert'}
                         </h4>
                         
-                        <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
+                        <div className="flex items-center gap-3 mt-1 text-sm var(--neutral-600)">
                           {review.artist_name && (
                             <div className="flex items-center gap-1">
                               <Music className="w-3.5 h-3.5" />

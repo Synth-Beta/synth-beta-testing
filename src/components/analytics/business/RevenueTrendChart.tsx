@@ -14,7 +14,7 @@ export function RevenueTrendChart({ insights, className = '' }: RevenueTrendChar
         <div className="text-center py-12">
           <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Revenue Data</h3>
-          <p className="text-gray-600">
+          <p className="var(--neutral-600)">
             Start hosting events to see your revenue trends
           </p>
         </div>
@@ -104,17 +104,17 @@ export function RevenueTrendChart({ insights, className = '' }: RevenueTrendChar
             </div>
             <p className="text-lg font-semibold text-gray-900">
               {trendDirection === 'up' ? '+' : '-'}{trendPercentage.toFixed(1)}% 
-              <span className="text-sm text-gray-600 ml-2">
+              <span className="text-sm var(--neutral-600) ml-2">
                 {insights.length > 10 ? 'last 30 days' : `last ${insights.length} days`}
               </span>
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-600">Best Day</p>
+            <p className="text-sm var(--neutral-600)">Best Day</p>
             <p className="font-semibold text-gray-900">
               {new Date(bestDay.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </p>
-            <p className="text-sm text-gray-600">${bestDay.revenue}</p>
+            <p className="text-sm var(--neutral-600)">${bestDay.revenue}</p>
           </div>
         </div>
       </div>
@@ -125,7 +125,7 @@ export function RevenueTrendChart({ insights, className = '' }: RevenueTrendChar
         <div className="space-y-2">
           {insights.slice(-14).map((insight) => (
             <div key={insight.date} className="flex items-center gap-4">
-              <div className="w-20 text-sm text-gray-600">
+              <div className="w-20 text-sm var(--neutral-600)">
                 {new Date(insight.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </div>
               <div className="flex-1 flex items-center gap-2">
@@ -135,7 +135,7 @@ export function RevenueTrendChart({ insights, className = '' }: RevenueTrendChar
                     className="bg-green-500 h-3 rounded-full transition-all duration-300"
                     style={{ width: `${(insight.revenue / maxRevenue) * 100}%` }}
                   />
-                  <span className="absolute right-2 top-0 text-xs text-gray-600 leading-3">
+                  <span className="absolute right-2 top-0 text-xs var(--neutral-600) leading-3">
                     ${insight.revenue}
                   </span>
                 </div>
@@ -145,7 +145,7 @@ export function RevenueTrendChart({ insights, className = '' }: RevenueTrendChar
                     className="bg-blue-500 h-3 rounded-full transition-all duration-300"
                     style={{ width: `${(insight.ticket_clicks / maxClicks) * 100}%` }}
                   />
-                  <span className="absolute right-2 top-0 text-xs text-gray-600 leading-3">
+                  <span className="absolute right-2 top-0 text-xs var(--neutral-600) leading-3">
                     {insight.ticket_clicks}
                   </span>
                 </div>

@@ -41,7 +41,7 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40" style={{ margin: 0, padding: 0 }}>
       {/* Container optimized for iPhone 17 (393px width) */}
-      <div className="bg-[#fdf2f7] border-2 border-t-[rgba(201,201,201,0.5)] border-b-0 border-l-0 border-r-0 rounded-tl-[10px] rounded-tr-[10px] w-full" style={{ margin: 0 }}>
+      <div className="bg-[var(--brand-pink-050)] border-2 border-t-[rgba(201,201,201,0.5)] border-b-0 border-l-0 border-r-0 rounded-tl-[10px] rounded-tr-[10px] w-full" style={{ margin: 0 }}>
         <div 
           className="flex items-center justify-center gap-[43px] px-[23px] py-[20px] mx-auto" 
           style={{ 

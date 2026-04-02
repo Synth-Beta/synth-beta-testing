@@ -47,7 +47,7 @@ export function PhaseProgressCard({ phaseStatus }: PhaseProgressCardProps) {
         {/* Overall Progress */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Average Progress</span>
+            <span className="var(--neutral-600)">Average Progress</span>
             <span className="font-semibold text-gray-900">
               {avgProgress.toFixed(1)}%
             </span>
@@ -71,7 +71,7 @@ export function PhaseProgressCard({ phaseStatus }: PhaseProgressCardProps) {
             <div key={city.city} className="flex items-center justify-between text-sm">
               <span className="text-gray-700">{city.city}</span>
               <div className="flex items-center gap-2">
-                <span className="text-gray-600">
+                <span className="var(--neutral-600)">
                   {city.userCount.toLocaleString()}/{city.targetMAU.toLocaleString()} users
                 </span>
                 <span className="text-xs text-gray-400">
@@ -122,7 +122,7 @@ export function PhaseProgressCard({ phaseStatus }: PhaseProgressCardProps) {
               <AlertCircle className="w-4 h-4" />
               Blocking Issues
             </div>
-            <ul className="space-y-1 text-xs text-gray-600">
+            <ul className="space-y-1 text-xs var(--neutral-600)">
               {phaseStatus.blockingIssues.slice(0, 3).map((issue, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-orange-500">•</span>

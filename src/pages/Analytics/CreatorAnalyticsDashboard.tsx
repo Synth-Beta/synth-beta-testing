@@ -256,7 +256,7 @@ export default function CreatorAnalyticsDashboard() {
                 <Crown className="w-8 h-8 text-purple-600" />
                 <h1 className="gradient-text text-3xl font-bold">Creator Analytics</h1>
               </div>
-              <p className="text-gray-600">
+              <p className="var(--neutral-600)">
                 Track your fan engagement, content performance, and growth metrics
               </p>
             </div>
@@ -497,10 +497,10 @@ export default function CreatorAnalyticsDashboard() {
                       {fanInsights.map((insight) => (
                         <tr key={insight.venue_name} className="border-b border-gray-100">
                           <td className="py-3 px-4 font-medium text-gray-900">{insight.venue_name}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.event_count}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.total_views}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.engagement_score}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.fan_density}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.event_count}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.total_views}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.engagement_score}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.fan_density}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -532,9 +532,9 @@ export default function CreatorAnalyticsDashboard() {
                       {geographicInsights.map((insight) => (
                         <tr key={`${insight.city}-${insight.state}`} className="border-b border-gray-100">
                           <td className="py-3 px-4 font-medium text-gray-900">{insight.city}, {insight.state}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.fan_count}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.event_count}</td>
-                          <td className="py-3 px-4 text-right text-gray-600">{insight.engagement_rate}%</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.fan_count}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.event_count}</td>
+                          <td className="py-3 px-4 text-right var(--neutral-600)">{insight.engagement_rate}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -571,10 +571,10 @@ export default function CreatorAnalyticsDashboard() {
                         <td className="py-3 px-4 font-medium text-gray-900">
                           {new Date(performance.date).toLocaleDateString()}
                         </td>
-                        <td className="py-3 px-4 text-right text-gray-600">{performance.event_views}</td>
-                        <td className="py-3 px-4 text-right text-gray-600">{performance.profile_visits}</td>
-                        <td className="py-3 px-4 text-right text-gray-600">{performance.follower_gains}</td>
-                        <td className="py-3 px-4 text-right text-gray-600">{performance.engagement_rate}%</td>
+                        <td className="py-3 px-4 text-right var(--neutral-600)">{performance.event_views}</td>
+                        <td className="py-3 px-4 text-right var(--neutral-600)">{performance.profile_visits}</td>
+                        <td className="py-3 px-4 text-right var(--neutral-600)">{performance.follower_gains}</td>
+                        <td className="py-3 px-4 text-right var(--neutral-600)">{performance.engagement_rate}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -597,7 +597,7 @@ export default function CreatorAnalyticsDashboard() {
                 <Trophy className="w-8 h-8 text-yellow-500" />
                 <h2 className="gradient-text text-2xl font-bold">Creator Achievements</h2>
               </div>
-              <p className="text-gray-600 text-sm">
+              <p className="var(--neutral-600) text-sm">
                 Track your milestones as a creator and artist
               </p>
             </div>
@@ -663,7 +663,7 @@ export default function CreatorAnalyticsDashboard() {
                     </div>
                   )}
                 </div>
-                <p className="text-gray-600">Track your event promotion performance and ROI</p>
+                <p className="var(--neutral-600)">Track your event promotion performance and ROI</p>
                 {promotionLastUpdate && (
                   <p className="text-xs text-gray-500 mt-1">
                     Last updated: {promotionLastUpdate.toLocaleTimeString()}
@@ -701,19 +701,19 @@ export default function CreatorAnalyticsDashboard() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm text-gray-600">Impressions</p>
+                          <p className="text-sm var(--neutral-600)">Impressions</p>
                           <p className="text-xl font-bold">{promotion.impressions.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Clicks</p>
+                          <p className="text-sm var(--neutral-600)">Clicks</p>
                           <p className="text-xl font-bold">{promotion.clicks.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Conversions</p>
+                          <p className="text-sm var(--neutral-600)">Conversions</p>
                           <p className="text-xl font-bold text-green-600">{promotion.conversions.toLocaleString()}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">CTR</p>
+                          <p className="text-sm var(--neutral-600)">CTR</p>
                           <p className="text-xl font-bold">{((promotion.clicks / promotion.impressions) * 100).toFixed(1)}%</p>
                         </div>
                       </div>

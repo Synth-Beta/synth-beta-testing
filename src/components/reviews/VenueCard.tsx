@@ -73,7 +73,7 @@ export function VenueCard({ venueId, venueName, onClose }: VenueCardProps) {
           <div className="space-y-1 flex-1">
             <h3 className="text-base font-semibold">{venueName}</h3>
             {geo && ( 
-              <div className="text-xs text-gray-600 flex items-center gap-1">
+              <div className="text-xs var(--neutral-600) flex items-center gap-1">
                 <MapPin className="w-3 h-3" />
                 <span>{geo.lat?.toFixed(3)}, {geo.lng?.toFixed(3)}</span>
               </div>

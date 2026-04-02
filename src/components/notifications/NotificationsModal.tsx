@@ -186,7 +186,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       {activeTab === 'unread' ? 'No unread notifications' : 'No notifications'}
                     </h3>
-                    <p className="text-gray-600">
+                    <p className="var(--neutral-600)">
                       {activeTab === 'unread' 
                         ? 'You\'re all caught up!' 
                         : 'You\'ll see notifications here when people interact with your content.'

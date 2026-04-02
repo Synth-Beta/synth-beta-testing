@@ -66,7 +66,7 @@ const [isProcessing, setIsProcessing] = useState(false);
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-lg truncate">{group.name}</h3>
                 {group.description && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
+                  <p className="text-sm var(--neutral-600) line-clamp-2">
                     {group.description}
                   </p>
                 )}
@@ -82,7 +82,7 @@ const [isProcessing, setIsProcessing] = useState(false);
             </div>
 
             {/* Group Info */}
-            <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">
+            <div className="flex items-center gap-3 text-sm var(--neutral-600) mb-3">
               <div className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
                 <span>

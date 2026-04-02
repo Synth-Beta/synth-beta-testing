@@ -681,7 +681,7 @@ export function ArtistVenueReviews({
           .map(({ label, rating, feedback }) => (
             <div key={label} className="text-sm border-l-4 border-pink-200 pl-2 mt-2">
               <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-600">{label}</span>
+                <span className="font-medium var(--neutral-600)">{label}</span>
                 {typeof rating === 'number' && (
                   <span className="text-xs text-gray-500">
                     {rating.toFixed(1)}
@@ -744,7 +744,7 @@ export function ArtistVenueReviews({
                 <span className="text-sm font-medium">
                   {artistStats.averageRating.toFixed(1)}
                 </span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm var(--neutral-600)">
                   ({artistStats.totalReviews} review{artistStats.totalReviews !== 1 ? 's' : ''})
                 </span>
               </div>
@@ -810,7 +810,7 @@ export function ArtistVenueReviews({
                 <span className="text-sm font-medium">
                   {venueStats.averageRating.toFixed(1)}
                 </span>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm var(--neutral-600)">
                   ({venueStats.totalReviews} review{venueStats.totalReviews !== 1 ? 's' : ''})
                 </span>
               </div>

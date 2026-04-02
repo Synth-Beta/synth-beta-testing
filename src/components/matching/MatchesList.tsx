@@ -119,7 +119,7 @@ export function MatchesList() {
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your matches...</p>
+          <p className="var(--neutral-600)">Loading your matches...</p>
         </div>
       </div>
     );
@@ -131,7 +131,7 @@ export function MatchesList() {
         <div className="text-center">
           <Heart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">No Matches Yet</h3>
-          <p className="text-gray-600 text-sm">
+          <p className="var(--neutral-600) text-sm">
             Start swiping on events to find people going to the same shows!
           </p>
         </div>
@@ -143,7 +143,7 @@ export function MatchesList() {
     <div className="max-w-4xl mx-auto p-4">
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-2">Your Matches</h1>
-        <p className="text-gray-600">People you've matched with for events</p>
+        <p className="var(--neutral-600)">People you've matched with for events</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -166,7 +166,7 @@ export function MatchesList() {
                 </div>
                 <div className="flex-1">
                   <CardTitle className="text-lg">{match.matched_user?.name || 'Unknown User'}</CardTitle>
-                  <p className="text-sm text-gray-600">Matched {formatDate(match.created_at)}</p>
+                  <p className="text-sm var(--neutral-600)">Matched {formatDate(match.created_at)}</p>
                 </div>
               </div>
             </CardHeader>
@@ -233,7 +233,7 @@ export function MatchesList() {
                   </div>
                   <div>
                     <CardTitle className="text-lg">{selectedMatch.matched_user?.name}</CardTitle>
-                    <p className="text-sm text-gray-600">{selectedMatch.event?.title}</p>
+                    <p className="text-sm var(--neutral-600)">{selectedMatch.event?.title}</p>
                   </div>
                 </div>
                 <Button 

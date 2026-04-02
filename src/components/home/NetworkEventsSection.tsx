@@ -113,7 +113,7 @@ export const NetworkEventsSection: React.FC<NetworkEventsSectionProps> = ({
               {event.artist_name} · {event.venue_name}
             </p>
             {event.review_text && (
-              <p className="text-xs text-gray-600 mt-2 line-clamp-2">{event.review_text}</p>
+              <p className="text-xs var(--neutral-600) mt-2 line-clamp-2">{event.review_text}</p>
             )}
             <p className="text-xs text-muted-foreground mt-2">
               {format(new Date(event.event_date), 'MMM d, yyyy')}

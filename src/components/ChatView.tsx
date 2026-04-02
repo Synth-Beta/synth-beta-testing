@@ -798,7 +798,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
               <div className="p-4 text-center">
                 <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                 <h3 className="font-semibold gradient-text mb-1">No Chats Yet</h3>
-                <p className="text-sm text-gray-600">Start a conversation with your friends!</p>
+                <p className="text-sm var(--neutral-600)">Start a conversation with your friends!</p>
               </div>
             ) : (
               <div className="space-y-1 p-2">
@@ -835,7 +835,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                           )}
                         </div>
                         {chat.last_message && (
-                          <p className="text-sm text-gray-600 truncate">
+                          <p className="text-sm var(--neutral-600) truncate">
                             {chat.last_message.sender.name}: {chat.last_message.message}
                           </p>
                         )}
@@ -866,16 +866,16 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
                       {selectedChat.type === 'group' ? (
-                        <Users className="w-5 h-5 text-gray-600" />
+                        <Users className="w-5 h-5 var(--neutral-600)" />
                       ) : (
-                        <MessageCircle className="w-5 h-5 text-gray-600" />
+                        <MessageCircle className="w-5 h-5 var(--neutral-600)" />
                       )}
                     </div>
                     <div>
                       <h2 className="font-semibold text-gray-900">
                         {getChatDisplayName(selectedChat)}
                       </h2>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm var(--neutral-600)">
                         {selectedChat.type === 'group' 
                           ? (linkedEvent?.description || 'Group chat')
                           : 'Direct message'
@@ -976,7 +976,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                   <div className="text-center py-8">
                     <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                     <h3 className="font-semibold gradient-text mb-1">No Messages Yet</h3>
-                    <p className="text-sm text-gray-600">Start the conversation!</p>
+                    <p className="text-sm var(--neutral-600)">Start the conversation!</p>
                   </div>
                 ) : (
                   messages.map((message) => (
@@ -1049,7 +1049,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
               <div className="text-center">
                 <MessageCircle className="w-16 h-16 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                 <h3 className="text-xl font-semibold gradient-text mb-2">Select a Chat</h3>
-                <p className="text-gray-600">Choose a conversation to start chatting</p>
+                <p className="var(--neutral-600)">Choose a conversation to start chatting</p>
               </div>
             </div>
           )}
@@ -1100,7 +1100,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">{friend.name}</h4>
                         {friend.bio && (
-                          <p className="text-sm text-gray-600 line-clamp-1">{friend.bio}</p>
+                          <p className="text-sm var(--neutral-600) line-clamp-1">{friend.bio}</p>
                         )}
                       </div>
                       {selectedFriends.includes(friend.id) && (

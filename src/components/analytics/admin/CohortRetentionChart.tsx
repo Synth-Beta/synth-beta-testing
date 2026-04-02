@@ -63,7 +63,7 @@ export function CohortRetentionChart({ data, city }: CohortRetentionChartProps) 
             Cohort Retention Curves
             {city && <span className="text-base font-normal text-gray-500">({city})</span>}
           </CardTitle>
-          <div className="flex gap-4 text-xs text-gray-600">
+          <div className="flex gap-4 text-xs var(--neutral-600)">
             <div>
               <span className="font-semibold">Avg W2:</span> {avgWeek2.toFixed(1)}%
             </div>

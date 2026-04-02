@@ -97,7 +97,7 @@ const [photos, setPhotos] = useState<EventPhoto[]>([]);
             variant="ghost"
             size="sm"
             onClick={() => handleLike(photo)}
-            className={photo.user_has_liked ? 'text-red-500' : 'text-gray-600'}
+            className={photo.user_has_liked ? 'text-red-500' : 'var(--neutral-600)'}
           >
             <Heart className={`h-4 w-4 mr-1 ${photo.user_has_liked ? 'fill-current' : ''}`} />
             {photo.likes_count}
@@ -108,7 +108,7 @@ const [photos, setPhotos] = useState<EventPhoto[]>([]);
             size="sm"
             onClick={() => {
               }}
-            className="text-gray-600"
+            className="var(--neutral-600)"
           >
             <MessageCircle className="h-4 w-4 mr-1" />
             {photo.comments_count}
@@ -119,7 +119,7 @@ const [photos, setPhotos] = useState<EventPhoto[]>([]);
               variant="ghost"
               size="sm"
               onClick={() => handleDelete(photo)}
-              className="text-gray-600 hover:text-red-600 ml-auto"
+              className="var(--neutral-600) hover:text-red-600 ml-auto"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -145,7 +145,7 @@ const [photos, setPhotos] = useState<EventPhoto[]>([]);
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-bold">Event Photos</h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm var(--neutral-600)">
             {photos.length} photo{photos.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -169,7 +169,7 @@ const [photos, setPhotos] = useState<EventPhoto[]>([]);
           <CardContent className="py-12 text-center">
             <ImageIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <h4 className="text-lg font-semibold mb-2">No Photos Yet</h4>
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="var(--neutral-600) text-sm mb-4">
               Be the first to share a photo from this event!
             </p>
             {canUpload && (
