@@ -22,7 +22,8 @@ export default function WelcomeScreen() {
     useEffect(() => {
         logoScale.value = withDelay(300, withSpring(1, { damping: 12 }));
         logoOpacity.value = withDelay(300, withTiming(1, { duration: 800 }));
-        contentOpacity.value = withDelay(800, withTiming(1, { duration: 600 }));
+        // Title/tagline only — keep CTAs visible immediately (no 800ms footer delay)
+        contentOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
     }, []);
 
     const logoAnimatedStyle = useAnimatedStyle(() => ({
@@ -66,7 +67,7 @@ export default function WelcomeScreen() {
                 </Animated.View>
             </View>
 
-            <Animated.View style={[styles.footer, contentAnimatedStyle]}>
+            <View style={styles.footer}>
                 <SynthButton
                     title="Get Started"
                     variant="primary"
@@ -79,7 +80,7 @@ export default function WelcomeScreen() {
                     onPress={() => router.push('/(auth)/sign-in')}
                     style={styles.secondaryButton}
                 />
-            </Animated.View>
+            </View>
         </View>
     );
 }
