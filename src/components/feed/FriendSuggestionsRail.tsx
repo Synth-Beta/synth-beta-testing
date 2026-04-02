@@ -225,14 +225,14 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                         className="h-20 w-20 rounded-full"
                       />
                     ) : (
-                      <AvatarFallback className="bg-synth-pink/10 text-synth-pink text-base">
+                      <AvatarFallback className="bg-synth-pink/10 var(--brand-pink-500) text-base">
                         {getInitials(suggestion.name)}
                       </AvatarFallback>
                     )}
                   </Avatar>
                   {suggestion.verified && (
                     <div className="absolute -bottom-1 -right-1 bg-synth-pink rounded-full p-0.5">
-                      <Verified className="h-3 w-3 text-white" />
+                      <Verified className="h-3 w-3 var(--neutral-0)" />
                     </div>
                   )}
                 </div>

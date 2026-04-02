@@ -359,11 +359,18 @@ export default function DiscoverScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.dualActions}>
-          <Pressable style={styles.browseVibes} onPress={() => {
-            const q = searchQ.trim();
-            router.push(q ? (`/(tabs)/search?q=${encodeURIComponent(q)}` as any) : '/(tabs)/search');
-          }}>
-            <Sparkles size={18} color="#fff" />
+          <Pressable
+            style={styles.browseVibes}
+            onPress={() => {
+              const q = searchQ.trim();
+              router.push(
+                q
+                  ? (`/(tabs)/search?q=${encodeURIComponent(q)}` as any)
+                  : '/(tabs)/search'
+              );
+            }}
+          >
+            <Sparkles size={18} color={SynthTokens.colors.neutral0} />
             <Text style={styles.browseVibesText}>Browse Vibes</Text>
           </Pressable>
           <Pressable style={styles.locationBtn}>
@@ -553,7 +560,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   browseVibesText: {
-    color: '#fff',
+    color: SynthTokens.colors.neutral0,
     fontWeight: '700',
     fontSize: 15,
   },

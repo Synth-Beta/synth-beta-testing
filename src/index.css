@@ -78,7 +78,7 @@ body,
 
   /* Shimmer effect for skeleton cards */
   .animate-shimmer {
-    background: linear-gradient(90deg, var(--brand-pink-050) 0%, #fce7f3 40%, var(--brand-pink-050) 100%);
+    background: linear-gradient(90deg, var(--brand-pink-050) 0%, --brand-pink-050 40%, var(--brand-pink-050) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
@@ -128,7 +128,7 @@ body,
 
   /* Enhanced animated gradient background for entire app */
   body {
-    background: linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, #fce7f3 50%, var(--neutral-0) 75%, #fdf2f8 100%);
+    background: linear-gradient(45deg, var(--brand-pink-050) 0%, var(--neutral-0) 25%, var(--brand-pink-050) 50%, var(--neutral-0) 75%, var(--brand-pink-050) 100%);
     background-size: 400% 400%;
     animation: elegant-shift 20s ease infinite;
     min-height: 100vh;
@@ -163,7 +163,7 @@ body,
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.03) 0%, transparent 70%);
+    background-image: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--brand-pink-500) 3%, transparent) 0%, transparent 70%);
     pointer-events: none;
     z-index: -1;
   }
@@ -184,7 +184,7 @@ body,
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(236,72,153,0.05) 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--neutral-0) 30%, transparent) 0%, color-mix(in srgb, var(--brand-pink-500) 5%, transparent) 100%);
     border-radius: inherit;
     pointer-events: none;
   }
@@ -263,14 +263,19 @@ body,
 
   /* Enhanced gradient text utility */
   .gradient-text {
-    @apply bg-gradient-to-r from-pink-600 via-pink-500 to-pink-400;
-    @apply bg-clip-text text-transparent;
+    background: linear-gradient(to right, var(--brand-pink-600), var(--brand-pink-500), var(--brand-pink-050));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     animation: gradient-text-shift 3s ease-in-out infinite;
   }
 
   .gradient-text-bold {
-    @apply bg-gradient-to-r from-pink-700 via-pink-600 to-pink-500;
-    @apply bg-clip-text text-transparent font-semibold;
+    background: linear-gradient(to right, var(--brand-pink-700), var(--brand-pink-600), var(--brand-pink-500));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 600;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -287,7 +292,7 @@ body,
   /* Gradient accents throughout */
   .gradient-badge {
     background: var(--gradient-brand);
-    @apply text-white px-3 py-1 rounded-full text-xs font-medium relative;
+    @apply var(--neutral-0) px-3 py-1 rounded-full text-xs font-medium relative;
   }
   .gradient-badge::after {
     content: '';
@@ -316,15 +321,15 @@ body,
   .type-meta { font-size: var(--typography-meta-size); font-weight: var(--typography-meta-weight); line-height: var(--typography-meta-line-height); }
 
   .gradient-button {
-    background: linear-gradient(135deg, var(--brand-pink-500) 0%, #f472b6 100%);
-    @apply text-white px-6 py-3 rounded-full font-medium transition-all duration-200;
-    box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+    background: var(--gradient-pink);
+    @apply var(--neutral-0) px-6 py-3 rounded-full font-medium transition-all duration-200;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--brand-pink-500) 40%, transparent);
   }
 
   .gradient-button:hover {
-    background: linear-gradient(135deg, #db2777 0%, var(--brand-pink-500) 100%);
+    background: linear-gradient(135deg, var(--brand-pink-600) 0%, var(--brand-pink-500) 100%);
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(236, 72, 153, 0.5);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--brand-pink-500) 50%, transparent);
   }
 
   .gradient-button:active {
@@ -334,7 +339,7 @@ body,
 
   .gradient-divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(236, 72, 153, 0.3) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--brand-pink-500) 30%, transparent) 50%, transparent 100%);
     margin: 2rem 0;
   }
 
@@ -351,7 +356,7 @@ body,
     left: -1px;
     right: -1px;
     bottom: -1px;
-    background: linear-gradient(135deg, var(--brand-pink-500), #f472b6, var(--brand-pink-500));
+    background: linear-gradient(135deg, var(--brand-pink-500), var(--brand-pink-050), var(--brand-pink-500));
     border-radius: inherit;
     opacity: 0.1;
     z-index: -1;
@@ -371,7 +376,7 @@ body,
   }
 
   .inner-glow {
-    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--neutral-0) 80%, transparent) 0%, transparent 100%);
     position: relative;
   }
 
@@ -379,7 +384,7 @@ body,
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--brand-pink-500) 10%, transparent) 0%, transparent 70%);
     border-radius: inherit;
     pointer-events: none;
   }
@@ -402,7 +407,7 @@ body,
 
   .tab-indicator {
     height: 3px;
-    background: linear-gradient(90deg, var(--brand-pink-500) 0%, #f472b6 100%);
+    background: linear-gradient(90deg, var(--brand-pink-500) 0%, var(--brand-pink-050) 100%);
     border-radius: 2px;
     transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     position: absolute;
@@ -417,7 +422,7 @@ body,
   }
 
   .tab-button.active {
-    @apply text-pink-600 font-semibold;
+    @apply var(--brand-pink-600) font-semibold;
   }
 
   .tab-button:hover {
@@ -439,7 +444,7 @@ body,
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(236,72,153,0.05) 100%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--neutral-0) 50%, transparent) 0%, color-mix(in srgb, var(--brand-pink-500) 5%, transparent) 100%);
     pointer-events: none;
     border-radius: inherit;
   }
@@ -450,9 +455,9 @@ body,
   }
 
   .nav-button.active {
-    background: linear-gradient(135deg, var(--brand-pink-500) 0%, #f472b6 100%);
-    @apply text-white rounded-full px-4 py-2 shadow-lg;
-    box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
+    background: var(--gradient-pink);
+    @apply var(--neutral-0) rounded-full px-4 py-2 shadow-lg;
+    box-shadow: 0 8px 25px color-mix(in srgb, var(--brand-pink-500) 40%, transparent);
   }
 
   .nav-button.active::before {
@@ -462,7 +467,7 @@ body,
     left: -2px;
     right: -2px;
     bottom: -2px;
-    background: linear-gradient(135deg, var(--brand-pink-500) 0%, #f472b6 100%);
+    background: var(--gradient-pink);
     border-radius: inherit;
     opacity: 0.3;
     animation: glow-pulse 2s ease-in-out infinite;
@@ -494,7 +499,7 @@ body,
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(236,72,153,0.05) 100%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--neutral-0) 60%, transparent) 0%, color-mix(in srgb, var(--brand-pink-500) 5%, transparent) 100%);
     pointer-events: none;
     border-radius: inherit;
   }
@@ -573,23 +578,14 @@ body,
     --sports: 120 85% 55%;
     --social: 45 85% 65%;
     
-    /* Synth Gradients */
-    --gradient-brand: linear-gradient(135deg, #FF3399, #FF66B3);
-    --gradient-card: linear-gradient(145deg, var(--neutral-0), #F5F5DC);
-    --gradient-accent: linear-gradient(135deg, #F5F5DC, #FAFAF5);
-    --gradient-dark: linear-gradient(135deg, #000000, #1A1A1A);
-    --gradient-soft: linear-gradient(
-      180deg,
-      rgba(255, 51, 153, 0.06) 0%,
-      rgba(255, 255, 255, 0.9) 40%,
-      rgba(255, 51, 153, 0.04) 100%
-    );
-    
+    /* Synth Gradients — defined in tokens.css; --gradient-dark has no token equivalent */
+    --gradient-dark: linear-gradient(135deg, var(--neutral-900), #1A1A1A);
+
     /* Synth Shadows */
-    --shadow-soft: 0 4px 20px -2px rgba(255, 51, 153, 0.1);
+    --shadow-soft: 0 4px 20px -2px color-mix(in srgb, var(--brand-pink-500) 10%, transparent);
     --shadow-card: 0 8px 30px -4px rgba(0, 0, 0, 0.1);
-    --shadow-hover: 0 12px 40px -6px rgba(255, 51, 153, 0.2);
-    --shadow-glow: 0 0 20px rgba(255, 51, 153, 0.3);
+    --shadow-hover: 0 12px 40px -6px color-mix(in srgb, var(--brand-pink-500) 20%, transparent);
+    --shadow-glow: 0 0 20px color-mix(in srgb, var(--brand-pink-500) 30%, transparent);
     
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -631,10 +627,10 @@ body,
     --ring: 320 100% 60%;
     --gradient-card: linear-gradient(145deg, var(--neutral-0), #F5F5DC);
     --gradient-accent: linear-gradient(135deg, #F5F5DC, #FAFAF5);
-    --shadow-soft: 0 4px 20px -2px rgba(255, 51, 153, 0.1);
+    --shadow-soft: 0 4px 20px -2px color-mix(in srgb, var(--brand-pink-500) 10%, transparent);
     --shadow-card: 0 8px 30px -4px rgba(0, 0, 0, 0.1);
-    --shadow-hover: 0 12px 40px -6px rgba(255, 51, 153, 0.2);
-    --shadow-glow: 0 0 20px rgba(255, 51, 153, 0.3);
+    --shadow-hover: 0 12px 40px -6px color-mix(in srgb, var(--brand-pink-500) 20%, transparent);
+    --shadow-glow: 0 0 20px color-mix(in srgb, var(--brand-pink-500) 30%, transparent);
   }
 }
 
@@ -783,7 +779,7 @@ body,
   }
   
   .synth-logo-s {
-    @apply text-synth-pink;
+    @apply var(--brand-pink-500);
   }
   
   .synth-logo-text {
@@ -792,7 +788,7 @@ body,
   
   /* Event category badges - Synth themed */
   .category-music { 
-    @apply bg-synth-pink/10 text-synth-pink border border-synth-pink/20; 
+    @apply bg-synth-pink/10 var(--brand-pink-500) border border-synth-pink/20; 
   }
   .category-food { 
     @apply bg-orange-100 text-orange-700 border border-orange-200; 
@@ -1037,7 +1033,7 @@ body,
   }
   
   .synth-nav-item.active {
-    @apply bg-synth-pink text-white;
+    @apply bg-synth-pink var(--neutral-0);
     box-shadow: 0 4px 12px rgba(255, 51, 153, 0.3);
   }
   

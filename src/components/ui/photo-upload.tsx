@@ -311,7 +311,7 @@ export function PhotoUpload(props: PhotoUploadProps) {
               disabled={disabled || uploading}
               onMouseDown={(e) => e.stopPropagation()}
               onClickCapture={(e) => e.stopPropagation()}
-              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+              className="absolute top-1 right-1 bg-red-500 var(--neutral-0) rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
             >
               <X className="w-4 h-4" />
             </button>
@@ -378,7 +378,7 @@ export function PhotoUpload(props: PhotoUploadProps) {
               <button
                 type="button"
                 onClick={closePreview}
-                className="absolute top-3 right-3 z-10 rounded-full bg-black/60 text-white p-2 hover:bg-black/70"
+                className="absolute top-3 right-3 z-10 rounded-full bg-black/60 var(--neutral-0) p-2 hover:bg-black/70"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -709,7 +709,7 @@ const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
                 className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
                 aria-label="Remove photo"
               >
-                <X className="w-6 h-6 text-white" aria-hidden="true" />
+                <X className="w-6 h-6 var(--neutral-0)" aria-hidden="true" />
               </button>
             </>
           ) : (
@@ -1007,14 +1007,14 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
             />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-black/50 rounded-full p-2">
-                <Play className="w-6 h-6 text-white" fill="white" />
+                <Play className="w-6 h-6 var(--neutral-0)" fill="white" />
               </div>
             </div>
             <button
               type="button"
               onClick={() => handleRemove(url, index)}
               disabled={disabled || uploading}
-              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+              className="absolute top-1 right-1 bg-red-500 var(--neutral-0) rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
             >
               <X className="w-4 h-4" />
             </button>

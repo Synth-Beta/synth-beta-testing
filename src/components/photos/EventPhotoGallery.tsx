@@ -97,7 +97,7 @@ const [photos, setPhotos] = useState<EventPhoto[]>([]);
             variant="ghost"
             size="sm"
             onClick={() => handleLike(photo)}
-            className={photo.user_has_liked ? 'text-red-500' : 'var(--neutral-600)'}
+            className={photo.user_has_liked ? 'var(--status-error-500)' : 'var(--neutral-600)'}
           >
             <Heart className={`h-4 w-4 mr-1 ${photo.user_has_liked ? 'fill-current' : ''}`} />
             {photo.likes_count}

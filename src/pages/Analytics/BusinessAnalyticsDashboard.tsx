@@ -334,7 +334,7 @@ export default function BusinessAnalyticsDashboard() {
                 <Download className="w-4 h-4" />
                 Export Data
               </button>
-              <button className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all">
+              <button className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 var(--neutral-0) rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all">
                 Upgrade to Pro
               </button>
             </div>
@@ -427,7 +427,7 @@ export default function BusinessAnalyticsDashboard() {
             {conversionFunnel && conversionFunnel.stages.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-synth-pink" />
+                  <Target className="w-5 h-5 var(--brand-pink-500)" />
                   Customer Conversion Funnel
                 </h2>
                 <ConversionFunnelChart
@@ -442,7 +442,7 @@ export default function BusinessAnalyticsDashboard() {
             {revenueMetrics && revenueMetrics.total_revenue > 0 && (
               <div className="mb-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-synth-pink" />
+                  <DollarSign className="w-5 h-5 var(--brand-pink-500)" />
                   Revenue Attribution
                 </h2>
                 <RevenueAttributionChart
@@ -739,7 +739,7 @@ export default function BusinessAnalyticsDashboard() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {Object.entries(vipMetrics.vip_by_tier).map(([tier, count]) => (
                           <div key={tier} className="text-center">
-                            <div className={`w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold ${
+                            <div className={`w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center var(--neutral-0) font-bold ${
                               tier === 'platinum' ? 'bg-gradient-to-r from-gray-400 to-gray-600' :
                               tier === 'gold' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
                               tier === 'silver' ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
@@ -762,7 +762,7 @@ export default function BusinessAnalyticsDashboard() {
                       {vipCustomers.slice(0, 10).map((customer, index) => (
                         <div key={customer.user_id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                           <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center var(--neutral-0) font-bold ${
                               customer.vip_tier === 'platinum' ? 'bg-gradient-to-r from-gray-400 to-gray-600' :
                               customer.vip_tier === 'gold' ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
                               customer.vip_tier === 'silver' ? 'bg-gradient-to-r from-gray-300 to-gray-500' :
@@ -878,7 +878,7 @@ export default function BusinessAnalyticsDashboard() {
             {/* Header */}
             <div className="text-center mb-6">
               <div className="flex items-center justify-center gap-3 mb-2">
-                <Trophy className="w-8 h-8 text-yellow-500" />
+                <Trophy className="w-8 h-8 var(--rating-star)" />
                 <h2 className="gradient-text text-2xl font-bold">Business Achievements</h2>
               </div>
               <p className="var(--neutral-600) text-sm">
@@ -988,7 +988,7 @@ export default function BusinessAnalyticsDashboard() {
                 <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Promotions Yet</h3>
                 <p className="text-gray-500 mb-4">Start promoting your venue's events to see detailed analytics here</p>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <button className="px-4 py-2 bg-blue-600 var(--neutral-0) rounded-lg hover:bg-blue-700 transition-colors">
                   Promote Your First Event
                 </button>
               </div>

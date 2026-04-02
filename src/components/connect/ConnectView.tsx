@@ -717,7 +717,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
       <Card className="shadow-md border border-white/60 bg-white/80">
         <CardHeader className="pb-3 px-4 pt-4">
           <CardTitle className="text-base font-bold text-foreground flex items-center gap-2 mb-1">
-            <UserPlus className="w-4 h-4 text-green-500" />
+            <UserPlus className="w-4 h-4 var(--status-success-500)" />
             People you might know
           </CardTitle>
           <p className="text-xs text-muted-foreground">
@@ -727,7 +727,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
         <CardContent className="px-4 pb-4">
           {recommendationsLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-synth-pink" />
+              <Loader2 className="h-5 w-5 animate-spin var(--brand-pink-500)" />
             </div>
           ) : recommendedUsers.length === 0 ? (
             <div className="text-center py-6">
@@ -764,7 +764,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           </AvatarFallback>
                         </Avatar>
                         <h3
-                          className="font-semibold text-sm text-gray-900 mb-1 cursor-pointer hover:text-synth-pink transition-colors"
+                          className="font-semibold text-sm text-gray-900 mb-1 cursor-pointer hover:var(--brand-pink-500) transition-colors"
                           onClick={() => onNavigateToProfile?.(user.recommended_user_id)}
                         >
                           {user.name || 'User'}
@@ -833,7 +833,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     if (reviewsLoading) {
       return (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-synth-pink" />
+          <Loader2 className="h-6 w-6 animate-spin var(--brand-pink-500)" />
         </div>
       );
     }
@@ -1035,7 +1035,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     if (interestsLoading) {
       return (
         <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-5 w-5 animate-spin text-synth-pink" />
+          <Loader2 className="h-5 w-5 animate-spin var(--brand-pink-500)" />
         </div>
       );
     }
@@ -1353,7 +1353,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     if (chatsLoading) {
       return (
         <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-4 w-4 animate-spin text-synth-pink" />
+          <Loader2 className="h-4 w-4 animate-spin var(--brand-pink-500)" />
         </div>
       );
     }
@@ -1463,7 +1463,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
     if (recommendedChatFriendsLoading) {
       return (
         <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-4 w-4 animate-spin text-synth-pink" />
+          <Loader2 className="h-4 w-4 animate-spin var(--brand-pink-500)" />
         </div>
       );
     }
@@ -1578,7 +1578,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                 <div className="mb-2">
                   <div className="mb-4">
                     <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
-                      <Sparkles className="w-6 h-6 text-green-500" />
+                      <Sparkles className="w-6 h-6 var(--status-success-500)" />
                       Friends Interested in Same Events
                     </h2>
                     <p className="text-muted-foreground text-sm">
@@ -1625,7 +1625,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     src={selectedReviewDetail.author?.avatar_url || undefined} 
                     alt={selectedReviewDetail.author?.name ? `${selectedReviewDetail.author.name}'s profile picture` : "User profile picture"} 
                   />
-                  <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 text-white">
+                  <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 var(--neutral-0)">
                     {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
@@ -1707,7 +1707,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     className="max-w-full max-h-full object-contain"
                   />
                 ) : (
-                  <div className="text-center text-white">
+                  <div className="text-center var(--neutral-0)">
                     <div className="text-6xl font-bold mb-4">
                       <span className="text-pink-500">S</span>ynth
                     </div>
@@ -1727,7 +1727,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                 {loadingReviewDetails ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mx-auto mb-2" />
+                      <Loader2 className="h-8 w-8 animate-spin var(--info-blue-500) mx-auto mb-2" />
                       <p className="text-sm text-gray-500">Loading review details...</p>
                     </div>
                   </div>
@@ -1774,7 +1774,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                               <Star className="w-6 h-6 text-gray-300" />
                               {(isHalf || isFull) && (
                                 <div className={`absolute left-0 top-0 h-full overflow-hidden pointer-events-none ${isFull ? 'w-full' : 'w-1/2'}`}>
-                                  <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
+                                  <Star className="w-6 h-6 var(--rating-star) fill-yellow-500" />
                                 </div>
                               )}
                             </div>
@@ -1812,7 +1812,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                                         <Star className="w-4 h-4 text-gray-300" />
                                         {(isHalf || isFull) && (
                                           <div className={`absolute left-0 top-0 h-full overflow-hidden pointer-events-none ${isFull ? 'w-full' : 'w-1/2'}`}>
-                                            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                            <Star className="w-4 h-4 var(--rating-star) fill-yellow-500" />
                                           </div>
                                         )}
                                       </div>
@@ -1931,7 +1931,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                             <video src={src} className="h-full w-full object-cover" muted playsInline />
                             <div className="absolute inset-0 flex items-center justify-center">
                               <div className="bg-white/80 rounded-full p-2">
-                                <Play className="w-4 h-4 text-black" />
+                                <Play className="w-4 h-4 var(--neutral-900)" />
                               </div>
                             </div>
                           </div>
@@ -1956,13 +1956,13 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                         }
                       }}
                       className={`flex items-center gap-2 transition-colors ${
-                        likedReviews.has(selectedReviewDetail.id) ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
+                        likedReviews.has(selectedReviewDetail.id) ? 'var(--status-error-500)' : 'text-gray-700 hover:var(--status-error-500)'
                       }`}
                     >
                       <Heart className={`w-5 h-5 ${likedReviews.has(selectedReviewDetail.id) ? 'fill-current' : ''}`} />
                       <span className="font-medium">{selectedReviewDetail.likes_count || 0}</span>
                     </button>
-                    <button className="flex items-center gap-2 text-gray-700 hover:text-blue-500 transition-colors">
+                    <button className="flex items-center gap-2 text-gray-700 hover:var(--info-blue-500) transition-colors">
                       <MessageCircle className="w-5 h-5" />
                       <span className="font-medium">{selectedReviewDetail.comments_count || 0}</span>
                     </button>
@@ -1974,7 +1974,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           setReviewShareModalOpen(true);
                         }
                       }}
-                      className="flex items-center gap-2 text-gray-700 hover:text-green-500 transition-colors"
+                      className="flex items-center gap-2 text-gray-700 hover:var(--status-success-500) transition-colors"
                     >
                       <Share2 className="w-5 h-5" />
                       <span className="font-medium">Share</span>

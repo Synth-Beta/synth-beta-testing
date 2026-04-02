@@ -206,10 +206,10 @@ export function EventMessageCard({
       {/* Header with Music Icon */}
       <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-3 flex items-center gap-2">
         <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-          <Music className="w-5 h-5 text-white" />
+          <Music className="w-5 h-5 var(--neutral-0)" />
         </div>
         <div className="flex-1">
-          <p className="text-white text-xs font-medium">Shared Event</p>
+          <p className="var(--neutral-0) text-xs font-medium">Shared Event</p>
         </div>
         {isUpcomingEvent && (
           <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
@@ -237,7 +237,7 @@ export function EventMessageCard({
           <h3 className="font-bold text-lg text-gray-900 leading-tight mb-1">
             {event.title}
           </h3>
-          <p className="text-pink-600 font-semibold text-sm">
+          <p className="var(--brand-pink-600) font-semibold text-sm">
             {event.artist_name}
           </p>
         </div>
@@ -291,7 +291,7 @@ export function EventMessageCard({
             <Button
               size="sm"
               disabled={interestLoading}
-              className={`flex-1 ${isInterested ? 'bg-green-500 hover:bg-green-600' : 'bg-pink-500 hover:bg-pink-600'} text-white`}
+              className={`flex-1 ${isInterested ? 'bg-green-500 hover:bg-green-600' : 'bg-pink-500 hover:bg-pink-600'} var(--neutral-0)`}
               onClick={async (e) => {
                 e.stopPropagation();
                 setInterestLoading(true);
@@ -316,7 +316,7 @@ export function EventMessageCard({
             <Button
               size="sm"
               disabled={attendanceLoading}
-              className={`flex-1 ${isAttended ? 'bg-blue-500 hover:bg-blue-600' : 'bg-yellow-500 hover:bg-yellow-600'} text-white`}
+              className={`flex-1 ${isAttended ? 'bg-blue-500 hover:bg-blue-600' : 'bg-yellow-500 hover:bg-yellow-600'} var(--neutral-0)`}
               onClick={async (e) => {
                 e.stopPropagation();
                 setAttendanceLoading(true);
@@ -391,7 +391,7 @@ export function EventMessageCard({
         <Button
           variant="ghost"
           size="sm"
-          className="w-full text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+          className="w-full var(--brand-pink-600) hover:text-pink-700 hover:bg-pink-50"
           onClick={() => onEventClick?.(event)}
         >
           View Full Details →

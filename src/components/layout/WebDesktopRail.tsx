@@ -31,7 +31,7 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
             <Icon name="hamburgerMenu" size={24} alt="" ariaHidden />
             {menuBadgeCount > 0 ? (
               <span
-                className="absolute -right-2 -top-1.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white ring-2 ring-[var(--neutral-50)]"
+                className="absolute -right-2 -top-1.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold var(--neutral-0) ring-2 ring-[var(--neutral-50)]"
                 aria-hidden
               >
                 {menuBadgeCount > 99 ? '99+' : menuBadgeCount}

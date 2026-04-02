@@ -79,9 +79,9 @@ export function NotificationsList() {
       case 'match':
         return <Heart className="h-5 w-5 text-pink-500" />;
       case 'message':
-        return <MessageCircle className="h-5 w-5 text-blue-500" />;
+        return <MessageCircle className="h-5 w-5 var(--info-blue-500)" />;
       case 'friend_request':
-        return <UserPlus className="h-5 w-5 text-green-500" />;
+        return <UserPlus className="h-5 w-5 var(--status-success-500)" />;
       default:
         return <Bell className="h-5 w-5 text-gray-500" />;
     }

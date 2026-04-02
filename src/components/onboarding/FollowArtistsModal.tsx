@@ -139,7 +139,7 @@ export const FollowArtistsModal = ({
                       <div className="relative mb-2 mt-1">
                         <Avatar className="h-16 w-16 ring-2 ring-synth-pink/20 transition-all">
                           <AvatarImage src={artist.image_url || undefined} alt={artist.name} />
-                          <AvatarFallback className="bg-synth-pink/10 text-synth-pink">
+                          <AvatarFallback className="bg-synth-pink/10 var(--brand-pink-500)">
                             {renderInitials(artist.name)}
                           </AvatarFallback>
                         </Avatar>

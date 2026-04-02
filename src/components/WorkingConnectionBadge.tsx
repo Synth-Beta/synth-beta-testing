@@ -71,10 +71,10 @@ export const WorkingConnectionBadge: React.FC<WorkingConnectionBadgeProps> = ({ 
 
   const getBadgeColor = (degree: number) => {
     switch (degree) {
-      case 1: return "bg-green-700 text-white" // dark green
-      case 2: return "bg-green-400 text-black" // light green
-      case 3: return "bg-yellow-400 text-black" // yellow
-      default: return "bg-red-500 text-white" // red
+      case 1: return "bg-green-700 var(--neutral-0)" // dark green
+      case 2: return "bg-green-400 var(--neutral-900)" // light green
+      case 3: return "bg-yellow-400 var(--neutral-900)" // yellow
+      default: return "bg-red-500 var(--neutral-0)" // red
     }
   }
 

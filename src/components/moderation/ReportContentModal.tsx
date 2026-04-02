@@ -102,7 +102,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
           <form onSubmit={handleSubmit} className="space-y-4">
           {/* Reason Selection */}
           <div className="space-y-3">
-            <Label>Why are you reporting this? <span className="text-red-500">*</span></Label>
+            <Label>Why are you reporting this? <span className="var(--status-error-500)">*</span></Label>
             <div className="space-y-2">
               {Object.entries(FLAG_REASONS).map(([key, reason]) => (
                 <label

@@ -364,7 +364,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
         <div className="max-w-sm mx-auto text-center pt-6">
           <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Headphones className="w-10 h-10 text-synth-pink" />
+            <Headphones className="w-10 h-10 var(--brand-pink-500)" />
           </div>
           <h2 className="type-h2 mb-2 synth-gradient-text">Streaming Stats</h2>
           <p className="text-muted-foreground text-sm mb-8">
@@ -379,9 +379,9 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
             >
               <div className="w-12 h-12 bg-[#1DB954] rounded-full flex items-center justify-center flex-shrink-0">
                 {connectingSpotify ? (
-                  <RefreshCw className="w-5 h-5 text-white animate-spin" />
+                  <RefreshCw className="w-5 h-5 var(--neutral-0) animate-spin" />
                 ) : (
-                  <Music className="w-6 h-6 text-white" />
+                  <Music className="w-6 h-6 var(--neutral-0)" />
                 )}
               </div>
               <div>
@@ -399,9 +399,9 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
             >
               <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
                 {syncing ? (
-                  <RefreshCw className="w-5 h-5 text-white animate-spin" />
+                  <RefreshCw className="w-5 h-5 var(--neutral-0) animate-spin" />
                 ) : (
-                  <Music className="w-6 h-6 text-white" />
+                  <Music className="w-6 h-6 var(--neutral-0)" />
                 )}
               </div>
               <div>
@@ -497,7 +497,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
                 onClick={() => setTimeRange(range)}
                 className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
                   timeRange === range
-                    ? 'text-white shadow-sm'
+                    ? 'var(--neutral-0) shadow-sm'
                     : 'bg-white border border-gray-200 text-muted-foreground hover:border-gray-300'
                 }`}
                 style={timeRange === range ? { backgroundColor: accentColor } : undefined}
@@ -520,7 +520,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
               <Button
                 onClick={handleSync}
                 disabled={syncing}
-                className="text-white"
+                className="var(--neutral-0)"
                 style={{ backgroundColor: accentColor }}
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
@@ -665,7 +665,7 @@ function ArtistRow({
         />
       ) : (
         <div
-          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
+          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 var(--neutral-0) font-bold text-sm"
           style={{ backgroundColor: accentColor }}
         >
           {rank}
@@ -709,7 +709,7 @@ function TrackRow({
         />
       ) : (
         <div
-          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
+          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 var(--neutral-0) font-bold text-sm"
           style={{ backgroundColor: accentColor }}
         >
           {rank}

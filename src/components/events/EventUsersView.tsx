@@ -485,9 +485,9 @@ const { sessionExpired } = useAuth();
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 p-2 rounded-lg border hover:bg-pink-50 transition-colors"
                     >
-                      <Instagram className="w-4 h-4 text-pink-600" />
-                      <span className="text-pink-600 font-medium text-sm">@{currentUser.instagram_handle}</span>
-                      <ExternalLink className="w-3 h-3 text-pink-600 ml-auto" />
+                      <Instagram className="w-4 h-4 var(--brand-pink-600)" />
+                      <span className="var(--brand-pink-600) font-medium text-sm">@{currentUser.instagram_handle}</span>
+                      <ExternalLink className="w-3 h-3 var(--brand-pink-600) ml-auto" />
                     </a>
                   </div>
                 </div>

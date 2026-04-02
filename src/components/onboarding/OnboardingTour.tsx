@@ -790,7 +790,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
           fontSize: 14,
           padding: '10px 20px',
           fontWeight: 600,
-          color: '#fff',
+          color: 'var(--neutral-0)',
           border: 'none',
           outline: 'none',
           cursor: 'pointer !important',

@@ -59,7 +59,7 @@ export function CohortRetentionChart({ data, city }: CohortRetentionChartProps) 
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-synth-pink" />
+            <TrendingUp className="w-5 h-5 var(--brand-pink-500)" />
             Cohort Retention Curves
             {city && <span className="text-base font-normal text-gray-500">({city})</span>}
           </CardTitle>
@@ -102,7 +102,7 @@ export function CohortRetentionChart({ data, city }: CohortRetentionChartProps) 
             />
             <Tooltip 
               contentStyle={{ 
-                backgroundColor: '#fff', 
+                backgroundColor: 'var(--neutral-0)', 
                 border: '1px solid #e5e7eb',
                 borderRadius: '8px'
               }}

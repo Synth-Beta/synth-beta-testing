@@ -125,7 +125,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
               onClick={() => handleRatingChange(rating)}
               className={cn(
                 "flex flex-col items-center space-y-1 px-3 py-2 h-auto",
-                formData.rating === rating && "bg-blue-500 text-white hover:bg-blue-600"
+                formData.rating === rating && "bg-blue-500 var(--neutral-0) hover:bg-blue-600"
               )}
             >
               <span className="text-lg">{emoji}</span>

@@ -156,7 +156,7 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
               disabled={!currentUserId || submitting}
               className="min-h-[72px]"
             />
-            <Button onClick={handleAddComment} disabled={!currentUserId || submitting || !newComment.trim()} className="bg-pink-500 hover:bg-pink-600 text-white">
+            <Button onClick={handleAddComment} disabled={!currentUserId || submitting || !newComment.trim()} className="bg-pink-500 hover:bg-pink-600 var(--neutral-0)">
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>

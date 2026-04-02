@@ -64,7 +64,7 @@ export const Navigation = ({ currentView, onViewChange, onOpenEventReview }: Nav
                 data-tour="create-review"
                 type="button"
               >
-                <Plus className="w-6 h-6 text-white" strokeWidth={2} aria-hidden="true" />
+                <Plus className="w-6 h-6 var(--neutral-0)" strokeWidth={2} aria-hidden="true" />
               </button>
             );
           }

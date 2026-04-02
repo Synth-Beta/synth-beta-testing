@@ -26,14 +26,14 @@ export function PopularityIndicator({
         tier: 'mega',
         label: 'Mega Popular',
         icon: Crown,
-        className: 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white',
+        className: 'bg-gradient-to-r from-yellow-400 to-orange-500 var(--neutral-0)',
       };
     } else if (totalInterest >= 50) {
       return {
         tier: 'very',
         label: 'Very Popular',
         icon: Sparkles,
-        className: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white',
+        className: 'bg-gradient-to-r from-purple-500 to-pink-500 var(--neutral-0)',
       };
     } else if (totalInterest >= 20) {
       return {

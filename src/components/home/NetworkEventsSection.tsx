@@ -27,13 +27,13 @@ export const NetworkEventsSection: React.FC<NetworkEventsSectionProps> = ({
   const getActionIcon = (actionType: NetworkEvent['action_type']) => {
     switch (actionType) {
       case 'reviewed':
-        return <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />;
+        return <Star className="h-4 w-4 var(--rating-star) fill-yellow-500" />;
       case 'going':
-        return <Calendar className="h-4 w-4 text-green-500" />;
+        return <Calendar className="h-4 w-4 var(--status-success-500)" />;
       case 'interested':
         return <Heart className="h-4 w-4 text-pink-500" />;
       case 'saved':
-        return <Bookmark className="h-4 w-4 text-blue-500" />;
+        return <Bookmark className="h-4 w-4 var(--info-blue-500)" />;
     }
   };
 

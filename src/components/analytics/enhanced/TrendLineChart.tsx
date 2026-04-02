@@ -90,7 +90,7 @@ export function TrendLineChart({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-synth-pink" />
+            <BarChart3 className="w-5 h-5 var(--brand-pink-500)" />
             {title}
           </CardTitle>
           {showTrend && (

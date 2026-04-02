@@ -208,7 +208,7 @@ useEffect(() => {
               <Label htmlFor="review">Select Review</Label>
               {loadingReviews ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-synth-pink" />
+                  <Loader2 className="h-6 w-6 animate-spin var(--brand-pink-500)" />
                 </div>
               ) : (
                 <Select value={selectedReviewId} onValueChange={setSelectedReviewId}>

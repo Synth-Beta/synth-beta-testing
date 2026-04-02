@@ -225,14 +225,14 @@ const { user } = useAuth();
       <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Music className="w-5 h-5 text-red-500" />
+            <Music className="w-5 h-5 var(--status-error-500)" />
             Apple Music Stats
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Music className="w-8 h-8 text-white" />
+              <Music className="w-8 h-8 var(--neutral-0)" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Connect Your Apple Music</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -241,7 +241,7 @@ const { user } = useAuth();
             <Button 
               onClick={handleConnect}
               disabled={authenticating}
-              className="bg-red-500 hover:bg-red-600 text-white"
+              className="bg-red-500 hover:bg-red-600 var(--neutral-0)"
             >
               {authenticating ? (
                 <>
@@ -256,7 +256,7 @@ const { user } = useAuth();
               )}
             </Button>
             {connectError && (
-              <p className="text-sm text-red-500 mt-3">
+              <p className="text-sm var(--status-error-500) mt-3">
                 {connectError}
               </p>
             )}
@@ -271,7 +271,7 @@ const { user } = useAuth();
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Music className="w-5 h-5 text-red-500" />
+            <Music className="w-5 h-5 var(--status-error-500)" />
             Apple Music Stats
           </CardTitle>
           <div className="flex gap-2">
@@ -299,7 +299,7 @@ const { user } = useAuth();
       </CardHeader>
       <CardContent className="space-y-6">
         {refreshError && (
-          <p className="text-sm text-red-500">
+          <p className="text-sm var(--status-error-500)">
             {refreshError}
           </p>
         )}
@@ -307,7 +307,7 @@ const { user } = useAuth();
         {userStorefront && (
           <div className="flex items-center gap-4 p-4 rounded-lg bg-red-50 border border-red-200">
             <Avatar className="w-12 h-12">
-              <AvatarFallback className="bg-red-500 text-white">
+              <AvatarFallback className="bg-red-500 var(--neutral-0)">
                 <User className="w-6 h-6" />
               </AvatarFallback>
             </Avatar>

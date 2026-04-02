@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  addBucketTxt: { color: '#fff', fontWeight: '700' },
+  addBucketTxt: { color: 'var(--neutral-0)', fontWeight: '700' },
   bucketRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

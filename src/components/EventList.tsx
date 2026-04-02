@@ -110,11 +110,11 @@ export const EventList = ({ events, onEventLike }: EventListProps) => {
               
               <div className="space-y-1 mb-4">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                  <Calendar className="w-4 h-4 hover-icon" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                   <span>{event.date} at {event.time}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <MapPin className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                  <MapPin className="w-4 h-4 hover-icon" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                   <span>{event.venue}</span>
                 </div>
               </div>

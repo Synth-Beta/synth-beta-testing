@@ -76,7 +76,7 @@ export const PassportTasteMapView: React.FC<PassportTasteMapViewProps> = ({ user
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Music className="w-5 h-5 text-synth-pink" />
+            <Music className="w-5 h-5 var(--brand-pink-500)" />
             Core Genres
           </CardTitle>
         </CardHeader>
@@ -108,7 +108,7 @@ export const PassportTasteMapView: React.FC<PassportTasteMapViewProps> = ({ user
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <MapPin className="w-5 h-5 text-synth-pink" />
+            <MapPin className="w-5 h-5 var(--brand-pink-500)" />
             Venue Affinity
           </CardTitle>
         </CardHeader>
@@ -140,7 +140,7 @@ export const PassportTasteMapView: React.FC<PassportTasteMapViewProps> = ({ user
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Zap className="w-5 h-5 text-synth-pink" />
+            <Zap className="w-5 h-5 var(--brand-pink-500)" />
             Energy Preference
           </CardTitle>
         </CardHeader>
@@ -172,7 +172,7 @@ export const PassportTasteMapView: React.FC<PassportTasteMapViewProps> = ({ user
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Clock className="w-5 h-5 text-synth-pink" />
+            <Clock className="w-5 h-5 var(--brand-pink-500)" />
             Era Bias
           </CardTitle>
         </CardHeader>

@@ -28,7 +28,7 @@ export function ProfileDraftsSummary({ draftCount, onClick }: ProfileDraftsSumma
           <p className="text-xs font-medium tracking-[0.18em] uppercase text-pink-200/90">
             Drafts
           </p>
-          <p className="mt-1 text-2xl font-semibold text-white drop-shadow">
+          <p className="mt-1 text-2xl font-semibold var(--neutral-0) drop-shadow">
             {draftCount} in progress
           </p>
           <p className="mt-1 text-xs text-pink-100/90">

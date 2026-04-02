@@ -580,7 +580,7 @@ const { sessionExpired } = useAuth();
             >
               <Bell className="w-5 h-5" />
               {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-red-500 var(--neutral-0) text-xs rounded-full w-5 h-5 flex items-center justify-center">
                 {notifications.length}
               </span>
             </Button>
@@ -629,7 +629,7 @@ const { sessionExpired } = useAuth();
                       <p className="var(--neutral-600) text-sm">Be the first to share a concert review!</p>
                       <Button
                         onClick={handleAddReview}
-                        className="mt-4 bg-pink-500 hover:bg-pink-600 text-white"
+                        className="mt-4 bg-pink-500 hover:bg-pink-600 var(--neutral-0)"
                       >
                         <Plus className="w-4 h-4 mr-2" />
                         Add Your First Review
@@ -758,7 +758,7 @@ const { sessionExpired } = useAuth();
                             variant="ghost"
                             size="sm"
                             onClick={() => handleLike(review.id)}
-                            className={`flex items-center gap-1 text-xs ${(review as any).is_liked ? 'text-red-500' : 'text-gray-500'}`}
+                            className={`flex items-center gap-1 text-xs ${(review as any).is_liked ? 'var(--status-error-500)' : 'text-gray-500'}`}
                           >
                             <Heart className={`w-3 h-3 ${(review as any).is_liked ? 'fill-current' : ''}`} />
                             {(review as any).likes_count}
@@ -857,7 +857,7 @@ const { sessionExpired } = useAuth();
                             variant="ghost"
                             size="sm"
                             onClick={() => handleLike(review.id)}
-                            className={`flex items-center gap-1 text-xs ${(review as any).is_liked ? 'text-red-500' : 'text-gray-500'}`}
+                            className={`flex items-center gap-1 text-xs ${(review as any).is_liked ? 'var(--status-error-500)' : 'text-gray-500'}`}
                           >
                             <Heart className={`w-3 h-3 ${(review as any).is_liked ? 'fill-current' : ''}`} />
                             {(review as any).likes_count}
@@ -947,7 +947,7 @@ const { sessionExpired } = useAuth();
                         )}
                         
                         <Button
-                          className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                          className="w-full bg-blue-500 hover:bg-blue-600 var(--neutral-0)"
                           onClick={() => {
                             console.log('Start chat with:', friend.name);
                             // TODO: Implement actual chat functionality
@@ -972,7 +972,7 @@ const { sessionExpired } = useAuth();
                     setShowChatModal(false);
                     setShowNotificationsModal(true);
                   }}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                  className="bg-blue-500 hover:bg-blue-600 var(--neutral-0)"
                 >
                   <UserPlus className="w-4 h-4 mr-2" />
                   Find Friends
@@ -1042,7 +1042,7 @@ const { sessionExpired } = useAuth();
                     <Button
                       size="sm"
                       onClick={() => sendFriendRequest(user.id)}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 text-sm"
+                      className="bg-blue-500 hover:bg-blue-600 var(--neutral-0) px-4 py-1 text-sm"
                     >
                       <UserPlus className="w-4 h-4 mr-1" />
                       Add
@@ -1095,7 +1095,7 @@ const { sessionExpired } = useAuth();
                               console.log('🤝 Request ID from data:', (notification.data as any)?.request_id);
                               handleAcceptFriendRequest((notification.data as any)?.request_id);
                             }}
-                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 text-sm"
+                            className="bg-green-500 hover:bg-green-600 var(--neutral-0) px-3 py-1 text-sm"
                           >
                             Accept
                           </Button>
@@ -1202,7 +1202,7 @@ const { sessionExpired } = useAuth();
                             console.error('Error creating direct chat:', error);
                             }
                         }}
-                        className="bg-blue-500 hover:bg-blue-600 text-white"
+                        className="bg-blue-500 hover:bg-blue-600 var(--neutral-0)"
                       >
                         <MessageCircle className="w-4 h-4 mr-1" />
                         Chat
@@ -1236,7 +1236,7 @@ const { sessionExpired } = useAuth();
                     setShowFriendsChatModal(false);
                     setShowNotificationsModal(true);
                   }}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                  className="bg-blue-500 hover:bg-blue-600 var(--neutral-0)"
                 >
                   <UserPlus className="w-4 h-4 mr-2" />
                   Find Friends

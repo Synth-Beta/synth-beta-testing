@@ -76,8 +76,8 @@ export function ArtistSelector({
                 className={cn(
                   "h-8 w-8 p-0",
                   isFavorite 
-                    ? "text-red-500 hover:text-red-600" 
-                    : "text-gray-400 hover:text-red-500"
+                    ? "var(--status-error-500) hover:text-red-600" 
+                    : "text-gray-400 hover:var(--status-error-500)"
                 )}
               >
                 {isFavorite ? (
@@ -131,7 +131,7 @@ export function ArtistSelector({
           
           <Button 
             onClick={() => onViewEvents(artist)}
-            className="bg-blue-500 hover:bg-blue-600 text-white"
+            className="bg-blue-500 hover:bg-blue-600 var(--neutral-0)"
           >
             <Calendar className="w-4 h-4 mr-2" />
             Browse Events

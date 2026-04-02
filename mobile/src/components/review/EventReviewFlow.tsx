@@ -1133,7 +1133,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         ) : null}
                         <Pressable style={styles.primaryBtn} onPress={pickPhotos} disabled={uploadingPhoto || formData.photos.length >= 5}>
                             {uploadingPhoto ? (
-                                <ActivityIndicator color="#fff" />
+                                <ActivityIndicator color="var(--neutral-0)" />
                             ) : (
                                 <SynthText variant="body" style={styles.primaryBtnText}>
                                     Add photos ({formData.photos.length}/5)
@@ -1222,7 +1222,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         ) : null}
                         <Pressable style={styles.primaryBtn} onPress={pickPhotos} disabled={uploadingPhoto || formData.photos.length >= 5}>
                             {uploadingPhoto ? (
-                                <ActivityIndicator color="#fff" />
+                                <ActivityIndicator color="var(--neutral-0)" />
                             ) : (
                                 <SynthText variant="body" style={styles.primaryBtnText}>
                                     Add photos ({formData.photos.length}/5)
@@ -1344,7 +1344,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         disabled={isLoading}
                     >
                         {isLoading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color="var(--neutral-0)" />
                         ) : (
                             <SynthText variant="body" style={styles.primaryBtnText}>
                                 Submit Review
@@ -1382,7 +1382,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 12,
         fontSize: 16,
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--neutral-0)',
         color: SynthTokens.colors.neutral900,
     },
     area: {
@@ -1393,7 +1393,7 @@ const styles = StyleSheet.create({
         minHeight: 120,
         textAlignVertical: 'top',
         fontSize: 16,
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--neutral-0)',
         color: SynthTokens.colors.neutral900,
     },
     listRow: {
@@ -1411,7 +1411,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         marginRight: 8,
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--neutral-0)',
     },
     durationCard: {
         borderWidth: 2,
@@ -1419,7 +1419,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 14,
         marginTop: 12,
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--neutral-0)',
     },
     durationCardOn: {
         borderColor: SynthTokens.colors.brandPink500,
@@ -1549,7 +1549,7 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         alignItems: 'center',
     },
-    primaryBtnText: { color: '#fff', fontWeight: '600' },
+    primaryBtnText: { color: 'var(--neutral-0)', fontWeight: '600' },
     primaryBtnDisabled: { opacity: 0.7 },
     photoStrip: {
         flexDirection: 'row',

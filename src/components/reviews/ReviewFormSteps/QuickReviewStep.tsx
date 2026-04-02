@@ -82,7 +82,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
       {/* Overall Rating */}
       <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-4 sm:p-6 shadow-sm text-center space-y-4 w-full max-w-full overflow-x-hidden">
         <div className="flex flex-col items-center gap-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-pink-600 font-semibold">Overall Rating</p>
+          <p className="text-xs uppercase tracking-[0.2em] var(--brand-pink-600) font-semibold">Overall Rating</p>
           <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
             <div
               className="flex items-center flex-shrink-0"
@@ -226,7 +226,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
           <div className="p-3 sm:p-4 bg-pink-50 rounded-lg border border-pink-200 w-full max-w-full overflow-x-hidden">
             <div className="flex items-center justify-between mb-2 gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <Music className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0" />
+                <Music className="w-4 h-4 sm:w-5 sm:h-5 var(--brand-pink-600) flex-shrink-0" />
                 <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">Setlist Selected</span>
               </div>
               <Button

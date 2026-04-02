@@ -321,7 +321,7 @@ const [uploading, setUploading] = useState(false);
               <button
                 type="button"
                 onClick={closePreview}
-                className="absolute top-3 right-3 z-10 rounded-full bg-black/60 text-white p-2 hover:bg-black/70"
+                className="absolute top-3 right-3 z-10 rounded-full bg-black/60 var(--neutral-0) p-2 hover:bg-black/70"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -600,7 +600,7 @@ function ThumbnailCropModal(props: {
                 }}
                 className={cn(
                   'text-sm font-semibold',
-                  saving ? 'text-gray-400' : 'text-pink-600 hover:text-pink-700'
+                  saving ? 'text-gray-400' : 'var(--brand-pink-600) hover:text-pink-700'
                 )}
                 disabled={saving}
                 aria-label="Save thumbnail crop"

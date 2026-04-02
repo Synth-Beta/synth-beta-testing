@@ -421,17 +421,17 @@ useEffect(() => {
                     <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                   )}
                   {!usernameValidation.checking && usernameValidation.available === true && (
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    <CheckCircle2 className="w-4 h-4 var(--status-success-500)" />
                   )}
                   {!usernameValidation.checking && usernameValidation.available === false && (
-                    <XCircle className="w-4 h-4 text-red-500" />
+                    <XCircle className="w-4 h-4 var(--status-error-500)" />
                   )}
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   {usernameValidation.error && (
-                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <p className="text-xs var(--status-error-500) mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       {usernameValidation.error}
                     </p>

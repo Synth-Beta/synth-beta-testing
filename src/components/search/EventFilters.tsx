@@ -819,7 +819,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                   className={cn(
                     "flex-1 text-xs",
                     [0, 1, 2, 3, 4].every(d => filters.daysOfWeek.includes(d))
-                      ? "bg-synth-pink text-white hover:bg-synth-pink-dark"
+                      ? "bg-synth-pink var(--neutral-0) hover:bg-synth-pink-dark"
                       : "bg-white/80 border-synth-pink/20 hover:border-synth-pink/40"
                   )}
                 >
@@ -832,7 +832,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                   className={cn(
                     "flex-1 text-xs",
                     [5, 6].every(d => filters.daysOfWeek.includes(d))
-                      ? "bg-synth-pink text-white hover:bg-synth-pink-dark"
+                      ? "bg-synth-pink var(--neutral-0) hover:bg-synth-pink-dark"
                       : "bg-white/80 border-synth-pink/20 hover:border-synth-pink/40"
                   )}
                 >
@@ -859,7 +859,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                     className={cn(
                       "h-10 p-0 text-xs font-medium",
                       filters.daysOfWeek.includes(day.value)
-                        ? "bg-synth-pink text-white hover:bg-synth-pink-dark border-synth-pink"
+                        ? "bg-synth-pink var(--neutral-0) hover:bg-synth-pink-dark border-synth-pink"
                         : "bg-white/80 border-gray-300 hover:border-synth-pink/40 hover:bg-synth-pink/10"
                     )}
                   >
@@ -932,7 +932,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                       variant={isActive ? "default" : "outline"}
                       size="sm"
                       onClick={() => handleTimeRangeSelect(option.value)}
-                      className={`text-xs ${isActive ? 'bg-synth-pink text-white hover:bg-synth-pink-dark' : 'bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40'}`}
+                      className={`text-xs ${isActive ? 'bg-synth-pink var(--neutral-0) hover:bg-synth-pink-dark' : 'bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40'}`}
                     >
                       <Clock className="h-3 w-3 mr-1" />
                       {option.label}
@@ -1011,7 +1011,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
           })}
           className={`rounded-full backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0 ${
             filters.filterByFollowing === 'following' 
-              ? 'bg-synth-pink text-white' 
+              ? 'bg-synth-pink var(--neutral-0)' 
               : 'bg-white/80'
           }`}
         >

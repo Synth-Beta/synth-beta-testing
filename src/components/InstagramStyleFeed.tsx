@@ -251,7 +251,7 @@ const { user } = useAuth();
             <div className="absolute inset-0 flex items-center justify-center">
               <button
                 onClick={() => toggleVideoPlay(item.id)}
-                className="bg-black/50 rounded-full p-3 text-white hover:bg-black/70 transition-colors"
+                className="bg-black/50 rounded-full p-3 var(--neutral-0) hover:bg-black/70 transition-colors"
               >
                 {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
               </button>
@@ -262,7 +262,7 @@ const { user } = useAuth();
           {isVideo && (
             <button
               onClick={() => toggleVideoVolume(item.id)}
-              className="absolute top-4 right-4 bg-black/50 rounded-full p-2 text-white hover:bg-black/70 transition-colors"
+              className="absolute top-4 right-4 bg-black/50 rounded-full p-2 var(--neutral-0) hover:bg-black/70 transition-colors"
             >
               {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </button>
@@ -271,7 +271,7 @@ const { user } = useAuth();
           {/* Fullscreen control */}
           <button
             onClick={() => toggleFullscreen(item.id)}
-            className="absolute top-4 left-4 bg-black/50 rounded-full p-2 text-white hover:bg-black/70 transition-colors"
+            className="absolute top-4 left-4 bg-black/50 rounded-full p-2 var(--neutral-0) hover:bg-black/70 transition-colors"
           >
             {isFullscreen ? <X className="w-5 h-5" /> : <MoreHorizontal className="w-5 h-5" />}
           </button>
@@ -282,14 +282,14 @@ const { user } = useAuth();
               <button
                 onClick={() => prevMedia(item.id)}
                 disabled={currentIndex === 0}
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-2 text-white hover:bg-black/70 transition-colors disabled:opacity-50"
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-2 var(--neutral-0) hover:bg-black/70 transition-colors disabled:opacity-50"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={() => nextMedia(item.id, photos)}
                 disabled={currentIndex === photos.length - 1}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-2 text-white hover:bg-black/70 transition-colors disabled:opacity-50"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-2 var(--neutral-0) hover:bg-black/70 transition-colors disabled:opacity-50"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -321,7 +321,7 @@ const { user } = useAuth();
         <div className="flex items-center space-x-3">
           <Avatar className="w-8 h-8">
             <AvatarImage src={item.author.avatar_url || undefined} />
-            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">
+            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 var(--neutral-0) text-sm">
               {item.author.name.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -376,20 +376,20 @@ const { user } = useAuth();
             <button
               onClick={() => handleLike(item)}
               className={`transition-colors ${
-                likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
+                likedPosts.has(item.id) ? 'var(--status-error-500)' : 'text-gray-700 hover:var(--status-error-500)'
               }`}
             >
               <Heart className={`w-6 h-6 ${likedPosts.has(item.id) ? 'fill-current' : ''}`} />
             </button>
             <button
               onClick={() => handleComment(item)}
-              className="text-gray-700 hover:text-blue-500 transition-colors"
+              className="text-gray-700 hover:var(--info-blue-500) transition-colors"
             >
               <MessageCircle className="w-6 h-6" />
             </button>
             <button
               onClick={() => handleShare(item)}
-              className="text-gray-700 hover:text-green-500 transition-colors"
+              className="text-gray-700 hover:var(--status-success-500) transition-colors"
             >
               <Share2 className="w-6 h-6" />
             </button>
@@ -397,7 +397,7 @@ const { user } = useAuth();
           <button
             onClick={() => handleBookmark(item)}
             className={`transition-colors ${
-              bookmarkedPosts.has(item.id) ? 'text-yellow-500' : 'text-gray-700 hover:text-yellow-500'
+              bookmarkedPosts.has(item.id) ? 'var(--rating-star)' : 'text-gray-700 hover:var(--rating-star)'
             }`}
           >
             <Bookmark className={`w-6 h-6 ${bookmarkedPosts.has(item.id) ? 'fill-current' : ''}`} />

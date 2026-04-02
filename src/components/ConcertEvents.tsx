@@ -250,7 +250,7 @@ useEffect(() => {
                     onClick={() => handleInterestToggle(concert.id)}
                     className={`h-8 w-8 p-0 rounded-full ${
                       interestedEvents.has(concert.id) 
-                        ? 'bg-red-500 hover:bg-red-600 text-white' 
+                        ? 'bg-red-500 hover:bg-red-600 var(--neutral-0)' 
                         : 'bg-background/90 hover:bg-background text-foreground'
                     }`}
                   >

@@ -172,7 +172,7 @@ export function FollowingModal({
               aria-label="Close dialog"
               type="button"
             >
-              <X className="w-4 h-4 text-white" aria-hidden="true" />
+              <X className="w-4 h-4 var(--neutral-0)" aria-hidden="true" />
             </button>
           </DialogHeader>
 

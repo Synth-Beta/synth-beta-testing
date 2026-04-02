@@ -179,7 +179,7 @@ export function PrivacySubmitStep({
           }}>
             {formData.selectedArtist?.name && formData.selectedVenue?.name && (
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-4 h-4 var(--status-success-500)" />
                 <span>
                   <strong>{formData.selectedArtist?.name}</strong> at{' '}
                   <strong>{formData.selectedVenue?.name}</strong>
@@ -189,14 +189,14 @@ export function PrivacySubmitStep({
 
             {formData.eventDate && (
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-4 h-4 var(--status-success-500)" />
                 <span>{formatDate(formData.eventDate)}</span>
               </div>
             )}
 
             {ticketPriceDisplay && (
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-4 h-4 var(--status-success-500)" />
                 <span>Ticket price (kept private): ${ticketPriceDisplay}</span>
               </div>
             )}
@@ -204,7 +204,7 @@ export function PrivacySubmitStep({
 
             {formData.reviewText && (
               <div className="flex items-start gap-2">
-                <Check className="w-4 h-4 text-green-500 mt-0.5" />
+                <Check className="w-4 h-4 var(--status-success-500) mt-0.5" />
                 <span>
                   Written story ({formData.reviewText.length} characters)
                 </span>
@@ -213,7 +213,7 @@ export function PrivacySubmitStep({
 
             {Array.isArray(formData.images) && formData.images.length > 0 && (
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-500" />
+                <Check className="w-4 h-4 var(--status-success-500)" />
                 <span>{formData.images.length} photo{formData.images.length !== 1 ? 's' : ''} attached</span>
               </div>
             )}
@@ -225,7 +225,7 @@ export function PrivacySubmitStep({
         <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30 overflow-visible relative z-20">
           <CardContent className="p-6 sm:p-8 pb-10 sm:pb-12">
             <div className="flex items-center gap-2 mb-6">
-              <Users className="w-6 h-6 text-pink-600" />
+              <Users className="w-6 h-6 var(--brand-pink-600)" />
               <h3 className="text-lg font-semibold text-gray-900">
                 Who tagged along? (Optional)
               </h3>

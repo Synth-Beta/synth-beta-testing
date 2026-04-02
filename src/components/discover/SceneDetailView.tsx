@@ -580,7 +580,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-muted-foreground">Overall Progress</span>
-                  <span className="text-lg font-bold text-synth-pink">{progress.progress_percentage}%</span>
+                  <span className="text-lg font-bold var(--brand-pink-500)">{progress.progress_percentage}%</span>
                 </div>
                 <div 
                   className="w-full overflow-hidden"
@@ -789,7 +789,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                   <Icon name="circleCheck" size={24} className="flex-shrink-0" color="var(--brand-pink-500)" />
                   <div>
                     <p className="text-sm font-medium">
-                      <span className="text-synth-pink font-bold">{progress.events_experienced}</span> events attended
+                      <span className="var(--brand-pink-500) font-bold">{progress.events_experienced}</span> events attended
                     </p>
                     <p className="text-xs text-muted-foreground">Keep exploring to complete this scene!</p>
                   </div>
@@ -1200,7 +1200,7 @@ export const SceneDetailView: React.FC<SceneDetailViewProps> = ({
                           src={reviewer.avatar_url || undefined} 
                           alt={`${reviewer.name}'s profile picture`} 
                         />
-                        <AvatarFallback className="bg-synth-pink/10 text-synth-pink">
+                        <AvatarFallback className="bg-synth-pink/10 var(--brand-pink-500)">
                           {reviewer.name.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>

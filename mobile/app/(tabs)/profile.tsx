@@ -324,7 +324,6 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: tabBarBottomContentPadding(insets.bottom) }}
       >
         {listHeaderAboveTabs}
-
         {profileTab === 'interested' ? (
           <View style={styles.tabPanel}>
             {interested.length === 0 ? (
@@ -463,7 +462,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   editProfileText: {
-    color: '#fff',
+    color: 'var(--neutral-0)',
     fontWeight: '700',
     fontSize: 16,
   },

@@ -135,7 +135,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
 
       {/* Large Overall Rating Display at Top - now interactive */}
       <div className="text-center p-7 md:p-8 bg-gradient-to-r from-pink-50 via-rose-50 to-fuchsia-50 rounded-2xl border border-pink-200 shadow-sm">
-        <p className="text-sm text-pink-600 mb-3 font-medium tracking-wide">Overall Rating</p>
+        <p className="text-sm var(--brand-pink-600) mb-3 font-medium tracking-wide">Overall Rating</p>
         <div className="flex items-center justify-center gap-4 mb-2">
           <div
             className="flex items-center"
@@ -191,7 +191,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
           </div>
           <span className="text-4xl font-extrabold text-gray-900">{getRatingLabel(getOverallDisplayRating())}</span>
         </div>
-        <p className="text-xs text-pink-600">Average of categories • Click stars to set all</p>
+        <p className="text-xs var(--brand-pink-600)">Average of categories • Click stars to set all</p>
       </div>
 
       {/* Three categories laid out horizontally with subtle separators */}
@@ -212,7 +212,7 @@ export function RatingStep({ formData, errors, onUpdateFormData }: RatingStepPro
         <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30">
           <CardContent className="p-8 pb-12">
             <div className="flex items-center gap-2 mb-6">
-              <Users className="w-6 h-6 text-pink-600" />
+              <Users className="w-6 h-6 var(--brand-pink-600)" />
               <h3 className="text-lg font-semibold text-gray-900">Who was with you?</h3>
               <span className="text-sm text-gray-500 font-normal">(Optional)</span>
             </div>

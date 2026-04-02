@@ -59,7 +59,7 @@ export function MetricCard({
           <CardTitle className="text-sm font-medium var(--neutral-600)">
             {title}
           </CardTitle>
-          {icon && <div className="text-synth-pink">{icon}</div>}
+          {icon && <div className="var(--brand-pink-500)">{icon}</div>}
         </div>
       </CardHeader>
       <CardContent>

@@ -73,7 +73,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           {/* Venue Name */}
           <div className="space-y-2">
             <Label htmlFor="name">
-              Venue Name <span className="text-red-500">*</span>
+              Venue Name <span className="var(--status-error-500)">*</span>
             </Label>
             <Input
               id="name"

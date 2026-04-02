@@ -272,7 +272,7 @@ export function VenueSearchBox({
                       />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center ring-2 ring-gray-100">
-                        <MapPin className="w-6 h-6 text-blue-500" />
+                        <MapPin className="w-6 h-6 var(--info-blue-500)" />
                       </div>
                     )}
                   </div>

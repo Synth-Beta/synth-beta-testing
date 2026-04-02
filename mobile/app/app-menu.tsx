@@ -152,7 +152,7 @@ export default function AppMenuScreen() {
               Your admin account is verified and trusted by the Synth community.
             </Text>
             <View style={styles.verifiedCheck}>
-              <Check size={28} color="#fff" strokeWidth={3} />
+              <Check size={28} color="var(--neutral-0)" strokeWidth={3} />
             </View>
           </View>
         ) : null}
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#EF4444',
+    backgroundColor: 'var(--status-error-500)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     borderColor: SynthTokens.colors.neutral0,
   },
   badgeText: {
-    color: '#fff',
+    color: 'var(--neutral-0)',
     fontSize: 10,
     fontWeight: '700',
   },

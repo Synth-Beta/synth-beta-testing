@@ -153,7 +153,7 @@ const [loading, setLoading] = useState(true);
         {/* Header */}
         <div className="glass-card inner-glow text-center p-6 floating-shadow">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <TrendingUp className="w-8 h-8 text-synth-pink" />
+            <TrendingUp className="w-8 h-8 var(--brand-pink-500)" />
             <h1 className="gradient-text text-3xl font-bold">My Concert Stats</h1>
           </div>
           <p className="var(--neutral-600)">Your personal concert journey at a glance</p>
@@ -163,7 +163,7 @@ const [loading, setLoading] = useState(true);
               variant="outline"
               size="sm"
               onClick={handleExport}
-              className="border-synth-pink text-synth-pink hover:bg-synth-pink hover:text-white"
+              className="border-synth-pink var(--brand-pink-500) hover:bg-synth-pink hover:var(--neutral-0)"
             >
               <Download className="w-4 h-4 mr-2" />
               Export Data
@@ -189,7 +189,7 @@ const [loading, setLoading] = useState(true);
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-full flex items-center justify-center">
-                    <Award className="w-6 h-6 text-white" />
+                    <Award className="w-6 h-6 var(--neutral-0)" />
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900">Upgrade to Premium</h3>
@@ -229,7 +229,7 @@ const [loading, setLoading] = useState(true);
         {revenueMetrics && revenueMetrics.total_revenue > 0 && (
           <div className="mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-synth-pink" />
+              <TrendingUp className="w-5 h-5 var(--brand-pink-500)" />
               Your Revenue Contribution
             </h2>
             <RevenueAttributionChart
@@ -250,7 +250,7 @@ const [loading, setLoading] = useState(true);
         {/* Engagement Metrics */}
         <div>
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-synth-pink" />
+            <Calendar className="w-5 h-5 var(--brand-pink-500)" />
             Your Activity (Last 30 Days)
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -296,7 +296,7 @@ const [loading, setLoading] = useState(true);
         {/* Music Taste */}
         <div>
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Music className="w-5 h-5 text-synth-pink" />
+            <Music className="w-5 h-5 var(--brand-pink-500)" />
             Your Music Taste
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -329,7 +329,7 @@ const [loading, setLoading] = useState(true);
           <Card className="glass-card inner-glow">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-synth-pink" />
+                <Star className="w-5 h-5 var(--brand-pink-500)" />
                 <CardTitle className="text-lg font-semibold">Your Reviews</CardTitle>
               </div>
             </CardHeader>
@@ -372,7 +372,7 @@ const [loading, setLoading] = useState(true);
         {/* Achievements */}
         <div>
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Award className="w-5 h-5 text-synth-pink" />
+            <Award className="w-5 h-5 var(--brand-pink-500)" />
             Achievements
           </h2>
           

@@ -91,17 +91,17 @@ export const ConnectionDegreeBadge: React.FC<ConnectionDegreeBadgeProps> = ({
   const getBadgeStyles = (color: string) => {
     switch (color) {
       case 'dark-green':
-        return 'bg-green-700 text-white hover:bg-green-800'
+        return 'bg-green-700 var(--neutral-0) hover:bg-green-800'
       case 'light-green':
         return 'bg-green-400 text-green-900 hover:bg-green-500'
       case 'yellow':
         return 'bg-yellow-400 text-yellow-900 hover:bg-yellow-500'
       case 'red':
-        return 'bg-red-500 text-white hover:bg-red-600'
+        return 'bg-red-500 var(--neutral-0) hover:bg-red-600'
       case 'blue':
-        return 'bg-blue-500 text-white hover:bg-blue-600'
+        return 'bg-blue-500 var(--neutral-0) hover:bg-blue-600'
       default:
-        return 'bg-gray-500 text-white hover:bg-gray-600'
+        return 'bg-gray-500 var(--neutral-0) hover:bg-gray-600'
     }
   }
 
@@ -216,7 +216,7 @@ export const ConnectionDegreeCompactBadge: React.FC<ConnectionDegreeBadgeProps> 
 
   return (
     <div 
-      className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${getBadgeColor(connectionInfo.color)} text-white font-bold text-xs ${className}`}
+      className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${getBadgeColor(connectionInfo.color)} var(--neutral-0) font-bold text-xs ${className}`}
       title={`${connectionInfo.label}${connectionInfo.mutual_friends_count > 0 ? ` (${connectionInfo.mutual_friends_count} mutual)` : ''}`}
     >
       {getShortLabel(connectionInfo.degree)}

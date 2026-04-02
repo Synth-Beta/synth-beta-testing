@@ -114,7 +114,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, onThumbn
         <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30 overflow-visible relative z-20">
           <CardContent className="p-8 pb-12">
             <div className="flex items-center gap-2 mb-6">
-              <Users className="w-6 h-6 text-pink-600" />
+              <Users className="w-6 h-6 var(--brand-pink-600)" />
               <h3 className="text-lg font-semibold text-gray-900">Who tagged along? (Optional)</h3>
             </div>
             <AttendeeSelector

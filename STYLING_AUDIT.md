@@ -1,7 +1,7 @@
 ## Colors
 | Raw Value | Replace With |
 |-----------|-------------|
-| #FFFFFF & #FFF | `var(--neutral-0)` |
+| #FFFFFF & #FFF | `var(--neutral-0)` |✅
 | #FCFCFC | `var(--neutral-50)` |✅
 | #F5F5F5 | `var(--neutral-100)` |✅
 | #E6E6E6 | `var(--neutral-200)` |✅
@@ -17,27 +17,26 @@
 | rgba(14, 14, 14, 0.2) | `var(--overlay-20)` |✅
 | text-gray-600 | `var(--neutral-600)` |✅
 | text-neutral-900 | `var(--neutral-900)` |✅
-| text-white | `var(--neutral-0)` |
-| text-black | `var(--neutral-900)` |
-| text-synth-pink | `var(--brand-pink-500)` |
-| text-pink-600 | `var(--brand-pink-600)` |
-| text-yellow-500 | `var(--rating-star)` |
-| text-blue-500 | `var(--info-blue-500)` |
-| text-green-500 | `var(--status-success-500)` |
-| text-red-500 | `var(--status-error-500)` |
-| text-indigo-500 | `var(--info-blue-500)` |
-| text-purple-500 | `var(--color-purple)` |
-| #EC4899 | define a brand/promotion token (reuse `var(--brand-pink-500)` or add `--color-ec4899`) |✅
-| #F472B6 | define a brand/promotion token (e.g., `--color-f472b6`) |
-| #1DB954 | define a `--spotify-green` token and use it instead of raw hex |
-| #FF3399 | define a brighter pink token (or reuse `var(--brand-pink-500)`) |
-| #FCE7F3 | define a light surface token (maybe `--neutral-soft`) that ties back to `--neutral-50` |
-| #EF4444 | `var(--status-error-500)` (red alert text/button fallback) |
+| text-white | `var(--neutral-0)` |✅
+| text-black | `var(--neutral-900)` |✅
+| text-synth-pink | `var(--brand-pink-500)` |✅
+| text-pink-600 | `var(--brand-pink-600)` |✅
+| text-yellow-500 | `var(--rating-star)` |✅
+| text-blue-500 | `var(--info-blue-500)` |✅
+| text-green-500 | `var(--status-success-500)` |✅
+| text-red-500 | `var(--status-error-500)` |✅
+| text-indigo-500 | `var(--info-blue-500)` |✅
+| text-purple-500 | `var(--color-purple)` |✅
+| #EC4899 | `var(--brand-pink-500)` |✅
+| #F472B6 | define a brand/promotion token (e.g., `--color-f472b6`) |✅
+| #FF3399 | define a brighter pink token (or reuse `var(--brand-pink-500)`) |✅
+| #FCE7F3 | '(--brand-pink-050)' |✅
+| #EF4444 | `var(--status-error-500)` (red alert text/button fallback) |✅
 
 ## Typography
 | Raw Value | Replace With |
 |-----------|-------------|
-| `fontSize: '35px'` | `var(--typography-h1-size)` |
+| `fontSize: '35px'` | `var(--typography-h1-size)` |✅
 | `fontSize: '24px'` | `var(--typography-h2-size)` |
 | `fontSize: '20px'` | `var(--typography-body-size)` |
 | `fontSize: '16px'` | `var(--typography-meta-size)` |

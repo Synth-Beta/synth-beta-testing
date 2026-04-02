@@ -226,7 +226,7 @@ useEffect(() => {
                     onClick={(e) => { e.stopPropagation(); handleInterestToggle(concert.id); }}
                     className={`${
                       interestedEvents.has(concert.id)
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                        ? 'bg-red-500 hover:bg-red-600 var(--neutral-0)'
                         : 'hover:bg-red-50 hover:text-red-600 hover:border-red-300'
                     }`}
                   >

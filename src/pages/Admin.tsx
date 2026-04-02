@@ -194,7 +194,7 @@ export default function Admin() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-pink-600 mx-auto mb-4" />
+          <RefreshCw className="w-8 h-8 animate-spin var(--brand-pink-600) mx-auto mb-4" />
           <p className="var(--neutral-600)">Loading...</p>
         </div>
       </div>
@@ -218,7 +218,7 @@ export default function Admin() {
           </p>
           <button
             onClick={() => window.location.href = '/'}
-            className="px-6 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors"
+            className="px-6 py-2 bg-pink-600 hover:bg-pink-700 var(--neutral-0) rounded-lg transition-colors"
           >
             Go to Home
           </button>
@@ -235,7 +235,7 @@ export default function Admin() {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <Shield className="w-8 h-8 text-pink-600" />
+                <Shield className="w-8 h-8 var(--brand-pink-600)" />
                 <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               </div>
               <p className="var(--neutral-600)">
@@ -253,7 +253,7 @@ export default function Admin() {
               </button>
               <button
                 onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-700 var(--neutral-0) rounded-lg transition-colors"
               >
                 <Download className="w-4 h-4" />
                 Export CSV
@@ -341,7 +341,7 @@ export default function Admin() {
             </select>
             <button
               onClick={handleSearch}
-              className="px-6 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg transition-colors"
+              className="px-6 py-2 bg-pink-600 hover:bg-pink-700 var(--neutral-0) rounded-lg transition-colors"
             >
               Search
             </button>
@@ -359,7 +359,7 @@ export default function Admin() {
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           {loading ? (
             <div className="p-12 text-center">
-              <RefreshCw className="w-8 h-8 animate-spin text-pink-600 mx-auto mb-4" />
+              <RefreshCw className="w-8 h-8 animate-spin var(--brand-pink-600) mx-auto mb-4" />
               <p className="var(--neutral-600)">Loading users...</p>
             </div>
           ) : users.length === 0 ? (
@@ -396,7 +396,7 @@ export default function Admin() {
                                 />
                               ) : (
                                 <div className="h-10 w-10 rounded-full bg-pink-100 flex items-center justify-center">
-                                  <span className="text-pink-600 font-medium">
+                                  <span className="var(--brand-pink-600) font-medium">
                                     {userData.name.charAt(0).toUpperCase()}
                                   </span>
                                 </div>

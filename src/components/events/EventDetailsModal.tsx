@@ -1897,13 +1897,13 @@ export function EventDetailsModal({
                               alignItems: 'center',
                               gap: 4,
                               background: 'var(--brand-pink-500)',
-                              color: '#fff',
+                              color: 'var(--neutral-0)',
                               padding: '4px 8px',
                               borderRadius: 6,
                               fontSize: 14,
                               fontWeight: 600,
                             }}>
-                              {reviewType === 'artist' ? <Music size={24} /> : reviewType === 'venue' ? <Building2 size={24} /> : <Star size={24} fill="#fff" />}
+                              {reviewType === 'artist' ? <Music size={24} /> : reviewType === 'venue' ? <Building2 size={24} /> : <Star size={24} fill="var(--neutral-0)" />}
                               {(reviewType === 'artist' ? (artistPerfRating || review.rating) : reviewType === 'venue' ? (venueRating || review.rating) : review.rating)?.toFixed(1) || 'N/A'}
                             </div>
                             {/* Secondary: Location Rating for venue reviews */}
@@ -1968,7 +1968,7 @@ export function EventDetailsModal({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#fff',
+                            color: 'var(--neutral-0)',
                             fontSize: 11,
                             fontWeight: 600,
                           }}>
@@ -2246,7 +2246,7 @@ export function EventDetailsModal({
                   <AccordionTrigger className="px-6 py-4 hover:no-underline">
                     <div className="flex items-center gap-3 w-full">
                       <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
-                        <Music size={24} className="text-white" />
+                        <Music size={24} className="var(--neutral-0)" />
                       </div>
                       <div className="flex-1 text-left">
                         <h3 className="text-lg font-bold text-purple-900">Setlist from this Show</h3>
@@ -2285,7 +2285,7 @@ export function EventDetailsModal({
                   <AccordionContent className="px-6 pb-6">
                     {fetchingSetlist ? (
                       <div className="text-center py-8">
-                        <Music size={35} className="text-purple-500 mx-auto mb-3 animate-pulse" />
+                        <Music size={35} className="var(--color-purple) mx-auto mb-3 animate-pulse" />
                         <p className="text-purple-700">Loading setlist from setlist.fm...</p>
                       </div>
                     ) : (() => {
@@ -2517,7 +2517,7 @@ export function EventDetailsModal({
                     size="sm"
                     onClick={() => onReview(actualEvent.id)}
                     className={`text-xs px-3 py-1 h-7 ${hasReviewed
-                        ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                        ? "bg-yellow-500 hover:bg-yellow-600 var(--neutral-0)"
                         : "hover:bg-yellow-50 hover:text-yellow-600 hover:border-yellow-300"
                       }`}
                   >
