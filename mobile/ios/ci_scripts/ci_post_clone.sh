@@ -20,6 +20,9 @@ ensure_npm() {
 
   if command -v brew >/dev/null 2>&1; then
     echo "ci_post_clone: npm missing; installing Node via Homebrew..."
+    # Avoid long Homebrew auto-update + extra network on CI (often slow/flaky).
+    export HOMEBREW_NO_AUTO_UPDATE=1
+    export HOMEBREW_NO_ENV_HINTS=1
     brew install node
     hash -r || true
     return 0
@@ -80,5 +83,34 @@ echo "ci_post_clone: npm ci in mobile/"
 npm ci
 
 cd "${REPO}/mobile/ios"
+
+# CocoaPods default CDN (cdn.cocoapods.org) often hits Net::OpenTimeout on Xcode Cloud.
+# Retry with backoff instead of failing the whole workflow on a transient network blip.
+run_pod_install() {
+  local max_attempts="${XCODE_CLOUD_POD_INSTALL_ATTEMPTS:-6}"
+  local wait_seconds="${XCODE_CLOUD_POD_INSTALL_RETRY_WAIT:-45}"
+  local attempt=1
+
+  while [ "${attempt}" -le "${max_attempts}" ]; do
+    echo "ci_post_clone: pod install (attempt ${attempt}/${max_attempts})..."
+    if pod install; then
+      return 0
+    fi
+    if [ "${attempt}" -lt "${max_attempts}" ]; then
+      echo "ci_post_clone: pod install failed; retrying in ${wait_seconds}s..."
+      sleep "${wait_seconds}"
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  echo "ci_post_clone: pod install failed after ${max_attempts} attempts" >&2
+  return 1
+}
+
 echo "ci_post_clone: pod install"
-pod install
+# Prime CDN / DNS-TLS path (best-effort; failures are ignored).
+echo "ci_post_clone: CocoaPods CDN check (best-effort)..."
+curl -fsSL --max-time 120 --retry 4 --retry-delay 10 \
+  "https://cdn.cocoapods.org/CocoaPods-version.yml" >/dev/null 2>&1 || true
+
+run_pod_install
