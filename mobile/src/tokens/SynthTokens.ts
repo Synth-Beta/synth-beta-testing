@@ -1,25 +1,29 @@
+/**
+ * React Native cannot resolve CSS `var(--token)` strings. Values mirror
+ * `src/styles/tokens.css` (hex / rgba literals only).
+ */
 export const SynthTokens = {
     colors: {
-        // Base
-        neutral0: 'var(--neutral-0)',
-        neutral50: 'var(--neutral-50)',
-        neutral100: 'var(--neutral-100)',
-        neutral200: 'var(--neutral-200)',
-        neutral400: 'var(--neutral-400)',
-        neutral600: 'var(--neutral-600)',
-        neutral900: 'var(--neutral-900)',
+        // Base (from tokens.css --neutral-*)
+        neutral0: '#FFFFFF',
+        neutral50: '#FCFCFC',
+        neutral100: '#F5F5F5',
+        neutral200: '#E6E6E6',
+        neutral400: '#8A8F98',
+        neutral600: '#5D646F',
+        neutral900: '#0E0E0E',
 
-        // Brand
-        brandPink500: 'var(var(--brand-pink-500))',
-        brandPink600: 'var(--brand-pink-600)',
+        // Brand (from tokens.css --brand-pink-*)
+        brandPink500: '#CC2486',
+        brandPink600: '#951A6D',
         brandPink700: '#7B1559',
-        brandPink050: 'var(--brand-pink-050)',
+        brandPink050: '#FDF2F7',
         purpleAccent: '#8D1FF4',
 
-        // Status
+        // Status (from tokens.css)
         success: '#2E8B63',
         error: '#C62828',
-        warning: 'var(--status-warning-500)',
+        warning: '#B88900',
         stars: '#FCDC5F',
 
         // Info
@@ -27,8 +31,8 @@ export const SynthTokens = {
         infoBlue500: '#1F66EA',
 
         // States / overlays (match web tokens.css)
-        stateDisabledBg: 'var(--neutral-200)',
-        stateDisabledText: 'var(--neutral-600)',
+        stateDisabledBg: '#E6E6E6',
+        stateDisabledText: '#5D646F',
         overlay50: 'rgba(14, 14, 14, 0.5)',
         overlay20: 'rgba(14, 14, 14, 0.2)',
     },

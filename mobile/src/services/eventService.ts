@@ -1,6 +1,7 @@
 import { Platform, Share } from 'react-native';
 import { supabase } from '../integrations/supabase/client';
 import { getExpoSiteUrl } from '../utils/siteUrl';
+import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
 
 export interface EventDetail {
     id: string;
@@ -14,9 +15,17 @@ export interface EventDetail {
     image_url?: string;
     venue_city?: string;
     venue_address?: string;
+    venue_state?: string | null;
     ticket_url?: string;
     latitude?: number | null;
     longitude?: number | null;
+    doors_time?: string | null;
+    genres?: string[] | null;
+    price_range?: string | null;
+    price_min?: number | null;
+    price_max?: number | null;
+    price_currency?: string | null;
+    tour_name?: string | null;
 }
 
 export interface FriendAttending {
@@ -121,7 +130,7 @@ export class EventService {
                 .select(`
           *,
           artists(name, images),
-          venues(name, city, address, latitude, longitude)
+          venues(name, city, address, state, latitude, longitude)
         `)
                 .eq('id', canonical)
                 .maybeSingle();
@@ -137,31 +146,59 @@ export class EventService {
                 return null;
             }
 
+            const row = data as Record<string, unknown> & {
+                artists?: { name?: string; images?: { url?: string }[] };
+                venues?: {
+                    name?: string;
+                    city?: string;
+                    address?: string;
+                    state?: string | null;
+                    latitude?: number | null;
+                    longitude?: number | null;
+                };
+            };
+            const genresRaw = row.genres;
+            const genres =
+                Array.isArray(genresRaw) && genresRaw.every(g => typeof g === 'string')
+                    ? (genresRaw as string[])
+                    : null;
+
             return {
                 id: data.id,
                 artist_id: data.artist_id ?? data.artist_uuid ?? null,
                 venue_id: data.venue_id ?? data.venue_uuid ?? null,
                 title: data.title,
-                artist_name: data.artists?.name || data.artist_name || '',
-                venue_name: data.venues?.name || data.venue_name || '',
+                artist_name: row.artists?.name || data.artist_name || '',
+                venue_name: row.venues?.name || data.venue_name || '',
                 event_date: data.event_date,
                 description: data.description,
-                image_url: data.images?.[0]?.url || data.artists?.images?.[0]?.url || undefined,
-                venue_city: data.venues?.city || data.venue_city,
-                venue_address: data.venues?.address || data.venue_address,
-                ticket_url: data.ticket_urls?.[0],
+                image_url: data.images?.[0]?.url || row.artists?.images?.[0]?.url || undefined,
+                venue_city: row.venues?.city || data.venue_city,
+                venue_address: row.venues?.address || data.venue_address,
+                venue_state:
+                    (typeof row.venue_state === 'string' ? row.venue_state : null) ??
+                    row.venues?.state ??
+                    null,
+                ticket_url: getCompliantEventLinkFromPayload(row) ?? undefined,
                 latitude:
                     typeof data.latitude === 'number'
                         ? data.latitude
-                        : typeof data.venues?.latitude === 'number'
-                          ? data.venues.latitude
+                        : typeof row.venues?.latitude === 'number'
+                          ? row.venues.latitude
                           : null,
                 longitude:
                     typeof data.longitude === 'number'
                         ? data.longitude
-                        : typeof data.venues?.longitude === 'number'
-                          ? data.venues.longitude
+                        : typeof row.venues?.longitude === 'number'
+                          ? row.venues.longitude
                           : null,
+                doors_time: typeof row.doors_time === 'string' ? row.doors_time : null,
+                genres,
+                price_range: typeof row.price_range === 'string' ? row.price_range : null,
+                price_min: typeof row.price_min === 'number' ? row.price_min : null,
+                price_max: typeof row.price_max === 'number' ? row.price_max : null,
+                price_currency: typeof row.price_currency === 'string' ? row.price_currency : null,
+                tour_name: typeof row.tour_name === 'string' ? row.tour_name : null,
             };
         } catch (error) {
             console.error('Error fetching event detail:', error);

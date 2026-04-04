@@ -23,7 +23,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta property="og:title" content="Synth | Live Music Discovery" />
         <meta property="og:description" content="Follow artists, find venues, and track your shows." />
         <meta property="og:image" content="/assets/images/icon.png" />
-        <meta name="theme-color" content="var(var(--brand-pink-500))" />
+        <meta name="theme-color" content="#CC2486" />
 
         {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />

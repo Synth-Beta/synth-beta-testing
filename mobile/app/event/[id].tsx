@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking } from 'react-native';
+import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +8,16 @@ import { SynthButton } from '../../src/components/SynthButton';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { EventService, EventDetail, FriendAttending } from '../../src/services/eventService';
 import { supabase } from '../../src/integrations/supabase/client';
-import { ChevronLeft, Share as ShareIcon, MapPin, Calendar, Users, Flag, Ticket, Heart } from 'lucide-react-native';
+import {
+    ChevronLeft,
+    Share as ShareIcon,
+    MapPin,
+    Calendar,
+    Users,
+    Clock,
+    Ticket,
+    Music,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { EventDetailsSkeleton } from '../../src/components/skeletons/EventDetailsSkeleton';
@@ -16,9 +25,53 @@ import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import type { NetworkReview } from '../../src/services/homeFeedService';
 import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
 import { SynthMap } from '../../src/components/maps/SynthMap';
+import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttributionInline';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.45;
+
+function formatDoorsLine(doorsTime: string | null | undefined): string | null {
+    if (!doorsTime) return null;
+    const d = new Date(doorsTime);
+    if (!Number.isFinite(d.getTime())) return null;
+    return d.toLocaleString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
+function formatEventPrice(e: EventDetail): string | null {
+    const pr = e.price_range?.trim();
+    if (pr) return pr;
+    const cur = e.price_currency || 'USD';
+    const min = e.price_min;
+    const max = e.price_max;
+    if (min != null && max != null && max > min) {
+        try {
+            const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: cur });
+            return `${fmt.format(min)} – ${fmt.format(max)}`;
+        } catch {
+            return `$${min} – $${max}`;
+        }
+    }
+    if (min != null && min >= 0) {
+        try {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(min);
+        } catch {
+            return `$${min}`;
+        }
+    }
+    return null;
+}
+
+function venueDetailLine(e: EventDetail): string {
+    const cityState = [e.venue_city, e.venue_state].filter(Boolean).join(', ');
+    const parts = [e.venue_address?.trim(), cityState].filter(p => p && p.length > 0);
+    return parts.join(' · ');
+}
 
 export default function EventDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,7 +83,6 @@ export default function EventDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [isGoing, setIsGoing] = useState(false);
     const [isInterested, setIsInterested] = useState(false);
-    const [needsAuth, setNeedsAuth] = useState(false);
     const [reviews, setReviews] = useState<NetworkReview[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [sessionUserId, setSessionUserId] = useState<string | null>(null);
@@ -41,59 +93,62 @@ export default function EventDetailScreen() {
 
     const loadData = async () => {
         setLoading(true);
-        setNeedsAuth(false);
         setIsGoing(false);
         setIsInterested(false);
         setReviews([]);
+        setFriends([]);
+        setSessionUserId(null);
+
         if (!id) {
             setEvent(null);
-            setFriends([]);
             setLoading(false);
             return;
         }
 
+        const eventData = await EventService.getEventById(id);
+        setEvent(eventData);
+
         const {
             data: { user },
         } = await supabase.auth.getUser();
+
         if (!user) {
-            setNeedsAuth(true);
             setSessionUserId(null);
-            setEvent(null);
-            setFriends([]);
+            if (eventData) {
+                void loadReviewsForEvent(eventData.id, eventData, null);
+            }
             setLoading(false);
             return;
         }
 
         setSessionUserId(user.id);
-        const eventData = await EventService.getEventById(id);
-        setEvent(eventData);
 
-        if (eventData) {
-            const { data: rel } = await supabase
-                .from('user_event_relationships')
-                .select('relationship_type')
-                .eq('user_id', user.id)
-                .eq('event_id', eventData.id)
-                .maybeSingle();
-            if (rel?.relationship_type === 'going') {
-                setIsGoing(true);
-                setIsInterested(false);
-            } else if (rel?.relationship_type === 'interested') {
-                setIsInterested(true);
-                setIsGoing(false);
-            }
-
-            const friendsData = await EventService.getFriendsAttending(eventData.id, user.id);
-            setFriends(friendsData);
-            void loadReviewsForEvent(eventData.id, eventData, user.id);
-        } else {
-            setFriends([]);
-            setReviews([]);
+        if (!eventData) {
+            setLoading(false);
+            return;
         }
+
+        const { data: rel } = await supabase
+            .from('user_event_relationships')
+            .select('relationship_type')
+            .eq('user_id', user.id)
+            .eq('event_id', eventData.id)
+            .maybeSingle();
+        if (rel?.relationship_type === 'going') {
+            setIsGoing(true);
+            setIsInterested(false);
+        } else if (rel?.relationship_type === 'interested') {
+            setIsInterested(true);
+            setIsGoing(false);
+        }
+
+        const friendsData = await EventService.getFriendsAttending(eventData.id, user.id);
+        setFriends(friendsData);
+        void loadReviewsForEvent(eventData.id, eventData, user.id);
         setLoading(false);
     };
 
-    const loadReviewsForEvent = async (eventUuid: string, eventInfo: EventDetail, viewerId: string) => {
+    const loadReviewsForEvent = async (eventUuid: string, eventInfo: EventDetail, viewerId: string | null) => {
         setReviewsLoading(true);
         try {
             const { data, error } = await supabase
@@ -128,10 +183,12 @@ export default function EventDetailScreen() {
             const rows = data || [];
             const reviewIds = rows.map((rv: any) => String(rv.id));
             let likedIds = new Set<string>();
-            try {
-                likedIds = await ReviewEngagementService.getReviewIdsLikedByUser(viewerId, reviewIds);
-            } catch (engErr) {
-                console.error('[event] getReviewIdsLikedByUser', engErr);
+            if (viewerId) {
+                try {
+                    likedIds = await ReviewEngagementService.getReviewIdsLikedByUser(viewerId, reviewIds);
+                } catch (engErr) {
+                    console.error('[event] getReviewIdsLikedByUser', engErr);
+                }
             }
 
             const artistIdSet = new Set<string>();
@@ -223,12 +280,13 @@ export default function EventDetailScreen() {
     };
 
     const handleToggleGoing = async () => {
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-        if (!user || !event) return;
+        if (!sessionUserId) {
+            router.push('/(auth)/sign-in');
+            return;
+        }
+        if (!event) return;
 
-        const success = await EventService.toggleInteraction(user.id, event.id, 'going');
+        const success = await EventService.toggleInteraction(sessionUserId, event.id, 'going');
         if (success) {
             const next = !isGoing;
             setIsGoing(next);
@@ -237,12 +295,13 @@ export default function EventDetailScreen() {
     };
 
     const handleToggleInterested = async () => {
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-        if (!user || !event) return;
+        if (!sessionUserId) {
+            router.push('/(auth)/sign-in');
+            return;
+        }
+        if (!event) return;
 
-        const success = await EventService.toggleInteraction(user.id, event.id, 'interested');
+        const success = await EventService.toggleInteraction(sessionUserId, event.id, 'interested');
         if (success) {
             const next = !isInterested;
             setIsInterested(next);
@@ -259,7 +318,9 @@ export default function EventDetailScreen() {
 
     const openInMaps = async () => {
         if (!event) return;
-        const q = encodeURIComponent([event.venue_name, event.venue_address, event.venue_city].filter(Boolean).join(' '));
+        const q = encodeURIComponent(
+            [event.venue_name, event.venue_address, event.venue_city, event.venue_state].filter(Boolean).join(' ')
+        );
         const url = `https://www.google.com/maps/search/?api=1&query=${q}`;
         const ok = await Linking.canOpenURL(url);
         if (ok) await Linking.openURL(url);
@@ -291,12 +352,10 @@ export default function EventDetailScreen() {
                 </Pressable>
                 <View style={styles.emptyBlock}>
                     <SynthText variant="h2" style={styles.emptyTitle}>
-                        {needsAuth ? 'Sign in required' : 'Event not found'}
+                        Event not found
                     </SynthText>
                     <SynthText variant="body" color="secondary" style={styles.emptyBody}>
-                        {needsAuth
-                            ? 'Sign in to view event details and mark yourself as going.'
-                            : 'This link may be invalid, or the event may have been removed.'}
+                        This link may be invalid, or the event may have been removed.
                     </SynthText>
                 </View>
             </View>
@@ -359,9 +418,17 @@ export default function EventDetailScreen() {
                                     })}
                             </SynthText>
                         </View>
+                        {formatDoorsLine(event.doors_time) ? (
+                            <View style={styles.metadataRow}>
+                                <Clock size={18} color={SynthTokens.colors.brandPink500} />
+                                <SynthText variant="meta" color="primary">
+                                    Doors / show: {formatDoorsLine(event.doors_time)}
+                                </SynthText>
+                            </View>
+                        ) : null}
                         <View style={styles.metadataRow}>
                             <MapPin size={18} color={SynthTokens.colors.brandPink500} />
-                            <View>
+                            <View style={styles.metadataTextCol}>
                                 <Pressable
                                     onPress={() => {
                                         if (event.venue_id) router.push(`/venue/${event.venue_id}`);
@@ -372,12 +439,58 @@ export default function EventDetailScreen() {
                                         {event.venue_name}
                                     </SynthText>
                                 </Pressable>
-                                <SynthText variant="meta" color="secondary">
-                                    {event.venue_city}
-                                </SynthText>
+                                {venueDetailLine(event) ? (
+                                    <SynthText variant="meta" color="secondary" style={styles.venueDetailLine}>
+                                        {venueDetailLine(event)}
+                                    </SynthText>
+                                ) : null}
                             </View>
                         </View>
+                        {formatEventPrice(event) ? (
+                            <View style={styles.metadataRow}>
+                                <Ticket size={18} color={SynthTokens.colors.brandPink500} />
+                                <SynthText variant="meta" color="primary">
+                                    {formatEventPrice(event)}
+                                </SynthText>
+                            </View>
+                        ) : null}
+                        {event.tour_name?.trim() ? (
+                            <View style={styles.metadataRow}>
+                                <Music size={18} color={SynthTokens.colors.brandPink500} />
+                                <SynthText variant="meta" color="primary">
+                                    {event.tour_name.trim()}
+                                </SynthText>
+                            </View>
+                        ) : null}
                     </BlurView>
+
+                    {!sessionUserId ? (
+                        <Pressable
+                            onPress={() => router.push('/(auth)/sign-in')}
+                            style={styles.signInBanner}
+                            accessibilityRole="button"
+                            accessibilityLabel="Sign in for full features"
+                        >
+                            <SynthText variant="meta" style={styles.signInBannerText}>
+                                Sign in to mark Interested, see friends going, and write reviews.
+                            </SynthText>
+                        </Pressable>
+                    ) : null}
+
+                    {event.genres && event.genres.length > 0 ? (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={styles.genreScroll}
+                            contentContainerStyle={styles.genreScrollContent}
+                        >
+                            {event.genres.map(g => (
+                                <View key={g} style={styles.genrePill}>
+                                    <Text style={styles.genrePillText}>{g}</Text>
+                                </View>
+                            ))}
+                        </ScrollView>
+                    ) : null}
 
                     {/* Actions */}
                     <View style={styles.actionRow}>
@@ -396,7 +509,13 @@ export default function EventDetailScreen() {
                         <SynthButton
                             title="Review"
                             variant="secondary"
-                            onPress={() => router.push(`/review-compose?eventId=${event.id}`)}
+                            onPress={() => {
+                                if (!sessionUserId) {
+                                    router.push('/(auth)/sign-in');
+                                    return;
+                                }
+                                router.push(`/review-compose?eventId=${event.id}`);
+                            }}
                             style={{ flex: 1 }}
                         />
                     </View>
@@ -464,8 +583,15 @@ export default function EventDetailScreen() {
                             <SynthText variant="body" color="secondary" style={styles.descriptionText}>
                                 {event.description}
                             </SynthText>
+                            <View style={styles.attributionWrap}>
+                                <JamBaseAttributionInline />
+                            </View>
                         </View>
-                    ) : null}
+                    ) : (
+                        <View style={[styles.section, styles.attributionOnly]}>
+                            <JamBaseAttributionInline />
+                        </View>
+                    )}
 
                     {/* Map */}
                     {event.latitude != null && event.longitude != null ? (
@@ -477,7 +603,7 @@ export default function EventDetailScreen() {
                                 latitude={event.latitude}
                                 longitude={event.longitude}
                                 title={event.venue_name}
-                                subtitle={[event.venue_address, event.venue_city].filter(Boolean).join(' · ')}
+                                subtitle={venueDetailLine(event) || event.venue_city || ''}
                                 onPress={openInMaps}
                             />
                         </View>
@@ -489,7 +615,15 @@ export default function EventDetailScreen() {
                             <SynthText variant="h2" style={styles.sectionTitle}>
                                 Reviews
                             </SynthText>
-                            <Pressable onPress={() => router.push(`/review-compose?eventId=${event.id}`)}>
+                            <Pressable
+                                onPress={() => {
+                                    if (!sessionUserId) {
+                                        router.push('/(auth)/sign-in');
+                                        return;
+                                    }
+                                    router.push(`/review-compose?eventId=${event.id}`);
+                                }}
+                            >
                                 <SynthText variant="meta" style={styles.linkText}>
                                     Write one
                                 </SynthText>
@@ -605,11 +739,61 @@ const styles = StyleSheet.create({
     },
     metadataRow: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: SynthTokens.spacing.md,
+    },
+    metadataTextCol: {
+        flex: 1,
+        minWidth: 0,
+    },
+    venueDetailLine: {
+        marginTop: 4,
     },
     bold: {
         fontWeight: 'bold',
+    },
+    signInBanner: {
+        marginTop: SynthTokens.spacing.md,
+        padding: SynthTokens.spacing.md,
+        borderRadius: SynthTokens.radius.medium,
+        backgroundColor: SynthTokens.colors.brandPink050,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.brandPink500,
+    },
+    signInBannerText: {
+        color: SynthTokens.colors.brandPink600,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    genreScroll: {
+        marginTop: SynthTokens.spacing.md,
+        maxHeight: 40,
+    },
+    genreScrollContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingRight: SynthTokens.spacing.md,
+    },
+    genrePill: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: SynthTokens.radius.full,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.brandPink500,
+        backgroundColor: SynthTokens.colors.neutral0,
+    },
+    genrePillText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: SynthTokens.colors.brandPink500,
+    },
+    attributionWrap: {
+        marginTop: SynthTokens.spacing.md,
+        alignItems: 'flex-start',
+    },
+    attributionOnly: {
+        marginTop: SynthTokens.spacing.sm,
     },
     actionRow: {
         flexDirection: 'row',

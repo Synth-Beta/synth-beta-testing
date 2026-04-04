@@ -270,7 +270,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   cornerLabelText: {
-    color: SynthTokens.colors.neutral0,
+    // Match web CompactEventCard reason badge (tokens.css --neutral-50 on --brand-pink-500).
+    color: SynthTokens.colors.neutral50,
     fontWeight: '800',
     fontSize: 10,
     letterSpacing: 0.6,

@@ -132,7 +132,12 @@ export default function ChatListScreen() {
         <SynthText variant="h1" style={styles.title}>
           Messages
         </SynthText>
-        <Pressable style={styles.menuBtn} onPress={() => router.push('/app-menu')}>
+        <Pressable
+          style={styles.menuBtn}
+          onPress={() => router.push('/app-menu')}
+          accessibilityRole="button"
+          accessibilityLabel="Open app menu"
+        >
           <Menu size={24} color={SynthTokens.colors.neutral900} />
         </Pressable>
       </View>
