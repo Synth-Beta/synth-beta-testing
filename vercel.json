@@ -11,7 +11,10 @@
     { "source": "/auth/spotify/callback", "destination": "/" },
     { "source": "/share", "destination": "/api/share" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/((?!assets/|\\.well-known/).*)",
+      "destination": "/index.html"
+    }
   ],
   "functions": {
     "api/share.ts": {

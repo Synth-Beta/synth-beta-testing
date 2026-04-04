@@ -218,6 +218,13 @@ const { user, sessionExpired } = useAuth();
   const targetUserId = profileUserId || currentUserId;
   const isViewingOwnProfile = !profileUserId || profileUserId === currentUserId;
 
+  // Unreviewed queue is own-profile only; clear it when switching to someone else's profile.
+  useEffect(() => {
+    if (!isViewingOwnProfile) {
+      setRankingMode((m) => (m === 'unreviewed' ? false : m));
+    }
+  }, [isViewingOwnProfile, targetUserId]);
+
   // Track profile view
   useViewTracking(
     'profile',
@@ -845,10 +852,11 @@ const { user, sessionExpired } = useAuth();
   // Compute display rating - use review.rating directly from database (already rounded to 1 decimal)
   // This ensures consistency - the database trigger calculates it as the average of 5 category ratings
   // Round to 1 decimal for consistent display and comparison
-  const getDisplayRating = (r: any) => {
+  const getDisplayRating = (r: any): number | null => {
     const rating = calculateCategoryAverage(r);
-    // Round to 1 decimal place for consistent grouping and display
-    // This matches the database NUMERIC(3,1) format
+    if (rating == null || typeof rating !== 'number' || !Number.isFinite(rating)) {
+      return null;
+    }
     return parseFloat(rating.toFixed(1));
   };
 
@@ -2358,59 +2366,62 @@ const { user, sessionExpired } = useAuth();
               <h3 className="gradient-text font-semibold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>
                 {isViewingOwnProfile ? 'My Events' : `${profile?.name || 'User'}'s Events`}
               </h3>
-              {isViewingOwnProfile && (
-                <div className="flex flex-col gap-2 w-full max-w-full">
-                  <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>View mode:</span>
-                  <div
-                    className="flex w-full max-w-full overflow-x-auto"
+              <div className="flex flex-col gap-2 w-full max-w-full">
+                <span style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>View mode:</span>
+                <div
+                  className="flex w-full max-w-full overflow-x-auto"
+                  style={{
+                    padding: 'var(--spacing-inline, 6px)',
+                    gap: 'var(--spacing-inline, 6px)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    backgroundColor: 'var(--neutral-100)',
+                    border: '1px solid var(--neutral-200)'
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setRankingMode(false)}
+                    className="transition-colors"
                     style={{
-                      padding: 'var(--spacing-inline, 6px)',
-                      gap: 'var(--spacing-inline, 6px)',
+                      paddingLeft: 'var(--spacing-small, 12px)',
+                      paddingRight: 'var(--spacing-small, 12px)',
+                      height: 'var(--size-button-height, 36px)',
                       borderRadius: 'var(--radius-corner, 10px)',
-                      backgroundColor: 'var(--neutral-100)',
-                      border: '1px solid var(--neutral-200)'
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      backgroundColor: !rankingMode ? 'var(--neutral-50)' : 'transparent',
+                      color: !rankingMode ? 'var(--neutral-900)' : 'var(--neutral-600)'
                     }}
                   >
+                    Reviews
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRankingMode(true)}
+                    className="transition-colors"
+                    style={{
+                      paddingLeft: 'var(--spacing-small, 12px)',
+                      paddingRight: 'var(--spacing-small, 12px)',
+                      height: 'var(--size-button-height, 36px)',
+                      borderRadius: 'var(--radius-corner, 10px)',
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                      backgroundColor: rankingMode === true ? 'var(--neutral-50)' : 'transparent',
+                      color: rankingMode === true ? 'var(--neutral-900)' : 'var(--neutral-600)'
+                    }}
+                  >
+                    Rankings
+                  </button>
+                  {isViewingOwnProfile && (
                     <button
-                      onClick={() => setRankingMode(false)}
-                      className="transition-colors"
-                      style={{
-                        paddingLeft: 'var(--spacing-small, 12px)',
-                        paddingRight: 'var(--spacing-small, 12px)',
-                        height: 'var(--size-button-height, 36px)',
-                        borderRadius: 'var(--radius-corner, 10px)',
-                        fontFamily: 'var(--font-family)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        backgroundColor: !rankingMode ? 'var(--neutral-50)' : 'transparent',
-                        color: !rankingMode ? 'var(--neutral-900)' : 'var(--neutral-600)'
-                      }}
-                    >
-                      Reviews
-                    </button>
-                    <button
-                      onClick={() => setRankingMode(true)}
-                      className="transition-colors"
-                      style={{ 
-                        paddingLeft: 'var(--spacing-small, 12px)',
-                        paddingRight: 'var(--spacing-small, 12px)',
-                        height: 'var(--size-button-height, 36px)',
-                        borderRadius: 'var(--radius-corner, 10px)',
-                        fontFamily: 'var(--font-family)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        backgroundColor: rankingMode ? 'var(--neutral-50)' : 'transparent',
-                        color: rankingMode ? 'var(--neutral-900)' : 'var(--neutral-600)'
-                      }}
-                    >
-                      Rankings
-                    </button>
-                    <button
+                      type="button"
                       onClick={() => setRankingMode('unreviewed')}
                       className="transition-colors"
-                      style={{ 
+                      style={{
                         paddingLeft: 'var(--spacing-small, 12px)',
                         paddingRight: 'var(--spacing-small, 12px)',
                         height: 'var(--size-button-height, 36px)',
@@ -2425,9 +2436,9 @@ const { user, sessionExpired } = useAuth();
                     >
                       Unreviewed
                     </button>
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             {rankingMode === false && (
@@ -2435,7 +2446,7 @@ const { user, sessionExpired } = useAuth();
                 <div className="flex flex-col items-center justify-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', gap: 'var(--spacing-inline, 6px)' }}>
                   {/* Large icon (60px), dark grey */}
                   <Calendar className="w-[60px] h-[60px] mx-auto" style={{ color: 'var(--neutral-600)' }} />
-                  {/* Heading - Body typography, off black */}
+                  {/* Heading - Body typography, off black (copy aligned with mobile profile) */}
                   <h3 style={{ 
                     fontFamily: 'var(--font-family)',
                     fontSize: 'var(--typography-body-size, 20px)',
@@ -2444,19 +2455,16 @@ const { user, sessionExpired } = useAuth();
                     color: 'var(--neutral-900)',
                     margin: 0,
                     textAlign: 'center'
-                  }}>No Posts Yet</h3>
-                  {/* Description - Meta typography, dark grey - only visible on own profile */}
-                  {isViewingOwnProfile && (
-                    <p style={{ 
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      color: 'var(--neutral-600)',
-                      margin: 0,
-                      textAlign: 'center'
-                    }}>Start attending events and writing reviews to build your profile!</p>
-                  )}
+                  }}>No reviews yet</h3>
+                  <p style={{ 
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    color: 'var(--neutral-600)',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>{isViewingOwnProfile ? 'Attend a show and write one from the event page.' : 'This user has not published any reviews yet.'}</p>
                 </div>
               ) : (
                 <ProfileStarBuckets
@@ -2469,12 +2477,10 @@ const { user, sessionExpired } = useAuth();
               )
             )}
 
-            {rankingMode === true && isViewingOwnProfile && (
+            {rankingMode === true && (
               reviews.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', gap: 'var(--spacing-inline, 6px)' }}>
-                  {/* Large icon (60px), dark grey */}
                   <Calendar className="w-[60px] h-[60px] mx-auto" style={{ color: 'var(--neutral-600)' }} />
-                  {/* Heading - Body typography, off black */}
                   <h3 style={{ 
                     fontFamily: 'var(--font-family)',
                     fontSize: 'var(--typography-body-size, 20px)',
@@ -2483,8 +2489,7 @@ const { user, sessionExpired } = useAuth();
                     color: 'var(--neutral-900)',
                     margin: 0,
                     textAlign: 'center'
-                  }}>No Posts Yet</h3>
-                  {/* Description - Meta typography, dark grey - only visible on own profile */}
+                  }}>No reviews yet</h3>
                   <p style={{ 
                     fontFamily: 'var(--font-family)',
                     fontSize: 'var(--typography-meta-size, 16px)',
@@ -2493,7 +2498,7 @@ const { user, sessionExpired } = useAuth();
                     color: 'var(--neutral-600)',
                     margin: 0,
                     textAlign: 'center'
-                  }}>Start attending events and writing reviews to build your profile!</p>
+                  }}>{isViewingOwnProfile ? 'Attend a show and write one from the event page.' : 'This user has not published any reviews yet.'}</p>
                 </div>
               ) : (
               <div className="space-y-6">
@@ -2504,18 +2509,35 @@ const { user, sessionExpired } = useAuth();
                   const uniqueRatings = Array.from(new Set(
                     reviews
                       .filter(r => (r as any).review_text !== 'ATTENDANCE_ONLY')
-                      .map(r => {
-                        const rating = getDisplayRating(r);
-                        // Round to 1 decimal for consistent grouping (database stores as NUMERIC(3,1))
-                        return Math.round(rating * 10) / 10;
-                      })
+                      .map(r => getDisplayRating(r))
+                      .filter((x): x is number => x != null && Number.isFinite(x))
+                      .map((rating) => Math.round(rating * 10) / 10)
                   )).sort((a, b) => b - a); // Sort descending
+
+                  if (uniqueRatings.length === 0) {
+                    return (
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          color: 'var(--neutral-600)',
+                          textAlign: 'center',
+                          padding: 'var(--spacing-grouped, 16px)',
+                        }}
+                      >
+                        No star ratings to rank yet. Complete a review with ratings to organize shows here.
+                      </p>
+                    );
+                  }
                   
                   return uniqueRatings.map(ratingGroup => {
                     // Group reviews by rating (rounded to 1 decimal for comparison)
                     const group = reviews.filter(r => {
                       if ((r as any).review_text === 'ATTENDANCE_ONLY') return false;
                       const displayRating = getDisplayRating(r);
+                      if (displayRating == null || !Number.isFinite(displayRating)) return false;
                       const roundedRating = Math.round(displayRating * 10) / 10;
                       // Compare rounded ratings for consistent grouping
                       return Math.abs(roundedRating - ratingGroup) < 0.01;
@@ -2570,44 +2592,46 @@ const { user, sessionExpired } = useAuth();
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {idx > 0 && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
-                                  const i = arr.findIndex(x => x.id === item.id);
-                                  if (i > 0) {
-                                    const [moved] = arr.splice(i,1);
-                                    arr.splice(i-1,0,moved);
-                                    (async () => {
-                                      await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
-                                      fetchReviews();
-                                    })();
-                                  }
-                                }}
-                              >↑</Button>)}
-                              {idx < group.length - 1 && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
-                                  const i = arr.findIndex(x => x.id === item.id);
-                                  if (i !== -1 && i < arr.length - 1) {
-                                    const [moved] = arr.splice(i,1);
-                                    arr.splice(i+1,0,moved);
-                                    (async () => {
-                                      await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
-                                      fetchReviews();
-                                    })();
-                                  }
-                                }}
-                              >↓</Button>)}
-                            </div>
+                            {isViewingOwnProfile ? (
+                              <div className="flex items-center gap-2">
+                                {idx > 0 && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
+                                    const i = arr.findIndex(x => x.id === item.id);
+                                    if (i > 0) {
+                                      const [moved] = arr.splice(i,1);
+                                      arr.splice(i-1,0,moved);
+                                      (async () => {
+                                        await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
+                                        fetchReviews();
+                                      })();
+                                    }
+                                  }}
+                                >↑</Button>)}
+                                {idx < group.length - 1 && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
+                                    const i = arr.findIndex(x => x.id === item.id);
+                                    if (i !== -1 && i < arr.length - 1) {
+                                      const [moved] = arr.splice(i,1);
+                                      arr.splice(i+1,0,moved);
+                                      (async () => {
+                                        await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
+                                        fetchReviews();
+                                      })();
+                                    }
+                                  }}
+                                >↓</Button>)}
+                              </div>
+                            ) : null}
                           </div>
                         ))}
                       </div>

@@ -245,7 +245,7 @@ export function EventDetailsModal({
       setActualEvent(event);
       verifiedChatLoadedRef.current = false;
     }
-  }, [event, isOpen, isCreator, isAdmin]);
+  }, [event, isOpen]);
 
   // Load verified chat when modal opens and event is available
   useEffect(() => {

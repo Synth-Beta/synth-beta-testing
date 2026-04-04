@@ -257,8 +257,11 @@ export class ChatService {
                         created_at: msg.created_at,
                         is_mine: msg.sender_id === userId,
                         message_type: messageType,
-                        shared_event_id: messageType === 'event_share' ? eventId : null,
-                        shared_review_id: messageType === 'review_share' ? reviewId : null,
+                        // Canonical ids on the client (matches web merged fields; metadata fallbacks already folded into eventId/reviewId)
+                        shared_event_id:
+                            messageType === 'event_share' && eventId != null ? String(eventId) : null,
+                        shared_review_id:
+                            messageType === 'review_share' && reviewId != null ? String(reviewId) : null,
                         metadata: meta,
                     } satisfies Message;
                 })

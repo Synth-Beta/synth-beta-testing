@@ -156,36 +156,44 @@ function CompactReviewCard({ review, ratingValue, stars, onSelectReview, renderS
  * it derives everything from the already-fetched `reviews` array in ProfileView
  * and uses the existing review objects when a card is clicked.
  */
+/** Align with ProfileView.calculateCategoryAverage + DB numeric-as-string. */
+function effectiveStarBucketRating(review: any): number | null {
+  if (typeof review.category_average === 'number' && Number.isFinite(review.category_average)) {
+    return review.category_average;
+  }
+  const r = review.rating;
+  if (typeof r === 'number' && Number.isFinite(r)) return r;
+  if (typeof r === 'string') {
+    const p = parseFloat(r);
+    return Number.isFinite(p) ? p : null;
+  }
+  if (r === null || r === undefined) return null;
+  return null;
+}
+
 export function ProfileStarBuckets({ reviews, onSelectReview }: ProfileStarBucketsProps) {
   const grouped = useMemo(() => {
     const buckets: Record<1 | 2 | 3 | 4 | 5, any[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
-    const unrated: any[] = []; // Reviews with no rating
+    const unrated: any[] = []; // Reviews with no / invalid / non-positive rating (still show like mobile list)
 
     for (const review of reviews || []) {
       // Skip attendance-only markers that aren't real written reviews
       if (review.review_text === 'ATTENDANCE_ONLY' && !review.was_there) continue;
 
-      // Check category_average first, then rating, preserving null values
-      const rawRating = typeof review.category_average === 'number'
-        ? review.category_average
-        : review.category_average === null || review.category_average === undefined
-          ? null // Preserve null category_average
-          : typeof review.rating === 'number'
-            ? review.rating
-            : (review.rating === null || review.rating === undefined ? null : 0);
+      const rawRating = effectiveStarBucketRating(review);
 
-      // Handle reviews with null/undefined ratings (allow NULL ratings to display)
-      if (rawRating === null || rawRating === undefined) {
+      // Previously `!rawRating || rawRating <= 0` dropped these entirely → blank Reviews tab while reviews.length > 0
+      if (rawRating === null || !Number.isFinite(rawRating) || rawRating <= 0) {
         unrated.push(review);
         continue;
       }
-
-      if (!rawRating || rawRating <= 0) continue;
 
       // Bucket by floor so only true 5.0 land in 5★, 4.0–4.9 → 4★, etc.
       const bucket = Math.floor(rawRating) as 1 | 2 | 3 | 4 | 5;
       if (bucket >= 1 && bucket <= 5) {
         buckets[bucket].push(review);
+      } else {
+        unrated.push(review);
       }
     }
 
