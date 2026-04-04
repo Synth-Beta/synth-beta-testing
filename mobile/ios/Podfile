@@ -1,3 +1,11 @@
+# CocoaPods specs source: CDN (fast) vs full git repo when CDN times out on Xcode Cloud.
+# ci_post_clone.sh retries CDN, then sets XCODE_CLOUD_POD_USE_GIT_SPECS=1 and re-runs pod install.
+if ENV['XCODE_CLOUD_POD_USE_GIT_SPECS'] == '1'
+  source 'https://github.com/CocoaPods/Specs.git'
+else
+  source 'https://cdn.cocoapods.org/'
+end
+
 # Set by expo-router. This enables Fabric-only features from react-native-screens
 ENV['RNS_GAMMA_ENABLED'] ||= '1'
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")

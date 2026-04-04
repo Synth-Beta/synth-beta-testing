@@ -2,12 +2,20 @@
 # Xcode Cloud runs this after clone, before xcodebuild.
 # Expo/RN need mobile/node_modules for the Podfile and the "Bundle React Native code" phase.
 #
+# CocoaPods: set XCODE_CLOUD_POD_USE_GIT_SPECS=1 in the workflow to use the git specs repo only
+# (skips cdn.cocoapods.org). Otherwise we retry the CDN, then auto-fallback to git specs if needed.
+#
 # Xcode Cloud images often do not expose `npm` on PATH; Node may still exist under Homebrew
 # or must be installed (brew or official tarball).
 set -euo pipefail
 
 REPO="${CI_PRIMARY_REPOSITORY_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 echo "ci_post_clone: REPO=${REPO}"
+
+GIT_SHA="$(git -C "${REPO}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+GIT_FULL="$(git -C "${REPO}" rev-parse HEAD 2>/dev/null || echo unknown)"
+echo "ci_post_clone: git ${GIT_SHA} (${GIT_FULL})"
+echo "ci_post_clone: After TestFlight install, confirm the build matches this commit (Xcode Cloud build logs / App Store Connect)."
 
 ensure_npm() {
   # Apple Silicon + Intel Homebrew locations (not always on default PATH).
@@ -113,4 +121,18 @@ echo "ci_post_clone: CocoaPods CDN check (best-effort)..."
 curl -fsSL --max-time 120 --retry 4 --retry-delay 10 \
   "https://cdn.cocoapods.org/CocoaPods-version.yml" >/dev/null 2>&1 || true
 
-run_pod_install
+if run_pod_install; then
+  echo "ci_post_clone: pod install OK (CocoaPods CDN)."
+else
+  echo "ci_post_clone: pod install failed after CDN retries; falling back to git CocoaPods Specs (slow first clone, avoids cdn.cocoapods.org)." >&2
+  export XCODE_CLOUD_POD_USE_GIT_SPECS=1
+  if ! run_pod_install; then
+    echo "ci_post_clone: pod install failed even with git specs repo." >&2
+    echo "ci_post_clone: If the app still crashes on device after a successful build, open Xcode Organizer → Crashes → copy the symbolicated crashed thread for that build." >&2
+    exit 1
+  fi
+  echo "ci_post_clone: pod install OK (git specs fallback)."
+fi
+
+echo "ci_post_clone: done. Ship this archive; match TestFlight build to git ${GIT_SHA}."
+echo "ci_post_clone: Still crashing? Xcode → Window → Organizer → Crashes → latest Synth build → copy top of crashed thread."

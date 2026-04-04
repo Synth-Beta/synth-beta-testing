@@ -20,6 +20,8 @@ SplashScreen.preventAutoHideAsync();
 const ONBOARDING_STORAGE_KEY = 'HAS_COMPLETED_ONBOARDING';
 /** First wizard step — skip marketing welcome unless user opens tour from sign-in */
 const ONBOARDING_FLOW_ENTRY = '/(onboarding)/scene';
+/** If `useFonts` never resolves (no error), do not block app boot forever. */
+const FONT_LOAD_TIMEOUT_MS = 10_000;
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -27,6 +29,8 @@ export default function RootLayout() {
     'Inter-Medium': Inter_500Medium,
     'Inter-Bold': Inter_700Bold,
   });
+
+  const [fontLoadTimedOut, setFontLoadTimedOut] = useState(false);
 
   const [storageOnboardingComplete, setStorageOnboardingComplete] = useState<boolean | null>(null);
   const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
@@ -108,7 +112,16 @@ export default function RootLayout() {
     }
   }, [fontError]);
 
-  const fontsReady = fontsLoaded || Boolean(fontError);
+  useEffect(() => {
+    if (fontsLoaded || fontError) return;
+    const t = setTimeout(() => {
+      console.warn('[root] Inter fonts still loading after timeout; continuing with system fonts');
+      setFontLoadTimedOut(true);
+    }, FONT_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [fontsLoaded, fontError]);
+
+  const fontsReady = fontsLoaded || Boolean(fontError) || fontLoadTimedOut;
 
   const routingReady =
     fontsReady &&
