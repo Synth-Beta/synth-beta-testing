@@ -11,11 +11,12 @@ import {
 } from '@expo-google-fonts/inter';
 import { supabase } from '../src/integrations/supabase/client';
 import { OnboardingService } from '../src/services/onboardingService';
+import { ensureExpoPushNotificationHandler } from '../lib/registerPushNotifications';
 import { syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
 import { useShareDeepLink } from '../lib/useShareDeepLink';
 
-// Prevent splash screen from hiding until fonts and state are ready
-SplashScreen.preventAutoHideAsync();
+// Prevent splash from hiding until ready; race on reload can reject — ignore (Expo docs).
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const ONBOARDING_STORAGE_KEY = 'HAS_COMPLETED_ONBOARDING';
 /** First wizard step — skip marketing welcome unless user opens tour from sign-in */
@@ -107,6 +108,10 @@ export default function RootLayout() {
   }, [session, storageOnboardingComplete]);
 
   useEffect(() => {
+    ensureExpoPushNotificationHandler();
+  }, []);
+
+  useEffect(() => {
     if (fontError) {
       console.warn('[root] Inter fonts failed to load; continuing with system fonts', fontError);
     }
@@ -131,7 +136,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (routingReady) {
-      SplashScreen.hideAsync();
+      void SplashScreen.hideAsync().catch(() => {});
     }
   }, [routingReady]);
 
