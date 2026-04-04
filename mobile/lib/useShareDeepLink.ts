@@ -3,10 +3,6 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { parseShareUrl, expoPathForShareTarget } from '@synth/shared';
 
-function assertNever(value: never): never {
-  throw new Error(`Unhandled share link type: ${String(value)}`);
-}
-
 /**
  * Handles cold start + runtime URLs: `?event=` / `?review=` / … (shared package) and `/event/:id` paths.
  * Run only when the user is signed in (caller gates) so auth redirects stay authoritative.
@@ -31,7 +27,7 @@ export function useShareDeepLink(enabled: boolean) {
           router.push(expoPathForShareTarget(pending.type, pending.id) as any);
           break;
         default:
-          assertNever(pending.type);
+          console.warn('[useShareDeepLink] unhandled share link type; ignoring', pending);
       }
     };
 

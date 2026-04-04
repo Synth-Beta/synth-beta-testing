@@ -103,11 +103,15 @@ export default function RootLayout() {
   }, [session, storageOnboardingComplete]);
 
   useEffect(() => {
-    if (fontError) throw fontError;
+    if (fontError) {
+      console.warn('[root] Inter fonts failed to load; continuing with system fonts', fontError);
+    }
   }, [fontError]);
 
+  const fontsReady = fontsLoaded || Boolean(fontError);
+
   const routingReady =
-    fontsLoaded &&
+    fontsReady &&
     session !== undefined &&
     storageOnboardingComplete !== null &&
     onboardingEffectiveReady;

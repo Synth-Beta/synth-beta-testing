@@ -1,11 +1,14 @@
 /**
- * Mirrors web `src/services/chatEncryptionService.ts` — AES-GCM + PBKDF2
- * so mobile can decrypt messages sent from the web app.
- * Keys are cached under `chat_key_${chatId}` in AsyncStorage (same format as web nativeStorage).
+ * Same wire format as web `src/services/chatEncryptionService.ts` (AES-256-GCM, PBKDF2-SHA256,
+ * IV || ciphertext+tag, base64). Pure JS via @noble/* so TestFlight does not depend on
+ * react-native-quick-crypto / Nitro native startup.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ensureCryptoInstalled } from '../lib/cryptoInstall';
+import * as ExpoCrypto from 'expo-crypto';
+import { gcm } from '@noble/ciphers/aes.js';
+import { pbkdf2Async } from '@noble/hashes/pbkdf2.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 const chatKeyStorage = {
     getItem: (key: string) => AsyncStorage.getItem(key),
@@ -13,93 +16,62 @@ const chatKeyStorage = {
     removeItem: (key: string) => AsyncStorage.removeItem(key),
 };
 
-const ALGORITHM = 'AES-GCM';
-const KEY_LENGTH = 256;
+const KEY_LENGTH_BYTES = 32;
 const IV_LENGTH = 12;
-const TAG_LENGTH = 128;
 
 const KEY_DERIVATION_SALT = new Uint8Array([
     0x73, 0x79, 0x6e, 0x74, 0x68, 0x2d, 0x63, 0x68, 0x61, 0x74, 0x2d, 0x6b, 0x65, 0x79, 0x2d, 0x73, 0x61, 0x6c, 0x74, 0x2d,
     0x32, 0x30, 0x32, 0x36, 0x2d, 0x30, 0x31, 0x2d, 0x32, 0x37, 0x2d, 0x65, 0x32, 0x65, 0x32, 0x65,
 ]);
 
-async function getOrCreateChatKey(chatId: string, _userId: string): Promise<CryptoKey> {
-    const storageKey = `chat_key_${chatId}`;
+async function deriveKeyBytes(chatId: string): Promise<Uint8Array> {
+    const encoder = new TextEncoder();
+    const chatIdData = encoder.encode(chatId);
+    return pbkdf2Async(sha256, chatIdData, KEY_DERIVATION_SALT, {
+        c: 100_000,
+        dkLen: KEY_LENGTH_BYTES,
+        asyncTick: 10,
+    });
+}
 
-    if (!ensureCryptoInstalled()) {
-        throw new Error('Crypto unavailable');
-    }
+/** Raw 32-byte AES key; cached like web (JSON number[]). */
+async function getOrCreateChatKeyBytes(chatId: string): Promise<Uint8Array> {
+    const storageKey = `chat_key_${chatId}`;
 
     const storedKeyData = await chatKeyStorage.getItem(storageKey);
     if (storedKeyData) {
         try {
             const keyData = JSON.parse(storedKeyData) as number[];
             const keyArray = new Uint8Array(keyData);
-            return await crypto.subtle.importKey(
-                'raw',
-                keyArray,
-                { name: ALGORITHM, length: KEY_LENGTH },
-                false,
-                ['encrypt', 'decrypt']
-            );
+            if (keyArray.length === KEY_LENGTH_BYTES) return keyArray;
         } catch {
             /* fall through */
         }
     }
 
-    const encoder = new TextEncoder();
-    const chatIdData = encoder.encode(chatId);
-    const baseKey = await crypto.subtle.importKey('raw', chatIdData, 'PBKDF2', false, ['deriveBits']);
-    const derivedBits = await crypto.subtle.deriveBits(
-        {
-            name: 'PBKDF2',
-            salt: KEY_DERIVATION_SALT,
-            iterations: 100000,
-            hash: 'SHA-256',
-        },
-        baseKey,
-        KEY_LENGTH
-    );
-
+    const derived = await deriveKeyBytes(chatId);
     try {
-        const keyArray = Array.from(new Uint8Array(derivedBits));
-        await chatKeyStorage.setItem(storageKey, JSON.stringify(keyArray));
+        await chatKeyStorage.setItem(storageKey, JSON.stringify(Array.from(derived)));
     } catch {
         /* ignore cache failures */
     }
-
-    return await crypto.subtle.importKey(
-        'raw',
-        derivedBits,
-        { name: ALGORITHM, length: KEY_LENGTH },
-        false,
-        ['encrypt', 'decrypt']
-    );
+    return derived;
 }
 
 export async function encryptMessage(message: string, chatId: string, userId: string): Promise<string> {
     if (!message || typeof message !== 'string') throw new Error('Message must be a non-empty string');
     if (!chatId || typeof chatId !== 'string') throw new Error('ChatId must be a non-empty string');
     if (!userId || typeof userId !== 'string') throw new Error('UserId must be a non-empty string');
-    if (!ensureCryptoInstalled()) throw new Error('Crypto unavailable');
 
-    const key = await getOrCreateChatKey(chatId, userId);
-    const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-    const encoder = new TextEncoder();
-    const messageData = encoder.encode(message);
-    const encryptedData = await crypto.subtle.encrypt(
-        {
-            name: ALGORITHM,
-            iv,
-            tagLength: TAG_LENGTH,
-        },
-        key,
-        messageData
-    );
+    const key = await getOrCreateChatKeyBytes(chatId);
+    const iv = ExpoCrypto.getRandomBytes(IV_LENGTH);
+    const messageData = new TextEncoder().encode(message);
+    const aes = gcm(key, iv);
+    const encryptedData = aes.encrypt(messageData);
 
-    const combined = new Uint8Array(IV_LENGTH + encryptedData.byteLength);
+    const combined = new Uint8Array(IV_LENGTH + encryptedData.length);
     combined.set(iv, 0);
-    combined.set(new Uint8Array(encryptedData), IV_LENGTH);
+    combined.set(encryptedData, IV_LENGTH);
 
     let binaryString = '';
     for (let i = 0; i < combined.length; i++) {
@@ -114,9 +86,8 @@ export async function decryptMessage(encryptedMessage: string, chatId: string, u
     }
     if (!chatId || typeof chatId !== 'string') throw new Error('ChatId must be a non-empty string');
     if (!userId || typeof userId !== 'string') throw new Error('UserId must be a non-empty string');
-    if (!ensureCryptoInstalled()) throw new Error('Crypto unavailable');
 
-    const key = await getOrCreateChatKey(chatId, userId);
+    const key = await getOrCreateChatKeyBytes(chatId);
     if (encryptedMessage.length < IV_LENGTH * 2) throw new Error('Encrypted message is too short to be valid');
 
     let combined: Uint8Array;
@@ -129,15 +100,8 @@ export async function decryptMessage(encryptedMessage: string, chatId: string, u
 
     const iv = combined.slice(0, IV_LENGTH);
     const ciphertext = combined.slice(IV_LENGTH);
-    const decryptedData = await crypto.subtle.decrypt(
-        {
-            name: ALGORITHM,
-            iv,
-            tagLength: TAG_LENGTH,
-        },
-        key,
-        ciphertext
-    );
+    const aes = gcm(key, iv);
+    const decryptedData = aes.decrypt(ciphertext);
     return new TextDecoder().decode(decryptedData);
 }
 
