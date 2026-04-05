@@ -18,6 +18,9 @@ export const useModalHeaderTitle = (text: string) => {
     setState({ variant: 'h1', allowWrap: false });
   }, [text]);
 
+  // Measure overflow and step down typography (h1 → h2 → wrap). Do NOT reset to h1 when
+  // the title "fits" here — that fights the overflow branch and can oscillate (React #185).
+  // `useEffect` above resets to h1 whenever `text` changes.
   useLayoutEffect(() => {
     const el = titleRef.current;
     if (!el) return;
@@ -25,22 +28,19 @@ export const useModalHeaderTitle = (text: string) => {
     const availableWidth = el.clientWidth;
     const requiredWidth = el.scrollWidth;
 
-    if (requiredWidth <= availableWidth) {
-      if (state.variant !== 'h1' || state.allowWrap) {
-        setState({ variant: 'h1', allowWrap: false });
+    setState(prev => {
+      if (requiredWidth <= availableWidth) {
+        return prev;
       }
-      return;
-    }
-
-    if (state.variant === 'h1') {
-      setState(prev => ({ ...prev, variant: 'h2', allowWrap: false }));
-      return;
-    }
-
-    if (!state.allowWrap) {
-      setState(prev => ({ ...prev, allowWrap: true }));
-    }
-  }, [text, state]);
+      if (prev.variant === 'h1') {
+        return { variant: 'h2', allowWrap: false };
+      }
+      if (!prev.allowWrap) {
+        return { ...prev, allowWrap: true };
+      }
+      return prev;
+    });
+  }, [text, state.variant, state.allowWrap]);
 
   return {
     titleRef,

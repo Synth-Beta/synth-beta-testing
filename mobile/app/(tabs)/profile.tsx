@@ -1,5 +1,15 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Text, Linking, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  Pressable,
+  Text,
+  Linking,
+  Alert,
+  FlatList,
+  RefreshControl,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -12,13 +22,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
 import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
-import {
-  InterestedEventItem,
-  MyEventsService,
-  MyReviewListItem,
-  ProfileUnreviewedItem,
-} from '../../src/services/myEventsService';
+import { InterestedEventItem, MyEventsService } from '../../src/services/myEventsService';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
+import {
+  ProfileMyEventsPanel,
+  type ProfileMyEventsPanelHandle,
+} from '../../src/components/profile/ProfileMyEventsPanel';
 import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
 import {
   getStreamingLinkStatus,
@@ -28,15 +37,11 @@ import {
 const PINK = SynthTokens.colors.brandPink500;
 
 type ProfileTab = 'events' | 'interested' | 'passport';
-type EventsMode = 'reviews' | 'rankings' | 'unreviewed';
 
 export default function ProfileScreen() {
   const [profileTab, setProfileTab] = useState<ProfileTab>('passport');
-  const [eventsMode, setEventsMode] = useState<EventsMode>('reviews');
   const [loading, setLoading] = useState(true);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
-  const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
-  const [unreviewed, setUnreviewed] = useState<ProfileUnreviewedItem[]>([]);
   const [interested, setInterested] = useState<InterestedEventItem[]>([]);
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
@@ -52,6 +57,8 @@ export default function ProfileScreen() {
     profileUrl: null,
   });
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
+  const [listRefreshing, setListRefreshing] = useState(false);
+  const eventsPanelRef = useRef<ProfileMyEventsPanelHandle>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -61,6 +68,7 @@ export default function ProfileScreen() {
       data: { user: authUser },
     } = await supabase.auth.getUser();
     if (!authUser) {
+      setAuthUserId(null);
       setLoading(false);
       return;
     }
@@ -76,24 +84,19 @@ export default function ProfileScreen() {
       console.warn('[profile] users row:', userRowError.message);
     }
 
-    const [statsData, timelineData, suggestions, interestedRows, reviewRows, unrevRows, streamingStatus] =
-      await Promise.all([
-        PassportService.getProfileStats(authUser.id),
-        PassportService.getTimeline(authUser.id),
-        HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
-        MyEventsService.getInterestedEvents(authUser.id),
-        MyEventsService.getMyReviews(authUser.id),
-        MyEventsService.getProfileUnreviewedQueue(authUser.id),
-        getStreamingLinkStatus(authUser.id),
-      ]);
+    const [statsData, timelineData, suggestions, interestedRows, streamingStatus] = await Promise.all([
+      PassportService.getProfileStats(authUser.id),
+      PassportService.getTimeline(authUser.id),
+      HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
+      MyEventsService.getInterestedEvents(authUser.id),
+      getStreamingLinkStatus(authUser.id),
+    ]);
 
     setUser(userRowError || !userData ? null : userData);
     setStats(statsData);
     setTimeline(timelineData);
     setFriendSuggestions(suggestions);
     setInterested(interestedRows);
-    setReviews(reviewRows);
-    setUnreviewed(unrevRows);
     setStreaming(streamingStatus);
     setLoading(false);
   }, []);
@@ -117,9 +120,9 @@ export default function ProfileScreen() {
       Alert.alert('Instagram', 'Add your Instagram handle in Edit Profile.');
       return;
     }
-    const handle = raw.replace(/^@+/, '');
-    if (!handle) return;
-    const url = `https://www.instagram.com/${encodeURIComponent(handle)}/`;
+    const h = raw.replace(/^@+/, '');
+    if (!h) return;
+    const url = `https://www.instagram.com/${encodeURIComponent(h)}/`;
     try {
       const can = await Linking.canOpenURL(url);
       if (!can) {
@@ -152,54 +155,161 @@ export default function ProfileScreen() {
     router.push('/stats');
   }, [router, streaming.linked, streaming.profileUrl]);
 
-  const groupedByStar = useMemo(() => {
-    const map = new Map<number, MyReviewListItem[]>();
-    for (const rv of reviews) {
-      const r = rv.rating != null ? Math.round(rv.rating) : 0;
-      const key = Math.min(5, Math.max(1, r));
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(rv);
-    }
-    for (const [, list] of map) {
-      list.sort((a, b) => (a.rank_order ?? 999) - (b.rank_order ?? 999));
-    }
-    return map;
-  }, [reviews]);
-
-  const reviewComposeHref = (item: ProfileUnreviewedItem) =>
-    item.event_id ? `/review-compose?eventId=${item.event_id}` : '/review-compose';
-
   const goToFriends = useCallback(() => router.push('/profile-friends'), [router]);
   const goToFollowing = useCallback(() => router.push('/profile-following'), [router]);
   const goToEventsStat = useCallback(() => {
     setProfileTab('events');
-    setEventsMode('reviews');
   }, []);
 
-  const renderReviewRow = (item: MyReviewListItem) => (
-    <Pressable
-      style={styles.reviewCard}
-      onPress={() => router.push(`/review/${item.id}`)}
-    >
-      <Image
-        source={item.image_url ? { uri: item.image_url } : require('../../assets/placeholder-event.png')}
-        style={styles.reviewThumb}
-      />
-      <View style={{ flex: 1 }}>
-        <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
-          {item.artist_name || item.title}
-        </SynthText>
-        <SynthText variant="meta" color="secondary" numberOfLines={1}>
-          {item.venue_name}
-        </SynthText>
-        <SynthText variant="meta" color="secondary" style={styles.reviewStar}>
-          {item.rating != null ? `${item.rating.toFixed(1)}★` : ''}
-        </SynthText>
+  const onEventsRefresh = useCallback(async () => {
+    setListRefreshing(true);
+    try {
+      await loadProfile();
+      await eventsPanelRef.current?.reload();
+    } finally {
+      setListRefreshing(false);
+    }
+  }, [loadProfile]);
+
+  const profileTabsRow = (
+    <View style={styles.profileTabs}>
+      {(['events', 'interested', 'passport'] as const).map(t => (
+        <Pressable
+          key={t}
+          onPress={() => setProfileTab(t)}
+          style={[styles.profileTab, profileTab === t && styles.profileTabOn]}
+        >
+          <SynthText variant="meta" style={[styles.profileTabTxt, profileTab === t && styles.profileTabTxtOn]}>
+            {t === 'events' ? 'Events' : t === 'interested' ? 'Interested' : 'Passport'}
+          </SynthText>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  const listHeaderAboveTabs = (
+    <>
+      <View style={[styles.topHeader, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.handleTop} numberOfLines={1}>
+          {handle}
+        </Text>
+        <Pressable style={styles.menuBtn} onPress={() => router.push('/app-menu')}>
+          <Menu size={24} color={SynthTokens.colors.neutral900} />
+        </Pressable>
       </View>
-    </Pressable>
+      <View style={styles.headerRule} />
+
+      <View style={styles.profileCard}>
+        <View style={styles.cardTop}>
+          <Image
+            source={
+              user?.avatar_url
+                ? { uri: user.avatar_url }
+                : require('../../assets/placeholder-user.png')
+            }
+            style={styles.avatar}
+          />
+          <View style={styles.cardInfo}>
+            <SynthText variant="h2" style={styles.displayName}>
+              {displayName}
+            </SynthText>
+            <SynthText variant="meta" color="secondary" style={styles.handleInCard}>
+              {handle}
+            </SynthText>
+            <View style={styles.statsRow}>
+              <Pressable style={styles.statCol} onPress={goToFriends} accessibilityRole="button">
+                <Text style={styles.statNum}>{stats?.friend_count ?? 0}</Text>
+                <Text style={styles.statLbl}>Friends</Text>
+              </Pressable>
+              <Pressable style={styles.statCol} onPress={goToFollowing} accessibilityRole="button">
+                <Text style={styles.statNum}>{stats?.following_count ?? 0}</Text>
+                <Text style={styles.statLbl}>Following</Text>
+              </Pressable>
+              <Pressable style={styles.statCol} onPress={goToEventsStat} accessibilityRole="button">
+                <Text style={styles.statNum}>{stats?.reviewed_events_count ?? 0}</Text>
+                <Text style={styles.statLbl}>Events</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.actionRow}>
+          <Pressable style={styles.editProfile} onPress={() => router.push('/profile-edit')}>
+            <Pencil size={18} color="#fff" />
+            <Text style={styles.editProfileText}>Edit Profile</Text>
+          </Pressable>
+          <Pressable style={styles.gearBtn} onPress={() => router.push('/settings')}>
+            <Settings size={22} color={SynthTokens.colors.neutral900} />
+          </Pressable>
+        </View>
+
+        <View style={styles.socialRow}>
+          <Pressable
+            style={styles.socialIcon}
+            onPress={() => void openInstagram()}
+            accessibilityRole="button"
+            accessibilityLabel="Open Instagram"
+          >
+            <Instagram
+              size={20}
+              color={
+                user?.instagram_handle?.trim()
+                  ? SynthTokens.colors.neutral900
+                  : SynthTokens.colors.neutral400
+              }
+            />
+          </Pressable>
+          <Pressable style={styles.socialIcon} onPress={() => void openStreaming()}>
+            {streaming.provider === 'spotify' ? (
+              <FontAwesome5 name="spotify" size={20} color={SynthTokens.colors.neutral900} />
+            ) : streaming.provider === 'apple-music' ? (
+              <FontAwesome5 name="apple" size={20} color={SynthTokens.colors.neutral900} />
+            ) : (
+              <Music2 size={20} color={SynthTokens.colors.neutral900} />
+            )}
+          </Pressable>
+        </View>
+      </View>
+
+      {profileTabsRow}
+    </>
   );
 
   if (loading) return <ProfileScreenSkeleton />;
+
+  if (profileTab === 'events' && authUserId) {
+    return (
+      <View style={styles.container}>
+        <FlatList
+          data={[{ key: 'my-events-panel' }]}
+          keyExtractor={item => item.key}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={listHeaderAboveTabs}
+          ListFooterComponent={
+            friendSuggestions.length > 0 ? (
+              <View style={styles.railPad}>
+                <FriendSuggestionsRail suggestions={friendSuggestions} />
+              </View>
+            ) : null
+          }
+          renderItem={() => (
+            <View style={styles.eventsPanelPad}>
+              <ProfileMyEventsPanel
+                ref={eventsPanelRef}
+                variant="embedded"
+                userId={authUserId}
+                contentBottomPadding={0}
+              />
+            </View>
+          )}
+          refreshControl={
+            <RefreshControl refreshing={listRefreshing} onRefresh={onEventsRefresh} tintColor={PINK} />
+          }
+          contentContainerStyle={{ paddingBottom: tabBarBottomContentPadding(insets.bottom) }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -207,202 +317,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: tabBarBottomContentPadding(insets.bottom) }}
       >
-        <View style={[styles.topHeader, { paddingTop: insets.top + 12 }]}>
-          <Text style={styles.handleTop} numberOfLines={1}>
-            {handle}
-          </Text>
-          <Pressable style={styles.menuBtn} onPress={() => router.push('/app-menu')}>
-            <Menu size={24} color={SynthTokens.colors.neutral900} />
-          </Pressable>
-        </View>
-        <View style={styles.headerRule} />
-
-        <View style={styles.profileCard}>
-          <View style={styles.cardTop}>
-            <Image
-              source={
-                user?.avatar_url
-                  ? { uri: user.avatar_url }
-                  : require('../../assets/placeholder-user.png')
-              }
-              style={styles.avatar}
-            />
-            <View style={styles.cardInfo}>
-              <SynthText variant="h2" style={styles.displayName}>
-                {displayName}
-              </SynthText>
-              <SynthText variant="meta" color="secondary" style={styles.handleInCard}>
-                {handle}
-              </SynthText>
-              <View style={styles.statsRow}>
-                <Pressable style={styles.statCol} onPress={goToFriends} accessibilityRole="button">
-                  <Text style={styles.statNum}>{stats?.friend_count ?? 0}</Text>
-                  <Text style={styles.statLbl}>Friends</Text>
-                </Pressable>
-                <Pressable style={styles.statCol} onPress={goToFollowing} accessibilityRole="button">
-                  <Text style={styles.statNum}>{stats?.following_count ?? 0}</Text>
-                  <Text style={styles.statLbl}>Following</Text>
-                </Pressable>
-                <Pressable style={styles.statCol} onPress={goToEventsStat} accessibilityRole="button">
-                  <Text style={styles.statNum}>{stats?.reviewed_events_count ?? 0}</Text>
-                  <Text style={styles.statLbl}>Events</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.actionRow}>
-            <Pressable style={styles.editProfile} onPress={() => router.push('/profile-edit')}>
-              <Pencil size={18} color="#fff" />
-              <Text style={styles.editProfileText}>Edit Profile</Text>
-            </Pressable>
-            <Pressable style={styles.gearBtn} onPress={() => router.push('/settings')}>
-              <Settings size={22} color={SynthTokens.colors.neutral900} />
-            </Pressable>
-          </View>
-
-          <View style={styles.socialRow}>
-            <Pressable
-              style={styles.socialIcon}
-              onPress={() => void openInstagram()}
-              accessibilityRole="button"
-              accessibilityLabel="Open Instagram"
-            >
-              <Instagram
-                size={20}
-                color={
-                  user?.instagram_handle?.trim()
-                    ? SynthTokens.colors.neutral900
-                    : SynthTokens.colors.neutral400
-                }
-              />
-            </Pressable>
-            <Pressable style={styles.socialIcon} onPress={() => void openStreaming()}>
-              {streaming.provider === 'spotify' ? (
-                <FontAwesome5 name="spotify" size={20} color={SynthTokens.colors.neutral900} />
-              ) : streaming.provider === 'apple-music' ? (
-                <FontAwesome5 name="apple" size={20} color={SynthTokens.colors.neutral900} />
-              ) : (
-                <Music2 size={20} color={SynthTokens.colors.neutral900} />
-              )}
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.profileTabs}>
-          {(['events', 'interested', 'passport'] as const).map(t => (
-            <Pressable
-              key={t}
-              onPress={() => setProfileTab(t)}
-              style={[styles.profileTab, profileTab === t && styles.profileTabOn]}
-            >
-              <SynthText variant="meta" style={[styles.profileTabTxt, profileTab === t && styles.profileTabTxtOn]}>
-                {t === 'events' ? 'Events' : t === 'interested' ? 'Interested' : 'Passport'}
-              </SynthText>
-            </Pressable>
-          ))}
-        </View>
-
-        {profileTab === 'events' ? (
-          <View style={styles.tabPanel}>
-            <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
-              Same modes as web profile → Events: Reviews, Rankings, and Unreviewed.
-            </SynthText>
-            <View style={styles.eventsSegment}>
-              {(['reviews', 'rankings', 'unreviewed'] as const).map(m => (
-                <Pressable
-                  key={m}
-                  onPress={() => setEventsMode(m)}
-                  style={[styles.segBtn, eventsMode === m && styles.segBtnOn]}
-                >
-                  <Text style={[styles.segTxt, eventsMode === m && styles.segTxtOn]}>
-                    {m === 'reviews' ? 'Reviews' : m === 'rankings' ? 'Rankings' : 'Unreviewed'}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            {eventsMode === 'reviews' ? (
-              reviews.length === 0 ? (
-                <SynthText variant="body" color="secondary">
-                  No reviews yet. Attend a show and write one from the event page.
-                </SynthText>
-              ) : (
-                reviews.map(r => <React.Fragment key={r.id}>{renderReviewRow(r)}</React.Fragment>)
-              )
-            ) : null}
-            {eventsMode === 'rankings' ? (
-              reviews.length === 0 ? (
-                <SynthText variant="body" color="secondary">
-                  No ranked reviews yet.
-                </SynthText>
-              ) : (
-                Array.from(groupedByStar.entries())
-                  .sort((a, b) => b[0] - a[0])
-                  .map(([star, items]) => (
-                    <View key={star}>
-                      <SynthText variant="meta" style={styles.groupHeader}>
-                        {star}★ ({items.length})
-                      </SynthText>
-                      {items.map(r => (
-                        <React.Fragment key={r.id}>{renderReviewRow(r)}</React.Fragment>
-                      ))}
-                    </View>
-                  ))
-              )
-            ) : null}
-            {eventsMode === 'unreviewed' ? (
-              unreviewed.length === 0 ? (
-                <SynthText variant="body" color="secondary">
-                  No unreviewed past shows. You are all caught up.
-                </SynthText>
-              ) : (
-                unreviewed.slice(0, 20).map(item => (
-                  <View key={`${item.kind}-${item.reviewId}`} style={styles.unrevRow}>
-                    <Pressable
-                      style={styles.unrevMain}
-                      onPress={() =>
-                        item.event_id
-                          ? router.push((`/event/${item.event_id}` as any))
-                          : router.push((reviewComposeHref(item) as any))
-                      }
-                    >
-                      <Image
-                        source={
-                          item.image_url
-                            ? { uri: item.image_url }
-                            : require('../../assets/placeholder-event.png')
-                        }
-                        style={styles.reviewThumb}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
-                          {item.artist_name || item.title}
-                        </SynthText>
-                        <SynthText variant="meta" color="secondary" numberOfLines={1}>
-                          {item.kind === 'draft' ? 'Draft · ' : ''}
-                          {item.venue_name || (item.kind === 'draft' ? 'Finish your review' : '')}
-                        </SynthText>
-                      </View>
-                    </Pressable>
-                    <Pressable
-                      style={styles.reviewMiniCta}
-                      onPress={() => router.push((reviewComposeHref(item) as any))}
-                    >
-                      <SynthText variant="meta" style={styles.reviewMiniCtaTxt}>
-                        {item.kind === 'draft' ? 'Continue' : 'Review'}
-                      </SynthText>
-                    </Pressable>
-                  </View>
-                ))
-              )
-            ) : null}
-            <Pressable style={styles.tabCta} onPress={() => router.push('/my-events')}>
-              <SynthText variant="meta" style={styles.tabCtaTxt}>
-                Open full My Events
-              </SynthText>
-            </Pressable>
-          </View>
-        ) : null}
+        {listHeaderAboveTabs}
 
         {profileTab === 'interested' ? (
           <View style={styles.tabPanel}>
@@ -584,6 +499,10 @@ const styles = StyleSheet.create({
   railPad: {
     marginTop: SynthTokens.spacing.sm,
   },
+  eventsPanelPad: {
+    paddingHorizontal: SynthTokens.spacing.md,
+    marginTop: SynthTokens.spacing.sm,
+  },
   profileTabs: {
     flexDirection: 'row',
     marginHorizontal: SynthTokens.spacing.md,
@@ -608,64 +527,6 @@ const styles = StyleSheet.create({
   profileTabTxtOn: { color: SynthTokens.colors.neutral900 },
   tabPanel: { paddingHorizontal: SynthTokens.spacing.md, marginTop: SynthTokens.spacing.md, gap: 10 },
   tabBlurb: { lineHeight: 20 },
-  tabCta: {
-    alignSelf: 'flex-start',
-    backgroundColor: PINK,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  tabCtaTxt: { color: '#fff', fontWeight: '800' },
-  eventsSegment: {
-    flexDirection: 'row',
-    backgroundColor: SynthTokens.colors.neutral100,
-    borderRadius: 12,
-    padding: 4,
-    gap: 4,
-  },
-  segBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  segBtnOn: { backgroundColor: SynthTokens.colors.neutral900 },
-  segTxt: { fontWeight: '700', fontSize: 12, color: SynthTokens.colors.neutral600 },
-  segTxtOn: { color: SynthTokens.colors.neutral0 },
-  reviewCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    marginBottom: 10,
-    borderRadius: 14,
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-  },
-  reviewThumb: { width: 56, height: 56, borderRadius: 10 },
-  reviewTitle: { fontWeight: '800' },
-  reviewStar: { marginTop: 4 },
-  groupHeader: { fontWeight: '800', marginTop: 12, marginBottom: 8, fontSize: 15 },
-  unrevRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 14,
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-  },
-  unrevMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  reviewMiniCta: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: PINK,
-  },
-  reviewMiniCtaTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
   interestedRow: {
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -675,9 +536,5 @@ const styles = StyleSheet.create({
   passportContainer: {
     paddingHorizontal: SynthTokens.spacing.md,
     paddingBottom: SynthTokens.spacing.lg,
-  },
-  empty: {
-    padding: SynthTokens.spacing.xl,
-    alignItems: 'center',
   },
 });

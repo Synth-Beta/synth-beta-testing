@@ -104,6 +104,7 @@ export default function PublicUserProfileScreen() {
               id: r.id,
               rating: r.rating,
               review_text: r.review_text,
+              was_there: r.was_there ?? null,
               created_at: r.created_at,
               event_id: r.event_id,
               rank_order: r.rank_order ?? null,

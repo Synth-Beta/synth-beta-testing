@@ -11,66 +11,38 @@ import { supabase } from '../../src/integrations/supabase/client';
 import {
     ChevronLeft,
     Share as ShareIcon,
-    MapPin,
     Calendar,
     Users,
     Clock,
     Ticket,
     Music,
+    Heart,
+    Flag,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import { EventDetailsSkeleton } from '../../src/components/skeletons/EventDetailsSkeleton';
 import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import type { NetworkReview } from '../../src/services/homeFeedService';
 import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
 import { SynthMap } from '../../src/components/maps/SynthMap';
 import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttributionInline';
+import {
+    formatEventDetailDate,
+    formatEventDetailTime,
+    formatDoorsTimeShort,
+    formatEventDetailPrice,
+    venueAddressPrimaryLine,
+} from '../../src/utils/eventDetailFormat';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const HERO_HEIGHT = SCREEN_HEIGHT * 0.45;
+const HERO_HEIGHT = SCREEN_HEIGHT * 0.38;
 
-function formatDoorsLine(doorsTime: string | null | undefined): string | null {
-    if (!doorsTime) return null;
-    const d = new Date(doorsTime);
-    if (!Number.isFinite(d.getTime())) return null;
-    return d.toLocaleString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
-}
+const PINK = SynthTokens.colors.brandPink500;
 
-function formatEventPrice(e: EventDetail): string | null {
-    const pr = e.price_range?.trim();
-    if (pr) return pr;
-    const cur = e.price_currency || 'USD';
-    const min = e.price_min;
-    const max = e.price_max;
-    if (min != null && max != null && max > min) {
-        try {
-            const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: cur });
-            return `${fmt.format(min)} – ${fmt.format(max)}`;
-        } catch {
-            return `$${min} – $${max}`;
-        }
-    }
-    if (min != null && min >= 0) {
-        try {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur }).format(min);
-        } catch {
-            return `$${min}`;
-        }
-    }
-    return null;
-}
-
-function venueDetailLine(e: EventDetail): string {
+function mapSubtitleLine(e: EventDetail): string {
     const cityState = [e.venue_city, e.venue_state].filter(Boolean).join(', ');
     const parts = [e.venue_address?.trim(), cityState].filter(p => p && p.length > 0);
-    return parts.join(' · ');
+    return parts.join(' · ') || e.venue_city || '';
 }
 
 export default function EventDetailScreen() {
@@ -362,10 +334,23 @@ export default function EventDetailScreen() {
         );
     }
 
+    const isPastEvent = event.event_date ? new Date(event.event_date) < new Date() : false;
+    const isUpcomingEvent = !isPastEvent;
+    const priceLine = formatEventDetailPrice(event);
+    const doorsShort = formatDoorsTimeShort(event.doors_time);
+    const showTimePrimary = formatEventDetailTime(event.event_date);
+
+    const onInterestedOutline = () => {
+        if (!sessionUserId) {
+            router.push('/(auth)/sign-in');
+            return;
+        }
+        void handleToggleInterested();
+    };
+
     return (
         <View style={styles.container}>
             <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Hero Section */}
                 <View style={styles.heroContainer}>
                     <Image
                         source={event.image_url ? { uri: event.image_url } : require('../../assets/placeholder-event.png')}
@@ -373,10 +358,9 @@ export default function EventDetailScreen() {
                         contentFit="cover"
                     />
                     <LinearGradient
-                        colors={['rgba(0,0,0,0.4)', 'transparent', 'rgba(0,0,0,0.8)']}
+                        colors={['rgba(0,0,0,0.35)', 'transparent', 'rgba(0,0,0,0.55)']}
                         style={styles.heroGradient}
                     />
-
                     <View style={[styles.navHeader, { paddingTop: insets.top + 8 }]}>
                         <Pressable onPress={() => router.back()} style={styles.circleButton}>
                             <ChevronLeft size={24} color="white" />
@@ -385,84 +369,131 @@ export default function EventDetailScreen() {
                             <ShareIcon size={20} color="white" />
                         </Pressable>
                     </View>
-
-                    <View style={styles.heroContent}>
-                        <Pressable
-                            onPress={() => {
-                                if (event.artist_id) router.push(`/artist/${event.artist_id}`);
-                            }}
-                            disabled={!event.artist_id}
-                        >
-                            <SynthText variant="h1" color="white" style={styles.heroTitle}>
-                                {event.artist_name}
-                            </SynthText>
-                        </Pressable>
-                        <SynthText variant="body" color="white" style={styles.heroSub}>
-                            {event.title}
-                        </SynthText>
-                    </View>
                 </View>
 
-                {/* Metadata Overlay (Glassmorphism) */}
                 <View style={styles.detailsContainer}>
-                    <BlurView intensity={20} style={styles.metadataCard}>
-                        <View style={styles.metadataRow}>
-                            <Calendar size={18} color={SynthTokens.colors.brandPink500} />
-                            <SynthText variant="meta" color="primary">
-                                {event.event_date &&
-                                    new Date(event.event_date).toLocaleDateString('en-US', {
-                                        weekday: 'long',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        year: 'numeric',
-                                    })}
+                    <SynthText variant="h2" color="primary" style={styles.pageTitle}>
+                        {event.title}
+                    </SynthText>
+
+                    <View style={styles.primaryActionRow}>
+                        {isUpcomingEvent ? (
+                            <Pressable
+                                onPress={onInterestedOutline}
+                                style={[styles.outlineAction, isInterested && styles.outlineActionActive]}
+                                accessibilityRole="button"
+                                accessibilityLabel={isInterested ? 'Interested' : "I'm Interested"}
+                            >
+                                <Heart
+                                    size={22}
+                                    color={isInterested ? SynthTokens.colors.neutral0 : PINK}
+                                    fill={isInterested ? SynthTokens.colors.neutral0 : 'transparent'}
+                                />
+                                <Text
+                                    style={[styles.outlineActionText, isInterested && styles.outlineActionTextOn]}
+                                    numberOfLines={1}
+                                >
+                                    {isInterested ? 'Interested' : "I'm Interested"}
+                                </Text>
+                            </Pressable>
+                        ) : null}
+                        <Pressable
+                            onPress={reportEvent}
+                            style={[styles.outlineAction, !isUpcomingEvent && styles.outlineActionSingle]}
+                            accessibilityRole="button"
+                            accessibilityLabel="Report event"
+                        >
+                            <Flag size={22} color={PINK} />
+                            <Text style={styles.outlineActionText}>Report</Text>
+                        </Pressable>
+                    </View>
+
+                    <View style={styles.infoCard}>
+                        <View style={styles.infoRow}>
+                            <View style={styles.infoIconWrap}>
+                                <Calendar size={22} color={PINK} />
+                            </View>
+                            <SynthText variant="body" color="primary" style={styles.infoRowText}>
+                                {formatEventDetailDate(event.event_date)}
                             </SynthText>
                         </View>
-                        {formatDoorsLine(event.doors_time) ? (
-                            <View style={styles.metadataRow}>
-                                <Clock size={18} color={SynthTokens.colors.brandPink500} />
-                                <SynthText variant="meta" color="primary">
-                                    Doors / show: {formatDoorsLine(event.doors_time)}
-                                </SynthText>
+                        <View style={styles.infoRow}>
+                            <View style={styles.infoIconWrap}>
+                                <Clock size={22} color={PINK} />
                             </View>
-                        ) : null}
-                        <View style={styles.metadataRow}>
-                            <MapPin size={18} color={SynthTokens.colors.brandPink500} />
-                            <View style={styles.metadataTextCol}>
-                                <Pressable
-                                    onPress={() => {
-                                        if (event.venue_id) router.push(`/venue/${event.venue_id}`);
-                                    }}
-                                    disabled={!event.venue_id}
-                                >
-                                    <SynthText variant="meta" color="primary" style={styles.bold}>
-                                        {event.venue_name}
-                                    </SynthText>
-                                </Pressable>
-                                {venueDetailLine(event) ? (
-                                    <SynthText variant="meta" color="secondary" style={styles.venueDetailLine}>
-                                        {venueDetailLine(event)}
-                                    </SynthText>
+                            <Text style={styles.infoRowTextPlain}>
+                                <Text style={styles.infoRowTextStrong}>
+                                    {showTimePrimary || 'Time TBA'}
+                                </Text>
+                                {doorsShort ? (
+                                    <Text style={styles.infoRowTextMuted}> Doors: {doorsShort}</Text>
                                 ) : null}
-                            </View>
+                            </Text>
                         </View>
-                        {formatEventPrice(event) ? (
-                            <View style={styles.metadataRow}>
-                                <Ticket size={18} color={SynthTokens.colors.brandPink500} />
-                                <SynthText variant="meta" color="primary">
-                                    {formatEventPrice(event)}
+                        {priceLine ? (
+                            <View style={styles.infoRow}>
+                                <View style={styles.infoIconWrap}>
+                                    <Ticket size={22} color={PINK} />
+                                </View>
+                                <SynthText variant="body" color="primary" style={styles.infoPriceText}>
+                                    {priceLine}
                                 </SynthText>
                             </View>
                         ) : null}
                         {event.tour_name?.trim() ? (
-                            <View style={styles.metadataRow}>
-                                <Music size={18} color={SynthTokens.colors.brandPink500} />
-                                <SynthText variant="meta" color="primary">
+                            <View style={styles.infoRow}>
+                                <View style={styles.infoIconWrap}>
+                                    <Music size={22} color={PINK} />
+                                </View>
+                                <SynthText variant="body" color="primary" style={styles.infoRowText}>
                                     {event.tour_name.trim()}
                                 </SynthText>
                             </View>
                         ) : null}
-                    </BlurView>
+                    </View>
+
+                    {event.artist_name && event.artist_id ? (
+                        <Pressable
+                            style={styles.entityCard}
+                            onPress={() => router.push(`/artist/${event.artist_id}`)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Artist ${event.artist_name}`}
+                        >
+                            <SynthText variant="body" color="primary" style={styles.entityCardTitle}>
+                                {event.artist_name}
+                            </SynthText>
+                            {event.genres && event.genres.length > 0 ? (
+                                <View style={styles.genreRow}>
+                                    {event.genres.slice(0, 3).map(g => (
+                                        <View key={g} style={styles.genrePillCard}>
+                                            <Text style={styles.genrePillCardText}>{g}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : null}
+                        </Pressable>
+                    ) : null}
+
+                    {event.venue_name && event.venue_id ? (
+                        <Pressable
+                            style={styles.entityCard}
+                            onPress={() => router.push(`/venue/${event.venue_id}`)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Venue ${event.venue_name}`}
+                        >
+                            <SynthText variant="body" color="primary" style={styles.entityCardTitle}>
+                                {event.venue_name}
+                            </SynthText>
+                            <SynthText variant="meta" color="secondary" style={styles.venueCardAddress}>
+                                {venueAddressPrimaryLine(event)}
+                            </SynthText>
+                            {event.venue_zip ? (
+                                <SynthText variant="meta" color="secondary" style={styles.venueCardZip}>
+                                    ZIP: {event.venue_zip}
+                                </SynthText>
+                            ) : null}
+                        </Pressable>
+                    ) : null}
 
                     {!sessionUserId ? (
                         <Pressable
@@ -477,34 +508,12 @@ export default function EventDetailScreen() {
                         </Pressable>
                     ) : null}
 
-                    {event.genres && event.genres.length > 0 ? (
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={styles.genreScroll}
-                            contentContainerStyle={styles.genreScrollContent}
-                        >
-                            {event.genres.map(g => (
-                                <View key={g} style={styles.genrePill}>
-                                    <Text style={styles.genrePillText}>{g}</Text>
-                                </View>
-                            ))}
-                        </ScrollView>
-                    ) : null}
-
-                    {/* Actions */}
                     <View style={styles.actionRow}>
-                        <SynthButton
-                            title="Interested"
-                            variant={isInterested ? 'primary' : 'secondary'}
-                            onPress={handleToggleInterested}
-                            style={{ flex: 1 }}
-                        />
                         <SynthButton
                             title={isGoing ? "You're Going!" : 'Going'}
                             variant={isGoing ? 'primary' : 'secondary'}
                             onPress={handleToggleGoing}
-                            style={{ flex: 1 }}
+                            style={{ flex: 1, minWidth: '30%' }}
                         />
                         <SynthButton
                             title="Review"
@@ -516,28 +525,20 @@ export default function EventDetailScreen() {
                                 }
                                 router.push(`/review-compose?eventId=${event.id}`);
                             }}
-                            style={{ flex: 1 }}
+                            style={{ flex: 1, minWidth: '30%' }}
                         />
-                    </View>
-                    <View style={styles.actionRow}>
                         <SynthButton
                             title="Tickets"
                             variant="secondary"
                             onPress={openTicketLink}
-                            style={{ flex: 1 }}
+                            style={{ flex: 1, minWidth: '30%' }}
                             disabled={!event.ticket_url}
                         />
                         <SynthButton
                             title="Map"
                             variant="secondary"
                             onPress={openInMaps}
-                            style={{ flex: 1 }}
-                        />
-                        <SynthButton
-                            title="Report"
-                            variant="secondary"
-                            onPress={reportEvent}
-                            style={{ flex: 1 }}
+                            style={{ flex: 1, minWidth: '30%' }}
                         />
                     </View>
 
@@ -603,7 +604,7 @@ export default function EventDetailScreen() {
                                 latitude={event.latitude}
                                 longitude={event.longitude}
                                 title={event.venue_name}
-                                subtitle={venueDetailLine(event) || event.venue_city || ''}
+                                subtitle={mapSubtitleLine(event) || event.venue_city || ''}
                                 onPress={openInMaps}
                             />
                         </View>
@@ -685,6 +686,144 @@ const styles = StyleSheet.create({
     emptyBody: {
         lineHeight: 22,
     },
+    pageTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        lineHeight: 28,
+        marginBottom: SynthTokens.spacing.md,
+    },
+    primaryActionRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginBottom: SynthTokens.spacing.lg,
+    },
+    outlineAction: {
+        flex: 1,
+        minWidth: '42%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: SynthTokens.radius.corner,
+        borderWidth: 1.5,
+        borderColor: PINK,
+        backgroundColor: SynthTokens.colors.neutral0,
+    },
+    outlineActionSingle: {
+        flex: 1,
+        minWidth: '100%',
+    },
+    outlineActionActive: {
+        backgroundColor: PINK,
+        borderColor: PINK,
+    },
+    outlineActionText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: SynthTokens.colors.neutral900,
+        flexShrink: 1,
+    },
+    outlineActionTextOn: {
+        color: SynthTokens.colors.neutral0,
+    },
+    infoCard: {
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderRadius: SynthTokens.radius.large,
+        padding: SynthTokens.spacing.md,
+        marginBottom: SynthTokens.spacing.md,
+        gap: 12,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    infoIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: 'rgba(204, 36, 134, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    infoRowText: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    infoRowTextPlain: {
+        flex: 1,
+        fontSize: 16,
+        color: SynthTokens.colors.neutral900,
+    },
+    infoRowTextStrong: {
+        fontWeight: '600',
+        color: SynthTokens.colors.neutral900,
+    },
+    infoRowTextMuted: {
+        color: SynthTokens.colors.neutral600,
+        fontWeight: '500',
+    },
+    infoPriceText: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    entityCard: {
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderRadius: SynthTokens.radius.corner,
+        padding: SynthTokens.spacing.md,
+        marginBottom: SynthTokens.spacing.md,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
+    },
+    entityCardTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 8,
+    },
+    genreRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    genrePillCard: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: SynthTokens.radius.corner,
+        backgroundColor: SynthTokens.colors.neutral100,
+        borderWidth: 2,
+        borderColor: SynthTokens.colors.neutral200,
+    },
+    genrePillCardText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: SynthTokens.colors.neutral900,
+    },
+    venueCardAddress: {
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    venueCardZip: {
+        fontSize: 13,
+        marginTop: 4,
+        color: SynthTokens.colors.neutral600,
+    },
     heroContainer: {
         width: '100%',
         height: HERO_HEIGHT,
@@ -711,46 +850,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    heroContent: {
-        position: 'absolute',
-        bottom: SynthTokens.spacing.xl,
-        paddingHorizontal: SynthTokens.spacing.md,
-    },
-    heroTitle: {
-        fontSize: 32,
-        fontWeight: 'bold',
-    },
-    heroSub: {
-        opacity: 0.9,
-        fontSize: 18,
-    },
     detailsContainer: {
         paddingHorizontal: SynthTokens.spacing.md,
-        marginTop: -20, // Pull up over hero
-    },
-    metadataCard: {
-        backgroundColor: 'rgba(255,255,255,0.7)',
-        borderRadius: SynthTokens.radius.large,
-        padding: SynthTokens.spacing.lg,
-        gap: SynthTokens.spacing.md,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.5)',
-    },
-    metadataRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: SynthTokens.spacing.md,
-    },
-    metadataTextCol: {
-        flex: 1,
-        minWidth: 0,
-    },
-    venueDetailLine: {
-        marginTop: 4,
-    },
-    bold: {
-        fontWeight: 'bold',
+        marginTop: -16,
+        paddingBottom: SynthTokens.spacing.xl,
+        backgroundColor: SynthTokens.colors.neutral50,
     },
     signInBanner: {
         marginTop: SynthTokens.spacing.md,
@@ -764,29 +868,6 @@ const styles = StyleSheet.create({
         color: SynthTokens.colors.brandPink600,
         fontWeight: '600',
         textAlign: 'center',
-    },
-    genreScroll: {
-        marginTop: SynthTokens.spacing.md,
-        maxHeight: 40,
-    },
-    genreScrollContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingRight: SynthTokens.spacing.md,
-    },
-    genrePill: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: SynthTokens.radius.full,
-        borderWidth: 1,
-        borderColor: SynthTokens.colors.brandPink500,
-        backgroundColor: SynthTokens.colors.neutral0,
-    },
-    genrePillText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: SynthTokens.colors.brandPink500,
     },
     attributionWrap: {
         marginTop: SynthTokens.spacing.md,

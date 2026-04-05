@@ -16,6 +16,7 @@ export interface EventDetail {
     venue_city?: string;
     venue_address?: string;
     venue_state?: string | null;
+    venue_zip?: string | null;
     ticket_url?: string;
     latitude?: number | null;
     longitude?: number | null;
@@ -36,6 +37,15 @@ export interface FriendAttending {
 
 const EVENT_UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function numOrNull(v: unknown): number | null {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') {
+        const n = parseFloat(v);
+        return Number.isFinite(n) ? n : null;
+    }
+    return null;
+}
 
 export class EventService {
     /**
@@ -130,7 +140,7 @@ export class EventService {
                 .select(`
           *,
           artists(name, images),
-          venues(name, city, address, state, latitude, longitude)
+          venues(name, city, address, state, zip, latitude, longitude)
         `)
                 .eq('id', canonical)
                 .maybeSingle();
@@ -153,6 +163,7 @@ export class EventService {
                     city?: string;
                     address?: string;
                     state?: string | null;
+                    zip?: string | null;
                     latitude?: number | null;
                     longitude?: number | null;
                 };
@@ -179,6 +190,11 @@ export class EventService {
                     (typeof row.venue_state === 'string' ? row.venue_state : null) ??
                     row.venues?.state ??
                     null,
+                venue_zip: (() => {
+                    const ez = typeof row.venue_zip === 'string' ? row.venue_zip.trim() : '';
+                    const vz = typeof row.venues?.zip === 'string' ? row.venues.zip.trim() : '';
+                    return ez || vz || null;
+                })(),
                 ticket_url: getCompliantEventLinkFromPayload(row) ?? undefined,
                 latitude:
                     typeof data.latitude === 'number'
@@ -195,8 +211,8 @@ export class EventService {
                 doors_time: typeof row.doors_time === 'string' ? row.doors_time : null,
                 genres,
                 price_range: typeof row.price_range === 'string' ? row.price_range : null,
-                price_min: typeof row.price_min === 'number' ? row.price_min : null,
-                price_max: typeof row.price_max === 'number' ? row.price_max : null,
+                price_min: numOrNull(row.price_min) ?? numOrNull(row.ticket_price_min),
+                price_max: numOrNull(row.price_max) ?? numOrNull(row.ticket_price_max),
                 price_currency: typeof row.price_currency === 'string' ? row.price_currency : null,
                 tour_name: typeof row.tour_name === 'string' ? row.tour_name : null,
             };

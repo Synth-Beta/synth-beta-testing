@@ -4,6 +4,7 @@ export interface MyReviewListItem {
     id: string;
     rating: number | null;
     review_text: string | null;
+    was_there?: boolean | null;
     created_at: string;
     event_id: string | null;
     rank_order: number | null;
@@ -97,6 +98,7 @@ export class MyEventsService {
                     id: r.id,
                     rating: r.rating,
                     review_text: r.review_text,
+                    was_there: r.was_there ?? null,
                     created_at: r.created_at,
                     event_id: r.event_id,
                     rank_order: r.rank_order ?? null,
@@ -107,6 +109,19 @@ export class MyEventsService {
                     image_url: ev?.images?.[0]?.url,
                 };
             });
+    }
+
+    static async countDraftReviews(userId: string): Promise<number> {
+        const { count, error } = await supabase
+            .from('reviews')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_draft', true);
+        if (error) {
+            console.warn('[myEvents] countDraftReviews', error.message);
+            return 0;
+        }
+        return count ?? 0;
     }
 
     static async getInterestedEvents(userId: string): Promise<InterestedEventItem[]> {
@@ -192,7 +207,7 @@ export class MyEventsService {
                 .eq('is_draft', false)
                 .eq('review_text', 'ATTENDANCE_ONLY')
                 .order('updated_at', { ascending: false })
-                .limit(60),
+                .limit(500),
             supabase
                 .from('reviews')
                 .select(
@@ -214,7 +229,7 @@ export class MyEventsService {
                 .eq('user_id', userId)
                 .eq('is_draft', true)
                 .order('updated_at', { ascending: false })
-                .limit(60),
+                .limit(500),
         ]);
 
         if (mErr) console.warn('[myEvents] attendance markers', mErr.message);
@@ -263,6 +278,6 @@ export class MyEventsService {
         }
 
         items.sort((a, b) => (b.sortDate || '').localeCompare(a.sortDate || ''));
-        return items.slice(0, 40);
+        return items;
     }
 }
