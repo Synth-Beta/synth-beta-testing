@@ -133,6 +133,14 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
       ]);
       setReviews(r.items);
       setReviewsLoadError(r.error);
+      if (__DEV__) {
+        console.debug('[ProfileMyEventsPanel] getMyReviews result', {
+          uid,
+          isSupabaseConfigured,
+          itemCount: r.items.length,
+          error: r.error,
+        });
+      }
       setUnreviewed(u);
       setDraftCount(d);
       setLoading(false);

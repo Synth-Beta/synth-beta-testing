@@ -59,6 +59,48 @@ function numOrNull(v: unknown): number | null {
 }
 
 export class EventService {
+    static async resolveCanonicalArtistId(raw: string): Promise<string | null> {
+        const id = normalizeEventRouteInput(raw);
+        if (!id) return null;
+        if (EVENT_UUID_RE.test(id)) return id;
+        try {
+            const { data, error } = await supabase
+                .from('external_entity_ids')
+                .select('entity_uuid')
+                .eq('entity_type', 'artist')
+                .eq('external_id', id)
+                .maybeSingle();
+            if (error || !data?.entity_uuid) return null;
+            if (__DEV__) {
+                console.debug('[EventService] resolved artist id', { raw: id, canonical: data.entity_uuid });
+            }
+            return data.entity_uuid as string;
+        } catch {
+            return null;
+        }
+    }
+
+    static async resolveCanonicalVenueId(raw: string): Promise<string | null> {
+        const id = normalizeEventRouteInput(raw);
+        if (!id) return null;
+        if (EVENT_UUID_RE.test(id)) return id;
+        try {
+            const { data, error } = await supabase
+                .from('external_entity_ids')
+                .select('entity_uuid')
+                .eq('entity_type', 'venue')
+                .eq('external_id', id)
+                .maybeSingle();
+            if (error || !data?.entity_uuid) return null;
+            if (__DEV__) {
+                console.debug('[EventService] resolved venue id', { raw: id, canonical: data.entity_uuid });
+            }
+            return data.entity_uuid as string;
+        } catch {
+            return null;
+        }
+    }
+
     /**
      * Normalize route param to `events.id` (UUID). Non-UUID values may resolve via `external_entity_ids`.
      */
@@ -258,6 +300,9 @@ export class EventService {
      */
     static async getFriendsAttending(eventId: string, userId: string): Promise<FriendAttending[]> {
         try {
+            const canonicalEventId = await this.resolveEventQueryId(eventId);
+            if (!canonicalEventId) return [];
+
             // 1. Get friends
             const { data: friends } = await supabase
                 .from('user_relationships')
@@ -280,7 +325,7 @@ export class EventService {
             avatar_url
           )
         `)
-                .eq('event_id', eventId)
+                .eq('event_id', canonicalEventId)
                 .eq('relationship_type', 'going')
                 .in('user_id', friendIds);
 
@@ -302,15 +347,15 @@ export class EventService {
      */
     static async toggleInteraction(userId: string, eventId: string, type: 'going' | 'interested'): Promise<boolean> {
         try {
-            const canonical = await this.resolveCanonicalEventId(eventId);
-            if (!canonical) return false;
+            const canonicalEventId = await this.resolveEventQueryId(eventId);
+            if (!canonicalEventId) return false;
 
             // Check current
             const { data: existing } = await supabase
                 .from('user_event_relationships')
                 .select('*')
                 .eq('user_id', userId)
-                .eq('event_id', canonical)
+                .eq('event_id', canonicalEventId)
                 .maybeSingle();
 
             if (existing && existing.relationship_type === type) {
@@ -319,7 +364,7 @@ export class EventService {
                     .from('user_event_relationships')
                     .delete()
                     .eq('user_id', userId)
-                    .eq('event_id', canonical);
+                    .eq('event_id', canonicalEventId);
                 return !error;
             } else {
                 // Upsert new
@@ -328,7 +373,7 @@ export class EventService {
                     .upsert(
                         {
                             user_id: userId,
-                            event_id: canonical,
+                            event_id: canonicalEventId,
                             relationship_type: type,
                             updated_at: new Date().toISOString(),
                         },

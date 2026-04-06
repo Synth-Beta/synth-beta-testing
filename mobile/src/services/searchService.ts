@@ -1,5 +1,10 @@
 import { supabase } from '../integrations/supabase/client';
-import { todayLocalYmd, eventRawMatchesLocalYmd } from '../utils/localYmd';
+import {
+    todayLocalYmd,
+    eventRawMatchesLocalYmd,
+    localYmdToStartOfDayIso,
+    eventDateToLocalYmd,
+} from '../utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
 
@@ -14,6 +19,24 @@ export interface SearchResult {
     artist_id?: string;
     venue_id?: string;
     ticket_url?: string;
+}
+
+function mapCalendarRpcRowToSearchResult(event: Record<string, unknown>): SearchResult {
+    const rawImg =
+        pickFeedImageUrlFromPayload(event) ??
+        (typeof event.event_media_url === 'string' ? event.event_media_url : undefined);
+    return {
+        id: String(event.id),
+        title: String(event.title ?? ''),
+        artist_name: String(event.artist_name ?? ''),
+        venue_name: String(event.venue_name ?? ''),
+        venue_city: event.venue_city != null ? String(event.venue_city) : undefined,
+        event_date: String(event.event_date ?? ''),
+        image_url: resolveFeedImageUri(rawImg) ?? undefined,
+        artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
+        venue_id: event.venue_id != null ? String(event.venue_id) : undefined,
+        ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
+    };
 }
 
 export type SearchScope = 'events' | 'artists' | 'venues' | 'users';
@@ -75,6 +98,63 @@ export class SearchService {
         }
     }
 
+    /**
+     * Bulk-load upcoming calendar events (from start of today local) and group by local yyyy-mm-dd.
+     * Matches web MapCalendarTourSection + get_calendar_events usage.
+     */
+    static async loadDiscoverCalendarEvents(opts?: {
+        latitude?: number | null;
+        longitude?: number | null;
+        radiusMiles?: number;
+        limit?: number;
+    }): Promise<{ byDate: Record<string, SearchResult[]>; error: string | null }> {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const p_min_date = now.toISOString();
+        const hasCoords =
+            opts?.latitude != null &&
+            opts?.longitude != null &&
+            Number.isFinite(opts.latitude) &&
+            Number.isFinite(opts.longitude);
+        const radius = opts?.radiusMiles ?? 30;
+        const limit = opts?.limit ?? 10000;
+
+        try {
+            const { data, error } = await supabase.rpc('get_calendar_events', {
+                p_latitude: hasCoords ? opts!.latitude! : null,
+                p_longitude: hasCoords ? opts!.longitude! : null,
+                p_radius_miles: hasCoords ? radius : null,
+                p_min_date,
+                p_genres: null,
+                p_limit: limit,
+            });
+
+            if (error) {
+                if (__DEV__) {
+                    console.warn('[SearchService] loadDiscoverCalendarEvents RPC error', error);
+                }
+                return { byDate: {}, error: error.message ?? 'Calendar load failed' };
+            }
+
+            const rows = (data || []) as Array<Record<string, unknown>>;
+            const byDate: Record<string, SearchResult[]> = {};
+            for (const row of rows) {
+                const ymd = eventDateToLocalYmd(row.event_date);
+                if (!ymd) continue;
+                const sr = mapCalendarRpcRowToSearchResult(row);
+                if (!byDate[ymd]) byDate[ymd] = [];
+                byDate[ymd].push(sr);
+            }
+            return { byDate, error: null };
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Calendar load failed';
+            if (__DEV__) {
+                console.warn('[SearchService] loadDiscoverCalendarEvents', e);
+            }
+            return { byDate: {}, error: msg };
+        }
+    }
+
     static async getEventsByDateRange(
         start: string,
         end: string,
@@ -85,44 +165,40 @@ export class SearchService {
             const endDay = String(end).slice(0, 10);
             const sameDay = startDay.length === 10 && startDay === endDay;
 
-            // Use backend RPC for fast spatial + indexed filtering.
-            // Calendar RPC signature only supports a minimum date; we filter client-side to the selected day.
+            const hasCoords =
+                opts?.latitude != null &&
+                opts?.longitude != null &&
+                Number.isFinite(opts.latitude) &&
+                Number.isFinite(opts.longitude);
+            const p_min_date = localYmdToStartOfDayIso(startDay);
+
             const { data, error } = await supabase.rpc('get_calendar_events', {
-                p_latitude: opts?.latitude ?? null,
-                p_longitude: opts?.longitude ?? null,
-                p_radius_miles: opts?.radiusMiles ?? null,
-                p_min_date: startDay,
+                p_latitude: hasCoords ? opts!.latitude! : null,
+                p_longitude: hasCoords ? opts!.longitude! : null,
+                p_radius_miles: hasCoords ? (opts?.radiusMiles ?? 30) : null,
+                p_min_date,
                 p_genres: null,
                 p_limit: opts?.limit ?? 200,
             });
 
-            if (error) throw error;
+            if (error) {
+                if (__DEV__) {
+                    console.warn('[SearchService] getEventsByDateRange RPC error', error);
+                }
+                throw error;
+            }
 
-            const rows = (data || []) as Array<any>;
+            const rows = (data || []) as Array<Record<string, unknown>>;
 
             const filtered = sameDay
                 ? rows.filter(ev => eventRawMatchesLocalYmd(ev?.event_date, startDay))
                 : rows;
 
-            return filtered.map(event => {
-                const rawImg =
-                    pickFeedImageUrlFromPayload(event) ??
-                    (typeof event.event_media_url === 'string' ? event.event_media_url : undefined);
-                return {
-                    id: event.id,
-                    title: event.title,
-                    artist_name: event.artist_name,
-                    venue_name: event.venue_name,
-                    venue_city: event.venue_city ?? undefined,
-                    event_date: event.event_date,
-                    image_url: resolveFeedImageUri(rawImg) ?? undefined,
-                    artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
-                    venue_id: event.venue_id != null ? String(event.venue_id) : undefined,
-                    ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
-                };
-            });
+            return filtered.map(row => mapCalendarRpcRowToSearchResult(row));
         } catch (error) {
-            console.error('Error fetching calendar events:', error);
+            if (__DEV__) {
+                console.warn('[SearchService] getEventsByDateRange', error);
+            }
             return [];
         }
     }

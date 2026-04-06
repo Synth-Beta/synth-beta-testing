@@ -63,13 +63,24 @@ export default function VenueDetailScreen() {
           .maybeSingle();
         venue = data;
       } else {
-        const { data } = await supabase
-          .from('venues')
-          .select('id, name, city, image_url, latitude, longitude')
-          .ilike('name', raw)
-          .maybeSingle();
-        venue = data;
-        resolvedId = data?.id ?? null;
+        // Try external id mapping first (feeds often use external IDs).
+        resolvedId = await EventService.resolveCanonicalVenueId(raw);
+        if (resolvedId) {
+          const { data } = await supabase
+            .from('venues')
+            .select('id, name, city, image_url, latitude, longitude')
+            .eq('id', resolvedId)
+            .maybeSingle();
+          venue = data;
+        } else {
+          const { data } = await supabase
+            .from('venues')
+            .select('id, name, city, image_url, latitude, longitude')
+            .ilike('name', raw)
+            .maybeSingle();
+          venue = data;
+          resolvedId = data?.id ?? null;
+        }
       }
       const venueName =
         venue != null
@@ -90,15 +101,20 @@ export default function VenueDetailScreen() {
         setVenueId(null);
         setLatLng(null);
       }
-      const { data: evs } = await supabase
-        .from('events')
-        .select(
-          'id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls'
-        )
-        .eq('venue_id', resolvedId ?? raw)
-        .gte('event_date', todayLocalYmd())
-        .order('event_date', { ascending: true })
-        .limit(25);
+      const evs =
+        resolvedId != null
+          ? (
+              await supabase
+                .from('events')
+                .select(
+                  'id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls'
+                )
+                .eq('venue_id', resolvedId)
+                .gte('event_date', todayLocalYmd())
+                .order('event_date', { ascending: true })
+                .limit(25)
+            ).data
+          : [];
       const mapped =
         (evs || []).map((e: any) => {
           const rawImg = pickFeedImageUrlFromPayload(e) ?? e.images?.[0]?.url;
@@ -183,11 +199,6 @@ export default function VenueDetailScreen() {
                   ticket_url={e.ticket_url}
                   artist_id={e.artist_id}
                   venue_id={e.venue_id}
-                  onPress={() => {
-                    void EventService.toEventRouteId(e.id).then(rid => {
-                      router.push(`/event/${rid}` as any);
-                    });
-                  }}
                 />
               ))
             )}

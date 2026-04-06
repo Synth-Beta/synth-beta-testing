@@ -159,6 +159,13 @@ export class MyEventsService {
 
         const raw = reviewsData || [];
         const filtered = raw.filter((r: Record<string, unknown>) => includeInPublishedReviewsList(r));
+        if (__DEV__) {
+            console.debug('[myEvents] getMyReviews counts', {
+                userId,
+                rawCount: raw.length,
+                filteredCount: filtered.length,
+            });
+        }
 
         const eventIds = [...new Set(filtered.map((r: any) => r.event_id).filter(Boolean))] as string[];
         const reviewArtistIds = [...new Set(filtered.map((r: any) => r.artist_id).filter(Boolean))] as string[];

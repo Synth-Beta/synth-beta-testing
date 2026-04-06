@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text } from 'react-native';
+import { Alert, StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -466,7 +466,18 @@ export default function EventDetailScreen() {
                     {event.artist_name && event.artist_id ? (
                         <Pressable
                             style={styles.entityCard}
-                            onPress={() => router.push(`/artist/${event.artist_id}`)}
+                            onPress={() => {
+                                void EventService.resolveCanonicalArtistId(String(event.artist_id)).then((resolved) => {
+                                    if (!resolved) {
+                                        Alert.alert(
+                                            'Artist unavailable',
+                                            'This artist link could not be opened. Please try another event.'
+                                        );
+                                        return;
+                                    }
+                                    router.push(`/artist/${resolved}`);
+                                });
+                            }}
                             accessibilityRole="button"
                             accessibilityLabel={`Artist ${event.artist_name}`}
                         >
@@ -488,7 +499,18 @@ export default function EventDetailScreen() {
                     {event.venue_name && event.venue_id ? (
                         <Pressable
                             style={styles.entityCard}
-                            onPress={() => router.push(`/venue/${event.venue_id}`)}
+                            onPress={() => {
+                                void EventService.resolveCanonicalVenueId(String(event.venue_id)).then((resolved) => {
+                                    if (!resolved) {
+                                        Alert.alert(
+                                            'Venue unavailable',
+                                            'This venue link could not be opened. Please try another event.'
+                                        );
+                                        return;
+                                    }
+                                    router.push(`/venue/${resolved}`);
+                                });
+                            }}
                             accessibilityRole="button"
                             accessibilityLabel={`Venue ${event.venue_name}`}
                         >

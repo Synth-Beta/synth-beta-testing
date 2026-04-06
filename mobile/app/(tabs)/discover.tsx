@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -23,13 +23,13 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { EventCard } from '../../src/components/Feed/EventCard';
-import { SearchService } from '../../src/services/searchService';
+import { SearchService, type SearchResult } from '../../src/services/searchService';
+import { MobileTourTracker } from '../../src/components/discover/MobileTourTracker';
 import { supabase } from '../../src/integrations/supabase/client';
 import { MobileScenesRail } from '../../src/components/discover/MobileScenesRail';
 import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/DiscoverCalEventsSkeleton';
 import { getCurrentLatLng, type LatLng } from '../../src/services/locationService';
 import { toLocalYmd } from '../../src/utils/localYmd';
-import { EventService } from '../../src/services/eventService';
 import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -47,6 +47,7 @@ function DiscoverCalendar({
   onNext,
   selectedDate,
   onSelectDay,
+  daysWithEvents,
 }: {
   month: number;
   year: number;
@@ -54,6 +55,8 @@ function DiscoverCalendar({
   onNext: () => void;
   selectedDate: CalDaySelection | null;
   onSelectDay: (day: number) => void;
+  /** Day-of-month (1–31) that have at least one event in `calendarByDate`. */
+  daysWithEvents: Set<number>;
 }) {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
@@ -109,6 +112,7 @@ function DiscoverCalendar({
             year === selectedDate.year &&
             month === selectedDate.month &&
             cell === selectedDate.day;
+          const hasEvents = daysWithEvents.has(cell);
           return (
             <Pressable
               key={`d-${idx}`}
@@ -127,6 +131,7 @@ function DiscoverCalendar({
               >
                 {cell}
               </Text>
+              {hasEvents ? <View style={calStyles.eventDot} /> : null}
             </Pressable>
           );
         })}
@@ -177,10 +182,10 @@ const calStyles = StyleSheet.create({
   },
   cell: {
     width: '14.28%',
-    aspectRatio: 1,
-    maxHeight: 40,
+    minHeight: 44,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 4,
   },
   dayNum: {
     fontSize: 15,
@@ -206,6 +211,13 @@ const calStyles = StyleSheet.create({
     fontWeight: '500',
     color: SynthTokens.colors.neutral200,
   },
+  eventDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: PINK,
+    marginTop: 2,
+  },
 });
 
 export default function DiscoverScreen() {
@@ -220,10 +232,9 @@ export default function DiscoverScreen() {
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calDaySelection, setCalDaySelection] = useState<CalDaySelection | null>(null);
-  const [calendarEvents, setCalendarEvents] = useState<
-    Awaited<ReturnType<typeof SearchService.getEventsByDateRange>>
-  >([]);
+  const [calendarByDate, setCalendarByDate] = useState<Record<string, SearchResult[]>>({});
   const [calLoading, setCalLoading] = useState(false);
+  const [calLoadError, setCalLoadError] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -241,38 +252,54 @@ export default function DiscoverScreen() {
 
   useEffect(() => {
     setCalDaySelection(null);
-    setCalendarEvents([]);
   }, [calMonth, calYear]);
 
   useEffect(() => {
-    if (tab !== 'calendar' || calDaySelection == null) {
-      setCalendarEvents([]);
+    if (tab !== 'calendar') {
       return;
     }
     let cancelled = false;
     setCalLoading(true);
-    const day = toLocalYmd(
-      new Date(calDaySelection.year, calDaySelection.month, calDaySelection.day)
-    );
-    void SearchService.getEventsByDateRange(day, day, {
+    setCalLoadError(null);
+    void SearchService.loadDiscoverCalendarEvents({
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
-      radiusMiles: 50,
-      limit: 200,
-    })
-      .then(rows => {
-        if (!cancelled) setCalendarEvents(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setCalendarEvents([]);
-      })
-      .finally(() => {
-        if (!cancelled) setCalLoading(false);
-      });
+      radiusMiles: 30,
+      limit: 10000,
+    }).then(({ byDate, error }) => {
+      if (cancelled) return;
+      setCalendarByDate(byDate);
+      setCalLoadError(error);
+    }).finally(() => {
+      if (!cancelled) setCalLoading(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, [tab, calDaySelection, coords]);
+  }, [tab, coords?.latitude, coords?.longitude]);
+
+  const daysWithEventsInMonth = useMemo(() => {
+    const set = new Set<number>();
+    const y = calYear;
+    const m = calMonth;
+    for (const ymd of Object.keys(calendarByDate)) {
+      if (!calendarByDate[ymd]?.length) continue;
+      const [ys, ms, ds] = ymd.split('-').map(Number);
+      if (ys === y && ms - 1 === m) set.add(ds);
+    }
+    return set;
+  }, [calendarByDate, calMonth, calYear]);
+
+  const selectedDayEvents = useMemo(() => {
+    if (calDaySelection == null) return [];
+    const ymd = toLocalYmd(
+      new Date(calDaySelection.year, calDaySelection.month, calDaySelection.day)
+    );
+    const list = calendarByDate[ymd] ?? [];
+    return [...list].sort(
+      (a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
+    );
+  }, [calDaySelection, calendarByDate]);
 
   const calPrev = () => {
     if (calMonth === 0) {
@@ -287,6 +314,10 @@ export default function DiscoverScreen() {
       setCalYear(y => y + 1);
     } else setCalMonth(m => m + 1);
   };
+
+  const onTourTab = useCallback(() => {
+    setTab('tour');
+  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -364,7 +395,7 @@ export default function DiscoverScreen() {
           </Pressable>
           <Pressable
             style={[styles.seg, tab === 'tour' && styles.segActive]}
-            onPress={() => router.push('/(tabs)/search')}
+            onPress={onTourTab}
           >
             <Route size={18} color={tab === 'tour' ? PINK : SynthTokens.colors.neutral600} />
             <Text style={[styles.segText, tab === 'tour' && styles.segTextActive]}>Tour Tracker</Text>
@@ -373,12 +404,18 @@ export default function DiscoverScreen() {
 
         {tab === 'calendar' ? (
           <>
+            {calLoadError ? (
+              <SynthText variant="meta" color="secondary">
+                {calLoadError}
+              </SynthText>
+            ) : null}
             <DiscoverCalendar
               month={calMonth}
               year={calYear}
               onPrev={calPrev}
               onNext={calNext}
               selectedDate={calDaySelection}
+              daysWithEvents={daysWithEventsInMonth}
               onSelectDay={day => {
                 setCalDaySelection({ year: calYear, month: calMonth, day });
               }}
@@ -398,12 +435,12 @@ export default function DiscoverScreen() {
                 </SynthText>
                 {calLoading ? (
                   <DiscoverCalEventsSkeleton />
-                ) : calendarEvents.length === 0 ? (
+                ) : selectedDayEvents.length === 0 ? (
                   <SynthText variant="meta" color="secondary">
                     No events on this date.
                   </SynthText>
                 ) : (
-                  calendarEvents.map(ev => (
+                  selectedDayEvents.map(ev => (
                     <EventCard
                       key={ev.id}
                       id={ev.id}
@@ -416,22 +453,19 @@ export default function DiscoverScreen() {
                       ticket_url={ev.ticket_url}
                       artist_id={ev.artist_id}
                       venue_id={ev.venue_id}
-                      onPress={() => {
-                        void EventService.toEventRouteId(ev.id).then(rid => {
-                          router.push(`/event/${rid}` as any);
-                        });
-                      }}
                     />
                   ))
                 )}
               </View>
             ) : (
               <SynthText variant="meta" color="secondary" style={styles.calHint}>
-                Tap a date to see shows that day.
+                Tap a date to see shows that day. Days with a dot have events.
               </SynthText>
             )}
           </>
-        ) : null}
+        ) : (
+          <MobileTourTracker />
+        )}
 
         <MobileScenesRail userId={authUserId} />
       </ScrollView>

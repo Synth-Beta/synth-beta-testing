@@ -18,6 +18,28 @@ export function todayLocalYmd(now = new Date()): string {
  * Date-only strings from Postgres (YYYY-MM-DD) are compared literally — avoids the
  * `new Date('YYYY-MM-DD')` UTC-midnight off-by-one-day bug in US timezones.
  */
+/** Start of local calendar day as ISO string (for RPC `p_min_date` TIMESTAMPTZ). */
+export function localYmdToStartOfDayIso(ymd: string): string {
+    const t = String(ymd).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+        const n = new Date();
+        n.setHours(0, 0, 0, 0);
+        return n.toISOString();
+    }
+    const [y, m, d] = t.split('-').map(Number);
+    return new Date(y, m - 1, d, 0, 0, 0, 0).toISOString();
+}
+
+/** Local calendar yyyy-mm-dd for an event row `event_date` value. */
+export function eventDateToLocalYmd(raw: unknown): string | null {
+    const s = String(raw ?? '').trim();
+    if (!s) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(s);
+    if (!Number.isFinite(d.getTime())) return null;
+    return toLocalYmd(d);
+}
+
 export function eventRawMatchesLocalYmd(raw: unknown, dayYmd: string): boolean {
     const target = String(dayYmd).slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) return false;

@@ -24,6 +24,10 @@ export interface ArtistGroupChat {
   member_count?: number;
 }
 
+function hasLngLat(lat: number, lng: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lng);
+}
+
 export class TourTrackerService {
   /**
    * Get all upcoming events for an artist by UUID
@@ -98,7 +102,10 @@ export class TourTrackerService {
       const from = sortedEvents[i];
       const to = sortedEvents[i + 1];
       
-      if (from.latitude && from.longitude && to.latitude && to.longitude) {
+      if (
+        hasLngLat(from.latitude, from.longitude) &&
+        hasLngLat(to.latitude, to.longitude)
+      ) {
         route.push({
           from: {
             lat: from.latitude,

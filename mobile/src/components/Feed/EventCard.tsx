@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View, Pressable, Dimensions, Text, Linking } from 'react-native';
+import { Alert, StyleSheet, View, Pressable, Dimensions, Text, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../SynthText';
@@ -119,8 +119,15 @@ export const EventCard: React.FC<EventCardProps> = ({
   }, [venue_id, router]);
 
   const openEventDetail = useCallback(() => {
-    void EventService.toEventRouteId(id).then(rid => {
-      router.push(`/event/${rid}` as any);
+    void EventService.resolveEventQueryId(id).then((resolved) => {
+      if (!resolved) {
+        if (__DEV__) {
+          console.warn('[EventCard] unable to resolve event id for navigation', { raw: id });
+        }
+        Alert.alert('Event unavailable', 'This event link could not be opened. Please try another event.');
+        return;
+      }
+      router.push(`/event/${resolved}` as any);
     });
   }, [id, router]);
 
