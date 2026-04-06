@@ -58,57 +58,267 @@ function includeInPublishedReviewsList(r: {
     return false;
 }
 
+/** Result of loading published reviews for profile (reviews query errors surface here; events batch is best-effort). */
+export type GetMyReviewsResult = {
+    items: MyReviewListItem[];
+    /** Set when the primary `reviews` query fails (same UX signal as web throwing on that step). */
+    error: string | null;
+};
+
+function mapFilteredReviewToListItem(
+    item: Record<string, unknown>,
+    eventsMap: Record<string, Record<string, unknown>>,
+    artistsMap: Record<string, { name?: string | null }>,
+    venuesMap: Record<string, { name?: string | null }>,
+    userCreatedArtistsMap: Record<string, { name?: string | null }>,
+    userCreatedVenuesMap: Record<string, { name?: string | null }>
+): MyReviewListItem {
+    const eventId = item.event_id as string | null | undefined;
+    const artistId = item.artist_id as string | null | undefined;
+    const venueId = item.venue_id as string | null | undefined;
+    const ucaId = item.user_created_artist_id as string | null | undefined;
+    const ucvId = item.user_created_venue_id as string | null | undefined;
+
+    const eventData = eventId ? eventsMap[eventId] ?? null : null;
+
+    const resolvedArtistName = artistId
+        ? (artistsMap[artistId]?.name ?? null)
+        : ucaId
+          ? (userCreatedArtistsMap[ucaId]?.name ?? null)
+          : null;
+    const resolvedVenueName = venueId
+        ? (venuesMap[venueId]?.name ?? null)
+        : ucvId
+          ? (userCreatedVenuesMap[ucvId]?.name ?? null)
+          : null;
+
+    let ev = eventData;
+    if (!ev && (artistId || ucaId || venueId || ucvId)) {
+        ev = {
+            title: null,
+            artist_name: resolvedArtistName,
+            venue_name: resolvedVenueName,
+            event_date: null,
+            images: undefined,
+        };
+    }
+    if (ev && (!ev.artist_name || !ev.venue_name)) {
+        ev = { ...ev };
+        if (!ev.artist_name) ev.artist_name = resolvedArtistName ?? '';
+        if (!ev.venue_name) ev.venue_name = resolvedVenueName ?? '';
+    }
+
+    const artistNameStr = String(ev?.artist_name ?? resolvedArtistName ?? '');
+    const venueNameStr = String(ev?.venue_name ?? resolvedVenueName ?? '');
+    const title =
+        (ev?.title as string | null | undefined) ||
+        artistNameStr ||
+        (resolvedArtistName && resolvedVenueName
+            ? `${resolvedArtistName} at ${resolvedVenueName}`
+            : resolvedArtistName || resolvedVenueName || 'Event');
+
+    const images = ev?.images as Array<{ url?: string }> | undefined;
+
+    return {
+        id: String(item.id),
+        rating: (item.rating as number | null) ?? null,
+        review_text: (item.review_text as string | null) ?? null,
+        was_there: (item.was_there as boolean | null | undefined) ?? null,
+        created_at: String(item.created_at ?? ''),
+        event_id: (eventId as string | null) ?? null,
+        rank_order: (item.rank_order as number | null | undefined) ?? null,
+        title,
+        artist_name: artistNameStr,
+        venue_name: venueNameStr,
+        event_date: String(ev?.event_date ?? ''),
+        image_url: images?.[0]?.url,
+    };
+}
+
 export class MyEventsService {
-    static async getMyReviews(userId: string): Promise<MyReviewListItem[]> {
-        const { data, error } = await supabase
+    /**
+     * Loads published reviews like web `getUserReviewHistory`: `reviews` first, then batch `events`
+     * (no PostgREST embed on the critical path).
+     */
+    static async getMyReviews(userId: string): Promise<GetMyReviewsResult> {
+        const { data: reviewsData, error: reviewsError } = await supabase
             .from('reviews')
             .select(
-                `
-        id,
-        rating,
-        review_text,
-        was_there,
-        created_at,
-        event_id,
-        rank_order,
-        events (
-          id,
-          title,
-          artist_name,
-          venue_name,
-          event_date,
-          images
-        )
-      `
+                'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id, user_created_artist_id, user_created_venue_id'
             )
             .eq('user_id', userId)
             .eq('is_draft', false)
             .order('created_at', { ascending: false });
 
-        if (error) {
-            console.warn('[myEvents] getMyReviews', error);
-            return [];
+        if (reviewsError) {
+            const code = reviewsError.code ?? 'unknown';
+            const msg = reviewsError.message ?? String(reviewsError);
+            console.warn('[myEvents] getMyReviews reviews query failed', { code, message: msg, details: reviewsError });
+            return { items: [], error: `${code}: ${msg}` };
         }
 
-        return (data || [])
-            .filter((r: any) => includeInPublishedReviewsList(r))
-            .map((r: any) => {
-                const ev = r.events;
-                return {
-                    id: r.id,
-                    rating: r.rating,
-                    review_text: r.review_text,
-                    was_there: r.was_there ?? null,
-                    created_at: r.created_at,
-                    event_id: r.event_id,
-                    rank_order: r.rank_order ?? null,
-                    title: ev?.title || ev?.artist_name || 'Event',
-                    artist_name: ev?.artist_name || '',
-                    venue_name: ev?.venue_name || '',
-                    event_date: ev?.event_date || '',
-                    image_url: ev?.images?.[0]?.url,
-                };
-            });
+        const raw = reviewsData || [];
+        const filtered = raw.filter((r: Record<string, unknown>) => includeInPublishedReviewsList(r));
+
+        const eventIds = [...new Set(filtered.map((r: any) => r.event_id).filter(Boolean))] as string[];
+        const reviewArtistIds = [...new Set(filtered.map((r: any) => r.artist_id).filter(Boolean))] as string[];
+        const reviewVenueIds = [...new Set(filtered.map((r: any) => r.venue_id).filter(Boolean))] as string[];
+        const reviewUserCreatedArtistIds = [
+            ...new Set(filtered.map((r: any) => r.user_created_artist_id).filter(Boolean)),
+        ] as string[];
+        const reviewUserCreatedVenueIds = [
+            ...new Set(filtered.map((r: any) => r.user_created_venue_id).filter(Boolean)),
+        ] as string[];
+
+        let eventsMap: Record<string, Record<string, unknown>> = {};
+        const artistsMap: Record<string, { name?: string | null }> = {};
+        const venuesMap: Record<string, { name?: string | null }> = {};
+
+        if (eventIds.length > 0) {
+            const { data: eventsData, error: eventsError } = await supabase
+                .from('events')
+                .select('id, title, artist_name, venue_name, artist_id, venue_id, event_date, images')
+                .in('id', eventIds);
+
+            if (eventsError) {
+                const code = eventsError.code ?? 'unknown';
+                const msg = eventsError.message ?? String(eventsError);
+                console.warn('[myEvents] getMyReviews events batch failed (continuing with review fallbacks)', {
+                    code,
+                    message: msg,
+                    details: eventsError,
+                });
+            } else if (eventsData?.length) {
+                const eventArtistIds = [...new Set(eventsData.map((e: any) => e.artist_id).filter(Boolean))] as string[];
+                const eventVenueIds = [...new Set(eventsData.map((e: any) => e.venue_id).filter(Boolean))] as string[];
+                const allArtistIds = [...new Set([...eventArtistIds, ...reviewArtistIds])];
+                const allVenueIds = [...new Set([...eventVenueIds, ...reviewVenueIds])];
+
+                const eventArtistsMap: Record<string, { name?: string | null }> = {};
+                if (allArtistIds.length > 0) {
+                    const { data: artistsData, error: aErr } = await supabase
+                        .from('artists')
+                        .select('id, name')
+                        .in('id', allArtistIds);
+                    if (aErr) {
+                        console.warn('[myEvents] getMyReviews artists batch', {
+                            code: aErr.code,
+                            message: aErr.message,
+                        });
+                    }
+                    for (const a of artistsData || []) {
+                        eventArtistsMap[(a as { id: string }).id] = { name: (a as { name: string }).name };
+                    }
+                }
+
+                const eventVenuesMap: Record<string, { name?: string | null }> = {};
+                if (allVenueIds.length > 0) {
+                    const { data: venuesData, error: vErr } = await supabase
+                        .from('venues')
+                        .select('id, name')
+                        .in('id', allVenueIds);
+                    if (vErr) {
+                        console.warn('[myEvents] getMyReviews venues batch', {
+                            code: vErr.code,
+                            message: vErr.message,
+                        });
+                    }
+                    for (const v of venuesData || []) {
+                        eventVenuesMap[(v as { id: string }).id] = { name: (v as { name: string }).name };
+                    }
+                }
+
+                eventsMap = (eventsData as Record<string, unknown>[]).reduce(
+                    (acc: Record<string, Record<string, unknown>>, event: Record<string, unknown>) => {
+                        const id = String(event.id);
+                        const aid = event.artist_id as string | undefined;
+                        const vid = event.venue_id as string | undefined;
+                        acc[id] = {
+                            ...event,
+                            artist_name: (aid && eventArtistsMap[aid]?.name) || event.artist_name,
+                            venue_name: (vid && eventVenuesMap[vid]?.name) || event.venue_name,
+                        };
+                        return acc;
+                    },
+                    {}
+                );
+
+                Object.assign(artistsMap, eventArtistsMap);
+                Object.assign(venuesMap, eventVenuesMap);
+            }
+        }
+
+        if (reviewArtistIds.length > 0) {
+            const { data: artistsData, error: aErr } = await supabase
+                .from('artists')
+                .select('id, name')
+                .in('id', reviewArtistIds);
+            if (aErr) {
+                console.warn('[myEvents] getMyReviews review artists batch', {
+                    code: aErr.code,
+                    message: aErr.message,
+                });
+            }
+            for (const a of artistsData || []) {
+                artistsMap[(a as { id: string }).id] = { name: (a as { name: string }).name };
+            }
+        }
+
+        if (reviewVenueIds.length > 0) {
+            const { data: venuesData, error: vErr } = await supabase
+                .from('venues')
+                .select('id, name')
+                .in('id', reviewVenueIds);
+            if (vErr) {
+                console.warn('[myEvents] getMyReviews review venues batch', {
+                    code: vErr.code,
+                    message: vErr.message,
+                });
+            }
+            for (const v of venuesData || []) {
+                venuesMap[(v as { id: string }).id] = { name: (v as { name: string }).name };
+            }
+        }
+
+        const userCreatedArtistsMap: Record<string, { name?: string | null }> = {};
+        if (reviewUserCreatedArtistIds.length > 0) {
+            const { data: ucaData, error: ucaErr } = await supabase
+                .from('user_created_artists')
+                .select('id, name')
+                .in('id', reviewUserCreatedArtistIds);
+            if (ucaErr) {
+                console.warn('[myEvents] getMyReviews user_created_artists', {
+                    code: ucaErr.code,
+                    message: ucaErr.message,
+                });
+            }
+            for (const row of ucaData || []) {
+                userCreatedArtistsMap[(row as { id: string }).id] = { name: (row as { name: string }).name };
+            }
+        }
+
+        const userCreatedVenuesMap: Record<string, { name?: string | null }> = {};
+        if (reviewUserCreatedVenueIds.length > 0) {
+            const { data: ucvData, error: ucvErr } = await supabase
+                .from('user_created_venues')
+                .select('id, name')
+                .in('id', reviewUserCreatedVenueIds);
+            if (ucvErr) {
+                console.warn('[myEvents] getMyReviews user_created_venues', {
+                    code: ucvErr.code,
+                    message: ucvErr.message,
+                });
+            }
+            for (const row of ucvData || []) {
+                userCreatedVenuesMap[(row as { id: string }).id] = { name: (row as { name: string }).name };
+            }
+        }
+
+        const items = filtered.map((r: Record<string, unknown>) =>
+            mapFilteredReviewToListItem(r, eventsMap, artistsMap, venuesMap, userCreatedArtistsMap, userCreatedVenuesMap)
+        );
+
+        return { items, error: null };
     }
 
     static async countDraftReviews(userId: string): Promise<number> {

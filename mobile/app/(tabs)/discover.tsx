@@ -37,19 +37,22 @@ const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
+/** Which calendar month/day is selected (full Y/M/D so day "15" in April does not highlight May 15). */
+type CalDaySelection = { year: number; month: number; day: number };
+
 function DiscoverCalendar({
   month,
   year,
   onPrev,
   onNext,
-  selectedDay,
+  selectedDate,
   onSelectDay,
 }: {
   month: number;
   year: number;
   onPrev: () => void;
   onNext: () => void;
-  selectedDay: number | null;
+  selectedDate: CalDaySelection | null;
   onSelectDay: (day: number) => void;
 }) {
   const first = new Date(year, month, 1);
@@ -101,7 +104,11 @@ function DiscoverCalendar({
           }
           const isToday = isCurrentMonth && cell === todayDate;
           const isPast = isCurrentMonth && cell < todayDate;
-          const isSelected = isCurrentMonth && selectedDay != null && cell === selectedDay;
+          const isSelected =
+            selectedDate != null &&
+            year === selectedDate.year &&
+            month === selectedDate.month &&
+            cell === selectedDate.day;
           return (
             <Pressable
               key={`d-${idx}`}
@@ -212,7 +219,7 @@ export default function DiscoverScreen() {
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
-  const [selectedCalDay, setSelectedCalDay] = useState<number | null>(null);
+  const [calDaySelection, setCalDaySelection] = useState<CalDaySelection | null>(null);
   const [calendarEvents, setCalendarEvents] = useState<
     Awaited<ReturnType<typeof SearchService.getEventsByDateRange>>
   >([]);
@@ -233,18 +240,20 @@ export default function DiscoverScreen() {
   }, []);
 
   useEffect(() => {
-    setSelectedCalDay(null);
+    setCalDaySelection(null);
     setCalendarEvents([]);
   }, [calMonth, calYear]);
 
   useEffect(() => {
-    if (tab !== 'calendar' || selectedCalDay == null) {
+    if (tab !== 'calendar' || calDaySelection == null) {
       setCalendarEvents([]);
       return;
     }
     let cancelled = false;
     setCalLoading(true);
-    const day = toLocalYmd(new Date(calYear, calMonth, selectedCalDay));
+    const day = toLocalYmd(
+      new Date(calDaySelection.year, calDaySelection.month, calDaySelection.day)
+    );
     void SearchService.getEventsByDateRange(day, day, {
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
@@ -263,7 +272,7 @@ export default function DiscoverScreen() {
     return () => {
       cancelled = true;
     };
-  }, [tab, selectedCalDay, calMonth, calYear, coords]);
+  }, [tab, calDaySelection, coords]);
 
   const calPrev = () => {
     if (calMonth === 0) {
@@ -369,16 +378,19 @@ export default function DiscoverScreen() {
               year={calYear}
               onPrev={calPrev}
               onNext={calNext}
-              selectedDay={selectedCalDay}
+              selectedDate={calDaySelection}
               onSelectDay={day => {
-                if (calLoading) return;
-                setSelectedCalDay(day);
+                setCalDaySelection({ year: calYear, month: calMonth, day });
               }}
             />
-            {selectedCalDay != null ? (
+            {calDaySelection != null ? (
               <View style={styles.calResults}>
                 <SynthText variant="meta" style={styles.calResultsTitle}>
-                  {new Date(calYear, calMonth, selectedCalDay).toLocaleDateString('en-US', {
+                  {new Date(
+                    calDaySelection.year,
+                    calDaySelection.month,
+                    calDaySelection.day
+                  ).toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric',

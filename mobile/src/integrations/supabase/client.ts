@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 
 const PLACEHOLDER_URL = 'https://your-project.supabase.co';
 const PLACEHOLDER_KEY = 'your-anon-key';
+/** Use the same Supabase project as web: set EXPO_PUBLIC_* in `mobile/.env` (or root) to match VITE_SUPABASE_* so data and auth user id align. */
 const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL ||
   process.env.VITE_SUPABASE_URL ||

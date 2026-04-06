@@ -1,5 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
-import { toLocalYmd, todayLocalYmd } from '../utils/localYmd';
+import { todayLocalYmd, eventRawMatchesLocalYmd } from '../utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
 
@@ -101,13 +101,7 @@ export class SearchService {
             const rows = (data || []) as Array<any>;
 
             const filtered = sameDay
-                ? rows.filter(ev => {
-                    const raw = ev?.event_date;
-                    if (!raw) return false;
-                    const d = new Date(String(raw));
-                    if (!Number.isFinite(d.getTime())) return false;
-                    return toLocalYmd(d) === startDay;
-                })
+                ? rows.filter(ev => eventRawMatchesLocalYmd(ev?.event_date, startDay))
                 : rows;
 
             return filtered.map(event => {

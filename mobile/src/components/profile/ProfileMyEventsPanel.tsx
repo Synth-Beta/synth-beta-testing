@@ -20,7 +20,7 @@ import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
-import { supabase } from '../../integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '../../integrations/supabase/client';
 import {
   MyEventsService,
   MyReviewListItem,
@@ -105,6 +105,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
     const router = useRouter();
     const [mode, setMode] = useState<ProfileMyEventsViewMode>('reviews');
     const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
+    const [reviewsLoadError, setReviewsLoadError] = useState<string | null>(null);
     const [unreviewed, setUnreviewed] = useState<ProfileUnreviewedItem[]>([]);
     const [draftCount, setDraftCount] = useState(0);
     const [loading, setLoading] = useState(true);
@@ -130,7 +131,8 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
         MyEventsService.getProfileUnreviewedQueue(uid),
         MyEventsService.countDraftReviews(uid),
       ]);
-      setReviews(r);
+      setReviews(r.items);
+      setReviewsLoadError(r.error);
       setUnreviewed(u);
       setDraftCount(d);
       setLoading(false);
@@ -156,6 +158,15 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
 
     const starGrouped = useMemo(() => groupReviewsIntoStarBuckets(reviews), [reviews]);
     const rankingsGroups = useMemo(() => buildRankingsGroups(reviews), [reviews]);
+
+    useEffect(() => {
+      if (loading) return;
+      if (reviews.length > 0 && !hasAnyStarBucketContent(starGrouped)) {
+        console.warn('[ProfileMyEventsPanel] reviews loaded but no star bucket content', {
+          count: reviews.length,
+        });
+      }
+    }, [loading, reviews.length, starGrouped]);
 
     const reviewComposeHref = (item: ProfileUnreviewedItem) =>
       item.event_id ? `/review-compose?eventId=${item.event_id}` : '/review-compose';
@@ -337,7 +348,22 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
         </View>
       );
     } else if (mode === 'reviews') {
-      if (reviews.length === 0) {
+      if (reviewsLoadError) {
+        body = (
+          <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
+            {__DEV__ ? (
+              <>
+                Couldn&apos;t load reviews ({reviewsLoadError}).{' '}
+                {!isSupabaseConfigured
+                  ? 'Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to the same values as the web app (.env / Vite).'
+                  : 'Confirm you are signed in as the same user as on web.'}
+              </>
+            ) : (
+              <>Couldn&apos;t load reviews. Pull to refresh or try again.</>
+            )}
+          </SynthText>
+        );
+      } else if (reviews.length === 0) {
         body = (
           <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
             No reviews yet. Attend a show and write one from the event page.
@@ -346,7 +372,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
       } else if (!hasAnyStarBucketContent(starGrouped)) {
         body = (
           <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
-            No reviews yet. Attend a show and write one from the event page.
+            Something went wrong displaying reviews. Try pull to refresh; if it persists, report a bug.
           </SynthText>
         );
       } else {
@@ -390,7 +416,15 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
         );
       }
     } else if (mode === 'rankings') {
-      if (reviews.length === 0) {
+      if (reviewsLoadError) {
+        body = (
+          <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
+            {__DEV__
+              ? `Couldn't load reviews (${reviewsLoadError}). Pull to refresh or try again.`
+              : `Couldn't load reviews. Pull to refresh or try again.`}
+          </SynthText>
+        );
+      } else if (reviews.length === 0) {
         body = (
           <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
             No reviews yet. Attend a show and write one from the event page.

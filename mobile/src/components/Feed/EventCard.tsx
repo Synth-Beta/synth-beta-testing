@@ -118,6 +118,14 @@ export const EventCard: React.FC<EventCardProps> = ({
     router.push(`/venue/${venue_id}` as any);
   }, [venue_id, router]);
 
+  const openEventDetail = useCallback(() => {
+    void EventService.toEventRouteId(id).then(rid => {
+      router.push(`/event/${rid}` as any);
+    });
+  }, [id, router]);
+
+  const handleOpen = onPress ?? openEventDetail;
+
   const interestedLabel =
     interested_count > 0
       ? `${interested_count} ${interested_count === 1 ? 'person' : 'people'} interested`
@@ -126,7 +134,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   return (
     <View style={styles.shadowShell}>
       <View style={styles.cardFace}>
-        <Pressable onPress={onPress} style={({ pressed }) => [pressed && styles.pressed]}>
+        <Pressable onPress={handleOpen} style={({ pressed }) => [pressed && styles.pressed]}>
           <View style={styles.imageWrap}>
             <Image
               source={resolvedUri ? { uri: resolvedUri } : PLACEHOLDER}

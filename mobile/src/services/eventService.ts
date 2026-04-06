@@ -38,6 +38,17 @@ export interface FriendAttending {
 const EVENT_UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Trim + safe decodeURIComponent for route / deep-link params. */
+function normalizeEventRouteInput(raw: string): string {
+    const t = raw?.trim() ?? '';
+    if (!t) return '';
+    try {
+        return decodeURIComponent(t).trim();
+    } catch {
+        return t;
+    }
+}
+
 function numOrNull(v: unknown): number | null {
     if (typeof v === 'number' && Number.isFinite(v)) return v;
     if (typeof v === 'string') {
@@ -52,7 +63,7 @@ export class EventService {
      * Normalize route param to `events.id` (UUID). Non-UUID values may resolve via `external_entity_ids`.
      */
     static async resolveCanonicalEventId(raw: string): Promise<string | null> {
-        const id = raw?.trim();
+        const id = normalizeEventRouteInput(raw);
         if (!id) return null;
         if (EVENT_UUID_RE.test(id)) return id;
         try {
@@ -78,7 +89,25 @@ export class EventService {
      */
     static async toEventRouteId(raw: string): Promise<string> {
         const canonical = await this.resolveCanonicalEventId(raw);
-        return canonical ?? raw;
+        const normalized = normalizeEventRouteInput(raw);
+        return canonical ?? (normalized || raw.trim());
+    }
+
+    /**
+     * `events.id` to use in queries: mapped UUID from `external_entity_ids`, else bare UUID string.
+     */
+    static async resolveEventQueryId(raw: string): Promise<string | null> {
+        const normalized = normalizeEventRouteInput(raw);
+        if (!normalized) return null;
+        const mapped = await this.resolveCanonicalEventId(normalized);
+        if (mapped) return mapped;
+        if (EVENT_UUID_RE.test(normalized)) return normalized;
+        if (__DEV__) {
+            console.warn('[EventService] resolveEventQueryId: unmapped non-UUID event id', {
+                normalized,
+            });
+        }
+        return null;
     }
 
     /**
@@ -127,10 +156,12 @@ export class EventService {
      */
     static async getEventById(eventId: string): Promise<EventDetail | null> {
         try {
-            const canonical = await this.resolveCanonicalEventId(eventId);
-            if (!canonical) {
+            const queryId = await this.resolveEventQueryId(eventId);
+            if (!queryId) {
                 if (__DEV__) {
-                    console.debug('[EventService] getEventById: unable to resolve canonical id', { raw: eventId });
+                    console.debug('[EventService] getEventById: unable to resolve query id', {
+                        raw: eventId,
+                    });
                 }
                 return null;
             }
@@ -142,14 +173,14 @@ export class EventService {
           artists(name, images),
           venues(name, city, address, state, zip, latitude, longitude)
         `)
-                .eq('id', canonical)
+                .eq('id', queryId)
                 .maybeSingle();
 
             if (error || !data) {
                 if (__DEV__) {
                     console.debug('[EventService] getEventById: not found', {
                         raw: eventId,
-                        canonical,
+                        queryId,
                         error: error?.message,
                     });
                 }

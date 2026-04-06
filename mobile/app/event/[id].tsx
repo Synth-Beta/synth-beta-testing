@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -45,8 +45,16 @@ function mapSubtitleLine(e: EventDetail): string {
     return parts.join(' · ') || e.venue_city || '';
 }
 
+function firstRouteSegment(id: string | string[] | undefined): string | undefined {
+    const raw = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : undefined;
+    if (raw == null) return undefined;
+    const s = String(raw).trim();
+    return s.length > 0 ? s : undefined;
+}
+
 export default function EventDetailScreen() {
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const { id } = useLocalSearchParams<{ id: string | string[] }>();
+    const eventRouteId = useMemo(() => firstRouteSegment(id), [id]);
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
@@ -59,68 +67,8 @@ export default function EventDetailScreen() {
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [sessionUserId, setSessionUserId] = useState<string | null>(null);
 
-    useEffect(() => {
-        void loadData();
-    }, [id]);
-
-    const loadData = async () => {
-        setLoading(true);
-        setIsGoing(false);
-        setIsInterested(false);
-        setReviews([]);
-        setFriends([]);
-        setSessionUserId(null);
-
-        if (!id) {
-            setEvent(null);
-            setLoading(false);
-            return;
-        }
-
-        const eventData = await EventService.getEventById(id);
-        setEvent(eventData);
-
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-            setSessionUserId(null);
-            if (eventData) {
-                void loadReviewsForEvent(eventData.id, eventData, null);
-            }
-            setLoading(false);
-            return;
-        }
-
-        setSessionUserId(user.id);
-
-        if (!eventData) {
-            setLoading(false);
-            return;
-        }
-
-        const { data: rel } = await supabase
-            .from('user_event_relationships')
-            .select('relationship_type')
-            .eq('user_id', user.id)
-            .eq('event_id', eventData.id)
-            .maybeSingle();
-        if (rel?.relationship_type === 'going') {
-            setIsGoing(true);
-            setIsInterested(false);
-        } else if (rel?.relationship_type === 'interested') {
-            setIsInterested(true);
-            setIsGoing(false);
-        }
-
-        const friendsData = await EventService.getFriendsAttending(eventData.id, user.id);
-        setFriends(friendsData);
-        void loadReviewsForEvent(eventData.id, eventData, user.id);
-        setLoading(false);
-    };
-
-    const loadReviewsForEvent = async (eventUuid: string, eventInfo: EventDetail, viewerId: string | null) => {
+    const loadReviewsForEvent = useCallback(
+        async (eventUuid: string, eventInfo: EventDetail, viewerId: string | null) => {
         setReviewsLoading(true);
         try {
             const { data, error } = await supabase
@@ -229,7 +177,70 @@ export default function EventDetailScreen() {
         } finally {
             setReviewsLoading(false);
         }
-    };
+        },
+        []
+    );
+
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        setIsGoing(false);
+        setIsInterested(false);
+        setReviews([]);
+        setFriends([]);
+        setSessionUserId(null);
+
+        if (!eventRouteId) {
+            setEvent(null);
+            setLoading(false);
+            return;
+        }
+
+        const eventData = await EventService.getEventById(eventRouteId);
+        setEvent(eventData);
+
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+            setSessionUserId(null);
+            if (eventData) {
+                void loadReviewsForEvent(eventData.id, eventData, null);
+            }
+            setLoading(false);
+            return;
+        }
+
+        setSessionUserId(user.id);
+
+        if (!eventData) {
+            setLoading(false);
+            return;
+        }
+
+        const { data: rel } = await supabase
+            .from('user_event_relationships')
+            .select('relationship_type')
+            .eq('user_id', user.id)
+            .eq('event_id', eventData.id)
+            .maybeSingle();
+        if (rel?.relationship_type === 'going') {
+            setIsGoing(true);
+            setIsInterested(false);
+        } else if (rel?.relationship_type === 'interested') {
+            setIsInterested(true);
+            setIsGoing(false);
+        }
+
+        const friendsData = await EventService.getFriendsAttending(eventData.id, user.id);
+        setFriends(friendsData);
+        void loadReviewsForEvent(eventData.id, eventData, user.id);
+        setLoading(false);
+    }, [eventRouteId, loadReviewsForEvent]);
+
+    useEffect(() => {
+        void loadData();
+    }, [loadData]);
 
     const handleShare = () => {
         if (!event) return;

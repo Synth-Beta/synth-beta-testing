@@ -20,7 +20,7 @@ export function useShareDeepLink(enabled: boolean) {
           router.push(`/event/${pending.id}` as any);
           break;
         case 'review':
-          router.push(`/event/${pending.id}` as any);
+          router.push(`/review/${pending.id}` as any);
           break;
         case 'artist':
         case 'venue':
