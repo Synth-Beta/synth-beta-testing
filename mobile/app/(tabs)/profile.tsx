@@ -298,6 +298,7 @@ export default function ProfileScreen() {
                 ref={eventsPanelRef}
                 variant="embedded"
                 userId={authUserId}
+                hideTitleBlock={true}
                 contentBottomPadding={0}
               />
             </View>

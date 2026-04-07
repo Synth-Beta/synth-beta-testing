@@ -141,20 +141,41 @@ export class MyEventsService {
      * (no PostgREST embed on the critical path).
      */
     static async getMyReviews(userId: string): Promise<GetMyReviewsResult> {
-        const { data: reviewsData, error: reviewsError } = await supabase
+        // Try full query first (includes user_created columns added in later migrations).
+        // If those columns don't exist in this DB, fall back to the base columns.
+        const FULL_SELECT =
+            'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id, user_created_artist_id, user_created_venue_id';
+        const BASE_SELECT =
+            'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id';
+
+        let { data: reviewsData, error: reviewsError } = await supabase
             .from('reviews')
-            .select(
-                'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id, user_created_artist_id, user_created_venue_id'
-            )
+            .select(FULL_SELECT)
             .eq('user_id', userId)
             .eq('is_draft', false)
             .order('created_at', { ascending: false });
 
+        let hasUserCreatedCols = true;
         if (reviewsError) {
-            const code = reviewsError.code ?? 'unknown';
-            const msg = reviewsError.message ?? String(reviewsError);
-            console.warn('[myEvents] getMyReviews reviews query failed', { code, message: msg, details: reviewsError });
-            return { items: [], error: `${code}: ${msg}` };
+            // Retry with base columns in case user_created columns don't exist yet.
+            const fallback = await supabase
+                .from('reviews')
+                .select(BASE_SELECT)
+                .eq('user_id', userId)
+                .eq('is_draft', false)
+                .order('created_at', { ascending: false });
+            if (fallback.error) {
+                const code = fallback.error.code ?? 'unknown';
+                const msg = fallback.error.message ?? String(fallback.error);
+                console.warn('[myEvents] getMyReviews reviews query failed', { code, message: msg, details: fallback.error });
+                return { items: [], error: `${code}: ${msg}` };
+            }
+            reviewsData = fallback.data;
+            reviewsError = null;
+            hasUserCreatedCols = false;
+            if (__DEV__) {
+                console.debug('[myEvents] getMyReviews: fell back to base columns (user_created cols missing)');
+            }
         }
 
         const raw = reviewsData || [];
@@ -170,12 +191,12 @@ export class MyEventsService {
         const eventIds = [...new Set(filtered.map((r: any) => r.event_id).filter(Boolean))] as string[];
         const reviewArtistIds = [...new Set(filtered.map((r: any) => r.artist_id).filter(Boolean))] as string[];
         const reviewVenueIds = [...new Set(filtered.map((r: any) => r.venue_id).filter(Boolean))] as string[];
-        const reviewUserCreatedArtistIds = [
-            ...new Set(filtered.map((r: any) => r.user_created_artist_id).filter(Boolean)),
-        ] as string[];
-        const reviewUserCreatedVenueIds = [
-            ...new Set(filtered.map((r: any) => r.user_created_venue_id).filter(Boolean)),
-        ] as string[];
+        const reviewUserCreatedArtistIds = hasUserCreatedCols
+            ? ([...new Set(filtered.map((r: any) => r.user_created_artist_id).filter(Boolean))] as string[])
+            : [];
+        const reviewUserCreatedVenueIds = hasUserCreatedCols
+            ? ([...new Set(filtered.map((r: any) => r.user_created_venue_id).filter(Boolean))] as string[])
+            : [];
 
         let eventsMap: Record<string, Record<string, unknown>> = {};
         const artistsMap: Record<string, { name?: string | null }> = {};

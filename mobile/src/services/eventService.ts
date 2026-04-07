@@ -212,7 +212,7 @@ export class EventService {
                 .from('events')
                 .select(`
           *,
-          artists(name, images),
+          artists(name, image_url),
           venues(name, city, address, state, zip, latitude, longitude)
         `)
                 .eq('id', queryId)
@@ -230,7 +230,7 @@ export class EventService {
             }
 
             const row = data as Record<string, unknown> & {
-                artists?: { name?: string; images?: { url?: string }[] };
+                artists?: { name?: string; image_url?: string | null };
                 venues?: {
                     name?: string;
                     city?: string;
@@ -256,7 +256,7 @@ export class EventService {
                 venue_name: row.venues?.name || data.venue_name || '',
                 event_date: data.event_date,
                 description: data.description,
-                image_url: data.images?.[0]?.url || row.artists?.images?.[0]?.url || undefined,
+                image_url: data.images?.[0]?.url || row.artists?.image_url || undefined,
                 venue_city: row.venues?.city || data.venue_city,
                 venue_address: row.venues?.address || data.venue_address,
                 venue_state:

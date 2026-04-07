@@ -39,6 +39,9 @@ supabase/migrations/backend/secure/
 # Swift Package Manager build artifacts (never commit)
 synth-native-ios/.build/
 
+# Claude / AI assistants — machine-local config (do not commit)
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
