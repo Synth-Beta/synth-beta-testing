@@ -119,24 +119,7 @@ export class SearchService {
         const radius = opts?.radiusMiles ?? 30;
         const limit = opts?.limit ?? 10000;
 
-        try {
-            const { data, error } = await supabase.rpc('get_calendar_events', {
-                p_latitude: hasCoords ? opts!.latitude! : null,
-                p_longitude: hasCoords ? opts!.longitude! : null,
-                p_radius_miles: hasCoords ? radius : null,
-                p_min_date,
-                p_genres: null,
-                p_limit: limit,
-            });
-
-            if (error) {
-                if (__DEV__) {
-                    console.warn('[SearchService] loadDiscoverCalendarEvents RPC error', error);
-                }
-                return { byDate: {}, error: error.message ?? 'Calendar load failed' };
-            }
-
-            const rows = (data || []) as Array<Record<string, unknown>>;
+        const groupByDate = (rows: Array<Record<string, unknown>>): Record<string, SearchResult[]> => {
             const byDate: Record<string, SearchResult[]> = {};
             for (const row of rows) {
                 const ymd = eventDateToLocalYmd(row.event_date);
@@ -145,7 +128,44 @@ export class SearchService {
                 if (!byDate[ymd]) byDate[ymd] = [];
                 byDate[ymd].push(sr);
             }
-            return { byDate, error: null };
+            return byDate;
+        };
+
+        try {
+            // Pass all 8 params to ensure the correct overload is resolved by PostgREST.
+            const { data, error } = await supabase.rpc('get_calendar_events', {
+                p_latitude: hasCoords ? opts!.latitude! : null,
+                p_longitude: hasCoords ? opts!.longitude! : null,
+                p_radius_miles: hasCoords ? radius : null,
+                p_min_date,
+                p_genres: null,
+                p_limit: limit,
+                p_umbrella_slug: null,
+                p_max_depth: 5,
+            });
+
+            if (!error) {
+                return { byDate: groupByDate((data || []) as Array<Record<string, unknown>>), error: null };
+            }
+
+            if (__DEV__) {
+                console.warn('[SearchService] loadDiscoverCalendarEvents RPC error, falling back to direct query', error);
+            }
+
+            // Fallback: direct table query when RPC fails (e.g. permission or schema issue).
+            // Only columns that are guaranteed to exist — no `images` or optional extras.
+            const fallbackQuery = supabase
+                .from('events')
+                .select('id, title, artist_name, artist_id, venue_name, venue_id, event_date, venue_city, event_media_url, latitude, longitude')
+                .gte('event_date', p_min_date)
+                .order('event_date', { ascending: true })
+                .limit(limit);
+
+            const { data: fbData, error: fbError } = await fallbackQuery;
+            if (fbError) {
+                return { byDate: {}, error: fbError.message ?? 'Calendar load failed' };
+            }
+            return { byDate: groupByDate((fbData || []) as Array<Record<string, unknown>>), error: null };
         } catch (e) {
             const msg = e instanceof Error ? e.message : 'Calendar load failed';
             if (__DEV__) {
