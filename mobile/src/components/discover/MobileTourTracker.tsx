@@ -14,6 +14,7 @@ import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { SearchService, type ArtistSearchRow } from '../../services/searchService';
 import { TourTrackerService, type TourEvent } from '../../services/tourTrackerService';
+import { TourTrackerMap, groupTourStops } from './TourTrackerMap';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -24,7 +25,9 @@ export function MobileTourTracker() {
     const [selected, setSelected] = useState<ArtistSearchRow | null>(null);
     const [tourEvents, setTourEvents] = useState<TourEvent[]>([]);
     const [tourLoading, setTourLoading] = useState(false);
+    const [selectedStopNumber, setSelectedStopNumber] = useState<number | null>(null);
     const tourLoadSeqRef = useRef(0);
+    const listRef = useRef<FlatList<TourEvent> | null>(null);
 
     useEffect(() => {
         const q = query.trim();
@@ -55,6 +58,7 @@ export function MobileTourTracker() {
             const events = await TourTrackerService.getArtistTourEvents(artist.id);
             if (seq !== tourLoadSeqRef.current) return;
             setTourEvents(events);
+            setSelectedStopNumber(null);
         } finally {
             if (seq === tourLoadSeqRef.current) {
                 setTourLoading(false);
@@ -63,6 +67,7 @@ export function MobileTourTracker() {
     }, []);
 
     const route = useMemo(() => TourTrackerService.calculateTourRoute(tourEvents), [tourEvents]);
+    const { eventIdToStopNumber } = useMemo(() => groupTourStops(tourEvents), [tourEvents]);
 
     const formatEventDate = (d: string) => {
         const x = new Date(d);
@@ -121,6 +126,7 @@ export function MobileTourTracker() {
                                 tourLoadSeqRef.current += 1;
                                 setSelected(null);
                                 setTourEvents([]);
+                                setSelectedStopNumber(null);
                                 setQuery('');
                             }}
                         >
@@ -137,6 +143,17 @@ export function MobileTourTracker() {
                         </SynthText>
                     ) : (
                         <>
+                            <TourTrackerMap
+                                events={tourEvents}
+                                selectedStopNumber={selectedStopNumber}
+                                onSelectStopNumber={(n) => {
+                                    setSelectedStopNumber(n);
+                                    const idx = route.events.findIndex(e => eventIdToStopNumber[e.id] === n);
+                                    if (idx >= 0) {
+                                        listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.2 });
+                                    }
+                                }}
+                            />
                             <SynthText variant="meta" style={styles.routeHead}>
                                 Route ({route.route.length} segment{route.route.length === 1 ? '' : 's'})
                             </SynthText>
@@ -154,12 +171,27 @@ export function MobileTourTracker() {
                                 </SynthText>
                             )}
                             <FlatList
+                                ref={(r) => {
+                                    listRef.current = r;
+                                }}
                                 data={route.events}
                                 keyExtractor={e => e.id}
                                 scrollEnabled={false}
                                 style={styles.eventList}
                                 renderItem={({ item }) => (
-                                    <View style={styles.eventRow}>
+                                    <Pressable
+                                        onPress={() => {
+                                            const n = eventIdToStopNumber[item.id] ?? null;
+                                            setSelectedStopNumber(n);
+                                        }}
+                                        style={({ pressed }) => [
+                                            styles.eventRow,
+                                            pressed ? styles.pressedRow : null,
+                                            selectedStopNumber != null && eventIdToStopNumber[item.id] === selectedStopNumber
+                                                ? styles.selectedRow
+                                                : null,
+                                        ]}
+                                    >
                                         <SynthText variant="meta" style={styles.eventDate}>
                                             {formatEventDate(item.event_date)}
                                         </SynthText>
@@ -167,7 +199,7 @@ export function MobileTourTracker() {
                                             {(item.venue_name || 'Venue').trim()}
                                             {item.venue_city ? ` · ${item.venue_city}` : ''}
                                         </SynthText>
-                                    </View>
+                                    </Pressable>
                                 )}
                             />
                         </>
@@ -227,6 +259,13 @@ const styles = StyleSheet.create({
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: SynthTokens.colors.neutral200,
         gap: 4,
+    },
+    pressedRow: { opacity: 0.9 },
+    selectedRow: {
+        borderLeftWidth: 3,
+        borderLeftColor: PINK,
+        paddingLeft: 10,
+        backgroundColor: 'rgba(204, 36, 134, 0.06)',
     },
     eventDate: { fontWeight: '700', color: PINK },
 });
