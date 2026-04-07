@@ -68,7 +68,7 @@ export type GetMyReviewsResult = {
 function mapFilteredReviewToListItem(
     item: Record<string, unknown>,
     eventsMap: Record<string, Record<string, unknown>>,
-    artistsMap: Record<string, { name?: string | null }>,
+    artistsMap: Record<string, { name?: string | null; image_url?: string | null }>,
     venuesMap: Record<string, { name?: string | null }>,
     userCreatedArtistsMap: Record<string, { name?: string | null }>,
     userCreatedVenuesMap: Record<string, { name?: string | null }>
@@ -118,6 +118,9 @@ function mapFilteredReviewToListItem(
             : resolvedArtistName || resolvedVenueName || 'Event');
 
     const images = ev?.images as Array<{ url?: string }> | undefined;
+    const artistImageUrl =
+        artistId ? artistsMap[artistId]?.image_url ?? null :
+        ucaId ? null : null;
 
     return {
         id: String(item.id),
@@ -131,7 +134,8 @@ function mapFilteredReviewToListItem(
         artist_name: artistNameStr,
         venue_name: venueNameStr,
         event_date: String(ev?.event_date ?? ''),
-        image_url: images?.[0]?.url,
+        // Prefer artist image (matches web), fall back to event image
+        image_url: artistImageUrl || images?.[0]?.url,
     };
 }
 
@@ -148,12 +152,14 @@ export class MyEventsService {
         const BASE_SELECT =
             'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id';
 
-        let { data: reviewsData, error: reviewsError } = await supabase
+        let reviewsData: any[] | null = null;
+        let reviewsError: any = null;
+        ({ data: reviewsData, error: reviewsError } = await supabase
             .from('reviews')
             .select(FULL_SELECT)
             .eq('user_id', userId)
             .eq('is_draft', false)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false }));
 
         let hasUserCreatedCols = true;
         if (reviewsError) {
@@ -199,7 +205,7 @@ export class MyEventsService {
             : [];
 
         let eventsMap: Record<string, Record<string, unknown>> = {};
-        const artistsMap: Record<string, { name?: string | null }> = {};
+        const artistsMap: Record<string, { name?: string | null; image_url?: string | null }> = {};
         const venuesMap: Record<string, { name?: string | null }> = {};
 
         if (eventIds.length > 0) {
@@ -222,11 +228,11 @@ export class MyEventsService {
                 const allArtistIds = [...new Set([...eventArtistIds, ...reviewArtistIds])];
                 const allVenueIds = [...new Set([...eventVenueIds, ...reviewVenueIds])];
 
-                const eventArtistsMap: Record<string, { name?: string | null }> = {};
+                const eventArtistsMap: Record<string, { name?: string | null; image_url?: string | null }> = {};
                 if (allArtistIds.length > 0) {
                     const { data: artistsData, error: aErr } = await supabase
                         .from('artists')
-                        .select('id, name')
+                        .select('id, name, image_url')
                         .in('id', allArtistIds);
                     if (aErr) {
                         console.warn('[myEvents] getMyReviews artists batch', {
@@ -235,7 +241,7 @@ export class MyEventsService {
                         });
                     }
                     for (const a of artistsData || []) {
-                        eventArtistsMap[(a as { id: string }).id] = { name: (a as { name: string }).name };
+                        eventArtistsMap[(a as any).id] = { name: (a as any).name, image_url: (a as any).image_url ?? null };
                     }
                 }
 
@@ -279,7 +285,7 @@ export class MyEventsService {
         if (reviewArtistIds.length > 0) {
             const { data: artistsData, error: aErr } = await supabase
                 .from('artists')
-                .select('id, name')
+                .select('id, name, image_url')
                 .in('id', reviewArtistIds);
             if (aErr) {
                 console.warn('[myEvents] getMyReviews review artists batch', {
@@ -288,7 +294,7 @@ export class MyEventsService {
                 });
             }
             for (const a of artistsData || []) {
-                artistsMap[(a as { id: string }).id] = { name: (a as { name: string }).name };
+                artistsMap[(a as any).id] = { name: (a as any).name, image_url: (a as any).image_url ?? null };
             }
         }
 

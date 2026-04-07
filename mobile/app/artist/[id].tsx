@@ -46,8 +46,14 @@ interface ReviewRow {
   review_text?: string | null;
   created_at: string;
   event_id?: string | null;
-  users?: { id: string; name: string; avatar_url?: string | null } | null;
-  events?: { id: string; title?: string | null; artist_name?: string | null; venue_name?: string | null; event_date?: string | null } | null;
+  users?: { id: string; name: string; avatar_url?: string | null }[] | null;
+  events?: {
+    id: string;
+    title?: string | null;
+    artist_name?: string | null;
+    venue_name?: string | null;
+    event_date?: string | null;
+  }[] | null;
 }
 
 function mapEventRow(e: any, artistName: string): EventRow {
@@ -67,14 +73,16 @@ function mapEventRow(e: any, artistName: string): EventRow {
 }
 
 function ReviewItem({ review }: { review: ReviewRow }) {
-  const authorName = review.users?.name || 'User';
-  const avatarUrl = review.users?.avatar_url;
+  const user = Array.isArray(review.users) ? review.users[0] : null;
+  const ev = Array.isArray(review.events) ? review.events[0] : null;
+  const authorName = user?.name || 'User';
+  const avatarUrl = user?.avatar_url;
   const initials = authorName.charAt(0).toUpperCase();
   const rating = typeof review.rating === 'number' ? review.rating : null;
   const text = review.review_text?.trim() || null;
   const eventTitle =
-    review.events?.title?.trim() ||
-    review.events?.artist_name?.trim() ||
+    ev?.title?.trim() ||
+    ev?.artist_name?.trim() ||
     null;
 
   return (
@@ -363,7 +371,7 @@ export default function ArtistDetailScreen() {
             {/* Stats row */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Users size={15} color={SynthTokens.colors.neutral500} />
+                <Users size={15} color={SynthTokens.colors.neutral600} />
                 <SynthText variant="meta" color="secondary">
                   {followerCount.toLocaleString()} {followerCount === 1 ? 'follower' : 'followers'}
                 </SynthText>
@@ -524,7 +532,7 @@ const styles = StyleSheet.create({
   genreChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: SynthTokens.colors.neutral700,
+    color: SynthTokens.colors.neutral600,
   },
   followBtn: {
     height: 48,

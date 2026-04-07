@@ -17,7 +17,7 @@ const CARD_RADIUS = SynthTokens.radius.corner;
 
 const PINK = SynthTokens.colors.brandPink500;
 
-const PLACEHOLDER = require('../../../assets/placeholder-event.png');
+const PLACEHOLDER = require('../../../assets/Synth_Placeholder.png');
 
 export interface EventCardProps {
   id: string;

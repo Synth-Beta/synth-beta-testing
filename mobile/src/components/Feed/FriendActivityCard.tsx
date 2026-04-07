@@ -38,7 +38,7 @@ export const FriendActivityCard: React.FC<FriendActivityCardProps> = ({ activity
 
             <View style={styles.eventPreview}>
                 <Image
-                    source={activity.image_url ? { uri: activity.image_url } : require('../../../assets/placeholder-event.png')}
+                    source={activity.image_url ? { uri: activity.image_url } : require('../../../assets/Synth_Placeholder.png')}
                     style={styles.eventImage}
                 />
                 <View style={styles.eventInfo}>

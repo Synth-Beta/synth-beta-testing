@@ -289,7 +289,7 @@ export default function PublicUserProfileScreen() {
                           source={
                             r.image_url
                               ? { uri: r.image_url }
-                              : require('../../assets/placeholder-event.png')
+                              : require('../../assets/Synth_Placeholder.png')
                           }
                           style={styles.reviewThumb}
                         />
@@ -326,7 +326,7 @@ export default function PublicUserProfileScreen() {
                                 source={
                                   r.image_url
                                     ? { uri: r.image_url }
-                                    : require('../../assets/placeholder-event.png')
+                                    : require('../../assets/Synth_Placeholder.png')
                                 }
                                 style={styles.reviewThumb}
                               />

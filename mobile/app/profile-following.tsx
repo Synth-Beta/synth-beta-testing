@@ -112,7 +112,7 @@ export default function ProfileFollowingScreen() {
                 source={
                   item.artist_image_url
                     ? { uri: item.artist_image_url }
-                    : require('../assets/placeholder-event.png')
+                    : require('../assets/Synth_Placeholder.png')
                 }
                 style={styles.thumb}
               />

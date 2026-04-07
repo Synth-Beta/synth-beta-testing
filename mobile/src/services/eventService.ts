@@ -201,46 +201,60 @@ export class EventService {
             const queryId = await this.resolveEventQueryId(eventId);
             if (!queryId) {
                 if (__DEV__) {
-                    console.debug('[EventService] getEventById: unable to resolve query id', {
-                        raw: eventId,
-                    });
+                    console.debug('[EventService] getEventById: unable to resolve query id', { raw: eventId });
                 }
                 return null;
             }
 
-            const { data, error } = await supabase
+            // Use select('*') to avoid column-not-found errors from explicit column lists.
+            // PostgREST never errors on '*'; it just returns whatever columns exist.
+            let { data, error } = await supabase
                 .from('events')
-                .select(`
-          *,
-          artists(name, image_url),
-          venues(name, city, address, state, zip, latitude, longitude)
-        `)
+                .select('*')
                 .eq('id', queryId)
                 .maybeSingle();
 
             if (error || !data) {
-                if (__DEV__) {
-                    console.debug('[EventService] getEventById: not found', {
-                        raw: eventId,
-                        queryId,
-                        error: error?.message,
-                    });
-                }
+                console.warn('[EventService] getEventById: event not found', {
+                    raw: eventId, queryId,
+                    error: error?.message, code: error?.code,
+                    hasData: !!data,
+                });
                 return null;
             }
 
-            const row = data as Record<string, unknown> & {
-                artists?: { name?: string; image_url?: string | null };
-                venues?: {
-                    name?: string;
-                    city?: string;
-                    address?: string;
-                    state?: string | null;
-                    zip?: string | null;
-                    latitude?: number | null;
-                    longitude?: number | null;
-                };
+            const row = data as Record<string, unknown>;
+
+            // Fetch artist and venue separately to avoid join schema issues.
+            const artistId = (data.artist_id ?? data.artist_uuid) as string | null | undefined;
+            const venueId = (data.venue_id ?? data.venue_uuid) as string | null | undefined;
+
+            type ArtistRow = { name?: string; image_url?: string | null };
+            type VenueRow = {
+                name?: string;
+                city?: string;
+                address?: string;
+                state?: string | null;
+                zip?: string | null;
+                latitude?: number | null;
+                longitude?: number | null;
             };
+
+            let artistRow: ArtistRow | null = null;
+            let venueRow: VenueRow | null = null;
+
+            const [artistResult, venueResult] = await Promise.all([
+                artistId
+                    ? supabase.from('artists').select('name, image_url').eq('id', artistId).maybeSingle()
+                    : Promise.resolve({ data: null }),
+                venueId
+                    ? supabase.from('venues').select('name, city, address, state, zip, latitude, longitude').eq('id', venueId).maybeSingle()
+                    : Promise.resolve({ data: null }),
+            ]);
+
+            if (artistResult.data) artistRow = artistResult.data as ArtistRow;
+            if (venueResult.data) venueRow = venueResult.data as VenueRow;
+
             const genresRaw = row.genres;
             const genres =
                 Array.isArray(genresRaw) && genresRaw.every(g => typeof g === 'string')
@@ -249,37 +263,37 @@ export class EventService {
 
             return {
                 id: data.id,
-                artist_id: data.artist_id ?? data.artist_uuid ?? null,
-                venue_id: data.venue_id ?? data.venue_uuid ?? null,
+                artist_id: artistId ?? null,
+                venue_id: venueId ?? null,
                 title: data.title,
-                artist_name: row.artists?.name || data.artist_name || '',
-                venue_name: row.venues?.name || data.venue_name || '',
+                artist_name: artistRow?.name || (data.artist_name as string) || '',
+                venue_name: venueRow?.name || (data.venue_name as string) || '',
                 event_date: data.event_date,
                 description: data.description,
-                image_url: data.images?.[0]?.url || row.artists?.image_url || undefined,
-                venue_city: row.venues?.city || data.venue_city,
-                venue_address: row.venues?.address || data.venue_address,
+                image_url: (data.images as any)?.[0]?.url || artistRow?.image_url || undefined,
+                venue_city: venueRow?.city || (data.venue_city as string | undefined),
+                venue_address: venueRow?.address || (data.venue_address as string | undefined),
                 venue_state:
                     (typeof row.venue_state === 'string' ? row.venue_state : null) ??
-                    row.venues?.state ??
+                    venueRow?.state ??
                     null,
                 venue_zip: (() => {
                     const ez = typeof row.venue_zip === 'string' ? row.venue_zip.trim() : '';
-                    const vz = typeof row.venues?.zip === 'string' ? row.venues.zip.trim() : '';
+                    const vz = typeof venueRow?.zip === 'string' ? venueRow.zip.trim() : '';
                     return ez || vz || null;
                 })(),
                 ticket_url: getCompliantEventLinkFromPayload(row) ?? undefined,
                 latitude:
                     typeof data.latitude === 'number'
                         ? data.latitude
-                        : typeof row.venues?.latitude === 'number'
-                          ? row.venues.latitude
+                        : typeof venueRow?.latitude === 'number'
+                          ? venueRow.latitude
                           : null,
                 longitude:
                     typeof data.longitude === 'number'
                         ? data.longitude
-                        : typeof row.venues?.longitude === 'number'
-                          ? row.venues.longitude
+                        : typeof venueRow?.longitude === 'number'
+                          ? venueRow.longitude
                           : null,
                 doors_time: typeof row.doors_time === 'string' ? row.doors_time : null,
                 genres,

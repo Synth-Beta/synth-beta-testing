@@ -223,7 +223,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
           onPress={() => openReview(item.id)}
         >
           <Image
-            source={item.image_url ? { uri: item.image_url } : require('../../../assets/placeholder-event.png')}
+            source={item.image_url ? { uri: item.image_url } : require('../../../assets/Synth_Placeholder.png')}
             style={styles.compactImage}
           />
           <View style={styles.compactBody}>
@@ -264,7 +264,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
             source={
               item.image_url
                 ? { uri: item.image_url }
-                : require('../../../assets/placeholder-event.png')
+                : require('../../../assets/Synth_Placeholder.png')
             }
             style={styles.unrevThumb}
           />

@@ -364,7 +364,7 @@ export default function EventDetailScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.heroContainer}>
                     <Image
-                        source={event.image_url ? { uri: event.image_url } : require('../../assets/placeholder-event.png')}
+                        source={event.image_url ? { uri: event.image_url } : require('../../assets/Synth_Placeholder.png')}
                         style={styles.heroImage}
                         contentFit="cover"
                     />
