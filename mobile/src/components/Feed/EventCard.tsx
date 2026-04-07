@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, View, Pressable, Dimensions, Text, Linking } from 'react-native';
+import { StyleSheet, View, Pressable, Dimensions, Text, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../SynthText';
@@ -52,8 +52,6 @@ export const EventCard: React.FC<EventCardProps> = ({
   initialInterested = false,
   interested_count = 0,
   ticket_url: ticketUrlProp,
-  artist_id,
-  venue_id,
 }) => {
   const router = useRouter();
   const [interested, setInterested] = useState(initialInterested);
@@ -108,26 +106,9 @@ export const EventCard: React.FC<EventCardProps> = ({
     if (ok) await Linking.openURL(u);
   }, [ticketUrlProp]);
 
-  const goArtist = useCallback(() => {
-    if (!artist_id) return;
-    router.push(`/artist/${artist_id}` as any);
-  }, [artist_id, router]);
-
-  const goVenue = useCallback(() => {
-    if (!venue_id) return;
-    router.push(`/venue/${venue_id}` as any);
-  }, [venue_id, router]);
-
   const openEventDetail = useCallback(() => {
     void EventService.resolveEventQueryId(id).then((resolved) => {
-      if (!resolved) {
-        if (__DEV__) {
-          console.warn('[EventCard] unable to resolve event id for navigation', { raw: id });
-        }
-        Alert.alert('Event unavailable', 'This event link could not be opened. Please try another event.');
-        return;
-      }
-      router.push(`/event/${resolved}` as any);
+      router.push(`/event/${resolved ?? id}` as any);
     });
   }, [id, router]);
 
@@ -163,14 +144,7 @@ export const EventCard: React.FC<EventCardProps> = ({
           </View>
 
           <View style={styles.detailsPad}>
-            {artistLine && artist_id ? (
-              <Pressable onPress={goArtist} style={styles.inlineLinkRow} hitSlop={6}>
-                <Music size={16} color={PINK} />
-                <SynthText variant="meta" color="brand" numberOfLines={1} style={styles.linkMeta}>
-                  {artistLine}
-                </SynthText>
-              </Pressable>
-            ) : artistLine ? (
+            {artistLine ? (
               <View style={styles.metaRow}>
                 <Music size={16} color={PINK} />
                 <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.metaTxt}>
@@ -181,24 +155,9 @@ export const EventCard: React.FC<EventCardProps> = ({
 
             <View style={styles.metaRow}>
               <MapPin size={16} color={PINK} />
-              {venue_id && venueName ? (
-                <View style={styles.venueLine}>
-                  <Pressable onPress={goVenue} hitSlop={6}>
-                    <SynthText variant="meta" color="brand" numberOfLines={1} style={styles.metaTxt}>
-                      {venueName}
-                    </SynthText>
-                  </Pressable>
-                  {venueCity ? (
-                    <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.metaTxt}>
-                      {` · ${venueCity}`}
-                    </SynthText>
-                  ) : null}
-                </View>
-              ) : (
-                <SynthText variant="meta" color="secondary" numberOfLines={2} style={styles.metaTxt}>
-                  {locationLine || 'Venue TBA'}
-                </SynthText>
-              )}
+              <SynthText variant="meta" color="secondary" numberOfLines={2} style={styles.metaTxt}>
+                {locationLine || 'Venue TBA'}
+              </SynthText>
             </View>
 
             <View style={styles.metaRow}>

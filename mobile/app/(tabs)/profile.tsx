@@ -36,10 +36,10 @@ import {
 
 const PINK = SynthTokens.colors.brandPink500;
 
-type ProfileTab = 'events' | 'interested' | 'passport';
+type ProfileTab = 'reviews' | 'interested' | 'passport';
 
 export default function ProfileScreen() {
-  const [profileTab, setProfileTab] = useState<ProfileTab>('passport');
+  const [profileTab, setProfileTab] = useState<ProfileTab>('reviews');
   const [loading, setLoading] = useState(true);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [interested, setInterested] = useState<InterestedEventItem[]>([]);
@@ -158,7 +158,7 @@ export default function ProfileScreen() {
   const goToFriends = useCallback(() => router.push('/profile-friends'), [router]);
   const goToFollowing = useCallback(() => router.push('/profile-following'), [router]);
   const goToEventsStat = useCallback(() => {
-    setProfileTab('events');
+    setProfileTab('reviews');
   }, []);
 
   const onEventsRefresh = useCallback(async () => {
@@ -173,14 +173,14 @@ export default function ProfileScreen() {
 
   const profileTabsRow = (
     <View style={styles.profileTabs}>
-      {(['events', 'interested', 'passport'] as const).map(t => (
+      {(['reviews', 'interested', 'passport'] as const).map(t => (
         <Pressable
           key={t}
           onPress={() => setProfileTab(t)}
           style={[styles.profileTab, profileTab === t && styles.profileTabOn]}
         >
           <SynthText variant="meta" style={[styles.profileTabTxt, profileTab === t && styles.profileTabTxtOn]}>
-            {t === 'events' ? 'Events' : t === 'interested' ? 'Interested' : 'Passport'}
+            {t === 'reviews' ? 'Reviews' : t === 'interested' ? 'Interested' : 'Passport'}
           </SynthText>
         </Pressable>
       ))}
@@ -277,7 +277,7 @@ export default function ProfileScreen() {
 
   if (loading) return <ProfileScreenSkeleton />;
 
-  if (profileTab === 'events' && authUserId) {
+  if (profileTab === 'reviews' && authUserId) {
     return (
       <View style={styles.container}>
         <FlatList

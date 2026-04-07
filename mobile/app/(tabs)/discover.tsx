@@ -405,8 +405,13 @@ export default function DiscoverScreen() {
         {tab === 'calendar' ? (
           <>
             {calLoadError ? (
-              <SynthText variant="meta" color="secondary">
-                {calLoadError}
+              <SynthText variant="meta" color="secondary" style={styles.calError}>
+                Could not load events: {calLoadError}
+              </SynthText>
+            ) : null}
+            {calLoading && !calDaySelection ? (
+              <SynthText variant="meta" color="secondary" style={styles.calHint}>
+                Loading events…
               </SynthText>
             ) : null}
             <DiscoverCalendar
@@ -614,6 +619,7 @@ const styles = StyleSheet.create({
     color: PINK,
   },
   calHint: { marginTop: 4, marginBottom: 4 },
+  calError: { marginTop: 4, marginBottom: 4, color: SynthTokens.colors.brandPink500 },
   calResults: { gap: 8, marginTop: 4 },
   calResultsTitle: { fontWeight: '700', fontSize: 15, marginBottom: 4 },
 });
