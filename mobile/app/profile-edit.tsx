@@ -11,11 +11,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Music } from 'lucide-react-native';
+import { ChevronLeft, Music, RefreshCw, CheckCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { supabase } from '../src/integrations/supabase/client';
+import {
+  getStreamingLinkStatus,
+  type StreamingLinkStatus,
+} from '../src/services/streamingConnectionService';
+import { getExpoSiteUrl } from '../src/utils/siteUrl';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -50,6 +56,15 @@ export default function ProfileEditScreen() {
 
   // Genre preferences
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+
+  // Streaming
+  const [streaming, setStreaming] = useState<StreamingLinkStatus>({
+    linked: false,
+    provider: 'unknown',
+    profileUrl: null,
+  });
+  const [streamingLoading, setStreamingLoading] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
 
   const normalizeGenre = (g: string) =>
     g.trim().toLowerCase().replace(/[\s\-_]+/g, ' ').trim();
@@ -95,6 +110,9 @@ export default function ProfileEditScreen() {
         }
         setSelectedGenres(genres);
       }
+
+      // Load streaming status
+      void getStreamingLinkStatus(user.id).then(setStreaming);
     } finally {
       setLoading(false);
     }
@@ -103,6 +121,67 @@ export default function ProfileEditScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const refreshStreamingStatus = async () => {
+    if (!userId) return;
+    setStreamingLoading(true);
+    try {
+      const status = await getStreamingLinkStatus(userId);
+      setStreaming(status);
+    } finally {
+      setStreamingLoading(false);
+    }
+  };
+
+  const openConnectStreaming = (provider: 'spotify' | 'apple-music') => {
+    const url = `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent(provider)}&source=expo`;
+    void WebBrowser.openBrowserAsync(url);
+  };
+
+  const handleResync = async () => {
+    setResyncing(true);
+    const url = `${getExpoSiteUrl()}/streaming-stats?source=expo&action=resync`;
+    try {
+      await WebBrowser.openBrowserAsync(url);
+      // After browser closes, refresh the streaming status
+      if (userId) {
+        const status = await getStreamingLinkStatus(userId);
+        setStreaming(status);
+      }
+    } finally {
+      setResyncing(false);
+    }
+  };
+
+  const handleDisconnectStreaming = () => {
+    if (!userId) return;
+    Alert.alert(
+      'Disconnect Streaming',
+      'This will remove your streaming account link. Your genre preferences and stats will remain.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: async () => {
+            setStreamingLoading(true);
+            try {
+              await supabase
+                .from('users')
+                .update({ music_streaming_profile: null, music_streaming_service: null, updated_at: new Date().toISOString() })
+                .eq('user_id', userId);
+              await supabase.from('streaming_profiles').delete().eq('user_id', userId);
+              setStreaming({ linked: false, provider: 'unknown', profileUrl: null });
+            } catch (e: any) {
+              Alert.alert('Error', e?.message || 'Could not disconnect streaming account.');
+            } finally {
+              setStreamingLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const toggleGenre = (genre: string) => {
     setSelectedGenres(prev => {
@@ -214,6 +293,90 @@ export default function ProfileEditScreen() {
             placeholder="Tell people about your music taste"
             placeholderTextColor={SynthTokens.colors.neutral400}
           />
+        </View>
+
+        {/* ── Streaming Account ───────────────────────────────────── */}
+        <View style={styles.card}>
+          <View style={styles.sectionHead}>
+            <Music size={18} color={PINK} />
+            <Text style={styles.sectionTitle}>Streaming Account</Text>
+            {streamingLoading && <ActivityIndicator size="small" color={PINK} style={{ marginLeft: 'auto' }} />}
+          </View>
+
+          {streaming.linked ? (
+            <>
+              {/* Connected state */}
+              <View style={styles.streamingConnectedRow}>
+                <View style={styles.streamingConnectedBadge}>
+                  <CheckCircle size={16} color="#10b981" />
+                  <Text style={styles.streamingConnectedText}>
+                    {streaming.provider === 'spotify' ? 'Spotify' : 'Apple Music'} Connected
+                  </Text>
+                </View>
+                <Pressable onPress={handleDisconnectStreaming} disabled={streamingLoading}>
+                  <SynthText variant="meta" style={styles.disconnectLink}>Disconnect</SynthText>
+                </Pressable>
+              </View>
+
+              <Pressable
+                style={[styles.streamingBtn, styles.streamingBtnPrimary, resyncing && styles.streamingBtnDisabled]}
+                onPress={() => void handleResync()}
+                disabled={resyncing}
+              >
+                {resyncing
+                  ? <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+                  : <RefreshCw size={16} color={SynthTokens.colors.neutral0} />}
+                <Text style={styles.streamingBtnPrimaryText}>
+                  {resyncing ? 'Opening…' : 'Resync Stats'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.streamingBtnRefresh}
+                onPress={() => void refreshStreamingStatus()}
+                disabled={streamingLoading}
+              >
+                <RefreshCw size={14} color={SynthTokens.colors.neutral600} />
+                <SynthText variant="meta" color="secondary">Refresh status</SynthText>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {/* Disconnected state */}
+              <SynthText variant="meta" color="secondary" style={styles.streamingHint}>
+                Connect Spotify or Apple Music to sync your listening history and personalize your feed.
+              </SynthText>
+
+              <Pressable
+                style={[styles.streamingBtn, styles.streamingBtnSpotify]}
+                onPress={() => openConnectStreaming('spotify')}
+              >
+                <Music size={16} color={SynthTokens.colors.neutral0} />
+                <Text style={styles.streamingBtnSpotifyText}>Connect Spotify</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.streamingBtn, styles.streamingBtnApple]}
+                onPress={() => openConnectStreaming('apple-music')}
+              >
+                <Music size={16} color={SynthTokens.colors.neutral900} />
+                <Text style={styles.streamingBtnAppleText}>Connect Apple Music</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.streamingBtnRefresh}
+                onPress={() => void refreshStreamingStatus()}
+                disabled={streamingLoading}
+              >
+                <RefreshCw size={14} color={SynthTokens.colors.neutral600} />
+                <SynthText variant="meta" color="secondary">Refresh status after connecting</SynthText>
+              </Pressable>
+            </>
+          )}
+
+          <SynthText variant="meta" color="secondary" style={styles.streamingNote}>
+            OAuth happens on the web — tap a button above, sign in, then come back and tap Refresh status.
+          </SynthText>
         </View>
 
         {/* ── Music taste ─────────────────────────────────────────── */}
@@ -362,5 +525,88 @@ const styles = StyleSheet.create({
     color: SynthTokens.colors.neutral0,
     fontWeight: '700',
     fontSize: 16,
+  },
+  // Streaming
+  streamingConnectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  streamingConnectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ecfdf5',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#6ee7b7',
+  },
+  streamingConnectedText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#065f46',
+  },
+  disconnectLink: {
+    color: SynthTokens.colors.neutral500,
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+  streamingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: SynthTokens.radius.medium,
+    paddingVertical: 12,
+    minHeight: 44,
+  },
+  streamingBtnPrimary: {
+    backgroundColor: PINK,
+    marginBottom: 6,
+  },
+  streamingBtnPrimaryText: {
+    color: SynthTokens.colors.neutral0,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  streamingBtnDisabled: { opacity: 0.6 },
+  streamingBtnSpotify: {
+    backgroundColor: '#1DB954',
+    marginBottom: 8,
+  },
+  streamingBtnSpotifyText: {
+    color: SynthTokens.colors.neutral0,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  streamingBtnApple: {
+    backgroundColor: SynthTokens.colors.neutral100,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    marginBottom: 8,
+  },
+  streamingBtnAppleText: {
+    color: SynthTokens.colors.neutral900,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  streamingBtnRefresh: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  streamingHint: {
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  streamingNote: {
+    lineHeight: 17,
+    marginTop: 4,
+    fontSize: 11,
   },
 });
