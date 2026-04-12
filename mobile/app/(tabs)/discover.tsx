@@ -331,7 +331,17 @@ export default function DiscoverScreen() {
             value={searchQ}
             onChangeText={setSearchQ}
             onSubmitEditing={() => {
-              router.push('/(tabs)/search');
+              const q = searchQ.trim();
+              router.push(q ? (`/(tabs)/search?q=${encodeURIComponent(q)}` as any) : '/(tabs)/search');
+            }}
+            onFocus={() => {
+              // Navigate to full search screen immediately on tap, carrying any typed text
+              const q = searchQ.trim();
+              if (q) {
+                router.push(`/(tabs)/search?q=${encodeURIComponent(q)}` as any);
+              } else {
+                router.push('/(tabs)/search');
+              }
             }}
             returnKeyType="search"
           />
@@ -350,7 +360,10 @@ export default function DiscoverScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.dualActions}>
-          <Pressable style={styles.browseVibes} onPress={() => router.push('/(tabs)/search')}>
+          <Pressable style={styles.browseVibes} onPress={() => {
+            const q = searchQ.trim();
+            router.push(q ? (`/(tabs)/search?q=${encodeURIComponent(q)}` as any) : '/(tabs)/search');
+          }}>
             <Sparkles size={18} color="#fff" />
             <Text style={styles.browseVibesText}>Browse Vibes</Text>
           </Pressable>

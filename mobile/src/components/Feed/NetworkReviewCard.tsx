@@ -257,7 +257,7 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
 
                             {showPreview ? (
                                 <SynthText variant="meta" color="secondary" numberOfLines={2} style={styles.previewQuote}>
-                                    &ldquo;{review.content}&rdquo;
+                                    "{review.content}"
                                 </SynthText>
                             ) : null}
 

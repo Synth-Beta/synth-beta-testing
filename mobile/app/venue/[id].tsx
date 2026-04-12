@@ -8,16 +8,19 @@ import {
   Image,
   Share,
   Text,
+  Dimensions,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, Share2, Star, Users } from 'lucide-react-native';
+import { ChevronLeft, Share2, Star, Users, Camera } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { EventService } from '../../src/services/eventService';
 import { VenueFollowService } from '../../src/services/venueFollowService';
+import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttributionInline';
 import { isUuid } from '../../src/utils/isUuid';
 import { SynthMap } from '../../src/components/maps/SynthMap';
 import { todayLocalYmd } from '../../src/utils/localYmd';
@@ -111,7 +114,7 @@ function ReviewItem({ review }: { review: ReviewRow }) {
         ) : null}
         {text ? (
           <SynthText variant="meta" color="secondary" numberOfLines={3} style={reviewStyles.quote}>
-            &ldquo;{text}&rdquo;
+            "{text}"
           </SynthText>
         ) : null}
       </View>
@@ -192,6 +195,7 @@ export default function VenueDetailScreen() {
   const [upcomingEvents, setUpcomingEvents] = useState<EventRow[]>([]);
   const [pastEvents, setPastEvents] = useState<EventRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
+  const [mediaPhotos, setMediaPhotos] = useState<string[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [followerCount, setFollowerCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -283,16 +287,23 @@ export default function VenueDetailScreen() {
         const { data: reviewData } = await supabase
           .from('reviews')
           .select(`
-            id, user_id, rating, review_text, created_at, event_id,
+            id, user_id, rating, review_text, created_at, event_id, photos,
             users:user_id (id, name, avatar_url),
             events:event_id (id, title, artist_name, venue_name, event_date)
           `)
           .eq('venue_id', resolvedId)
-          .not('review_text', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(10);
         const reviewRows = (reviewData || []) as ReviewRow[];
-        setReviews(reviewRows);
+        setReviews(reviewRows.filter(r => r.review_text?.trim()));
+
+        // Collect media photos from all reviews
+        const photos: string[] = [];
+        reviewRows.forEach(r => {
+          const p = (r as any).photos;
+          if (Array.isArray(p)) p.forEach((u: string) => u && photos.push(u));
+        });
+        setMediaPhotos(photos);
 
         // Average rating
         const ratings = reviewRows
@@ -428,6 +439,42 @@ export default function VenueDetailScreen() {
               />
             ) : null}
 
+            {/* Reviews — above events, like web */}
+            {reviews.length > 0 ? (
+              <>
+                <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>
+                  Reviews ({reviews.length})
+                </SynthText>
+                <View style={styles.reviewsBox}>
+                  {reviews.map(r => (
+                    <ReviewItem key={r.id} review={r} />
+                  ))}
+                </View>
+              </>
+            ) : null}
+
+            {/* Media grid — photos from reviews */}
+            {mediaPhotos.length > 0 ? (
+              <>
+                <View style={styles.sectionLabelRow}>
+                  <Camera size={14} color={PINK} />
+                  <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>
+                    Media ({mediaPhotos.length})
+                  </SynthText>
+                </View>
+                <View style={styles.mediaGrid}>
+                  {mediaPhotos.slice(0, 6).map((uri, i) => (
+                    <ExpoImage
+                      key={i}
+                      source={{ uri }}
+                      style={styles.mediaThumb}
+                      contentFit="cover"
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
+
             {/* Upcoming shows */}
             <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>
               Upcoming shows
@@ -487,19 +534,10 @@ export default function VenueDetailScreen() {
               </>
             ) : null}
 
-            {/* Reviews */}
-            {reviews.length > 0 ? (
-              <>
-                <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>
-                  Reviews
-                </SynthText>
-                <View style={styles.reviewsBox}>
-                  {reviews.map(r => (
-                    <ReviewItem key={r.id} review={r} />
-                  ))}
-                </View>
-              </>
-            ) : null}
+            {/* JamBase attribution */}
+            <View style={styles.attributionRow}>
+              <JamBaseAttributionInline />
+            </View>
           </ScrollView>
         )}
       </View>
@@ -586,4 +624,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  mediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  mediaThumb: {
+    width: (Dimensions.get('window').width - 32 - 8) / 3,
+    height: (Dimensions.get('window').width - 32 - 8) / 3,
+    borderRadius: 8,
+    backgroundColor: SynthTokens.colors.neutral100,
+  },
+  attributionRow: {
+    paddingTop: 16,
+    paddingBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: SynthTokens.colors.neutral200,
+    alignItems: 'center',
+  },
 });

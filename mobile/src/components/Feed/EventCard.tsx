@@ -4,10 +4,11 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
-import { Heart, MapPin, Calendar, Share2, Ticket, Music } from 'lucide-react-native';
+import { Heart, MapPin, Calendar, Share2, Ticket, Music, Star } from 'lucide-react-native';
 import { supabase } from '../../integrations/supabase/client';
 import { EventService } from '../../services/eventService';
 import { resolveFeedImageUri } from '../../utils/eventImages';
+import { isEventPast } from '../../utils/eventStatusUtils';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - SynthTokens.spacing.screenMarginX * 2;
@@ -52,6 +53,8 @@ export const EventCard: React.FC<EventCardProps> = ({
   initialInterested = false,
   interested_count = 0,
   ticket_url: ticketUrlProp,
+  artist_id,
+  venue_id,
 }) => {
   const router = useRouter();
   const [interested, setInterested] = useState(initialInterested);
@@ -81,8 +84,6 @@ export const EventCard: React.FC<EventCardProps> = ({
 
   const venueName = venue_name?.trim();
   const venueCity = venue_city?.trim();
-  const locationLine =
-    venueName && venueCity ? `${venueName} · ${venueCity}` : venueName || venueCity || '';
 
   const artistLine = artist_name?.trim() || '';
 
@@ -112,7 +113,27 @@ export const EventCard: React.FC<EventCardProps> = ({
     });
   }, [id, router]);
 
+  const openArtist = useCallback(() => {
+    if (!artist_id) return;
+    router.push(`/artist/${artist_id}` as any);
+  }, [artist_id, router]);
+
+  const openVenue = useCallback(() => {
+    if (!venue_id) return;
+    router.push(`/venue/${venue_id}` as any);
+  }, [venue_id, router]);
+
   const handleOpen = onPress ?? openEventDetail;
+
+  const isPast = !!event_date && isEventPast(event_date);
+
+  const onWriteReview = useCallback(() => {
+    const params = new URLSearchParams();
+    if (artist_id) params.set('prefillArtistId', artist_id);
+    if (venue_id) params.set('prefillVenueId', venue_id);
+    if (event_date) params.set('prefillDate', event_date.split('T')[0]);
+    router.push(`/review-compose?${params.toString()}` as any);
+  }, [artist_id, venue_id, event_date, router]);
 
   const interestedLabel =
     interested_count > 0
@@ -145,20 +166,45 @@ export const EventCard: React.FC<EventCardProps> = ({
 
           <View style={styles.detailsPad}>
             {artistLine ? (
-              <View style={styles.metaRow}>
+              <Pressable
+                onPress={artist_id ? openArtist : undefined}
+                style={styles.metaRow}
+                hitSlop={6}
+              >
                 <Music size={16} color={PINK} />
-                <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.metaTxt}>
+                <SynthText
+                  variant="meta"
+                  color={artist_id ? undefined : 'secondary'}
+                  numberOfLines={1}
+                  style={[styles.metaTxt, artist_id ? styles.metaLink : undefined]}
+                >
                   {artistLine}
                 </SynthText>
-              </View>
+              </Pressable>
             ) : null}
 
-            <View style={styles.metaRow}>
+            <Pressable
+              onPress={venue_id ? openVenue : undefined}
+              style={styles.metaRow}
+              hitSlop={6}
+            >
               <MapPin size={16} color={PINK} />
-              <SynthText variant="meta" color="secondary" numberOfLines={2} style={styles.metaTxt}>
-                {locationLine || 'Venue TBA'}
-              </SynthText>
-            </View>
+              <View style={{ flex: 1 }}>
+                <SynthText
+                  variant="meta"
+                  color={venue_id ? undefined : 'secondary'}
+                  numberOfLines={1}
+                  style={[styles.metaTxt, venue_id ? styles.metaLink : undefined]}
+                >
+                  {venueName || 'Venue TBA'}
+                </SynthText>
+                {venueCity ? (
+                  <SynthText variant="meta" color="secondary" numberOfLines={1} style={[styles.metaTxt, styles.metaSubLine]}>
+                    {venueCity}
+                  </SynthText>
+                ) : null}
+              </View>
+            </Pressable>
 
             <View style={styles.metaRow}>
               <Calendar size={16} color={PINK} />
@@ -176,18 +222,25 @@ export const EventCard: React.FC<EventCardProps> = ({
         </Pressable>
 
         <View style={styles.actions}>
-          <Pressable
-            onPress={() => void onToggleInterested()}
-            style={[styles.interestedBtn, interested && styles.interestedBtnOn]}
-          >
-            <Heart
-              size={18}
-              color={PINK}
-              fill={interested ? PINK : 'transparent'}
-              strokeWidth={2}
-            />
-            <Text style={styles.interestedBtnTxt}>Interested</Text>
-          </Pressable>
+          {isPast ? (
+            <Pressable onPress={onWriteReview} style={styles.writeReviewBtn}>
+              <Star size={18} color={SynthTokens.colors.neutral0} fill={SynthTokens.colors.neutral0} />
+              <Text style={styles.writeReviewBtnTxt}>Write Review</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => void onToggleInterested()}
+              style={[styles.interestedBtn, interested && styles.interestedBtnOn]}
+            >
+              <Heart
+                size={18}
+                color={PINK}
+                fill={interested ? PINK : 'transparent'}
+                strokeWidth={2}
+              />
+              <Text style={styles.interestedBtnTxt}>Interested</Text>
+            </Pressable>
+          )}
           {ticketUrlProp?.trim() ? (
             <Pressable onPress={() => void openTickets()} style={styles.ticketBtn} accessibilityLabel="Tickets">
               <Ticket size={20} color={PINK} />
@@ -294,6 +347,14 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 15,
   },
+  metaSubLine: {
+    fontSize: 13,
+    marginTop: 1,
+  },
+  metaLink: {
+    color: SynthTokens.colors.brandPink500,
+    fontWeight: '600',
+  },
   interestedLine: {
     marginTop: 4,
     fontSize: 14,
@@ -308,6 +369,21 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral0,
     borderBottomLeftRadius: CARD_RADIUS,
     borderBottomRightRadius: CARD_RADIUS,
+  },
+  writeReviewBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: SynthTokens.radius.corner,
+    backgroundColor: PINK,
+  },
+  writeReviewBtnTxt: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: SynthTokens.colors.neutral0,
   },
   interestedBtn: {
     flex: 1,

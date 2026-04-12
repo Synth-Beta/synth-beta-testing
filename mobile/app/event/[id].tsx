@@ -700,7 +700,7 @@ export default function EventDetailScreen() {
                                 onPress={() => handleTabPress('groups')}
                                 accessibilityRole="tab"
                             >
-                                <MessageCircle size={16} color={activeTab === 'groups' ? SynthTokens.colors.neutral0 : SynthTokens.colors.neutral700} />
+                                <MessageCircle size={16} color={activeTab === 'groups' ? SynthTokens.colors.neutral0 : SynthTokens.colors.neutral600} />
                                 <Text style={[styles.tabText, activeTab === 'groups' && styles.tabTextActive]}>
                                     Groups
                                 </Text>
@@ -713,7 +713,7 @@ export default function EventDetailScreen() {
                                 >
                                     <Heart
                                         size={16}
-                                        color={activeTab === 'meet' ? SynthTokens.colors.neutral0 : SynthTokens.colors.neutral700}
+                                        color={activeTab === 'meet' ? SynthTokens.colors.neutral0 : SynthTokens.colors.neutral600}
                                     />
                                     <Text style={[styles.tabText, activeTab === 'meet' && styles.tabTextActive]}>
                                         Meet{interestedCount != null ? ` (${interestedCount})` : ''}
@@ -1187,7 +1187,7 @@ const styles = StyleSheet.create({
     tabText: {
         fontSize: 14,
         fontWeight: '600',
-        color: SynthTokens.colors.neutral700,
+        color: SynthTokens.colors.neutral600,
     },
     tabTextActive: {
         color: SynthTokens.colors.neutral0,
@@ -1288,7 +1288,7 @@ const styles = StyleSheet.create({
     priceText: {
         fontSize: 15,
         fontWeight: '600',
-        color: SynthTokens.colors.neutral700,
+        color: SynthTokens.colors.neutral600,
     },
     ticketBtn: {
         flexDirection: 'row',

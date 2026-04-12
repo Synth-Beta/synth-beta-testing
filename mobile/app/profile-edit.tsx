@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: SynthTokens.colors.neutral300,
+    borderColor: SynthTokens.colors.neutral200,
     backgroundColor: SynthTokens.colors.neutral0,
   },
   genreChipSelected: {
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   genreChipTxt: {
     fontSize: 13,
     fontWeight: '600',
-    color: SynthTokens.colors.neutral700 ?? SynthTokens.colors.neutral600,
+    color: SynthTokens.colors.neutral600 ?? SynthTokens.colors.neutral600,
   },
   genreChipTxtSelected: {
     color: PINK,
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     color: '#065f46',
   },
   disconnectLink: {
-    color: SynthTokens.colors.neutral500,
+    color: SynthTokens.colors.neutral400,
     fontSize: 13,
     textDecorationLine: 'underline',
   },
