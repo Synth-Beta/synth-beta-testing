@@ -584,10 +584,10 @@ export default function EventDetailScreen() {
                     </View>
 
                     {/* Artist card */}
-                    {event.artist_name && event.artist_id ? (
+                    {event.artist_name ? (
                         <Pressable
                             style={styles.entityCard}
-                            onPress={() => {
+                            onPress={event.artist_id ? () => {
                                 void EventService.resolveCanonicalArtistId(String(event.artist_id)).then(resolved => {
                                     if (!resolved) {
                                         Alert.alert('Artist unavailable', 'This artist link could not be opened.');
@@ -595,7 +595,7 @@ export default function EventDetailScreen() {
                                     }
                                     router.push(`/artist/${resolved}`);
                                 });
-                            }}
+                            } : undefined}
                             accessibilityRole="button"
                             accessibilityLabel={`Artist ${event.artist_name}`}
                         >
@@ -619,7 +619,7 @@ export default function EventDetailScreen() {
                     ) : null}
 
                     {/* Venue card */}
-                    {event.venue_name ? (
+                    {(event.venue_name || event.venue_id) ? (
                         <Pressable
                             style={styles.entityCard}
                             onPress={event.venue_id ? () => {
@@ -632,14 +632,14 @@ export default function EventDetailScreen() {
                                 });
                             } : undefined}
                             accessibilityRole="button"
-                            accessibilityLabel={`Venue ${event.venue_name}`}
+                            accessibilityLabel={`Venue ${event.venue_name || 'View venue'}`}
                         >
                             <View style={styles.entityCardHeader}>
                                 <Ticket size={16} color={PINK} />
                                 <SynthText variant="meta" style={styles.entityCardLabel}>Venue</SynthText>
                             </View>
                             <SynthText variant="body" color="primary" style={styles.entityCardTitle}>
-                                {event.venue_name}
+                                {event.venue_name || 'View venue'}
                             </SynthText>
                             <SynthText variant="meta" color="secondary" style={styles.venueCardAddress}>
                                 {venueAddressPrimaryLine(event)}

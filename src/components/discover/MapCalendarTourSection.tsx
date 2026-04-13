@@ -553,7 +553,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   <h3 className="font-semibold">
                     Events on {format(selectedDate, 'MMMM d, yyyy')}
                   </h3>
-                  <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
+                  <div className="grid grid-cols-1 gap-2">
                     {selectedDateEvents.map((event) => (
                       <Card 
                         key={event.id} 

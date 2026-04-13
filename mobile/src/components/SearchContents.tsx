@@ -68,20 +68,20 @@ function EventRow({
 }) {
     const dateLabel = (() => {
         const d = new Date(item.event_date);
-        if (!Number.isFinite(d.getTime())) return 'TBA';
-        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        if (!Number.isFinite(d.getTime())) return null;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     })();
     const sub =
-        [item.venue_name, item.venue_city].filter(Boolean).join(' · ') ||
-        item.artist_name ||
+        [item.artist_name, item.venue_name, item.venue_city].filter(Boolean).join(' · ') ||
         'Event';
 
     return (
         <Pressable style={styles.entityRow} onPress={onPress}>
             <View style={[styles.entityAvatar, styles.entityFallback]}>
-                <SynthText variant="meta" style={styles.entityFallbackText} numberOfLines={1}>
-                    {dateLabel}
-                </SynthText>
+                <Calendar size={20} color={PINK} />
+                {dateLabel ? (
+                    <Text style={styles.eventDateText} numberOfLines={1}>{dateLabel}</Text>
+                ) : null}
             </View>
             <View style={{ flex: 1 }}>
                 <SynthText variant="meta" style={styles.entityTitle} numberOfLines={1}>
@@ -91,12 +91,10 @@ function EventRow({
                     {sub}
                 </SynthText>
             </View>
-            {item.artist_name ? (
-                <View style={styles.categoryPill}>
-                    <Calendar size={11} color={PINK} />
-                    <Text style={styles.categoryPillText}>Event</Text>
-                </View>
-            ) : null}
+            <View style={styles.categoryPill}>
+                <Calendar size={11} color={PINK} />
+                <Text style={styles.categoryPillText}>Event</Text>
+            </View>
         </Pressable>
     );
 }
@@ -111,12 +109,10 @@ function ArtistRow({
     return (
         <Pressable style={styles.entityRow} onPress={onPress}>
             {item.image_url ? (
-                <Image source={{ uri: item.image_url }} style={styles.entityAvatar} />
+                <Image source={{ uri: item.image_url }} style={[styles.entityAvatar, { borderRadius: 10 }]} />
             ) : (
-                <View style={[styles.entityAvatar, styles.entityFallback]}>
-                    <SynthText variant="meta" style={styles.entityFallbackText}>
-                        {item.name.charAt(0).toUpperCase()}
-                    </SynthText>
+                <View style={[styles.entityAvatar, styles.entityFallback, { backgroundColor: SynthTokens.colors.neutral100 }]}>
+                    <Music size={20} color={SynthTokens.colors.neutral600} />
                 </View>
             )}
             <View style={{ flex: 1 }}>
@@ -144,10 +140,8 @@ function VenueRow({
 }) {
     return (
         <Pressable style={styles.entityRow} onPress={onPress}>
-            <View style={[styles.entityAvatar, styles.entityFallback]}>
-                <SynthText variant="meta" style={styles.entityFallbackText}>
-                    {item.name.charAt(0).toUpperCase()}
-                </SynthText>
+            <View style={[styles.entityAvatar, styles.entityFallback, { backgroundColor: SynthTokens.colors.neutral100 }]}>
+                <MapPin size={20} color={SynthTokens.colors.neutral600} />
             </View>
             <View style={{ flex: 1 }}>
                 <SynthText variant="meta" style={styles.entityTitle} numberOfLines={1}>
@@ -175,12 +169,10 @@ function UserRow({
     return (
         <Pressable style={styles.entityRow} onPress={onPress}>
             {item.avatar_url ? (
-                <Image source={{ uri: item.avatar_url }} style={styles.entityAvatar} />
+                <Image source={{ uri: item.avatar_url }} style={[styles.entityAvatar, { borderRadius: 22 }]} />
             ) : (
-                <View style={[styles.entityAvatar, styles.entityFallback]}>
-                    <SynthText variant="meta" style={styles.entityFallbackText}>
-                        {(item.name || item.username || '?').charAt(0).toUpperCase()}
-                    </SynthText>
+                <View style={[styles.entityAvatar, styles.entityFallback, { backgroundColor: SynthTokens.colors.neutral100, borderRadius: 22 }]}>
+                    <Users size={20} color={SynthTokens.colors.neutral600} />
                 </View>
             )}
             <View style={{ flex: 1 }}>
@@ -674,13 +666,15 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,
     },
-    entityAvatar: { width: 44, height: 44, borderRadius: 22 },
+    entityAvatar: { width: 44, height: 44, borderRadius: 10 },
     entityFallback: {
-        backgroundColor: SynthTokens.colors.neutral100,
+        backgroundColor: SynthTokens.colors.brandPink050,
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 2,
     },
     entityFallbackText: { fontWeight: '800', fontSize: 14, color: SynthTokens.colors.neutral600 },
+    eventDateText: { fontSize: 10, fontWeight: '700', color: PINK, textAlign: 'center' },
     entityTitle: { fontWeight: '700', marginBottom: 2 },
     categoryPill: {
         flexDirection: 'row',

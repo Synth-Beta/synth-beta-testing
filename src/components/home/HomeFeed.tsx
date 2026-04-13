@@ -519,10 +519,15 @@ interface FriendEventInterest {
     let isPullingToRefresh = false;
     let pullDistance = 0;
 
+    // The app shell uses overflow:hidden on body; real scroll happens in .page-shell__content
+    const getScrollContainer = (): HTMLElement | null =>
+      document.querySelector('.page-shell__content');
+
     const handleScroll = () => {
-      const scrollHeight = document.documentElement.scrollHeight;
-      const clientHeight = window.innerHeight;
-      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const sc = getScrollContainer();
+      const scrollHeight = sc ? sc.scrollHeight : document.documentElement.scrollHeight;
+      const clientHeight = sc ? sc.clientHeight : window.innerHeight;
+      const scrollTop = sc ? sc.scrollTop : (window.scrollY || document.documentElement.scrollTop);
 
       // Use refs to get current state values (avoid stale closures)
       if (scrollHeight - scrollTop - clientHeight < 200 && trendingHasMoreRef.current && !loadingTrendingRef.current) {
@@ -547,7 +552,8 @@ interface FriendEventInterest {
     const handleTouchMove = (e: TouchEvent) => {
       const touchY = e.touches[0].clientY;
       const deltaY = touchY - touchStartY;
-      const isAtTop = (window.scrollY || document.documentElement.scrollTop) <= 0;
+      const sc = getScrollContainer();
+      const isAtTop = sc ? sc.scrollTop <= 0 : (window.scrollY || document.documentElement.scrollTop) <= 0;
 
       if (isAtTop && deltaY > 0) {
         e.preventDefault();
@@ -588,14 +594,15 @@ interface FriendEventInterest {
     const touchstartOptions = { passive: true } as AddEventListenerOptions;
     const touchmoveOptions = { passive: false } as AddEventListenerOptions;
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    const scrollTarget = getScrollContainer() ?? window;
+    scrollTarget.addEventListener('scroll', handleScroll, { passive: true });
     feedElement.addEventListener('touchend', handleTouchEnd, touchendOptions);
     feedElement.addEventListener('touchstart', handleTouchStart, touchstartOptions);
     feedElement.addEventListener('touchmove', handleTouchMove, touchmoveOptions);
 
     return () => {
       // Remove listeners with the same options to ensure proper cleanup
-      window.removeEventListener('scroll', handleScroll);
+      scrollTarget.removeEventListener('scroll', handleScroll);
       feedElement.removeEventListener('touchend', handleTouchEnd, touchendOptions);
       feedElement.removeEventListener('touchstart', handleTouchStart, touchstartOptions);
       feedElement.removeEventListener('touchmove', handleTouchMove, touchmoveOptions);
@@ -616,10 +623,15 @@ interface FriendEventInterest {
     let isPullingToRefresh = false;
     let pullDistance = 0;
 
+    // The app shell uses overflow:hidden on body; real scroll happens in .page-shell__content
+    const getScrollContainer2 = (): HTMLElement | null =>
+      document.querySelector('.page-shell__content');
+
     const handleScroll = () => {
-      const scrollHeight = document.documentElement.scrollHeight;
-      const clientHeight = window.innerHeight;
-      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const sc = getScrollContainer2();
+      const scrollHeight = sc ? sc.scrollHeight : document.documentElement.scrollHeight;
+      const clientHeight = sc ? sc.clientHeight : window.innerHeight;
+      const scrollTop = sc ? sc.scrollTop : (window.scrollY || document.documentElement.scrollTop);
 
       // Use refs to get current state values (avoid stale closures)
       if (scrollHeight - scrollTop - clientHeight < 200 && friendsHasMoreRef.current && !loadingNetworkRef.current) {
@@ -644,7 +656,8 @@ interface FriendEventInterest {
     const handleTouchMove = (e: TouchEvent) => {
       const touchY = e.touches[0].clientY;
       const deltaY = touchY - touchStartY;
-      const isAtTop = (window.scrollY || document.documentElement.scrollTop) <= 0;
+      const sc = getScrollContainer2();
+      const isAtTop = sc ? sc.scrollTop <= 0 : (window.scrollY || document.documentElement.scrollTop) <= 0;
 
       if (isAtTop && deltaY > 0) {
         e.preventDefault();
@@ -685,14 +698,15 @@ interface FriendEventInterest {
     const touchstartOptions = { passive: true } as AddEventListenerOptions;
     const touchmoveOptions = { passive: false } as AddEventListenerOptions;
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    const scrollTarget2 = getScrollContainer2() ?? window;
+    scrollTarget2.addEventListener('scroll', handleScroll, { passive: true });
     feedElement.addEventListener('touchend', handleTouchEnd, touchendOptions);
     feedElement.addEventListener('touchstart', handleTouchStart, touchstartOptions);
     feedElement.addEventListener('touchmove', handleTouchMove, touchmoveOptions);
 
     return () => {
       // Remove listeners with the same options to ensure proper cleanup
-      window.removeEventListener('scroll', handleScroll);
+      scrollTarget2.removeEventListener('scroll', handleScroll);
       feedElement.removeEventListener('touchend', handleTouchEnd, touchendOptions);
       feedElement.removeEventListener('touchstart', handleTouchStart, touchstartOptions);
       feedElement.removeEventListener('touchmove', handleTouchMove, touchmoveOptions);

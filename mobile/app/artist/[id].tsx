@@ -182,19 +182,33 @@ export default function ArtistDetailScreen() {
           .limit(10);
         setPastEvents((pastData || []).map(e => mapEventRow(e, artistName)));
 
-        // Reviews
-        const { data: reviewData } = await supabase
-          .from('reviews')
-          .select(`
-            id, user_id, rating, review_text, created_at, event_id, photos, likes_count, comments_count,
-            artist_performance_rating, production_rating, venue_rating, location_rating, value_rating,
-            users:user_id (id, name, avatar_url),
-            events:event_id (id, title, artist_name, venue_name, event_date)
-          `)
-          .eq('artist_id', resolvedId)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        const reviewRows = (reviewData || []) as ReviewRow[];
+        // Reviews — two-wave like web: direct (artist_id) + event-linked (event_id IN events)
+        const allEventIds = [
+          ...(upcomingData || []).map((e: any) => e.id as string),
+          ...(pastData || []).map((e: any) => e.id as string),
+        ];
+        const reviewsSelect = `
+          id, user_id, rating, review_text, created_at, event_id, photos, likes_count, comments_count,
+          artist_performance_rating, production_rating, venue_rating, location_rating, value_rating,
+          users:user_id (id, name, avatar_url),
+          events:event_id (id, title, artist_name, venue_name, event_date)
+        `;
+        const [directRes, eventLinkedRes] = await Promise.all([
+          supabase.from('reviews').select(reviewsSelect)
+            .eq('artist_id', resolvedId)
+            .order('created_at', { ascending: false }).limit(20),
+          allEventIds.length > 0
+            ? supabase.from('reviews').select(reviewsSelect)
+                .in('event_id', allEventIds)
+                .order('created_at', { ascending: false }).limit(20)
+            : Promise.resolve({ data: [] as any[] }),
+        ]);
+        const seen = new Set<string>();
+        const combined = [...(directRes.data || []), ...((eventLinkedRes as any).data || [])]
+          .filter((r: any) => { if (seen.has(r.id)) return false; seen.add(r.id); return true; })
+          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 15);
+        const reviewRows = combined as ReviewRow[];
         setReviews(reviewRows.map((rv): NetworkReview => ({
           id: String(rv.id),
           event_id: rv.event_id ?? undefined,
