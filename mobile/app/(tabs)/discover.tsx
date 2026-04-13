@@ -25,8 +25,6 @@ import {
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { SearchService, type SearchResult } from '../../src/services/searchService';
 import { MobileTourTracker } from '../../src/components/discover/MobileTourTracker';
-import { supabase } from '../../src/integrations/supabase/client';
-import { MobileScenesRail } from '../../src/components/discover/MobileScenesRail';
 import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/DiscoverCalEventsSkeleton';
 import { getCurrentLatLng, type LatLng } from '../../src/services/locationService';
 import { toLocalYmd } from '../../src/utils/localYmd';
@@ -235,14 +233,6 @@ export default function DiscoverScreen() {
   const [calendarByDate, setCalendarByDate] = useState<Record<string, SearchResult[]>>({});
   const [calLoading, setCalLoading] = useState(false);
   const [calLoadError, setCalLoadError] = useState<string | null>(null);
-  const [authUserId, setAuthUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      setAuthUserId(user?.id ?? null);
-    });
-  }, []);
-
   useEffect(() => {
     void (async () => {
       const loc = await getCurrentLatLng();
@@ -485,7 +475,6 @@ export default function DiscoverScreen() {
           <MobileTourTracker />
         )}
 
-        <MobileScenesRail userId={authUserId} />
       </ScrollView>
     </View>
   );

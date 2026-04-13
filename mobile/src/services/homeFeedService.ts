@@ -52,6 +52,12 @@ export interface NetworkReview {
         venue_name?: string;
         event_date?: string;
     };
+    // Category ratings (0.5–5.0 each)
+    artist_performance_rating?: number;
+    production_rating?: number;
+    venue_rating?: number;
+    location_rating?: number;
+    value_rating?: number;
     likes_count?: number;
     comments_count?: number;
     shares_count?: number;
@@ -337,9 +343,8 @@ export class HomeFeedService {
                 .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
             if (friendsError) throw friendsError;
-            if (!friends?.length) return [];
 
-            const friendIds = friends.map(f => (f.user_id === userId ? f.related_user_id : f.user_id));
+            const friendIds = [userId, ...(friends ?? []).map(f => (f.user_id === userId ? f.related_user_id : f.user_id))];
 
             const { data: reviews, error: reviewsError } = await supabase
                 .from('reviews')
@@ -357,6 +362,11 @@ export class HomeFeedService {
           comments_count,
           shares_count,
           created_at,
+          artist_performance_rating,
+          production_rating,
+          venue_rating,
+          location_rating,
+          value_rating,
           events (
             id,
             title,
@@ -370,7 +380,6 @@ export class HomeFeedService {
                 .eq('is_public', true)
                 .eq('is_draft', false)
                 .neq('review_text', 'ATTENDANCE_ONLY')
-                .not('review_text', 'is', null)
                 .order('created_at', { ascending: false })
                 .limit(limit);
 
@@ -452,6 +461,11 @@ export class HomeFeedService {
                         venue_name: venueName,
                         event_date: review.events?.event_date,
                     },
+                    artist_performance_rating: review.artist_performance_rating != null ? Number(review.artist_performance_rating) : undefined,
+                    production_rating: review.production_rating != null ? Number(review.production_rating) : undefined,
+                    venue_rating: review.venue_rating != null ? Number(review.venue_rating) : undefined,
+                    location_rating: review.location_rating != null ? Number(review.location_rating) : undefined,
+                    value_rating: review.value_rating != null ? Number(review.value_rating) : undefined,
                     likes_count: typeof review.likes_count === 'number' ? review.likes_count : 0,
                     comments_count: typeof review.comments_count === 'number' ? review.comments_count : 0,
                     shares_count: typeof review.shares_count === 'number' ? review.shares_count : 0,

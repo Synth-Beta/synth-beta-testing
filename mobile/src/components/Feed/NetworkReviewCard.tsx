@@ -15,7 +15,7 @@ import { BlurView } from 'expo-blur';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import type { NetworkReview } from '../../services/homeFeedService';
-import { Star, ThumbsUp, MessageCircle, Share2, Calendar } from 'lucide-react-native';
+import { Star, ThumbsUp, MessageCircle, Share2, Calendar, Mic2, Lightbulb, MapPin as MapPinIcon, Navigation, DollarSign } from 'lucide-react-native';
 import { ReviewEngagementService } from '../../services/reviewEngagementService';
 import { EventService } from '../../services/eventService';
 
@@ -266,6 +266,28 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                                     {engagementSummary}
                                 </SynthText>
                             ) : null}
+
+                            {/* Compact category scores */}
+                            {(() => {
+                                const cats = [
+                                    { icon: <Mic2 size={11} color={PINK} />, label: 'Artist', val: review.artist_performance_rating },
+                                    { icon: <Lightbulb size={11} color={PINK} />, label: 'Prod', val: review.production_rating },
+                                    { icon: <MapPinIcon size={11} color={PINK} />, label: 'Venue', val: review.venue_rating },
+                                    { icon: <Navigation size={11} color={PINK} />, label: 'Location', val: review.location_rating },
+                                    { icon: <DollarSign size={11} color={PINK} />, label: 'Value', val: review.value_rating },
+                                ].filter(c => typeof c.val === 'number' && c.val > 0);
+                                if (!cats.length) return null;
+                                return (
+                                    <View style={styles.catRow}>
+                                        {cats.map(c => (
+                                            <View key={c.label} style={styles.catChip}>
+                                                {c.icon}
+                                                <Text style={styles.catChipTxt}>{c.val!.toFixed(1)}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                );
+                            })()}
                         </View>
                     </View>
                 </Pressable>
@@ -439,6 +461,26 @@ const styles = StyleSheet.create({
     },
     engagementSummary: {
         fontWeight: '500',
+    },
+    catRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginTop: 4,
+    },
+    catChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        backgroundColor: 'rgba(204,36,134,0.08)',
+        paddingHorizontal: 7,
+        paddingVertical: 3,
+        borderRadius: 999,
+    },
+    catChipTxt: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: PINK,
     },
     actions: {
         flexDirection: 'row',

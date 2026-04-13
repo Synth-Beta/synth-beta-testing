@@ -18,6 +18,8 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 import { EventCard } from '../../src/components/Feed/EventCard';
+import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
+import { NetworkReview } from '../../src/services/homeFeedService';
 import { ArtistScreenSkeleton } from '../../src/components/skeletons/ArtistScreenSkeleton';
 import { EventService } from '../../src/services/eventService';
 import { ArtistFollowService } from '../../src/services/artistFollowService';
@@ -49,14 +51,23 @@ interface ReviewRow {
   review_text?: string | null;
   created_at: string;
   event_id?: string | null;
-  users?: { id: string; name: string; avatar_url?: string | null }[] | null;
+  photos?: string[] | null;
+  likes_count?: number | null;
+  comments_count?: number | null;
+  artist_performance_rating?: number | null;
+  production_rating?: number | null;
+  venue_rating?: number | null;
+  location_rating?: number | null;
+  value_rating?: number | null;
+  // PostgREST many-to-one joins return single objects, not arrays
+  users?: { id: string; name: string; avatar_url?: string | null } | null;
   events?: {
     id: string;
     title?: string | null;
     artist_name?: string | null;
     venue_name?: string | null;
     event_date?: string | null;
-  }[] | null;
+  } | null;
 }
 
 function mapEventRow(e: any, artistName: string): EventRow {
@@ -75,112 +86,6 @@ function mapEventRow(e: any, artistName: string): EventRow {
   };
 }
 
-function ReviewItem({ review }: { review: ReviewRow }) {
-  const user = Array.isArray(review.users) ? review.users[0] : null;
-  const ev = Array.isArray(review.events) ? review.events[0] : null;
-  const authorName = user?.name || 'User';
-  const avatarUrl = user?.avatar_url;
-  const initials = authorName.charAt(0).toUpperCase();
-  const rating = typeof review.rating === 'number' ? review.rating : null;
-  const text = review.review_text?.trim() || null;
-  const eventTitle =
-    ev?.title?.trim() ||
-    ev?.artist_name?.trim() ||
-    null;
-
-  return (
-    <View style={reviewStyles.row}>
-      {avatarUrl ? (
-        <Image source={{ uri: avatarUrl }} style={reviewStyles.avatar} />
-      ) : (
-        <View style={[reviewStyles.avatar, reviewStyles.avatarFallback]}>
-          <Text style={reviewStyles.avatarLetter}>{initials}</Text>
-        </View>
-      )}
-      <View style={reviewStyles.body}>
-        <View style={reviewStyles.nameRow}>
-          <SynthText variant="meta" style={reviewStyles.name}>{authorName}</SynthText>
-          {rating != null ? (
-            <View style={reviewStyles.ratingPill}>
-              <Star size={11} color={SynthTokens.colors.neutral0} fill={SynthTokens.colors.neutral0} />
-              <Text style={reviewStyles.ratingText}>{rating.toFixed(1)}</Text>
-            </View>
-          ) : null}
-        </View>
-        {eventTitle ? (
-          <SynthText variant="meta" color="secondary" numberOfLines={1} style={reviewStyles.eventLine}>
-            {eventTitle}
-          </SynthText>
-        ) : null}
-        {text ? (
-          <SynthText variant="meta" color="secondary" numberOfLines={3} style={reviewStyles.quote}>
-            "{text}"
-          </SynthText>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-const reviewStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: SynthTokens.colors.neutral200,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  avatarFallback: {
-    backgroundColor: PINK,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    color: SynthTokens.colors.neutral0,
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  body: {
-    flex: 1,
-    gap: 2,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  name: {
-    fontWeight: '600',
-    color: SynthTokens.colors.neutral900,
-  },
-  ratingPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#F5A623',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  ratingText: {
-    color: SynthTokens.colors.neutral0,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  eventLine: {
-    fontSize: 12,
-  },
-  quote: {
-    fontStyle: 'italic',
-    lineHeight: 18,
-    marginTop: 2,
-  },
-});
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -193,7 +98,7 @@ export default function ArtistDetailScreen() {
   const [genres, setGenres] = useState<string[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<EventRow[]>([]);
   const [pastEvents, setPastEvents] = useState<EventRow[]>([]);
-  const [reviews, setReviews] = useState<ReviewRow[]>([]);
+  const [reviews, setReviews] = useState<NetworkReview[]>([]);
   const [mediaPhotos, setMediaPhotos] = useState<string[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [followerCount, setFollowerCount] = useState(0);
@@ -281,7 +186,8 @@ export default function ArtistDetailScreen() {
         const { data: reviewData } = await supabase
           .from('reviews')
           .select(`
-            id, user_id, rating, review_text, created_at, event_id, photos,
+            id, user_id, rating, review_text, created_at, event_id, photos, likes_count, comments_count,
+            artist_performance_rating, production_rating, venue_rating, location_rating, value_rating,
             users:user_id (id, name, avatar_url),
             events:event_id (id, title, artist_name, venue_name, event_date)
           `)
@@ -289,8 +195,35 @@ export default function ArtistDetailScreen() {
           .order('created_at', { ascending: false })
           .limit(10);
         const reviewRows = (reviewData || []) as ReviewRow[];
-        // Only show reviews that have text for the review items display
-        setReviews(reviewRows.filter(r => r.review_text?.trim()));
+        setReviews(reviewRows.map((rv): NetworkReview => ({
+          id: String(rv.id),
+          event_id: rv.event_id ?? undefined,
+          artist_id: resolvedId ?? undefined,
+          author: {
+            id: String(rv.user_id),
+            name: rv.users?.name || 'User',
+            avatar_url: rv.users?.avatar_url ?? undefined,
+          },
+          created_at: String(rv.created_at),
+          rating: rv.rating != null ? Number(rv.rating) : undefined,
+          content: rv.review_text || undefined,
+          photos: Array.isArray(rv.photos) ? rv.photos : undefined,
+          artist_image_url: artist?.image_url ?? undefined,
+          artist_performance_rating: rv.artist_performance_rating != null ? Number(rv.artist_performance_rating) : undefined,
+          production_rating: rv.production_rating != null ? Number(rv.production_rating) : undefined,
+          venue_rating: rv.venue_rating != null ? Number(rv.venue_rating) : undefined,
+          location_rating: rv.location_rating != null ? Number(rv.location_rating) : undefined,
+          value_rating: rv.value_rating != null ? Number(rv.value_rating) : undefined,
+          likes_count: typeof rv.likes_count === 'number' ? rv.likes_count : 0,
+          comments_count: typeof rv.comments_count === 'number' ? rv.comments_count : 0,
+          is_liked_by_user: false,
+          connection_degree: 1,
+          event_info: {
+            artist_name: artistName,
+            venue_name: rv.events?.venue_name ?? undefined,
+            event_date: rv.events?.event_date ?? undefined,
+          },
+        })));
 
         // Collect media photos from all reviews
         const photos: string[] = [];
@@ -432,9 +365,14 @@ export default function ArtistDetailScreen() {
                 <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>
                   Reviews ({reviews.length})
                 </SynthText>
-                <View style={styles.reviewsBox}>
+                <View style={styles.cardsNegMargin}>
                   {reviews.map(r => (
-                    <ReviewItem key={r.id} review={r} />
+                    <NetworkReviewCard
+                      key={r.id}
+                      review={r}
+                      currentUserId={sessionUserId}
+                      onPress={() => router.push(`/review/${r.id}` as any)}
+                    />
                   ))}
                 </View>
               </>

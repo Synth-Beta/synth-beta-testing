@@ -205,6 +205,11 @@ export default function EventDetailScreen() {
               comments_count,
               shares_count,
               created_at,
+              artist_performance_rating,
+              production_rating,
+              venue_rating,
+              location_rating,
+              value_rating,
               users:user_id (
                 id,
                 name,
@@ -280,6 +285,11 @@ export default function EventDetailScreen() {
                         content: rv.review_text || undefined,
                         photos: Array.isArray(rv.photos) ? rv.photos : undefined,
                         artist_image_url: artistRow?.image_url ?? undefined,
+                        artist_performance_rating: rv.artist_performance_rating != null ? Number(rv.artist_performance_rating) : undefined,
+                        production_rating: rv.production_rating != null ? Number(rv.production_rating) : undefined,
+                        venue_rating: rv.venue_rating != null ? Number(rv.venue_rating) : undefined,
+                        location_rating: rv.location_rating != null ? Number(rv.location_rating) : undefined,
+                        value_rating: rv.value_rating != null ? Number(rv.value_rating) : undefined,
                         likes_count: typeof rv.likes_count === 'number' ? rv.likes_count : 0,
                         comments_count: typeof rv.comments_count === 'number' ? rv.comments_count : 0,
                         shares_count: typeof rv.shares_count === 'number' ? rv.shares_count : 0,
@@ -609,10 +619,10 @@ export default function EventDetailScreen() {
                     ) : null}
 
                     {/* Venue card */}
-                    {event.venue_name && event.venue_id ? (
+                    {event.venue_name ? (
                         <Pressable
                             style={styles.entityCard}
-                            onPress={() => {
+                            onPress={event.venue_id ? () => {
                                 void EventService.resolveCanonicalVenueId(String(event.venue_id)).then(resolved => {
                                     if (!resolved) {
                                         Alert.alert('Venue unavailable', 'This venue link could not be opened.');
@@ -620,7 +630,7 @@ export default function EventDetailScreen() {
                                     }
                                     router.push(`/venue/${resolved}`);
                                 });
-                            }}
+                            } : undefined}
                             accessibilityRole="button"
                             accessibilityLabel={`Venue ${event.venue_name}`}
                         >

@@ -9,7 +9,6 @@ import { RedesignedSearchPage } from '@/components/search/RedesignedSearchPage';
 import { VibeSelectorModal } from './VibeSelectorModal';
 import { DiscoverResultsView } from './DiscoverResultsView';
 import { BecauseYouLikeSection } from './BecauseYouLikeSection';
-import { ScenesSection } from './ScenesSection';
 import { MapCalendarTourSection } from './MapCalendarTourSection';
 import { LocationService } from '@/services/locationService';
 import { CityService, type CityData } from '@/services/cityService';
@@ -847,57 +846,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           />
             </div>
 
-            {/* Section 3: Scenes & Signals */}
-            <div>
-          <ScenesSection
-            currentUserId={currentUserId}
-            onNavigateToProfile={onNavigateToProfile}
-            onNavigateToChat={onNavigateToChat}
-            onArtistClick={(id, name) => setDetailView({ type: 'artist', id, name })}
-            onVenueClick={(id, name) => setDetailView({ type: 'venue', id, name })}
-            onEventClick={async (event) => {
-              // Open event details under the Discover "detail" header
-              if (!event?.id) return;
-              setSelectedEvent(event);
-              try {
-                const interested = await UserEventService.isUserInterested(currentUserId, event.id);
-                setSelectedEventInterested(interested);
-              } catch (error) {
-                console.error('Error checking interest:', error);
-              }
-              setEventDetailsOpen(true);
-              setDetailView({
-                type: 'event',
-                id: event.id,
-                name: (event as any)?.artist_name || (event as any)?.name || 'Event',
-              });
-
-              // Attempt to hydrate with full DB row (optional)
-              try {
-                const { data } = await supabase
-                  .from('events')
-                  .select('*, artists(name), venues(name)')
-                  .eq('id', event.id)
-                  .single();
-                if (data) {
-                  const normalizedEvent = {
-                    ...data,
-                    artist_name: (data.artists as any)?.name || (data as any).artist_name || null,
-                    venue_name: (data.venues as any)?.name || (data as any).venue_name || null,
-                  };
-                  setSelectedEvent(normalizedEvent);
-                  setDetailView({
-                    type: 'event',
-                    id: event.id,
-                    name: normalizedEvent.artist_name || normalizedEvent.name || 'Event',
-                  });
-                }
-              } catch (error) {
-                // keep fallback event object
-              }
-            }}
-          />
-            </div>
           </>
         )}
         </div>

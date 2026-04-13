@@ -76,6 +76,11 @@ type ReviewRow = {
     likes_count: number;
     comments_count: number;
     is_liked_by_user: boolean;
+    // Attendees & extras
+    attendees?: any[] | null;
+    met_on_synth?: boolean | null;
+    setlist?: any | null;
+    custom_setlist?: any[] | null;
 };
 
 // ─── Category row ─────────────────────────────────────────────────────────────
@@ -205,6 +210,10 @@ export default function ReviewDetailScreen() {
                     value_feedback,
                     likes_count,
                     comments_count,
+                    attendees,
+                    met_on_synth,
+                    setlist,
+                    custom_setlist,
                     users:user_id (id, name, avatar_url),
                     events:event_id (
                         id, title, event_date,
@@ -271,6 +280,10 @@ export default function ReviewDetailScreen() {
                 likes_count: typeof row.likes_count === 'number' ? row.likes_count : 0,
                 comments_count: typeof row.comments_count === 'number' ? row.comments_count : 0,
                 is_liked_by_user: likedSet.has(String(id)),
+                attendees: Array.isArray(row.attendees) ? row.attendees : null,
+                met_on_synth: typeof row.met_on_synth === 'boolean' ? row.met_on_synth : null,
+                setlist: row.setlist ?? null,
+                custom_setlist: Array.isArray(row.custom_setlist) ? row.custom_setlist : null,
             };
 
             const isOwner = normalized.user_id === user.id;
@@ -565,6 +578,65 @@ export default function ReviewDetailScreen() {
                             </View>
                         ) : null}
 
+                        {/* Attendees */}
+                        {(() => {
+                            const atts = review.attendees?.filter(
+                                (a: any) => a?.type === 'user' && (a?.name || a?.user_id)
+                            );
+                            if (!atts?.length) return null;
+                            return (
+                                <View style={styles.card}>
+                                    <SynthText variant="meta" style={styles.sectionLabel}>
+                                        ATTENDED WITH
+                                    </SynthText>
+                                    <View style={styles.attendeesRow}>
+                                        {atts.map((a: any, i: number) => (
+                                            <View key={i} style={styles.attendeeChip}>
+                                                <SynthText variant="meta" style={styles.attendeeName}>
+                                                    {a.name || 'User'}
+                                                </SynthText>
+                                                {review.met_on_synth && <SynthText variant="meta" color="brand" style={styles.metBadge}> · met on Synth</SynthText>}
+                                            </View>
+                                        ))}
+                                    </View>
+                                </View>
+                            );
+                        })()}
+
+                        {/* Setlist */}
+                        {(() => {
+                            const songs: any[] = (() => {
+                                if (review.custom_setlist?.length) {
+                                    const first = review.custom_setlist[0];
+                                    return Array.isArray(first?.songs) ? first.songs : [];
+                                }
+                                if (review.setlist?.sets?.set) {
+                                    const sets = review.setlist.sets.set;
+                                    return Array.isArray(sets)
+                                        ? sets.flatMap((s: any) => Array.isArray(s.song) ? s.song : [])
+                                        : [];
+                                }
+                                return [];
+                            })();
+                            if (!songs.length) return null;
+                            return (
+                                <View style={styles.card}>
+                                    <SynthText variant="meta" style={styles.sectionLabel}>
+                                        SETLIST ({songs.length} songs)
+                                    </SynthText>
+                                    {songs.map((song: any, i: number) => (
+                                        <View key={i} style={styles.setlistRow}>
+                                            <Text style={styles.setlistNum}>{i + 1}</Text>
+                                            <SynthText variant="meta" style={styles.setlistSong} numberOfLines={1}>
+                                                {song.name || song.song_name || 'Unknown'}
+                                                {song.cover_artist ? ` (${song.cover_artist})` : ''}
+                                            </SynthText>
+                                        </View>
+                                    ))}
+                                </View>
+                            );
+                        })()}
+
                         {/* Engagement */}
                         <View style={styles.engagementRow}>
                             <Pressable
@@ -728,4 +800,44 @@ const styles = StyleSheet.create({
         backgroundColor: SynthTokens.colors.neutral0,
     },
     eventLinkTxt: { color: PINK, fontWeight: '700' },
+    attendeesRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    attendeeChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: SynthTokens.colors.neutral100,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 999,
+    },
+    attendeeName: {
+        fontWeight: '600',
+        color: SynthTokens.colors.neutral900,
+    },
+    metBadge: {
+        fontSize: 11,
+    },
+    setlistRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 6,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: SynthTokens.colors.neutral200,
+    },
+    setlistNum: {
+        width: 22,
+        fontSize: 12,
+        fontWeight: '700',
+        color: SynthTokens.colors.neutral400,
+        textAlign: 'right',
+    },
+    setlistSong: {
+        flex: 1,
+        fontWeight: '500',
+        color: SynthTokens.colors.neutral900,
+    },
 });
