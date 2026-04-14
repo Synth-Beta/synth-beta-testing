@@ -511,27 +511,37 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         </TabsList>
 
         {/* Calendar View */}
-        <TabsContent value="calendar" className="mt-8">
+        <TabsContent value="calendar" className="mt-4">
           {calendarLoading ? (
             <div aria-busy="true">
               <div role="status" aria-live="polite" className="sr-only">Loading calendar…</div>
-            <SynthLoadingInline text="Loading calendar..." size="lg" />
+              <SynthLoadingInline text="Loading calendar..." size="lg" />
             </div>
           ) : (
-            <div className="space-y-4 flex flex-col items-center justify-center">
-              <div className="flex justify-center w-full">
-                <div className="swift-ui-card">
-                  <div className="swift-ui-card-content">
+            <div className="flex flex-col lg:flex-row gap-6 w-full">
+              {/* Left column: Calendar fills its container */}
+              <div className="flex-shrink-0 w-full lg:w-[420px]">
+                <div className="swift-ui-card rounded-xl overflow-hidden">
+                  <div className="p-4">
                     <CalendarPicker
                       mode="single"
                       selected={selectedDate}
                       onSelect={handleDateSelect}
                       month={calendarDate}
                       onMonthChange={setCalendarDate}
-                      className="rounded-md border"
+                      className="w-full"
+                      classNames={{
+                        months: 'w-full',
+                        month: 'w-full space-y-3',
+                        table: 'w-full border-collapse',
+                        head_row: 'flex w-full',
+                        head_cell: 'flex-1 text-center rounded-md py-1',
+                        row: 'flex w-full mt-1',
+                        cell: 'flex-1 h-11 text-center p-0 relative focus-within:relative focus-within:z-20',
+                        day: 'w-full h-11 p-0 aria-selected:opacity-100 rounded-lg',
+                      }}
                       numberOfMonths={1}
                       disabled={(date) => {
-                        // Disable dates before today
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
                         const dateToCheck = new Date(date);
@@ -548,50 +558,59 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                   </div>
                 </div>
               </div>
-              {selectedDate && selectedDateEvents.length > 0 && (
-                <div className="mt-4 space-y-2 w-full max-w-2xl">
-                  <h3 className="font-semibold">
-                    Events on {format(selectedDate, 'MMMM d, yyyy')}
-                  </h3>
-                  <div className="grid grid-cols-1 gap-2">
-                    {selectedDateEvents.map((event) => (
-                      <Card 
-                        key={event.id} 
-                        className="cursor-pointer hover:shadow-md swift-ui-card" 
-                        onClick={() => handleEventClick(event)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            handleEventClick(event);
-                          }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-label={`View event: ${event.title} at ${event.venue_name || 'venue'}`}
-                      >
-                        <div className="swift-ui-card-content">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-semibold">{event.title}</h4>
-                              <p className="text-sm text-muted-foreground">{event.venue_name}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {format(new Date(event.event_date), 'MMMM d, yyyy • h:mm a')}
-                              </p>
-                            </div>
+
+              {/* Right column: Events for selected date — scrolls independently */}
+              <div className="flex-1 min-w-0">
+                {selectedDate && selectedDateEvents.length > 0 ? (
+                  <div className="flex flex-col h-full" style={{ maxHeight: 390 }}>
+                    <h3 className="font-semibold text-base mb-3 flex-shrink-0">
+                      Events on {format(selectedDate, 'MMMM d, yyyy')}
+                    </h3>
+                    <div className="overflow-y-auto flex-1 pr-1" style={{ scrollbarGutter: 'stable' }}>
+                    <div className="grid grid-cols-1 gap-2">
+                      {selectedDateEvents.map((event) => (
+                        <Card
+                          key={event.id}
+                          className="cursor-pointer hover:shadow-md swift-ui-card"
+                          onClick={() => handleEventClick(event)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleEventClick(event);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`View event: ${event.title} at ${event.venue_name || 'venue'}`}
+                        >
+                          <div className="swift-ui-card-content">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h4 className="font-semibold">{event.title}</h4>
+                                  <p className="text-sm text-muted-foreground">{event.venue_name}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {format(new Date(event.event_date), 'MMMM d, yyyy • h:mm a')}
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
                           </div>
-                        </CardContent>
-                        </div>
-                      </Card>
-                    ))}
+                        </Card>
+                      ))}
+                    </div>
+                    </div>
                   </div>
-                </div>
-              )}
-              {selectedDate && selectedDateEvents.length === 0 && !calendarLoading && (
-                <div className="mt-4 text-center text-muted-foreground">
-                  <p>No events found for the selected date.</p>
-                </div>
-              )}
+                ) : selectedDate && !calendarLoading ? (
+                  <div className="flex items-center justify-center h-full min-h-[200px] text-muted-foreground">
+                    <p>No events found for {format(selectedDate, 'MMMM d, yyyy')}.</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full min-h-[200px] text-muted-foreground">
+                    <p>Select a highlighted date to see events.</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </TabsContent>

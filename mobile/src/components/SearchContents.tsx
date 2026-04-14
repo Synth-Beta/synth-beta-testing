@@ -516,6 +516,7 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.scopeScroll}
                 keyboardShouldPersistTaps="handled"
+                style={styles.scopeScrollOuter}
             >
                 {SCOPES.map(s => {
                     const active = scope === s.key;
@@ -609,10 +610,17 @@ const styles = StyleSheet.create({
         color: SynthTokens.colors.neutral900,
         paddingVertical: 0,
     },
+    scopeScrollOuter: {
+        flexGrow: 0,
+        flexShrink: 0,
+    },
     scopeScroll: {
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: SynthTokens.spacing.md,
         gap: 8,
         paddingBottom: SynthTokens.spacing.sm,
+        paddingTop: 4,
     },
     scopeChip: {
         paddingHorizontal: 14,
@@ -621,6 +629,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,
         backgroundColor: SynthTokens.colors.neutral0,
+        flexShrink: 0,
     },
     scopeChipActive: {
         backgroundColor: SynthTokens.colors.brandPink500,

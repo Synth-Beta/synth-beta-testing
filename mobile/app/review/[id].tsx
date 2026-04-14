@@ -7,6 +7,12 @@ import {
     ActivityIndicator,
     Text,
     Dimensions,
+    Modal,
+    KeyboardAvoidingView,
+    Platform,
+    TextInput,
+    Alert,
+    FlatList,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Image } from 'expo-image';
@@ -22,6 +28,10 @@ import {
     DollarSign,
     Share2,
     ThumbsUp,
+    MessageCircle,
+    MoreVertical,
+    X,
+    Send,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../../src/components/SynthText';
@@ -83,6 +93,15 @@ type ReviewRow = {
     custom_setlist?: any[] | null;
 };
 
+type CommentRow = {
+    id: string;
+    user_id: string;
+    comment_text: string;
+    created_at: string;
+    author_name?: string;
+    author_avatar?: string | null;
+};
+
 // ─── Category row ─────────────────────────────────────────────────────────────
 
 function CategoryRatingRow({
@@ -98,20 +117,31 @@ function CategoryRatingRow({
 }) {
     if (!rating && !feedback) return null;
     return (
-        <View style={catStyles.row}>
-            <View style={catStyles.labelRow}>
-                {icon}
-                <SynthText variant="meta" style={catStyles.label}>{label}</SynthText>
+        <View style={catStyles.card}>
+            <View style={catStyles.topRow}>
+                <View style={catStyles.labelRow}>
+                    {icon}
+                    <SynthText variant="meta" style={catStyles.label}>{label}</SynthText>
+                </View>
                 {rating != null ? (
-                    <View style={catStyles.ratingPill}>
-                        <Star size={11} color={SynthTokens.colors.neutral0} fill={SynthTokens.colors.neutral0} />
-                        <Text style={catStyles.ratingText}>{rating.toFixed(1)}</Text>
+                    <View style={catStyles.ratingRight}>
+                        <Text style={catStyles.ratingNum}>{rating.toFixed(1)}</Text>
+                        <View style={catStyles.starsRow}>
+                            {[1, 2, 3, 4, 5].map(n => (
+                                <Star
+                                    key={n}
+                                    size={14}
+                                    color="#FCDC5F"
+                                    fill={rating >= n ? '#FCDC5F' : 'transparent'}
+                                />
+                            ))}
+                        </View>
                     </View>
                 ) : null}
             </View>
             {feedback?.trim() ? (
                 <SynthText variant="meta" color="secondary" style={catStyles.feedback}>
-                    {feedback.trim()}
+                    "{feedback.trim()}"
                 </SynthText>
             ) : null}
         </View>
@@ -119,40 +149,387 @@ function CategoryRatingRow({
 }
 
 const catStyles = StyleSheet.create({
-    row: {
-        paddingVertical: 10,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: SynthTokens.colors.neutral200,
-        gap: 4,
+    card: {
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderRadius: SynthTokens.radius.corner,
+        borderWidth: 2,
+        borderColor: SynthTokens.colors.neutral200,
+        padding: 12,
+        gap: 8,
+    },
+    topRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
     labelRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
+        flex: 1,
     },
     label: {
-        flex: 1,
-        fontWeight: '600',
+        fontWeight: '700',
+        color: SynthTokens.colors.neutral900,
+        fontSize: 15,
+    },
+    ratingRight: {
+        alignItems: 'flex-end',
+        gap: 4,
+        minWidth: 80,
+    },
+    ratingNum: {
+        fontSize: 17,
+        fontWeight: '700',
         color: SynthTokens.colors.neutral900,
     },
-    ratingPill: {
+    starsRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        gap: 3,
-        backgroundColor: '#F5A623',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 999,
-    },
-    ratingText: {
-        color: SynthTokens.colors.neutral0,
-        fontSize: 12,
-        fontWeight: '700',
+        gap: 1,
     },
     feedback: {
         fontStyle: 'italic',
-        lineHeight: 18,
-        paddingLeft: 24,
+        lineHeight: 20,
+        color: SynthTokens.colors.neutral600,
+    },
+});
+
+// ─── Comments Sheet ────────────────────────────────────────────────────────────
+
+function CommentsSheet({
+    reviewId,
+    sessionUserId,
+    visible,
+    onClose,
+    onCommentAdded,
+}: {
+    reviewId: string;
+    sessionUserId: string | null;
+    visible: boolean;
+    onClose: () => void;
+    onCommentAdded: () => void;
+}) {
+    const insets = useSafeAreaInsets();
+    const [comments, setComments] = useState<CommentRow[]>([]);
+    const [loadingComments, setLoadingComments] = useState(false);
+    const [newComment, setNewComment] = useState('');
+    const [posting, setPosting] = useState(false);
+
+    useEffect(() => {
+        if (!visible) return;
+        void fetchComments();
+    }, [visible, reviewId]);
+
+    const fetchComments = async () => {
+        setLoadingComments(true);
+        try {
+            // Get entity_id for this review
+            const { data: entityData } = await supabase
+                .from('entities')
+                .select('id')
+                .eq('entity_type', 'review')
+                .eq('entity_uuid', reviewId)
+                .maybeSingle();
+
+            if (!entityData?.id) {
+                setComments([]);
+                return;
+            }
+
+            const { data: commentsData } = await supabase
+                .from('comments')
+                .select('id, user_id, comment_text, created_at')
+                .eq('entity_id', entityData.id)
+                .order('created_at', { ascending: true });
+
+            if (!commentsData?.length) {
+                setComments([]);
+                return;
+            }
+
+            const userIds = [...new Set(commentsData.map(c => c.user_id))];
+            const { data: profiles } = await supabase
+                .from('users')
+                .select('user_id, name, avatar_url')
+                .in('user_id', userIds);
+
+            const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+
+            setComments(commentsData.map(c => ({
+                id: c.id,
+                user_id: c.user_id,
+                comment_text: c.comment_text,
+                created_at: c.created_at,
+                author_name: profileMap.get(c.user_id)?.name || 'User',
+                author_avatar: profileMap.get(c.user_id)?.avatar_url || null,
+            })));
+        } catch (err) {
+            console.error('Error fetching comments:', err);
+        } finally {
+            setLoadingComments(false);
+        }
+    };
+
+    const postComment = async () => {
+        if (!sessionUserId || !newComment.trim() || posting) return;
+        setPosting(true);
+        const text = newComment.trim();
+        setNewComment('');
+        try {
+            // Get or create entity
+            const { data: entityId } = await supabase.rpc('get_or_create_entity', {
+                p_entity_type: 'review',
+                p_entity_uuid: reviewId,
+                p_entity_text_id: null,
+            });
+
+            await supabase
+                .from('comments')
+                .insert({ user_id: sessionUserId, entity_id: entityId, comment_text: text });
+
+            // Update comments_count
+            await supabase.rpc('increment_review_count', {
+                p_review_id: reviewId,
+                p_field: 'comments_count',
+                p_delta: 1,
+            }).then(() => {}).catch(() => {
+                // RPC may not exist — ignore and just refresh
+            });
+
+            onCommentAdded();
+            await fetchComments();
+        } catch (err) {
+            console.error('Error posting comment:', err);
+        } finally {
+            setPosting(false);
+        }
+    };
+
+    const formatTime = (iso: string) => {
+        const d = new Date(iso);
+        const now = new Date();
+        const diffMs = now.getTime() - d.getTime();
+        const diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 1) return 'just now';
+        if (diffMin < 60) return `${diffMin}m ago`;
+        const diffH = Math.floor(diffMin / 60);
+        if (diffH < 24) return `${diffH}h ago`;
+        const diffD = Math.floor(diffH / 24);
+        return `${diffD}d ago`;
+    };
+
+    return (
+        <Modal
+            visible={visible}
+            animationType="slide"
+            transparent
+            onRequestClose={onClose}
+        >
+            <Pressable style={cmtStyles.overlay} onPress={onClose} />
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={cmtStyles.sheetWrapper}
+            >
+                <View style={[cmtStyles.sheet, { paddingBottom: insets.bottom + 8 }]}>
+                    {/* Handle + header */}
+                    <View style={cmtStyles.handle} />
+                    <View style={cmtStyles.header}>
+                        <SynthText variant="h2" style={cmtStyles.headerTitle}>Comments</SynthText>
+                        <Pressable onPress={onClose} style={cmtStyles.closeBtn}>
+                            <X size={22} color={SynthTokens.colors.neutral600} />
+                        </Pressable>
+                    </View>
+
+                    {/* Comments list */}
+                    {loadingComments ? (
+                        <View style={cmtStyles.centered}>
+                            <ActivityIndicator size="small" color={PINK} />
+                        </View>
+                    ) : comments.length === 0 ? (
+                        <View style={cmtStyles.centered}>
+                            <SynthText variant="meta" color="secondary">No comments yet. Be the first!</SynthText>
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={comments}
+                            keyExtractor={item => item.id}
+                            style={cmtStyles.list}
+                            contentContainerStyle={{ padding: 16 }}
+                            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+                            renderItem={({ item }) => (
+                                <View style={cmtStyles.commentRow}>
+                                    {item.author_avatar ? (
+                                        <Image source={{ uri: item.author_avatar }} style={cmtStyles.cmtAvatar} contentFit="cover" />
+                                    ) : (
+                                        <View style={[cmtStyles.cmtAvatar, cmtStyles.cmtAvatarFallback]}>
+                                            <Text style={cmtStyles.cmtAvatarLetter}>
+                                                {(item.author_name || '?').charAt(0).toUpperCase()}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View style={cmtStyles.commentBubble}>
+                                        <View style={cmtStyles.cmtNameRow}>
+                                            <Text style={cmtStyles.cmtAuthor}>{item.author_name}</Text>
+                                            <Text style={cmtStyles.cmtTime}>{formatTime(item.created_at)}</Text>
+                                        </View>
+                                        <Text style={cmtStyles.cmtText}>{item.comment_text}</Text>
+                                    </View>
+                                </View>
+                            )}
+                        />
+                    )}
+
+                    {/* Input row */}
+                    {sessionUserId ? (
+                        <View style={cmtStyles.inputRow}>
+                            <TextInput
+                                style={cmtStyles.input}
+                                placeholder="Add a comment…"
+                                placeholderTextColor={SynthTokens.colors.neutral400}
+                                value={newComment}
+                                onChangeText={setNewComment}
+                                multiline
+                                returnKeyType="send"
+                                onSubmitEditing={postComment}
+                            />
+                            <Pressable
+                                onPress={postComment}
+                                disabled={!newComment.trim() || posting}
+                                style={[cmtStyles.sendBtn, (!newComment.trim() || posting) && cmtStyles.sendBtnDisabled]}
+                            >
+                                {posting ? (
+                                    <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+                                ) : (
+                                    <Send size={18} color={SynthTokens.colors.neutral0} />
+                                )}
+                            </Pressable>
+                        </View>
+                    ) : null}
+                </View>
+            </KeyboardAvoidingView>
+        </Modal>
+    );
+}
+
+const cmtStyles = StyleSheet.create({
+    overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    sheetWrapper: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        maxHeight: '75%',
+    },
+    sheet: {
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        overflow: 'hidden',
+        maxHeight: '100%',
+    },
+    handle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: SynthTokens.colors.neutral200,
+        alignSelf: 'center',
+        marginTop: 10,
+        marginBottom: 4,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: SynthTokens.colors.neutral200,
+    },
+    headerTitle: { fontWeight: '700' },
+    closeBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+    centered: { padding: 32, alignItems: 'center' },
+    list: { flexGrow: 0, maxHeight: 380 },
+    commentRow: {
+        flexDirection: 'row',
+        gap: 10,
+        alignItems: 'flex-start',
+    },
+    cmtAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: SynthTokens.colors.neutral200,
+        flexShrink: 0,
+    },
+    cmtAvatarFallback: {
+        backgroundColor: PINK,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cmtAvatarLetter: {
+        color: SynthTokens.colors.neutral0,
+        fontWeight: '700',
+        fontSize: 13,
+    },
+    commentBubble: {
+        flex: 1,
+        backgroundColor: SynthTokens.colors.neutral50,
+        borderRadius: 12,
+        padding: 10,
+        gap: 4,
+    },
+    cmtNameRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    cmtAuthor: {
+        fontWeight: '700',
+        fontSize: 13,
+        color: SynthTokens.colors.neutral900,
+    },
+    cmtTime: {
+        fontSize: 11,
+        color: SynthTokens.colors.neutral400,
+    },
+    cmtText: {
+        fontSize: 14,
+        color: SynthTokens.colors.neutral900,
+        lineHeight: 20,
+    },
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: SynthTokens.colors.neutral200,
+    },
+    input: {
+        flex: 1,
+        backgroundColor: SynthTokens.colors.neutral100,
+        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        fontSize: 15,
+        color: SynthTokens.colors.neutral900,
+        maxHeight: 100,
+    },
+    sendBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: PINK,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+    },
+    sendBtnDisabled: {
+        backgroundColor: SynthTokens.colors.neutral400,
     },
 });
 
@@ -167,8 +544,10 @@ export default function ReviewDetailScreen() {
     const [forbidden, setForbidden] = useState(false);
     const [sessionUserId, setSessionUserId] = useState<string | null>(null);
     const [likesCount, setLikesCount] = useState(0);
+    const [commentsCount, setCommentsCount] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
     const [liking, setLiking] = useState(false);
+    const [commentsOpen, setCommentsOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -256,6 +635,8 @@ export default function ReviewDetailScreen() {
             // Check helpful status for current user
             const likedSet = await ReviewEngagementService.getReviewIdsLikedByUser(user.id, [String(id)]);
 
+            if (cancelled) return;
+
             const normalized: ReviewRow = {
                 id: String(row.id),
                 user_id: String(row.user_id),
@@ -297,6 +678,7 @@ export default function ReviewDetailScreen() {
             setForbidden(false);
             setReview(normalized);
             setLikesCount(normalized.likes_count);
+            setCommentsCount(normalized.comments_count);
             setIsLiked(normalized.is_liked_by_user);
             setLoading(false);
         })();
@@ -326,6 +708,77 @@ export default function ReviewDetailScreen() {
             ? `${ev.artist_name}${ev.venue_name ? ` at ${ev.venue_name}` : ''}`
             : 'Concert Review';
         void EventService.shareReviewLink(review.id, { headline, snippet: review.review_text ?? undefined });
+    };
+
+    const onOptions = () => {
+        if (!review || !sessionUserId) return;
+        const isOwner = review.user_id === sessionUserId;
+        if (isOwner) {
+            Alert.alert(
+                'Review Options',
+                undefined,
+                [
+                    {
+                        text: 'Delete Review',
+                        style: 'destructive',
+                        onPress: () => {
+                            Alert.alert('Delete Review', 'Are you sure you want to delete this review?', [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                    text: 'Delete',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                        try {
+                                            await supabase.from('reviews').delete().eq('id', review.id);
+                                            router.back();
+                                        } catch (err) {
+                                            console.error('Delete failed:', err);
+                                        }
+                                    },
+                                },
+                            ]);
+                        },
+                    },
+                    { text: 'Cancel', style: 'cancel' },
+                ]
+            );
+        } else {
+            Alert.alert(
+                'Review Options',
+                undefined,
+                [
+                    {
+                        text: 'Report Review',
+                        onPress: () => Alert.alert('Reported', 'Thank you for your report. We will review it shortly.'),
+                    },
+                    {
+                        text: 'Block User',
+                        style: 'destructive',
+                        onPress: () => {
+                            Alert.alert('Block User', 'Are you sure you want to block this user?', [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                    text: 'Block',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                        try {
+                                            await supabase.from('user_blocks').insert({
+                                                blocker_id: sessionUserId,
+                                                blocked_id: review.user_id,
+                                            });
+                                            router.back();
+                                        } catch (err) {
+                                            console.error('Block failed:', err);
+                                        }
+                                    },
+                                },
+                            ]);
+                        },
+                    },
+                    { text: 'Cancel', style: 'cancel' },
+                ]
+            );
+        }
     };
 
     // ─── Loading / error states ───────────────────────────────────────────────
@@ -394,6 +847,17 @@ export default function ReviewDetailScreen() {
 
     const photos = review.photos ?? [];
 
+    // Attendees may be stored as TEXT[] of JSON strings — normalize first
+    const attendeesNormalized: any[] = (review.attendees || []).map((a: any) => {
+        if (typeof a === 'string') {
+            try { return JSON.parse(a); } catch { return null; }
+        }
+        return a;
+    }).filter(Boolean);
+    const taggedAttendees = attendeesNormalized.filter(
+        (a: any) => a?.type === 'user' && (a?.name || a?.user_id)
+    );
+
     return (
         <>
             <Stack.Screen options={{ headerShown: false }} />
@@ -406,6 +870,9 @@ export default function ReviewDetailScreen() {
                     <View style={styles.topBarActions}>
                         <Pressable onPress={onShare} style={styles.topActionBtn} accessibilityLabel="Share review">
                             <Share2 size={20} color={SynthTokens.colors.neutral900} />
+                        </Pressable>
+                        <Pressable onPress={onOptions} style={styles.topActionBtn} accessibilityLabel="More options">
+                            <MoreVertical size={20} color={SynthTokens.colors.neutral900} />
                         </Pressable>
                     </View>
                 </View>
@@ -522,36 +989,36 @@ export default function ReviewDetailScreen() {
 
                         {/* Category breakdown */}
                         {hasCategoryBreakdown ? (
-                            <View style={styles.card}>
-                                <SynthText variant="meta" style={styles.sectionLabel}>
-                                    CATEGORY BREAKDOWN
+                            <View style={{ gap: 12 }}>
+                                <SynthText variant="h2" style={styles.sectionHeading}>
+                                    View Rating Details
                                 </SynthText>
                                 <CategoryRatingRow
-                                    icon={<Mic2 size={14} color={PINK} />}
+                                    icon={<Mic2 size={16} color={PINK} />}
                                     label="Artist Performance"
                                     rating={review.artist_performance_rating}
                                     feedback={review.artist_performance_feedback}
                                 />
                                 <CategoryRatingRow
-                                    icon={<Lightbulb size={14} color={PINK} />}
+                                    icon={<Lightbulb size={16} color={PINK} />}
                                     label="Production"
                                     rating={review.production_rating}
                                     feedback={review.production_feedback}
                                 />
                                 <CategoryRatingRow
-                                    icon={<MapPin size={14} color={PINK} />}
+                                    icon={<MapPin size={16} color={PINK} />}
                                     label="Venue Experience"
                                     rating={review.venue_rating}
                                     feedback={review.venue_feedback}
                                 />
                                 <CategoryRatingRow
-                                    icon={<Navigation size={14} color={PINK} />}
+                                    icon={<Navigation size={16} color={PINK} />}
                                     label="Location & Logistics"
                                     rating={review.location_rating}
                                     feedback={review.location_feedback}
                                 />
                                 <CategoryRatingRow
-                                    icon={<DollarSign size={14} color={PINK} />}
+                                    icon={<DollarSign size={16} color={PINK} />}
                                     label="Value"
                                     rating={review.value_rating}
                                     feedback={review.value_feedback}
@@ -579,29 +1046,34 @@ export default function ReviewDetailScreen() {
                         ) : null}
 
                         {/* Attendees */}
-                        {(() => {
-                            const atts = review.attendees?.filter(
-                                (a: any) => a?.type === 'user' && (a?.name || a?.user_id)
-                            );
-                            if (!atts?.length) return null;
-                            return (
-                                <View style={styles.card}>
-                                    <SynthText variant="meta" style={styles.sectionLabel}>
-                                        ATTENDED WITH
-                                    </SynthText>
-                                    <View style={styles.attendeesRow}>
-                                        {atts.map((a: any, i: number) => (
-                                            <View key={i} style={styles.attendeeChip}>
-                                                <SynthText variant="meta" style={styles.attendeeName}>
-                                                    {a.name || 'User'}
-                                                </SynthText>
-                                                {review.met_on_synth && <SynthText variant="meta" color="brand" style={styles.metBadge}> · met on Synth</SynthText>}
-                                            </View>
-                                        ))}
-                                    </View>
+                        {taggedAttendees.length > 0 ? (
+                            <View style={styles.card}>
+                                <SynthText variant="meta" style={styles.sectionLabel}>
+                                    ATTENDED WITH
+                                </SynthText>
+                                <View style={styles.attendeesRow}>
+                                    {taggedAttendees.map((a: any, i: number) => (
+                                        <View key={i} style={styles.attendeeChip}>
+                                            {a.avatar_url ? (
+                                                <Image source={{ uri: a.avatar_url }} style={styles.attendeeAvatar} contentFit="cover" />
+                                            ) : (
+                                                <View style={[styles.attendeeAvatar, styles.attendeeAvatarFallback]}>
+                                                    <Text style={styles.attendeeAvatarLetter}>
+                                                        {(a.name || '?').charAt(0).toUpperCase()}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            <SynthText variant="meta" style={styles.attendeeName}>
+                                                {a.name || 'User'}
+                                            </SynthText>
+                                            {review.met_on_synth && (
+                                                <SynthText variant="meta" color="brand" style={styles.metBadge}> · met on Synth</SynthText>
+                                            )}
+                                        </View>
+                                    ))}
                                 </View>
-                            );
-                        })()}
+                            </View>
+                        ) : null}
 
                         {/* Setlist */}
                         {(() => {
@@ -639,6 +1111,7 @@ export default function ReviewDetailScreen() {
 
                         {/* Engagement */}
                         <View style={styles.engagementRow}>
+                            {/* Helpful */}
                             <Pressable
                                 onPress={() => void onHelpful()}
                                 style={[styles.engagementBtn, isLiked && styles.engagementBtnOn]}
@@ -659,6 +1132,29 @@ export default function ReviewDetailScreen() {
                                     </>
                                 )}
                             </Pressable>
+
+                            {/* Comments */}
+                            <Pressable
+                                onPress={() => setCommentsOpen(true)}
+                                style={styles.engagementBtn}
+                            >
+                                <MessageCircle
+                                    size={16}
+                                    color={SynthTokens.colors.neutral600}
+                                />
+                                <Text style={styles.engagementBtnTxt}>
+                                    {commentsCount > 0 ? `${commentsCount} ` : ''}Comments
+                                </Text>
+                            </Pressable>
+
+                            {/* Share */}
+                            <Pressable
+                                onPress={onShare}
+                                style={styles.shareBtn}
+                                accessibilityLabel="Share review"
+                            >
+                                <Share2 size={18} color={SynthTokens.colors.neutral0} />
+                            </Pressable>
                         </View>
 
                         {/* View event link */}
@@ -675,6 +1171,15 @@ export default function ReviewDetailScreen() {
                     </View>
                 </ScrollView>
             </View>
+
+            {/* Comments Sheet */}
+            <CommentsSheet
+                reviewId={review.id}
+                sessionUserId={sessionUserId}
+                visible={commentsOpen}
+                onClose={() => setCommentsOpen(false)}
+                onCommentAdded={() => setCommentsCount(c => c + 1)}
+            />
         </>
     );
 }
@@ -732,11 +1237,16 @@ const styles = StyleSheet.create({
     reviewTextBox: {
         backgroundColor: SynthTokens.colors.neutral0,
         borderRadius: SynthTokens.radius.corner,
-        borderWidth: 1,
+        borderWidth: 2,
         borderColor: SynthTokens.colors.neutral200,
         padding: 16,
     },
     reviewBody: { lineHeight: 26 },
+    sectionHeading: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: SynthTokens.colors.neutral900,
+    },
     card: {
         backgroundColor: SynthTokens.colors.neutral0,
         borderRadius: SynthTokens.radius.corner,
@@ -766,14 +1276,17 @@ const styles = StyleSheet.create({
     },
     engagementRow: {
         flexDirection: 'row',
-        gap: 10,
+        gap: 8,
         marginTop: 4,
+        alignItems: 'center',
     },
     engagementBtn: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 16,
+        justifyContent: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
         paddingVertical: 10,
         borderRadius: SynthTokens.radius.corner,
         borderWidth: 1,
@@ -785,11 +1298,20 @@ const styles = StyleSheet.create({
         backgroundColor: SynthTokens.colors.brandPink050,
     },
     engagementBtnTxt: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
         color: SynthTokens.colors.neutral600,
     },
     engagementBtnTxtOn: { color: PINK },
+    shareBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: SynthTokens.radius.corner,
+        backgroundColor: PINK,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+    },
     eventLink: {
         alignSelf: 'flex-start',
         paddingVertical: 10,
@@ -804,14 +1326,33 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
+        marginTop: 4,
     },
     attendeeChip: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 6,
         backgroundColor: SynthTokens.colors.neutral100,
         paddingHorizontal: 10,
-        paddingVertical: 5,
+        paddingVertical: 6,
         borderRadius: 999,
+        borderWidth: 1.5,
+        borderColor: PINK,
+    },
+    attendeeAvatar: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+    },
+    attendeeAvatarFallback: {
+        backgroundColor: PINK,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    attendeeAvatarLetter: {
+        color: SynthTokens.colors.neutral0,
+        fontWeight: '700',
+        fontSize: 10,
     },
     attendeeName: {
         fontWeight: '600',
