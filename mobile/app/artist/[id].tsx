@@ -25,7 +25,6 @@ import { EventService } from '../../src/services/eventService';
 import { ArtistFollowService } from '../../src/services/artistFollowService';
 import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttributionInline';
 import { isUuid } from '../../src/utils/isUuid';
-import { todayLocalYmd } from '../../src/utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 
@@ -144,14 +143,18 @@ export default function ArtistDetailScreen() {
         }
       }
 
-      const artistName = artist?.name?.trim() || 'Artist';
+      // Collect all artist IDs that might match events in the DB.
+      // Events may store the raw JamBase ID or the canonical Synth UUID — include both.
+      const artistIdsToSearch = Array.from(new Set([resolvedId, raw].filter((v): v is string => !!v)));
+
+      let artistName = artist?.name?.trim() || '';
       if (artist) {
-        setName(artistName);
+        setName(artistName || 'Artist');
         setImageUrl(artist.image_url || null);
         setArtistId(resolvedId);
         setGenres(Array.isArray(artist.genres) ? artist.genres : []);
       } else {
-        setName('Artist');
+        // Artist not found in artists table — will populate name from events below
         setImageUrl(null);
         setArtistId(null);
         setGenres([]);
@@ -160,27 +163,26 @@ export default function ArtistDetailScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       setSessionUserId(user?.id ?? null);
 
-      if (resolvedId) {
-        // Upcoming events
-        const today = todayLocalYmd();
-        const { data: upcomingData } = await supabase
+      if (artistIdsToSearch.length > 0) {
+        // Fetch all events then filter client-side (matches web approach, avoids timezone edge cases)
+        const { data: allEventsData } = await supabase
           .from('events')
           .select('id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls')
-          .eq('artist_id', resolvedId)
-          .gte('event_date', today)
+          .in('artist_id', artistIdsToSearch)
           .order('event_date', { ascending: true })
-          .limit(25);
-        setUpcomingEvents((upcomingData || []).map(e => mapEventRow(e, artistName)));
+          .limit(100);
 
-        // Past events
-        const { data: pastData } = await supabase
-          .from('events')
-          .select('id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls')
-          .eq('artist_id', resolvedId)
-          .lt('event_date', today)
-          .order('event_date', { ascending: false })
-          .limit(10);
-        setPastEvents((pastData || []).map(e => mapEventRow(e, artistName)));
+        // Populate artist name from events if not found in artists table
+        if (!artistName && allEventsData && allEventsData.length > 0) {
+          artistName = (allEventsData[0] as any).artist_name || 'Artist';
+        }
+        setName(artistName || 'Artist');
+
+        const now = new Date();
+        const upcomingData = (allEventsData || []).filter(e => new Date((e as any).event_date) >= now);
+        const pastData = (allEventsData || []).filter(e => new Date((e as any).event_date) < now).reverse().slice(0, 10);
+        setUpcomingEvents(upcomingData.map(e => mapEventRow(e, artistName)));
+        setPastEvents(pastData.map(e => mapEventRow(e, artistName)));
 
         // Reviews — two-wave like web: direct (artist_id) + event-linked (event_id IN events)
         const allEventIds = [
@@ -195,7 +197,7 @@ export default function ArtistDetailScreen() {
         `;
         const [directRes, eventLinkedRes] = await Promise.all([
           supabase.from('reviews').select(reviewsSelect)
-            .eq('artist_id', resolvedId)
+            .in('artist_id', artistIdsToSearch)
             .order('created_at', { ascending: false }).limit(20),
           allEventIds.length > 0
             ? supabase.from('reviews').select(reviewsSelect)
@@ -257,14 +259,15 @@ export default function ArtistDetailScreen() {
           setAvgRating(null);
         }
 
-        // Follower count
-        const count = await ArtistFollowService.getFollowerCount(resolvedId);
-        setFollowerCount(count);
-
-        // Is following
-        if (user?.id) {
-          const following = await ArtistFollowService.isFollowingArtist(user.id, resolvedId);
-          setIsFollowing(following);
+        // Follower count (only meaningful for canonical artists)
+        const followId = resolvedId ?? null;
+        if (followId) {
+          const count = await ArtistFollowService.getFollowerCount(followId);
+          setFollowerCount(count);
+          if (user?.id) {
+            const following = await ArtistFollowService.isFollowingArtist(user.id, followId);
+            setIsFollowing(following);
+          }
         }
       }
     } finally {

@@ -588,13 +588,9 @@ export default function EventDetailScreen() {
                         <Pressable
                             style={styles.entityCard}
                             onPress={event.artist_id ? () => {
-                                void EventService.resolveCanonicalArtistId(String(event.artist_id)).then(resolved => {
-                                    if (!resolved) {
-                                        Alert.alert('Artist unavailable', 'This artist link could not be opened.');
-                                        return;
-                                    }
-                                    router.push(`/artist/${resolved}`);
-                                });
+                                // Navigate with the raw artist_id so the artist page can find events
+                                // that store this same ID (JamBase UUID or canonical UUID).
+                                router.push(`/artist/${event.artist_id}` as any);
                             } : undefined}
                             accessibilityRole="button"
                             accessibilityLabel={`Artist ${event.artist_name}`}
@@ -623,23 +619,19 @@ export default function EventDetailScreen() {
                         <Pressable
                             style={styles.entityCard}
                             onPress={event.venue_id ? () => {
-                                void EventService.resolveCanonicalVenueId(String(event.venue_id)).then(resolved => {
-                                    if (!resolved) {
-                                        Alert.alert('Venue unavailable', 'This venue link could not be opened.');
-                                        return;
-                                    }
-                                    router.push(`/venue/${resolved}`);
-                                });
+                                // Navigate with the raw venue_id so the venue page can find events
+                                // that store this same ID (JamBase UUID or canonical UUID).
+                                router.push(`/venue/${event.venue_id}` as any);
                             } : undefined}
                             accessibilityRole="button"
-                            accessibilityLabel={`Venue ${event.venue_name || 'View venue'}`}
+                            accessibilityLabel={`Venue ${event.venue_name || event.venue_city || 'venue'}`}
                         >
                             <View style={styles.entityCardHeader}>
                                 <Ticket size={16} color={PINK} />
                                 <SynthText variant="meta" style={styles.entityCardLabel}>Venue</SynthText>
                             </View>
                             <SynthText variant="body" color="primary" style={styles.entityCardTitle}>
-                                {event.venue_name || 'View venue'}
+                                {event.venue_name || event.venue_city || ''}
                             </SynthText>
                             <SynthText variant="meta" color="secondary" style={styles.venueCardAddress}>
                                 {venueAddressPrimaryLine(event)}

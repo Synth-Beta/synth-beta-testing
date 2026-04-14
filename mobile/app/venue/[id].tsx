@@ -25,7 +25,6 @@ import { VenueFollowService } from '../../src/services/venueFollowService';
 import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttributionInline';
 import { isUuid } from '../../src/utils/isUuid';
 import { SynthMap } from '../../src/components/maps/SynthMap';
-import { todayLocalYmd } from '../../src/utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 
@@ -145,9 +144,13 @@ export default function VenueDetailScreen() {
         }
       }
 
-      const venueName = venue?.name?.trim() || 'Venue';
+      // Collect all venue IDs that might match events in the DB.
+      // Events may store the raw JamBase ID or the canonical Synth UUID — include both.
+      const venueIdsToSearch = Array.from(new Set([resolvedId, raw].filter((v): v is string => !!v)));
+
+      let venueName = venue?.name?.trim() || '';
       if (venue) {
-        setName(venueName);
+        setName(venueName || 'Venue');
         setCity(venue.city || null);
         setImageUrl(venue.image_url || null);
         setVenueId(resolvedId);
@@ -155,7 +158,7 @@ export default function VenueDetailScreen() {
         const lng = venue.longitude;
         setLatLng(typeof lat === 'number' && typeof lng === 'number' ? { latitude: lat, longitude: lng } : null);
       } else {
-        setName('Venue');
+        // Venue not found in venues table — will populate name from events below
         setCity(null);
         setImageUrl(null);
         setVenueId(null);
@@ -165,33 +168,31 @@ export default function VenueDetailScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       setSessionUserId(user?.id ?? null);
 
-      if (resolvedId) {
-        const today = todayLocalYmd();
-
-        // Upcoming events
-        const { data: upcomingData } = await supabase
+      if (venueIdsToSearch.length > 0) {
+        // Fetch all events then filter client-side (matches web approach, avoids timezone edge cases)
+        const { data: allEventsData } = await supabase
           .from('events')
           .select('id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls')
-          .eq('venue_id', resolvedId)
-          .gte('event_date', today)
+          .in('venue_id', venueIdsToSearch)
           .order('event_date', { ascending: true })
-          .limit(25);
-        setUpcomingEvents((upcomingData || []).map(e => mapEventRow(e, venueName)));
+          .limit(100);
 
-        // Past events
-        const { data: pastData } = await supabase
-          .from('events')
-          .select('id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls')
-          .eq('venue_id', resolvedId)
-          .lt('event_date', today)
-          .order('event_date', { ascending: false })
-          .limit(10);
-        setPastEvents((pastData || []).map(e => mapEventRow(e, venueName)));
+        // Populate venue name from events if not found in venues table
+        if (!venueName && allEventsData && allEventsData.length > 0) {
+          venueName = (allEventsData[0] as any).venue_name || 'Venue';
+        }
+        setName(venueName || 'Venue');
+
+        const now = new Date();
+        const upcomingData = (allEventsData || []).filter(e => new Date((e as any).event_date) >= now);
+        const pastData = (allEventsData || []).filter(e => new Date((e as any).event_date) < now).reverse().slice(0, 10);
+        setUpcomingEvents(upcomingData.map(e => mapEventRow(e, venueName)));
+        setPastEvents(pastData.map(e => mapEventRow(e, venueName)));
 
         // Reviews — two-wave like web: direct (venue_id) + event-linked (event_id IN events)
         const allEventIds = [
-          ...(upcomingData || []).map((e: any) => e.id as string),
-          ...(pastData || []).map((e: any) => e.id as string),
+          ...upcomingData.map((e: any) => e.id as string),
+          ...pastData.map((e: any) => e.id as string),
         ];
         const reviewsSelect = `
           id, user_id, rating, review_text, created_at, event_id, photos, likes_count, comments_count,
@@ -201,7 +202,7 @@ export default function VenueDetailScreen() {
         `;
         const [directRes, eventLinkedRes] = await Promise.all([
           supabase.from('reviews').select(reviewsSelect)
-            .eq('venue_id', resolvedId)
+            .in('venue_id', venueIdsToSearch)
             .order('created_at', { ascending: false }).limit(20),
           allEventIds.length > 0
             ? supabase.from('reviews').select(reviewsSelect)
@@ -263,14 +264,15 @@ export default function VenueDetailScreen() {
           setAvgRating(null);
         }
 
-        // Follower count
-        const count = await VenueFollowService.getFollowerCount(resolvedId);
-        setFollowerCount(count);
-
-        // Is following
-        if (user?.id) {
-          const following = await VenueFollowService.isFollowingVenue(user.id, resolvedId);
-          setIsFollowing(following);
+        // Follower count (only meaningful for canonical venues)
+        const followId = resolvedId ?? null;
+        if (followId) {
+          const count = await VenueFollowService.getFollowerCount(followId);
+          setFollowerCount(count);
+          if (user?.id) {
+            const following = await VenueFollowService.isFollowingVenue(user.id, followId);
+            setIsFollowing(following);
+          }
         }
       }
     } finally {

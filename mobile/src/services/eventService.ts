@@ -255,6 +255,25 @@ export class EventService {
             if (artistResult.data) artistRow = artistResult.data as ArtistRow;
             if (venueResult.data) venueRow = venueResult.data as VenueRow;
 
+            // Fallback: if direct UUID lookup failed, try resolving via external_entity_ids.
+            // This handles events where artist_id/venue_id is a JamBase external ID, not a Synth UUID.
+            const [artistFallback, venueFallback] = await Promise.all([
+                (!artistRow && artistId)
+                    ? supabase.from('external_entity_ids').select('entity_uuid').eq('entity_type', 'artist').eq('external_id', artistId).maybeSingle()
+                    : Promise.resolve({ data: null }),
+                (!venueRow && venueId)
+                    ? supabase.from('external_entity_ids').select('entity_uuid').eq('entity_type', 'venue').eq('external_id', venueId).maybeSingle()
+                    : Promise.resolve({ data: null }),
+            ]);
+            if (!artistRow && artistFallback.data?.entity_uuid) {
+                const r = await supabase.from('artists').select('name, image_url').eq('id', artistFallback.data.entity_uuid).maybeSingle();
+                if (r.data) artistRow = r.data as ArtistRow;
+            }
+            if (!venueRow && venueFallback.data?.entity_uuid) {
+                const r = await supabase.from('venues').select('name, city, address, state, zip, latitude, longitude').eq('id', venueFallback.data.entity_uuid).maybeSingle();
+                if (r.data) venueRow = r.data as VenueRow;
+            }
+
             const genresRaw = row.genres;
             const genres =
                 Array.isArray(genresRaw) && genresRaw.every(g => typeof g === 'string')
