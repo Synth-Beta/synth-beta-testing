@@ -260,6 +260,15 @@ export function EventDetailsModal({
     setLocalIsInterested(isInterested);
   }, [isInterested]);
 
+  // Lock body scroll while modal is open so the background feed doesn't scroll
+  useEffect(() => {
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (!hasNativeEventHeader || !isOpen || !actualEvent?.id) {
       return;
@@ -2080,16 +2089,57 @@ export function EventDetailsModal({
               />
             )}
 
-            {/* Event Groups */}
+            {/* Event Group Chat */}
             {showGroups && (
-              <div className="flex items-center justify-center py-24">
-                <div className="text-center space-y-2">
-                  <MessageCircle size={60} className="mx-auto text-muted-foreground" />
-                  <h3 className="text-lg font-semibold">Coming Soon</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Verified chats are coming soon!
-                  </p>
-                </div>
+              <div className="flex flex-col items-center justify-center py-10 gap-4">
+                {verifiedChatLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: 'var(--brand-pink-500)' }} />
+                  </div>
+                ) : (
+                  <>
+                    <MessageCircle size={52} style={{ color: 'var(--brand-pink-500)' }} />
+                    <div className="text-center space-y-1">
+                      <h3 className="text-lg font-bold" style={{ color: 'var(--neutral-900)' }}>
+                        {verifiedChatInfo?.chat_name ?? `${actualEvent?.title || actualEvent?.artist_name || 'Event'} Chat`}
+                      </h3>
+                      {verifiedChatInfo?.member_count != null && (
+                        <p className="text-sm" style={{ color: 'var(--neutral-600)' }}>
+                          {verifiedChatInfo.member_count === 1 ? '1 member' : `${verifiedChatInfo.member_count} members`}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      style={{
+                        backgroundColor: verifiedChatInfo?.is_user_member ? 'var(--neutral-900)' : 'var(--brand-pink-500)',
+                        color: 'var(--neutral-50)',
+                        fontWeight: 700,
+                        minWidth: 180,
+                      }}
+                      onClick={async () => {
+                        if (!currentUserId || !actualEvent?.id) return;
+                        try {
+                          const { VerifiedChatService } = await import('@/services/verifiedChatService');
+                          const chatId = await VerifiedChatService.joinOrOpenVerifiedChat(
+                            'event',
+                            actualEvent.id,
+                            actualEvent.title || actualEvent.artist_name || 'Event',
+                            currentUserId
+                          );
+                          if (verifiedChatInfo && !verifiedChatInfo.is_user_member) {
+                            setVerifiedChatInfo({ ...verifiedChatInfo, is_user_member: true, member_count: verifiedChatInfo.member_count + 1 });
+                          }
+                          onNavigateToChat?.(chatId);
+                          onClose();
+                        } catch (err) {
+                          console.error('Error joining group chat:', err);
+                        }
+                      }}
+                    >
+                      {verifiedChatInfo?.is_user_member ? 'Open Chat' : verifiedChatInfo?.chat_id ? 'Join Chat' : 'Start Group Chat'}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
 
@@ -2456,28 +2506,6 @@ export function EventDetailsModal({
                     return null;
                   })()}
 
-                  {/* Verified Chat Badge */}
-                  {currentUserId && actualEvent?.id && (
-                    <div className="flex items-center flex-shrink-0">
-                      <VerifiedChatBadge
-                        entityType="event"
-                        entityId={actualEvent.id}
-                        entityName={actualEvent.title || 'Event'}
-                        currentUserId={currentUserId}
-                        onChatOpen={(chatId) => {
-                          console.log('🟢 EventDetailsModal: Chat opened, navigating to chat:', chatId);
-                          // Close the event modal first
-                          onClose();
-                          // Then navigate to the chat
-                          if (onNavigateToChat) {
-                            onNavigateToChat(chatId);
-                          } else {
-                            window.location.href = `/chats?chatId=${chatId}`;
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
                 </div>
 
                 {/* Second Row: Ticket Links */}

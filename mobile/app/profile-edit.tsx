@@ -64,7 +64,6 @@ export default function ProfileEditScreen() {
     profileUrl: null,
   });
   const [streamingLoading, setStreamingLoading] = useState(false);
-  const [resyncing, setResyncing] = useState(false);
 
   const normalizeGenre = (g: string) =>
     g.trim().toLowerCase().replace(/[\s\-_]+/g, ' ').trim();
@@ -138,19 +137,8 @@ export default function ProfileEditScreen() {
     void WebBrowser.openBrowserAsync(url);
   };
 
-  const handleResync = async () => {
-    setResyncing(true);
-    const url = `${getExpoSiteUrl()}/streaming-stats?source=expo&action=resync`;
-    try {
-      await WebBrowser.openBrowserAsync(url);
-      // After browser closes, refresh the streaming status
-      if (userId) {
-        const status = await getStreamingLinkStatus(userId);
-        setStreaming(status);
-      }
-    } finally {
-      setResyncing(false);
-    }
+  const handleResync = () => {
+    router.push('/stats');
   };
 
   const handleDisconnectStreaming = () => {
@@ -319,16 +307,11 @@ export default function ProfileEditScreen() {
               </View>
 
               <Pressable
-                style={[styles.streamingBtn, styles.streamingBtnPrimary, resyncing && styles.streamingBtnDisabled]}
-                onPress={() => void handleResync()}
-                disabled={resyncing}
+                style={[styles.streamingBtn, styles.streamingBtnPrimary]}
+                onPress={handleResync}
               >
-                {resyncing
-                  ? <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
-                  : <RefreshCw size={16} color={SynthTokens.colors.neutral0} />}
-                <Text style={styles.streamingBtnPrimaryText}>
-                  {resyncing ? 'Opening…' : 'Resync Stats'}
-                </Text>
+                <RefreshCw size={16} color={SynthTokens.colors.neutral0} />
+                <Text style={styles.streamingBtnPrimaryText}>Resync Stats</Text>
               </Pressable>
 
               <Pressable

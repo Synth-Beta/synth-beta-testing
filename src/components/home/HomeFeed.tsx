@@ -2232,216 +2232,52 @@ interface FriendEventInterest {
                 <p>No recommended chats at this time.</p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {(() => {
-                  const firstThreeChats = recommendedGroupChats.slice(0, 3);
-                  const remainingChats = recommendedGroupChats.slice(3);
-                  
-                  return (
-                    <>
-                      {/* First 3 group chats */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                        {firstThreeChats.map((chat) => {
-                  const imageUrl = replaceJambasePlaceholder(chat.entity_image_url) || '';
-                  const hasImage = imageUrl && imageUrl.trim() !== '';
+              <div className="space-y-3">
+                {recommendedGroupChats.map((chat) => {
                   const isJoining = joiningGroupChats.has(chat.id);
                   const isJoined = joinedGroupChats.has(chat.id);
-                  
-                  // Format member count - SIMPLIFIED APPROACH
-                  // Since data shows member_count is always a number (0), format directly
-                  const count = chat.member_count ?? 0;
-                  const countNum = typeof count === 'number' ? Math.floor(Math.max(0, count)) : 0;
-                  
-                  // Create the text string directly - ensure it's a clean string
-                  // IMPORTANT: This is the ONLY place we format the text
-                  let memberCountText: string;
-                  if (countNum === 0) {
-                    memberCountText = '0 members';
-                  } else if (countNum === 1) {
-                    memberCountText = '1 member';
-                  } else {
-                    memberCountText = String(countNum) + ' members';
-                  }
-                  
-                  // Final safety: remove any "members0" pattern
-                  memberCountText = memberCountText.replace(/members0/g, 'members');
-                  
                   return (
                     <div
                       key={chat.id}
-                      className="relative flex flex-col items-center gap-2 p-4 cursor-pointer hover:shadow-md transition-all" 
-                      style={{ borderRadius: '10px', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}
-                      onClick={() => {
-                        if (isJoined) {
-                          // Only navigate if already joined
-                          onNavigateToChat?.(chat.id);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if ((e.key === 'Enter' || e.key === ' ') && isJoined) {
-                          e.preventDefault();
-                          onNavigateToChat?.(chat.id);
-                        }
-                      }}
-                      tabIndex={isJoined ? 0 : -1}
-                      role={isJoined ? "button" : undefined}
-                      aria-label={isJoined ? `Open chat: ${chat.chat_name || chat.entity_name}` : undefined}
+                      className="flex items-center gap-3 p-4 hover:shadow-md transition-all"
+                      style={{ borderRadius: '12px', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}
                     >
-                      {!isJoined && (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="absolute top-2 right-2 z-10 h-7 w-7 p-0 rounded-full" 
-                          style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
-                          onClick={(e) => handleJoinGroupChat(chat.id, e)}
-                          disabled={isJoining}
-                        >
-                          {isJoining ? (
-                            <SynthLoader variant="spinner" size="sm" />
-                          ) : (
-                            <Plus className="h-4 w-4" />
-                          )}
-                        </Button>
-                      )}
-                      {hasImage ? (
-                        <img
-                          src={imageUrl}
-                          alt={chat.entity_name || chat.chat_name}
-                          className="w-full aspect-square object-cover" style={{ borderRadius: '10px' }}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = getFallbackEventImage(chat.id);
-                            target.onerror = null;
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full aspect-square flex flex-col items-center justify-center p-2" style={{ borderRadius: '10px', backgroundColor: 'var(--neutral-100)' }}>
-                          {/* TODO: Replace gradient with approved gradient token or neutral background */}
-                          <MessageSquare className="w-8 h-8 mb-1" style={{ color: 'var(--brand-pink-500)' }} />
-                          <p className="text-[10px] font-semibold text-center line-clamp-2" style={{ color: 'var(--brand-pink-500)' }}>
-                            {chat.chat_name}
-                          </p>
-                        </div>
-                      )}
-                      <div className="w-full text-center">
-                        <p className="font-semibold line-clamp-1 mb-1" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{chat.chat_name}</p>
-                        <p style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>
-                          {/* Render ONLY memberCountText - create single string to avoid multiple children */}
-                          {(() => {
-                            const baseText = String(memberCountText || '0 members');
-                            const friendsText = chat.friends_in_chat_count && chat.friends_in_chat_count > 0
-                              ? ` • ${chat.friends_in_chat_count} friend${chat.friends_in_chat_count !== 1 ? 's' : ''}`
-                              : '';
-                            return baseText + friendsText;
-                          })()}
+                      <MessageSquare className="shrink-0 w-8 h-8" style={{ color: 'var(--brand-pink-500)' }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold truncate" style={{ color: 'var(--neutral-900)' }}>
+                          {chat.chat_name || chat.entity_name}
                         </p>
+                        {chat.entity_type && (
+                          <p className="text-xs capitalize" style={{ color: 'var(--neutral-600)' }}>
+                            {chat.entity_type}
+                          </p>
+                        )}
                       </div>
+                      <Button
+                        size="sm"
+                        onClick={(e) => isJoined ? onNavigateToChat?.(chat.id) : handleJoinGroupChat(chat.id, e)}
+                        disabled={isJoining}
+                        style={isJoined
+                          ? { backgroundColor: 'var(--neutral-900)', color: 'var(--neutral-50)', fontWeight: 700 }
+                          : { backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)', fontWeight: 700 }
+                        }
+                      >
+                        {isJoining ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : isJoined ? 'Open' : 'Join'}
+                      </Button>
                     </div>
                   );
-                        })}
-                      </div>
-                      
-                      {/* Friend Suggestions Rail - Insert after first 3 chats */}
-                      {friendSuggestionsForRail.length > 0 && (
-                        <FriendSuggestionsRail
-                          suggestions={friendSuggestionsForRail}
-                          onUserClick={(userId) => onNavigateToProfile?.(userId)}
-                          onAddFriend={handleSendFriendRequestForRail}
-                        />
-                      )}
-                      
-                      {/* Remaining group chats */}
-                      {remainingChats.length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                          {remainingChats.map((chat) => {
-                            const imageUrl = replaceJambasePlaceholder(chat.entity_image_url) || '';
-                            const hasImage = imageUrl && imageUrl.trim() !== '';
-                            const isJoining = joiningGroupChats.has(chat.id);
-                            const isJoined = joinedGroupChats.has(chat.id);
-                            
-                            const count = chat.member_count ?? 0;
-                            const countNum = typeof count === 'number' ? Math.floor(Math.max(0, count)) : 0;
-                            
-                            let memberCountText: string;
-                            if (countNum === 0) {
-                              memberCountText = '0 members';
-                            } else if (countNum === 1) {
-                              memberCountText = '1 member';
-                            } else {
-                              memberCountText = String(countNum) + ' members';
-                            }
-                            
-                            memberCountText = memberCountText.replace(/members0/g, 'members');
-                            
-                            return (
-                              <div
-                                key={chat.id}
-                                className="relative flex flex-col items-center gap-2 p-4 cursor-pointer hover:shadow-md transition-all" style={{ borderRadius: '10px', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}
-                                onClick={() => {
-                                  if (isJoined) {
-                                    onNavigateToChat?.(chat.id);
-                                  }
-                                }}
-                              >
-                                {!isJoined && (
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="absolute top-2 right-2 z-10 h-7 w-7 p-0 rounded-full" 
-                          style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
-                                    onClick={(e) => handleJoinGroupChat(chat.id, e)}
-                                    disabled={isJoining}
-                                  >
-                                    {isJoining ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Plus className="h-4 w-4" />
-                                    )}
-                                  </Button>
-                                )}
-                                {hasImage ? (
-                                  <img
-                                    src={imageUrl}
-                                    alt={chat.entity_name || chat.chat_name}
-                                    className="w-full aspect-square object-cover" style={{ borderRadius: '10px' }}
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.src = getFallbackEventImage(chat.id);
-                                      target.onerror = null;
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-full aspect-square flex flex-col items-center justify-center p-2 bg-gradient-to-br from-synth-pink/20 to-synth-pink/40" style={{ borderRadius: '10px' }}>
-                                    <MessageSquare className="w-8 h-8 text-synth-pink mb-1" />
-                                    <p className="text-[10px] font-semibold text-synth-pink text-center line-clamp-2">
-                                      {chat.chat_name}
-                                    </p>
-                                  </div>
-                                )}
-                                <div className="w-full text-center">
-                                  <p className="text-sm font-semibold line-clamp-1 mb-1">{chat.chat_name}</p>
-                                  <p className="text-xs" style={{ color: 'var(--neutral-600)' }}>
-                                    {(() => {
-                                      const baseText = String(memberCountText || '0 members');
-                                      const friendsText = chat.friends_in_chat_count && chat.friends_in_chat_count > 0
-                                        ? ` • ${chat.friends_in_chat_count} friend${chat.friends_in_chat_count !== 1 ? 's' : ''}`
-                                        : '';
-                                      return baseText + friendsText;
-                                    })()}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
+                })}
+
+                {/* Friend Suggestions Rail */}
+                {friendSuggestionsForRail.length > 0 && (
+                  <FriendSuggestionsRail
+                    suggestions={friendSuggestionsForRail}
+                    onUserClick={(userId) => onNavigateToProfile?.(userId)}
+                    onAddFriend={handleSendFriendRequestForRail}
+                  />
+                )}
               </div>
             )}
           </div>

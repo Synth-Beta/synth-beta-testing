@@ -397,6 +397,51 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       .finally(() => setLoading(false));
   }, [currentUserId, filters, userLocation, userTopGenres]);
 
+  // Auto-retry: if the feed finishes loading but returns 0 events (RPC cold start,
+  // network hiccup, etc.), silently retry once after 5 seconds so the user never
+  // sees an empty feed that would resolve with a manual refresh.
+  const autoRetryFiredRef = useRef(false);
+  useEffect(() => {
+    if (loading || queryLoading) return; // still loading
+    if (displayedEvents.length > 0) {
+      autoRetryFiredRef.current = false; // reset on next empty
+      return;
+    }
+    if (autoRetryFiredRef.current) return; // only retry once per mount
+    autoRetryFiredRef.current = true;
+
+    const timer = setTimeout(async () => {
+      console.warn('🔄 [UnifiedEventsFeed] 0 events detected — auto-retrying feed fetch');
+      try {
+        const f = filters as any;
+        const dateTo = f?.dateRange?.to;
+        const maxDaysAhead = dateTo ? Math.ceil((dateTo.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 90;
+        const baseFilters = {
+          genres: (f?.genres && f.genres.length > 0) ? f.genres : userTopGenres,
+          dateRange: f?.dateRange,
+          radiusMiles: f?.radiusMiles ?? 50,
+          selectedCities: f?.selectedCities,
+          includePast: false,
+          maxDaysAhead,
+        };
+        const filterLoc = (f?.latitude != null && f?.longitude != null) ? { lat: f.latitude, lng: f.longitude } : null;
+        const userLoc = userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : null;
+        const result = await fetchFeedForLocations(currentUserId, baseFilters, filterLoc, userLoc, INITIAL_FEED_SIZE);
+        if (result.events.length > 0) {
+          setAllFetchedEvents(result.events);
+          setDisplayedEvents(result.events.slice(0, PAGE_SIZE));
+          setHasMoreFromApi(result.hasMore);
+          setApiOffset(result.events.length);
+          allFetchedEventsRef.current = result.events;
+        }
+      } catch (err) {
+        console.error('❌ [UnifiedEventsFeed] Auto-retry failed:', err);
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [loading, queryLoading, displayedEvents.length, currentUserId, filters, userLocation, userTopGenres]);
+
   const toFeedFilters = useCallback((): PersonalizedFeedFilters | undefined => {
     const f = filters as any;
     const dateTo = f?.dateRange?.to;

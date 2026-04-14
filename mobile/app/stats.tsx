@@ -91,6 +91,8 @@ export default function StreamingStatsScreen() {
     void loadStats(false);
   }, [loadStats]);
 
+  const [resyncing, setResyncing] = useState(false);
+
   const openStreamingOnWeb = (provider?: StreamingProvider) => {
     const base = `${getExpoSiteUrl()}/streaming-stats`;
     const url =
@@ -98,6 +100,22 @@ export default function StreamingStatsScreen() {
         ? `${base}?connect=${encodeURIComponent(provider)}&source=expo`
         : `${base}?source=expo`;
     void WebBrowser.openBrowserAsync(url);
+  };
+
+  const handleResync = async () => {
+    setResyncing(true);
+    try {
+      const base = `${getExpoSiteUrl()}/streaming-stats`;
+      const url =
+        linkStatus.provider && linkStatus.provider !== 'unknown'
+          ? `${base}?connect=${encodeURIComponent(linkStatus.provider)}&source=expo&action=resync`
+          : `${base}?source=expo&action=resync`;
+      await WebBrowser.openBrowserAsync(url);
+      // After browser closes, refresh stats
+      await loadStats(false);
+    } finally {
+      setResyncing(false);
+    }
   };
 
   const linked = linkStatus.linked;
@@ -118,6 +136,17 @@ export default function StreamingStatsScreen() {
         <Pressable style={styles.backBtn} onPress={() => router.back()} accessibilityLabel="Back">
           <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
         </Pressable>
+        {linked && (
+          <Pressable
+            style={[styles.resyncBtn, resyncing && { opacity: 0.6 }]}
+            onPress={() => void handleResync()}
+            disabled={resyncing}
+            accessibilityLabel="Resync streaming stats"
+          >
+            <RefreshCw size={16} color={SynthTokens.colors.neutral0} style={resyncing ? { opacity: 0.8 } : undefined} />
+            <Text style={styles.resyncBtnText}>{resyncing ? 'Opening…' : 'Resync Stats'}</Text>
+          </Pressable>
+        )}
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -267,12 +296,29 @@ const styles = StyleSheet.create({
   topBar: {
     paddingHorizontal: SynthTokens.spacing.sm,
     paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: {
     width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  resyncBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: PINK,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  resyncBtnText: {
+    color: SynthTokens.colors.neutral0,
+    fontSize: 13,
+    fontWeight: '700',
   },
   titleBlock: {
     marginBottom: SynthTokens.spacing.xl,

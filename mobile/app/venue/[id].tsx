@@ -169,23 +169,31 @@ export default function VenueDetailScreen() {
       setSessionUserId(user?.id ?? null);
 
       if (venueIdsToSearch.length > 0) {
-        // Fetch all events then filter client-side (matches web approach, avoids timezone edge cases)
-        const { data: allEventsData } = await supabase
-          .from('events')
-          .select('id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls')
-          .in('venue_id', venueIdsToSearch)
-          .order('event_date', { ascending: true })
-          .limit(100);
+        // Use two separate queries (upcoming + past) so a large past-events backlog
+        // never pushes future events past the query limit.
+        const eventCols = 'id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls';
+        const todayIso = new Date().toISOString();
+        const [upcomingRes, pastRes] = await Promise.all([
+          supabase.from('events').select(eventCols)
+            .in('venue_id', venueIdsToSearch)
+            .gte('event_date', todayIso)
+            .order('event_date', { ascending: true })
+            .limit(20),
+          supabase.from('events').select(eventCols)
+            .in('venue_id', venueIdsToSearch)
+            .lt('event_date', todayIso)
+            .order('event_date', { ascending: false })
+            .limit(10),
+        ]);
+        const upcomingData = upcomingRes.data || [];
+        const pastData = pastRes.data || [];
+        const allEventsData = [...upcomingData, ...pastData];
 
         // Populate venue name from events if not found in venues table
-        if (!venueName && allEventsData && allEventsData.length > 0) {
+        if (!venueName && allEventsData.length > 0) {
           venueName = (allEventsData[0] as any).venue_name || 'Venue';
         }
         setName(venueName || 'Venue');
-
-        const now = new Date();
-        const upcomingData = (allEventsData || []).filter(e => new Date((e as any).event_date) >= now);
-        const pastData = (allEventsData || []).filter(e => new Date((e as any).event_date) < now).reverse().slice(0, 10);
         setUpcomingEvents(upcomingData.map(e => mapEventRow(e, venueName)));
         setPastEvents(pastData.map(e => mapEventRow(e, venueName)));
 
@@ -197,7 +205,7 @@ export default function VenueDetailScreen() {
         const reviewsSelect = `
           id, user_id, rating, review_text, created_at, event_id, photos, likes_count, comments_count,
           artist_performance_rating, production_rating, venue_rating, location_rating, value_rating,
-          users:user_id (id, name, avatar_url),
+          users:user_id (name, avatar_url),
           events:event_id (id, title, artist_name, venue_name, event_date)
         `;
         const [directRes, eventLinkedRes] = await Promise.all([

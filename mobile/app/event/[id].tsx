@@ -76,6 +76,70 @@ export default function EventDetailScreen() {
     // Social tabs
     const [activeTab, setActiveTab] = useState<'groups' | 'meet' | null>(null);
 
+    // Group chat
+    const [groupChat, setGroupChat] = useState<{ id: string; name: string; memberCount: number } | null>(null);
+    const [groupChatLoading, setGroupChatLoading] = useState(false);
+    const [isInGroupChat, setIsInGroupChat] = useState(false);
+    const [joiningGroupChat, setJoiningGroupChat] = useState(false);
+
+    const loadGroupChat = useCallback(async (eventId: string, eventTitle: string) => {
+        setGroupChatLoading(true);
+        try {
+            const { data, error } = await supabase.rpc('get_verified_chat_info', {
+                p_entity_type: 'event',
+                p_entity_id: eventId,
+            });
+            if (!error && data && data.length > 0) {
+                const info = data[0];
+                setGroupChat({
+                    id: info.chat_id,
+                    name: info.chat_name || `${eventTitle} Chat`,
+                    memberCount: info.member_count || 0,
+                });
+                setIsInGroupChat(!!info.is_user_member);
+            } else {
+                setGroupChat(null);
+                setIsInGroupChat(false);
+            }
+        } catch {
+            setGroupChat(null);
+        } finally {
+            setGroupChatLoading(false);
+        }
+    }, []);
+
+    const joinOrCreateGroupChat = useCallback(async () => {
+        if (!sessionUserId || !event) return;
+        setJoiningGroupChat(true);
+        try {
+            const eventId = event.id;
+            const eventName = event.title || event.artist_name || 'Event';
+            // Get or create the verified chat for this event
+            const { data: chatId, error: createErr } = await supabase.rpc('get_or_create_verified_chat', {
+                p_entity_type: 'event',
+                p_entity_id: eventId,
+                p_entity_name: eventName,
+            });
+            if (createErr) throw createErr;
+            // Join if not already a member
+            if (!isInGroupChat) {
+                await supabase.rpc('join_verified_chat', {
+                    p_chat_id: chatId,
+                    p_user_id: sessionUserId,
+                });
+                setIsInGroupChat(true);
+                setGroupChat(prev => prev
+                    ? { ...prev, memberCount: prev.memberCount + 1 }
+                    : { id: chatId, name: `${eventName} Chat`, memberCount: 1 });
+            }
+            router.push(`/chat/${chatId}` as any);
+        } catch (err) {
+            console.error('[event] join group chat error', err);
+        } finally {
+            setJoiningGroupChat(false);
+        }
+    }, [sessionUserId, event, isInGroupChat, router]);
+
     // Meet
     const [meetUsers, setMeetUsers] = useState<MeetUser[]>([]);
     const [meetIndex, setMeetIndex] = useState(0);
@@ -190,10 +254,7 @@ export default function EventDetailScreen() {
         async (eventUuid: string, eventInfo: EventDetail, viewerId: string | null) => {
             setReviewsLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('reviews')
-                    .select(
-                        `
+                const reviewFields = `
               id,
               user_id,
               artist_id,
@@ -211,18 +272,46 @@ export default function EventDetailScreen() {
               location_rating,
               value_rating,
               users:user_id (
-                id,
                 name,
                 avatar_url
               )
-            `
-                    )
+            `;
+
+                // Fetch reviews for this specific event
+                const { data: eventReviews, error } = await supabase
+                    .from('reviews')
+                    .select(reviewFields)
                     .eq('event_id', eventUuid)
                     .order('created_at', { ascending: false })
                     .limit(10);
+
+                // Also fetch artist reviews so all past reviews of this artist are visible
+                const artistReviewsData: any[] = [];
+                if (eventInfo.artist_id) {
+                    const { data: artistRows } = await supabase
+                        .from('reviews')
+                        .select(reviewFields)
+                        .eq('artist_id', eventInfo.artist_id)
+                        .order('created_at', { ascending: false })
+                        .limit(10);
+                    if (artistRows) artistReviewsData.push(...artistRows);
+                }
+
+                // Merge and deduplicate by review id
+                const seenIds = new Set<string>();
+                const merged: any[] = [];
+                for (const r of [...(eventReviews ?? []), ...artistReviewsData]) {
+                    if (!seenIds.has(String(r.id))) {
+                        seenIds.add(String(r.id));
+                        merged.push(r);
+                    }
+                }
+                // Sort merged by created_at descending
+                merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                const data = merged.slice(0, 15);
                 if (error) {
-                    setReviews([]);
-                    return;
+                    // event-specific query failed; continue with any artist reviews we got
+                    if (data.length === 0) { setReviews([]); return; }
                 }
                 const rows = data || [];
                 const reviewIds = rows.map((rv: any) => String(rv.id));
@@ -495,7 +584,11 @@ export default function EventDetailScreen() {
     const currentMeetUser = meetUsers[meetIndex] ?? null;
 
     const handleTabPress = (tab: 'groups' | 'meet') => {
+        const isOpening = activeTab !== tab;
         setActiveTab(prev => (prev === tab ? null : tab));
+        if (isOpening && tab === 'groups' && event && !groupChatLoading) {
+            void loadGroupChat(event.id, event.title || event.artist_name || 'Event');
+        }
     };
 
     return (
@@ -631,7 +724,7 @@ export default function EventDetailScreen() {
                                 <SynthText variant="meta" style={styles.entityCardLabel}>Venue</SynthText>
                             </View>
                             <SynthText variant="body" color="primary" style={styles.entityCardTitle}>
-                                {event.venue_name || event.venue_city || ''}
+                                {event.venue_name || ''}
                             </SynthText>
                             <SynthText variant="meta" color="secondary" style={styles.venueCardAddress}>
                                 {venueAddressPrimaryLine(event)}
@@ -724,14 +817,43 @@ export default function EventDetailScreen() {
                             )}
                         </View>
 
-                        {/* Groups: Coming Soon */}
+                        {/* Groups: Event Group Chat */}
                         {activeTab === 'groups' && (
                             <View style={styles.tabContent}>
-                                <MessageCircle size={52} color={SynthTokens.colors.neutral400} />
-                                <Text style={styles.comingSoonTitle}>Coming Soon</Text>
-                                <SynthText variant="meta" color="secondary" style={styles.comingSoonDesc}>
-                                    Verified chats are coming soon!
-                                </SynthText>
+                                {!sessionUserId ? (
+                                    <Pressable style={styles.signInBanner} onPress={() => router.push('/(auth)/sign-in')}>
+                                        <SynthText variant="meta" style={styles.signInBannerText}>
+                                            Sign in to join the group chat for this event.
+                                        </SynthText>
+                                    </Pressable>
+                                ) : groupChatLoading ? (
+                                    <ActivityIndicator color={PINK} size="large" style={{ paddingVertical: 32 }} />
+                                ) : (
+                                    <View style={styles.groupChatCard}>
+                                        <MessageCircle size={36} color={PINK} />
+                                        <Text style={styles.groupChatTitle}>
+                                            {groupChat?.name ?? `${event?.title || event?.artist_name || 'Event'} Chat`}
+                                        </Text>
+                                        {groupChat && (
+                                            <SynthText variant="meta" color="secondary" style={{ marginBottom: 4 }}>
+                                                {groupChat.memberCount === 1 ? '1 member' : `${groupChat.memberCount} members`}
+                                            </SynthText>
+                                        )}
+                                        <Pressable
+                                            onPress={() => void joinOrCreateGroupChat()}
+                                            disabled={joiningGroupChat}
+                                            style={[styles.groupChatBtn, isInGroupChat && styles.groupChatBtnOpen]}
+                                        >
+                                            {joiningGroupChat ? (
+                                                <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+                                            ) : (
+                                                <Text style={styles.groupChatBtnTxt}>
+                                                    {isInGroupChat ? 'Open Chat' : groupChat ? 'Join Chat' : 'Start Group Chat'}
+                                                </Text>
+                                            )}
+                                        </Pressable>
+                                    </View>
+                                )}
                             </View>
                         )}
 
@@ -1214,6 +1336,38 @@ const styles = StyleSheet.create({
     comingSoonDesc: {
         textAlign: 'center',
         lineHeight: 20,
+    },
+    // Group chat
+    groupChatCard: {
+        width: '100%',
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 8,
+    },
+    groupChatTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: SynthTokens.colors.neutral900,
+        textAlign: 'center',
+    },
+    groupChatBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 32,
+        borderRadius: SynthTokens.radius.corner,
+        backgroundColor: PINK,
+        marginTop: 4,
+        minWidth: 180,
+    },
+    groupChatBtnOpen: {
+        backgroundColor: SynthTokens.colors.neutral900,
+    },
+    groupChatBtnTxt: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: SynthTokens.colors.neutral0,
     },
     // Meet
     meetEmptyWrap: {

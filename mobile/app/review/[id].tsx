@@ -79,7 +79,7 @@ type ReviewRow = {
     location_feedback: string | null;
     value_feedback: string | null;
     // Author
-    author: { id: string; name: string; avatar_url: string | null } | null;
+    author: { user_id: string; name: string; avatar_url: string | null } | null;
     // Event
     events: EventSummary | null;
     // Engagement
@@ -553,134 +553,147 @@ export default function ReviewDetailScreen() {
         let cancelled = false;
         void (async () => {
             setLoading(true);
-            if (!id) {
+            try {
+                if (!id) {
+                    setLoading(false);
+                    return;
+                }
+                const {
+                    data: { user },
+                } = await supabase.auth.getUser();
+                if (!user) {
+                    setLoading(false);
+                    return;
+                }
+                setSessionUserId(user.id);
+
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .select(`
+                        id,
+                        user_id,
+                        event_id,
+                        rating,
+                        review_text,
+                        photos,
+                        created_at,
+                        is_public,
+                        artist_performance_rating,
+                        production_rating,
+                        venue_rating,
+                        location_rating,
+                        value_rating,
+                        artist_performance_feedback,
+                        production_feedback,
+                        venue_feedback,
+                        location_feedback,
+                        value_feedback,
+                        likes_count,
+                        comments_count,
+                        attendees,
+                        met_on_synth,
+                        setlist,
+                        custom_setlist,
+                        users:user_id (user_id, name, avatar_url),
+                        events:event_id (
+                            id, title, event_date,
+                            artist_name, venue_name,
+                            artist_id, venue_id,
+                            images
+                        )
+                    `)
+                    .eq('id', id)
+                    .maybeSingle();
+
+                if (cancelled) return;
+
+                if (error || !data) {
+                    setReview(null);
+                    setLoading(false);
+                    return;
+                }
+
+                const row = data as Record<string, unknown>;
+
+                // Normalize author
+                const usersRaw = row.users;
+                let author: ReviewRow['author'] = null;
+                if (Array.isArray(usersRaw) && usersRaw[0]) {
+                    author = usersRaw[0] as ReviewRow['author'];
+                } else if (usersRaw && typeof usersRaw === 'object' && !Array.isArray(usersRaw)) {
+                    author = usersRaw as ReviewRow['author'];
+                }
+
+                // Normalize event
+                const evRaw = row.events;
+                let evOne: EventSummary | null = null;
+                if (Array.isArray(evRaw) && evRaw[0]) {
+                    evOne = evRaw[0] as EventSummary;
+                } else if (evRaw && typeof evRaw === 'object' && !Array.isArray(evRaw)) {
+                    evOne = evRaw as EventSummary;
+                }
+
+                // Check helpful status for current user (errors are non-fatal)
+                let likedSet = new Set<string>();
+                try {
+                    likedSet = await ReviewEngagementService.getReviewIdsLikedByUser(user.id, [String(id)]);
+                } catch {
+                    // not critical — continue with unliked state
+                }
+
+                if (cancelled) return;
+
+                const normalized: ReviewRow = {
+                    id: String(row.id),
+                    user_id: String(row.user_id),
+                    event_id: row.event_id != null ? String(row.event_id) : null,
+                    rating: row.rating != null ? Number(row.rating) : null,
+                    review_text: row.review_text != null ? String(row.review_text) : null,
+                    photos: Array.isArray(row.photos) ? (row.photos as string[]) : null,
+                    created_at: String(row.created_at),
+                    is_public: Boolean(row.is_public),
+                    artist_performance_rating: row.artist_performance_rating != null ? Number(row.artist_performance_rating) : null,
+                    production_rating: row.production_rating != null ? Number(row.production_rating) : null,
+                    venue_rating: row.venue_rating != null ? Number(row.venue_rating) : null,
+                    location_rating: row.location_rating != null ? Number(row.location_rating) : null,
+                    value_rating: row.value_rating != null ? Number(row.value_rating) : null,
+                    artist_performance_feedback: row.artist_performance_feedback != null ? String(row.artist_performance_feedback) : null,
+                    production_feedback: row.production_feedback != null ? String(row.production_feedback) : null,
+                    venue_feedback: row.venue_feedback != null ? String(row.venue_feedback) : null,
+                    location_feedback: row.location_feedback != null ? String(row.location_feedback) : null,
+                    value_feedback: row.value_feedback != null ? String(row.value_feedback) : null,
+                    author,
+                    events: evOne,
+                    likes_count: typeof row.likes_count === 'number' ? row.likes_count : 0,
+                    comments_count: typeof row.comments_count === 'number' ? row.comments_count : 0,
+                    is_liked_by_user: likedSet.has(String(id)),
+                    attendees: Array.isArray(row.attendees) ? row.attendees : null,
+                    met_on_synth: typeof row.met_on_synth === 'boolean' ? row.met_on_synth : null,
+                    setlist: row.setlist ?? null,
+                    custom_setlist: Array.isArray(row.custom_setlist) ? row.custom_setlist : null,
+                };
+
+                const isOwner = normalized.user_id === user.id;
+                if (!normalized.is_public && !isOwner) {
+                    setForbidden(true);
+                    setReview(null);
+                    setLoading(false);
+                    return;
+                }
+
+                setForbidden(false);
+                setReview(normalized);
+                setLikesCount(normalized.likes_count);
+                setCommentsCount(normalized.comments_count);
+                setIsLiked(normalized.is_liked_by_user);
                 setLoading(false);
-                return;
+            } catch (err) {
+                console.error('[review] load error', err);
+                if (!cancelled) {
+                    setReview(null);
+                    setLoading(false);
+                }
             }
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (!user) {
-                setLoading(false);
-                return;
-            }
-            setSessionUserId(user.id);
-
-            const { data, error } = await supabase
-                .from('reviews')
-                .select(`
-                    id,
-                    user_id,
-                    event_id,
-                    rating,
-                    review_text,
-                    photos,
-                    created_at,
-                    is_public,
-                    artist_performance_rating,
-                    production_rating,
-                    venue_rating,
-                    location_rating,
-                    value_rating,
-                    artist_performance_feedback,
-                    production_feedback,
-                    venue_feedback,
-                    location_feedback,
-                    value_feedback,
-                    likes_count,
-                    comments_count,
-                    attendees,
-                    met_on_synth,
-                    setlist,
-                    custom_setlist,
-                    users:user_id (id, name, avatar_url),
-                    events:event_id (
-                        id, title, event_date,
-                        artist_name, venue_name,
-                        artist_id, venue_id,
-                        images
-                    )
-                `)
-                .eq('id', id)
-                .maybeSingle();
-
-            if (cancelled) return;
-
-            if (error || !data) {
-                setReview(null);
-                setLoading(false);
-                return;
-            }
-
-            const row = data as Record<string, unknown>;
-
-            // Normalize author
-            const usersRaw = row.users;
-            let author: ReviewRow['author'] = null;
-            if (Array.isArray(usersRaw) && usersRaw[0]) {
-                author = usersRaw[0] as ReviewRow['author'];
-            } else if (usersRaw && typeof usersRaw === 'object' && !Array.isArray(usersRaw)) {
-                author = usersRaw as ReviewRow['author'];
-            }
-
-            // Normalize event
-            const evRaw = row.events;
-            let evOne: EventSummary | null = null;
-            if (Array.isArray(evRaw) && evRaw[0]) {
-                evOne = evRaw[0] as EventSummary;
-            } else if (evRaw && typeof evRaw === 'object' && !Array.isArray(evRaw)) {
-                evOne = evRaw as EventSummary;
-            }
-
-            // Check helpful status for current user
-            const likedSet = await ReviewEngagementService.getReviewIdsLikedByUser(user.id, [String(id)]);
-
-            if (cancelled) return;
-
-            const normalized: ReviewRow = {
-                id: String(row.id),
-                user_id: String(row.user_id),
-                event_id: row.event_id != null ? String(row.event_id) : null,
-                rating: row.rating != null ? Number(row.rating) : null,
-                review_text: row.review_text != null ? String(row.review_text) : null,
-                photos: Array.isArray(row.photos) ? (row.photos as string[]) : null,
-                created_at: String(row.created_at),
-                is_public: Boolean(row.is_public),
-                artist_performance_rating: row.artist_performance_rating != null ? Number(row.artist_performance_rating) : null,
-                production_rating: row.production_rating != null ? Number(row.production_rating) : null,
-                venue_rating: row.venue_rating != null ? Number(row.venue_rating) : null,
-                location_rating: row.location_rating != null ? Number(row.location_rating) : null,
-                value_rating: row.value_rating != null ? Number(row.value_rating) : null,
-                artist_performance_feedback: row.artist_performance_feedback != null ? String(row.artist_performance_feedback) : null,
-                production_feedback: row.production_feedback != null ? String(row.production_feedback) : null,
-                venue_feedback: row.venue_feedback != null ? String(row.venue_feedback) : null,
-                location_feedback: row.location_feedback != null ? String(row.location_feedback) : null,
-                value_feedback: row.value_feedback != null ? String(row.value_feedback) : null,
-                author,
-                events: evOne,
-                likes_count: typeof row.likes_count === 'number' ? row.likes_count : 0,
-                comments_count: typeof row.comments_count === 'number' ? row.comments_count : 0,
-                is_liked_by_user: likedSet.has(String(id)),
-                attendees: Array.isArray(row.attendees) ? row.attendees : null,
-                met_on_synth: typeof row.met_on_synth === 'boolean' ? row.met_on_synth : null,
-                setlist: row.setlist ?? null,
-                custom_setlist: Array.isArray(row.custom_setlist) ? row.custom_setlist : null,
-            };
-
-            const isOwner = normalized.user_id === user.id;
-            if (!normalized.is_public && !isOwner) {
-                setForbidden(true);
-                setReview(null);
-                setLoading(false);
-                return;
-            }
-
-            setForbidden(false);
-            setReview(normalized);
-            setLikesCount(normalized.likes_count);
-            setCommentsCount(normalized.comments_count);
-            setIsLiked(normalized.is_liked_by_user);
-            setLoading(false);
         })();
         return () => { cancelled = true; };
     }, [id]);

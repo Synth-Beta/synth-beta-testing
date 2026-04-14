@@ -113,15 +113,6 @@ export const EventCard: React.FC<EventCardProps> = ({
     });
   }, [id, router]);
 
-  const openArtist = useCallback(() => {
-    if (!artist_id) return;
-    router.push(`/artist/${artist_id}` as any);
-  }, [artist_id, router]);
-
-  const openVenue = useCallback(() => {
-    if (!venue_id) return;
-    router.push(`/venue/${venue_id}` as any);
-  }, [venue_id, router]);
 
   const handleOpen = onPress ?? openEventDetail;
 
@@ -166,45 +157,30 @@ export const EventCard: React.FC<EventCardProps> = ({
 
           <View style={styles.detailsPad}>
             {artistLine ? (
-              <Pressable
-                onPress={artist_id ? openArtist : undefined}
-                style={styles.metaRow}
-                hitSlop={6}
-              >
+              <View style={styles.metaRow}>
                 <Music size={16} color={PINK} />
                 <SynthText
                   variant="meta"
-                  color={artist_id ? undefined : 'secondary'}
+                  color="secondary"
                   numberOfLines={1}
-                  style={[styles.metaTxt, artist_id ? styles.metaLink : undefined]}
+                  style={styles.metaTxt}
                 >
                   {artistLine}
                 </SynthText>
-              </Pressable>
+              </View>
             ) : null}
 
-            <Pressable
-              onPress={venue_id ? openVenue : undefined}
-              style={styles.metaRow}
-              hitSlop={6}
-            >
+            <View style={styles.metaRow}>
               <MapPin size={16} color={PINK} />
-              <View style={{ flex: 1 }}>
-                <SynthText
-                  variant="meta"
-                  color={venue_id ? undefined : 'secondary'}
-                  numberOfLines={1}
-                  style={[styles.metaTxt, venue_id ? styles.metaLink : undefined]}
-                >
-                  {venueName || 'Venue TBA'}
-                </SynthText>
-                {venueCity ? (
-                  <SynthText variant="meta" color="secondary" numberOfLines={1} style={[styles.metaTxt, styles.metaSubLine]}>
-                    {venueCity}
-                  </SynthText>
-                ) : null}
-              </View>
-            </Pressable>
+              <SynthText
+                variant="meta"
+                color="secondary"
+                numberOfLines={1}
+                style={styles.metaTxt}
+              >
+                {venueName || 'Venue TBA'}
+              </SynthText>
+            </View>
 
             <View style={styles.metaRow}>
               <Calendar size={16} color={PINK} />

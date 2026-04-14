@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, View, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +39,7 @@ export default function FeedScreen() {
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  const autoRetryFiredRef = useRef(false);
 
   const listData: ListItem[] =
     feedDisplayMode === 'events'
@@ -106,6 +107,25 @@ export default function FeedScreen() {
   useEffect(() => {
     void fetchFeed();
   }, [fetchFeed]);
+
+  // Auto-retry: if events come back empty after the initial load, retry once
+  // after 4 seconds. This handles GPS cold-start and RPC warm-up delays where
+  // the first call succeeds but returns 0 results.
+  useEffect(() => {
+    if (feedLoading) return; // still loading, don't schedule
+    const isEmpty =
+      feedDisplayMode === 'events' ? events.length === 0 : reviews.length === 0;
+    if (!isEmpty) {
+      autoRetryFiredRef.current = false; // reset when we have data
+      return;
+    }
+    if (autoRetryFiredRef.current) return; // only retry once per empty state
+    autoRetryFiredRef.current = true;
+    const t = setTimeout(() => {
+      void fetchFeed();
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [feedLoading, feedDisplayMode, events.length, reviews.length, fetchFeed]);
 
   const onRefresh = () => {
     setRefreshing(true);

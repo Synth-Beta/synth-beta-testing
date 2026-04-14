@@ -13,9 +13,9 @@ import {
   Text,
   ScrollView,
   RefreshControl,
-  Image,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
@@ -36,6 +36,7 @@ import {
 } from '../../utils/profileReviewGrouping';
 
 const PINK = SynthTokens.colors.brandPink500;
+const PLACEHOLDER = require('../../../assets/Synth_Placeholder.png');
 
 export type ProfileMyEventsViewMode = 'reviews' | 'rankings' | 'unreviewed';
 
@@ -223,7 +224,9 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
           onPress={() => openReview(item.id)}
         >
           <Image
-            source={item.image_url ? { uri: item.image_url } : require('../../../assets/Synth_Placeholder.png')}
+            source={item.image_url ? { uri: item.image_url } : PLACEHOLDER}
+            placeholder={PLACEHOLDER}
+            contentFit="cover"
             style={styles.compactImage}
           />
           <View style={styles.compactBody}>
@@ -261,11 +264,9 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
           }
         >
           <Image
-            source={
-              item.image_url
-                ? { uri: item.image_url }
-                : require('../../../assets/Synth_Placeholder.png')
-            }
+            source={item.image_url ? { uri: item.image_url } : PLACEHOLDER}
+            placeholder={PLACEHOLDER}
+            contentFit="cover"
             style={styles.unrevThumb}
           />
           <View style={{ flex: 1 }}>
