@@ -41,8 +41,9 @@ if (!enabled) {
   return (
     <div
       key={mainKey}
+      id="web-content-scroll"
       className={`${transitionClass} flex-1 flex flex-col`}
-      style={{ backgroundColor: 'transparent', minHeight: 0 }}
+      style={{ backgroundColor: 'transparent', minHeight: 0, overflowY: 'auto' }}
     >
       {children}
     </div>
@@ -55,7 +56,7 @@ if (!enabled) {
       data-testid="web-app-shell"
     >
       {rail}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div id="web-content-scroll" className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ overflowY: 'auto' }}>
         <div
           key={mainKey}
           className={`${transitionClass} ${mainContentClassName}`.trim()}

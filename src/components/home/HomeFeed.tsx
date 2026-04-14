@@ -519,9 +519,9 @@ interface FriendEventInterest {
     let isPullingToRefresh = false;
     let pullDistance = 0;
 
-    // The app shell uses overflow:hidden on body; real scroll happens in .page-shell__content
+    // The app shell uses overflow:hidden on body; real scroll happens in #web-content-scroll (WebAppShell)
     const getScrollContainer = (): HTMLElement | null =>
-      document.querySelector('.page-shell__content');
+      document.getElementById('web-content-scroll');
 
     const handleScroll = () => {
       const sc = getScrollContainer();
@@ -623,9 +623,9 @@ interface FriendEventInterest {
     let isPullingToRefresh = false;
     let pullDistance = 0;
 
-    // The app shell uses overflow:hidden on body; real scroll happens in .page-shell__content
+    // The app shell uses overflow:hidden on body; real scroll happens in #web-content-scroll (WebAppShell)
     const getScrollContainer2 = (): HTMLElement | null =>
-      document.querySelector('.page-shell__content');
+      document.getElementById('web-content-scroll');
 
     const handleScroll = () => {
       const sc = getScrollContainer2();
