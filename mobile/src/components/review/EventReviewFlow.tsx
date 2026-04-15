@@ -662,7 +662,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     'Public reviews help the community discover amazing shows',
                     'You can change the privacy setting any time in your profile',
                     'Private reviews are only visible to you',
-                    'All reviews follow Synth's community guidelines',
+                    "All reviews follow Synth's community guidelines",
                 ].map((line, i) => (
                     <SynthText key={i} variant="meta" color="secondary">• {line}</SynthText>
                 ))}
