@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Shield, MessageSquare, Eye, EyeOff, Info } from 'lucide-react-native';
+import { Calendar, CheckCircle, ChevronLeft, Shield, MessageSquare, Eye, EyeOff, Info } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -24,6 +24,16 @@ interface Controls {
   is_public_profile: boolean;
 }
 
+function calcAge(birthday: string): number | null {
+  const birthDate = new Date(birthday);
+  if (isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+}
+
 export default function ParentalControlsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -32,6 +42,9 @@ export default function ParentalControlsScreen() {
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isMinor, setIsMinor] = useState(false);
+  const [ageVerified, setAgeVerified] = useState(false);
+  const [birthday, setBirthday] = useState<string | null>(null);
+  const [age, setAge] = useState<number | null>(null);
   const [controls, setControls] = useState<Controls>({
     parental_controls_enabled: false,
     dm_restricted: false,
@@ -46,11 +59,15 @@ export default function ParentalControlsScreen() {
       setUserId(user.id);
       const { data } = await supabase
         .from('users')
-        .select('is_minor, parental_controls_enabled, dm_restricted, is_public_profile')
+        .select('is_minor, parental_controls_enabled, dm_restricted, is_public_profile, age_verified, birthday')
         .eq('user_id', user.id)
         .maybeSingle();
       if (data) {
         setIsMinor(Boolean(data.is_minor));
+        setAgeVerified(Boolean((data as any).age_verified));
+        const bday = (data as any).birthday as string | null | undefined;
+        setBirthday(bday ?? null);
+        if (bday) setAge(calcAge(bday));
         setControls({
           parental_controls_enabled: Boolean(data.parental_controls_enabled),
           dm_restricted: Boolean(data.dm_restricted),
@@ -124,6 +141,67 @@ export default function ParentalControlsScreen() {
               Manage safety settings and content restrictions for your account
             </SynthText>
           </View>
+        </View>
+
+        {/* Age Verification Card — always shown */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Shield size={18} color={PINK} />
+            <Text style={styles.cardTitle}>Age Verification</Text>
+          </View>
+          <SynthText variant="meta" color="secondary" style={styles.cardDesc}>
+            Your age verification status and account safety settings
+          </SynthText>
+
+          {/* Verification status row */}
+          <View style={styles.ageRow}>
+            {ageVerified
+              ? <CheckCircle size={18} color="#16a34a" />
+              : <Calendar size={18} color={SynthTokens.colors.neutral400} />}
+            <Text style={styles.ageRowLabel}>Age Verified</Text>
+            <View style={[styles.ageBadge, ageVerified ? styles.ageBadgeVerified : styles.ageBadgeNot]}>
+              <Text style={[styles.ageBadgeTxt, ageVerified ? styles.ageBadgeTxtVerified : styles.ageBadgeTxtNot]}>
+                {ageVerified ? 'Verified' : 'Not Verified'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Age display */}
+          {age !== null ? (
+            <View style={styles.ageInfoRow}>
+              <Text style={styles.ageInfoLabel}>Your Age</Text>
+              <Text style={styles.ageInfoValue}>{age} years old</Text>
+            </View>
+          ) : null}
+          {isMinor && age !== null ? (
+            <SynthText variant="meta" color="secondary" style={styles.minorNote}>
+              Parental controls are enabled for accounts under 18
+            </SynthText>
+          ) : null}
+
+          {/* Birthday display (read-only) */}
+          {birthday ? (
+            <View style={styles.ageInfoRow}>
+              <Text style={styles.ageInfoLabel}>Birthday</Text>
+              <Text style={styles.ageInfoValue}>
+                {new Date(birthday).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </Text>
+            </View>
+          ) : null}
+          {birthday ? (
+            <SynthText variant="meta" color="secondary" style={styles.birthdayNote}>
+              Your birthday cannot be changed without verification
+            </SynthText>
+          ) : null}
+
+          {!ageVerified ? (
+            <View style={styles.infoCard}>
+              <Info size={14} color="#3b82f6" style={{ marginTop: 1, flexShrink: 0 }} />
+              <SynthText variant="meta" style={styles.infoBodyBlue}>
+                Age verification is required to use Synth. Please complete your profile setup to verify your age.
+              </SynthText>
+            </View>
+          ) : null}
         </View>
 
         {showControls ? (
@@ -355,4 +433,64 @@ const styles = StyleSheet.create({
     color: SynthTokens.colors.neutral900,
   },
   btnDisabled: { opacity: 0.5 },
+  // Age verification card
+  ageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    backgroundColor: SynthTokens.colors.neutral50,
+  },
+  ageRowLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: SynthTokens.colors.neutral900,
+  },
+  ageBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1.5,
+  },
+  ageBadgeVerified: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#16a34a',
+  },
+  ageBadgeNot: {
+    backgroundColor: SynthTokens.colors.neutral50,
+    borderColor: SynthTokens.colors.neutral200,
+  },
+  ageBadgeTxt: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  ageBadgeTxtVerified: { color: '#16a34a' },
+  ageBadgeTxtNot: { color: SynthTokens.colors.neutral600 },
+  ageInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    backgroundColor: SynthTokens.colors.neutral50,
+  },
+  ageInfoLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: SynthTokens.colors.neutral600,
+  },
+  ageInfoValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: SynthTokens.colors.neutral900,
+  },
+  minorNote: { fontSize: 12, lineHeight: 17, marginTop: -4 },
+  birthdayNote: { fontSize: 12, lineHeight: 17, marginTop: -4 },
+  infoBodyBlue: { color: '#1d4ed8', lineHeight: 18, fontSize: 12, flex: 1 },
 });

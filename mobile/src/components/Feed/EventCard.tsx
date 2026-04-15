@@ -1,14 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet, View, Pressable, Dimensions, Text, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { Heart, MapPin, Calendar, Share2, Ticket, Music, Star } from 'lucide-react-native';
-import { supabase } from '../../integrations/supabase/client';
 import { EventService } from '../../services/eventService';
 import { resolveFeedImageUri } from '../../utils/eventImages';
 import { isEventPast } from '../../utils/eventStatusUtils';
+import { useInterested } from '../../contexts/InterestedContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - SynthTokens.spacing.screenMarginX * 2;
@@ -57,11 +57,8 @@ export const EventCard: React.FC<EventCardProps> = ({
   venue_id,
 }) => {
   const router = useRouter();
-  const [interested, setInterested] = useState(initialInterested);
-
-  useEffect(() => {
-    setInterested(initialInterested);
-  }, [id, initialInterested]);
+  const { isInterested, toggle } = useInterested();
+  const interested = isInterested(id);
 
   const resolvedUri = resolveFeedImageUri(image_url);
 
@@ -92,13 +89,8 @@ export const EventCard: React.FC<EventCardProps> = ({
   }, [id, headline, formattedDate]);
 
   const onToggleInterested = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-    const ok = await EventService.toggleInteraction(user.id, id, 'interested');
-    if (ok) setInterested(prev => !prev);
-  }, [id]);
+    await toggle(id);
+  }, [id, toggle]);
 
   const openTickets = useCallback(async () => {
     const u = ticketUrlProp?.trim();

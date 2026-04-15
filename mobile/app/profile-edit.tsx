@@ -9,9 +9,10 @@ import {
   Text,
   Pressable,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Music, RefreshCw, CheckCircle } from 'lucide-react-native';
+import { Bell, ChevronLeft, Music, RefreshCw, CheckCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { SynthText } from '../src/components/SynthText';
@@ -57,6 +58,9 @@ export default function ProfileEditScreen() {
   // Genre preferences
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
 
+  // Notification preferences
+  const [similarUsersNotifications, setSimilarUsersNotifications] = useState(true);
+
   // Streaming
   const [streaming, setStreaming] = useState<StreamingLinkStatus>({
     linked: false,
@@ -77,7 +81,7 @@ export default function ProfileEditScreen() {
       const [profileResult, signalsResult] = await Promise.all([
         supabase
           .from('users')
-          .select('name, username, location_city, bio, instagram_handle, gender')
+          .select('name, username, location_city, bio, instagram_handle, gender, similar_users_notifications')
           .eq('user_id', user.id)
           .single(),
         supabase
@@ -95,6 +99,7 @@ export default function ProfileEditScreen() {
         setBio(d.bio || '');
         setInstagramHandle(d.instagram_handle || '');
         setGender(d.gender || '');
+        setSimilarUsersNotifications(d.similar_users_notifications !== false);
       }
 
       if (signalsResult.data) {
@@ -193,6 +198,7 @@ export default function ProfileEditScreen() {
           bio: bio.trim() || null,
           instagram_handle: instagramHandle.trim() || null,
           gender: gender.trim() || null,
+          similar_users_notifications: similarUsersNotifications,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', userId);
@@ -396,6 +402,29 @@ export default function ProfileEditScreen() {
           ) : null}
         </View>
 
+        {/* ── Notifications ───────────────────────────────────────── */}
+        <View style={styles.card}>
+          <View style={styles.sectionHead}>
+            <Bell size={18} color={PINK} />
+            <Text style={styles.sectionTitle}>Notifications</Text>
+          </View>
+          <View style={styles.notifRow}>
+            <View style={styles.notifText}>
+              <Text style={styles.notifLabel}>Similar Users Notifications</Text>
+              <SynthText variant="meta" color="secondary" style={styles.notifDesc}>
+                Get notified when similar users (age, gender, interests) show interest in events
+              </SynthText>
+            </View>
+            <Switch
+              value={similarUsersNotifications}
+              onValueChange={setSimilarUsersNotifications}
+              trackColor={{ false: SynthTokens.colors.neutral200, true: 'rgba(204,36,134,0.25)' }}
+              thumbColor={similarUsersNotifications ? PINK : SynthTokens.colors.neutral0}
+              ios_backgroundColor={SynthTokens.colors.neutral200}
+            />
+          </View>
+        </View>
+
         <TouchableOpacity
           onPress={() => void onSave()}
           style={[styles.saveButton, (saving || loading) && styles.saveButtonDisabled]}
@@ -496,6 +525,20 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontWeight: '600',
   },
+  notifRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  notifText: { flex: 1, minWidth: 0 },
+  notifLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: SynthTokens.colors.neutral900,
+    marginBottom: 2,
+  },
+  notifDesc: { lineHeight: 18 },
   saveButton: {
     backgroundColor: PINK,
     minHeight: 48,

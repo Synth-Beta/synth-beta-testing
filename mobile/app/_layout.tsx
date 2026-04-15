@@ -14,13 +14,15 @@ import { OnboardingService } from '../src/services/onboardingService';
 import { ensureExpoPushNotificationHandler } from '../lib/registerPushNotifications';
 import { syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
 import { useShareDeepLink } from '../lib/useShareDeepLink';
+import { InterestedProvider } from '../src/contexts/InterestedContext';
+import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 
-// Prevent splash from hiding until ready; race on reload can reject — ignore (Expo docs).
-void SplashScreen.preventAutoHideAsync().catch(() => {});
+// Hide the native splash as soon as JS is running so the skeleton takes over immediately.
+void SplashScreen.hideAsync().catch(() => {});
 
 const ONBOARDING_STORAGE_KEY = 'HAS_COMPLETED_ONBOARDING';
-/** First wizard step — skip marketing welcome unless user opens tour from sign-in */
-const ONBOARDING_FLOW_ENTRY = '/(onboarding)/scene';
+/** First wizard step — skip marketing welcome, go straight to profile setup */
+const ONBOARDING_FLOW_ENTRY = '/(onboarding)/profile';
 /** If `useFonts` never resolves (no error), do not block app boot forever. */
 const FONT_LOAD_TIMEOUT_MS = 10_000;
 
@@ -134,11 +136,8 @@ export default function RootLayout() {
     storageOnboardingComplete !== null &&
     onboardingEffectiveReady;
 
-  useEffect(() => {
-    if (routingReady) {
-      void SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [routingReady]);
+  // SplashScreen is hidden immediately on JS mount (see top of file).
+  // No further hide call needed here.
 
   useEffect(() => {
     if (!session?.user) return;
@@ -220,10 +219,11 @@ export default function RootLayout() {
   }, [routingReady, isOnboardingComplete, session, segments, router]);
 
   if (!routingReady) {
-    return null;
+    return <AppLoadingSkeleton />;
   }
 
   return (
+    <InterestedProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(onboarding)" options={{ headerShown: false, animation: 'fade' }} />
@@ -233,5 +233,6 @@ export default function RootLayout() {
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="app-menu" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
+    </InterestedProvider>
   );
 }

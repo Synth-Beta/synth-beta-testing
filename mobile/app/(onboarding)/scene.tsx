@@ -12,8 +12,11 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 
 const GENRES = [
-    'Indie', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Rock',
-    'Pop', 'R&B', 'Country', 'Metal', 'Folk', 'Latin'
+    'Rock', 'Pop', 'Hip Hop', 'Rap', 'Electronic', 'Jazz', 'Classical', 'Indie',
+    'R&B', 'Soul', 'Country', 'Metal', 'Folk', 'Punk', 'Blues', 'Reggae',
+    'EDM', 'House', 'Techno', 'Ambient', 'Alternative', 'Trap',
+    'Afrobeat', 'Disco', 'Funk', 'Dance', 'Latin', 'Reggaeton', 'K-Pop',
+    'Gospel', 'Bluegrass', 'Ska', 'Emo', 'Lo-Fi', 'Experimental', 'Other',
 ];
 
 export default function SceneScreen() {
@@ -49,7 +52,7 @@ export default function SceneScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={5} currentStep={2} />
+                <OnboardingProgress totalSteps={6} currentStep={3} />
                 <Pressable onPress={handleContinue} style={styles.skipButton}>
                     <SynthText variant="meta" color="secondary">Skip</SynthText>
                 </Pressable>

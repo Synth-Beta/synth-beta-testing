@@ -22,6 +22,7 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { getCurrentLatLng } from '../../src/services/locationService';
 import { EventService } from '../../src/services/eventService';
 import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
+import { useInterested } from '../../src/contexts/InterestedContext';
 
 type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
@@ -40,6 +41,7 @@ export default function FeedScreen() {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const autoRetryFiredRef = useRef(false);
+  const { seedFromFeed } = useInterested();
 
   const listData: ListItem[] =
     feedDisplayMode === 'events'
@@ -82,6 +84,7 @@ export default function FeedScreen() {
           50
         );
         setEvents(unified);
+        seedFromFeed(unified);
       } else {
         const networkReviews = await HomeFeedService.getNetworkReviews(user.id, 20);
         setReviews(networkReviews);

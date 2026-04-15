@@ -674,7 +674,8 @@ export default function ReviewDetailScreen() {
                 };
 
                 const isOwner = normalized.user_id === user.id;
-                if (!normalized.is_public && !isOwner) {
+                // Treat null is_public as public — only block if explicitly false
+                if (normalized.is_public === false && !isOwner) {
                     setForbidden(true);
                     setReview(null);
                     setLoading(false);

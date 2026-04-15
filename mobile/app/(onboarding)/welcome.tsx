@@ -36,7 +36,7 @@ export default function WelcomeScreen() {
     }));
 
     const handleStart = () => {
-        router.push('/(onboarding)/scene');
+        router.push('/(onboarding)/profile');
     };
 
     return (

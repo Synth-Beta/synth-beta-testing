@@ -2,6 +2,7 @@ import { supabase } from '../integrations/supabase/client';
 import {
     EventReviewSubmitService,
     type ReviewData,
+    type UserReview,
 } from '../services/eventReviewSubmitService';
 import type { ReviewFormData } from '../hooks/useReviewForm';
 
@@ -72,7 +73,7 @@ export async function submitEventReviewFromForm(
     userId: string,
     formData: ReviewFormData,
     currentFlow: 'quick' | 'standard' | 'detailed' | null
-): Promise<{ ok: true; eventId?: string } | { ok: false; message: string }> {
+): Promise<{ ok: true; eventId?: string; submittedReview?: UserReview } | { ok: false; message: string }> {
     const flow = currentFlow || 'detailed';
 
     let decimalAverage: number | undefined;
@@ -194,7 +195,7 @@ export async function submitEventReviewFromForm(
             review && typeof (review as { event_id?: string }).event_id === 'string'
                 ? (review as { event_id?: string }).event_id
                 : undefined;
-        return { ok: true, eventId };
+        return { ok: true, eventId, submittedReview: review as UserReview | undefined };
     } catch (e: any) {
         const message = e?.message || 'Could not save review';
         return { ok: false, message };

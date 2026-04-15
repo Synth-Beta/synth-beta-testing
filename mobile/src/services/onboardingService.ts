@@ -86,6 +86,55 @@ export class OnboardingService {
     }
 
     /**
+     * Save profile setup (username, birthday, city, gender, bio, name).
+     * Also computes is_minor and auto-enables parental_controls for under-18.
+     */
+    static async saveProfileSetup(userId: string, data: {
+        name?: string;
+        username?: string;
+        birthday?: string; // YYYY-MM-DD
+        location_city?: string;
+        gender?: string;
+        bio?: string;
+    }): Promise<void> {
+        try {
+            let isMinor = false;
+            if (data.birthday) {
+                const birthDate = new Date(data.birthday);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+                isMinor = age < 18;
+            }
+
+            const update: Record<string, unknown> = {
+                updated_at: new Date().toISOString(),
+            };
+            if (data.name !== undefined) update.name = data.name;
+            if (data.username !== undefined) update.username = data.username;
+            if (data.birthday !== undefined) {
+                update.birthday = data.birthday;
+                update.age_verified = false;
+                update.is_minor = isMinor;
+                update.parental_controls_enabled = isMinor;
+            }
+            if (data.location_city !== undefined) update.location_city = data.location_city;
+            if (data.gender !== undefined) update.gender = data.gender;
+            if (data.bio !== undefined) update.bio = data.bio;
+
+            const { error } = await supabase
+                .from('users')
+                .update(update)
+                .eq('user_id', userId);
+
+            if (error) console.warn('[OnboardingService] saveProfileSetup error:', error.message);
+        } catch (e) {
+            console.warn('[OnboardingService] saveProfileSetup failed:', e);
+        }
+    }
+
+    /**
      * Follow venues in user_venue_relationships
      */
     static async followVenues(userId: string, venueIds: string[]): Promise<void> {

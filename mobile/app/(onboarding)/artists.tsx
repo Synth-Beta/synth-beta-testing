@@ -68,7 +68,7 @@ export default function ArtistsScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={5} currentStep={3} />
+                <OnboardingProgress totalSteps={6} currentStep={4} />
                 <Pressable onPress={handleContinue} style={styles.skipButton}>
                     <SynthText variant="meta" color="secondary">Skip</SynthText>
                 </Pressable>

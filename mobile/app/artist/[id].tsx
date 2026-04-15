@@ -147,6 +147,23 @@ export default function ArtistDetailScreen() {
       // Events may store the raw JamBase ID or the canonical Synth UUID — include both.
       const artistIdsToSearch = Array.from(new Set([resolvedId, raw].filter((v): v is string => !!v)));
 
+      // Also resolve any external JamBase IDs mapped to this canonical artist UUID,
+      // since some events store the JamBase external ID as artist_id.
+      if (resolvedId) {
+        const { data: extIds } = await supabase
+          .from('external_entity_ids')
+          .select('external_id')
+          .eq('entity_type', 'artist')
+          .eq('entity_uuid', resolvedId);
+        if (extIds?.length) {
+          for (const e of extIds) {
+            if (e.external_id && !artistIdsToSearch.includes(e.external_id)) {
+              artistIdsToSearch.push(e.external_id);
+            }
+          }
+        }
+      }
+
       let artistName = artist?.name?.trim() || '';
       if (artist) {
         setName(artistName || 'Artist');
@@ -189,6 +206,30 @@ export default function ArtistDetailScreen() {
           artistName = (allEventsData[0] as any).artist_name || 'Artist';
         }
         setName(artistName || 'Artist');
+
+        // Batch-fill missing venue names from the venues table
+        // (JamBase events often have venue_id but no denormalized venue_name)
+        const missingVenueIds = [...new Set(
+          allEventsData
+            .filter((e: any) => !e.venue_name && e.venue_id)
+            .map((e: any) => String(e.venue_id))
+        )];
+        if (missingVenueIds.length > 0) {
+          const { data: venueRows } = await supabase
+            .from('venues')
+            .select('id, name')
+            .in('id', missingVenueIds);
+          if (venueRows?.length) {
+            const venueMap: Record<string, string> = {};
+            venueRows.forEach((v: any) => { venueMap[String(v.id)] = v.name || ''; });
+            allEventsData.forEach((e: any) => {
+              if (!e.venue_name && e.venue_id && venueMap[String(e.venue_id)]) {
+                e.venue_name = venueMap[String(e.venue_id)];
+              }
+            });
+          }
+        }
+
         setUpcomingEvents(upcomingData.map(e => mapEventRow(e, artistName)));
         setPastEvents(pastData.map(e => mapEventRow(e, artistName)));
 

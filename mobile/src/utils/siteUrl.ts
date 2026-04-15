@@ -4,5 +4,5 @@ const TRIM_TRAILING = /\/+$/;
 export function getExpoSiteUrl(): string {
     const raw = process.env.EXPO_PUBLIC_SITE_URL?.trim();
     if (raw) return raw.replace(TRIM_TRAILING, '');
-    return 'https://synth-beta-testing.vercel.app';
+    return 'https://join.getsynth.app';
 }

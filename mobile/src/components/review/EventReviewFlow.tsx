@@ -14,7 +14,7 @@ import {
     Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
@@ -27,6 +27,10 @@ import {
     type ReviewVenue,
 } from '../../hooks/useReviewForm';
 import { SearchService } from '../../services/searchService';
+import { MobileAttendeeSelector } from './MobileAttendeeSelector';
+import { MobileRankingModal } from './MobileRankingModal';
+import { MobileImageCropper, type CropResult } from './MobileImageCropper';
+import { Image } from 'expo-image';
 import { EventService } from '../../services/eventService';
 import { isEventPast } from '../../utils/eventStatusUtils';
 import { submitEventReviewFromForm } from '../../review/submitEventReviewFromForm';
@@ -187,6 +191,31 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
     const [venueQ, setVenueQ] = useState('');
     const [venueRows, setVenueRows] = useState<ReviewVenue[]>([]);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [rankingModalVisible, setRankingModalVisible] = useState(false);
+    const [submittedReviewId, setSubmittedReviewId] = useState<string | null>(null);
+    const [submittedRating, setSubmittedRating] = useState<number>(0);
+    const [cropperVisible, setCropperVisible] = useState(false);
+    const [cropPhotoIndex, setCropPhotoIndex] = useState(0);
+
+    const selectArtist = useCallback((a: ReviewArtist) => {
+        updateFormData({ selectedArtist: a });
+        setArtistQ('');
+        setArtistRows([]);
+    }, [updateFormData]);
+
+    const clearArtist = useCallback(() => {
+        updateFormData({ selectedArtist: null });
+    }, [updateFormData]);
+
+    const selectVenue = useCallback((v: ReviewVenue) => {
+        updateFormData({ selectedVenue: v });
+        setVenueQ('');
+        setVenueRows([]);
+    }, [updateFormData]);
+
+    const clearVenue = useCallback(() => {
+        updateFormData({ selectedVenue: null });
+    }, [updateFormData]);
 
     useEffect(() => {
         void supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -512,7 +541,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         return [];
     }, [flow, formData]);
 
-    /** Final step: matches web `PrivacySubmitStep` — summary + public/private choice (not a bare switch). */
+    /** Final step: matches web `PrivacySubmitStep` — summary + public/private choice. */
     const renderPrivacySubmitSection = () => (
         <View style={styles.section}>
             <SynthText variant="meta" color="brand" style={styles.center}>
@@ -524,28 +553,79 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             <SynthText variant="meta" color="secondary" style={[styles.center, styles.mb8]}>
                 Take a final look at your ratings and choose who can see your review.
             </SynthText>
-            {formData.selectedArtist?.name && formData.selectedVenue?.name ? (
-                <SynthText variant="body" style={styles.center}>
-                    {formData.selectedArtist.name} @ {formData.selectedVenue.name}
+
+            {/* Rating summary card */}
+            <View style={styles.summaryCard}>
+                {formData.selectedArtist?.name && formData.selectedVenue?.name ? (
+                    <SynthText variant="accent" style={[styles.center, { color: '#fff' }]}>
+                        {formData.selectedArtist.name} @ {formData.selectedVenue.name}
+                    </SynthText>
+                ) : null}
+                {formData.eventDate ? (
+                    <SynthText variant="meta" style={[styles.center, { color: 'rgba(255,255,255,0.8)' }]}>
+                        {formData.eventDate}
+                    </SynthText>
+                ) : null}
+                <SynthText variant="h2" style={[styles.center, styles.mt8, { color: '#fff' }]}>
+                    {averageRatingForSummary > 0 ? `${averageRatingForSummary.toFixed(1)} / 5` : '—'}
                 </SynthText>
-            ) : null}
-            {formData.eventDate ? (
-                <SynthText variant="meta" color="secondary" style={styles.center}>
-                    {formData.eventDate}
-                </SynthText>
-            ) : null}
-            <SynthText variant="body" style={[styles.mt12, styles.center]}>
-                Overall {averageRatingForSummary.toFixed(1)} / 5
-            </SynthText>
-            {categoryBreakdown.length > 0 ? (
-                <View style={styles.mt8}>
-                    {categoryBreakdown.map(c => (
-                        <SynthText key={c.label} variant="meta" color="secondary">
-                            {c.label}: {c.rating ? c.rating.toFixed(1) : '—'}
+                {categoryBreakdown.length > 0 ? (
+                    <View style={styles.categoryGrid}>
+                        {categoryBreakdown.map(c => (
+                            <View key={c.label} style={styles.categoryItem}>
+                                <SynthText variant="meta" style={{ color: 'rgba(255,255,255,0.8)' }}>{c.label}</SynthText>
+                                <SynthText variant="accent" style={{ color: '#fff' }}>{c.rating ? c.rating.toFixed(1) : '—'}</SynthText>
+                            </View>
+                        ))}
+                    </View>
+                ) : null}
+            </View>
+
+            {/* What you're sharing checklist */}
+            <View style={styles.sharingCard}>
+                <SynthText variant="accent" style={styles.mb8}>What you're sharing</SynthText>
+                {formData.selectedArtist?.name && formData.selectedVenue?.name ? (
+                    <View style={styles.checkRow}>
+                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <SynthText variant="meta">
+                            <SynthText variant="meta" style={{ fontWeight: '700' }}>{formData.selectedArtist.name}</SynthText>
+                            {' at '}
+                            <SynthText variant="meta" style={{ fontWeight: '700' }}>{formData.selectedVenue.name}</SynthText>
                         </SynthText>
-                    ))}
-                </View>
-            ) : null}
+                    </View>
+                ) : null}
+                {formData.eventDate ? (
+                    <View style={styles.checkRow}>
+                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <SynthText variant="meta">{formData.eventDate}</SynthText>
+                    </View>
+                ) : null}
+                {formData.ticketPricePaid ? (
+                    <View style={styles.checkRow}>
+                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <SynthText variant="meta">Ticket price (kept private): ${formData.ticketPricePaid}</SynthText>
+                    </View>
+                ) : null}
+                {formData.reviewText ? (
+                    <View style={styles.checkRow}>
+                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <SynthText variant="meta">Written story ({formData.reviewText.length} characters)</SynthText>
+                    </View>
+                ) : null}
+                {formData.photos.length > 0 ? (
+                    <View style={styles.checkRow}>
+                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <SynthText variant="meta">{formData.photos.length} photo{formData.photos.length !== 1 ? 's' : ''} attached</SynthText>
+                    </View>
+                ) : null}
+                {formData.attendees.length > 0 ? (
+                    <View style={styles.checkRow}>
+                        <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
+                        <SynthText variant="meta">{formData.attendees.length} attendee{formData.attendees.length !== 1 ? 's' : ''} tagged</SynthText>
+                    </View>
+                ) : null}
+            </View>
+
             <SynthText variant="body" style={styles.privacySectionTitle}>
                 Who can see this review?
             </SynthText>
@@ -555,7 +635,8 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     onPress={() => updateFormData({ isPublic: true })}
                 >
                     <SynthText variant="body" style={styles.privacyCardTitle}>
-                        Public
+                        Public {'  '}
+                        <SynthText variant="meta" style={styles.recommendedBadge}>Recommended</SynthText>
                     </SynthText>
                     <SynthText variant="meta" color="secondary">
                         Everyone can see your review. Help the community decide where to go.
@@ -573,6 +654,20 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     </SynthText>
                 </Pressable>
             </View>
+
+            {/* Privacy info bullets (matches web) */}
+            <View style={styles.privacyInfo}>
+                <SynthText variant="meta" color="secondary" style={{ fontWeight: '600', marginBottom: 4 }}>About privacy:</SynthText>
+                {[
+                    'Public reviews help the community discover amazing shows',
+                    'You can change the privacy setting any time in your profile',
+                    'Private reviews are only visible to you',
+                    'All reviews follow Synth's community guidelines',
+                ].map((line, i) => (
+                    <SynthText key={i} variant="meta" color="secondary">• {line}</SynthText>
+                ))}
+            </View>
+
             <SynthText variant="meta" color="secondary" style={[styles.center, styles.mt12]}>
                 By submitting, you agree to our terms of service and community guidelines.
             </SynthText>
@@ -590,8 +685,15 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         }
         void AsyncStorage.removeItem(mobileReviewDraftStorageKey(userId));
         const outEvent = res.eventId ?? initialEventId ?? undefined;
-        onSubmitted?.(outEvent);
-    }, [userId, formData, currentFlow, setLoading, onSubmitted, initialEventId]);
+        // Show ranking modal if we have a review to rank
+        if (res.submittedReview?.id && averageRatingForSummary > 0) {
+            setSubmittedReviewId(res.submittedReview.id);
+            setSubmittedRating(averageRatingForSummary);
+            setRankingModalVisible(true);
+        } else {
+            onSubmitted?.(outEvent);
+        }
+    }, [userId, formData, currentFlow, setLoading, onSubmitted, initialEventId, averageRatingForSummary]);
 
     const pickPhotos = async () => {
         if (!userId) return;
@@ -609,6 +711,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         if (r.canceled || !r.assets?.length) return;
         setUploadingPhoto(true);
         const next = [...formData.photos];
+        const wasEmpty = next.length === 0;
         for (const a of r.assets) {
             if (next.length >= 5) break;
             if (!a.uri) continue;
@@ -617,7 +720,158 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         }
         setUploadingPhoto(false);
         updateFormData({ photos: next });
+        // Prompt crop for first photo if this is the first upload
+        if (wasEmpty && next.length > 0) {
+            setCropPhotoIndex(0);
+            setCropperVisible(true);
+        }
     };
+
+    const removePhoto = (index: number) => {
+        const next = formData.photos.filter((_, i) => i !== index);
+        const newThumbnailIndex = formData.thumbnailIndex >= next.length
+            ? Math.max(0, next.length - 1)
+            : formData.thumbnailIndex;
+        updateFormData({ photos: next, thumbnailIndex: newThumbnailIndex });
+    };
+
+    const renderPhotoStrip = () => {
+        if (formData.photos.length === 0) return null;
+        return (
+            <View style={styles.photoStrip}>
+                {formData.photos.map((url, i) => (
+                    <View key={i} style={[styles.photoThumb, i === formData.thumbnailIndex && styles.photoThumbSelected]}>
+                        <Image source={{ uri: url }} style={styles.photoThumbImg} contentFit="cover" />
+                        {i === formData.thumbnailIndex && (
+                            <View style={styles.thumbnailBadge}>
+                                <SynthText variant="meta" style={styles.thumbnailBadgeText}>Cover</SynthText>
+                            </View>
+                        )}
+                        <View style={styles.photoActions}>
+                            <Pressable
+                                style={styles.photoActionBtn}
+                                onPress={() => {
+                                    updateFormData({ thumbnailIndex: i });
+                                    setCropPhotoIndex(i);
+                                    setCropperVisible(true);
+                                }}
+                            >
+                                <SynthText variant="meta" style={styles.photoActionTxt}>Crop</SynthText>
+                            </Pressable>
+                            <Pressable style={[styles.photoActionBtn, styles.photoActionRemove]} onPress={() => removePhoto(i)}>
+                                <SynthText variant="meta" style={styles.photoActionTxt}>✕</SynthText>
+                            </Pressable>
+                        </View>
+                    </View>
+                ))}
+            </View>
+        );
+    };
+
+    const renderEventDetailsStep = () => (
+        <View style={styles.section}>
+            <SynthText variant="h2">Event details</SynthText>
+            <SynthText variant="meta" color="secondary" style={styles.mb8}>
+                Search a past show or fill in artist + venue
+            </SynthText>
+
+            <SynthText variant="meta">Past event</SynthText>
+            <TextInput
+                style={styles.input}
+                placeholder="Search artist, venue, title…"
+                placeholderTextColor={SynthTokens.colors.neutral600}
+                value={eventQuery}
+                onChangeText={setEventQuery}
+            />
+            <FlatList
+                data={eventRows.slice(0, 8)}
+                keyExtractor={(it) => it.id}
+                scrollEnabled={false}
+                renderItem={({ item }) => (
+                    <Pressable style={styles.listRow} onPress={() => void applyPastEvent(item)}>
+                        <SynthText variant="body" numberOfLines={2}>
+                            {(item.artist_name_normalized || '') +
+                                ' @ ' +
+                                (item.venue_name_normalized || '')}{' '}
+                            · {String(item.event_date).split('T')[0]}
+                        </SynthText>
+                    </Pressable>
+                )}
+            />
+
+            <SynthText variant="meta" style={styles.mt12}>Artist</SynthText>
+            {formData.selectedArtist ? (
+                <View style={styles.selectedChip}>
+                    <SynthText variant="body" style={styles.selectedChipText} numberOfLines={1}>
+                        {formData.selectedArtist.name}
+                    </SynthText>
+                    <Pressable onPress={clearArtist} style={styles.selectedChipClear} hitSlop={8}>
+                        <X size={14} color={SynthTokens.colors.neutral600} />
+                    </Pressable>
+                </View>
+            ) : (
+                <>
+                    <TextInput
+                        style={styles.input}
+                        value={artistQ}
+                        onChangeText={setArtistQ}
+                        placeholder="Search artist…"
+                        placeholderTextColor={SynthTokens.colors.neutral600}
+                    />
+                    {artistRows.slice(0, 6).map((a) => (
+                        <Pressable key={a.id} style={styles.listRow} onPress={() => selectArtist(a)}>
+                            <SynthText variant="body">{a.name}</SynthText>
+                        </Pressable>
+                    ))}
+                </>
+            )}
+
+            <SynthText variant="meta" style={styles.mt12}>Venue</SynthText>
+            {formData.selectedVenue ? (
+                <View style={styles.selectedChip}>
+                    <SynthText variant="body" style={styles.selectedChipText} numberOfLines={1}>
+                        {formData.selectedVenue.name}
+                    </SynthText>
+                    <Pressable onPress={clearVenue} style={styles.selectedChipClear} hitSlop={8}>
+                        <X size={14} color={SynthTokens.colors.neutral600} />
+                    </Pressable>
+                </View>
+            ) : (
+                <>
+                    <TextInput
+                        style={styles.input}
+                        value={venueQ}
+                        onChangeText={setVenueQ}
+                        placeholder="Search venue…"
+                        placeholderTextColor={SynthTokens.colors.neutral600}
+                    />
+                    {venueRows.slice(0, 6).map((v) => (
+                        <Pressable key={v.id} style={styles.listRow} onPress={() => selectVenue(v)}>
+                            <SynthText variant="body">{v.name}</SynthText>
+                        </Pressable>
+                    ))}
+                </>
+            )}
+
+            <SynthText variant="meta" style={styles.mt12}>Date (YYYY-MM-DD)</SynthText>
+            <TextInput
+                style={styles.input}
+                value={formData.eventDate}
+                onChangeText={(t) => updateFormData({ eventDate: t })}
+                placeholder="2025-03-01"
+                placeholderTextColor={SynthTokens.colors.neutral600}
+            />
+            {!!errors.selectedArtist && (
+                <SynthText variant="meta" style={styles.err}>{errors.selectedArtist}</SynthText>
+            )}
+            {!!errors.selectedVenue && (
+                <SynthText variant="meta" style={styles.err}>{errors.selectedVenue}</SynthText>
+            )}
+            {!!errors.eventDate && (
+                <SynthText variant="meta" style={styles.err}>{errors.eventDate}</SynthText>
+            )}
+        </View>
+    );
 
     const renderCategory = (config: CategoryConfig, extras?: React.ReactNode) => {
         const rVal = formData[config.ratingKey] as number;
@@ -775,100 +1029,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         switch (flow) {
             case 'quick':
                 if (currentStep === 2) {
-                    return (
-                        <View style={styles.section}>
-                            <SynthText variant="h2">Event details</SynthText>
-                            <SynthText variant="meta" color="secondary" style={styles.mb8}>
-                                Search a past show or pick artist + venue
-                            </SynthText>
-                            <SynthText variant="meta">Past event</SynthText>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Search artist, venue, title…"
-                                placeholderTextColor={SynthTokens.colors.neutral600}
-                                value={eventQuery}
-                                onChangeText={setEventQuery}
-                            />
-                            <FlatList
-                                data={eventRows.slice(0, 8)}
-                                keyExtractor={(it) => it.id}
-                                scrollEnabled={false}
-                                renderItem={({ item }) => (
-                                    <Pressable style={styles.listRow} onPress={() => void applyPastEvent(item)}>
-                                        <SynthText variant="body" numberOfLines={2}>
-                                            {(item.artist_name_normalized || '') +
-                                                ' @ ' +
-                                                (item.venue_name_normalized || '')}{' '}
-                                            · {String(item.event_date).split('T')[0]}
-                                        </SynthText>
-                                    </Pressable>
-                                )}
-                            />
-                            <SynthText variant="meta" style={styles.mt12}>
-                                Artist
-                            </SynthText>
-                            <TextInput
-                                style={styles.input}
-                                value={artistQ}
-                                onChangeText={setArtistQ}
-                                placeholder="Search artist"
-                                placeholderTextColor={SynthTokens.colors.neutral600}
-                            />
-                            {artistRows.slice(0, 6).map((a) => (
-                                <Pressable
-                                    key={a.id}
-                                    style={styles.listRow}
-                                    onPress={() => updateFormData({ selectedArtist: a })}
-                                >
-                                    <SynthText variant="body">{a.name}</SynthText>
-                                </Pressable>
-                            ))}
-                            <SynthText variant="meta" style={styles.mt12}>
-                                Venue
-                            </SynthText>
-                            <TextInput
-                                style={styles.input}
-                                value={venueQ}
-                                onChangeText={setVenueQ}
-                                placeholder="Search venue"
-                                placeholderTextColor={SynthTokens.colors.neutral600}
-                            />
-                            {venueRows.slice(0, 6).map((v) => (
-                                <Pressable
-                                    key={v.id}
-                                    style={styles.listRow}
-                                    onPress={() => updateFormData({ selectedVenue: v })}
-                                >
-                                    <SynthText variant="body">{v.name}</SynthText>
-                                </Pressable>
-                            ))}
-                            <SynthText variant="meta" style={styles.mt12}>
-                                Date (YYYY-MM-DD)
-                            </SynthText>
-                            <TextInput
-                                style={styles.input}
-                                value={formData.eventDate}
-                                onChangeText={(t) => updateFormData({ eventDate: t })}
-                                placeholder="2025-03-01"
-                                placeholderTextColor={SynthTokens.colors.neutral600}
-                            />
-                            {errors.selectedArtist ? (
-                                <SynthText variant="meta" style={styles.err}>
-                                    {errors.selectedArtist}
-                                </SynthText>
-                            ) : null}
-                            {errors.selectedVenue ? (
-                                <SynthText variant="meta" style={styles.err}>
-                                    {errors.selectedVenue}
-                                </SynthText>
-                            ) : null}
-                            {errors.eventDate ? (
-                                <SynthText variant="meta" style={styles.err}>
-                                    {errors.eventDate}
-                                </SynthText>
-                            ) : null}
-                        </View>
-                    );
+                    return renderEventDetailsStep();
                 }
                 if (currentStep === 3) {
                     const max = 200;
@@ -912,6 +1073,15 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                 value={formData.videos[0] ?? ''}
                                 onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
                             />
+                            {userId ? (
+                                <MobileAttendeeSelector
+                                    value={formData.attendees}
+                                    onChange={(attendees) => updateFormData({ attendees })}
+                                    userId={userId}
+                                    metOnSynth={formData.metOnSynth}
+                                    onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                                />
+                            ) : null}
                         </View>
                     );
                 }
@@ -934,79 +1104,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
 
         if (flow === 'standard') {
             if (currentStep === 2) {
-                return (
-                    <View style={styles.section}>
-                        <SynthText variant="h2">Event details</SynthText>
-                        <SynthText variant="meta">Past event</SynthText>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Search…"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                            value={eventQuery}
-                            onChangeText={setEventQuery}
-                        />
-                        <FlatList
-                            data={eventRows.slice(0, 8)}
-                            keyExtractor={(it) => it.id}
-                            scrollEnabled={false}
-                            renderItem={({ item }) => (
-                                <Pressable style={styles.listRow} onPress={() => void applyPastEvent(item)}>
-                                    <SynthText variant="body" numberOfLines={2}>
-                                        {(item.artist_name_normalized || '') +
-                                            ' @ ' +
-                                            (item.venue_name_normalized || '')}
-                                    </SynthText>
-                                </Pressable>
-                            )}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            value={artistQ}
-                            onChangeText={setArtistQ}
-                            placeholder="Artist"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                        />
-                        {artistRows.slice(0, 5).map((a) => (
-                            <Pressable key={a.id} style={styles.listRow} onPress={() => updateFormData({ selectedArtist: a })}>
-                                <SynthText variant="body">{a.name}</SynthText>
-                            </Pressable>
-                        ))}
-                        <TextInput
-                            style={styles.input}
-                            value={venueQ}
-                            onChangeText={setVenueQ}
-                            placeholder="Venue"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                        />
-                        {venueRows.slice(0, 5).map((v) => (
-                            <Pressable key={v.id} style={styles.listRow} onPress={() => updateFormData({ selectedVenue: v })}>
-                                <SynthText variant="body">{v.name}</SynthText>
-                            </Pressable>
-                        ))}
-                        <TextInput
-                            style={styles.input}
-                            value={formData.eventDate}
-                            onChangeText={(t) => updateFormData({ eventDate: t })}
-                            placeholder="Date YYYY-MM-DD"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                        />
-                        {!!errors.selectedArtist && (
-                            <SynthText variant="meta" style={styles.err}>
-                                {errors.selectedArtist}
-                            </SynthText>
-                        )}
-                        {!!errors.selectedVenue && (
-                            <SynthText variant="meta" style={styles.err}>
-                                {errors.selectedVenue}
-                            </SynthText>
-                        )}
-                        {!!errors.eventDate && (
-                            <SynthText variant="meta" style={styles.err}>
-                                {errors.eventDate}
-                            </SynthText>
-                        )}
-                    </View>
-                );
+                return renderEventDetailsStep();
             }
             if (currentStep === 3) return renderCategory(categoryConfigs[2]!);
             if (currentStep === 4)
@@ -1022,7 +1120,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             value={formData.reviewText}
                             maxLength={max}
                             onChangeText={(t) => updateFormData({ reviewText: t })}
-                            placeholder="Tell the story"
+                            placeholder="What made this night unforgettable? Any standout moments future fans should know?"
                             placeholderTextColor={SynthTokens.colors.neutral600}
                         />
                         <SynthText variant="meta" color="secondary">
@@ -1042,6 +1140,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                 </SynthText>
                             )}
                         </Pressable>
+                        {renderPhotoStrip()}
                         <SynthText variant="meta" color="secondary" style={styles.mt12}>
                             Video link (optional)
                         </SynthText>
@@ -1053,6 +1152,15 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             value={formData.videos[0] ?? ''}
                             onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
                         />
+                        {userId ? (
+                            <MobileAttendeeSelector
+                                value={formData.attendees}
+                                onChange={(attendees) => updateFormData({ attendees })}
+                                userId={userId}
+                                metOnSynth={formData.metOnSynth}
+                                onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                            />
+                        ) : null}
                     </View>
                 );
             }
@@ -1063,78 +1171,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
 
         if (flow === 'detailed') {
             if (currentStep === 2) {
-                return (
-                    <View style={styles.section}>
-                        <SynthText variant="h2">Event details</SynthText>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Search past events…"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                            value={eventQuery}
-                            onChangeText={setEventQuery}
-                        />
-                        <FlatList
-                            data={eventRows.slice(0, 8)}
-                            keyExtractor={(it) => it.id}
-                            scrollEnabled={false}
-                            renderItem={({ item }) => (
-                                <Pressable style={styles.listRow} onPress={() => void applyPastEvent(item)}>
-                                    <SynthText variant="body" numberOfLines={2}>
-                                        {(item.artist_name_normalized || '') +
-                                            ' @ ' +
-                                            (item.venue_name_normalized || '')}
-                                    </SynthText>
-                                </Pressable>
-                            )}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            value={artistQ}
-                            onChangeText={setArtistQ}
-                            placeholder="Artist"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                        />
-                        {artistRows.slice(0, 5).map((a) => (
-                            <Pressable key={a.id} style={styles.listRow} onPress={() => updateFormData({ selectedArtist: a })}>
-                                <SynthText variant="body">{a.name}</SynthText>
-                            </Pressable>
-                        ))}
-                        <TextInput
-                            style={styles.input}
-                            value={venueQ}
-                            onChangeText={setVenueQ}
-                            placeholder="Venue"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                        />
-                        {venueRows.slice(0, 5).map((v) => (
-                            <Pressable key={v.id} style={styles.listRow} onPress={() => updateFormData({ selectedVenue: v })}>
-                                <SynthText variant="body">{v.name}</SynthText>
-                            </Pressable>
-                        ))}
-                        <TextInput
-                            style={styles.input}
-                            value={formData.eventDate}
-                            onChangeText={(t) => updateFormData({ eventDate: t })}
-                            placeholder="Date YYYY-MM-DD"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                        />
-                        {!!errors.selectedArtist && (
-                            <SynthText variant="meta" style={styles.err}>
-                                {errors.selectedArtist}
-                            </SynthText>
-                        )}
-                        {!!errors.selectedVenue && (
-                            <SynthText variant="meta" style={styles.err}>
-                                {errors.selectedVenue}
-                            </SynthText>
-                        )}
-                        {!!errors.eventDate && (
-                            <SynthText variant="meta" style={styles.err}>
-                                {errors.eventDate}
-                            </SynthText>
-                        )}
-                    </View>
-                );
+                return renderEventDetailsStep();
             }
             if (currentStep === 3) return renderCategory(categoryConfigs[2]!);
             if (currentStep === 4) return renderCategory(categoryConfigs[3]!);
@@ -1172,6 +1209,8 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             value={formData.reviewText}
                             maxLength={max}
                             onChangeText={(t) => updateFormData({ reviewText: t })}
+                            placeholder="What made this night unforgettable? Any standout moments future fans should know?"
+                            placeholderTextColor={SynthTokens.colors.neutral600}
                         />
                         <SynthText variant="meta" color="secondary">
                             {formData.reviewText.length}/{max}
@@ -1190,6 +1229,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                 </SynthText>
                             )}
                         </Pressable>
+                        {renderPhotoStrip()}
                         <SynthText variant="meta" color="secondary" style={styles.mt12}>
                             Video link (optional)
                         </SynthText>
@@ -1201,6 +1241,15 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             value={formData.videos[0] ?? ''}
                             onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
                         />
+                        {userId ? (
+                            <MobileAttendeeSelector
+                                value={formData.attendees}
+                                onChange={(attendees) => updateFormData({ attendees })}
+                                userId={userId}
+                                metOnSynth={formData.metOnSynth}
+                                onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                            />
+                        ) : null}
                     </View>
                 );
             }
@@ -1231,6 +1280,31 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         (flow === 'detailed' && currentStep === 9);
 
     return (
+        <>
+        {userId && submittedReviewId ? (
+            <MobileRankingModal
+                visible={rankingModalVisible}
+                onClose={() => {
+                    setRankingModalVisible(false);
+                    onSubmitted?.(undefined);
+                }}
+                userId={userId}
+                newReviewId={submittedReviewId}
+                rating={submittedRating}
+            />
+        ) : null}
+        {formData.photos[cropPhotoIndex] ? (
+            <MobileImageCropper
+                visible={cropperVisible}
+                imageUri={formData.photos[cropPhotoIndex]}
+                initial={cropPhotoIndex === formData.thumbnailIndex ? formData.thumbnailCrop : null}
+                onDone={(crop: CropResult) => {
+                    updateFormData({ thumbnailIndex: cropPhotoIndex, thumbnailCrop: crop });
+                    setCropperVisible(false);
+                }}
+                onCancel={() => setCropperVisible(false)}
+            />
+        ) : null}
         <KeyboardAvoidingView
             style={styles.root}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1280,6 +1354,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 ) : null}
             </View>
         </KeyboardAvoidingView>
+        </>
     );
 }
 
@@ -1403,6 +1478,54 @@ const styles = StyleSheet.create({
         backgroundColor: SynthTokens.colors.brandPink050,
     },
     privacyCardTitle: { fontWeight: '600', marginBottom: 4, color: SynthTokens.colors.neutral900 },
+    summaryCard: {
+        backgroundColor: SynthTokens.colors.brandPink500,
+        borderRadius: 16,
+        padding: 16,
+        gap: 6,
+    },
+    categoryGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 8,
+    },
+    categoryItem: {
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        borderRadius: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        alignItems: 'center',
+        minWidth: 80,
+    },
+    sharingCard: {
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        padding: 14,
+        gap: 8,
+    },
+    checkRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+    },
+    checkMark: {
+        color: '#22C55E',
+        fontWeight: '700',
+    },
+    recommendedBadge: {
+        color: SynthTokens.colors.brandPink500,
+        fontSize: 11,
+    },
+    privacyInfo: {
+        backgroundColor: SynthTokens.colors.neutral100,
+        borderRadius: 12,
+        padding: 12,
+        gap: 4,
+        marginTop: 8,
+    },
     rowBetween: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -1428,4 +1551,78 @@ const styles = StyleSheet.create({
     },
     primaryBtnText: { color: '#fff', fontWeight: '600' },
     primaryBtnDisabled: { opacity: 0.7 },
+    photoStrip: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 10,
+    },
+    photoThumb: {
+        width: 80,
+        height: 80,
+        borderRadius: 10,
+        overflow: 'hidden',
+        borderWidth: 2,
+        borderColor: SynthTokens.colors.neutral200,
+    },
+    photoThumbSelected: {
+        borderColor: SynthTokens.colors.brandPink500,
+    },
+    photoThumbImg: {
+        width: '100%',
+        height: '100%',
+    },
+    thumbnailBadge: {
+        position: 'absolute',
+        top: 4,
+        left: 4,
+        backgroundColor: SynthTokens.colors.brandPink500,
+        borderRadius: 6,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+    },
+    thumbnailBadgeText: {
+        color: '#fff',
+        fontSize: 9,
+        fontWeight: '700',
+    },
+    photoActions: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+    },
+    photoActionBtn: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        alignItems: 'center',
+        paddingVertical: 3,
+    },
+    photoActionRemove: {
+        backgroundColor: 'rgba(180,0,0,0.6)',
+    },
+    photoActionTxt: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '600',
+    },
+    selectedChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: SynthTokens.colors.brandPink050,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.brandPink500,
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+    },
+    selectedChipText: {
+        flex: 1,
+        color: SynthTokens.colors.neutral900,
+        fontWeight: '500' as const,
+    },
+    selectedChipClear: {
+        marginLeft: 8,
+    },
 });
