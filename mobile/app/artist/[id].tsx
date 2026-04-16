@@ -27,6 +27,7 @@ import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttri
 import { isUuid } from '../../src/utils/isUuid';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
+import { todayLocalYmd } from '../../src/utils/localYmd';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -184,16 +185,16 @@ export default function ArtistDetailScreen() {
         // Use two separate queries (upcoming + past) so a large past-events backlog
         // never pushes future events past the query limit.
         const eventCols = 'id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls';
-        const todayIso = new Date().toISOString();
+        const todayYmd = todayLocalYmd();
         const [upcomingRes, pastRes] = await Promise.all([
           supabase.from('events').select(eventCols)
             .in('artist_id', artistIdsToSearch)
-            .gte('event_date', todayIso)
+            .gte('event_date', todayYmd)
             .order('event_date', { ascending: true })
             .limit(20),
           supabase.from('events').select(eventCols)
             .in('artist_id', artistIdsToSearch)
-            .lt('event_date', todayIso)
+            .lt('event_date', todayYmd)
             .order('event_date', { ascending: false })
             .limit(10),
         ]);

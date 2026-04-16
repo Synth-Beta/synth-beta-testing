@@ -64,9 +64,12 @@ export default function ProfileScreen() {
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
+    // Use getSession() (local storage) instead of getUser() (network round-trip)
+    // so the profile renders immediately without waiting for JWT validation.
     const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
+    const authUser = session?.user ?? null;
     if (!authUser) {
       setAuthUserId(null);
       setLoading(false);
@@ -74,23 +77,25 @@ export default function ProfileScreen() {
     }
     setAuthUserId(authUser.id);
 
-    const { data: userData, error: userRowError } = await supabase
-      .from('users')
-      .select('name, username, avatar_url, instagram_handle')
-      .eq('user_id', authUser.id)
-      .single();
+    // Fire all queries in parallel — user row + stats + timeline etc simultaneously
+    const [userResult, statsData, timelineData, suggestions, interestedRows, streamingStatus] =
+      await Promise.all([
+        supabase
+          .from('users')
+          .select('name, username, avatar_url, instagram_handle')
+          .eq('user_id', authUser.id)
+          .single(),
+        PassportService.getProfileStats(authUser.id),
+        PassportService.getTimeline(authUser.id),
+        HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
+        MyEventsService.getInterestedEvents(authUser.id),
+        getStreamingLinkStatus(authUser.id),
+      ]);
 
+    const { data: userData, error: userRowError } = userResult;
     if (userRowError) {
       console.warn('[profile] users row:', userRowError.message);
     }
-
-    const [statsData, timelineData, suggestions, interestedRows, streamingStatus] = await Promise.all([
-      PassportService.getProfileStats(authUser.id),
-      PassportService.getTimeline(authUser.id),
-      HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
-      MyEventsService.getInterestedEvents(authUser.id),
-      getStreamingLinkStatus(authUser.id),
-    ]);
 
     setUser(userRowError || !userData ? null : userData);
     setStats(statsData);
@@ -271,6 +276,12 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {friendSuggestions.length > 0 ? (
+        <View style={styles.railPad}>
+          <FriendSuggestionsRail suggestions={friendSuggestions} />
+        </View>
+      ) : null}
+
       {profileTabsRow}
     </>
   );
@@ -285,13 +296,6 @@ export default function ProfileScreen() {
           keyExtractor={item => item.key}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={listHeaderAboveTabs}
-          ListFooterComponent={
-            friendSuggestions.length > 0 ? (
-              <View style={styles.railPad}>
-                <FriendSuggestionsRail suggestions={friendSuggestions} />
-              </View>
-            ) : null
-          }
           renderItem={() => (
             <View style={styles.eventsPanelPad}>
               <ProfileMyEventsPanel
@@ -342,12 +346,6 @@ export default function ProfileScreen() {
                 </Pressable>
               ))
             )}
-          </View>
-        ) : null}
-
-        {friendSuggestions.length > 0 ? (
-          <View style={styles.railPad}>
-            <FriendSuggestionsRail suggestions={friendSuggestions} />
           </View>
         ) : null}
 

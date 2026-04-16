@@ -379,7 +379,7 @@ export class HomeFeedService {
                 .in('user_id', friendIds)
                 .eq('is_public', true)
                 .eq('is_draft', false)
-                .neq('review_text', 'ATTENDANCE_ONLY')
+                .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY')
                 .order('created_at', { ascending: false })
                 .limit(limit);
 

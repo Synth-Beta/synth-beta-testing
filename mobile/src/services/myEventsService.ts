@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { resolveFeedImageUri } from '../utils/eventImages';
 
 export interface MyReviewListItem {
     id: string;
@@ -52,9 +53,14 @@ export type ProfileUnreviewedItem =
 function includeInPublishedReviewsList(r: {
     was_there?: boolean | null;
     review_text?: string | null;
+    rating?: number | null;
+    artist_performance_rating?: number | null;
 }): boolean {
     if (r.was_there === true) return true;
     if (r.review_text && r.review_text !== 'ATTENDANCE_ONLY') return true;
+    // Include reviews that have any rating even if no text (e.g. quick-flow star-only)
+    if (typeof r.rating === 'number' && r.rating > 0) return true;
+    if (typeof r.artist_performance_rating === 'number' && r.artist_performance_rating > 0) return true;
     return false;
 }
 
@@ -134,8 +140,8 @@ function mapFilteredReviewToListItem(
         artist_name: artistNameStr,
         venue_name: venueNameStr,
         event_date: String(ev?.event_date ?? ''),
-        // Prefer artist image (matches web), fall back to event image
-        image_url: artistImageUrl || images?.[0]?.url,
+        // Prefer artist image (matches web), fall back to event image; filter JamBase/broken placeholders
+        image_url: resolveFeedImageUri(artistImageUrl || images?.[0]?.url) ?? undefined,
     };
 }
 

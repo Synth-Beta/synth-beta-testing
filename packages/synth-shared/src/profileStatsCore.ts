@@ -17,11 +17,13 @@ export interface ProfileStatsSummary {
 }
 
 function countReviewPillRows(
-  rows: Array<{ was_there?: boolean | null; review_text?: string | null }>
+  rows: Array<{ was_there?: boolean | null; review_text?: string | null; rating?: number | null }>
 ): number {
   return rows.filter((item) => {
     if (item.was_there === true) return true;
     if (item.review_text && item.review_text !== 'ATTENDANCE_ONLY') return true;
+    // Count quick-flow reviews that have a rating but no text
+    if (typeof item.rating === 'number' && item.rating > 0) return true;
     return false;
   }).length;
 }
@@ -40,7 +42,7 @@ export async function fetchProfileStatsSummary(
         .or(`user_id.eq.${userId},related_user_id.eq.${userId}`),
       client
         .from('reviews')
-        .select('was_there, review_text')
+        .select('was_there, review_text, rating')
         .eq('user_id', userId)
         .eq('is_draft', false),
       client

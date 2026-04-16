@@ -51,9 +51,13 @@ export default function FeedScreen() {
   const fetchFeed = useCallback(async () => {
     try {
       const loc = await getCurrentLatLng();
+      // Use getSession() (local storage, no network) so the feed loads even on
+      // spotty first-launch connectivity. getUser() validates the JWT remotely
+      // and returns null on any hiccup, causing an empty feed that refresh can't fix.
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
       if (!user) {
         setReferralCode(null);
         setViewerUserId(null);
@@ -115,7 +119,7 @@ export default function FeedScreen() {
   // after 4 seconds. This handles GPS cold-start and RPC warm-up delays where
   // the first call succeeds but returns 0 results.
   useEffect(() => {
-    if (feedLoading) return; // still loading, don't schedule
+    if (feedLoading || refreshing) return; // still loading or user-triggered refresh in progress
     const isEmpty =
       feedDisplayMode === 'events' ? events.length === 0 : reviews.length === 0;
     if (!isEmpty) {
@@ -128,7 +132,7 @@ export default function FeedScreen() {
       void fetchFeed();
     }, 4000);
     return () => clearTimeout(t);
-  }, [feedLoading, feedDisplayMode, events.length, reviews.length, fetchFeed]);
+  }, [feedLoading, refreshing, feedDisplayMode, events.length, reviews.length, fetchFeed]);
 
   const onRefresh = () => {
     setRefreshing(true);

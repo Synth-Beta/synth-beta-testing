@@ -724,7 +724,7 @@ export default function EventDetailScreen() {
                                 <SynthText variant="meta" style={styles.entityCardLabel}>Venue</SynthText>
                             </View>
                             <SynthText variant="body" color="primary" style={styles.entityCardTitle}>
-                                {event.venue_name || ''}
+                                {event.venue_name || event.venue_city || 'Venue'}
                             </SynthText>
                             <SynthText variant="meta" color="secondary" style={styles.venueCardAddress}>
                                 {venueAddressPrimaryLine(event)}
