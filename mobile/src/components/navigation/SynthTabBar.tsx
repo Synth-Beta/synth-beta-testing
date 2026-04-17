@@ -34,7 +34,7 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
   const [uid, setUid] = React.useState<string | undefined>(undefined);
 
   React.useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUid(user?.id));
+    supabase.auth.getSession().then(({ data: { session } }) => setUid(session?.user?.id));
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_e, session) => {

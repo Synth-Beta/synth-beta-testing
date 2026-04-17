@@ -218,7 +218,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
     }, [updateFormData]);
 
     useEffect(() => {
-        void supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+        void supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
     }, []);
 
     useEffect(() => {

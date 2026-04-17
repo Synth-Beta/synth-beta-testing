@@ -34,6 +34,9 @@ export const UnifiedStreamingStats = ({
     if (detectedService === 'apple-music') {
       const lastSync = localStorage.getItem('apple-music-last-sync');
       setLastSyncTime(lastSync);
+    } else if (detectedService === 'spotify') {
+      const lastSync = localStorage.getItem('spotify-last-profile-sync');
+      setLastSyncTime(lastSync);
     } else {
       setLastSyncTime(null);
     }
@@ -118,29 +121,38 @@ export const UnifiedStreamingStats = ({
   }, [detectStreamingService]);
 
   const handleManualSync = async () => {
-    if (detectedService !== 'apple-music') {
+    if (detectedService !== 'apple-music' && detectedService !== 'spotify') {
       return;
     }
 
     setSyncStatus('syncing');
-    
+
     try {
-      const success = await appleMusicService.syncProfileData();
-      
-      if (success) {
+      if (detectedService === 'spotify') {
+        // syncUserMusicPreferences fetches all 3 time ranges and upserts to
+        // streaming_profiles, which fires the DB triggers that populate
+        // user_preference_signals → user_preferences → personalized feed.
+        await spotifyService.syncUserMusicPreferences();
         setSyncStatus('success');
-        appleMusicService.markSyncCompleted();
-        setLastSyncTime(new Date().toISOString());
-        
-        // Reset status after 3 seconds
-        setTimeout(() => setSyncStatus('idle'), 3000);
+        const now = new Date().toISOString();
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('spotify-last-profile-sync', now);
+        }
+        setLastSyncTime(now);
       } else {
-        throw new Error('Sync failed');
+        // Apple Music
+        const success = await appleMusicService.syncProfileData();
+        if (!success) throw new Error('Sync failed');
+        // Only mark completed after confirmed success
+        appleMusicService.markSyncCompleted();
+        setSyncStatus('success');
+        const now = new Date().toISOString();
+        setLastSyncTime(now);
       }
+
+      setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (error) {
       setSyncStatus('error');
-      
-      // Reset status after 3 seconds
       setTimeout(() => setSyncStatus('idle'), 3000);
     }
   };
@@ -283,7 +295,41 @@ export const UnifiedStreamingStats = ({
   const renderStreamingComponent = () => {
     switch (detectedService) {
       case 'spotify':
-        return <SpotifyStats className={className} />;
+        return (
+          <div className="space-y-4">
+            {/* Sync Controls — Spotify */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Music className="w-4 h-4 text-green-600" />
+                    Profile Sync
+                  </CardTitle>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                    Last sync: {formatLastSyncTime(lastSyncTime)}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Sync your Spotify listening history to personalize your concert feed.
+                  </p>
+                  <Button
+                    onClick={handleManualSync}
+                    disabled={syncStatus === 'syncing'}
+                    size="sm"
+                    variant="outline"
+                  >
+                    {syncStatus === 'syncing' ? getSyncStatusIcon() : syncStatus === 'success' ? getSyncStatusIcon() : syncStatus === 'error' ? getSyncStatusIcon() : null}
+                    {syncStatus === 'syncing' ? 'Syncing...' : 'Sync Now'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            <SpotifyStats className={className} />
+          </div>
+        );
       case 'apple-music':
         return (
           <div className="space-y-4">

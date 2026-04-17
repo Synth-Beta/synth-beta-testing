@@ -40,8 +40,9 @@ export default function PublicUserProfileScreen() {
     setLoading(true);
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
       setSelfId(user?.id ?? null);
       const { data } = await supabase
         .from('users')

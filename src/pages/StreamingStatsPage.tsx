@@ -42,6 +42,17 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Auto-sync when opened from mobile Expo app with ?action=resync
+  useEffect(() => {
+    if (!user || loading) return;
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    if (params.get('action') === 'resync' && serviceType) {
+      void handleSync();
+    }
+    // Only run once after initial load resolves
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, serviceType]);
+
   const loadProfile = async () => {
     if (!user) return;
     setLoading(true);

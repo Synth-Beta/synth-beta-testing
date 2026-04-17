@@ -116,11 +116,8 @@ router.post('/api/user/streaming-profile',
         : data.storefront ? `apple-music:${data.storefront}` : 'apple-music';
 
       const { error: userUpdateError } = await supabase
-        .from('profiles')
-        .update({ 
-          music_streaming_profile: profileUrl,
-          updated_at: new Date().toISOString()
-        })
+        .from('users')
+        .update({ music_streaming_profile: profileUrl })
         .eq('user_id', userId);
 
       if (userUpdateError) {

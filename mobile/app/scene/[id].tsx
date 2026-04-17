@@ -39,8 +39,9 @@ export default function SceneDetailScreen() {
     setLoading(true);
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
       const detail = await SceneService.getSceneDetails(id, user?.id);
       if (detail) {
         setTitle(detail.name || 'Scene');

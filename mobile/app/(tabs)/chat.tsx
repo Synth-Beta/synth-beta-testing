@@ -39,8 +39,9 @@ export default function ChatListScreen() {
 
   const loadChats = useCallback(async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
     if (!user) {
       setLoading(false);
       setRefreshing(false);
@@ -76,8 +77,9 @@ export default function ChatListScreen() {
         style: 'destructive',
         onPress: async () => {
           const {
-            data: { user },
-          } = await supabase.auth.getUser();
+            data: { session: leaveSession },
+          } = await supabase.auth.getSession();
+          const user = leaveSession?.user ?? null;
           if (!user) return;
           const ok = await ChatService.leaveChat(item.id, user.id);
           if (ok) setChats(prev => prev.filter(c => c.id !== item.id));

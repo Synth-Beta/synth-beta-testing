@@ -118,8 +118,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
       if (!opts?.silent) setLoading(true);
       const uid =
         userIdProp ??
-        (await supabase.auth.getUser()).data.user?.id ??
-        null;
+        ((await supabase.auth.getSession()).data.session?.user?.id ?? null);
       if (!uid) {
         setLoading(false);
         setRefreshing(false);

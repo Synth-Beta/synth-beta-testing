@@ -420,8 +420,9 @@ export default function EventDetailScreen() {
         setEvent(eventData);
 
         const {
-            data: { user },
-        } = await supabase.auth.getUser();
+            data: { session },
+        } = await supabase.auth.getSession();
+        const user = session?.user ?? null;
 
         if (!user) {
             setSessionUserId(null);

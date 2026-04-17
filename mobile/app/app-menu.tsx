@@ -35,8 +35,9 @@ export default function AppMenuScreen() {
   useEffect(() => {
     const load = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
       if (!user) return;
 
       const { data: row } = await supabase

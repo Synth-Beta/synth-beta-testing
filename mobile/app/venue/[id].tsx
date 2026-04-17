@@ -149,6 +149,23 @@ export default function VenueDetailScreen() {
       // Events may store the raw JamBase ID or the canonical Synth UUID — include both.
       const venueIdsToSearch = Array.from(new Set([resolvedId, raw].filter((v): v is string => !!v)));
 
+      // Also resolve any external JamBase IDs mapped to this canonical venue UUID,
+      // since some events store the JamBase external ID as venue_id.
+      if (resolvedId) {
+        const { data: extIds } = await supabase
+          .from('external_entity_ids')
+          .select('external_id')
+          .eq('entity_type', 'venue')
+          .eq('entity_uuid', resolvedId);
+        if (extIds?.length) {
+          for (const e of extIds) {
+            if (e.external_id && !venueIdsToSearch.includes(e.external_id)) {
+              venueIdsToSearch.push(e.external_id);
+            }
+          }
+        }
+      }
+
       let venueName = venue?.name?.trim() || '';
       if (venue) {
         setName(venueName || 'Venue');
@@ -166,21 +183,23 @@ export default function VenueDetailScreen() {
         setLatLng(null);
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
       setSessionUserId(user?.id ?? null);
 
       if (venueIdsToSearch.length > 0) {
         // Use two separate queries (upcoming + past) so a large past-events backlog
         // never pushes future events past the query limit.
-        const eventCols = 'id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls';
+        // Use select('*') — explicit column lists fail silently if any column name
+        // doesn't match exactly, returning empty data with no error.
         const todayYmd = todayLocalYmd();
         const [upcomingRes, pastRes] = await Promise.all([
-          supabase.from('events').select(eventCols)
+          supabase.from('events').select('*')
             .in('venue_id', venueIdsToSearch)
             .gte('event_date', todayYmd)
             .order('event_date', { ascending: true })
             .limit(20),
-          supabase.from('events').select(eventCols)
+          supabase.from('events').select('*')
             .in('venue_id', venueIdsToSearch)
             .lt('event_date', todayYmd)
             .order('event_date', { ascending: false })

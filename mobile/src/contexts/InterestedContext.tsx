@@ -51,7 +51,8 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
     useEffect(() => {
         let cancelled = false;
 
-        supabase.auth.getUser().then(({ data: { user } }) => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            const user = session?.user ?? null;
             if (cancelled || !user) { setLoading(false); return; }
             userIdRef.current = user.id;
             void load(user.id);

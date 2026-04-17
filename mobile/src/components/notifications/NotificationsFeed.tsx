@@ -61,8 +61,9 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
       setRefreshing(true);
     }
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
     if (!user) {
       setNotifications([]);
       setUnreadCount(0);
@@ -92,8 +93,9 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
 
   const handleMarkAllAsRead = useCallback(async () => {
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
     if (!user) return;
 
     setBusyNotificationId('ALL');
@@ -169,8 +171,9 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
       return;
     }
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session: acceptSession },
+    } = await supabase.auth.getSession();
+    const user = acceptSession?.user ?? null;
     if (!user) return;
 
     setBusyNotificationId(item.id);
@@ -194,8 +197,9 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
       return;
     }
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session: declineSession },
+    } = await supabase.auth.getSession();
+    const user = declineSession?.user ?? null;
     if (!user) return;
 
     setBusyNotificationId(item.id);

@@ -178,21 +178,23 @@ export default function ArtistDetailScreen() {
         setGenres([]);
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
       setSessionUserId(user?.id ?? null);
 
       if (artistIdsToSearch.length > 0) {
         // Use two separate queries (upcoming + past) so a large past-events backlog
         // never pushes future events past the query limit.
-        const eventCols = 'id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls';
+        // Use select('*') — explicit column lists fail silently if any column name
+        // doesn't match exactly, returning empty data with no error.
         const todayYmd = todayLocalYmd();
         const [upcomingRes, pastRes] = await Promise.all([
-          supabase.from('events').select(eventCols)
+          supabase.from('events').select('*')
             .in('artist_id', artistIdsToSearch)
             .gte('event_date', todayYmd)
             .order('event_date', { ascending: true })
             .limit(20),
-          supabase.from('events').select(eventCols)
+          supabase.from('events').select('*')
             .in('artist_id', artistIdsToSearch)
             .lt('event_date', todayYmd)
             .order('event_date', { ascending: false })

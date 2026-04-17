@@ -309,6 +309,10 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
         setRefreshError(`Unable to refresh ${failedSections.join(', ')}. Showing last known data.`);
       } else {
         setRefreshError(null);
+        // Fire full sync in background so the DB pipeline (user_preference_signals →
+        // user_preferences → get_personalized_feed_v5) gets fresh data. Don't await —
+        // the UI is already showing the correct period data above.
+        spotifyService.syncUserMusicPreferences().catch(() => {/* silent — non-critical */});
       }
     } catch (error) {
       console.error('Error loading stats:', error);
