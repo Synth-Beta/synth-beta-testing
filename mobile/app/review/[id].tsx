@@ -288,13 +288,15 @@ function CommentsSheet({
                 .insert({ user_id: sessionUserId, entity_id: entityId, comment_text: text });
 
             // Update comments_count
-            await supabase.rpc('increment_review_count', {
-                p_review_id: reviewId,
-                p_field: 'comments_count',
-                p_delta: 1,
-            }).then(() => {}).catch(() => {
+            try {
+                await supabase.rpc('increment_review_count', {
+                    p_review_id: reviewId,
+                    p_field: 'comments_count',
+                    p_delta: 1,
+                });
+            } catch {
                 // RPC may not exist — ignore and just refresh
-            });
+            }
 
             onCommentAdded();
             await fetchComments();

@@ -20,7 +20,7 @@ function useShimmer() {
       Animated.timing(x, {
         toValue: 1,
         duration: 1200,
-        easing: Easing.inOut(Easing.sine),
+        easing: Easing.inOut(Easing.sin),
         useNativeDriver: true,
       })
     );
