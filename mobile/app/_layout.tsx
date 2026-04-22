@@ -56,16 +56,32 @@ export default function RootLayout() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Cap the initial session check at 6 s so a stale stored token trying to
+    // refresh against a slow/wrong network cannot block the loading skeleton
+    // indefinitely.  onAuthStateChange will still deliver the real session if
+    // the refresh eventually succeeds.
+    const fallbackTimer = setTimeout(() => {
+      if (!cancelled) setSession(null);
+    }, 6000);
+
     supabase.auth.getSession().then(({ data: { session: s } }) => {
+      clearTimeout(fallbackTimer);
       if (!cancelled) setSession(s ?? null);
+    }).catch(() => {
+      clearTimeout(fallbackTimer);
+      if (!cancelled) setSession(null);
     });
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, s) => {
+      clearTimeout(fallbackTimer);
       setSession(s ?? null);
     });
     return () => {
       cancelled = true;
+      clearTimeout(fallbackTimer);
       subscription.unsubscribe();
     };
   }, []);
