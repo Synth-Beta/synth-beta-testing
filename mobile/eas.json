@@ -13,12 +13,20 @@
     "preview": {
       "distribution": "internal",
       "ios": { "resourceClass": "m-medium" },
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://glpiolbrafqikqhnseto.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_TsjAgYyPVN5S9hz3NT_05Q_c0oGx-2b"
+      }
     },
     "production": {
       "ios": { "resourceClass": "m-medium" },
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://glpiolbrafqikqhnseto.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_TsjAgYyPVN5S9hz3NT_05Q_c0oGx-2b"
       }
     }
   },

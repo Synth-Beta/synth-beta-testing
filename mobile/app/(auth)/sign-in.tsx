@@ -57,6 +57,27 @@ export default function SignInScreen() {
     return false;
   };
 
+  const formatAuthError = (err: unknown): string => {
+    if (err instanceof Error) {
+      const msg = err.message;
+      // Supabase returns opaque messages in some cases — map to friendly text
+      if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+        return 'Incorrect email or password. Please try again.';
+      }
+      if (msg.includes('Email not confirmed')) {
+        return 'Please confirm your email before signing in. Check your inbox.';
+      }
+      if (msg.includes('fetch') || msg.includes('network') || msg.toLowerCase().includes('network')) {
+        return 'Network error — check your internet connection and try again.';
+      }
+      if (msg === 'type: default' || msg.startsWith('{') || msg.length > 200) {
+        return 'Something went wrong. Check your connection and try again.';
+      }
+      return msg;
+    }
+    return 'Something went wrong. Please try again.';
+  };
+
   const onSignInPassword = async () => {
     if (!ensureConfigured()) return;
     setLoading(true);
@@ -66,7 +87,7 @@ export default function SignInScreen() {
       const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (e) throw e;
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Sign in failed');
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -93,7 +114,7 @@ export default function SignInScreen() {
       if (e) throw e;
       setMessage('Check your email to confirm, or sign in if confirmations are off.');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Sign up failed');
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -113,7 +134,7 @@ export default function SignInScreen() {
       if (e) throw e;
       setMessage('Magic link sent. Open it on this device to sign in.');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Could not send link');
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -139,7 +160,7 @@ export default function SignInScreen() {
       if (e) throw e;
       setMessage('Check your email for a reset link. Open it in the browser to set a new password.');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Could not send reset email');
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -162,7 +183,10 @@ export default function SignInScreen() {
       });
       if (e) throw e;
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Apple Sign In failed');
+      const msg = err instanceof Error ? err.message : '';
+      // ERR_REQUEST_CANCELED = user tapped Cancel — show nothing
+      if (msg.includes('ERR_REQUEST_CANCELED') || msg.includes('cancel') || msg.includes('Cancel')) return;
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -273,7 +297,7 @@ export default function SignInScreen() {
 
           {mode === 'signin' ? (
             <Text style={styles.troubleText}>
-              Trouble signing in? Double-check your email and password, or use &quot;Forgot password&quot;.
+              Trouble signing in? Double-check your email and password, or use "Forgot password".
             </Text>
           ) : null}
 
