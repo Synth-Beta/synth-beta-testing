@@ -188,6 +188,12 @@ export default function VenueDetailScreen() {
       setSessionUserId(user?.id ?? null);
 
       if (venueIdsToSearch.length > 0) {
+        // events.venue_id and reviews.venue_id are UUID columns.
+        // external_entity_ids returns non-UUID values (Setlist.fm numeric IDs,
+        // etc.) that cause a PostgreSQL 22P02 cast error when passed to .in() —
+        // the error is swallowed by `|| []`, silently showing nothing.
+        const venueUuidsToSearch = venueIdsToSearch.filter(isUuid);
+
         // Use two separate queries (upcoming + past) so a large past-events backlog
         // never pushes future events past the query limit.
         // Use select('*') — explicit column lists fail silently if any column name
@@ -195,12 +201,12 @@ export default function VenueDetailScreen() {
         const todayYmd = todayLocalYmd();
         const [upcomingRes, pastRes] = await Promise.all([
           supabase.from('events').select('*')
-            .in('venue_id', venueIdsToSearch)
+            .in('venue_id', venueUuidsToSearch)
             .gte('event_date', todayYmd)
             .order('event_date', { ascending: true })
             .limit(20),
           supabase.from('events').select('*')
-            .in('venue_id', venueIdsToSearch)
+            .in('venue_id', venueUuidsToSearch)
             .lt('event_date', todayYmd)
             .order('event_date', { ascending: false })
             .limit(10),
@@ -230,7 +236,7 @@ export default function VenueDetailScreen() {
         `;
         const [directRes, eventLinkedRes] = await Promise.all([
           supabase.from('reviews').select(reviewsSelect)
-            .in('venue_id', venueIdsToSearch)
+            .in('venue_id', venueUuidsToSearch)
             .order('created_at', { ascending: false }).limit(20),
           allEventIds.length > 0
             ? supabase.from('reviews').select(reviewsSelect)
