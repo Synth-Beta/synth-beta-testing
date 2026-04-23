@@ -67,7 +67,7 @@ export default function SignInScreen() {
       if (msg.includes('Email not confirmed')) {
         return 'Please confirm your email before signing in. Check your inbox.';
       }
-      if (msg.includes('fetch') || msg.includes('network') || msg.toLowerCase().includes('network')) {
+      if (msg.includes('fetch') || msg.toLowerCase().includes('network')) {
         return 'Network error — check your internet connection and try again.';
       }
       if (msg === 'type: default' || msg.startsWith('{') || msg.length > 200) {
