@@ -80,6 +80,23 @@ export default function ChatThreadScreen() {
         void loadMessages();
     }, [loadMessages]);
 
+    // Realtime: append new messages as they arrive in this chat
+    useEffect(() => {
+        if (!userId) return;
+        const channel = supabase
+            .channel(`chat-thread-${id}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${id}` },
+                () => {
+                    void loadMessages();
+                    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
+                }
+            )
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [id, userId, loadMessages]);
+
     useEffect(() => {
         let cancelled = false;
         void (async () => {

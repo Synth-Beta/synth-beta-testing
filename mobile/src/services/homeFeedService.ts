@@ -70,12 +70,16 @@ export interface NetworkEvent {
     title: string;
     artist_name: string;
     venue_name: string;
+    venue_city?: string;
     event_date: string;
     image_url?: string;
     friend_id: string;
     friend_name: string;
     friend_avatar?: string;
     action_type: 'going' | 'interested' | 'reviewed';
+    interested_count?: number;
+    /** All friends interested/going — for the friends feed avatar row */
+    friends_all?: { id: string; name: string; avatar_url?: string | null }[];
 }
 
 export interface TrendingEvent {
@@ -490,61 +494,95 @@ export class HomeFeedService {
     }
 
     /**
-     * Get events attended/interested by friends (1st degree)
+     * Get events where friends (1st degree) are interested or going.
+     * Groups by event so each event appears once with all interested friends listed.
      */
-    static async getNetworkEvents(userId: string): Promise<NetworkEvent[]> {
+    static async getNetworkEvents(userId: string, limit = 30): Promise<NetworkEvent[]> {
         try {
-            // 1. Get friends
-            const { data: friends } = await supabase
+            // Bidirectional friends query (relationship can be stored either direction)
+            const { data: rels } = await supabase
                 .from('user_relationships')
-                .select('related_user_id')
-                .eq('user_id', userId)
+                .select('user_id, related_user_id')
                 .eq('status', 'accepted')
-                .eq('relationship_type', 'friend');
+                .eq('relationship_type', 'friend')
+                .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
 
-            if (!friends || friends.length === 0) return [];
+            if (!rels || rels.length === 0) return [];
 
-            const friendIds = friends.map(f => f.related_user_id);
+            const friendIds = rels.map(r => r.user_id === userId ? r.related_user_id : r.user_id);
 
-            // 2. Get event relations for these friends
-            const { data: relations, error } = await supabase
+            // Get all interested/going rows for those friends, including event + user info
+            const { data: rows, error } = await supabase
                 .from('user_event_relationships')
                 .select(`
-          event_id,
-          relationship_type,
-          user_id,
-          users:user_id (
-            name,
-            avatar_url
-          ),
-          events:event_id (
-            title,
-            artist_name,
-            venue_name,
-            event_date,
-            images
-          )
-        `)
+                    event_id,
+                    relationship_type,
+                    created_at,
+                    user_id,
+                    users:user_id ( user_id, name, avatar_url ),
+                    events:event_id (
+                        id, title, artist_name, venue_name, venue_city,
+                        event_date, images, event_media_url, media_urls
+                    )
+                `)
                 .in('user_id', friendIds)
+                .in('relationship_type', ['interested', 'going', 'maybe'])
                 .order('created_at', { ascending: false })
-                .limit(20);
+                .limit(limit * 8);
 
             if (error) throw error;
+            if (!rows || rows.length === 0) return [];
 
-            return (relations || []).map((rel: any) => ({
-                id: rel.event_id,
-                title: rel.events?.title || '',
-                artist_name: rel.events?.artist_name || '',
-                venue_name: rel.events?.venue_name || '',
-                event_date: rel.events?.event_date || '',
-                image_url: rel.events?.images?.[0]?.url || undefined,
-                friend_id: rel.user_id,
-                friend_name: rel.users?.name || 'Someone',
-                friend_avatar: rel.users?.avatar_url || undefined,
-                action_type: rel.relationship_type === 'attending' ? 'going' : 'interested',
-            }));
-        } catch (error) {
-            console.error('Error fetching network events:', error);
+            // Group by event_id
+            const byEvent = new Map<string, { rows: any[]; ev: any }>();
+            for (const row of rows as any[]) {
+                if (!row.events) continue;
+                const eid = row.event_id as string;
+                if (!byEvent.has(eid)) byEvent.set(eid, { rows: [], ev: row.events });
+                byEvent.get(eid)!.rows.push(row);
+            }
+
+            // Build one NetworkEvent per event, sorted by most-recently-actioned
+            const results: NetworkEvent[] = [];
+            byEvent.forEach(({ rows: eventRows, ev }) => {
+                const primary = eventRows[0];
+                const user = primary.users as any;
+
+                // Pick best image
+                let image_url: string | undefined;
+                if (Array.isArray(ev.images) && ev.images.length > 0) {
+                    const best = ev.images.find((img: any) => img?.url && (img?.ratio === '16_9' || img?.width > 1000))
+                        || ev.images.find((img: any) => img?.url);
+                    image_url = best?.url;
+                }
+                image_url = image_url || ev.event_media_url || (Array.isArray(ev.media_urls) ? ev.media_urls[0] : undefined);
+
+                results.push({
+                    id: ev.id,
+                    title: ev.title || 'Event',
+                    artist_name: ev.artist_name || '',
+                    venue_name: ev.venue_name || '',
+                    venue_city: ev.venue_city || undefined,
+                    event_date: ev.event_date || '',
+                    image_url,
+                    friend_id: user?.user_id || primary.user_id,
+                    friend_name: user?.name || 'Friend',
+                    friend_avatar: user?.avatar_url || undefined,
+                    action_type: primary.relationship_type === 'going' ? 'going' : 'interested',
+                    interested_count: eventRows.length,
+                    friends_all: eventRows.map((r: any) => ({
+                        id: (r.users as any)?.user_id || r.user_id,
+                        name: (r.users as any)?.name || 'Friend',
+                        avatar_url: (r.users as any)?.avatar_url ?? null,
+                    })),
+                });
+            });
+
+            return results
+                .sort((a, b) => (b.interested_count ?? 0) - (a.interested_count ?? 0))
+                .slice(0, limit);
+        } catch (err) {
+            console.error('Error fetching network events:', err);
             return [];
         }
     }

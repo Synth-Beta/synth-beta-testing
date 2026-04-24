@@ -79,6 +79,9 @@ type ReviewRow = {
     venue_feedback: string | null;
     location_feedback: string | null;
     value_feedback: string | null;
+    // Direct artist/venue FKs on the review itself
+    artist_id?: string | null;
+    venue_id?: string | null;
     // Author
     author: { user_id: string; name: string; avatar_url: string | null } | null;
     // Event
@@ -578,6 +581,8 @@ export default function ReviewDetailScreen() {
                         id,
                         user_id,
                         event_id,
+                        artist_id,
+                        venue_id,
                         rating,
                         review_text,
                         photos,
@@ -648,10 +653,36 @@ export default function ReviewDetailScreen() {
 
                 if (cancelled) return;
 
+                // Resolve artist/venue names from direct FKs if the event join returned nothing
+                let resolvedArtistName: string | null = evOne?.artist_name ?? null;
+                let resolvedVenueName: string | null = evOne?.venue_name ?? null;
+                const directArtistId = row.artist_id != null ? String(row.artist_id) : evOne?.artist_id ?? null;
+                const directVenueId = row.venue_id != null ? String(row.venue_id) : evOne?.venue_id ?? null;
+                if (!resolvedArtistName && directArtistId) {
+                    try {
+                        const { data: a } = await supabase.from('artists').select('name').eq('id', directArtistId).maybeSingle();
+                        if (a?.name) resolvedArtistName = a.name;
+                    } catch { /* non-fatal */ }
+                }
+                if (!resolvedVenueName && directVenueId) {
+                    try {
+                        const { data: v } = await supabase.from('venues').select('name').eq('id', directVenueId).maybeSingle();
+                        if (v?.name) resolvedVenueName = v.name;
+                    } catch { /* non-fatal */ }
+                }
+                // Inject resolved names back into evOne so existing render code uses them
+                if (evOne) {
+                    evOne = { ...evOne, artist_name: resolvedArtistName, venue_name: resolvedVenueName, artist_id: directArtistId, venue_id: directVenueId };
+                } else if (resolvedArtistName || resolvedVenueName) {
+                    evOne = { id: '', title: null, event_date: null, artist_name: resolvedArtistName, venue_name: resolvedVenueName, artist_id: directArtistId, venue_id: directVenueId };
+                }
+
                 const normalized: ReviewRow = {
                     id: String(row.id),
                     user_id: String(row.user_id),
                     event_id: row.event_id != null ? String(row.event_id) : null,
+                    artist_id: directArtistId,
+                    venue_id: directVenueId,
                     rating: row.rating != null ? Number(row.rating) : null,
                     review_text: row.review_text != null ? String(row.review_text) : null,
                     photos: Array.isArray(row.photos) ? (row.photos as string[]) : null,
@@ -881,59 +912,66 @@ export default function ReviewDetailScreen() {
         (a: any) => a?.type === 'user' && (a?.name || a?.user_id)
     );
 
+    const firstName = review.author?.name?.split(' ')[0] || 'Review';
+
     return (
         <>
             <Stack.Screen options={{ headerShown: false }} />
             <View style={[styles.root, { paddingTop: insets.top }]}>
-                {/* Top bar */}
+                {/* Sticky header: back + avatar + author name + options */}
                 <View style={styles.topBar}>
                     <Pressable onPress={() => router.back()} style={styles.back}>
-                        <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
+                        <ChevronLeft size={35} color={SynthTokens.colors.neutral900} />
                     </Pressable>
-                    <View style={styles.topBarActions}>
-                        <Pressable onPress={onShare} style={styles.topActionBtn} accessibilityLabel="Share review">
-                            <Share2 size={20} color={SynthTokens.colors.neutral900} />
-                        </Pressable>
-                        <Pressable onPress={onOptions} style={styles.topActionBtn} accessibilityLabel="More options">
-                            <MoreVertical size={20} color={SynthTokens.colors.neutral900} />
-                        </Pressable>
-                    </View>
+                    <Pressable style={styles.authorHeaderRow} onPress={() => {}}>
+                        {review.author?.avatar_url ? (
+                            <Image source={{ uri: review.author.avatar_url }} style={styles.headerAvatar} contentFit="cover" />
+                        ) : (
+                            <View style={[styles.headerAvatar, styles.avatarFallback]}>
+                                <Text style={styles.avatarLetter}>
+                                    {(review.author?.name || '?').charAt(0).toUpperCase()}
+                                </Text>
+                            </View>
+                        )}
+                        <SynthText variant="body" style={styles.headerAuthorName} numberOfLines={1}>
+                            {review.author?.name || 'User'}
+                        </SynthText>
+                    </Pressable>
+                    <Pressable onPress={onOptions} style={styles.topActionBtn} accessibilityLabel="More options">
+                        <MoreVertical size={24} color={SynthTokens.colors.neutral900} />
+                    </Pressable>
                 </View>
 
-                <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
-                    {/* Hero image */}
-                    {heroImageUrl ? (
-                        <Image source={{ uri: heroImageUrl }} style={styles.hero} contentFit="cover" />
-                    ) : (
-                        <View style={[styles.hero, styles.heroPlaceholder]} />
-                    )}
-
-                    <View style={styles.body}>
-                        {/* Event headline */}
-                        <SynthText variant="h1" style={styles.title} numberOfLines={3}>
-                            {headline}
-                        </SynthText>
-
-                        {/* Author */}
-                        {review.author ? (
-                            <View style={styles.authorRow}>
-                                {review.author.avatar_url ? (
-                                    <Image source={{ uri: review.author.avatar_url }} style={styles.avatar} contentFit="cover" />
-                                ) : (
-                                    <View style={[styles.avatar, styles.avatarFallback]}>
-                                        <Text style={styles.avatarLetter}>
-                                            {(review.author.name || '?').charAt(0).toUpperCase()}
-                                        </Text>
-                                    </View>
-                                )}
-                                <SynthText variant="meta" color="secondary">
-                                    Reviewed by{' '}
-                                    <SynthText variant="meta" style={styles.authorName}>
-                                        {review.author.name}
-                                    </SynthText>
-                                </SynthText>
-                            </View>
+                {/* Artist + Venue pills row (below sticky header) */}
+                {(ev?.artist_name || ev?.venue_name) ? (
+                    <View style={styles.pillsRow}>
+                        {ev?.artist_name ? (
+                            <Pressable
+                                style={styles.artistPill}
+                                onPress={ev.artist_id ? () => router.push(`/artist/${ev.artist_id}` as any) : undefined}
+                            >
+                                <Music size={16} color="#FDF2F8" />
+                                <Text style={styles.artistPillText} numberOfLines={1}>{ev.artist_name}</Text>
+                            </Pressable>
                         ) : null}
+                        {ev?.venue_name ? (
+                            <Pressable
+                                style={styles.venuePill}
+                                onPress={ev.venue_id ? () => router.push(`/venue/${ev.venue_id}` as any) : undefined}
+                            >
+                                <MapPin size={16} color={PINK} />
+                                <Text style={styles.venuePillText} numberOfLines={1}>{ev.venue_name}</Text>
+                            </Pressable>
+                        ) : null}
+                    </View>
+                ) : null}
+
+                <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+                    <View style={styles.body}>
+                        {/* {FirstName}'s Review heading */}
+                        <SynthText variant="h1" style={styles.title}>
+                            {firstName}'s Review
+                        </SynthText>
 
                         {/* Overall rating */}
                         {review.rating != null ? (
@@ -952,51 +990,6 @@ export default function ReviewDetailScreen() {
                                 })}
                                 <SynthText variant="h2" style={styles.overallRatingNum}>
                                     {review.rating.toFixed(1)}
-                                </SynthText>
-                            </View>
-                        ) : null}
-
-                        {/* Event meta */}
-                        {ev?.venue_name ? (
-                            <Pressable
-                                style={styles.metaRow}
-                                onPress={ev.venue_id ? () => router.push(`/venue/${ev.venue_id}` as any) : undefined}
-                            >
-                                <MapPin size={16} color={PINK} />
-                                <SynthText
-                                    variant="meta"
-                                    style={[styles.metaTxt, ev.venue_id ? styles.metaLink : undefined]}
-                                    numberOfLines={1}
-                                >
-                                    {ev.venue_name}
-                                </SynthText>
-                            </Pressable>
-                        ) : null}
-                        {ev?.artist_name ? (
-                            <Pressable
-                                style={styles.metaRow}
-                                onPress={ev.artist_id ? () => router.push(`/artist/${ev.artist_id}` as any) : undefined}
-                            >
-                                <Music size={16} color={PINK} />
-                                <SynthText
-                                    variant="meta"
-                                    style={[styles.metaTxt, ev.artist_id ? styles.metaLink : undefined]}
-                                    numberOfLines={1}
-                                >
-                                    {ev.artist_name}
-                                </SynthText>
-                            </Pressable>
-                        ) : null}
-                        {ev?.event_date ? (
-                            <View style={styles.metaRow}>
-                                <Calendar size={16} color={PINK} />
-                                <SynthText variant="meta" color="secondary" style={styles.metaTxt}>
-                                    {new Date(ev.event_date).toLocaleDateString('en-US', {
-                                        weekday: 'long',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        year: 'numeric',
-                                    })}
                                 </SynthText>
                             </View>
                         ) : null}
@@ -1237,6 +1230,72 @@ const styles = StyleSheet.create({
     back: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
     topBarActions: { flexDirection: 'row', alignItems: 'center' },
     topActionBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+    authorHeaderRow: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        minWidth: 0,
+        marginHorizontal: 4,
+    },
+    headerAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        borderWidth: 2,
+        borderColor: PINK,
+        flexShrink: 0,
+    },
+    headerAuthorName: {
+        flex: 1,
+        fontSize: 17,
+        fontWeight: '700',
+        color: SynthTokens.colors.neutral900,
+    },
+    pillsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: SynthTokens.colors.neutral200,
+    },
+    artistPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: PINK,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        maxWidth: '60%',
+    },
+    artistPillText: {
+        color: SynthTokens.colors.neutral0,
+        fontWeight: '600',
+        fontSize: 15,
+        flexShrink: 1,
+    },
+    venuePill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: SynthTokens.colors.brandPink050,
+        borderRadius: 14,
+        borderWidth: 2,
+        borderColor: '#FBCFE8',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        maxWidth: '60%',
+    },
+    venuePillText: {
+        color: PINK,
+        fontWeight: '600',
+        fontSize: 15,
+        flexShrink: 1,
+    },
     scroll: {},
     hero: { width: '100%', height: 240, backgroundColor: SynthTokens.colors.neutral200 },
     heroPlaceholder: { height: 0 },

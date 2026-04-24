@@ -25,7 +25,7 @@ import { UserEventService } from '@/services/userEventService';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
 
 //Define variable to save mapbox token
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY;
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w';
 
 // Create numbered marker icon factory
 const createNumberedIcon = (number: number) => {

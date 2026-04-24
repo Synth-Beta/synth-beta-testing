@@ -51,6 +51,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [busyNotificationId, setBusyNotificationId] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -72,6 +73,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
       return;
     }
 
+    setCurrentUserId(user.id);
     const [data, unread] = await Promise.all([
       NotificationService.getNotifications(user.id),
       NotificationService.getUnreadCount(user.id),
@@ -86,6 +88,20 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
   useEffect(() => {
     void loadNotifications(false);
   }, [loadNotifications]);
+
+  // Realtime: reload when notifications are inserted, updated, or deleted for this user
+  useEffect(() => {
+    if (!currentUserId) return;
+    const channel = supabase
+      .channel(`notifications-feed-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUserId}` },
+        () => { void loadNotifications(false); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUserId, loadNotifications]);
 
   const onUserRefresh = useCallback(() => {
     void loadNotifications(true);
