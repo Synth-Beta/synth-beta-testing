@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { ShareToChatModal } from '../../src/components/share/ShareToChatModal';
 import { Alert, StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -72,6 +73,7 @@ export default function EventDetailScreen() {
     const [reviews, setReviews] = useState<NetworkReview[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+    const [shareToChatOpen, setShareToChatOpen] = useState(false);
 
     // Social tabs
     const [activeTab, setActiveTab] = useState<'groups' | 'meet' | null>(null);
@@ -469,6 +471,10 @@ export default function EventDetailScreen() {
 
     const handleShare = () => {
         if (!event) return;
+        if (sessionUserId) {
+            setShareToChatOpen(true);
+            return;
+        }
         const headline =
             event.title?.trim() ||
             `${event.artist_name || 'Show'}${event.venue_name ? ` at ${event.venue_name}` : ''}`;
@@ -1022,6 +1028,20 @@ export default function EventDetailScreen() {
                     ) : null}
                 </View>
             </ScrollView>
+
+            {sessionUserId && event ? (
+                <ShareToChatModal
+                    visible={shareToChatOpen}
+                    onClose={() => setShareToChatOpen(false)}
+                    type="event"
+                    entityId={event.id}
+                    title={
+                        event.title?.trim() ||
+                        `${event.artist_name || 'Show'}${event.venue_name ? ` at ${event.venue_name}` : ''}`
+                    }
+                    currentUserId={sessionUserId}
+                />
+            ) : null}
         </View>
     );
 }

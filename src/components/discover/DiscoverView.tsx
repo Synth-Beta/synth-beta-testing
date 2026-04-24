@@ -10,6 +10,7 @@ import { VibeSelectorModal } from './VibeSelectorModal';
 import { DiscoverResultsView } from './DiscoverResultsView';
 import { BecauseYouLikeSection } from './BecauseYouLikeSection';
 import { MapCalendarTourSection } from './MapCalendarTourSection';
+import { GenreChatsSection } from './GenreChatsSection';
 import { LocationService } from '@/services/locationService';
 import { CityService, type CityData } from '@/services/cityService';
 import { supabase } from '@/integrations/supabase/client';
@@ -845,6 +846,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             onNavigateToChat={onNavigateToChat}
           />
             </div>
+
+            {/* Section 3: Genre Communities */}
+            <GenreChatsSection
+              currentUserId={currentUserId}
+              onNavigateToChat={onNavigateToChat}
+            />
 
           </>
         )}

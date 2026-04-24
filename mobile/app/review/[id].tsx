@@ -15,6 +15,7 @@ import {
     FlatList,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { ShareToChatModal } from '../../src/components/share/ShareToChatModal';
 import { Image } from 'expo-image';
 import {
     ChevronLeft,
@@ -550,6 +551,7 @@ export default function ReviewDetailScreen() {
     const [isLiked, setIsLiked] = useState(false);
     const [liking, setLiking] = useState(false);
     const [commentsOpen, setCommentsOpen] = useState(false);
+    const [shareToChatOpen, setShareToChatOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -720,11 +722,15 @@ export default function ReviewDetailScreen() {
 
     const onShare = () => {
         if (!review) return;
-        const ev = review.events;
-        const headline = ev?.artist_name
-            ? `${ev.artist_name}${ev.venue_name ? ` at ${ev.venue_name}` : ''}`
-            : 'Concert Review';
-        void EventService.shareReviewLink(review.id, { headline, snippet: review.review_text ?? undefined });
+        if (sessionUserId) {
+            setShareToChatOpen(true);
+        } else {
+            const ev = review.events;
+            const headline = ev?.artist_name
+                ? `${ev.artist_name}${ev.venue_name ? ` at ${ev.venue_name}` : ''}`
+                : 'Concert Review';
+            void EventService.shareReviewLink(review.id, { headline, snippet: review.review_text ?? undefined });
+        }
     };
 
     const onOptions = () => {
@@ -1197,6 +1203,18 @@ export default function ReviewDetailScreen() {
                 onClose={() => setCommentsOpen(false)}
                 onCommentAdded={() => setCommentsCount(c => c + 1)}
             />
+
+            {/* Share to Chat */}
+            {sessionUserId ? (
+                <ShareToChatModal
+                    visible={shareToChatOpen}
+                    onClose={() => setShareToChatOpen(false)}
+                    type="review"
+                    entityId={review.id}
+                    title={headline}
+                    currentUserId={sessionUserId}
+                />
+            ) : null}
         </>
     );
 }

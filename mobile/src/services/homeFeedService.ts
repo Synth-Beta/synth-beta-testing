@@ -331,7 +331,8 @@ export class HomeFeedService {
     }
 
     /**
-     * Reviews from friends (same logic as web HomeFeedService.getNetworkReviews).
+     * Reviews from friends. Falls back to recent public reviews from all users
+     * when the user has no friends yet (discovery mode for new/beta users).
      */
     static async getNetworkReviews(userId: string, limit = 20): Promise<NetworkReview[]> {
         try {
@@ -345,11 +346,11 @@ export class HomeFeedService {
             if (friendsError) throw friendsError;
 
             const friendIds = [userId, ...(friends ?? []).map(f => (f.user_id === userId ? f.related_user_id : f.user_id))];
+            // When the user has no friends yet, show recent public reviews from all users
+            // so the Reviews tab has content to discover (beta/new user experience).
+            const hasFriends = (friends ?? []).length > 0;
 
-            const { data: reviews, error: reviewsError } = await supabase
-                .from('reviews')
-                .select(
-                    `
+            const selectFields = `
           id,
           user_id,
           event_id,
@@ -374,12 +375,21 @@ export class HomeFeedService {
             artist_id,
             venue_id
           )
-        `
-                )
-                .in('user_id', friendIds)
+        `;
+
+            let query = supabase
+                .from('reviews')
+                .select(selectFields)
                 .eq('is_public', true)
                 .eq('is_draft', false)
-                .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY')
+                .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY');
+
+            // Filter by friend network when friends exist; otherwise show all public reviews
+            if (hasFriends) {
+                query = query.in('user_id', friendIds);
+            }
+
+            const { data: reviews, error: reviewsError } = await query
                 .order('created_at', { ascending: false })
                 .limit(limit);
 

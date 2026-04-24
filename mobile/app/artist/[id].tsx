@@ -256,10 +256,12 @@ export default function ArtistDetailScreen() {
         const [directRes, eventLinkedRes] = await Promise.all([
           supabase.from('reviews').select(reviewsSelect)
             .in('artist_id', artistUuidsToSearch)
+            .eq('is_public', true).eq('is_draft', false)
             .order('created_at', { ascending: false }).limit(20),
           allEventIds.length > 0
             ? supabase.from('reviews').select(reviewsSelect)
                 .in('event_id', allEventIds)
+                .eq('is_public', true).eq('is_draft', false)
                 .order('created_at', { ascending: false }).limit(20)
             : Promise.resolve({ data: [] as any[] }),
         ]);

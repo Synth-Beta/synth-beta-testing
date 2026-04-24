@@ -29,6 +29,8 @@ import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/Discov
 import { getCurrentLatLng, type LatLng } from '../../src/services/locationService';
 import { toLocalYmd } from '../../src/utils/localYmd';
 import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
+import { GenreChatsSection } from '../../src/components/discover/GenreChatsSection';
+import { supabase } from '../../src/integrations/supabase/client';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
@@ -225,6 +227,13 @@ export default function DiscoverScreen() {
   const [locationLabel] = useState('Washington DC, DC');
   const [showLocationPill, setShowLocationPill] = useState(true);
   const [tab, setTab] = useState<'calendar' | 'tour'>('calendar');
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserId(session?.user?.id ?? null);
+    }).catch(() => {});
+  }, []);
   const [coords, setCoords] = useState<LatLng | null>(null);
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
@@ -474,6 +483,11 @@ export default function DiscoverScreen() {
         ) : (
           <MobileTourTracker />
         )}
+
+        {/* Genre Communities — shown below calendar and tour tracker */}
+        {userId ? (
+          <GenreChatsSection currentUserId={userId} />
+        ) : null}
 
       </ScrollView>
     </View>

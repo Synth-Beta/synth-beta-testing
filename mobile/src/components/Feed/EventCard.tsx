@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View, Pressable, Dimensions, Text, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { EventService } from '../../services/eventService';
 import { resolveFeedImageUri } from '../../utils/eventImages';
 import { isEventPast } from '../../utils/eventStatusUtils';
 import { useInterested } from '../../contexts/InterestedContext';
+import { ShareToChatModal } from '../share/ShareToChatModal';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - SynthTokens.spacing.screenMarginX * 2;
@@ -38,6 +39,8 @@ export interface EventCardProps {
   ticket_url?: string;
   artist_id?: string;
   venue_id?: string;
+  /** When provided, the Share button opens the in-app ShareToChatModal */
+  currentUserId?: string | null;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -55,10 +58,12 @@ export const EventCard: React.FC<EventCardProps> = ({
   ticket_url: ticketUrlProp,
   artist_id,
   venue_id,
+  currentUserId,
 }) => {
   const router = useRouter();
   const { isInterested, toggle } = useInterested();
   const interested = isInterested(id);
+  const [shareToChatOpen, setShareToChatOpen] = useState(false);
 
   const resolvedUri = resolveFeedImageUri(image_url);
 
@@ -85,8 +90,12 @@ export const EventCard: React.FC<EventCardProps> = ({
   const artistLine = artist_name?.trim() || '';
 
   const onShare = useCallback(() => {
-    void EventService.shareEventLink(id, { headline, formattedDate });
-  }, [id, headline, formattedDate]);
+    if (currentUserId) {
+      setShareToChatOpen(true);
+    } else {
+      void EventService.shareEventLink(id, { headline, formattedDate });
+    }
+  }, [currentUserId, id, headline, formattedDate]);
 
   const onToggleInterested = useCallback(async () => {
     await toggle(id);
@@ -219,6 +228,16 @@ export const EventCard: React.FC<EventCardProps> = ({
           </Pressable>
         </View>
       </View>
+      {currentUserId ? (
+        <ShareToChatModal
+          visible={shareToChatOpen}
+          onClose={() => setShareToChatOpen(false)}
+          type="event"
+          entityId={id}
+          title={headline}
+          currentUserId={currentUserId}
+        />
+      ) : null}
     </View>
   );
 };

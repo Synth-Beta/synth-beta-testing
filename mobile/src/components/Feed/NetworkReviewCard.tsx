@@ -18,6 +18,7 @@ import type { NetworkReview } from '../../services/homeFeedService';
 import { Star, ThumbsUp, MessageCircle, Share2, Calendar, Mic2, Lightbulb, MapPin as MapPinIcon, Navigation, DollarSign } from 'lucide-react-native';
 import { ReviewEngagementService } from '../../services/reviewEngagementService';
 import { EventService } from '../../services/eventService';
+import { ShareToChatModal } from '../share/ShareToChatModal';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - SynthTokens.spacing.screenMarginX * 2;
@@ -111,6 +112,7 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
     const [commentsCount, setCommentsCount] = useState(review.comments_count ?? 0);
     const [isLiked, setIsLiked] = useState(review.is_liked_by_user ?? false);
     const [liking, setLiking] = useState(false);
+    const [shareToChatOpen, setShareToChatOpen] = useState(false);
 
     useEffect(() => {
         setLikesCount(review.likes_count ?? 0);
@@ -143,12 +145,16 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
     }, [currentUserId, isLiked, liking, review.id]);
 
     const onShare = useCallback(() => {
-        const snippet =
-            showPreview && review.content && review.content.length > 200
-                ? `${review.content.slice(0, 200)}…`
-                : review.content;
-        void EventService.shareReviewLink(review.id, { headline: reviewTitle, snippet });
-    }, [review.id, review.content, reviewTitle, showPreview]);
+        if (currentUserId) {
+            setShareToChatOpen(true);
+        } else {
+            const snippet =
+                showPreview && review.content && review.content.length > 200
+                    ? `${review.content.slice(0, 200)}…`
+                    : review.content;
+            void EventService.shareReviewLink(review.id, { headline: reviewTitle, snippet });
+        }
+    }, [currentUserId, review.id, review.content, reviewTitle, showPreview]);
 
     const engagementSummary = useMemo(() => {
         const parts: string[] = [];
@@ -323,6 +329,16 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                     </Pressable>
                 </View>
             </View>
+            {currentUserId ? (
+                <ShareToChatModal
+                    visible={shareToChatOpen}
+                    onClose={() => setShareToChatOpen(false)}
+                    type="review"
+                    entityId={review.id}
+                    title={reviewTitle}
+                    currentUserId={currentUserId}
+                />
+            ) : null}
         </View>
     );
 };

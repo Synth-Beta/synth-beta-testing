@@ -165,6 +165,7 @@ export default function FeedScreen() {
         ticket_url={item.data.ticket_url}
         artist_id={item.data.artist_id}
         venue_id={item.data.venue_id}
+        currentUserId={viewerUserId}
         onPress={() => {
           void EventService.toEventRouteId(item.data.id).then((rid) => {
             router.push(`/event/${rid}` as any);
@@ -177,7 +178,7 @@ export default function FeedScreen() {
   const emptyMessage =
     feedDisplayMode === 'events'
       ? 'No events yet. Pull to refresh.'
-      : 'No reviews from friends yet.';
+      : 'No reviews yet. Pull to refresh.';
 
   const listHeader = useMemo(
     () => (

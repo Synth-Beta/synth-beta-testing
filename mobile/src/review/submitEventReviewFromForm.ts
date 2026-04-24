@@ -165,13 +165,45 @@ export async function submitEventReviewFromForm(
         met_on_synth: formData.metOnSynth,
     };
 
-    const safeArtistId = await resolveArtistProfileId(formData);
-    const safeVenueId = await resolveVenueId(formData);
+    let safeArtistId = await resolveArtistProfileId(formData);
+    let safeVenueId = await resolveVenueId(formData);
+    let userCreatedArtistId: string | undefined;
+    let userCreatedVenueId: string | undefined;
 
-    if (!safeArtistId || !safeVenueId) {
+    // If catalog lookup failed but we have a name, create a user-created entity as fallback
+    if (!safeArtistId && formData.selectedArtist?.name) {
+        try {
+            userCreatedArtistId = await EventReviewSubmitService.createUserCreatedArtist(
+                userId,
+                formData.selectedArtist.name,
+                null
+            );
+        } catch {
+            // fall through to final guard below
+        }
+    }
+    if (!safeVenueId && formData.selectedVenue?.name) {
+        try {
+            userCreatedVenueId = await EventReviewSubmitService.createUserCreatedVenue(
+                userId,
+                formData.selectedVenue.name,
+                null
+            );
+        } catch {
+            // fall through to final guard below
+        }
+    }
+
+    if (!safeArtistId && !userCreatedArtistId) {
         return {
             ok: false,
-            message: 'Artist and venue must resolve to your catalog to submit (pick from search or a past event).',
+            message: 'Could not find or create artist. Please pick from search results.',
+        };
+    }
+    if (!safeVenueId && !userCreatedVenueId) {
+        return {
+            ok: false,
+            message: 'Could not find or create venue. Please pick from search results.',
         };
     }
 
@@ -189,7 +221,9 @@ export async function submitEventReviewFromForm(
             undefined,
             { ...reviewData, Event_date: eventDateForReview },
             safeVenueId,
-            safeArtistId
+            safeArtistId,
+            userCreatedArtistId,
+            userCreatedVenueId
         );
         const eventId =
             review && typeof (review as { event_id?: string }).event_id === 'string'
