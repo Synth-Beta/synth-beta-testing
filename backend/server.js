@@ -35,6 +35,7 @@ const locationSearchRoutes = require('./location-search-routes');
 const setlistRoutes = require('./setlist-routes');
 const ticketmasterRoutes = require('./ticketmaster-routes');
 const authRoutes = require('./auth-routes');
+const syncRoutes = require('./sync-routes');
 
 const app = express();
 
@@ -126,6 +127,7 @@ app.use('/', locationSearchRoutes);
 app.use('/', setlistRoutes);
 app.use('/', ticketmasterRoutes);
 app.use('/', authRoutes);
+app.use('/', syncRoutes);
 
 // Debug: Log all registered routes
 console.log('Registered routes:');

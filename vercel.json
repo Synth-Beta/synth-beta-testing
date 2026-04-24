@@ -25,7 +25,15 @@
     },
     "api/push-notification-webhook.ts": {
       "maxDuration": 15
+    },
+    "api/cron/sync-events.ts": {
+      "maxDuration": 10
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/sync-events",
+      "schedule": "30 9 * * *"
+    }
+  ]
 }
-
