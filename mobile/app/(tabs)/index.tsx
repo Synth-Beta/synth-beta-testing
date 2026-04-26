@@ -6,7 +6,6 @@ import { FlashList } from '@shopify/flash-list';
 import { FeedHeader, FeedDisplayMode } from '../../src/components/Feed/FeedHeader';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
-import { FriendsEventCard } from '../../src/components/Feed/FriendsEventCard';
 import { SynthText } from '../../src/components/SynthText';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
 import { FeedListSkeleton } from '../../src/components/skeletons/FeedListSkeleton';
@@ -14,7 +13,6 @@ import { ShareWithFriendsBanner } from '../../src/components/share/ShareWithFrie
 import {
   FriendSuggestion,
   HomeFeedService,
-  NetworkEvent,
   NetworkReview,
   UnifiedPersonalizedEvent,
 } from '../../src/services/homeFeedService';
@@ -28,8 +26,7 @@ import { useInterested } from '../../src/contexts/InterestedContext';
 
 type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
-  | { kind: 'review'; data: NetworkReview }
-  | { kind: 'friends-event'; data: NetworkEvent };
+  | { kind: 'review'; data: NetworkReview };
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -37,7 +34,6 @@ export default function FeedScreen() {
   const [feedDisplayMode, setFeedDisplayMode] = useState<FeedDisplayMode>('events');
   const [events, setEvents] = useState<UnifiedPersonalizedEvent[]>([]);
   const [reviews, setReviews] = useState<NetworkReview[]>([]);
-  const [friendsEvents, setFriendsEvents] = useState<NetworkEvent[]>([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
@@ -50,9 +46,7 @@ export default function FeedScreen() {
   const listData: ListItem[] =
     feedDisplayMode === 'events'
       ? events.map(data => ({ kind: 'event', data }))
-      : feedDisplayMode === 'friends'
-        ? friendsEvents.map(data => ({ kind: 'friends-event', data }))
-        : reviews.map(data => ({ kind: 'review', data }));
+      : reviews.map(data => ({ kind: 'review', data }));
 
   const fetchFeed = useCallback(async () => {
     try {
@@ -86,18 +80,47 @@ export default function FeedScreen() {
       setFriendSuggestions(suggestions);
 
       if (feedDisplayMode === 'events') {
-        const unified = await HomeFeedService.getUnifiedPersonalizedEvents(
-          user.id,
-          50,
-          loc?.latitude ?? null,
-          loc?.longitude ?? null,
-          50
-        );
-        setEvents(unified);
-        seedFromFeed(unified);
-      } else if (feedDisplayMode === 'friends') {
-        const fe = await HomeFeedService.getNetworkEvents(user.id, 30);
-        setFriendsEvents(fe);
+        const [unified, friendEvents] = await Promise.all([
+          HomeFeedService.getUnifiedPersonalizedEvents(
+            user.id, 50, loc?.latitude ?? null, loc?.longitude ?? null, 50
+          ),
+          HomeFeedService.getNetworkEvents(user.id, 20),
+        ]);
+
+        // Convert friend network events → UnifiedPersonalizedEvent with FRIENDS label
+        const friendEventIds = new Set(unified.map(e => e.id));
+        const friendsAsUnified: UnifiedPersonalizedEvent[] = friendEvents
+          .filter(ne => !friendEventIds.has(ne.id)) // deduplicate
+          .map(ne => ({
+            id: ne.id,
+            title: ne.title,
+            artist_name: ne.artist_name,
+            venue_name: ne.venue_name,
+            venue_city: ne.venue_city,
+            event_date: ne.event_date,
+            image_url: ne.image_url,
+            feedLabel: 'FRIENDS' as const,
+            interested_count: ne.interested_count ?? 0,
+            user_is_interested: false,
+            ticket_url: undefined,
+            artist_id: undefined,
+            venue_id: undefined,
+          }));
+
+        // Interleave: inject friend events every 4 personalized events
+        const merged: UnifiedPersonalizedEvent[] = [];
+        let fi = 0;
+        for (let i = 0; i < unified.length; i++) {
+          merged.push(unified[i]);
+          if ((i + 1) % 4 === 0 && fi < friendsAsUnified.length) {
+            merged.push(friendsAsUnified[fi++]);
+          }
+        }
+        // Append any remaining friend events at the end
+        while (fi < friendsAsUnified.length) merged.push(friendsAsUnified[fi++]);
+
+        setEvents(merged);
+        seedFromFeed(merged);
       } else {
         const networkReviews = await HomeFeedService.getNetworkReviews(user.id, 20);
         setReviews(networkReviews);
@@ -107,7 +130,6 @@ export default function FeedScreen() {
       setReferralCode(null);
       setViewerUserId(null);
       if (feedDisplayMode === 'events') setEvents([]);
-      else if (feedDisplayMode === 'friends') setFriendsEvents([]);
       else setReviews([]);
       setFriendSuggestions([]);
     } finally {
@@ -131,11 +153,7 @@ export default function FeedScreen() {
   useEffect(() => {
     if (feedLoading || refreshing) return; // still loading or user-triggered refresh in progress
     const isEmpty =
-      feedDisplayMode === 'events'
-        ? events.length === 0
-        : feedDisplayMode === 'friends'
-          ? friendsEvents.length === 0
-          : reviews.length === 0;
+      feedDisplayMode === 'events' ? events.length === 0 : reviews.length === 0;
     if (!isEmpty) {
       autoRetryFiredRef.current = false; // reset when we have data
       return;
@@ -160,20 +178,6 @@ export default function FeedScreen() {
           review={item.data}
           currentUserId={viewerUserId}
           onPress={() => router.push(`/review/${item.data.id}`)}
-        />
-      );
-    }
-
-    if (item.kind === 'friends-event') {
-      return (
-        <FriendsEventCard
-          event={item.data}
-          currentUserId={viewerUserId}
-          onPress={() => {
-            void EventService.toEventRouteId(item.data.id).then((rid) => {
-              router.push(`/event/${rid}` as any);
-            });
-          }}
         />
       );
     }
@@ -204,11 +208,7 @@ export default function FeedScreen() {
   };
 
   const emptyMessage =
-    feedDisplayMode === 'events'
-      ? 'No events yet. Pull to refresh.'
-      : feedDisplayMode === 'friends'
-        ? 'No events from friends yet. Add friends to see what they\'re attending.'
-        : 'No reviews yet. Pull to refresh.';
+    feedDisplayMode === 'events' ? 'No events yet. Pull to refresh.' : 'No reviews yet. Pull to refresh.';
 
   const listHeader = useMemo(
     () => (
@@ -240,9 +240,7 @@ export default function FeedScreen() {
           data={listData}
           renderItem={renderItem}
           keyExtractor={item =>
-            item.kind === 'event' ? `ev-${item.data.id}` :
-            item.kind === 'friends-event' ? `fe-${item.data.id}` :
-            `rv-${item.data.id}`
+            item.kind === 'event' ? `ev-${item.data.id}` : `rv-${item.data.id}`
           }
           ListHeaderComponent={listHeader}
           contentContainerStyle={[

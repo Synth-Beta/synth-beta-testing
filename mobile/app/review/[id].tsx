@@ -569,11 +569,9 @@ export default function ReviewDetailScreen() {
                     data: { session },
                 } = await supabase.auth.getSession();
                 const user = session?.user ?? null;
-                if (!user) {
-                    setLoading(false);
-                    return;
-                }
-                setSessionUserId(user.id);
+                // Don't block on missing session — public reviews are readable by anyone.
+                // We just won't have a sessionUserId for engagement actions.
+                if (user) setSessionUserId(user.id);
 
                 const { data, error } = await supabase
                     .from('reviews')
@@ -643,12 +641,14 @@ export default function ReviewDetailScreen() {
                     evOne = evRaw as EventSummary;
                 }
 
-                // Check helpful status for current user (errors are non-fatal)
+                // Check helpful status for current user (errors are non-fatal, skip if not logged in)
                 let likedSet = new Set<string>();
-                try {
-                    likedSet = await ReviewEngagementService.getReviewIdsLikedByUser(user.id, [String(id)]);
-                } catch {
-                    // not critical — continue with unliked state
+                if (user) {
+                    try {
+                        likedSet = await ReviewEngagementService.getReviewIdsLikedByUser(user.id, [String(id)]);
+                    } catch {
+                        // not critical — continue with unliked state
+                    }
                 }
 
                 if (cancelled) return;
@@ -709,7 +709,7 @@ export default function ReviewDetailScreen() {
                     custom_setlist: Array.isArray(row.custom_setlist) ? row.custom_setlist : null,
                 };
 
-                const isOwner = normalized.user_id === user.id;
+                const isOwner = user != null && normalized.user_id === user.id;
                 // Treat null is_public as public — only block if explicitly false
                 if (normalized.is_public === false && !isOwner) {
                     setForbidden(true);

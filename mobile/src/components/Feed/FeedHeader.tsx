@@ -13,7 +13,7 @@ import { ChevronDown, Menu } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JamBaseAttributionInline } from './JamBaseAttributionInline';
 
-export type FeedDisplayMode = 'events' | 'reviews' | 'friends';
+export type FeedDisplayMode = 'events' | 'reviews';
 
 interface FeedHeaderProps {
     notificationsCount?: number;
@@ -31,7 +31,7 @@ export const FeedHeader: React.FC<FeedHeaderProps> = ({
     const insets = useSafeAreaInsets();
     const [menuOpen, setMenuOpen] = useState(false);
 
-    const label = feedDisplayMode === 'events' ? 'Events' : feedDisplayMode === 'friends' ? 'Friends' : 'Reviews';
+    const label = feedDisplayMode === 'events' ? 'Events' : 'Reviews';
 
     const selectMode = (mode: FeedDisplayMode) => {
         onFeedDisplayModeChange?.(mode);
@@ -59,14 +59,6 @@ export const FeedHeader: React.FC<FeedHeaderProps> = ({
                     >
                         <SynthText variant="meta" style={styles.menuRowText}>
                             Reviews
-                        </SynthText>
-                    </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [styles.menuRow, pressed && styles.menuRowPressed]}
-                        onPress={() => selectMode('friends')}
-                    >
-                        <SynthText variant="meta" style={styles.menuRowText}>
-                            Friends
                         </SynthText>
                     </Pressable>
                 </View>

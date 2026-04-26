@@ -171,6 +171,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
   // Feed sections state
   const [recommendedEvents, setRecommendedEvents] = useState<PersonalizedEvent[]>([]);
+  const [friendFeedEvents, setFriendFeedEvents] = useState<NetworkEvent[]>([]); // injected into main events feed
   const [firstDegreeEvents, setFirstDegreeEvents] = useState<NetworkEvent[]>([]);
   const [secondDegreeEvents, setSecondDegreeEvents] = useState<NetworkEvent[]>([]);
   const [reviews, setReviews] = useState<NetworkReview[]>([]);
@@ -466,6 +467,9 @@ interface FriendEventInterest {
       loadNetworkEvents(true);
     } else if (selectedFeedType === 'events') {
       loadFriendSuggestionsForRail();
+      if (currentUserId) {
+        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 20).then(setFriendFeedEvents).catch(() => {});
+      }
     } else if (selectedFeedType === 'group-chats') {
       loadRecommendedGroupChats();
       loadFriendSuggestionsForRail();
@@ -2061,6 +2065,19 @@ interface FriendEventInterest {
               console.log('Interest toggled:', eventId, interested);
             }}
             insertSectionAfterIndex={0}
+            extraEvents={friendFeedEvents.map(ne => ({
+              event_id: ne.event_id,
+              title: ne.title,
+              artist_name: ne.artist_name,
+              venue_name: ne.venue_name,
+              venue_city: ne.venue_city,
+              event_date: ne.event_date,
+              event_media_url: ne.event_media_url,
+              images: ne.images,
+              reason: 'friend_interested' as const,
+              interested_count: ne.interested_count,
+              user_is_interested: false,
+            }))}
             middleSection={
               friendSuggestionsForRail.length > 0 ? (
                 <FriendSuggestionsRail

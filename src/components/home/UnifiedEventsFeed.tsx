@@ -40,6 +40,8 @@ interface UnifiedEventsFeedProps {
   /** Insert this ReactNode after N events (e.g. friend suggestions rail after 3 events) */
   insertSectionAfterIndex?: number;
   middleSection?: React.ReactNode;
+  /** Extra events to inject into the feed (e.g. friend-interested events labeled FRIENDS) */
+  extraEvents?: UnifiedEventItem[];
 }
 
 const PAGE_SIZE = 20;
@@ -122,6 +124,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   onShareClick,
   insertSectionAfterIndex,
   middleSection,
+  extraEvents,
 }) => {
   // All fetched events (batch of 100) and displayed events (paginated from batch)
   const [allFetchedEvents, setAllFetchedEvents] = useState<UnifiedEventItem[]>([]);
@@ -222,11 +225,26 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   useEffect(() => {
     if (cachedFeed) {
-      setAllFetchedEvents(cachedFeed.events);
-      setDisplayedEvents(cachedFeed.events.slice(0, PAGE_SIZE));
+      // Merge friend events into the feed, interleaved every 4 events
+      let merged = cachedFeed.events;
+      if (extraEvents && extraEvents.length > 0) {
+        const seen = new Set(cachedFeed.events.map(e => e.event_id));
+        const fresh = extraEvents.filter(e => !seen.has(e.event_id));
+        if (fresh.length > 0) {
+          merged = [];
+          let fi = 0;
+          for (let i = 0; i < cachedFeed.events.length; i++) {
+            merged.push(cachedFeed.events[i]);
+            if ((i + 1) % 4 === 0 && fi < fresh.length) merged.push(fresh[fi++]);
+          }
+          while (fi < fresh.length) merged.push(fresh[fi++]);
+        }
+      }
+      setAllFetchedEvents(merged);
+      setDisplayedEvents(merged.slice(0, PAGE_SIZE));
       setHasMoreFromApi(cachedFeed.hasMore);
-      setApiOffset(cachedFeed.events.length);
-      allFetchedEventsRef.current = cachedFeed.events;
+      setApiOffset(merged.length);
+      allFetchedEventsRef.current = merged;
       if (typeof cachedFeed.latitude === 'number' && typeof cachedFeed.longitude === 'number') {
         lastReloadLocationRef.current = {
           lat: cachedFeed.latitude,
