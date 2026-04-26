@@ -379,7 +379,9 @@ export class HomeFeedService {
             title,
             event_date,
             artist_id,
-            venue_id
+            venue_id,
+            artist_name,
+            venue_name
           )
         `;
 
@@ -473,8 +475,8 @@ export class HomeFeedService {
                     photos: review.photos ?? undefined,
                     artist_image_url: artistData?.image_url || undefined,
                     event_info: {
-                        artist_name: artistData?.name,
-                        venue_name: venueName,
+                        artist_name: artistData?.name || (review.events as any)?.artist_name || undefined,
+                        venue_name: venueName || (review.events as any)?.venue_name || undefined,
                         event_date: review.events?.event_date,
                     },
                     artist_performance_rating: review.artist_performance_rating != null ? Number(review.artist_performance_rating) : undefined,

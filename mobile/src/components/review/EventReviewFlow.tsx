@@ -159,7 +159,7 @@ interface EventReviewFlowProps {
     initialEventId?: string | null;
     prefill?: ReviewPrefill | null;
     onClose: () => void;
-    onSubmitted?: (eventIdForReturn?: string) => void;
+    onSubmitted?: (eventIdForReturn?: string, reviewId?: string) => void;
 }
 
 export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted }: EventReviewFlowProps) {
@@ -691,7 +691,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             setSubmittedRating(averageRatingForSummary);
             setRankingModalVisible(true);
         } else {
-            onSubmitted?.(outEvent);
+            onSubmitted?.(outEvent, res.submittedReview?.id ?? undefined);
         }
     }, [userId, formData, currentFlow, setLoading, onSubmitted, initialEventId, averageRatingForSummary]);
 
@@ -1286,7 +1286,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 visible={rankingModalVisible}
                 onClose={() => {
                     setRankingModalVisible(false);
-                    onSubmitted?.(undefined);
+                    onSubmitted?.(undefined, submittedReviewId ?? undefined);
                 }}
                 userId={userId}
                 newReviewId={submittedReviewId}

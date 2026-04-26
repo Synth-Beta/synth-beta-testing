@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ShareToChatModal } from '../../src/components/share/ShareToChatModal';
-import { Alert, StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text, ActivityIndicator } from 'react-native';
+import { useInterested } from '../../src/contexts/InterestedContext';
+import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +11,7 @@ import { EventService, EventDetail, FriendAttending } from '../../src/services/e
 import { supabase } from '../../src/integrations/supabase/client';
 import {
     ChevronLeft,
+    ChevronRight,
     Share as ShareIcon,
     Calendar,
     Users,
@@ -66,10 +68,11 @@ export default function EventDetailScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
+    const { isInterested: isInterestedCtx, toggle: toggleInterested } = useInterested();
+
     const [event, setEvent] = useState<EventDetail | null>(null);
     const [friends, setFriends] = useState<FriendAttending[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isInterested, setIsInterested] = useState(false);
     const [reviews, setReviews] = useState<NetworkReview[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [sessionUserId, setSessionUserId] = useState<string | null>(null);
@@ -143,12 +146,8 @@ export default function EventDetailScreen() {
     }, [sessionUserId, event, isInGroupChat, router]);
 
     // Meet
-    const [meetUsers, setMeetUsers] = useState<MeetUser[]>([]);
-    const [meetIndex, setMeetIndex] = useState(0);
     const [meetLoading, setMeetLoading] = useState(false);
     const [interestedCount, setInterestedCount] = useState<number | null>(null);
-    const [meetSwiping, setMeetSwiping] = useState(false);
-    // All interested users for the "guest list" view when swipe queue is exhausted
     const [allInterestedUsers, setAllInterestedUsers] = useState<MeetUser[]>([]);
 
     const loadMeetUsers = useCallback(async (eventId: string, uid: string) => {
@@ -165,49 +164,16 @@ export default function EventDetailScreen() {
             setInterestedCount(allUserIds.length);
 
             if (allUserIds.length === 0) {
-                setMeetUsers([]);
                 setAllInterestedUsers([]);
                 return;
             }
 
-            // Load profiles for ALL interested users (for the guest list view)
-            const { data: allProfiles } = await supabase
+            const { data: profiles } = await supabase
                 .from('users')
                 .select('user_id, name, avatar_url, bio')
                 .in('user_id', allUserIds)
-                .limit(30);
-            setAllInterestedUsers((allProfiles || []) as MeetUser[]);
-
-            // Filter out already-swiped users for the swiper
-            const { data: existingSwipes } = await supabase
-                .from('engagements')
-                .select('metadata')
-                .eq('user_id', uid)
-                .eq('engagement_type', 'swipe');
-
-            const swipedIds = new Set<string>();
-            for (const sw of existingSwipes || []) {
-                const meta = sw.metadata as any;
-                if (meta?.event_id === eventId && meta?.swiped_user_id) {
-                    swipedIds.add(String(meta.swiped_user_id));
-                }
-            }
-
-            const filteredIds = allUserIds.filter(uid2 => !swipedIds.has(uid2));
-
-            if (filteredIds.length === 0) {
-                setMeetUsers([]);
-                return;
-            }
-
-            const { data: users } = await supabase
-                .from('users')
-                .select('user_id, name, avatar_url, bio')
-                .in('user_id', filteredIds)
-                .limit(20);
-
-            setMeetUsers((users || []) as MeetUser[]);
-            setMeetIndex(0);
+                .limit(50);
+            setAllInterestedUsers((profiles || []) as MeetUser[]);
         } catch (e) {
             console.error('[meet] loadMeetUsers', e);
         } finally {
@@ -215,53 +181,6 @@ export default function EventDetailScreen() {
         }
     }, []);
 
-    const handleMeetSwipe = async (swipedUserId: string, isLike: boolean) => {
-        if (!sessionUserId || !event || meetSwiping) return;
-        setMeetSwiping(true);
-        try {
-            const { data: entityId, error: entityError } = await supabase.rpc('get_or_create_entity', {
-                p_entity_type: 'user',
-                p_entity_uuid: swipedUserId,
-                p_entity_text_id: null,
-            });
-
-            if (!entityError && entityId != null) {
-                await supabase.from('engagements').insert({
-                    user_id: sessionUserId,
-                    entity_id: entityId,
-                    engagement_type: 'swipe',
-                    engagement_value: isLike ? 'right' : 'left',
-                    metadata: {
-                        event_id: event.id,
-                        swiped_user_id: swipedUserId,
-                        is_interested: isLike,
-                    },
-                });
-
-                // Check for mutual match
-                if (isLike) {
-                    const { data: reciprocal } = await supabase
-                        .from('engagements')
-                        .select('id')
-                        .eq('user_id', swipedUserId)
-                        .eq('engagement_type', 'swipe')
-                        .eq('engagement_value', 'right')
-                        .eq('metadata->>event_id', event.id)
-                        .eq('metadata->>swiped_user_id', sessionUserId)
-                        .maybeSingle();
-
-                    if (reciprocal) {
-                        Alert.alert("It's a match!", 'You both want to meet up at this event!');
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('[meet] swipe error', e);
-        } finally {
-            setMeetIndex(prev => prev + 1);
-            setMeetSwiping(false);
-        }
-    };
 
     const loadReviewsForEvent = useCallback(
         async (eventUuid: string, eventInfo: EventDetail, viewerId: string | null) => {
@@ -414,13 +333,10 @@ export default function EventDetailScreen() {
 
     const loadData = useCallback(async () => {
         setLoading(true);
-        setIsInterested(false);
         setReviews([]);
         setFriends([]);
         setSessionUserId(null);
-        setMeetUsers([]);
         setAllInterestedUsers([]);
-        setMeetIndex(0);
         setInterestedCount(null);
         setActiveTab(null);
 
@@ -452,16 +368,6 @@ export default function EventDetailScreen() {
         if (!eventData) {
             setLoading(false);
             return;
-        }
-
-        const { data: rel } = await supabase
-            .from('user_event_relationships')
-            .select('relationship_type')
-            .eq('user_id', user.id)
-            .eq('event_id', eventData.id)
-            .maybeSingle();
-        if (rel?.relationship_type === 'interested') {
-            setIsInterested(true);
         }
 
         const friendsData = await EventService.getFriendsAttending(eventData.id, user.id);
@@ -505,46 +411,14 @@ export default function EventDetailScreen() {
         void EventService.shareEventLink(event.id, { headline, formattedDate });
     };
 
-    const handleToggleInterested = async () => {
+    const handleToggleInterested = useCallback(async () => {
         if (!sessionUserId) {
             router.push('/(auth)/sign-in');
             return;
         }
         if (!event) return;
-
-        const newState = !isInterested;
-        // Optimistic update immediately (matches web pattern)
-        setIsInterested(newState);
-
-        try {
-            if (newState) {
-                const { error } = await supabase
-                    .from('user_event_relationships')
-                    .upsert(
-                        {
-                            user_id: sessionUserId,
-                            event_id: event.id,
-                            relationship_type: 'interested',
-                            updated_at: new Date().toISOString(),
-                        },
-                        { onConflict: 'user_id,event_id' }
-                    );
-                if (error) throw error;
-            } else {
-                const { error } = await supabase
-                    .from('user_event_relationships')
-                    .delete()
-                    .eq('user_id', sessionUserId)
-                    .eq('event_id', event.id)
-                    .eq('relationship_type', 'interested');
-                if (error) throw error;
-            }
-        } catch (e: any) {
-            // Revert on error
-            setIsInterested(!newState);
-            console.error('[event] toggleInterested', e);
-        }
-    };
+        await toggleInterested(event.id);
+    }, [sessionUserId, event, toggleInterested, router]);
 
     const openTicketLink = async () => {
         const url = event?.ticket_url?.trim();
@@ -597,11 +471,10 @@ export default function EventDetailScreen() {
 
     const isPastEvent = event.event_date ? new Date(event.event_date) < new Date() : false;
     const isUpcomingEvent = !isPastEvent;
+    const isInterested = isInterestedCtx(event.id);
     const priceLine = formatEventDetailPrice(event);
     const doorsShort = formatDoorsTimeShort(event.doors_time);
     const showTimePrimary = formatEventDetailTime(event.event_date);
-    const currentMeetUser = meetUsers[meetIndex] ?? null;
-
     const handleTabPress = (tab: 'groups' | 'meet') => {
         const isOpening = activeTab !== tab;
         setActiveTab(prev => (prev === tab ? null : tab));
@@ -876,7 +749,7 @@ export default function EventDetailScreen() {
                             </View>
                         )}
 
-                        {/* Meet */}
+                        {/* Meet — list of all interested users */}
                         {activeTab === 'meet' && isUpcomingEvent && (
                             <View style={styles.tabContent}>
                                 {!sessionUserId ? (
@@ -885,94 +758,48 @@ export default function EventDetailScreen() {
                                         onPress={() => router.push('/(auth)/sign-in')}
                                     >
                                         <SynthText variant="meta" style={styles.signInBannerText}>
-                                            Sign in to meet people going to this event.
+                                            Sign in to see who is interested in this event.
                                         </SynthText>
                                     </Pressable>
                                 ) : meetLoading ? (
                                     <ActivityIndicator color={PINK} size="large" style={{ paddingVertical: 32 }} />
-                                ) : !currentMeetUser ? (
+                                ) : allInterestedUsers.length === 0 ? (
                                     <View style={styles.meetEmptyWrap}>
-                                        {interestedCount === 0 ? (
-                                            <>
-                                                <Heart size={52} color={SynthTokens.colors.neutral400} />
-                                                <Text style={styles.comingSoonTitle}>No One Going Yet</Text>
-                                                <SynthText variant="meta" color="secondary" style={styles.comingSoonDesc}>
-                                                    Be the first to show interest! Share the event with friends.
-                                                </SynthText>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Text style={styles.comingSoonTitle}>
-                                                    {interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested
-                                                </Text>
-                                                <SynthText variant="meta" color="secondary" style={[styles.comingSoonDesc, { marginBottom: 16 }]}>
-                                                    You've seen everyone going. Here's who's interested:
-                                                </SynthText>
-                                                <View style={styles.guestListGrid}>
-                                                    {allInterestedUsers.slice(0, 12).map(u => (
-                                                        <View key={u.user_id} style={styles.guestChip}>
-                                                            {u.avatar_url ? (
-                                                                <Image source={{ uri: u.avatar_url }} style={styles.guestChipAvatar} contentFit="cover" />
-                                                            ) : (
-                                                                <View style={[styles.guestChipAvatar, styles.guestChipAvatarPlaceholder]}>
-                                                                    <Text style={styles.guestChipInitial}>{u.name?.charAt(0).toUpperCase() || '?'}</Text>
-                                                                </View>
-                                                            )}
-                                                            <Text style={styles.guestChipName} numberOfLines={1}>{u.name || 'User'}</Text>
-                                                        </View>
-                                                    ))}
-                                                </View>
-                                                {(interestedCount ?? 0) > 12 && (
-                                                    <SynthText variant="meta" color="secondary" style={{ marginTop: 8 }}>
-                                                        +{(interestedCount ?? 0) - 12} more
-                                                    </SynthText>
-                                                )}
-                                            </>
-                                        )}
+                                        <Heart size={52} color={SynthTokens.colors.neutral400} />
+                                        <Text style={styles.comingSoonTitle}>No One Yet</Text>
+                                        <SynthText variant="meta" color="secondary" style={styles.comingSoonDesc}>
+                                            Be the first to mark yourself as interested and share with friends!
+                                        </SynthText>
                                     </View>
                                 ) : (
-                                    <View style={styles.meetCard}>
-                                        {currentMeetUser.avatar_url ? (
-                                            <Image
-                                                source={{ uri: currentMeetUser.avatar_url }}
-                                                style={styles.meetAvatar}
-                                                contentFit="cover"
-                                            />
-                                        ) : (
-                                            <View style={[styles.meetAvatar, styles.meetAvatarPlaceholder]}>
-                                                <Text style={styles.meetAvatarInitial}>
-                                                    {currentMeetUser.name?.charAt(0).toUpperCase() || '?'}
-                                                </Text>
-                                            </View>
-                                        )}
-                                        <Text style={styles.meetName}>{currentMeetUser.name || 'Synth User'}</Text>
-                                        {currentMeetUser.bio ? (
-                                            <SynthText variant="meta" color="secondary" style={styles.meetBio} numberOfLines={3}>
-                                                {currentMeetUser.bio}
-                                            </SynthText>
-                                        ) : null}
-                                        <View style={styles.meetActions}>
-                                            <Pressable
-                                                style={[styles.meetBtn, styles.meetBtnPass]}
-                                                onPress={() => void handleMeetSwipe(currentMeetUser.user_id, false)}
-                                                disabled={meetSwiping}
-                                                accessibilityLabel="Pass"
-                                            >
-                                                <X size={28} color={SynthTokens.colors.neutral600} />
-                                            </Pressable>
-                                            <Pressable
-                                                style={[styles.meetBtn, styles.meetBtnLike]}
-                                                onPress={() => void handleMeetSwipe(currentMeetUser.user_id, true)}
-                                                disabled={meetSwiping}
-                                                accessibilityLabel="Like"
-                                            >
-                                                <Heart size={28} color={SynthTokens.colors.neutral0} fill={SynthTokens.colors.neutral0} />
-                                            </Pressable>
-                                        </View>
-                                        <SynthText variant="meta" color="secondary" style={{ marginTop: 8, textAlign: 'center' }}>
-                                            {meetUsers.length - meetIndex - 1} more{' '}
-                                            {meetUsers.length - meetIndex - 1 === 1 ? 'person' : 'people'}
+                                    <View>
+                                        <SynthText variant="meta" color="secondary" style={styles.meetListHeader}>
+                                            {interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested — tap to view their profile
                                         </SynthText>
+                                        {allInterestedUsers.map(u => (
+                                            <Pressable
+                                                key={u.user_id}
+                                                style={({ pressed }) => [styles.meetListRow, pressed && { opacity: 0.7 }]}
+                                                onPress={() => router.push(`/user/${u.user_id}` as any)}
+                                            >
+                                                {u.avatar_url ? (
+                                                    <Image source={{ uri: u.avatar_url }} style={styles.meetListAvatar} contentFit="cover" />
+                                                ) : (
+                                                    <View style={[styles.meetListAvatar, styles.meetListAvatarPlaceholder]}>
+                                                        <Text style={styles.meetListAvatarInitial}>{u.name?.charAt(0).toUpperCase() || '?'}</Text>
+                                                    </View>
+                                                )}
+                                                <View style={styles.meetListInfo}>
+                                                    <Text style={styles.meetListName}>{u.name || 'Synth User'}</Text>
+                                                    {u.bio ? (
+                                                        <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.meetListBio}>
+                                                            {u.bio}
+                                                        </SynthText>
+                                                    ) : null}
+                                                </View>
+                                                <ChevronRight size={18} color={SynthTokens.colors.neutral400} />
+                                            </Pressable>
+                                        ))}
                                     </View>
                                 )}
                             </View>
@@ -1463,62 +1290,47 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         maxWidth: 64,
     },
-    meetCard: {
-        width: '100%',
+    meetListHeader: {
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    meetListRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 4,
+        borderBottomWidth: 1,
+        borderBottomColor: SynthTokens.colors.neutral200,
+        gap: 12,
     },
-    meetAvatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+    meetListAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         overflow: 'hidden',
+        flexShrink: 0,
     },
-    meetAvatarPlaceholder: {
+    meetListAvatarPlaceholder: {
         backgroundColor: PINK,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    meetAvatarInitial: {
-        fontSize: 36,
+    meetListAvatarInitial: {
+        fontSize: 18,
         fontWeight: '700',
         color: SynthTokens.colors.neutral0,
     },
-    meetName: {
-        fontSize: 20,
-        fontWeight: '700',
+    meetListInfo: {
+        flex: 1,
+        gap: 2,
+    },
+    meetListName: {
+        fontSize: 15,
+        fontWeight: '600',
         color: SynthTokens.colors.neutral900,
-        textAlign: 'center',
     },
-    meetBio: {
-        textAlign: 'center',
-        lineHeight: 20,
-        paddingHorizontal: 8,
-    },
-    meetActions: {
-        flexDirection: 'row',
-        gap: 24,
-        marginTop: 8,
-    },
-    meetBtn: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
-    },
-    meetBtnPass: {
-        backgroundColor: SynthTokens.colors.neutral0,
-        borderWidth: 2,
-        borderColor: SynthTokens.colors.neutral200,
-    },
-    meetBtnLike: {
-        backgroundColor: PINK,
+    meetListBio: {
+        fontSize: 13,
     },
     // Ticket section at bottom
     ticketSection: {

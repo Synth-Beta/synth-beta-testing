@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { EventReviewFlow, type ReviewPrefill } from '../src/components/review/EventReviewFlow';
 
@@ -26,17 +25,14 @@ export default function ReviewComposeScreen() {
             initialEventId={eventId ?? null}
             prefill={prefill}
             onClose={() => router.back()}
-            onSubmitted={(eid) => {
-                Alert.alert('Thanks!', 'Your review was posted.', [
-                    {
-                        text: 'Done',
-                        onPress: () => (eid ? router.replace(`/event/${eid}`) : router.back()),
-                    },
-                    {
-                        text: 'Rank in My Events',
-                        onPress: () => router.replace('/my-events?tab=rankings'),
-                    },
-                ]);
+            onSubmitted={(eid, reviewId) => {
+                if (reviewId) {
+                    router.replace(`/review/${reviewId}` as any);
+                } else if (eid) {
+                    router.replace(`/event/${eid}` as any);
+                } else {
+                    router.back();
+                }
             }}
         />
     );

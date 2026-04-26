@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Image, ActivityIndicator, Alert, Text } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, MessageCircle } from 'lucide-react-native';
+import { ChevronLeft, MessageCircle, UserPlus, UserCheck, UserX } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
@@ -16,6 +16,9 @@ import { PassportService, type ProfileTimelineItem } from '../../src/services/pa
 import { EventService } from '../../src/services/eventService';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
+import { createFriendRequest } from '@synth/shared';
+
+type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'friends';
 
 export default function PublicUserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,6 +37,8 @@ export default function PublicUserProfileScreen() {
   const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
   const [interestedEvents, setInterestedEvents] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
+  const [friendStatus, setFriendStatus] = useState<FriendStatus>('none');
+  const [friendLoading, setFriendLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -149,6 +154,26 @@ export default function PublicUserProfileScreen() {
 
       const t = await PassportService.getTimeline(id);
       setTimeline(t);
+
+      // Friendship status (only relevant when viewing someone else's profile)
+      if (user?.id && user.id !== id) {
+        const { data: relRows } = await supabase
+          .from('user_relationships')
+          .select('requester_id, status')
+          .or(`and(requester_id.eq.${user.id},addressee_id.eq.${id}),and(requester_id.eq.${id},addressee_id.eq.${user.id})`);
+        if (relRows && relRows.length > 0) {
+          const rel = relRows[0] as { requester_id: string; status: string };
+          if (rel.status === 'accepted') {
+            setFriendStatus('friends');
+          } else if (rel.status === 'pending') {
+            setFriendStatus(rel.requester_id === user.id ? 'pending_sent' : 'pending_received');
+          } else {
+            setFriendStatus('none');
+          }
+        } else {
+          setFriendStatus('none');
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -170,6 +195,31 @@ export default function PublicUserProfileScreen() {
       'You may need to be friends first, or try again in a moment.'
     );
   };
+
+  const handleFriendAction = useCallback(async () => {
+    if (!id || !selfId || id === selfId) return;
+    if (friendStatus === 'friends' || friendStatus === 'pending_sent') return;
+    setFriendLoading(true);
+    try {
+      if (friendStatus === 'pending_received') {
+        // Accept the incoming request
+        const { error } = await supabase
+          .from('user_relationships')
+          .update({ status: 'accepted' })
+          .eq('requester_id', id)
+          .eq('addressee_id', selfId);
+        if (!error) setFriendStatus('friends');
+      } else {
+        // Send a new friend request
+        const result = await createFriendRequest(supabase as any, id);
+        if (!result.error) setFriendStatus('pending_sent');
+      }
+    } catch (e) {
+      console.warn('[publicProfile] friend action', e);
+    } finally {
+      setFriendLoading(false);
+    }
+  }, [id, selfId, friendStatus]);
 
   const groupedByStar = useMemo(() => {
     const map = new Map<number, MyReviewListItem[]>();
@@ -242,6 +292,36 @@ export default function PublicUserProfileScreen() {
                   ) : null}
                 </View>
               </View>
+              {id && selfId && id !== selfId ? (
+                <Pressable
+                  onPress={() => void handleFriendAction()}
+                  disabled={friendLoading || friendStatus === 'friends' || friendStatus === 'pending_sent'}
+                  style={[
+                    styles.friendBtn,
+                    friendStatus === 'friends' && styles.friendBtnDone,
+                    friendStatus === 'pending_sent' && styles.friendBtnPending,
+                    friendStatus === 'pending_received' && styles.friendBtnReceived,
+                  ]}
+                  accessibilityLabel={
+                    friendStatus === 'friends' ? 'Friends' :
+                    friendStatus === 'pending_sent' ? 'Request sent' :
+                    friendStatus === 'pending_received' ? 'Accept friend request' :
+                    'Add friend'
+                  }
+                >
+                  {friendLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : friendStatus === 'friends' ? (
+                    <><UserCheck size={16} color="#fff" /><SynthText variant="meta" style={styles.friendBtnTxt}>Friends</SynthText></>
+                  ) : friendStatus === 'pending_sent' ? (
+                    <><UserX size={16} color="#CC2486" /><SynthText variant="meta" style={styles.friendBtnTxtPink}>Request sent</SynthText></>
+                  ) : friendStatus === 'pending_received' ? (
+                    <><UserCheck size={16} color="#fff" /><SynthText variant="meta" style={styles.friendBtnTxt}>Accept request</SynthText></>
+                  ) : (
+                    <><UserPlus size={16} color="#fff" /><SynthText variant="meta" style={styles.friendBtnTxt}>Add friend</SynthText></>
+                  )}
+                </Pressable>
+              ) : null}
             </View>
 
             <View style={styles.tabs}>
@@ -452,4 +532,20 @@ const styles = StyleSheet.create({
   reviewTitle: { fontWeight: '800' },
   groupHeader: { fontWeight: '800', marginTop: 6, marginBottom: 6, fontSize: 15 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  friendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: '#CC2486',
+  },
+  friendBtnDone: { backgroundColor: '#6B7280' },
+  friendBtnPending: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#CC2486' },
+  friendBtnReceived: { backgroundColor: '#16A34A' },
+  friendBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  friendBtnTxtPink: { color: '#CC2486', fontWeight: '700', fontSize: 13 },
 });

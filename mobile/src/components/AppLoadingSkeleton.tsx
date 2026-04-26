@@ -1,159 +1,117 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, StatusBar, Animated, Easing, Dimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  View,
+  StyleSheet,
+  StatusBar,
+  Animated,
+  Easing,
+  Dimensions,
+  Text,
+} from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SynthTokens } from '../tokens/SynthTokens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const BG = SynthTokens.colors.neutral50;
-const CARD_BG = SynthTokens.colors.neutral0;
-const BORDER = SynthTokens.colors.neutral200;
-const SKELETON = SynthTokens.colors.neutral200;
-const PINK = SynthTokens.colors.brandPink500;
-const PAD = 16;
 
-// ─── Shared shimmer animation ──────────────────────────────────────────────
-function useShimmer() {
-  const x = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(x, {
-        toValue: 1,
-        duration: 1200,
-        easing: Easing.inOut(Easing.sin),
-        useNativeDriver: true,
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [x]);
-  return x;
-}
+// Must match app.json splash.backgroundColor exactly — this makes the
+// native-splash → JS-loading transition invisible (no logo flash).
+const SPLASH_BG = '#FDF2F8';
+const PINK = '#CC2486';
+const PINK_FAINT = 'rgba(204, 36, 134, 0.12)';
 
-function Shimmer({ shimmerX }: { shimmerX: Animated.Value }) {
-  const translateX = shimmerX.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-SCREEN_W * 0.8, SCREEN_W * 0.8],
-  });
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}
-    >
-      <LinearGradient
-        colors={['transparent', 'rgba(204, 36, 134, 0.10)', 'transparent']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={{ flex: 1 }}
-      />
-    </Animated.View>
-  );
-}
-
-function Bone({
-  w,
-  h,
-  r = 8,
-  shimmerX,
-}: {
-  w: number | `${number}%`;
-  h: number;
-  r?: number;
-  shimmerX: Animated.Value;
-}) {
-  return (
-    <View style={[styles.bone, { width: w, height: h, borderRadius: r }]}>
-      <Shimmer shimmerX={shimmerX} />
-    </View>
-  );
-}
-
-// ─── Header ───────────────────────────────────────────────────────────────
-function HeaderSkeleton({ topInset, shimmerX }: { topInset: number; shimmerX: Animated.Value }) {
-  return (
-    <View style={[styles.header, { paddingTop: topInset + 12 }]}>
-      {/* Synth wordmark placeholder */}
-      <Bone w={72} h={26} r={6} shimmerX={shimmerX} />
-      <View style={styles.headerRight}>
-        <Bone w={36} h={36} r={18} shimmerX={shimmerX} />
-        <Bone w={36} h={36} r={18} shimmerX={shimmerX} />
-      </View>
-    </View>
-  );
-}
-
-// ─── Mode toggle (Events / Reviews) ───────────────────────────────────────
-function ToggleSkeleton({ shimmerX }: { shimmerX: Animated.Value }) {
-  return (
-    <View style={styles.toggle}>
-      <Bone w={108} h={36} r={20} shimmerX={shimmerX} />
-      <Bone w={108} h={36} r={20} shimmerX={shimmerX} />
-    </View>
-  );
-}
-
-// ─── Single event card ─────────────────────────────────────────────────────
-function CardSkeleton({ shimmerX }: { shimmerX: Animated.Value }) {
-  return (
-    <View style={styles.card}>
-      {/* Hero image */}
-      <View style={styles.cardImage}>
-        <Shimmer shimmerX={shimmerX} />
-      </View>
-      {/* Body */}
-      <View style={styles.cardBody}>
-        <Bone w="75%" h={18} r={6} shimmerX={shimmerX} />
-        <View style={styles.metaRow}>
-          <Bone w={16} h={16} r={4} shimmerX={shimmerX} />
-          <Bone w="45%" h={13} r={5} shimmerX={shimmerX} />
-        </View>
-        <View style={styles.metaRow}>
-          <Bone w={16} h={16} r={4} shimmerX={shimmerX} />
-          <Bone w="55%" h={13} r={5} shimmerX={shimmerX} />
-        </View>
-        <View style={styles.metaRow}>
-          <Bone w={16} h={16} r={4} shimmerX={shimmerX} />
-          <Bone w="38%" h={13} r={5} shimmerX={shimmerX} />
-        </View>
-      </View>
-      {/* Action row */}
-      <View style={styles.cardActions}>
-        <Bone w="65%" h={44} r={12} shimmerX={shimmerX} />
-        <Bone w={44} h={44} r={12} shimmerX={shimmerX} />
-        <Bone w={44} h={44} r={12} shimmerX={shimmerX} />
-      </View>
-    </View>
-  );
-}
-
-// ─── Bottom tab bar ────────────────────────────────────────────────────────
-function TabBarSkeleton({ bottomInset, shimmerX }: { bottomInset: number; shimmerX: Animated.Value }) {
-  return (
-    <View style={[styles.tabBar, { paddingBottom: Math.max(bottomInset, 8) + 8 }]}>
-      {[0, 1, 2, 3].map(i => (
-        <View key={i} style={styles.tabItem}>
-          <Bone w={24} h={24} r={6} shimmerX={shimmerX} />
-          <Bone w={32} h={10} r={4} shimmerX={shimmerX} />
-        </View>
-      ))}
-    </View>
-  );
-}
-
-// ─── Pink loading bar at the very top ─────────────────────────────────────
-function LoadingBar() {
-  const pos = useRef(new Animated.Value(-SCREEN_W)).current;
+// ─── Subtle pulse on the logo ──────────────────────────────────────────────
+function usePulse() {
+  const s = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pos, {
+        Animated.timing(s, {
+          toValue: 1.05,
+          duration: 1000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(s, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [s]);
+  return s;
+}
+
+// ─── Glow ring that breathes around the logo ──────────────────────────────
+function GlowRing() {
+  const opacity = useRef(new Animated.Value(0.2)).current;
+  const scale = useRef(new Animated.Value(0.9)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 0.55,
+            duration: 1200,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0.2,
+            duration: 1200,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(scale, {
+            toValue: 1.1,
+            duration: 1200,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 0.9,
+            duration: 1200,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity, scale]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.glowRing,
+        { opacity, transform: [{ scale }] },
+      ]}
+    />
+  );
+}
+
+// ─── Sweeping progress bar at the bottom ──────────────────────────────────
+function ProgressBar({ bottom }: { bottom: number }) {
+  const x = useRef(new Animated.Value(-SCREEN_W * 0.6)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(x, {
           toValue: SCREEN_W,
-          duration: 1500,
+          duration: 1600,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.timing(pos, {
-          toValue: -SCREEN_W,
+        Animated.timing(x, {
+          toValue: -SCREEN_W * 0.6,
           duration: 0,
           useNativeDriver: true,
         }),
@@ -161,13 +119,49 @@ function LoadingBar() {
     );
     loop.start();
     return () => loop.stop();
-  }, [pos]);
+  }, [x]);
 
   return (
-    <View style={styles.loadingBarTrack}>
-      <Animated.View
-        style={[styles.loadingBar, { transform: [{ translateX: pos }] }]}
-      />
+    <View style={[styles.barTrack, { bottom: bottom + 52 }]}>
+      <Animated.View style={[styles.bar, { transform: [{ translateX: x }] }]} />
+    </View>
+  );
+}
+
+// ─── Single animated dot ──────────────────────────────────────────────────
+function AnimatedDot({ delay }: { delay: number }) {
+  const op = useRef(new Animated.Value(0.2)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(op, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(op, {
+          toValue: 0.2,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        // Pause so the full cycle length stays consistent regardless of delay
+        Animated.delay(600 - delay),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [op, delay]);
+  return <Animated.View style={[styles.dot, { opacity: op }]} />;
+}
+
+// ─── Three dots row (subtle secondary indicator) ───────────────────────────
+function DotsRow() {
+  return (
+    <View style={styles.dotsRow}>
+      <AnimatedDot delay={0} />
+      <AnimatedDot delay={200} />
+      <AnimatedDot delay={400} />
     </View>
   );
 }
@@ -175,117 +169,145 @@ function LoadingBar() {
 // ─── Main export ───────────────────────────────────────────────────────────
 export function AppLoadingSkeleton() {
   const insets = useSafeAreaInsets();
-  const shimmerX = useShimmer();
+  const logoScale = usePulse();
+
+  // Fade the whole screen in smoothly so even if there's a brief
+  // colour difference it's never jarring.
+  const screenOpacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(screenOpacity, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [screenOpacity]);
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor={BG} />
-      <LoadingBar />
-      <HeaderSkeleton topInset={insets.top} shimmerX={shimmerX} />
-      <ToggleSkeleton shimmerX={shimmerX} />
-      <View style={styles.feed}>
-        <CardSkeleton shimmerX={shimmerX} />
-        <CardSkeleton shimmerX={shimmerX} />
+    <Animated.View style={[styles.root, { opacity: screenOpacity }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={SPLASH_BG} />
+
+      {/* Background gradient — barely visible, adds depth */}
+      <LinearGradient
+        colors={['#FDF2F8', '#F9EEF5', '#FCFCFC']}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
+
+      {/* Decorative soft circles in corners */}
+      <View style={[styles.decorCircle, styles.decorTL]} pointerEvents="none" />
+      <View style={[styles.decorCircle, styles.decorBR]} pointerEvents="none" />
+
+      {/* ── Logo block ─────────────────────────────────────── */}
+      <View style={styles.center}>
+        <View style={styles.logoWrap}>
+          <GlowRing />
+          <Animated.View style={{ transform: [{ scale: logoScale }] }}>
+            <Image
+              source={require('../../assets/images/splash-icon.png')}
+              style={styles.logo}
+              contentFit="contain"
+            />
+          </Animated.View>
+        </View>
+
+        {/* Wordmark */}
+        <Text style={styles.wordmark}>synth</Text>
+
+        {/* Tagline */}
+        <Text style={styles.tagline}>concerts · friends · memories</Text>
+
+        {/* Animated dots below tagline */}
+        <DotsRow />
       </View>
-      <TabBarSkeleton bottomInset={insets.bottom} shimmerX={shimmerX} />
-    </View>
+
+      {/* Sweeping progress bar */}
+      <ProgressBar bottom={insets.bottom} />
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: BG,
-  },
-  loadingBarTrack: {
-    height: 3,
-    width: '100%',
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
-  },
-  loadingBar: {
-    height: 3,
-    width: SCREEN_W * 0.5,
-    borderRadius: 2,
-    backgroundColor: PINK,
-    opacity: 0.85,
-  },
-  header: {
-    flexDirection: 'row',
+    backgroundColor: SPLASH_BG,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: PAD,
-    paddingBottom: 12,
-    backgroundColor: CARD_BG,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: BORDER,
+    justifyContent: 'center',
   },
-  headerRight: {
-    flexDirection: 'row',
-    gap: 10,
+  // Soft decorative blobs in corners
+  decorCircle: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: PINK_FAINT,
   },
-  toggle: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: PAD,
-    paddingVertical: 10,
-    backgroundColor: CARD_BG,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: BORDER,
-  },
-  feed: {
-    flex: 1,
-    paddingHorizontal: PAD,
-    paddingTop: PAD,
-    gap: 16,
-    overflow: 'hidden',
-  },
-  bone: {
-    backgroundColor: SKELETON,
-    overflow: 'hidden',
-  },
-  card: {
-    backgroundColor: CARD_BG,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BORDER,
-    overflow: 'hidden',
-  },
-  cardImage: {
-    width: '100%',
-    height: 168,
-    backgroundColor: SKELETON,
-    overflow: 'hidden',
-  },
-  cardBody: {
-    padding: 14,
-    gap: 9,
-  },
-  metaRow: {
-    flexDirection: 'row',
+  decorTL: { top: -100, left: -100 },
+  decorBR: { bottom: -100, right: -100 },
+
+  // Logo + text block
+  center: {
     alignItems: 'center',
+    gap: 14,
+  },
+  logoWrap: {
+    width: 120,
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  glowRing: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: PINK_FAINT,
+  },
+  logo: {
+    width: 96,
+    height: 96,
+  },
+  wordmark: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: PINK,
+    letterSpacing: 3,
+  },
+  tagline: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#B0A8B8',
+    letterSpacing: 0.6,
+  },
+  dotsRow: {
+    flexDirection: 'row',
     gap: 8,
+    marginTop: 4,
   },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: BORDER,
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: PINK,
   },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: CARD_BG,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: BORDER,
-    paddingTop: 10,
-    paddingHorizontal: PAD,
+
+  // Progress bar
+  barTrack: {
+    position: 'absolute',
+    left: 48,
+    right: 48,
+    height: 2,
+    backgroundColor: 'rgba(204, 36, 134, 0.15)',
+    borderRadius: 1,
+    overflow: 'hidden',
   },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 5,
+  bar: {
+    height: 2,
+    width: SCREEN_W * 0.55,
+    borderRadius: 1,
+    backgroundColor: PINK,
+    opacity: 0.8,
   },
 });

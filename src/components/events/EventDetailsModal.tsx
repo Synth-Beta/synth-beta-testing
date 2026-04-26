@@ -22,6 +22,7 @@ import {
   Loader2,
   ExternalLink,
   ChevronLeft,
+  ChevronRight,
   Share2,
   Building2
 } from 'lucide-react';
@@ -2143,23 +2144,79 @@ export function EventDetailsModal({
               </div>
             )}
 
-            {/* Concert Buddy Finder */}
+            {/* Meet — list of all interested users */}
             {showBuddyFinder && (
-              <ConcertBuddySwiper
-                eventId={actualEvent.id}
-                eventTitle={actualEvent.title}
-                {...(interestedCount !== null && { interestedCount })}
-                guestListTotalCount={guestListLoading ? null : guestListAllUsers.length}
-                guestListUsers={guestListLoading ? undefined : guestListAllUsers}
-                onOpenGuestList={() => setInterestedModalOpen(true)}
-                onMatchCreated={() => { }}
-                onNavigateToProfile={(userId) => {
-                  if (onNavigateToProfile) {
-                    onNavigateToProfile(userId);
-                    onClose();
-                  }
-                }}
-              />
+              <div className="flex flex-col gap-3">
+                {guestListLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: 'var(--brand-pink-500)' }} />
+                  </div>
+                ) : guestListAllUsers.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3 py-10 text-center">
+                    <Heart size={52} style={{ color: 'var(--neutral-300, #D1D5DB)' }} />
+                    <p className="font-semibold" style={{ color: 'var(--neutral-900)' }}>No One Yet</p>
+                    <p className="text-sm" style={{ color: 'var(--neutral-600)' }}>
+                      Be the first to mark yourself as interested and share with friends!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-center" style={{ color: 'var(--neutral-600)' }}>
+                      {guestListAllUsers.length} {guestListAllUsers.length === 1 ? 'person' : 'people'} interested — tap to view their profile
+                    </p>
+                    <div className="flex flex-col divide-y" style={{ borderColor: 'var(--neutral-200)' }}>
+                      {guestListAllUsers.map(u => (
+                        <button
+                          key={u.user_id}
+                          className="flex items-center gap-3 py-3 px-1 w-full text-left hover:bg-pink-50 transition-colors rounded-lg"
+                          onClick={() => {
+                            if (onNavigateToProfile) {
+                              onNavigateToProfile(u.user_id);
+                              onClose();
+                            }
+                          }}
+                        >
+                          {u.avatar_url ? (
+                            <img
+                              src={u.avatar_url}
+                              alt={u.name ?? 'User'}
+                              className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                              style={{ border: '2px solid var(--brand-pink-200, #FBCFE8)' }}
+                            />
+                          ) : (
+                            <div
+                              className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base flex-shrink-0"
+                              style={{ backgroundColor: 'var(--brand-pink-500)' }}
+                            >
+                              {(u.name ?? '?').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold truncate" style={{ color: 'var(--neutral-900)' }}>
+                              {u.name ?? 'Synth User'}
+                            </p>
+                            {u.username && (
+                              <p className="text-sm truncate" style={{ color: 'var(--neutral-600)' }}>
+                                @{u.username}
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight size={18} style={{ color: 'var(--neutral-400)', flexShrink: 0 }} />
+                        </button>
+                      ))}
+                    </div>
+                    {(interestedCount ?? 0) > guestListAllUsers.length && (
+                      <button
+                        className="text-sm text-center underline cursor-pointer"
+                        style={{ color: 'var(--brand-pink-500)' }}
+                        onClick={() => setInterestedModalOpen(true)}
+                      >
+                        See all {interestedCount} interested →
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
 

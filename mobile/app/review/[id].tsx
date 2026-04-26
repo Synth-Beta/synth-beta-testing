@@ -970,11 +970,36 @@ export default function ReviewDetailScreen() {
                 ) : null}
 
                 <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+                    {/* Hero image */}
+                    {heroImageUrl ? (
+                        <Image
+                            source={{ uri: heroImageUrl }}
+                            style={styles.hero}
+                            contentFit="cover"
+                        />
+                    ) : null}
                     <View style={styles.body}>
+                        {/* Event headline */}
+                        {headline !== 'Concert Review' ? (
+                            <SynthText variant="h2" style={styles.eventHeadline} numberOfLines={2}>
+                                {headline}
+                            </SynthText>
+                        ) : null}
                         {/* {FirstName}'s Review heading */}
                         <SynthText variant="h1" style={styles.title}>
                             {firstName}'s Review
                         </SynthText>
+                        {/* Event date */}
+                        {ev?.event_date ? (
+                            <View style={styles.metaRow}>
+                                <Calendar size={16} color={PINK} />
+                                <SynthText variant="meta" color="secondary" style={styles.metaTxt}>
+                                    {new Date(ev.event_date).toLocaleDateString('en-US', {
+                                        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+                                    })}
+                                </SynthText>
+                            </View>
+                        ) : null}
 
                         {/* Overall rating */}
                         {review.rating != null ? (
@@ -1303,6 +1328,7 @@ const styles = StyleSheet.create({
     hero: { width: '100%', height: 240, backgroundColor: SynthTokens.colors.neutral200 },
     heroPlaceholder: { height: 0 },
     body: { padding: 16, gap: 12 },
+    eventHeadline: { fontSize: 20, fontWeight: '700', color: SynthTokens.colors.neutral900, lineHeight: 26 },
     title: { fontSize: 22, fontWeight: '800', lineHeight: 28 },
     authorRow: {
         flexDirection: 'row',
