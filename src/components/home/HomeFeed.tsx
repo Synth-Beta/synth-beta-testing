@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { PersonalizedFeedService, type PersonalizedEvent, type FeedItem } from '@/services/personalizedFeedService';
 import { HomeFeedService, type NetworkEvent, type EventList, type TrendingEvent, type NetworkReview } from '@/services/homeFeedService';
 import { UnifiedFeedService, type UnifiedFeedItem } from '@/services/unifiedFeedService';
@@ -172,6 +172,19 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   // Feed sections state
   const [recommendedEvents, setRecommendedEvents] = useState<PersonalizedEvent[]>([]);
   const [friendFeedEvents, setFriendFeedEvents] = useState<NetworkEvent[]>([]); // injected into main events feed
+  const friendExtraEvents = useMemo(() => friendFeedEvents.map(ne => ({
+    event_id: ne.event_id,
+    title: ne.title,
+    artist_name: ne.artist_name,
+    venue_name: ne.venue_name,
+    venue_city: ne.venue_city,
+    event_date: ne.event_date,
+    event_media_url: ne.event_media_url,
+    images: ne.images,
+    reason: 'friend_interested' as const,
+    interested_count: ne.interested_count,
+    user_is_interested: false,
+  })), [friendFeedEvents]);
   const [firstDegreeEvents, setFirstDegreeEvents] = useState<NetworkEvent[]>([]);
   const [secondDegreeEvents, setSecondDegreeEvents] = useState<NetworkEvent[]>([]);
   const [reviews, setReviews] = useState<NetworkReview[]>([]);
@@ -2065,19 +2078,7 @@ interface FriendEventInterest {
               console.log('Interest toggled:', eventId, interested);
             }}
             insertSectionAfterIndex={0}
-            extraEvents={friendFeedEvents.map(ne => ({
-              event_id: ne.event_id,
-              title: ne.title,
-              artist_name: ne.artist_name,
-              venue_name: ne.venue_name,
-              venue_city: ne.venue_city,
-              event_date: ne.event_date,
-              event_media_url: ne.event_media_url,
-              images: ne.images,
-              reason: 'friend_interested' as const,
-              interested_count: ne.interested_count,
-              user_is_interested: false,
-            }))}
+            extraEvents={friendExtraEvents}
             middleSection={
               friendSuggestionsForRail.length > 0 ? (
                 <FriendSuggestionsRail

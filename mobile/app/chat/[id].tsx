@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar } from 'lucide-react-native';
+import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { ChatService, Message } from '../../src/services/chatService';
@@ -16,6 +17,10 @@ type ReviewCardInfo = {
     headline: string;
     subtitle: string;
     rating: number | null;
+    artist_name: string | null;
+    venue_name: string | null;
+    venue_city: string | null;
+    event_date: string | null;
 };
 
 function formatEventWhen(iso: string | undefined): string {
@@ -138,7 +143,7 @@ export default function ChatThreadScreen() {
             id,
             review_text,
             rating,
-            events ( title, artist_name, venue_name )
+            events ( title, artist_name, venue_name, venue_city, event_date )
           `
                     )
                     .in('id', revIds);
@@ -157,11 +162,15 @@ export default function ChatThreadScreen() {
                         headline,
                         subtitle,
                         rating: typeof row.rating === 'number' ? row.rating : null,
+                        artist_name: ev?.artist_name ?? null,
+                        venue_name: ev?.venue_name ?? null,
+                        venue_city: ev?.venue_city ?? null,
+                        event_date: ev?.event_date ?? null,
                     };
                 });
                 revIds.forEach(rid => {
                     if (!nextReviews[rid]) {
-                        nextReviews[rid] = { headline: 'Shared review', subtitle: '', rating: null };
+                        nextReviews[rid] = { headline: 'Shared review', subtitle: '', rating: null, artist_name: null, venue_name: null, venue_city: null, event_date: null };
                     }
                 });
             }
@@ -192,56 +201,97 @@ export default function ChatThreadScreen() {
         router.push(`/event/${routeId}`);
     };
 
+    const renderStars = (rating: number) =>
+        Array.from({ length: 5 }, (_, i) => (
+            <Star
+                key={i}
+                size={13}
+                color={'#F59E0B'}
+                fill={i < Math.round(rating) ? ('#F59E0B') : 'transparent'}
+            />
+        ));
+
+    const isPast = (iso?: string | null) => !!iso && new Date(iso) < new Date();
+
     const renderMessage = ({ item }: { item: Message }) => {
         const meta = item.metadata ?? {};
         const reviewId = resolveReviewId(item);
+
+        // ── REVIEW SHARE ──────────────────────────────────────────────────────
         if (item.message_type === 'review_share' && reviewId) {
-            const showReviewSpinner = !Object.prototype.hasOwnProperty.call(reviewById, reviewId);
+            const loading = !Object.prototype.hasOwnProperty.call(reviewById, reviewId);
             const rc = reviewById[reviewId];
-            const snippet =
-                rc?.subtitle ||
-                (typeof meta.review_text === 'string' && meta.review_text) ||
-                (typeof meta.custom_message === 'string' && meta.custom_message) ||
-                (!isPlaceholderContent(item.content) ? item.content : '');
-            const headline = rc?.headline || 'Review';
+            const customNote =
+                (typeof meta.custom_message === 'string' && meta.custom_message.trim()) ||
+                (!isPlaceholderContent(item.content) ? item.content.trim() : '');
+            const snippet = rc?.subtitle || (typeof meta.review_text === 'string' ? meta.review_text : '');
+            const headline = rc?.headline || 'Shared Review';
+            const past = isPast(rc?.event_date);
             return (
-                <View
-                    style={[
-                        styles.messageWrapper,
-                        item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper,
-                    ]}
-                >
-                    <Pressable
-                        onPress={() => router.push(`/review/${reviewId}`)}
-                        style={[styles.shareCard, item.is_mine ? styles.shareCardMine : styles.shareCardTheirs]}
-                    >
-                        <Text style={[styles.shareLabel, item.is_mine ? styles.shareLabelOnPink : styles.shareLabelMuted]}>REVIEW</Text>
-                        {showReviewSpinner ? (
-                            <ActivityIndicator color={item.is_mine ? SynthTokens.colors.neutral0 : PINK} style={{ marginVertical: 8 }} />
-                        ) : (
-                            <>
-                                <SynthText
-                                    variant="body"
-                                    style={item.is_mine ? styles.shareTitleLight : styles.shareTitleDark}
-                                    numberOfLines={2}
-                                >
-                                    {headline}
-                                </SynthText>
-                                {rc && rc.rating != null ? (
-                                    <View style={styles.ratingRow}>
-                                        <Star size={14} color={item.is_mine ? SynthTokens.colors.neutral0 : PINK} fill={PINK} />
-                                        <Text style={[styles.ratingText, item.is_mine && styles.ratingTextLight]}>
-                                            {rc.rating.toFixed(1)}
-                                        </Text>
-                                    </View>
-                                ) : null}
-                            </>
-                        )}
-                        {snippet ? (
-                            <SynthText variant="meta" color="secondary" style={styles.shareHint} numberOfLines={4}>
-                                {snippet}
-                            </SynthText>
-                        ) : null}
+                <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                    <Pressable onPress={() => router.push(`/review/${reviewId}`)} style={styles.shareCard}>
+                        {/* Gradient header band */}
+                        <LinearGradient
+                            colors={['#EC4899', '#9333EA']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.shareCardHeader}
+                        >
+                            <View style={styles.shareCardHeaderIcon}>
+                                <FileText size={16} color="#fff" />
+                            </View>
+                            <Text style={styles.shareCardHeaderLabel}>Concert Review</Text>
+                            {past && (
+                                <View style={styles.shareCardBadge}>
+                                    <Text style={styles.shareCardBadgeText}>Past Event</Text>
+                                </View>
+                            )}
+                        </LinearGradient>
+
+                        {/* Card body */}
+                        <View style={styles.shareCardBody}>
+                            {loading ? (
+                                <ActivityIndicator color={PINK} style={{ marginVertical: 12 }} />
+                            ) : (
+                                <>
+                                    {customNote ? (
+                                        <View style={styles.shareCustomNote}>
+                                            <Text style={styles.shareCustomNoteText}>"{customNote}"</Text>
+                                        </View>
+                                    ) : null}
+                                    <Text style={styles.shareCardTitle} numberOfLines={2}>{headline}</Text>
+                                    {rc?.artist_name ? (
+                                        <Text style={styles.shareCardArtist}>{rc.artist_name}</Text>
+                                    ) : null}
+                                    {rc?.rating != null ? (
+                                        <View style={styles.ratingRow}>
+                                            {renderStars(rc.rating)}
+                                            <Text style={styles.ratingText}>{rc.rating.toFixed(1)}</Text>
+                                        </View>
+                                    ) : null}
+                                    {snippet ? (
+                                        <View style={styles.shareSnippetBox}>
+                                            <Text style={styles.shareSnippetText} numberOfLines={4}>"{snippet}"</Text>
+                                        </View>
+                                    ) : null}
+                                    {rc?.event_date ? (
+                                        <View style={styles.shareMetaRow}>
+                                            <Calendar size={13} color={PINK} />
+                                            <Text style={styles.shareMetaText}>{formatEventWhen(rc.event_date)}</Text>
+                                        </View>
+                                    ) : null}
+                                    {rc?.venue_name ? (
+                                        <View style={styles.shareMetaRow}>
+                                            <MapPin size={13} color={PINK} />
+                                            <Text style={styles.shareMetaText} numberOfLines={1}>
+                                                {[rc.venue_name, rc.venue_city].filter(Boolean).join(', ')}
+                                            </Text>
+                                        </View>
+                                    ) : null}
+                                </>
+                            )}
+                            <Text style={styles.shareViewDetails}>View Full Review →</Text>
+                        </View>
                     </Pressable>
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -250,6 +300,7 @@ export default function ChatThreadScreen() {
             );
         }
 
+        // ── EVENT SHARE ───────────────────────────────────────────────────────
         const eventId = resolveEventId(item);
         const isEventShare = item.message_type === 'event_share' || !!eventId;
         const ev = eventId ? eventById[eventId] : undefined;
@@ -266,66 +317,67 @@ export default function ChatThreadScreen() {
             'Shared event';
 
         const eventWhen = formatEventWhen(ev?.event_date);
-        const eventPlace = ev?.venue_city || ev?.venue_name || '';
+        const eventPlace = ev?.venue_city || (ev?.venue_name ?? '');
+        const artistName = ev?.artist_name || (typeof meta.artist_name === 'string' ? meta.artist_name : '');
+        const past = isPast(ev?.event_date);
 
         if (isEventShare && eventId && item.message_type !== 'review_share' && item.message_type !== 'system') {
-            const showEventSpinner = !Object.prototype.hasOwnProperty.call(eventById, eventId);
+            const loading = !Object.prototype.hasOwnProperty.call(eventById, eventId);
             const showHint =
                 (customNote || (!isPlaceholderContent(item.content) ? item.content : '')).trim() || null;
             return (
-                <View
-                    style={[
-                        styles.messageWrapper,
-                        item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper,
-                    ]}
-                >
-                    <Pressable
-                        onPress={() => void openEvent(eventId)}
-                        style={[styles.shareCard, item.is_mine ? styles.shareCardMine : styles.shareCardTheirs]}
-                    >
-                        <Text style={[styles.shareLabel, item.is_mine ? styles.shareLabelOnPink : styles.shareLabelMuted]}>
-                            UPCOMING EVENT
-                        </Text>
-                        {showEventSpinner ? (
-                            <ActivityIndicator color={item.is_mine ? SynthTokens.colors.neutral0 : PINK} style={{ marginVertical: 8 }} />
-                        ) : (
-                            <>
-                                {ev?.image_url ? (
-                                    <Image source={{ uri: ev.image_url }} style={styles.shareImage} contentFit="cover" />
-                                ) : null}
-                                <SynthText variant="body" style={item.is_mine ? styles.shareTitleLight : styles.shareTitleDark}>
-                                    {eventTitle}
-                                </SynthText>
-                                {eventWhen ? (
-                                    <View style={styles.shareMetaRow}>
-                                        <Calendar size={14} color={item.is_mine ? 'rgba(255,255,255,0.85)' : PINK} />
-                                        <SynthText
-                                            variant="meta"
-                                            style={[styles.shareMetaText, item.is_mine ? styles.shareMetaOnPink : styles.shareMetaDark]}
-                                        >
-                                            {eventWhen}
-                                        </SynthText>
-                                    </View>
-                                ) : null}
-                                {eventPlace ? (
-                                    <View style={styles.shareMetaRow}>
-                                        <MapPin size={14} color={item.is_mine ? 'rgba(255,255,255,0.85)' : SynthTokens.colors.neutral600} />
-                                        <SynthText
-                                            variant="meta"
-                                            style={[styles.shareMetaText, item.is_mine ? styles.shareMetaOnPink : styles.shareMetaDark]}
-                                            numberOfLines={2}
-                                        >
-                                            {eventPlace}
-                                        </SynthText>
-                                    </View>
-                                ) : null}
-                            </>
-                        )}
-                        {showHint ? (
-                            <SynthText variant="meta" color="secondary" style={styles.shareHint} numberOfLines={3}>
-                                “{showHint}”
-                            </SynthText>
-                        ) : null}
+                <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                    <Pressable onPress={() => void openEvent(eventId)} style={styles.shareCard}>
+                        {/* Gradient header band */}
+                        <LinearGradient
+                            colors={['#EC4899', '#9333EA']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.shareCardHeader}
+                        >
+                            <View style={styles.shareCardHeaderIcon}>
+                                <Music size={16} color="#fff" />
+                            </View>
+                            <Text style={styles.shareCardHeaderLabel}>Shared Event</Text>
+                            <View style={styles.shareCardBadge}>
+                                <Text style={styles.shareCardBadgeText}>{past ? 'Past Event' : 'Upcoming'}</Text>
+                            </View>
+                        </LinearGradient>
+
+                        {/* Card body */}
+                        <View style={styles.shareCardBody}>
+                            {loading ? (
+                                <ActivityIndicator color={PINK} style={{ marginVertical: 12 }} />
+                            ) : (
+                                <>
+                                    {ev?.image_url ? (
+                                        <Image source={{ uri: ev.image_url }} style={styles.shareImage} contentFit="cover" />
+                                    ) : null}
+                                    {showHint ? (
+                                        <View style={styles.shareCustomNote}>
+                                            <Text style={styles.shareCustomNoteText}>"{showHint}"</Text>
+                                        </View>
+                                    ) : null}
+                                    <Text style={styles.shareCardTitle} numberOfLines={2}>{eventTitle}</Text>
+                                    {artistName ? (
+                                        <Text style={styles.shareCardArtist}>{artistName}</Text>
+                                    ) : null}
+                                    {eventWhen ? (
+                                        <View style={styles.shareMetaRow}>
+                                            <Calendar size={13} color={PINK} />
+                                            <Text style={styles.shareMetaText}>{eventWhen}</Text>
+                                        </View>
+                                    ) : null}
+                                    {eventPlace ? (
+                                        <View style={styles.shareMetaRow}>
+                                            <MapPin size={13} color={PINK} />
+                                            <Text style={styles.shareMetaText} numberOfLines={1}>{eventPlace}</Text>
+                                        </View>
+                                    ) : null}
+                                </>
+                            )}
+                            <Text style={styles.shareViewDetails}>View Full Details →</Text>
+                        </View>
                     </Pressable>
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -334,13 +386,9 @@ export default function ChatThreadScreen() {
             );
         }
 
+        // ── PLAIN TEXT MESSAGE ────────────────────────────────────────────────
         return (
-            <View
-                style={[
-                    styles.messageWrapper,
-                    item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper,
-                ]}
-            >
+            <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
                 <View style={[styles.messageBubble, item.is_mine ? styles.myBubble : styles.theirBubble]}>
                     <SynthText variant="meta" color={item.is_mine ? 'white' : 'primary'}>
                         {item.content}
@@ -488,80 +536,137 @@ const styles = StyleSheet.create({
     sendDisabled: {
         opacity: 0.5,
     },
+    // ── Share cards ──────────────────────────────────────────────────────────
     shareCard: {
-        maxWidth: '100%',
+        maxWidth: 300,
         minWidth: 260,
         borderRadius: 16,
-        padding: 14,
-        borderWidth: 1,
-        borderColor: SynthTokens.colors.neutral200,
+        borderWidth: 2,
+        borderColor: '#FBCFE8',
         overflow: 'hidden',
-    },
-    shareCardMine: {
-        backgroundColor: SynthTokens.colors.brandPink600,
-        borderColor: SynthTokens.colors.brandPink700,
-    },
-    shareCardTheirs: {
         backgroundColor: SynthTokens.colors.neutral0,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 3,
+    },
+    shareCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        gap: 8,
+    },
+    shareCardHeaderIcon: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.20)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    shareCardHeaderLabel: {
+        flex: 1,
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    shareCardBadge: {
+        backgroundColor: 'rgba(255,255,255,0.22)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.50)',
+    },
+    shareCardBadgeText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 0.3,
+    },
+    shareCardBody: {
+        padding: 12,
+        gap: 0,
+    },
+    shareCustomNote: {
+        backgroundColor: SynthTokens.colors.neutral50,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#FBCFE8',
+    },
+    shareCustomNoteText: {
+        fontSize: 13,
+        color: '#374151',
+        fontStyle: 'italic',
+    },
+    shareCardTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: SynthTokens.colors.neutral900,
+        marginBottom: 2,
+    },
+    shareCardArtist: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: SynthTokens.colors.brandPink500,
+        marginBottom: 6,
+    },
+    shareSnippetBox: {
+        backgroundColor: 'rgba(251,207,232,0.25)',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        marginTop: 6,
+        marginBottom: 4,
+        borderWidth: 1,
+        borderColor: '#FBCFE8',
+    },
+    shareSnippetText: {
+        fontSize: 13,
+        color: '#374151',
+        fontStyle: 'italic',
     },
     shareImage: {
         width: '100%',
-        height: 120,
-        borderRadius: 12,
+        height: 130,
+        borderRadius: 10,
         marginBottom: 10,
         backgroundColor: SynthTokens.colors.neutral100,
-    },
-    shareLabel: {
-        fontSize: 10,
-        fontWeight: '800',
-        marginBottom: 6,
-        letterSpacing: 0.8,
-    },
-    shareLabelOnPink: {
-        color: 'rgba(255,255,255,0.92)',
-    },
-    shareLabelMuted: {
-        color: SynthTokens.colors.brandPink500,
-    },
-    shareTitleLight: {
-        color: SynthTokens.colors.neutral0,
-        fontWeight: '700',
-    },
-    shareTitleDark: {
-        color: SynthTokens.colors.neutral900,
-        fontWeight: '700',
-    },
-    shareHint: {
-        marginTop: 8,
     },
     shareMetaRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        marginTop: 6,
+        marginTop: 5,
     },
     shareMetaText: {
         flex: 1,
-        fontSize: 13,
-    },
-    shareMetaOnPink: {
-        color: 'rgba(255,255,255,0.92)',
-    },
-    shareMetaDark: {
+        fontSize: 12,
         color: SynthTokens.colors.neutral600,
+    },
+    shareViewDetails: {
+        marginTop: 10,
+        fontSize: 12,
+        fontWeight: '600',
+        color: SynthTokens.colors.brandPink500,
+        textAlign: 'right',
     },
     ratingRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginTop: 6,
+        gap: 3,
+        marginTop: 4,
+        marginBottom: 2,
     },
     ratingText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '600',
-        color: SynthTokens.colors.neutral900,
-    },
-    ratingTextLight: {
-        color: SynthTokens.colors.neutral0,
+        color: '#374151',
+        marginLeft: 4,
     },
 });

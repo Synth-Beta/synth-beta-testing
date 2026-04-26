@@ -148,6 +148,8 @@ export default function EventDetailScreen() {
     const [meetLoading, setMeetLoading] = useState(false);
     const [interestedCount, setInterestedCount] = useState<number | null>(null);
     const [meetSwiping, setMeetSwiping] = useState(false);
+    // All interested users for the "guest list" view when swipe queue is exhausted
+    const [allInterestedUsers, setAllInterestedUsers] = useState<MeetUser[]>([]);
 
     const loadMeetUsers = useCallback(async (eventId: string, uid: string) => {
         setMeetLoading(true);
@@ -164,10 +166,19 @@ export default function EventDetailScreen() {
 
             if (allUserIds.length === 0) {
                 setMeetUsers([]);
+                setAllInterestedUsers([]);
                 return;
             }
 
-            // Filter out already-swiped users
+            // Load profiles for ALL interested users (for the guest list view)
+            const { data: allProfiles } = await supabase
+                .from('users')
+                .select('user_id, name, avatar_url, bio')
+                .in('user_id', allUserIds)
+                .limit(30);
+            setAllInterestedUsers((allProfiles || []) as MeetUser[]);
+
+            // Filter out already-swiped users for the swiper
             const { data: existingSwipes } = await supabase
                 .from('engagements')
                 .select('metadata')
@@ -408,6 +419,7 @@ export default function EventDetailScreen() {
         setFriends([]);
         setSessionUserId(null);
         setMeetUsers([]);
+        setAllInterestedUsers([]);
         setMeetIndex(0);
         setInterestedCount(null);
         setActiveTab(null);
@@ -880,9 +892,9 @@ export default function EventDetailScreen() {
                                     <ActivityIndicator color={PINK} size="large" style={{ paddingVertical: 32 }} />
                                 ) : !currentMeetUser ? (
                                     <View style={styles.meetEmptyWrap}>
-                                        <Heart size={52} color={SynthTokens.colors.neutral400} />
                                         {interestedCount === 0 ? (
                                             <>
+                                                <Heart size={52} color={SynthTokens.colors.neutral400} />
                                                 <Text style={styles.comingSoonTitle}>No One Going Yet</Text>
                                                 <SynthText variant="meta" color="secondary" style={styles.comingSoonDesc}>
                                                     Be the first to show interest! Share the event with friends.
@@ -890,10 +902,31 @@ export default function EventDetailScreen() {
                                             </>
                                         ) : (
                                             <>
-                                                <Text style={styles.comingSoonTitle}>You've seen everyone!</Text>
-                                                <SynthText variant="meta" color="secondary" style={styles.comingSoonDesc}>
-                                                    Check back later as more people show interest in this event.
+                                                <Text style={styles.comingSoonTitle}>
+                                                    {interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested
+                                                </Text>
+                                                <SynthText variant="meta" color="secondary" style={[styles.comingSoonDesc, { marginBottom: 16 }]}>
+                                                    You've seen everyone going. Here's who's interested:
                                                 </SynthText>
+                                                <View style={styles.guestListGrid}>
+                                                    {allInterestedUsers.slice(0, 12).map(u => (
+                                                        <View key={u.user_id} style={styles.guestChip}>
+                                                            {u.avatar_url ? (
+                                                                <Image source={{ uri: u.avatar_url }} style={styles.guestChipAvatar} contentFit="cover" />
+                                                            ) : (
+                                                                <View style={[styles.guestChipAvatar, styles.guestChipAvatarPlaceholder]}>
+                                                                    <Text style={styles.guestChipInitial}>{u.name?.charAt(0).toUpperCase() || '?'}</Text>
+                                                                </View>
+                                                            )}
+                                                            <Text style={styles.guestChipName} numberOfLines={1}>{u.name || 'User'}</Text>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                                {(interestedCount ?? 0) > 12 && (
+                                                    <SynthText variant="meta" color="secondary" style={{ marginTop: 8 }}>
+                                                        +{(interestedCount ?? 0) - 12} more
+                                                    </SynthText>
+                                                )}
                                             </>
                                         )}
                                     </View>
@@ -1394,6 +1427,41 @@ const styles = StyleSheet.create({
     meetEmptyWrap: {
         alignItems: 'center',
         gap: 8,
+        width: '100%',
+    },
+    guestListGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 10,
+        width: '100%',
+    },
+    guestChip: {
+        alignItems: 'center',
+        width: 64,
+        gap: 4,
+    },
+    guestChipAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        overflow: 'hidden',
+    },
+    guestChipAvatarPlaceholder: {
+        backgroundColor: SynthTokens.colors.brandPink500,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    guestChipInitial: {
+        color: SynthTokens.colors.neutral0,
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    guestChipName: {
+        fontSize: 11,
+        color: SynthTokens.colors.neutral600,
+        textAlign: 'center',
+        maxWidth: 64,
     },
     meetCard: {
         width: '100%',

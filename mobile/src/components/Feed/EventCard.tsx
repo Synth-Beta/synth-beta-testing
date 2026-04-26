@@ -41,6 +41,8 @@ export interface EventCardProps {
   venue_id?: string;
   /** When provided, the Share button opens the in-app ShareToChatModal */
   currentUserId?: string | null;
+  /** Friends interested (FRIENDS-labeled events only) */
+  friendsInterested?: Array<{ id: string; name: string; avatar_url?: string | null }>;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -59,6 +61,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   artist_id,
   venue_id,
   currentUserId,
+  friendsInterested,
 }) => {
   const router = useRouter();
   const { isInterested, toggle } = useInterested();
@@ -127,10 +130,19 @@ export const EventCard: React.FC<EventCardProps> = ({
     router.push(`/review-compose?${params.toString()}` as any);
   }, [artist_id, venue_id, event_date, router]);
 
-  const interestedLabel =
-    interested_count > 0
+  // For FRIENDS events: build a "Sam and +2 friends interested" label
+  const friendsLabel = (() => {
+    if (!friendsInterested || friendsInterested.length === 0) return null;
+    const names = friendsInterested.map(f => f.name).filter(Boolean);
+    if (names.length === 1) return `${names[0]} is interested`;
+    if (names.length === 2) return `${names[0]} and ${names[1]} are interested`;
+    return `${names[0]} and ${names.length - 1} others are interested`;
+  })();
+
+  const interestedLabel = friendsLabel
+    ?? (interested_count > 0
       ? `${interested_count} ${interested_count === 1 ? 'person' : 'people'} interested`
-      : null;
+      : null);
 
   return (
     <View style={styles.shadowShell}>

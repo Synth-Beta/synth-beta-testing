@@ -253,7 +253,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       }
       setLoading(false);
     }
-  }, [cachedFeed]);
+  }, [cachedFeed, extraEvents]);
 
   useEffect(() => {
     allFetchedEventsRef.current = allFetchedEvents;

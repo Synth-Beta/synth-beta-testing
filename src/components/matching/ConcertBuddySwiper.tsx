@@ -20,6 +20,7 @@ interface ConcertBuddySwiperProps {
   eventTitle: string;
   interestedCount?: number | null;
   guestListTotalCount?: number | null;
+  guestListUsers?: Array<{ user_id: string; name: string | null; username: string | null; avatar_url: string | null }>;
   onOpenGuestList?: () => void;
   onMatchCreated?: (matchedUser: any) => void;
   onNavigateToProfile?: (userId: string) => void;
@@ -30,6 +31,7 @@ export function ConcertBuddySwiper({
   eventTitle,
   interestedCount,
   guestListTotalCount,
+  guestListUsers,
   onOpenGuestList,
   onMatchCreated,
   onNavigateToProfile,
@@ -135,25 +137,71 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
   }
 
   if (potentialMatches.length === 0) {
+    const hasInterested = (interestedCount ?? 0) > 0;
+    const previewUsers = guestListUsers?.slice(0, 12) ?? [];
     return (
       <Card>
-        <CardContent className="py-12 text-center">
-          <Heart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            {interestedCount === 0 ? (
-              <>
-                <h3 className="text-lg font-semibold mb-2">No One Going Yet</h3>
-                <p className="var(--neutral-600) text-sm">
-                  Be the first to show interest in this event! Share it with friends to meet people going.
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 className="text-lg font-semibold mb-2">All Caught Up!</h3>
-                <p className="var(--neutral-600) text-sm">
-                  You've swiped through everyone going to this event. Check back later for new people!
-                </p>
-              </>
-            )}
+        <CardContent className="py-8 text-center">
+          {!hasInterested ? (
+            <>
+              <Heart className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No One Going Yet</h3>
+              <p className="text-sm" style={{ color: 'var(--neutral-600)' }}>
+                Be the first to show interest in this event! Share it with friends to meet people going.
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-semibold mb-1">
+                {interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested
+              </h3>
+              <p className="text-sm mb-6" style={{ color: 'var(--neutral-600)' }}>
+                {previewUsers.length > 0
+                  ? "You've seen everyone. Here's who's interested:"
+                  : "You've swiped through everyone going to this event. Check back later!"}
+              </p>
+              {previewUsers.length > 0 && (
+                <div className="flex flex-wrap justify-center gap-3 mb-4">
+                  {previewUsers.map(u => (
+                    <button
+                      key={u.user_id}
+                      className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => onNavigateToProfile?.(u.user_id)}
+                      aria-label={u.name ?? 'User'}
+                    >
+                      {u.avatar_url ? (
+                        <img
+                          src={u.avatar_url}
+                          alt={u.name ?? 'User'}
+                          className="w-12 h-12 rounded-full object-cover"
+                          style={{ border: '2px solid var(--brand-pink-200, #FBCFE8)' }}
+                        />
+                      ) : (
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-base"
+                          style={{ backgroundColor: 'var(--brand-pink-500)' }}
+                        >
+                          {(u.name ?? '?').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-xs max-w-[56px] truncate" style={{ color: 'var(--neutral-700, #374151)' }}>
+                        {u.name ?? 'User'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(interestedCount ?? 0) > 12 && onOpenGuestList && (
+                <button
+                  className="text-sm underline cursor-pointer"
+                  style={{ color: 'var(--brand-pink-500)' }}
+                  onClick={onOpenGuestList}
+                >
+                  See all {interestedCount} interested →
+                </button>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     );

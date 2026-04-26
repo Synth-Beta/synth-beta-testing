@@ -565,12 +565,15 @@ export default function ReviewDetailScreen() {
                     setLoading(false);
                     return;
                 }
-                const {
-                    data: { session },
-                } = await supabase.auth.getSession();
+                // On React Native, getSession() may return null on cold launch while
+                // AsyncStorage is still hydrating. Refresh the token if needed so
+                // RLS sees an authenticated request and doesn't hide public reviews.
+                let { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    const { data: refreshed } = await supabase.auth.refreshSession();
+                    session = refreshed.session;
+                }
                 const user = session?.user ?? null;
-                // Don't block on missing session — public reviews are readable by anyone.
-                // We just won't have a sessionUserId for engagement actions.
                 if (user) setSessionUserId(user.id);
 
                 const { data, error } = await supabase

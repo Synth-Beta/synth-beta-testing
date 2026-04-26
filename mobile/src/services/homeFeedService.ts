@@ -21,6 +21,8 @@ export interface UnifiedPersonalizedEvent {
     interested_count?: number;
     user_is_interested?: boolean;
     ticket_url?: string;
+    /** Friends interested in this event (populated for FRIENDS-labeled events) */
+    friends_interested?: Array<{ id: string; name: string; avatar_url?: string | null }>;
 }
 
 export type ReviewThumbnailCrop = {

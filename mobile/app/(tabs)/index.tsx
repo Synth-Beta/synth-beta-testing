@@ -105,6 +105,7 @@ export default function FeedScreen() {
             ticket_url: undefined,
             artist_id: undefined,
             venue_id: undefined,
+            friends_interested: ne.friends_all ?? [],
           }));
 
         // Interleave: inject friend events every 4 personalized events
@@ -198,6 +199,7 @@ export default function FeedScreen() {
         artist_id={item.data.artist_id}
         venue_id={item.data.venue_id}
         currentUserId={viewerUserId}
+        friendsInterested={item.data.friends_interested}
         onPress={() => {
           void EventService.toEventRouteId(item.data.id).then((rid) => {
             router.push(`/event/${rid}` as any);

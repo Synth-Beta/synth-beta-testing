@@ -2150,6 +2150,7 @@ export function EventDetailsModal({
                 eventTitle={actualEvent.title}
                 {...(interestedCount !== null && { interestedCount })}
                 guestListTotalCount={guestListLoading ? null : guestListAllUsers.length}
+                guestListUsers={guestListLoading ? undefined : guestListAllUsers}
                 onOpenGuestList={() => setInterestedModalOpen(true)}
                 onMatchCreated={() => { }}
                 onNavigateToProfile={(userId) => {
