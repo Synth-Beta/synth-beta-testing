@@ -89,7 +89,7 @@ export default function PublicUserProfileScreen() {
         `
         )
         .eq('user_id', id)
-        .eq('is_draft', false)
+        .or('is_draft.eq.false,is_draft.is.null')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
         .limit(80);

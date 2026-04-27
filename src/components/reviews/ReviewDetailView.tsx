@@ -78,6 +78,7 @@ export function ReviewDetailView({
 }: ReviewDetailViewProps) {
   const [reviewData, setReviewData] = useState<FullReviewData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [isLiking, setIsLiking] = useState(false);
@@ -153,16 +154,20 @@ export function ReviewDetailView({
             attendees
           `)
           .eq('id', reviewId)
-          .single();
+          .maybeSingle();
 
         if (reviewError) throw reviewError;
+        if (!review) {
+          setNotFound(true);
+          return;
+        }
 
         // Fetch author info
         const { data: author } = await supabase
           .from('users')
           .select('user_id, name, avatar_url')
           .eq('user_id', review.user_id)
-          .single();
+          .maybeSingle();
 
         // Fetch event/artist/venue info
         let eventInfo: any = {};
@@ -257,6 +262,7 @@ export function ReviewDetailView({
         }
       } catch (error) {
         console.error('Error fetching review data:', error);
+        setNotFound(true);
       } finally {
         setLoading(false);
       }
@@ -414,11 +420,37 @@ export function ReviewDetailView({
     }
   };
 
-  if (loading || !reviewData) {
+  if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)' }}>
         <div className="text-center">
           <p className="text-lg" style={{ color: 'var(--neutral-600)' }}>Loading review...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || !reviewData) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'var(--neutral-50)' }}>
+        <div className="text-center" style={{ padding: '32px' }}>
+          <p className="text-lg font-semibold" style={{ color: 'var(--neutral-800)', marginBottom: '8px' }}>Review not found</p>
+          <p className="text-sm" style={{ color: 'var(--neutral-500)', marginBottom: '24px' }}>This review may have been deleted or is unavailable.</p>
+          <button
+            onClick={onBack}
+            style={{
+              background: 'var(--brand-pink-500, #e91e8c)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '10px 24px',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: 'pointer',
+            }}
+          >
+            Go Back
+          </button>
         </div>
       </div>
     );

@@ -1340,7 +1340,7 @@ export class ReviewService {
         .from('reviews')
         .select('*, "Event_date"', { count: 'exact' })
         .eq('user_id', userId)
-        .eq('is_draft', false) // Only show published reviews, not drafts
+        .or('is_draft.eq.false,is_draft.is.null') // Include published + legacy reviews where is_draft is NULL
         .order('created_at', { ascending: false });
       
       // PostgREST may normalize "Event_date" to "event_date" (lowercase)
