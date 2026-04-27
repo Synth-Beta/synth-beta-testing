@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, ActionSheetIOS, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -65,6 +66,7 @@ export default function ChatThreadScreen() {
     const [userId, setUserId] = useState<string | null>(null);
     const [eventById, setEventById] = useState<Record<string, EventDetail | null>>({});
     const [reviewById, setReviewById] = useState<Record<string, ReviewCardInfo>>({});
+    const [uploadingImage, setUploadingImage] = useState(false);
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
@@ -196,6 +198,81 @@ export default function ChatThreadScreen() {
         }
     };
 
+    const handlePickImage = () => {
+        const doLaunch = async (source: 'library' | 'camera') => {
+            if (source === 'camera') {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permission required', 'Camera access is needed to take photos.');
+                    return;
+                }
+            } else {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permission required', 'Photo library access is needed to send images.');
+                    return;
+                }
+            }
+
+            const result = source === 'camera'
+                ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
+                : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+
+            if (result.canceled || !result.assets?.[0]) return;
+
+            const asset = result.assets[0];
+            if (!userId) return;
+
+            setUploadingImage(true);
+            try {
+                const imageUrl = await ChatService.uploadChatImage(asset.uri, userId);
+                if (!imageUrl) {
+                    Alert.alert('Upload failed', 'Could not upload image. Please try again.');
+                    return;
+                }
+
+                const { error } = await supabase.from('messages').insert({
+                    chat_id: id,
+                    sender_id: userId,
+                    content: '[Image]',
+                    message_type: 'image',
+                    is_encrypted: false,
+                    metadata: { image_url: imageUrl },
+                });
+
+                if (!error) {
+                    await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', id);
+                    await loadMessages();
+                    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
+                } else {
+                    console.error('[chat] insert image message:', error);
+                    Alert.alert('Send failed', 'Could not send image. Please try again.');
+                }
+            } finally {
+                setUploadingImage(false);
+            }
+        };
+
+        if (Platform.OS === 'ios') {
+            ActionSheetIOS.showActionSheetWithOptions(
+                {
+                    options: ['Cancel', 'Take Photo', 'Choose from Library'],
+                    cancelButtonIndex: 0,
+                },
+                (buttonIndex) => {
+                    if (buttonIndex === 1) void doLaunch('camera');
+                    else if (buttonIndex === 2) void doLaunch('library');
+                }
+            );
+        } else {
+            Alert.alert('Send Image', 'Choose a source', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Take Photo', onPress: () => void doLaunch('camera') },
+                { text: 'Choose from Library', onPress: () => void doLaunch('library') },
+            ]);
+        }
+    };
+
     const openEvent = async (eventId: string) => {
         const routeId = await EventService.toEventRouteId(eventId);
         router.push(`/event/${routeId}`);
@@ -216,6 +293,24 @@ export default function ChatThreadScreen() {
     const renderMessage = ({ item }: { item: Message }) => {
         const meta = item.metadata ?? {};
         const reviewId = resolveReviewId(item);
+
+        // ── IMAGE MESSAGE ─────────────────────────────────────────────────────
+        const inlineMeta = (item.metadata ?? {}) as Record<string, unknown>;
+        const imageUrl = typeof inlineMeta.image_url === 'string' ? inlineMeta.image_url : null;
+        if (item.message_type === 'image' && imageUrl) {
+            return (
+                <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                    <Image
+                        source={{ uri: imageUrl }}
+                        style={styles.chatImage}
+                        contentFit="cover"
+                    />
+                    <SynthText variant="meta" color="secondary" style={styles.messageTime}>
+                        {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </SynthText>
+                </View>
+            );
+        }
 
         // ── REVIEW SHARE ──────────────────────────────────────────────────────
         if (item.message_type === 'review_share' && reviewId) {
@@ -427,8 +522,15 @@ export default function ChatThreadScreen() {
             />
 
             <View style={[styles.inputArea, { paddingBottom: insets.bottom + 8 }]}>
-                <Pressable style={styles.iconButton}>
-                    <ImageIcon size={22} color={SynthTokens.colors.neutral600} />
+                <Pressable
+                    style={styles.iconButton}
+                    onPress={handlePickImage}
+                    disabled={uploadingImage}
+                >
+                    {uploadingImage
+                        ? <ActivityIndicator size="small" color={PINK} />
+                        : <ImageIcon size={22} color={SynthTokens.colors.neutral600} />
+                    }
                 </Pressable>
                 <TextInput
                     placeholder="Message..."
@@ -535,6 +637,12 @@ const styles = StyleSheet.create({
     },
     sendDisabled: {
         opacity: 0.5,
+    },
+    chatImage: {
+        width: 220,
+        height: 220,
+        borderRadius: 16,
+        backgroundColor: SynthTokens.colors.neutral100,
     },
     // ── Share cards ──────────────────────────────────────────────────────────
     shareCard: {

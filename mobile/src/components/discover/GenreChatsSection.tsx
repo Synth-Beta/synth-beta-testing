@@ -52,7 +52,7 @@ function GenreCard({
             <View style={styles.memberRow}>
                 <Users size={12} color={SynthTokens.colors.neutral400} />
                 <Text style={styles.memberText}>
-                    {memberCount > 0 ? `${formatCount(memberCount)} members` : 'Be the first!'}
+                    {`${formatCount(memberCount)} ${memberCount === 1 ? 'member' : 'members'}`}
                 </Text>
             </View>
 

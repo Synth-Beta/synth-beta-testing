@@ -114,7 +114,7 @@ interface Message {
   created_at: string;
   sender_name: string;
   sender_avatar: string | null;
-  message_type?: 'text' | 'event_share' | 'review_share' | 'system';
+  message_type?: 'text' | 'event_share' | 'review_share' | 'system' | 'image';
   shared_event_id?: string | null;
   shared_review_id?: string | null;
   metadata?: any;
@@ -214,10 +214,12 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [linkedEvent, setLinkedEvent] = useState<any>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
-  
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   // Auto-scroll ref for messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const horizontalSwipeTriggeredRef = useRef(false);
@@ -994,11 +996,12 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       setMessages(
         transformedMessages.map(msg => ({
           ...msg,
-          message_type: 
+          message_type:
             msg.message_type === 'text' ||
             msg.message_type === 'event_share' ||
             msg.message_type === 'review_share' ||
-            msg.message_type === 'system'
+            msg.message_type === 'system' ||
+            msg.message_type === 'image'
               ? msg.message_type
               : 'text'
         }))
@@ -1040,6 +1043,59 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     const preview = (last.content || '').trim().slice(0, 80);
     setLiveAnnouncement(`${last.sender_name}: ${preview || 'New message'}`);
   }, [messages, selectedChat, currentUserId]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChat) return;
+    // Reset so the same file can be re-selected
+    e.target.value = '';
+
+    const MAX_MB = 8;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      toast({ title: 'File too large', description: `Images must be under ${MAX_MB}MB.`, variant: 'destructive' });
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const fileName = `${currentUserId}/${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from('chat-images')
+        .upload(fileName, file, { contentType: file.type, upsert: false });
+
+      if (error || !data) {
+        console.error('[chat] image upload:', error);
+        toast({ title: 'Upload failed', description: 'Could not upload image. Please try again.', variant: 'destructive' });
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(data.path);
+      const imageUrl = urlData.publicUrl;
+
+      const { error: msgError } = await supabase.from('messages').insert({
+        chat_id: selectedChat.id,
+        sender_id: currentUserId,
+        content: '[Image]',
+        message_type: 'image',
+        is_encrypted: false,
+        metadata: { image_url: imageUrl },
+      });
+
+      if (!msgError) {
+        await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', selectedChat.id);
+        await fetchMessages(selectedChat.id);
+      } else {
+        console.error('[chat] insert image message:', msgError);
+        toast({ title: 'Send failed', description: 'Could not send image. Please try again.', variant: 'destructive' });
+      }
+    } catch (err) {
+      console.error('[chat] handleImageUpload:', err);
+      toast({ title: 'Upload failed', description: 'Something went wrong. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const sendMessage = async () => {
     // Track message send will be added after message is sent successfully
@@ -1918,7 +1974,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 prevMessage.sender_id !== firstMessage.sender_id ||
                 (prevMessage.message_type !== 'text' &&
                   prevMessage.message_type !== 'review_share' &&
-                  prevMessage.message_type !== 'event_share'));
+                  prevMessage.message_type !== 'event_share' &&
+                  prevMessage.message_type !== 'image'));
 
             const isSent = firstMessage.sender_id === currentUserId;
 
@@ -1956,6 +2013,27 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       >
                         {/* Determine what to render: review card, event card, or text - mutually exclusive */}
                         {(() => {
+                          // Priority 0: Image message
+                          const inlineImageUrl = message.metadata?.image_url as string | undefined;
+                          if (message.message_type === 'image' && inlineImageUrl) {
+                            return (
+                              <div style={{ alignSelf: isSent ? 'flex-end' : 'flex-start', display: 'inline-block' }}>
+                                <img
+                                  src={inlineImageUrl}
+                                  alt="Shared image"
+                                  style={{
+                                    maxWidth: '260px',
+                                    maxHeight: '320px',
+                                    borderRadius: '14px',
+                                    display: 'block',
+                                    objectFit: 'cover',
+                                    border: '1px solid var(--neutral-200)',
+                                  }}
+                                />
+                              </div>
+                            );
+                          }
+
                           // Priority 1: Review share
                           if (message.message_type === 'review_share' && (message.shared_review_id || message.metadata?.review_id)) {
                             return (
@@ -1994,7 +2072,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                 display: 'inline-block',
                                 width: 'fit-content',
                                 alignSelf: isSent ? 'flex-end' : 'flex-start',
-                                maxWidth: '172px',
+                                maxWidth: 'min(340px, 72%)',
                                 padding: 'var(--spacing-small, 12px)',
                                 borderRadius: 'var(--radius-corner, 10px)',
                                 border: message.sender_id === currentUserId ? 'none' : '1px solid var(--neutral-200)',
@@ -2076,7 +2154,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       }
     >
       <div
-        className="flex w-full max-w-[393px] mx-auto flex-1 min-h-0"
+        className="flex w-full flex-1 min-h-0"
         style={{ backgroundColor: 'var(--neutral-50)' }}
       >
       {/* Settings Menu Dropdown - Positioned relative to header */}
@@ -2154,9 +2232,18 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         </DropdownMenu>
       )}
       
-      {/* Left Sidebar - Chat List */}
-      {!selectedChat && (
-        <div className="w-full flex flex-col flex-1 min-h-0">
+      {/* Left Sidebar - Chat List (always mounted; hidden on mobile when a chat is open) */}
+      <div
+        className="flex flex-col flex-shrink-0 min-h-0"
+        style={{
+          width: selectedChat ? undefined : '100%',
+          display: selectedChat ? 'none' : 'flex',
+          borderRight: '1px solid var(--neutral-200)',
+        }}
+        // On ≥768px show as a fixed-width sidebar alongside the thread
+        // We use an inline media-query workaround via a companion style tag below
+        id="chat-list-panel"
+      >
         {/* Content area - 12px below header */}
           <div className="flex-shrink-0" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 0 }}>
           
@@ -2217,10 +2304,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               </div>
               
               {/* Instructions Box */}
-              <div 
-                className="swift-ui-card rounded-[12px] p-3 min-h-[110px] flex items-center justify-center" 
-                style={{ 
-                  width: 'calc(100vw - 40px)', 
+              <div
+                className="swift-ui-card rounded-[12px] p-3 min-h-[110px] flex items-center justify-center"
+                style={{
+                  width: '100%',
                   backgroundColor: 'var(--neutral-200) !important',
                   border: '3px solid var(--overlay-20) !important'
                 }}
@@ -2384,21 +2471,21 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
             </div>
           )}
       </div>
-      )}
 
-      {/* Right Side - Messages */}
-      {selectedChat && (
-        <div
-          className="w-full flex flex-col flex-1 min-h-0"
-          style={{
-            backgroundColor: 'var(--neutral-50)',
-            overflow: 'hidden',
-          }}
-          onTouchStart={handleChatTouchStart}
-          onTouchMove={handleChatTouchMove}
-          onTouchEnd={handleChatTouchEnd}
-          onTouchCancel={handleChatTouchCancel}
-        >
+      {/* Right Side - Messages (always mounted on desktop; hidden on mobile when no chat selected) */}
+      <div
+        className="flex flex-col flex-1 min-h-0"
+        id="chat-thread-panel"
+        style={{
+          display: selectedChat ? 'flex' : 'none',
+          backgroundColor: 'var(--neutral-50)',
+          overflow: 'hidden',
+        }}
+        onTouchStart={handleChatTouchStart}
+        onTouchMove={handleChatTouchMove}
+        onTouchEnd={handleChatTouchEnd}
+        onTouchCancel={handleChatTouchCancel}
+      >{selectedChat ? (
           <>
             {/* Messages */}
               <div
@@ -2469,14 +2556,20 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               borderTop: '1px solid var(--neutral-200)',
               }}
               >
-                <div 
-                  style={{ 
-                    maxWidth: '393px',
-                    margin: '0 auto',
-                    paddingLeft: 'var(--spacing-screen-margin-x, 20px)', 
+                <div
+                  style={{
+                    paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
                     paddingRight: 'var(--spacing-screen-margin-x, 20px)'
                   }}
                 >
+                  {/* Hidden image file input */}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+                    style={{ display: 'none' }}
+                    onChange={handleImageUpload}
+                  />
                   <style>{`
                     #chat-message-input-container {
                       border-color: rgba(236, 72, 153, 0.2) !important;
@@ -2499,10 +2592,42 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       max-height: 44px !important;
                     }
                   `}</style>
-                  <div 
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                  {/* Image attach button */}
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={isUploadingImage}
+                    aria-label="Attach image"
+                    style={{
+                      flexShrink: 0,
+                      width: 40,
+                      height: 40,
+                      borderRadius: '10px',
+                      border: '1.5px solid var(--neutral-200)',
+                      background: 'var(--neutral-50)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: isUploadingImage ? 'default' : 'pointer',
+                      opacity: isUploadingImage ? 0.6 : 1,
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={e => { if (!isUploadingImage) e.currentTarget.style.background = 'var(--neutral-100)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--neutral-50)'; }}
+                  >
+                    {isUploadingImage
+                      ? <Loader2 size={18} className="animate-spin" style={{ color: 'var(--brand-pink-500)' }} />
+                      : <Images size={18} style={{ color: 'var(--neutral-600)' }} />
+                    }
+                  </button>
+
+                  <div
                     id="chat-message-input-container"
-                    className="border-2 rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px]" 
-                    style={{ 
+                    className="border-2 rounded-[10px] flex items-center justify-between h-[44px] pl-5 pr-[1px] flex-1"
+                    style={{
                       backgroundColor: 'rgba(255, 255, 255, 0.9)',
                       backdropFilter: 'blur(20px)',
                       WebkitBackdropFilter: 'blur(20px)',
@@ -2553,11 +2678,40 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     <span id="chat-send-disabled-hint" className="sr-only">Message input is empty</span>
                   )}
                   </div>
+                  </div>{/* end flex row (image btn + input) */}
                 </div>
               </div>
           </>
+        ) : (
+          /* Desktop empty state when no chat is selected */
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px', color: 'var(--neutral-500)' }}>
+            <MessageCircle size={48} strokeWidth={1.5} style={{ color: 'var(--neutral-300)' }} />
+            <p style={{ fontFamily: 'var(--font-family)', fontSize: '16px', fontWeight: 500, margin: 0, color: 'var(--neutral-500)' }}>
+              Select a chat to start messaging
+            </p>
           </div>
         )}
+      </div>
+
+      {/* Responsive sidebar CSS */}
+      <style>{`
+        @media (min-width: 640px) {
+          #chat-list-panel {
+            display: flex !important;
+            width: 340px !important;
+            flex-shrink: 0 !important;
+          }
+          #chat-thread-panel {
+            display: flex !important;
+            max-width: 780px !important;
+          }
+        }
+        @media (min-width: 1024px) {
+          #chat-list-panel {
+            width: 380px !important;
+          }
+        }
+      `}</style>
 
       {/* User Search Modal - Direct Message Selection */}
       {showUserSearch && (

@@ -147,7 +147,7 @@ export default function ChatListScreen() {
       <TouchableOpacity
         style={styles.newChat}
         activeOpacity={0.9}
-        onPress={() => router.push('/(tabs)/search')}
+        onPress={() => router.push('/new-chat' as any)}
       >
         <SynthText variant="meta" style={styles.newChatText}>
           New Chat +

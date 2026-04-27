@@ -22,7 +22,7 @@ export interface ChatThread {
     unread_count: number;
 }
 
-export type ChatMessageType = 'text' | 'event_share' | 'review_share' | 'system';
+export type ChatMessageType = 'text' | 'event_share' | 'review_share' | 'system' | 'image';
 
 export interface Message {
     id: string;
@@ -351,6 +351,44 @@ export class ChatService {
             return null;
         }
         return chatId;
+    }
+
+    /**
+     * Upload an image file to the chat-images bucket and return its public URL.
+     * @param uri Local file URI from expo-image-picker
+     * @param userId The uploader's user id (used as folder prefix for RLS)
+     */
+    static async uploadChatImage(uri: string, userId: string): Promise<string | null> {
+        try {
+            const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+            const mimeMap: Record<string, string> = {
+                jpg: 'image/jpeg',
+                jpeg: 'image/jpeg',
+                png: 'image/png',
+                webp: 'image/webp',
+                heic: 'image/heic',
+            };
+            const contentType = mimeMap[ext] ?? 'image/jpeg';
+            const fileName = `${userId}/${Date.now()}.${ext}`;
+
+            const response = await fetch(uri);
+            const blob = await response.blob();
+
+            const { data, error } = await supabase.storage
+                .from('chat-images')
+                .upload(fileName, blob, { contentType, upsert: false });
+
+            if (error || !data) {
+                console.error('[ChatService] uploadChatImage:', error);
+                return null;
+            }
+
+            const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(data.path);
+            return urlData.publicUrl ?? null;
+        } catch (e) {
+            console.error('[ChatService] uploadChatImage exception:', e);
+            return null;
+        }
     }
 
     /** Remove current user from a chat (same as trash / leave in mobile list UI). */

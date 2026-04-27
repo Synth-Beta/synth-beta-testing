@@ -576,6 +576,9 @@ export default function ReviewDetailScreen() {
                 const user = session?.user ?? null;
                 if (user) setSessionUserId(user.id);
 
+                // Query the review itself — NO inline joins to avoid PostgREST inner-join
+                // silently dropping rows when a related event/user row is missing or blocked by RLS.
+                // This matches the web ReviewDetailView approach (separate queries).
                 const { data, error } = await supabase
                     .from('reviews')
                     .select(`
@@ -604,14 +607,7 @@ export default function ReviewDetailScreen() {
                         attendees,
                         met_on_synth,
                         setlist,
-                        custom_setlist,
-                        users:user_id (user_id, name, avatar_url),
-                        events:event_id (
-                            id, title, event_date,
-                            artist_name, venue_name,
-                            artist_id, venue_id,
-                            images
-                        )
+                        custom_setlist
                     `)
                     .eq('id', id)
                     .maybeSingle();
@@ -619,6 +615,7 @@ export default function ReviewDetailScreen() {
                 if (cancelled) return;
 
                 if (error || !data) {
+                    console.warn('[review detail] query returned null', { id, error });
                     setReview(null);
                     setLoading(false);
                     return;
@@ -626,23 +623,31 @@ export default function ReviewDetailScreen() {
 
                 const row = data as Record<string, unknown>;
 
-                // Normalize author
-                const usersRaw = row.users;
+                // Fetch author separately (avoids inner-join exclusion if user row missing)
                 let author: ReviewRow['author'] = null;
-                if (Array.isArray(usersRaw) && usersRaw[0]) {
-                    author = usersRaw[0] as ReviewRow['author'];
-                } else if (usersRaw && typeof usersRaw === 'object' && !Array.isArray(usersRaw)) {
-                    author = usersRaw as ReviewRow['author'];
+                try {
+                    const { data: authorData } = await supabase
+                        .from('users')
+                        .select('user_id, name, avatar_url')
+                        .eq('user_id', String(row.user_id))
+                        .maybeSingle();
+                    if (authorData) author = authorData as ReviewRow['author'];
+                } catch { /* non-fatal */ }
+
+                // Fetch event separately (avoids inner-join exclusion if event deleted)
+                let evOne: EventSummary | null = null;
+                if (row.event_id != null) {
+                    try {
+                        const { data: evData } = await supabase
+                            .from('events')
+                            .select('id, title, event_date, artist_name, venue_name, artist_id, venue_id, images')
+                            .eq('id', String(row.event_id))
+                            .maybeSingle();
+                        if (evData) evOne = evData as EventSummary;
+                    } catch { /* non-fatal */ }
                 }
 
-                // Normalize event
-                const evRaw = row.events;
-                let evOne: EventSummary | null = null;
-                if (Array.isArray(evRaw) && evRaw[0]) {
-                    evOne = evRaw[0] as EventSummary;
-                } else if (evRaw && typeof evRaw === 'object' && !Array.isArray(evRaw)) {
-                    evOne = evRaw as EventSummary;
-                }
+                if (cancelled) return;
 
                 // Check helpful status for current user (errors are non-fatal, skip if not logged in)
                 let likedSet = new Set<string>();
@@ -656,7 +661,7 @@ export default function ReviewDetailScreen() {
 
                 if (cancelled) return;
 
-                // Resolve artist/venue names from direct FKs if the event join returned nothing
+                // Resolve artist/venue names from direct FKs if the event lookup returned nothing
                 let resolvedArtistName: string | null = evOne?.artist_name ?? null;
                 let resolvedVenueName: string | null = evOne?.venue_name ?? null;
                 const directArtistId = row.artist_id != null ? String(row.artist_id) : evOne?.artist_id ?? null;

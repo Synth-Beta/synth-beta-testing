@@ -85,7 +85,7 @@ function GenreCard({
                 fontWeight: 500,
             }}>
                 <Users size={12} style={{ flexShrink: 0 }} />
-                {memberCount > 0 ? `${formatCount(memberCount)} members` : 'Be the first!'}
+                {`${formatCount(memberCount)} ${memberCount === 1 ? 'member' : 'members'}`}
             </div>
 
             {/* Actions */}
