@@ -80,19 +80,7 @@ elif [ -x "/opt/homebrew/bin/node" ]; then
   echo "📦 Node.js found at /opt/homebrew"
 fi
 
-# 2) Install via Homebrew without auto-update (avoids ghcr.io fetch in restricted CI)
-if ! command -v node &> /dev/null && command -v brew &> /dev/null; then
-  echo "📦 Installing Node.js via Homebrew (no auto-update)..."
-  export HOMEBREW_NO_AUTO_UPDATE=1
-  export HOMEBREW_NO_INSTALL_FROM_API=1
-  export HOMEBREW_NO_ENV_HINTS=1
-  if brew install node 2>/dev/null; then
-    BREW_PREFIX=$(brew --prefix 2>/dev/null || echo "/usr/local")
-    set_node_path "$BREW_PREFIX"
-  fi
-fi
-
-# 3) Fallback: download Node LTS from nodejs.org (works when Homebrew is blocked e.g. ghcr.io)
+# 2) Fallback: download Node LTS from nodejs.org (Homebrew skipped — ghcr.io is blocked in Xcode Cloud)
 if ! command -v node &> /dev/null; then
   echo "📦 Node.js not available via Homebrew, trying direct download from nodejs.org..."
   NODE_VERSION="20.18.0"

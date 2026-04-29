@@ -60,15 +60,31 @@ fi
 
 echo "✅ Found package.json"
 
-# Install Node.js using Homebrew if not available
+# Ensure Node.js is available — check common paths, then fall back to nodejs.org direct download.
+# Homebrew is NOT used: ghcr.io (Homebrew bottle CDN) is blocked in Xcode Cloud.
 if ! command -v node &> /dev/null; then
-  echo "📦 Node.js not found, installing via Homebrew..."
-  
-  # Xcode Cloud has Homebrew pre-installed
-  if command -v brew &> /dev/null; then
-    brew install node
+  for node_dir in /usr/local /opt/homebrew; do
+    if [ -x "$node_dir/bin/node" ]; then
+      export PATH="$node_dir/bin:$PATH"
+      break
+    fi
+  done
+fi
+
+if ! command -v node &> /dev/null; then
+  echo "📦 Node.js not in PATH, downloading from nodejs.org..."
+  NODE_VERSION="20.18.0"
+  ARCH=$(uname -m)
+  NODE_ARCH="x64"; [ "$ARCH" = "arm64" ] && NODE_ARCH="arm64"
+  TARBALL="node-v${NODE_VERSION}-darwin-${NODE_ARCH}.tar.gz"
+  NODE_DIR="$PROJECT_ROOT/.ci-node"
+  mkdir -p "$NODE_DIR"
+  if curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${TARBALL}" -o "$NODE_DIR/${TARBALL}"; then
+    tar -xzf "$NODE_DIR/${TARBALL}" -C "$NODE_DIR"
+    export PATH="$NODE_DIR/node-v${NODE_VERSION}-darwin-${NODE_ARCH}/bin:$PATH"
+    rm -f "$NODE_DIR/${TARBALL}"
   else
-    echo "❌ Error: Neither Node.js nor Homebrew available"
+    echo "❌ Error: Could not download Node.js from nodejs.org"
     exit 1
   fi
 fi
