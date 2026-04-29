@@ -12,7 +12,7 @@ import {
     Text,
     View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { MessageCircle, Users } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
@@ -108,6 +108,11 @@ export function GenreChatsSection({ currentUserId }: Props) {
         void loadGenres();
     }, [loadGenres]);
 
+    // Reload when user returns to the discover tab so join state stays accurate
+    useFocusEffect(useCallback(() => {
+        void loadGenres();
+    }, [loadGenres]));
+
     const handleJoin = async (genreId: string) => {
         setJoiningId(genreId);
         try {
@@ -120,7 +125,6 @@ export function GenreChatsSection({ currentUserId }: Props) {
                             : g
                     )
                 );
-                router.push(`/chat/${chatId}` as any);
             } else {
                 Alert.alert('Error', 'Could not join chat. Please try again.');
             }

@@ -132,9 +132,17 @@ export class GenreChatService {
                 }
             }
 
-            await supabase
+            // Join — insert or do nothing if already a member
+            const { error: joinError } = await supabase
                 .from('chat_participants')
-                .upsert({ chat_id: chatId, user_id: userId }, { onConflict: 'chat_id,user_id' });
+                .insert({ chat_id: chatId, user_id: userId })
+                .select();
+
+            if (joinError && joinError.code !== '23505') {
+                // 23505 = unique_violation (already a member), which is fine
+                console.error('[GenreChatService] joinGenre chat_participants insert:', joinError);
+                return null;
+            }
 
             return chatId;
         } catch (err) {

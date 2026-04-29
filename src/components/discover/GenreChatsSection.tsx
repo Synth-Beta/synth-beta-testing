@@ -194,8 +194,6 @@ export function GenreChatsSection({ currentUserId, onNavigateToChat }: Props) {
                             : g
                     )
                 );
-                // Navigate directly to the chat after joining
-                onNavigateToChat?.(chatId);
             } else {
                 alert('Could not join chat. Please try again.');
             }
