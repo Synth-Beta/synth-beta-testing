@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -109,17 +110,25 @@ export function GenreChatsSection({ currentUserId }: Props) {
 
     const handleJoin = async (genreId: string) => {
         setJoiningId(genreId);
-        const chatId = await GenreChatService.joinGenre(genreId, currentUserId);
-        if (chatId) {
-            setGenres(prev =>
-                prev.map(g =>
-                    g.genre.id === genreId
-                        ? { ...g, chatId, isJoined: true, memberCount: g.memberCount + 1 }
-                        : g
-                )
-            );
+        try {
+            const chatId = await GenreChatService.joinGenre(genreId, currentUserId);
+            if (chatId) {
+                setGenres(prev =>
+                    prev.map(g =>
+                        g.genre.id === genreId
+                            ? { ...g, chatId, isJoined: true, memberCount: g.memberCount + 1 }
+                            : g
+                    )
+                );
+                router.push(`/chat/${chatId}` as any);
+            } else {
+                Alert.alert('Error', 'Could not join chat. Please try again.');
+            }
+        } catch {
+            Alert.alert('Error', 'Could not join chat. Please try again.');
+        } finally {
+            setJoiningId(null);
         }
-        setJoiningId(null);
     };
 
     const handleNavigate = (chatId: string) => {

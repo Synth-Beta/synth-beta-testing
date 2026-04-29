@@ -164,7 +164,7 @@ export class MyEventsService {
             .from('reviews')
             .select(FULL_SELECT)
             .eq('user_id', userId)
-            .eq('is_draft', false)
+            .or('is_draft.eq.false,is_draft.is.null')
             .order('created_at', { ascending: false }));
 
         let hasUserCreatedCols = true;
@@ -174,7 +174,7 @@ export class MyEventsService {
                 .from('reviews')
                 .select(BASE_SELECT)
                 .eq('user_id', userId)
-                .eq('is_draft', false)
+                .or('is_draft.eq.false,is_draft.is.null')
                 .order('created_at', { ascending: false });
             if (fallback.error) {
                 const code = fallback.error.code ?? 'unknown';
@@ -375,45 +375,51 @@ export class MyEventsService {
     }
 
     static async getInterestedEvents(userId: string): Promise<InterestedEventItem[]> {
-        const { data, error } = await supabase
+        // Step 1: get event IDs (same two-step approach as web to avoid PostgREST join issues)
+        const { data: relRows, error: relError } = await supabase
             .from('user_event_relationships')
-            .select(
-                `
-        event_id,
-        events (
-          id,
-          title,
-          artist_name,
-          venue_name,
-          event_date,
-          images
-        )
-      `
-            )
+            .select('event_id')
             .eq('user_id', userId)
-            .eq('relationship_type', 'interested')
+            .in('relationship_type', ['interested', 'going', 'maybe'])
             .order('created_at', { ascending: false })
             .limit(50);
 
-        if (error) {
-            console.warn('[myEvents] getInterestedEvents', error);
+        if (relError) {
+            console.warn('[myEvents] getInterestedEvents relationships', relError);
             return [];
         }
 
-        return (data || [])
-            .map((row: any) => {
-                const ev = row.events;
-                if (!ev?.id) return null;
-                return {
-                    event_id: ev.id,
-                    title: ev.title || ev.artist_name || 'Event',
-                    artist_name: ev.artist_name || '',
-                    venue_name: ev.venue_name || '',
-                    event_date: ev.event_date || '',
-                    image_url: ev.images?.[0]?.url,
-                };
-            })
-            .filter(Boolean) as InterestedEventItem[];
+        const eventIds = (relRows || []).map((r: any) => r.event_id).filter(Boolean) as string[];
+        if (eventIds.length === 0) return [];
+
+        // Step 2: fetch full event data
+        const { data: eventsData, error: eventsError } = await supabase
+            .from('events')
+            .select('id, title, artist_name, venue_name, event_date, images, artist_id, venue_id')
+            .in('id', eventIds);
+
+        if (eventsError) {
+            console.warn('[myEvents] getInterestedEvents events', eventsError);
+            return [];
+        }
+
+        // Preserve order from step 1
+        const eventsById = new Map((eventsData || []).map((e: any) => [e.id, e]));
+
+        const results: InterestedEventItem[] = [];
+        for (const eventId of eventIds) {
+            const ev = eventsById.get(eventId);
+            if (!ev) continue;
+            results.push({
+                event_id: ev.id,
+                title: ev.title || ev.artist_name || 'Event',
+                artist_name: ev.artist_name || '',
+                venue_name: ev.venue_name || '',
+                event_date: ev.event_date || '',
+                image_url: ev.images?.[0]?.url,
+            });
+        }
+        return results;
     }
 
     /**

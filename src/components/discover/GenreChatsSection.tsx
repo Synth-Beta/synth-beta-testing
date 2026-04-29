@@ -184,17 +184,26 @@ export function GenreChatsSection({ currentUserId, onNavigateToChat }: Props) {
 
     const handleJoin = async (genreId: string) => {
         setJoiningId(genreId);
-        const chatId = await GenreChatService.joinGenre(genreId, currentUserId);
-        if (chatId) {
-            setGenres(prev =>
-                prev.map(g =>
-                    g.genre.id === genreId
-                        ? { ...g, chatId, isJoined: true, memberCount: g.memberCount + 1 }
-                        : g
-                )
-            );
+        try {
+            const chatId = await GenreChatService.joinGenre(genreId, currentUserId);
+            if (chatId) {
+                setGenres(prev =>
+                    prev.map(g =>
+                        g.genre.id === genreId
+                            ? { ...g, chatId, isJoined: true, memberCount: g.memberCount + 1 }
+                            : g
+                    )
+                );
+                // Navigate directly to the chat after joining
+                onNavigateToChat?.(chatId);
+            } else {
+                alert('Could not join chat. Please try again.');
+            }
+        } catch {
+            alert('Could not join chat. Please try again.');
+        } finally {
+            setJoiningId(null);
         }
-        setJoiningId(null);
     };
 
     const handleLeave = async (chatId: string) => {

@@ -785,7 +785,7 @@ const { user, sessionExpired } = useAuth();
         .from('reviews')
         .select('id, was_there, review_text, is_public', { count: 'exact' })
         .eq('user_id', targetUserId)
-        .eq('is_draft', false);
+        .or('is_draft.eq.false,is_draft.is.null');
 
       // If viewing someone else's profile, only count public reviews
       if (!isViewingOwnProfile) {
@@ -1025,7 +1025,7 @@ const { user, sessionExpired } = useAuth();
           updated_at
         `)
         .eq('user_id', targetUserId)
-        .eq('is_draft', false)
+        .or('is_draft.eq.false,is_draft.is.null')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -1163,7 +1163,7 @@ const { user, sessionExpired } = useAuth();
           )
         `)
         .eq('user_id', targetUserId)
-        .eq('is_draft', false)
+        .or('is_draft.eq.false,is_draft.is.null')
         .not('review_text', 'is', null)
         .neq('review_text', 'ATTENDANCE_ONLY');
       

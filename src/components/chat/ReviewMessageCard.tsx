@@ -66,7 +66,7 @@ export function ReviewMessageCard({
         .from('reviews')
         .select('id, user_id, event_id, rating, review_text, created_at, likes_count, comments_count')
         .eq('id', reviewId)
-        .single();
+        .maybeSingle();
 
       if (reviewError || !reviewData) {
         console.error('Error loading shared review:', reviewError);
@@ -80,7 +80,7 @@ export function ReviewMessageCard({
           .from('events')
           .select('title, event_date, artist_name, venue_name, venue_city, venue_state, genres')
           .eq('id', reviewData.event_id)
-          .single();
+          .maybeSingle();
         
         if (!eventError && event) {
           eventData = event;
