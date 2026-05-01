@@ -215,9 +215,10 @@ export class MyEventsService {
         const venuesMap: Record<string, { name?: string | null }> = {};
 
         if (eventIds.length > 0) {
+            // events table is normalized — no artist_name/venue_name columns; join from artists/venues
             const { data: eventsData, error: eventsError } = await supabase
                 .from('events')
-                .select('id, title, artist_name, venue_name, artist_id, venue_id, event_date, images')
+                .select('id, title, artist_id, venue_id, event_date, images')
                 .in('id', eventIds);
 
             if (eventsError) {
@@ -275,8 +276,8 @@ export class MyEventsService {
                         const vid = event.venue_id as string | undefined;
                         acc[id] = {
                             ...event,
-                            artist_name: (aid && eventArtistsMap[aid]?.name) || event.artist_name,
-                            venue_name: (vid && eventVenuesMap[vid]?.name) || event.venue_name,
+                            artist_name: (aid && eventArtistsMap[aid]?.name) || null,
+                            venue_name: (vid && eventVenuesMap[vid]?.name) || null,
                         };
                         return acc;
                     },
@@ -392,16 +393,32 @@ export class MyEventsService {
         const eventIds = (relRows || []).map((r: any) => r.event_id).filter(Boolean) as string[];
         if (eventIds.length === 0) return [];
 
-        // Step 2: fetch full event data
+        // Step 2: fetch events (no artist_name/venue_name — normalized schema stores these in artists/venues tables)
         const { data: eventsData, error: eventsError } = await supabase
             .from('events')
-            .select('id, title, artist_name, venue_name, event_date, images, artist_id, venue_id')
+            .select('id, title, event_date, images, artist_id, venue_id')
             .in('id', eventIds);
 
         if (eventsError) {
             console.warn('[myEvents] getInterestedEvents events', eventsError);
             return [];
         }
+
+        // Step 3: resolve artist and venue names from normalized tables
+        const allArtistIds = [...new Set((eventsData || []).map((e: any) => e.artist_id).filter(Boolean))] as string[];
+        const allVenueIds = [...new Set((eventsData || []).map((e: any) => e.venue_id).filter(Boolean))] as string[];
+
+        const [artistsResult, venuesResult] = await Promise.all([
+            allArtistIds.length > 0
+                ? supabase.from('artists').select('id, name').in('id', allArtistIds)
+                : Promise.resolve({ data: [] as Array<{ id: string; name: string }>, error: null }),
+            allVenueIds.length > 0
+                ? supabase.from('venues').select('id, name').in('id', allVenueIds)
+                : Promise.resolve({ data: [] as Array<{ id: string; name: string }>, error: null }),
+        ]);
+
+        const artistMap = new Map((artistsResult.data || []).map((a: any) => [a.id, a.name as string]));
+        const venueMap = new Map((venuesResult.data || []).map((v: any) => [v.id, v.name as string]));
 
         // Preserve order from step 1
         const eventsById = new Map((eventsData || []).map((e: any) => [e.id, e]));
@@ -410,11 +427,13 @@ export class MyEventsService {
         for (const eventId of eventIds) {
             const ev = eventsById.get(eventId);
             if (!ev) continue;
+            const artistName = (ev.artist_id ? artistMap.get(ev.artist_id) : null) || '';
+            const venueName = (ev.venue_id ? venueMap.get(ev.venue_id) : null) || '';
             results.push({
                 event_id: ev.id,
-                title: ev.title || ev.artist_name || 'Event',
-                artist_name: ev.artist_name || '',
-                venue_name: ev.venue_name || '',
+                title: ev.title || artistName || 'Event',
+                artist_name: artistName,
+                venue_name: venueName,
                 event_date: ev.event_date || '',
                 image_url: ev.images?.[0]?.url,
             });
@@ -441,6 +460,7 @@ export class MyEventsService {
                 .filter(Boolean) as string[]
         );
 
+        // events table has no artist_name/venue_name — only select normalized columns
         const [{ data: markers, error: mErr }, { data: draftRows, error: dErr }] = await Promise.all([
             supabase
                 .from('reviews')
@@ -452,8 +472,8 @@ export class MyEventsService {
           events (
             id,
             title,
-            artist_name,
-            venue_name,
+            artist_id,
+            venue_id,
             event_date,
             images
           )
@@ -475,8 +495,8 @@ export class MyEventsService {
           events (
             id,
             title,
-            artist_name,
-            venue_name,
+            artist_id,
+            venue_id,
             event_date,
             images
           )
@@ -491,20 +511,43 @@ export class MyEventsService {
         if (mErr) console.warn('[myEvents] attendance markers', mErr.message);
         if (dErr) console.warn('[myEvents] drafts', dErr.message);
 
+        // Resolve artist/venue names for all events in one batch
+        const allEventArtistIds = [...new Set([
+            ...(markers || []).map((r: any) => r.events?.artist_id).filter(Boolean),
+            ...(draftRows || []).map((r: any) => r.events?.artist_id).filter(Boolean),
+        ])] as string[];
+        const allEventVenueIds = [...new Set([
+            ...(markers || []).map((r: any) => r.events?.venue_id).filter(Boolean),
+            ...(draftRows || []).map((r: any) => r.events?.venue_id).filter(Boolean),
+        ])] as string[];
+
+        const [unreviewedArtistsResult, unreviewedVenuesResult] = await Promise.all([
+            allEventArtistIds.length > 0
+                ? supabase.from('artists').select('id, name').in('id', allEventArtistIds)
+                : Promise.resolve({ data: [] as Array<{ id: string; name: string }>, error: null }),
+            allEventVenueIds.length > 0
+                ? supabase.from('venues').select('id, name').in('id', allEventVenueIds)
+                : Promise.resolve({ data: [] as Array<{ id: string; name: string }>, error: null }),
+        ]);
+        const unreviewedArtistMap = new Map((unreviewedArtistsResult.data || []).map(a => [a.id, a.name as string]));
+        const unreviewedVenueMap = new Map((unreviewedVenuesResult.data || []).map(v => [v.id, v.name as string]));
+
         const items: ProfileUnreviewedItem[] = [];
 
         for (const r of markers || []) {
             const ev = (r as any).events;
             const eventId = (r as any).event_id as string | null;
             if (!eventId || !ev?.id) continue;
+            const artistName = ev.artist_id ? (unreviewedArtistMap.get(ev.artist_id) || '') : '';
+            const venueName = ev.venue_id ? (unreviewedVenueMap.get(ev.venue_id) || '') : '';
             const sortDate = String(ev.event_date || (r as any).updated_at || '');
             items.push({
                 kind: 'attendance_marker',
                 reviewId: (r as any).id,
                 event_id: eventId,
-                title: ev.title || ev.artist_name || 'Event',
-                artist_name: ev.artist_name || '',
-                venue_name: ev.venue_name || '',
+                title: ev.title || artistName || 'Event',
+                artist_name: artistName,
+                venue_name: venueName,
                 event_date: ev.event_date || '',
                 image_url: ev.images?.[0]?.url,
                 sortDate,
@@ -516,17 +559,19 @@ export class MyEventsService {
             const eventId = (r as any).event_id as string | null;
             if (eventId && completedEventIds.has(eventId)) continue;
 
+            const artistName = ev?.artist_id ? (unreviewedArtistMap.get(ev.artist_id) || '') : '';
+            const venueName = ev?.venue_id ? (unreviewedVenueMap.get(ev.venue_id) || '') : '';
             const sortDate = String(
                 ev?.event_date || (r as any).updated_at || (r as any).created_at || ''
             );
-            const title = ev?.title || ev?.artist_name || 'Continue review';
+            const title = ev?.title || artistName || 'Continue review';
             items.push({
                 kind: 'draft',
                 reviewId: (r as any).id,
                 event_id: eventId,
                 title,
-                artist_name: ev?.artist_name || '',
-                venue_name: ev?.venue_name || '',
+                artist_name: artistName,
+                venue_name: venueName,
                 event_date: ev?.event_date || '',
                 image_url: ev?.images?.[0]?.url,
                 sortDate,
