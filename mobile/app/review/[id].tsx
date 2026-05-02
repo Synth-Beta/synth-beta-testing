@@ -41,6 +41,13 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { EventService } from '../../src/services/eventService';
 import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
 
+/*
+ * Review detail (Expo) — behavioral parity with web `ReviewDetailView` as of 2026-05-01:
+ * separate queries for review / author / event / artist+venue names, category breakdown,
+ * photos, attendees, setlist, helpful, comments (entity + RPC), share-to-chat, delete/block.
+ * No major sections intentionally omitted vs web.
+ */
+
 const PINK = SynthTokens.colors.brandPink500;
 const SCREEN_W = Dimensions.get('window').width;
 const PHOTO_SIZE = (SCREEN_W - 32 - 8) / 3;
@@ -579,9 +586,7 @@ export default function ReviewDetailScreen() {
                 // Query the review itself — NO inline joins to avoid PostgREST inner-join
                 // silently dropping rows when a related event/user row is missing or blocked by RLS.
                 // This matches the web ReviewDetailView approach (separate queries).
-                const { data, error } = await supabase
-                    .from('reviews')
-                    .select(`
+                const reviewSelect = `
                         id,
                         user_id,
                         event_id,
@@ -608,14 +613,41 @@ export default function ReviewDetailScreen() {
                         met_on_synth,
                         setlist,
                         custom_setlist
-                    `)
+                    `;
+
+                let { data, error } = await supabase
+                    .from('reviews')
+                    .select(reviewSelect)
                     .eq('id', id)
                     .maybeSingle();
+
+                // Cold launch: session can hydrate after first tick — one retry after refresh
+                if (!data && !error) {
+                    await supabase.auth.refreshSession();
+                    const second = await supabase
+                        .from('reviews')
+                        .select(reviewSelect)
+                        .eq('id', id)
+                        .maybeSingle();
+                    data = second.data;
+                    error = second.error;
+                }
 
                 if (cancelled) return;
 
                 if (error || !data) {
-                    console.warn('[review detail] query returned null', { id, error });
+                    if (__DEV__) {
+                        console.warn('[review detail] query returned null', {
+                            id,
+                            message: (error as { message?: string } | null)?.message,
+                            code: (error as { code?: string } | null)?.code,
+                            details: (error as { details?: string } | null)?.details,
+                            hint: (error as { hint?: string } | null)?.hint,
+                            error,
+                        });
+                    } else {
+                        console.warn('[review detail] query returned null', { id, error });
+                    }
                     setReview(null);
                     setLoading(false);
                     return;
@@ -640,7 +672,7 @@ export default function ReviewDetailScreen() {
                     try {
                         const { data: evData } = await supabase
                             .from('events')
-                            .select('id, title, event_date, artist_name, venue_name, artist_id, venue_id, images')
+                            .select('id, title, event_date, artist_id, venue_id, images')
                             .eq('id', String(row.event_id))
                             .maybeSingle();
                         if (evData) evOne = evData as EventSummary;

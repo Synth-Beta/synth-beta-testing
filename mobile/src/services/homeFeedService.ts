@@ -298,9 +298,10 @@ export class HomeFeedService {
     private static async getFallbackUpcomingEvents(limit: number): Promise<UnifiedPersonalizedEvent[]> {
         // Match other mobile filters: local calendar day, not UTC from toISOString().
         const today = todayLocalYmd();
+        // events table is normalized — no artist_name/venue_name columns
         const { data, error } = await supabase
             .from('events')
-            .select('id, title, artist_name, artist_id, venue_id, venue_name, venue_city, event_date, images, ticket_urls')
+            .select('id, title, artist_id, venue_id, venue_city, event_date, images, ticket_urls')
             .gte('event_date', today)
             .order('event_date', { ascending: true })
             .limit(limit);
@@ -310,7 +311,25 @@ export class HomeFeedService {
             return [];
         }
 
-        return (data || []).map((event: any) => {
+        const rows = data || [];
+
+        // Batch-resolve artist and venue names
+        const artistIds = [...new Set(rows.map((e: any) => e.artist_id).filter(Boolean))] as string[];
+        const venueIds = [...new Set(rows.map((e: any) => e.venue_id).filter(Boolean))] as string[];
+
+        const artistMap = new Map<string, string>();
+        const venueMap = new Map<string, string>();
+
+        if (artistIds.length > 0) {
+            const { data: artists } = await supabase.from('artists').select('id, name').in('id', artistIds);
+            (artists || []).forEach((a: any) => artistMap.set(a.id, a.name));
+        }
+        if (venueIds.length > 0) {
+            const { data: venues } = await supabase.from('venues').select('id, name').in('id', venueIds);
+            (venues || []).forEach((v: any) => venueMap.set(v.id, v.name));
+        }
+
+        return rows.map((event: any) => {
             const rawImg = pickFeedImageUrlFromPayload({
                 images: event.images,
                 poster_image_url: undefined,
@@ -321,8 +340,8 @@ export class HomeFeedService {
             return {
                 id: event.id,
                 title: event.title?.trim() ? String(event.title) : 'Untitled Event',
-                artist_name: event.artist_name || '',
-                venue_name: event.venue_name || '',
+                artist_name: (event.artist_id ? artistMap.get(event.artist_id) : null) || '',
+                venue_name: (event.venue_id ? venueMap.get(event.venue_id) : null) || '',
                 venue_city: event.venue_city || undefined,
                 event_date: event.event_date || '',
                 image_url,
@@ -379,22 +398,21 @@ export class HomeFeedService {
             title,
             event_date,
             artist_id,
-            venue_id,
-            artist_name,
-            venue_name
+            venue_id
           )
         `;
 
             let query = supabase
                 .from('reviews')
                 .select(selectFields)
-                .eq('is_public', true)
-                .eq('is_draft', false)
+                // Align with review detail + web: treat NULL is_public / is_draft as published/public
+                .or('is_public.eq.true,is_public.is.null')
+                .or('is_draft.eq.false,is_draft.is.null')
                 .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY');
 
             // Filter by friend network when friends exist; otherwise show all public reviews
             if (hasFriends) {
-                query = query.in('user_id', friendIds);
+                query = query.in('user_id', [...new Set(friendIds)]);
             }
 
             const { data: reviews, error: reviewsError } = await query

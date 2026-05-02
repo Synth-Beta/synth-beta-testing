@@ -38,6 +38,23 @@ import {
 const PINK = SynthTokens.colors.brandPink500;
 const PLACEHOLDER = require('../../../assets/Synth_Placeholder.png');
 
+/** Match web `ProfileStarBuckets` local-date display (YYYY-MM-DD → local calendar day). */
+function formatCompactReviewDate(ymdOrIso: string | undefined): string {
+    if (!ymdOrIso?.trim()) return '';
+    const s = ymdOrIso.trim();
+    const datePart = s.split('T')[0] ?? '';
+    const nums = datePart.split('-').map(Number);
+    if (nums.length === 3 && nums.every(n => Number.isFinite(n))) {
+        const [y, m, d] = nums;
+        if (y > 0 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+            const dt = new Date(y, m - 1, d);
+            if (Number.isFinite(dt.getTime())) return dt.toLocaleDateString();
+        }
+    }
+    const dt = new Date(s);
+    return Number.isFinite(dt.getTime()) ? dt.toLocaleDateString() : s;
+}
+
 export type ProfileMyEventsViewMode = 'reviews' | 'rankings' | 'unreviewed';
 
 export type ProfileMyEventsPanelHandle = {
@@ -235,6 +252,11 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
             <SynthText variant="meta" color="secondary" numberOfLines={1}>
               {item.venue_name}
             </SynthText>
+            {item.event_date ? (
+              <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.compactDate}>
+                {formatCompactReviewDate(item.event_date)}
+              </SynthText>
+            ) : null}
             {rv > 0 ? (
               <View style={styles.compactRatingRow}>
                 <HalfStarDisplay rating={rv} />
@@ -656,6 +678,7 @@ const styles = StyleSheet.create({
   compactImage: { width: '100%', height: 80, backgroundColor: SynthTokens.colors.neutral100 },
   compactBody: { padding: 10, gap: 4 },
   compactTitle: { fontWeight: '800', fontSize: 13, minHeight: 36 },
+  compactDate: { fontSize: 11, marginTop: 2 },
   compactRatingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   compactStarNum: { fontSize: 11, fontWeight: '700' },
   noRatingLbl: { fontSize: 11, marginTop: 4, fontStyle: 'italic' },

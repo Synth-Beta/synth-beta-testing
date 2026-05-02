@@ -7,6 +7,7 @@ import {
     Text,
     Platform,
     ActivityIndicator,
+    ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -267,6 +268,23 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                                 </SynthText>
                             ) : null}
 
+                            {photos.length > 1 ? (
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={styles.photoStrip}
+                                >
+                                    {photos.map((uri, idx) => (
+                                        <Image
+                                            key={`${uri}-${idx}`}
+                                            source={{ uri }}
+                                            style={styles.photoStripThumb}
+                                            contentFit="cover"
+                                        />
+                                    ))}
+                                </ScrollView>
+                            ) : null}
+
                             {engagementSummary ? (
                                 <SynthText variant="meta" color="secondary" style={styles.engagementSummary}>
                                     {engagementSummary}
@@ -474,6 +492,17 @@ const styles = StyleSheet.create({
     previewQuote: {
         fontStyle: 'italic',
         lineHeight: 22,
+    },
+    photoStrip: {
+        flexDirection: 'row',
+        gap: 6,
+        paddingVertical: 2,
+    },
+    photoStripThumb: {
+        width: 44,
+        height: 44,
+        borderRadius: 8,
+        backgroundColor: SynthTokens.colors.neutral200,
     },
     engagementSummary: {
         fontWeight: '500',

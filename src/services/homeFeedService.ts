@@ -805,12 +805,12 @@ export class HomeFeedService {
       // When no friends exist show recent public reviews from all users (discovery mode).
       const hasFriends = (friends ?? []).length > 0;
       const friendIds = hasFriends
-        ? friends!.map(f => f.user_id === userId ? f.related_user_id : f.user_id)
+        ? [userId, ...friends!.map(f => (f.user_id === userId ? f.related_user_id : f.user_id))]
         : [];
 
       console.log('🔍 [NETWORK_REVIEWS] Friend IDs:', friendIds);
 
-      // Get reviews — scoped to friends when they exist, otherwise all public reviews
+      // Get reviews — scoped to friends (+ self) when they exist, otherwise all public reviews
       let reviewQuery = supabase
         .from('reviews')
         .select(`
@@ -831,12 +831,13 @@ export class HomeFeedService {
             venue_id
           )
         `)
-        .eq('is_public', true)
-        .eq('is_draft', false)
+        // Align with mobile + review detail: NULL is_public / is_draft treated as published/public
+        .or('is_public.eq.true,is_public.is.null')
+        .or('is_draft.eq.false,is_draft.is.null')
         .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY');
 
       if (hasFriends) {
-        reviewQuery = reviewQuery.in('user_id', friendIds);
+        reviewQuery = reviewQuery.in('user_id', [...new Set(friendIds)]);
       }
 
       const { data: reviews, error: reviewsError } = await reviewQuery
