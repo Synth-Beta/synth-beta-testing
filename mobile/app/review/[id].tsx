@@ -744,6 +744,7 @@ export default function ReviewDetailScreen() {
                     comments_count: typeof row.comments_count === 'number' ? row.comments_count : 0,
                     is_liked_by_user: likedSet.has(String(id)),
                     attendees: Array.isArray(row.attendees) ? row.attendees : null,
+                    met_on_synth: null,
                     setlist: row.setlist ?? null,
                     custom_setlist: Array.isArray(row.custom_setlist) ? row.custom_setlist : null,
                 };
