@@ -23,6 +23,7 @@ export interface InterestedEventItem {
     venue_name: string;
     event_date: string;
     image_url?: string;
+    venue_city?: string;
 }
 
 /** Web-aligned unreviewed queue: attendance-marker reviews + eligible drafts. */
@@ -393,11 +394,13 @@ export class MyEventsService {
         const eventIds = (relRows || []).map((r: any) => r.event_id).filter(Boolean) as string[];
         if (eventIds.length === 0) return [];
 
-        // Step 2: fetch events (no artist_name/venue_name — normalized schema stores these in artists/venues tables)
+        // Step 2: fetch upcoming events only (same as web — past events are excluded)
+        const now = new Date().toISOString();
         const { data: eventsData, error: eventsError } = await supabase
             .from('events')
-            .select('id, title, event_date, images, artist_id, venue_id')
-            .in('id', eventIds);
+            .select('id, title, event_date, images, artist_id, venue_id, venue_city')
+            .in('id', eventIds)
+            .gte('event_date', now);
 
         if (eventsError) {
             console.warn('[myEvents] getInterestedEvents events', eventsError);
@@ -436,6 +439,7 @@ export class MyEventsService {
                 venue_name: venueName,
                 event_date: ev.event_date || '',
                 image_url: ev.images?.[0]?.url,
+                venue_city: ev.venue_city || undefined,
             });
         }
         return results;

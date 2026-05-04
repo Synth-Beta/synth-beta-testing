@@ -23,6 +23,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
 import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
 import { InterestedEventItem, MyEventsService } from '../../src/services/myEventsService';
+import { EventCard } from '../../src/components/Feed/EventCard';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
 import {
   ProfileMyEventsPanel,
@@ -328,22 +329,23 @@ export default function ProfileScreen() {
           <View style={styles.tabPanel}>
             {interested.length === 0 ? (
               <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
-                No interested shows yet.
+                No upcoming interested shows.
               </SynthText>
             ) : (
-              interested.slice(0, 12).map(ev => (
-                <Pressable
+              interested.map(ev => (
+                <EventCard
                   key={ev.event_id}
-                  style={styles.interestedRow}
+                  id={ev.event_id}
+                  title={ev.title}
+                  artist_name={ev.artist_name}
+                  venue_name={ev.venue_name}
+                  event_date={ev.event_date}
+                  image_url={ev.image_url}
+                  venue_city={ev.venue_city}
+                  initialInterested={true}
+                  currentUserId={authUserId}
                   onPress={() => router.push(`/event/${ev.event_id}`)}
-                >
-                  <SynthText variant="meta" style={styles.interestedTitle} numberOfLines={1}>
-                    {ev.artist_name || ev.title}
-                  </SynthText>
-                  <SynthText variant="meta" color="secondary" numberOfLines={1}>
-                    {ev.venue_name}
-                  </SynthText>
-                </Pressable>
+                />
               ))
             )}
           </View>
@@ -526,12 +528,6 @@ const styles = StyleSheet.create({
   profileTabTxtOn: { color: SynthTokens.colors.neutral900 },
   tabPanel: { paddingHorizontal: SynthTokens.spacing.md, marginTop: SynthTokens.spacing.md, gap: 10 },
   tabBlurb: { lineHeight: 20 },
-  interestedRow: {
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: SynthTokens.colors.neutral200,
-  },
-  interestedTitle: { fontWeight: '800' },
   passportContainer: {
     paddingHorizontal: SynthTokens.spacing.md,
     paddingBottom: SynthTokens.spacing.lg,
