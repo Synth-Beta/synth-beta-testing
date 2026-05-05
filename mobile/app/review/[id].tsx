@@ -52,6 +52,57 @@ const PINK = SynthTokens.colors.brandPink500;
 const SCREEN_W = Dimensions.get('window').width;
 const PHOTO_SIZE = (SCREEN_W - 32 - 8) / 3;
 
+/** Matches web [ReviewDetailView](src/components/reviews/ReviewDetailView.tsx) — avoids optional columns missing on some DBs. */
+const REVIEW_SELECT_WEB_PARITY = `
+            id,
+            user_id,
+            review_text,
+            rating,
+            photos,
+            created_at,
+            artist_performance_rating,
+            production_rating,
+            venue_rating,
+            location_rating,
+            value_rating,
+            artist_performance_feedback,
+            production_feedback,
+            venue_feedback,
+            location_feedback,
+            value_feedback,
+            setlist,
+            likes_count,
+            comments_count,
+            event_id,
+            artist_id,
+            venue_id,
+            attendees,
+            is_public,
+            custom_setlist
+        `;
+
+/** Last resort when web-parity list still hits undefined_column (e.g. feedback columns missing). */
+const REVIEW_SELECT_MINIMAL = `
+            id,
+            user_id,
+            review_text,
+            rating,
+            photos,
+            created_at,
+            setlist,
+            likes_count,
+            comments_count,
+            event_id,
+            artist_id,
+            venue_id
+        `;
+
+function isUndefinedColumnPostgrestError(e: unknown): boolean {
+    const code = (e as { code?: string })?.code;
+    const msg = String((e as { message?: string })?.message ?? '');
+    return code === '42703' || /column .* does not exist/i.test(msg);
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type EventSummary = {
@@ -562,13 +613,16 @@ export default function ReviewDetailScreen() {
     const [liking, setLiking] = useState(false);
     const [commentsOpen, setCommentsOpen] = useState(false);
     const [shareToChatOpen, setShareToChatOpen] = useState(false);
+    const [lastError, setLastError] = useState<{ code?: string; message?: string } | null>(null);
 
     useEffect(() => {
         let cancelled = false;
         void (async () => {
             setLoading(true);
+            setLastError(null);
             try {
                 if (!id) {
+                    if (__DEV__) setLastError({ message: 'Missing review id in route' });
                     setLoading(false);
                     return;
                 }
@@ -583,64 +637,42 @@ export default function ReviewDetailScreen() {
                 const user = session?.user ?? null;
                 if (user) setSessionUserId(user.id);
 
-                // Query the review itself — NO inline joins to avoid PostgREST inner-join
-                // silently dropping rows when a related event/user row is missing or blocked by RLS.
-                // This matches the web ReviewDetailView approach (separate queries).
-                const reviewSelect = `
-                        id,
-                        user_id,
-                        event_id,
-                        artist_id,
-                        venue_id,
-                        rating,
-                        review_text,
-                        photos,
-                        created_at,
-                        is_public,
-                        is_draft,
-                        artist_performance_rating,
-                        production_rating,
-                        venue_rating,
-                        location_rating,
-                        value_rating,
-                        artist_performance_feedback,
-                        production_feedback,
-                        venue_feedback,
-                        location_feedback,
-                        value_feedback,
-                        likes_count,
-                        comments_count,
-                        attendees,
-                        setlist,
-                        custom_setlist
-                    `;
+                // Query the review itself — NO inline joins. Column list matches web ReviewDetailView first;
+                // on 42703 (missing column) fall back to minimal select (see reviewService.ts ~672).
+                const fetchReview = (selectList: string) =>
+                    supabase.from('reviews').select(selectList).eq('id', id).maybeSingle();
 
-                let { data, error } = await supabase
-                    .from('reviews')
-                    .select(reviewSelect)
-                    .eq('id', id)
-                    .maybeSingle();
+                let { data, error } = await fetchReview(REVIEW_SELECT_WEB_PARITY);
 
                 // Cold launch: session can hydrate after first tick — one retry after refresh
                 if (!data && !error) {
                     await supabase.auth.refreshSession();
-                    const second = await supabase
-                        .from('reviews')
-                        .select(reviewSelect)
-                        .eq('id', id)
-                        .maybeSingle();
+                    const second = await fetchReview(REVIEW_SELECT_WEB_PARITY);
                     data = second.data;
                     error = second.error;
+                }
+
+                if (error && isUndefinedColumnPostgrestError(error)) {
+                    const fb = await fetchReview(REVIEW_SELECT_MINIMAL);
+                    data = fb.data;
+                    error = fb.error;
                 }
 
                 if (cancelled) return;
 
                 if (error || !data) {
+                    const errObj = error as { code?: string; message?: string } | null;
+                    setLastError({
+                        code: errObj?.code,
+                        message:
+                            errObj?.message ??
+                            (!data && !error ? 'No row returned (check RLS or id)' : undefined),
+                    });
                     if (__DEV__) {
                         console.warn('[review detail] query returned null', {
                             id,
-                            message: (error as { message?: string } | null)?.message,
-                            code: (error as { code?: string } | null)?.code,
+                            message: errObj?.message,
+                            code: errObj?.code,
                             details: (error as { details?: string } | null)?.details,
                             hint: (error as { hint?: string } | null)?.hint,
                             error,
@@ -653,7 +685,7 @@ export default function ReviewDetailScreen() {
                     return;
                 }
 
-                const row = data as Record<string, unknown>;
+                const row = data as unknown as Record<string, unknown>;
 
                 // Fetch author separately (avoids inner-join exclusion if user row missing)
                 let author: ReviewRow['author'] = null;
@@ -727,7 +759,8 @@ export default function ReviewDetailScreen() {
                     review_text: row.review_text != null ? String(row.review_text) : null,
                     photos: Array.isArray(row.photos) ? (row.photos as string[]) : null,
                     created_at: String(row.created_at),
-                    is_public: Boolean(row.is_public),
+                    // Treat null/undefined is_public as public (only block explicit false)
+                    is_public: row.is_public !== false,
                     artist_performance_rating: row.artist_performance_rating != null ? Number(row.artist_performance_rating) : null,
                     production_rating: row.production_rating != null ? Number(row.production_rating) : null,
                     venue_rating: row.venue_rating != null ? Number(row.venue_rating) : null,
@@ -750,8 +783,8 @@ export default function ReviewDetailScreen() {
                 };
 
                 const isOwner = user != null && normalized.user_id === user.id;
-                // Treat null is_public as public — only block if explicitly false
-                if (normalized.is_public === false && !isOwner) {
+                if (!normalized.is_public && !isOwner) {
+                    setLastError(null);
                     setForbidden(true);
                     setReview(null);
                     setLoading(false);
@@ -759,6 +792,7 @@ export default function ReviewDetailScreen() {
                 }
 
                 setForbidden(false);
+                setLastError(null);
                 setReview(normalized);
                 setLikesCount(normalized.likes_count);
                 setCommentsCount(normalized.comments_count);
@@ -767,6 +801,9 @@ export default function ReviewDetailScreen() {
             } catch (err) {
                 console.error('[review] load error', err);
                 if (!cancelled) {
+                    setLastError({
+                        message: err instanceof Error ? err.message : String(err),
+                    });
                     setReview(null);
                     setLoading(false);
                 }
@@ -907,6 +944,16 @@ export default function ReviewDetailScreen() {
                                 ? 'You do not have access to this review.'
                                 : 'This review may have been removed or the link is invalid.'}
                         </SynthText>
+                        {__DEV__ && lastError && (lastError.code || lastError.message) ? (
+                            <SynthText
+                                variant="meta"
+                                color="secondary"
+                                style={{ marginTop: 16, textAlign: 'center', paddingHorizontal: 16 }}
+                            >
+                                DEBUG: {lastError.code ? `${lastError.code} — ` : ''}
+                                {lastError.message ?? '(no message)'}
+                            </SynthText>
+                        ) : null}
                     </View>
                 </View>
             </>
