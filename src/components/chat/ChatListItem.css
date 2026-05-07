@@ -43,7 +43,7 @@
 
 .chat-list-item__name {
   font-family: var(--font-family);
-  font-size: var(--typography-h2-size, var(--typography-h2-size));
+  font-size: var(--typography-h2-size, 24px);
   font-weight: var(--typography-h2-weight, 700);
   line-height: var(--typography-h2-line-height, 1.3);
   color: var(--neutral-900);

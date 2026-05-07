@@ -292,8 +292,7 @@ body,
   /* Gradient accents throughout */
   .gradient-badge {
     background: var(--gradient-brand);
-    color: var(--neutral-0);
-    @apply px-3 py-1 rounded-full text-xs font-medium relative;
+    @apply var(--neutral-0) px-3 py-1 rounded-full text-xs font-medium relative;
   }
   .gradient-badge::after {
     content: '';
@@ -323,8 +322,7 @@ body,
 
   .gradient-button {
     background: var(--gradient-pink);
-    color: var(--neutral-0);
-    @apply px-6 py-3 rounded-full font-medium transition-all duration-200;
+    @apply var(--neutral-0) px-6 py-3 rounded-full font-medium transition-all duration-200;
     box-shadow: 0 6px 20px color-mix(in srgb, var(--brand-pink-500) 40%, transparent);
   }
 
@@ -419,14 +417,12 @@ body,
 
   .tab-button {
     @apply px-6 py-3 text-sm font-medium transition-all duration-200;
-    color: var(--neutral-600);
-    @apply hover:text-pink-500 relative z-10;
+    @apply var(--neutral-600) hover:text-pink-500 relative z-10;
     cursor: pointer;
   }
 
   .tab-button.active {
-    color: var(--brand-pink-600);
-    font-weight: 600;
+    @apply var(--brand-pink-600) font-semibold;
   }
 
   .tab-button:hover {
@@ -460,8 +456,7 @@ body,
 
   .nav-button.active {
     background: var(--gradient-pink);
-    color: var(--neutral-0);
-    @apply rounded-full px-4 py-2 shadow-lg;
+    @apply var(--neutral-0) rounded-full px-4 py-2 shadow-lg;
     box-shadow: 0 8px 25px color-mix(in srgb, var(--brand-pink-500) 40%, transparent);
   }
 
@@ -486,8 +481,7 @@ body,
   }
 
   .nav-button:not(.active) {
-    color: var(--neutral-600);
-    @apply hover:text-pink-500 hover:scale-110;
+    @apply var(--neutral-600) hover:text-pink-500 hover:scale-110;
   }
 
   /* Enhanced header styles */
@@ -785,7 +779,7 @@ body,
   }
   
   .synth-logo-s {
-    color: var(--brand-pink-500);
+    @apply var(--brand-pink-500);
   }
   
   .synth-logo-text {
@@ -794,8 +788,7 @@ body,
   
   /* Event category badges - Synth themed */
   .category-music { 
-    color: var(--brand-pink-500);
-    @apply bg-synth-pink/10 border border-synth-pink/20;
+    @apply bg-synth-pink/10 var(--brand-pink-500) border border-synth-pink/20; 
   }
   .category-food { 
     @apply bg-orange-100 text-orange-700 border border-orange-200; 
@@ -1040,9 +1033,8 @@ body,
   }
   
   .synth-nav-item.active {
-    color: var(--neutral-0);
-    @apply bg-synth-pink;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--brand-pink-500) 30%, transparent);
+    @apply bg-synth-pink var(--neutral-0);
+    box-shadow: 0 4px 12px rgba(255, 51, 153, 0.3);
   }
   
   .synth-nav-item:not(.active) {
