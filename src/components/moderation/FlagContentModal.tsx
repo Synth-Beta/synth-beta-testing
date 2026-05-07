@@ -87,7 +87,7 @@ const flagCategories = [
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Flag className="w-5 h-5 var(--status-error-500)" />
+            <Flag className="w-5 h-5 text-red-500" />
             Flag {contentTypeLabels[contentType]}
           </DialogTitle>
           <DialogDescription>

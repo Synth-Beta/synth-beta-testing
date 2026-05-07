@@ -108,7 +108,7 @@ export function ManualArtistForm({ open, onClose, onArtistCreated, initialQuery 
           {/* Artist Name */}
           <div className="space-y-2">
             <Label htmlFor="name">
-              Artist Name <span className="var(--status-error-500)">*</span>
+              Artist Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="name"

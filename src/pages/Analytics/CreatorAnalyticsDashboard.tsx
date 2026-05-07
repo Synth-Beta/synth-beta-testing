@@ -268,7 +268,7 @@ export default function CreatorAnalyticsDashboard() {
                 <Download className="w-4 h-4" />
                 Export Data
               </button>
-              <button className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 var(--neutral-0) rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all">
+              <button className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all">
                 Upgrade to Pro
               </button>
             </div>
@@ -370,7 +370,7 @@ export default function CreatorAnalyticsDashboard() {
             {conversionFunnel && conversionFunnel.stages.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 var(--brand-pink-500)" />
+                  <TrendingUp className="w-5 h-5 text-synth-pink" />
                   Fan Conversion Funnel
                 </h2>
                 <ConversionFunnelChart
@@ -385,7 +385,7 @@ export default function CreatorAnalyticsDashboard() {
             {revenueMetrics && revenueMetrics.total_revenue > 0 && (
               <div className="mb-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Star className="w-5 h-5 var(--brand-pink-500)" />
+                  <Star className="w-5 h-5 text-synth-pink" />
                   Revenue Attribution
                 </h2>
                 <RevenueAttributionChart
@@ -594,7 +594,7 @@ export default function CreatorAnalyticsDashboard() {
             {/* Header */}
             <div className="text-center mb-6">
               <div className="flex items-center justify-center gap-3 mb-2">
-                <Trophy className="w-8 h-8 var(--rating-star)" />
+                <Trophy className="w-8 h-8 text-yellow-500" />
                 <h2 className="gradient-text text-2xl font-bold">Creator Achievements</h2>
               </div>
               <p className="var(--neutral-600) text-sm">
@@ -677,7 +677,7 @@ export default function CreatorAnalyticsDashboard() {
                 <TrendingUp className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Promotions Yet</h3>
                 <p className="text-gray-500 mb-4">Start promoting your events to see detailed analytics here</p>
-                <button className="px-4 py-2 bg-purple-600 var(--neutral-0) rounded-lg hover:bg-purple-700 transition-colors">
+                <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
                   Promote Your First Event
                 </button>
               </div>

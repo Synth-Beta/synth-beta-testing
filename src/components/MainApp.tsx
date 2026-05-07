@@ -1063,7 +1063,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             className="font-bold truncate"
             style={{
               fontFamily: 'var(--font-family)',
-              fontSize: 'var(--typography-h2-size, var(--typography-h2-size))',
+              fontSize: 'var(--typography-h2-size, 24px)',
               fontWeight: 'var(--typography-h2-weight, 700)',
               lineHeight: 'var(--typography-h2-line-height, 1.3)',
               color: 'var(--neutral-900)',

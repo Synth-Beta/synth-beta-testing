@@ -782,7 +782,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
             
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 hover-icon" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
               <Input
                 placeholder="Search chats..."
                 value={searchQuery}
@@ -796,7 +796,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           <div className="flex-1 overflow-y-auto">
             {chats.length === 0 ? (
               <div className="p-4 text-center">
-                <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                 <h3 className="font-semibold gradient-text mb-1">No Chats Yet</h3>
                 <p className="text-sm var(--neutral-600)">Start a conversation with your friends!</p>
               </div>
@@ -815,7 +815,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                     <div className="flex items-center gap-3">
                       {chat.type === 'group' ? (
                         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-100 to-white flex items-center justify-center">
-                          <Users className="w-5 h-5 hover-icon" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                          <Users className="w-5 h-5 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                         </div>
                       ) : (
                         <Avatar className="w-10 h-10">
@@ -974,7 +974,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
               >
                 {messages.length === 0 ? (
                   <div className="text-center py-8">
-                    <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                    <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                     <h3 className="font-semibold gradient-text mb-1">No Messages Yet</h3>
                     <p className="text-sm var(--neutral-600)">Start the conversation!</p>
                   </div>
@@ -997,7 +997,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                       <div
                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                           message.sender_id === currentUserId
-                            ? 'bg-gradient-to-r from-pink-500 to-pink-600 var(--neutral-0) shadow-lg'
+                            ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg'
                             : 'bg-white/70 backdrop-blur-sm text-gray-900 border border-white/50 shadow-lg'
                         }`}
                       >
@@ -1047,7 +1047,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <MessageCircle className="w-16 h-16 mx-auto mb-4 hover-icon" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                <MessageCircle className="w-16 h-16 mx-auto mb-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                 <h3 className="text-xl font-semibold gradient-text mb-2">Select a Chat</h3>
                 <p className="var(--neutral-600)">Choose a conversation to start chatting</p>
               </div>
@@ -1105,7 +1105,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                       </div>
                       {selectedFriends.includes(friend.id) && (
                         <div className="w-5 h-5 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 flex items-center justify-center">
-                          <span className="var(--neutral-0) text-xs">✓</span>
+                          <span className="text-white text-xs">✓</span>
                         </div>
                       )}
                     </div>

@@ -581,7 +581,7 @@ export function ReviewDetailView({
               >
                 <Avatar className="w-14 h-14">
                   <AvatarImage src={reviewData.author?.avatar_url || undefined} alt={reviewData.author?.name} />
-                  <AvatarFallback className="var(--neutral-0) font-bold text-lg" style={{ backgroundColor: 'var(--brand-pink-500)' }}>
+                  <AvatarFallback className="text-white font-bold text-lg" style={{ backgroundColor: '#FF3399' }}>
                     {reviewData.author?.name?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>

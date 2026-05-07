@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen flex items-center justify-center p-6">
           <div className="max-w-md w-full text-center">
-            <div className="w-16 h-16 mx-auto mb-4 var(--status-error-500)">
+            <div className="w-16 h-16 mx-auto mb-4 text-red-500">
               <AlertTriangle className="w-full h-full" />
             </div>
 

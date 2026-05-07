@@ -123,23 +123,23 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
 
         <div className="space-y-3 bg-muted/30 rounded-xl p-4">
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <Calendar className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <Calendar className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">
               {event.date} at {event.time}
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <MapPin className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <MapPin className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">{event.venue}</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-foreground">
-            <Users className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <Users className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
             <span className="font-medium">{event.attendeeCount} interested</span>
           </div>
           {/* Setlist information for past events */}
           {isPast && (
             <div className="flex items-center gap-3 text-sm text-foreground">
-              <Music className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: '--gradient-pink', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+              <Music className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
               <div className="flex items-center gap-2">
                 {setlistLoading ? (
                   <span className="text-muted-foreground">Loading setlist...</span>
@@ -198,7 +198,7 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
                 onClick={() => handleSwipe("pass")}
                 variant="outline"
                 size="lg"
-                className="hover-button flex-1 border-2 border-gray-300 hover:border-red-400 hover:var(--status-error-500) btn-swipe-pass h-14 text-base font-semibold transition-all duration-200"
+                className="hover-button flex-1 border-2 border-gray-300 hover:border-red-400 hover:text-red-500 btn-swipe-pass h-14 text-base font-semibold transition-all duration-200"
                 disabled={isAnimating}
                 aria-label="Pass on this event"
               >

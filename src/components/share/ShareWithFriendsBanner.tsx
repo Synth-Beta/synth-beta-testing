@@ -56,7 +56,7 @@ export function ShareWithFriendsBanner({ onDismiss, referralCode }: ShareWithFri
           {BANNER_MESSAGE}
         </AlertDescription>
         <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" onClick={handleShare} className="bg-pink-600 hover:bg-pink-700 var(--neutral-0)">
+          <Button size="sm" onClick={handleShare} className="bg-pink-600 hover:bg-pink-700 text-white">
             Share
           </Button>
           <Button size="sm" variant="ghost" onClick={handleDismiss} className="h-8 w-8 p-0" aria-label="Dismiss">

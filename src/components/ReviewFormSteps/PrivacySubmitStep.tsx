@@ -83,20 +83,20 @@ export function PrivacySubmitStep({
           <div className="space-y-3">
             {/* Event Info */}
             <div className="flex items-center space-x-2">
-              <Check className="w-4 h-4 var(--status-success-500)" />
+              <Check className="w-4 h-4 text-green-500" />
               <span className="text-sm text-gray-700">
                 <strong>{formData.selectedArtist?.name}</strong> at <strong>{formData.selectedVenue?.name}</strong>
               </span>
             </div>
             
             <div className="flex items-center space-x-2">
-              <Check className="w-4 h-4 var(--status-success-500)" />
+              <Check className="w-4 h-4 text-green-500" />
               <span className="text-sm text-gray-700">{formatDate(formData.eventDate)}</span>
             </div>
             
             {/* Rating */}
             <div className="flex items-center space-x-2">
-              <Check className="w-4 h-4 var(--status-success-500)" />
+              <Check className="w-4 h-4 text-green-500" />
               <div className="flex items-center space-x-1">
                 {getRatingStars(formData.rating)}
                 <span className="text-sm text-gray-700 ml-1">({formData.rating}/5)</span>
@@ -106,7 +106,7 @@ export function PrivacySubmitStep({
             {/* Content */}
             {formData.reactionEmoji && (
               <div className="flex items-center space-x-2">
-                <Check className="w-4 h-4 var(--status-success-500)" />
+                <Check className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-gray-700">
                   Reaction: {formData.reactionEmoji}
                 </span>
@@ -115,7 +115,7 @@ export function PrivacySubmitStep({
             
             {formData.reviewText && (
               <div className="flex items-center space-x-2">
-                <Check className="w-4 h-4 var(--status-success-500)" />
+                <Check className="w-4 h-4 text-green-500" />
                 <span className="text-sm text-gray-700">
                   Written review ({formData.reviewText.length} characters)
                 </span>
@@ -228,7 +228,7 @@ export function PrivacySubmitStep({
         <Button
           onClick={onSubmit}
           disabled={isLoading}
-          className="w-full bg-pink-500 hover:bg-pink-600 var(--neutral-0) py-3 text-base font-medium"
+          className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 text-base font-medium"
         >
           {isLoading ? (
             <div className="flex items-center space-x-2">

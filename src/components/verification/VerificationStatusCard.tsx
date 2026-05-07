@@ -36,7 +36,7 @@ export function VerificationStatusCard({
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-center py-8">
-              <CheckCircle className="w-16 h-16 var(--status-success-500)" />
+              <CheckCircle className="w-16 h-16 text-green-500" />
             </div>
           </CardContent>
         </Card>
@@ -101,7 +101,7 @@ export function VerificationStatusCard({
           <div>
             <CardTitle className="flex items-center gap-2">
               Verification Status
-              {verified && <CheckCircle className="w-5 h-5 var(--status-success-500)" />}
+              {verified && <CheckCircle className="w-5 h-5 text-green-500" />}
             </CardTitle>
             <CardDescription>
               {verified

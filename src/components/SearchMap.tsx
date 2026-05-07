@@ -393,7 +393,7 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
               <Button
                 onClick={handleSearchThisArea}
                 disabled={isSearchingArea}
-                className="bg-pink-500 hover:bg-pink-600 var(--neutral-0) shadow-lg"
+                className="bg-pink-500 hover:bg-pink-600 text-white shadow-lg"
               >
                 {isSearchingArea ? (
                   <>

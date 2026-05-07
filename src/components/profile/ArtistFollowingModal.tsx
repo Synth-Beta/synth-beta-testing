@@ -135,7 +135,7 @@ export function ArtistFollowingModal({
             <span className="ml-2">Loading followed artists...</span>
           </div>
         ) : error ? (
-          <div className="text-center py-8 var(--status-error-500)">
+          <div className="text-center py-8 text-red-500">
             {error}
           </div>
         ) : followedArtists.length === 0 ? (
@@ -157,7 +157,7 @@ export function ArtistFollowingModal({
                   <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-pink-50 to-purple-50 border-b">
                     <Avatar className="w-12 h-12">
                       <AvatarImage src={artist.artist_image_url} />
-                      <AvatarFallback className="bg-pink-100 var(--brand-pink-600)">
+                      <AvatarFallback className="bg-pink-100 text-pink-600">
                         <Music className="w-6 h-6" />
                       </AvatarFallback>
                     </Avatar>

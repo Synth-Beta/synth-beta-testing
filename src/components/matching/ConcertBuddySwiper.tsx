@@ -211,7 +211,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
     return (
       <Card>
         <CardContent className="py-12 text-center">
-          <Sparkles className="h-16 w-16 var(--color-purple) mx-auto mb-4" />
+          <Sparkles className="h-16 w-16 text-purple-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">All Done!</h3>
           <p className="var(--neutral-600) text-sm mb-4">
             You've reviewed all people going to this event
@@ -369,7 +369,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
             disabled={swiping}
             className="w-20 h-20 rounded-full border-2 border-red-300 hover:bg-red-50 hover:border-red-400"
           >
-            <X className="h-10 w-10 var(--status-error-500)" />
+            <X className="h-10 w-10 text-red-500" />
           </Button>
 
           <Button

@@ -26,7 +26,7 @@ import {
 } from '../../src/components/auth/AndroidGoogleSignInRow';
 
 /** Matches web `Auth.tsx` primary / link pink. */
-const AUTH_PINK = 'var(--brand-pink-500)';
+const AUTH_PINK = '#FF3399';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -198,7 +198,7 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <LinearGradient
-        colors={['#fdf2f8', '#ffffff', '--brand-pink-050', '#ffffff', '#fdf2f8']}
+        colors={['#fdf2f8', '#ffffff', '#fce7f3', '#ffffff', '#fdf2f8']}
         locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

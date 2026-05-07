@@ -126,7 +126,7 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
 
       <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-4 sm:p-6 shadow-sm text-center space-y-4 w-full max-w-full overflow-x-hidden">
         <div className="flex flex-col items-center gap-2">
-          <p className="text-xs uppercase tracking-[0.2em] var(--brand-pink-600) font-semibold">Your rating</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-pink-600 font-semibold">Your rating</p>
           <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
             <div
               className="flex items-center flex-shrink-0"
@@ -238,8 +238,8 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
               variant="tertiary"
               className={cn(
                 'flex-shrink-0',
-                isSelected(suggestion) && suggestion.sentiment === 'positive' && 'bg-emerald-500 var(--neutral-0) hover:bg-emerald-600 border-emerald-500',
-                isSelected(suggestion) && suggestion.sentiment === 'negative' && 'bg-rose-500 var(--neutral-0) hover:bg-rose-600 border-rose-500'
+                isSelected(suggestion) && suggestion.sentiment === 'positive' && 'bg-emerald-500 text-white hover:bg-emerald-600 border-emerald-500',
+                isSelected(suggestion) && suggestion.sentiment === 'negative' && 'bg-rose-500 text-white hover:bg-rose-600 border-rose-500'
               )}
               style={!isSelected(suggestion) ? {
                 height: '25px',

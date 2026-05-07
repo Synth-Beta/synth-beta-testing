@@ -46,7 +46,7 @@ export const PermanentHeader: React.FC<PermanentHeaderProps> = ({
           className="bg-[var(--brand-pink-500)] hover:bg-[#b01f75] p-3 rounded-[10px] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)] w-[44px] h-[44px] flex items-center justify-center transition-colors"
           aria-label="Notifications"
         >
-          <Bell className="w-6 h-6 var(--neutral-0)" strokeWidth={2} />
+          <Bell className="w-6 h-6 text-white" strokeWidth={2} />
         </Button>
       </div>
     </header>

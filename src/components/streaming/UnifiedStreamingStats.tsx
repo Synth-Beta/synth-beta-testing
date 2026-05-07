@@ -178,9 +178,9 @@ export const UnifiedStreamingStats = ({
       case 'syncing':
         return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />;
       case 'success':
-        return <CheckCircle className="w-4 h-4 var(--status-success-500)" />;
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'error':
-        return <AlertCircle className="w-4 h-4 var(--status-error-500)" />;
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
         // Fallback to a generic spinner if Sync icon is not defined
         return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />;
@@ -249,14 +249,14 @@ export const UnifiedStreamingStats = ({
             <div className="flex gap-4 justify-center">
               <Button 
                 onClick={() => handleServiceSelection('spotify')}
-                className="bg-green-600 hover:bg-green-700 var(--neutral-0)"
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <Music className="w-4 h-4 mr-2" />
                 Spotify
               </Button>
               <Button 
                 onClick={() => handleServiceSelection('apple-music')}
-                className="bg-red-500 hover:bg-red-600 var(--neutral-0)"
+                className="bg-red-500 hover:bg-red-600 text-white"
               >
                 <Music className="w-4 h-4 mr-2" />
                 Apple Music
@@ -338,7 +338,7 @@ export const UnifiedStreamingStats = ({
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-sm">
-                    <Music className="w-4 h-4 var(--status-error-500)" />
+                    <Music className="w-4 h-4 text-red-500" />
                     Profile Sync
                   </CardTitle>
                   <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>

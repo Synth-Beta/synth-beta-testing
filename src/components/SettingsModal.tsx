@@ -322,7 +322,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
             {view !== 'menu' && (
               <button
                 onClick={handleBack}
-                className="flex items-center gap-1 var(--brand-pink-500) font-medium text-sm mr-1 -ml-1 hover:opacity-70 transition-opacity"
+                className="flex items-center gap-1 text-synth-pink font-medium text-sm mr-1 -ml-1 hover:opacity-70 transition-opacity"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
@@ -349,7 +349,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                     <img src={userAvatarUrl} alt={userDisplayName} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-synth-pink flex items-center justify-center">
-                      <span className="text-xl font-bold var(--neutral-0)">{nameInitial}</span>
+                      <span className="text-xl font-bold text-white">{nameInitial}</span>
                     </div>
                   )}
                 </div>
@@ -404,7 +404,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                 <ToggleRow
                   icon={Mail}
                   iconBg="bg-blue-100"
-                  iconColor="var(--info-blue-500)"
+                  iconColor="text-blue-500"
                   label="Email Notifications"
                   description={enableEmails ? 'Enabled' : 'Disabled'}
                   checked={enableEmails}
@@ -418,7 +418,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                 <NavRow
                   icon={User}
                   iconBg="bg-purple-100"
-                  iconColor="var(--color-purple)"
+                  iconColor="text-purple-500"
                   label="Profile & Preferences"
                   description="Edit profile, music taste, location"
                   onClick={() => setView('onboarding-preferences')}
@@ -427,7 +427,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                 <NavRow
                   icon={Lock}
                   iconBg="bg-indigo-100"
-                  iconColor="var(--info-blue-500)"
+                  iconColor="text-indigo-500"
                   label="Security"
                   description="Change password or email address"
                   onClick={() => setView('security-actions')}
@@ -458,7 +458,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                 <NavRow
                   icon={UserX}
                   iconBg="bg-red-100"
-                  iconColor="var(--status-error-500)"
+                  iconColor="text-red-500"
                   label="Delete Account"
                   description="Permanently remove your account"
                   labelColor="text-red-600"
@@ -470,7 +470,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
               <Button
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="w-full bg-synth-pink hover:bg-pink-600 active:bg-pink-700 var(--neutral-0) font-semibold gap-2 h-11 rounded-xl shadow-sm transition-all active:scale-[0.98]"
+                className="w-full bg-synth-pink hover:bg-pink-600 active:bg-pink-700 text-white font-semibold gap-2 h-11 rounded-xl shadow-sm transition-all active:scale-[0.98]"
               >
                 <LogOut className="w-4 h-4" />
                 {isSigningOut ? 'Signing out...' : 'Sign Out'}
@@ -512,7 +512,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
               <div className="bg-red-50 rounded-2xl p-4 border border-red-100">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center">
-                    <UserX className="w-5 h-5 var(--status-error-500)" />
+                    <UserX className="w-5 h-5 text-red-500" />
                   </div>
                   <h3 className="font-bold text-red-700">Delete Account</h3>
                 </div>
@@ -549,7 +549,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
               <Button
                 onClick={handleDeleteAccount}
                 disabled={isDeletingAccount || deleteAccountInput !== 'DELETE'}
-                className="w-full bg-red-500 hover:bg-red-600 var(--neutral-0) h-11 rounded-xl font-semibold"
+                className="w-full bg-red-500 hover:bg-red-600 text-white h-11 rounded-xl font-semibold"
               >
                 {isDeletingAccount ? 'Deleting...' : 'Delete My Account'}
               </Button>
@@ -562,7 +562,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
               {userEmail && (
                 <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                    <AtSign className="w-4 h-4 var(--info-blue-500)" />
+                    <AtSign className="w-4 h-4 text-indigo-500" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">Signed in as</p>
@@ -575,7 +575,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
               <div className="space-y-3">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
-                    <AtSign className="w-4.5 h-4.5 var(--info-blue-500)" />
+                    <AtSign className="w-4.5 h-4.5 text-blue-500" />
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm">Change Email</h4>
@@ -597,7 +597,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                 <Button
                   onClick={handleChangeEmail}
                   disabled={isChangingEmail || !newEmail.trim() || newEmail === userEmail}
-                  className="w-full h-11 rounded-xl bg-synth-pink hover:bg-pink-600 var(--neutral-0) font-semibold"
+                  className="w-full h-11 rounded-xl bg-synth-pink hover:bg-pink-600 text-white font-semibold"
                 >
                   {isChangingEmail ? 'Sending...' : 'Send Confirmation Email'}
                 </Button>
@@ -609,7 +609,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
               <div className="space-y-3">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center">
-                    <Key className="w-4.5 h-4.5 var(--info-blue-500)" />
+                    <Key className="w-4.5 h-4.5 text-indigo-500" />
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm">Reset Password</h4>
@@ -630,7 +630,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
 
               {/* Security note */}
               <div className="bg-blue-50 rounded-xl p-4 flex items-start gap-3 border border-blue-100">
-                <Info className="w-4 h-4 var(--info-blue-500) mt-0.5 flex-shrink-0" />
+                <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
                   <p className="font-semibold text-blue-900 mb-0.5">Security emails can't be disabled</p>
                   <p className="text-blue-700 text-xs leading-relaxed">

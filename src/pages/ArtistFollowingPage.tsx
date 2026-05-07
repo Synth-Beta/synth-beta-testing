@@ -355,13 +355,13 @@ export function ArtistFollowingPage() {
             <div className="flex items-center gap-4">
               <Avatar className="w-16 h-16">
                 <AvatarImage src={selectedArtist.artist_image_url} />
-                <AvatarFallback className="bg-pink-100 var(--brand-pink-600)">
+                <AvatarFallback className="bg-pink-100 text-pink-600">
                   <Music className="w-8 h-8" />
                 </AvatarFallback>
               </Avatar>
               <div>
                 <button
-                  className="text-2xl font-bold text-left hover:var(--brand-pink-600) transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 rounded"
+                  className="text-2xl font-bold text-left hover:text-pink-600 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 rounded"
                   onClick={() => {
                     console.log('🎯 Artist name clicked in header:', selectedArtist.artist_name);
                     navigate(`/artist/${selectedArtist.artist_id || encodeURIComponent(selectedArtist.artist_name)}`);
@@ -385,7 +385,7 @@ export function ArtistFollowingPage() {
                 setRightContentType('events');
                 setSelectedArtist(null);
               }}
-              className="bg-pink-500 hover:bg-pink-600 var(--neutral-0) border-0 shadow-sm"
+              className="bg-pink-500 hover:bg-pink-600 text-white border-0 shadow-sm"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to All Events
@@ -421,7 +421,7 @@ export function ArtistFollowingPage() {
                                   e.stopPropagation();
                                   handleSourceNameClick((event as any).source, (event as any).sourceName);
                                 }}
-                                className="var(--brand-pink-600) hover:text-pink-700 hover:underline cursor-pointer"
+                                className="text-pink-600 hover:text-pink-700 hover:underline cursor-pointer"
                               >
                                 {(event as any).sourceName}
                               </button>
@@ -508,7 +508,7 @@ export function ArtistFollowingPage() {
                 setRightContentType('events');
                 setSelectedVenue(null);
               }}
-              className="bg-blue-500 hover:bg-blue-600 var(--neutral-0) border-0 shadow-sm"
+              className="bg-blue-500 hover:bg-blue-600 text-white border-0 shadow-sm"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to All Events
@@ -518,7 +518,7 @@ export function ArtistFollowingPage() {
           {/* Upcoming Events Section */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 var(--info-blue-500)" />
+              <Calendar className="w-5 h-5 text-blue-500" />
               Upcoming Events ({selectedVenue.upcomingEvents.length})
             </h3>
             
@@ -550,7 +550,7 @@ export function ArtistFollowingPage() {
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         {event.ticket_urls && event.ticket_urls.length > 0 && (
-                          <ExternalLink className="w-4 h-4 var(--info-blue-500)" />
+                          <ExternalLink className="w-4 h-4 text-blue-500" />
                         )}
                       </div>
                     </div>
@@ -654,7 +654,7 @@ export function ArtistFollowingPage() {
                     setRightContentType('events');
                     setSelectedArtist(null);
                   }}
-                  className="bg-pink-500 hover:bg-pink-600 var(--neutral-0) border-0 shadow-sm"
+                  className="bg-pink-500 hover:bg-pink-600 text-white border-0 shadow-sm"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to All Events
@@ -684,7 +684,7 @@ export function ArtistFollowingPage() {
                               e.stopPropagation();
                               handleSourceNameClick((event as any).source, (event as any).sourceName);
                             }}
-                            className="var(--brand-pink-600) hover:text-pink-700 hover:underline cursor-pointer"
+                            className="text-pink-600 hover:text-pink-700 hover:underline cursor-pointer"
                           >
                             {(event as any).sourceName}
                           </button>
@@ -740,7 +740,7 @@ export function ArtistFollowingPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
-            <p className="var(--status-error-500) mb-4">{error}</p>
+            <p className="text-red-500 mb-4">{error}</p>
             <Button onClick={handleBackClick} variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Go Back
@@ -770,7 +770,7 @@ export function ArtistFollowingPage() {
               {activeTab === 'artists' ? (
                 <Music className="w-6 h-6 text-pink-500" />
               ) : (
-                <Building2 className="w-6 h-6 var(--info-blue-500)" />
+                <Building2 className="w-6 h-6 text-blue-500" />
               )}
               <h1 className="text-2xl font-bold">
                 {isOwnProfile ? 'Following' : `${displayName}'s Following`}
@@ -840,7 +840,7 @@ export function ArtistFollowingPage() {
                       <div className="flex items-center gap-3">
                         <Avatar className="w-10 h-10 flex-shrink-0">
                           <AvatarImage src={artist.artist_image_url} />
-                          <AvatarFallback className="bg-pink-100 var(--brand-pink-600)">
+                          <AvatarFallback className="bg-pink-100 text-pink-600">
                             <Music className="w-5 h-5" />
                           </AvatarFallback>
                         </Avatar>

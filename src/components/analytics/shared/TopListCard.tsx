@@ -40,7 +40,7 @@ export function TopListCard({
     <Card className={cn('glass-card inner-glow', className)}>
       <CardHeader>
         <div className="flex items-center gap-2">
-          {icon && <div className="var(--brand-pink-500)">{icon}</div>}
+          {icon && <div className="text-synth-pink">{icon}</div>}
           <CardTitle className="text-lg font-semibold">{title}</CardTitle>
         </div>
       </CardHeader>
@@ -64,9 +64,9 @@ export function TopListCard({
                   <div
                     className={cn(
                       'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm',
-                      index === 0 && 'bg-gradient-to-br from-yellow-400 to-yellow-600 var(--neutral-0) shadow-lg',
-                      index === 1 && 'bg-gradient-to-br from-gray-300 to-gray-500 var(--neutral-0) shadow-md',
-                      index === 2 && 'bg-gradient-to-br from-orange-400 to-orange-600 var(--neutral-0) shadow-md',
+                      index === 0 && 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white shadow-lg',
+                      index === 1 && 'bg-gradient-to-br from-gray-300 to-gray-500 text-white shadow-md',
+                      index === 2 && 'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md',
                       index >= 3 && 'bg-gray-100 var(--neutral-600)'
                     )}
                   >

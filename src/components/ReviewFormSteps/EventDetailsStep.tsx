@@ -52,7 +52,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
         {formData.selectedArtist && (
           <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-              <Check className="w-4 h-4 var(--neutral-0)" />
+              <Check className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-green-800">
@@ -84,7 +84,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
         {formData.selectedVenue && (
           <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-              <Check className="w-4 h-4 var(--neutral-0)" />
+              <Check className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-green-800">
@@ -123,7 +123,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDe
         {formData.eventDate && (
           <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-              <Check className="w-4 h-4 var(--neutral-0)" />
+              <Check className="w-4 h-4 text-white" />
             </div>
             <p className="text-sm font-medium text-green-800">
               {new Date(formData.eventDate).toLocaleDateString('en-US', {

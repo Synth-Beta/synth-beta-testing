@@ -91,7 +91,7 @@ useEffect(() => {
   // Get icon and styling based on significance text
   const getMilestoneInfo = (entry: TimelineEntry) => {
     if (!entry.significance) {
-      return { icon: Sparkles, color: 'var(--brand-pink-500)', bg: 'bg-synth-pink/10' };
+      return { icon: Sparkles, color: 'text-synth-pink', bg: 'bg-synth-pink/10' };
     }
     
     const sig = entry.significance.toLowerCase();
@@ -113,7 +113,7 @@ useEffect(() => {
     }
     
     // Special show / custom
-    return { icon: Star, color: 'var(--brand-pink-600)', bg: 'bg-pink-100' };
+    return { icon: Star, color: 'text-pink-600', bg: 'bg-pink-100' };
   };
 
   // Sort timeline - must be called before early returns (hooks rule)
@@ -241,7 +241,7 @@ useEffect(() => {
                 <div className={cn(
                   "mb-2 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-semibold whitespace-nowrap shadow-sm text-center w-full",
                   entry.is_pinned 
-                    ? "bg-synth-pink var(--neutral-0)" 
+                    ? "bg-synth-pink text-white" 
                     : "bg-gray-100 text-gray-700"
                 )}>
                   <div className="leading-tight">
@@ -262,7 +262,7 @@ useEffect(() => {
                     ? "bg-synth-pink ring-4 ring-synth-pink/30 scale-110 shadow-xl shadow-synth-pink/40" 
                     : `${milestoneInfo.bg} ring-2 ring-white/80`
                 )}>
-                  <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5", entry.is_pinned ? "var(--neutral-0)" : milestoneInfo.color)} />
+                  <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5", entry.is_pinned ? "text-white" : milestoneInfo.color)} />
                 </div>
               </div>
               
@@ -282,7 +282,7 @@ useEffect(() => {
                           <div className={cn(
                             "inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-sm sm:text-base mb-2 sm:mb-3 break-words",
                             entry.is_pinned 
-                              ? "bg-synth-pink/10 var(--brand-pink-500) border-2 border-synth-pink/30"
+                              ? "bg-synth-pink/10 text-synth-pink border-2 border-synth-pink/30"
                               : `${milestoneInfo.bg} ${milestoneInfo.color} border-2 border-current/20`
                           )}>
                             <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -341,7 +341,7 @@ useEffect(() => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:var(--brand-pink-500) hover:bg-synth-pink/5"
+                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5"
                               onClick={() => handleEditMilestone(entry)}
                               title="Edit milestone"
                             >
@@ -351,7 +351,7 @@ useEffect(() => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:var(--brand-pink-500) hover:bg-synth-pink/5"
+                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5"
                               onClick={() => handleEditMilestone(entry)}
                               title="Add milestone"
                             >
@@ -364,8 +364,8 @@ useEffect(() => {
                             className={cn(
                               'h-8 w-8 p-0 rounded-full transition-all',
                               entry.is_pinned
-                                ? 'var(--brand-pink-500) hover:bg-synth-pink/10'
-                                : 'text-gray-400 hover:var(--brand-pink-500) hover:bg-synth-pink/5',
+                                ? 'text-synth-pink hover:bg-synth-pink/10'
+                                : 'text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5',
                             )}
                             onClick={() => handlePinToggle(entry.id, entry.is_pinned)}
                             disabled={!entry.is_pinned && pinnedCount >= 5}

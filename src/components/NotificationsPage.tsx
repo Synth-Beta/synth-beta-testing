@@ -501,8 +501,8 @@ export const NotificationsPage = ({
         {unreadCount > 0 && (
           <div
             style={{
-              backgroundColor: 'var(--status-error-500)',
-              color: 'var(--neutral-0)',
+              backgroundColor: '#EF4444',
+              color: '#fff',
               borderRadius: 12,
               minWidth: 24,
               height: 24,
@@ -514,7 +514,7 @@ export const NotificationsPage = ({
               paddingLeft: 6,
               paddingRight: 6,
               boxSizing: 'border-box',
-              border: '2px solid var(--neutral-0)',
+              border: '2px solid #fff',
               boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
             }}
           >
@@ -669,7 +669,7 @@ export const NotificationsPage = ({
                             width: 8,
                             height: 8,
                             borderRadius: '50%',
-                            backgroundColor: 'var(--status-error-500)',
+                            backgroundColor: '#EF4444',
                             flexShrink: 0,
                             marginLeft: 8,
                             boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
@@ -711,7 +711,7 @@ export const NotificationsPage = ({
                               gap: 4,
                               padding: '6px 12px',
                               background: 'var(--brand-pink-500)',
-                              color: 'var(--neutral-0)',
+                              color: '#fff',
                               borderRadius: 8,
                               border: 'none',
                               fontFamily: 'var(--font-family)',
@@ -770,7 +770,7 @@ export const NotificationsPage = ({
                               gap: 4,
                               padding: '6px 12px',
                               background: 'var(--brand-pink-500)',
-                              color: 'var(--neutral-0)',
+                              color: '#fff',
                               borderRadius: 8,
                               border: 'none',
                               fontFamily: 'var(--font-family)',

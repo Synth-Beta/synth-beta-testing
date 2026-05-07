@@ -106,7 +106,7 @@
 /* Category title - h1 typography */
 .pages-modal__category-title {
   font-family: var(--font-family);
-  font-size: var(--typography-h1-size, var(--typography-h1-size));
+  font-size: var(--typography-h1-size, 35px);
   font-weight: var(--typography-h1-weight, 700);
   line-height: var(--typography-h1-line-height, 1.2);
   color: var(--neutral-900);

@@ -504,14 +504,14 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                         }`}
                       >
                         {/* Icon */}
-                        <p className="font-bold text-[var(--typography-h1-size)] leading-[normal] flex-shrink-0">
+                        <p className="font-bold text-[35px] leading-[normal] flex-shrink-0">
                           {achievement.icon || '🏆'}
                         </p>
                         
                         {/* Main Content */}
                         <div className="flex flex-col gap-[6px] items-start justify-center flex-1 min-w-0">
                           {/* Name */}
-                          <p className="font-bold leading-[normal] text-[20px] var(--neutral-900) break-words">
+                          <p className="font-bold leading-[normal] text-[20px] text-black break-words">
                             {achievement.name}
                           </p>
                           

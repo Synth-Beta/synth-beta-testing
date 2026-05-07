@@ -55,7 +55,7 @@ export const GroupChatsRail: React.FC<GroupChatsRailProps> = ({
             >
               {/* Icon */}
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-synth-pink/10 mb-3 group-hover:bg-synth-pink/20 transition-colors">
-                <MessageCircle className="h-6 w-6 var(--brand-pink-500)" />
+                <MessageCircle className="h-6 w-6 text-synth-pink" />
               </div>
 
               {/* Chat name */}
@@ -70,7 +70,7 @@ export const GroupChatsRail: React.FC<GroupChatsRailProps> = ({
                   <span>{formatMemberCount(chat.member_count)}</span>
                 </div>
                 {chat.friends_in_chat_count && chat.friends_in_chat_count > 0 && (
-                  <div className="text-xs var(--brand-pink-500)">
+                  <div className="text-xs text-synth-pink">
                     {chat.friends_in_chat_count} friend{chat.friends_in_chat_count !== 1 ? 's' : ''} in chat
                   </div>
                 )}

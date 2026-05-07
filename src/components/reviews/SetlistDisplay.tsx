@@ -78,7 +78,7 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
               <div className="space-y-2">
                 {songs.map((song, index) => (
                   <div key={index} className="flex items-start gap-3 p-2 bg-purple-50/30 rounded">
-                    <span className="text-sm font-medium var(--color-purple) w-8 text-right flex-shrink-0">
+                    <span className="text-sm font-medium text-purple-500 w-8 text-right flex-shrink-0">
                       {song.position}.
                     </span>
                     <div className="flex-1 min-w-0">
@@ -136,7 +136,7 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
             <div className="space-y-2">
               {songs.map((song, index) => (
                 <div key={index} className="flex items-start gap-3 p-3 bg-white/60 rounded border border-purple-100">
-                  <span className="text-sm font-medium var(--color-purple) w-8 text-right flex-shrink-0">
+                  <span className="text-sm font-medium text-purple-500 w-8 text-right flex-shrink-0">
                     {song.position}.
                   </span>
                   <div className="flex-1 min-w-0">
@@ -336,7 +336,7 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
                 <div className="space-y-1">
                   {songs.map((song, songIndex) => (
                     <div key={songIndex} className="flex items-center gap-3 p-2 bg-white/60 rounded border border-purple-100">
-                      <span className="text-sm font-medium var(--color-purple) w-8 text-right">
+                      <span className="text-sm font-medium text-purple-500 w-8 text-right">
                         {song.position}.
                       </span>
                       <span className="text-sm flex-1 text-purple-900">

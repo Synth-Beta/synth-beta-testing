@@ -274,7 +274,7 @@ export function CustomSetlistInput({ setlists, onChange, className, disabled = f
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-center justify-between mb-2 gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Music className="w-4 h-4 sm:w-5 sm:h-5 var(--brand-pink-600) flex-shrink-0" />
+                    <Music className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600 flex-shrink-0" />
                     <span className="font-semibold text-gray-900 text-sm sm:text-base truncate">
                       {setlist.title}
                     </span>

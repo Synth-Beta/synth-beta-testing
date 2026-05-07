@@ -90,7 +90,7 @@ export function NewsCard({ article, className = '' }: NewsCardProps) {
         </div>
 
         {/* Title */}
-        <h3 className="font-semibold text-lg mb-2 line-clamp-2 text-gray-900 group-hover:var(--brand-pink-600) transition-colors">
+        <h3 className="font-semibold text-lg mb-2 line-clamp-2 text-gray-900 group-hover:text-pink-600 transition-colors">
           {article.title}
         </h3>
 
@@ -114,7 +114,7 @@ export function NewsCard({ article, className = '' }: NewsCardProps) {
           onClick={handleReadMore}
           variant="outline" 
           size="sm"
-          className="w-full border-pink-200 var(--brand-pink-600) hover:bg-pink-50 hover:border-pink-300 transition-colors"
+          className="w-full border-pink-200 text-pink-600 hover:bg-pink-50 hover:border-pink-300 transition-colors"
         >
           <ExternalLink className="w-4 h-4 mr-2" />
           Read More

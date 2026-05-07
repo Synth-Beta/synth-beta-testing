@@ -989,7 +989,7 @@ export const UnifiedFeed = ({
             <div className="absolute inset-0 flex items-center justify-center">
               <button
                 onClick={() => toggleVideoPlay(item.id)}
-                className="bg-black/50 rounded-full p-2 var(--neutral-0) hover:bg-black/70 transition-colors"
+                className="bg-black/50 rounded-full p-2 text-white hover:bg-black/70 transition-colors"
               >
                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
               </button>
@@ -1000,7 +1000,7 @@ export const UnifiedFeed = ({
           {isVideo && (
             <button
               onClick={() => toggleVideoVolume(item.id)}
-              className="absolute top-3 right-3 bg-black/50 rounded-full p-1.5 var(--neutral-0) hover:bg-black/70 transition-colors"
+              className="absolute top-3 right-3 bg-black/50 rounded-full p-1.5 text-white hover:bg-black/70 transition-colors"
             >
               {volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
@@ -1009,7 +1009,7 @@ export const UnifiedFeed = ({
           {/* Fullscreen control */}
           <button
             onClick={() => toggleFullscreen(item.id)}
-            className="absolute top-3 left-3 bg-black/50 rounded-full p-1.5 var(--neutral-0) hover:bg-black/70 transition-colors"
+            className="absolute top-3 left-3 bg-black/50 rounded-full p-1.5 text-white hover:bg-black/70 transition-colors"
           >
             {isFullscreen ? <X className="w-4 h-4" /> : <MoreHorizontal className="w-4 h-4" />}
           </button>
@@ -1020,14 +1020,14 @@ export const UnifiedFeed = ({
               <button
                 onClick={() => prevMedia(item.id)}
                 disabled={currentIndex === 0}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-1.5 var(--neutral-0) hover:bg-black/70 transition-colors disabled:opacity-50"
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-1.5 text-white hover:bg-black/70 transition-colors disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => nextMedia(item.id, photos)}
                 disabled={currentIndex === photos.length - 1}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-1.5 var(--neutral-0) hover:bg-black/70 transition-colors disabled:opacity-50"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-1.5 text-white hover:bg-black/70 transition-colors disabled:opacity-50"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -2018,7 +2018,7 @@ export const UnifiedFeed = ({
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10 ring-2 ring-synth-pink/20">
                       <AvatarImage src={item.author?.avatar_url || undefined} />
-                      <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 var(--brand-pink-500)">
+                      <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 text-synth-pink">
                         {item.author?.name?.split(' ').map((n) => n[0]).join('') || 'U'}
                       </AvatarFallback>
                     </Avatar>
@@ -2057,7 +2057,7 @@ export const UnifiedFeed = ({
                                 })
                               );                              
                             }}
-                            className="hover:var(--brand-pink-500) transition-colors underline"
+                            className="hover:text-synth-pink transition-colors underline"
                           >
                             {item.event_data.artist_name}
                           </button>
@@ -2086,14 +2086,14 @@ export const UnifiedFeed = ({
                   {item.event_data && (
                     <div className="space-y-2 text-sm var(--neutral-600)">
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 var(--brand-pink-500)" />
+                        <MapPin className="w-4 h-4 text-synth-pink" />
                         {item.event_data.venue_name && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/venue/${encodeURIComponent(item.event_data.venue_name)}`);
                             }}
-                            className="hover:var(--brand-pink-500) transition-colors underline"
+                            className="hover:text-synth-pink transition-colors underline"
                           >
                             {item.event_data.venue_name}
                           </button>
@@ -2103,7 +2103,7 @@ export const UnifiedFeed = ({
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 var(--brand-pink-500)" />
+                        <Calendar className="w-4 h-4 text-synth-pink" />
                         <span>{format(parseISO(item.event_data.event_date), 'EEEE, MMMM d, yyyy')}</span>
                       </div>
                       {(() => {
@@ -2124,7 +2124,7 @@ export const UnifiedFeed = ({
                           }
                           return (
                             <div className="flex items-center gap-2">
-                              <Ticket className="w-4 h-4 var(--brand-pink-500)" />
+                              <Ticket className="w-4 h-4 text-synth-pink" />
                               <span className="font-medium">{priceDisplay}</span>
                             </div>
                           );
@@ -2146,7 +2146,7 @@ export const UnifiedFeed = ({
                         className={cn(
                           'flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md',
                           interestedEvents.has(item.event_data.id)
-                            ? 'bg-pink-500 var(--neutral-0) hover:bg-pink-600'
+                            ? 'bg-pink-500 text-white hover:bg-pink-600'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         )}
                       >
@@ -2161,7 +2161,7 @@ export const UnifiedFeed = ({
                         }}
                         className={cn(
                           'flex items-center gap-1 text-sm transition-colors',
-                          likedPosts.has(item.id) ? 'var(--status-error-500)' : 'text-gray-500 hover:var(--status-error-500)'
+                          likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
                         )}
                       >
                         <Heart className={cn('w-4 h-4', likedPosts.has(item.id) && 'fill-current')} />
@@ -2173,7 +2173,7 @@ export const UnifiedFeed = ({
                         e.stopPropagation();
                         setOpenEventCommentsFor(item.event_data?.id || item.id);
                       }}
-                      className="flex items-center gap-1 text-sm text-gray-500 hover:var(--info-blue-500) transition-colors"
+                      className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors"
                     >
                       <MessageCircle className="w-4 h-4" />
                       <span>{item.comments_count || 0}</span>
@@ -2183,7 +2183,7 @@ export const UnifiedFeed = ({
                         e.stopPropagation();
                         handleShare(item);
                       }}
-                      className="flex items-center gap-1 text-sm text-gray-500 hover:var(--status-success-500) transition-colors"
+                      className="flex items-center gap-1 text-sm text-gray-500 hover:text-green-500 transition-colors"
                     >
                       <Share2 className="w-4 h-4" />
                       <span>Share</span>
@@ -2195,7 +2195,7 @@ export const UnifiedFeed = ({
                           setFlaggedEvent({ id: item.event_data!.id, title: item.event_data!.title || item.title });
                           setFlagModalOpen(true);
                         }}
-                        className="flex items-center gap-1 text-sm text-gray-500 hover:var(--status-error-500) transition-colors"
+                        className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors"
                         aria-label="Flag event"
                       >
                         <Flag className="w-4 h-4" />
@@ -2223,7 +2223,7 @@ export const UnifiedFeed = ({
           onClick={() => loadFeedData(feedItems.length)}
           disabled={loadingMore || !hasMore}
           className={cn(
-            'var(--neutral-0) shadow-lg px-6 py-2',
+            'text-white shadow-lg px-6 py-2',
             hasMore ? 'bg-synth-pink hover:bg-synth-pink-dark' : 'bg-gray-400 cursor-not-allowed'
           )}
         >
@@ -2432,7 +2432,7 @@ export const UnifiedFeed = ({
                   <TabsTrigger
                     key={section}
                     value={section}
-                    className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:var(--neutral-0) rounded-xl"
+                    className="flex items-center gap-2 data-[state=active]:bg-synth-pink data-[state=active]:text-white rounded-xl"
                   >
                     <Icon className="w-4 h-4" />
                     {label}
@@ -2556,7 +2556,7 @@ export const UnifiedFeed = ({
                     <div className="flex items-center gap-3">
                       <Avatar className="w-10 h-10 ring-2 ring-synth-pink/20">
                         <AvatarImage src={item.author?.avatar_url || undefined} />
-                        <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 var(--brand-pink-500)">
+                        <AvatarFallback className="text-sm font-semibold bg-synth-pink/10 text-synth-pink">
                           {item.author?.name?.split(' ').map(n => n[0]).join('') || 'U'}
                         </AvatarFallback>
                       </Avatar>
@@ -2606,14 +2606,14 @@ export const UnifiedFeed = ({
                       {item.event_data && (
                         <div className="space-y-2 text-sm var(--neutral-600)">
                         <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 var(--brand-pink-500)" />
+                            <MapPin className="w-4 h-4 text-synth-pink" />
                             <span>{item.event_data.venue_name}</span>
                             {item.event_data.venue_city && (
                               <span className="text-gray-500">· {item.event_data.venue_city}</span>
                             )}
                         </div>
                           <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 var(--brand-pink-500)" />
+                            <Calendar className="w-4 h-4 text-synth-pink" />
                             <span>{format(parseISO(item.event_data.event_date), 'EEEE, MMMM d, yyyy')}</span>
                           </div>
                           {(() => {
@@ -2637,7 +2637,7 @@ export const UnifiedFeed = ({
                               
                               return (
                                 <div className="flex items-center gap-2">
-                                  <Ticket className="w-4 h-4 var(--brand-pink-500)" />
+                                  <Ticket className="w-4 h-4 text-synth-pink" />
                                   <span className="font-medium">{priceDisplay}</span>
                                 </div>
                               );
@@ -2658,7 +2658,7 @@ export const UnifiedFeed = ({
                             }}
                             className={`flex items-center gap-1 text-sm transition-colors px-3 py-1 rounded-md ${
                               interestedEvents.has(item.event_data.id) 
-                                ? 'bg-pink-500 var(--neutral-0) hover:bg-pink-600' 
+                                ? 'bg-pink-500 text-white hover:bg-pink-600' 
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                           >
@@ -2672,7 +2672,7 @@ export const UnifiedFeed = ({
                               handleInstagramLike(item);
                             }}
                             className={`flex items-center gap-1 text-sm transition-colors ${
-                              likedPosts.has(item.id) ? 'var(--status-error-500)' : 'text-gray-500 hover:var(--status-error-500)'
+                              likedPosts.has(item.id) ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
                             }`}
                           >
                             <Heart className={`w-4 h-4 ${likedPosts.has(item.id) ? 'fill-current' : ''}`} />
@@ -2684,7 +2684,7 @@ export const UnifiedFeed = ({
                             e.stopPropagation();
                             setOpenEventCommentsFor(item.event_data?.id || item.id);
                           }}
-                          className="flex items-center gap-1 text-sm text-gray-500 hover:var(--info-blue-500) transition-colors"
+                          className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-500 transition-colors"
                         >
                           <MessageCircle className="w-4 h-4" />
                           <span>{item.comments_count || 0}</span>
@@ -2694,7 +2694,7 @@ export const UnifiedFeed = ({
                           e.stopPropagation(); 
                             handleShare(item);
                           }}
-                          className="flex items-center gap-1 text-sm text-gray-500 hover:var(--status-success-500) transition-colors"
+                          className="flex items-center gap-1 text-sm text-gray-500 hover:text-green-500 transition-colors"
                         >
                           <Share2 className="w-4 h-4" />
                           <span>Share</span>
@@ -2720,7 +2720,7 @@ export const UnifiedFeed = ({
                   onClick={() => loadFeedData(feedItems.length)}
                   disabled={loadingMore || !hasMore}
                   className={cn(
-                    "var(--neutral-0) shadow-lg px-6 py-2",
+                    "text-white shadow-lg px-6 py-2",
                     hasMore 
                       ? "bg-synth-pink hover:bg-synth-pink-dark" 
                       : "bg-gray-400 cursor-not-allowed"
@@ -3178,7 +3178,7 @@ export const UnifiedFeed = ({
                   variant="outline"
                   size="sm"
                   disabled={newsLoading}
-                  className="var(--brand-pink-600) border-pink-200 hover:bg-pink-50"
+                  className="text-pink-600 border-pink-200 hover:bg-pink-50"
                 >
                   {newsLoading ? (
                     <div className="w-4 h-4 animate-spin rounded-full border-2 border-pink-500 border-t-transparent" />
@@ -3414,7 +3414,7 @@ export const UnifiedFeed = ({
                   className="max-w-full max-h-full object-contain"
                 />
               ) : (
-                <div className="text-center var(--neutral-0)">
+                <div className="text-center text-white">
                   <div className="text-6xl font-bold mb-4">
                     <span className="text-pink-500">S</span>ynth
       </div>
@@ -3430,7 +3430,7 @@ export const UnifiedFeed = ({
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="var(--neutral-0) text-sm font-bold">
+                    <span className="text-white text-sm font-bold">
                       {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
                     </span>
                   </div>
@@ -3488,7 +3488,7 @@ export const UnifiedFeed = ({
                           key={i}
                           className={`w-5 h-5 ${
                             i < Math.floor(selectedReviewDetail.rating!) 
-                              ? 'var(--rating-star) fill-yellow-500' 
+                              ? 'text-yellow-500 fill-yellow-500' 
                               : 'text-gray-300'
                           }`}
                         />
@@ -3511,7 +3511,7 @@ export const UnifiedFeed = ({
                   <button
                     onClick={() => handleInstagramLike(selectedReviewDetail)}
                     className={`flex items-center gap-2 transition-colors ${
-                      likedPosts.has(selectedReviewDetail.id) ? 'var(--status-error-500)' : 'text-gray-700 hover:var(--status-error-500)'
+                      likedPosts.has(selectedReviewDetail.id) ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
                     }`}
                   >
                     <Heart className={`w-5 h-5 ${likedPosts.has(selectedReviewDetail.id) ? 'fill-current' : ''}`} />
@@ -3519,14 +3519,14 @@ export const UnifiedFeed = ({
                   </button>
                   <button
                     onClick={() => setOpenReviewCommentsFor(selectedReviewDetail.review_id || selectedReviewDetail.id)}
-                    className="flex items-center gap-2 text-gray-700 hover:var(--info-blue-500) transition-colors"
+                    className="flex items-center gap-2 text-gray-700 hover:text-blue-500 transition-colors"
                   >
                     <MessageCircle className="w-5 h-5" />
                     <span>{selectedReviewDetail.comments_count || 0} comments</span>
                   </button>
                   <button
                     onClick={() => handleShare(selectedReviewDetail)}
-                    className="flex items-center gap-2 text-gray-700 hover:var(--status-success-500) transition-colors"
+                    className="flex items-center gap-2 text-gray-700 hover:text-green-500 transition-colors"
                   >
                     <Share2 className="w-5 h-5" />
                     <span>Share</span>
@@ -3534,7 +3534,7 @@ export const UnifiedFeed = ({
                   <button
                     onClick={() => handleBookmark(selectedReviewDetail)}
                     className={`flex items-center gap-2 transition-colors ${
-                      bookmarkedPosts.has(selectedReviewDetail.id) ? 'var(--rating-star)' : 'text-gray-700 hover:var(--rating-star)'
+                      bookmarkedPosts.has(selectedReviewDetail.id) ? 'text-yellow-500' : 'text-gray-700 hover:text-yellow-500'
                     }`}
                   >
                     <Bookmark className={`w-5 h-5 ${bookmarkedPosts.has(selectedReviewDetail.id) ? 'fill-current' : ''}`} />

@@ -498,7 +498,7 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
   >
 
               <Music
-  className="w-5 h-5 var(--brand-pink-500)"
+  className="w-5 h-5 text-synth-pink"
   style={{ marginTop: 2, flexShrink: 0 }}
   aria-hidden="true"
 />

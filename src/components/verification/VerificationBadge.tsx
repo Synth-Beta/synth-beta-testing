@@ -39,7 +39,7 @@ export function VerificationBadge({
       }}
     >
       <Icon
-        className="w-full h-full var(--neutral-0)"
+        className="w-full h-full text-white"
         strokeWidth={2.5}
         fill="white"
       />

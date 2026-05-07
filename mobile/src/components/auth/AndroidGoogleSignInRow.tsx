@@ -112,7 +112,7 @@ export const AndroidGoogleSignInRow: React.FC<Props> = ({
   return (
     <TouchableOpacity style={[styles.button, styles.google]} disabled={disabled || !request} onPress={() => void onPress()}>
       {disabled ? (
-        <ActivityIndicator color="var(--neutral-0)" />
+        <ActivityIndicator color="#fff" />
       ) : (
         <>
           <GoogleLogoGlyph size={20} />
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  googleText: { color: 'var(--neutral-0)', fontWeight: '600', fontSize: 16 },
+  googleText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   hint: {
     marginTop: 8,
     textAlign: 'center',

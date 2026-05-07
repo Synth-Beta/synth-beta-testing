@@ -359,7 +359,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
         <CardContent>
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Music className="w-8 h-8 var(--neutral-0)" />
+              <Music className="w-8 h-8 text-white" />
             </div>
             <h3 className="text-lg font-semibold mb-2">Connect Your Spotify</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -368,7 +368,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
             <Button 
               onClick={handleConnect}
               disabled={authenticating}
-              className="bg-green-600 hover:bg-green-700 var(--neutral-0)"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {authenticating ? (
                 <>
@@ -383,7 +383,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
               )}
             </Button>
             {connectError && (
-              <p className="text-sm var(--status-error-500) mt-3">
+              <p className="text-sm text-red-500 mt-3">
                 {connectError}
               </p>
             )}
@@ -426,7 +426,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
       </CardHeader>
       <CardContent className="space-y-6">
         {refreshError && (
-          <p className="text-sm var(--status-error-500)">
+          <p className="text-sm text-red-500">
             {refreshError}
           </p>
         )}
@@ -435,7 +435,7 @@ export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
           <div className="flex items-center gap-4 p-4 rounded-lg bg-green-50 border border-green-200">
             <Avatar className="w-12 h-12">
               <AvatarImage src={userProfile.images[0]?.url} />
-              <AvatarFallback className="bg-green-600 var(--neutral-0)">
+              <AvatarFallback className="bg-green-600 text-white">
                 <User className="w-6 h-6" />
               </AvatarFallback>
             </Avatar>

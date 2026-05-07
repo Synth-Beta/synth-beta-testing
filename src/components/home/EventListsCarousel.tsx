@@ -30,7 +30,7 @@ export const EventListsCarousel: React.FC<EventListsCarouselProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-lg sm:text-xl font-bold">{list.title}</h2>
                 {list.list_type === 'system_generated' && (
-                  <Sparkles className="h-4 w-4 var(--brand-pink-500)" />
+                  <Sparkles className="h-4 w-4 text-synth-pink" />
                 )}
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1">{list.description}</p>

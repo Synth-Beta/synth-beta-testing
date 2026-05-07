@@ -118,7 +118,7 @@ export function NetworkAnalyticsView() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Target className="w-6 h-6 var(--brand-pink-500)" />
+            <Target className="w-6 h-6 text-synth-pink" />
             Network Effect Analytics
           </h2>
           <p className="text-sm var(--neutral-600) mt-1">

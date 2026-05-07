@@ -22,7 +22,7 @@ export const TrendingEventsSection: React.FC<TrendingEventsSectionProps> = ({
   return (
     <div className={cn('space-y-4', className)}>
       <div className="flex items-center gap-2">
-        <TrendingUp className="h-5 w-5 var(--brand-pink-500)" />
+        <TrendingUp className="h-5 w-5 text-synth-pink" />
         <h2 className="text-lg sm:text-xl font-bold">Trending Near You</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

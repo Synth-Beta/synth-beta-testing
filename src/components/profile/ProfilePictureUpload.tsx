@@ -205,9 +205,9 @@ const { user } = useAuth();
         {/* Upload overlay */}
         <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
           {isUploading ? (
-            <Loader2 className="w-6 h-6 var(--neutral-0) animate-spin" />
+            <Loader2 className="w-6 h-6 text-white animate-spin" />
           ) : (
-            <Camera className="w-6 h-6 var(--neutral-0)" />
+            <Camera className="w-6 h-6 text-white" />
           )}
         </div>
       </div>

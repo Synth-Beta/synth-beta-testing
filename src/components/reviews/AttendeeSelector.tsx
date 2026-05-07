@@ -259,7 +259,7 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
             id="metOnSynth"
             checked={metOnSynth}
             onChange={(e) => onMetOnSynthChange(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 var(--brand-pink-600) focus:ring-pink-500"
+            className="h-4 w-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
           />
           <Label htmlFor="metOnSynth" className="text-sm text-gray-700 cursor-pointer">
             Did you meet or plan this on Synth?

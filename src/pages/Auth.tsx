@@ -371,7 +371,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     <Button
       onClick={handleAppleSignIn}
       disabled={!isIOS || appleSignInLoading || loading}
-      className="w-full bg-black hover:bg-gray-800 var(--neutral-0) font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+      className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
     >
       {appleSignInLoading ? (
@@ -389,7 +389,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{
-      background: 'linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, --brand-pink-050 50%, var(--neutral-0) 75%, #fdf2f8 100%)',
+      background: 'linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, #fce7f3 50%, var(--neutral-0) 75%, #fdf2f8 100%)',
       backgroundSize: '400% 400%',
       animation: 'elegant-shift 20s ease infinite'
     }}>
@@ -402,7 +402,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
               className="w-20 h-20 rounded-2xl"
             />
           </div>
-          <CardTitle className="text-[var(--typography-h1-size)] font-bold leading-[1.2] var(--neutral-900) mb-2" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+          <CardTitle className="text-[35px] font-bold leading-[1.2] text-black mb-2" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
             Synth
           </CardTitle>
           <CardDescription className="text-[#666666] text-[20px] font-medium leading-[1.5]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
@@ -414,14 +414,14 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             <TabsList className="grid w-full grid-cols-2 bg-[#F5F5DC] rounded-xl p-1">
               <TabsTrigger 
                 value="signin" 
-                className="data-[state=active]:bg-white data-[state=active]:var(--neutral-900) text-[#666666] font-medium rounded-lg transition-all"
+                className="data-[state=active]:bg-white data-[state=active]:text-black text-[#666666] font-medium rounded-lg transition-all"
                 style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
               >
                 Sign In
               </TabsTrigger>
               <TabsTrigger 
                 value="signup" 
-                className="data-[state=active]:bg-white data-[state=active]:var(--neutral-900) text-[#666666] font-medium rounded-lg transition-all"
+                className="data-[state=active]:bg-white data-[state=active]:text-black text-[#666666] font-medium rounded-lg transition-all"
                 style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
               >
                 Sign Up
@@ -459,7 +459,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       required
                       aria-invalid={!!emailError}
                       aria-describedby={emailError ? 'signin-email-error' : undefined}
-                      className={`w-full px-4 py-3 border rounded-lg focus:border-[var(--brand-pink-500)] focus:ring-2 focus:ring-[var(--brand-pink-500)]/20 transition-all ${
+                      className={`w-full px-4 py-3 border rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all ${
                         emailError ? 'border-red-500' : 'border-gray-300'
                       }`}
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
@@ -483,7 +483,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[var(--brand-pink-500)] focus:ring-2 focus:ring-[var(--brand-pink-500)]/20 transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     />
                   </div>
@@ -492,7 +492,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       type="button"
                       onClick={handleForgotPassword}
                       disabled={isResettingPassword}
-                      className="text-[16px] font-medium leading-[1.5] text-[var(--brand-pink-500)] hover:text-[#E6007A] transition-colors disabled:opacity-50"
+                      className="text-[16px] font-medium leading-[1.5] text-[#FF3399] hover:text-[#E6007A] transition-colors disabled:opacity-50"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     >
                       {isResettingPassword ? 'Sending...' : 'Forgot password?'}
@@ -517,7 +517,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-[var(--brand-pink-500)] hover:bg-[#E6007A] var(--neutral-0) font-semibold py-3 px-6 rounded-lg transition-all"
+                    className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                   >
                     {loading ? 'Signing in...' : 'Sign In'}
@@ -573,7 +573,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[var(--brand-pink-500)] focus:ring-2 focus:ring-[var(--brand-pink-500)]/20 transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     />
                   </div>
@@ -586,7 +586,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       value={email}
                       onChange={(e) => handleEmailChange(e.target.value)}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[var(--brand-pink-500)] focus:ring-2 focus:ring-[var(--brand-pink-500)]/20 transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     />
                   </div>
@@ -600,7 +600,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[var(--brand-pink-500)] focus:ring-2 focus:ring-[var(--brand-pink-500)]/20 transition-all"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     />
                   </div>
@@ -615,7 +615,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-[var(--brand-pink-500)] hover:bg-[#E6007A] var(--neutral-0) font-semibold py-3 px-6 rounded-lg transition-all"
+                    className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                   >
                     {loading ? 'Creating account...' : 'Sign Up'}

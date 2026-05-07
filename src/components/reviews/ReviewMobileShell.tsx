@@ -45,12 +45,12 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
         {/* Status bar / dynamic island */}
         <div className="h-[47px] bg-[var(--neutral-50)] border-b border-gray-200 flex items-end justify-center px-3 pt-1">
           <div className="flex-1 flex items-center">
-            <span className="text-[13px] font-semibold var(--neutral-900) ml-1">9:41</span>
+            <span className="text-[13px] font-semibold text-black ml-1">9:41</span>
           </div>
           <div className="flex-1 flex justify-center">
             <div className="bg-black h-[28px] w-[108px] rounded-full" />
           </div>
-          <div className="flex-1 flex justify-end items-center gap-1 var(--neutral-900)/80 text-[10px]">
+          <div className="flex-1 flex justify-end items-center gap-1 text-black/80 text-[10px]">
             <div className="w-4 h-[10px] bg-gradient-to-r from-black/10 to-black rounded-[3px]" />
             <div className="w-4 h-[10px] bg-gradient-to-r from-black/10 to-black rounded-[3px]" />
             <div className="w-6 h-[10px] border border-black rounded-[3px] flex items-center justify-end pr-[1px]">
@@ -89,7 +89,7 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
             </button>
             <button
               type="button"
-              className="flex items-center justify-center rounded-full bg-[var(--brand-pink-500)] var(--neutral-0) w-[70px] h-10 shadow-sm"
+              className="flex items-center justify-center rounded-full bg-[var(--brand-pink-500)] text-white w-[70px] h-10 shadow-sm"
               tabIndex={-1}
             >
               <Plus className="w-5 h-5" aria-hidden="true" />

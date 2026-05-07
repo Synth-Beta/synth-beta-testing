@@ -79,7 +79,7 @@ export function EngagementScoreGauge({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Activity className="w-5 h-5 var(--brand-pink-500)" />
+            <Activity className="w-5 h-5 text-synth-pink" />
             {title}
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -117,7 +117,7 @@ export function EngagementScoreGauge({
                 d="M 20 80 A 60 60 0 0 1 180 80"
                 stroke={metrics.score >= 80 ? '#10b981' : 
                        metrics.score >= 60 ? '#f59e0b' : 
-                       metrics.score >= 40 ? '#f97316' : 'var(--status-error-500)'}
+                       metrics.score >= 40 ? '#f97316' : '#ef4444'}
                 strokeWidth="12"
                 fill="none"
                 strokeLinecap="round"

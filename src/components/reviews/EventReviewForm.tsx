@@ -1342,7 +1342,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             variant="outline"
             onClick={() => setIsSetlistModalOpen(true)}
             disabled={!canImportSetlist}
-            className="border-pink-200 var(--brand-pink-600) hover:bg-pink-50 w-full sm:w-auto"
+            className="border-pink-200 text-pink-600 hover:bg-pink-50 w-full sm:w-auto"
           >
             <Music className="w-4 h-4 mr-2" />
             Import from setlist.fm
@@ -1385,7 +1385,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             <ul className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
               {(formData.selectedSetlist.songs || []).slice(0, 8).map((song: any, index: number) => (
                 <li key={`${song.name}-${index}`} className="flex items-start gap-2">
-                  <span className="font-medium var(--brand-pink-600)">{index + 1}.</span>
+                  <span className="font-medium text-pink-600">{index + 1}.</span>
                   <span className="flex-1">
                     {song.name}
                     {song.cover?.artist && (
@@ -1428,7 +1428,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             variant="outline"
             onClick={() => setIsSetlistModalOpen(true)}
             disabled={!canImportSetlist}
-            className="border-pink-200 var(--brand-pink-600) hover:bg-pink-50 w-full sm:w-auto"
+            className="border-pink-200 text-pink-600 hover:bg-pink-50 w-full sm:w-auto"
           >
             <Music className="w-4 h-4 mr-2" />
             Import from setlist.fm
@@ -1471,7 +1471,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             <ul className="grid gap-1 text-xs text-gray-700 sm:grid-cols-2">
               {(formData.selectedSetlist.songs || []).slice(0, 8).map((song: any, index: number) => (
                 <li key={`${song.name}-${index}`} className="flex items-start gap-2">
-                  <span className="font-medium var(--brand-pink-600)">{index + 1}.</span>
+                  <span className="font-medium text-pink-600">{index + 1}.</span>
                   <span className="flex-1">
                     {song.name}
                     {song.cover?.artist && (
@@ -1881,7 +1881,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                       className={cn(
                         'px-2 sm:px-3 py-1 text-xs font-medium transition-colors flex-shrink-0',
                         isActive
-                          ? 'bg-pink-500 var(--neutral-0) shadow-sm cursor-default'
+                          ? 'bg-pink-500 text-white shadow-sm cursor-default'
                           : isComplete
                             ? 'bg-pink-100 text-pink-700 hover:bg-pink-200 cursor-pointer'
                             : 'bg-gray-100 text-gray-500 cursor-default'

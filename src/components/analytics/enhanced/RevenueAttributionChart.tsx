@@ -94,7 +94,7 @@ export function RevenueAttributionChart({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 var(--brand-pink-500)" />
+            <DollarSign className="w-5 h-5 text-synth-pink" />
             {title}
           </CardTitle>
           <div className="text-right">
@@ -112,7 +112,7 @@ export function RevenueAttributionChart({
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 bg-gradient-to-r ${getSourceColor(index)} rounded-full flex items-center justify-center`}>
-                    <DollarSign className="w-5 h-5 var(--neutral-0)" />
+                    <DollarSign className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900 capitalize">{source.source}</h4>

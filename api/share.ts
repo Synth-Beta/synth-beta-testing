@@ -129,7 +129,7 @@ function renderPage(opts: {
 
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:#0a0a0a;color:var(--neutral-0);
+    html,body{height:100%;background:#0a0a0a;color:#fff;
       font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
       -webkit-font-smoothing:antialiased}
 
@@ -158,7 +158,7 @@ function renderPage(opts: {
       color:#e91e8c;text-transform:uppercase;margin-bottom:10px}
 
     .headline{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.3px;
-      color:var(--neutral-0);margin-bottom:10px}
+      color:#fff;margin-bottom:10px}
 
     .rating{font-size:20px;color:#e91e8c;letter-spacing:3px;margin-bottom:10px}
 
@@ -170,7 +170,7 @@ function renderPage(opts: {
     .cta{display:flex;flex-direction:column;gap:12px}
 
     .btn-primary{display:flex;align-items:center;justify-content:center;gap:10px;
-      background:#e91e8c;color:var(--neutral-0);border:none;border-radius:16px;
+      background:#e91e8c;color:#fff;border:none;border-radius:16px;
       padding:17px 24px;font-size:16px;font-weight:600;text-decoration:none;
       -webkit-tap-highlight-color:transparent;cursor:pointer}
     .btn-primary:active{opacity:.88}

@@ -81,7 +81,7 @@ export function ConversionFunnelChart({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Target className="w-5 h-5 var(--brand-pink-500)" />
+            <Target className="w-5 h-5 text-synth-pink" />
             {title}
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export function ConversionFunnelChart({
                       {/* Drop-off Indicator */}
                       {stage.drop_off_rate > 0 && (
                         <div className="absolute top-0 right-0 flex items-center gap-1">
-                          <TrendingDown className="w-4 h-4 var(--status-error-500)" />
+                          <TrendingDown className="w-4 h-4 text-red-500" />
                           <span className="text-xs text-red-600 font-medium">
                             -{stage.drop_off_rate.toFixed(1)}%
                           </span>

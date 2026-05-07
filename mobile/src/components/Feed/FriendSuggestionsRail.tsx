@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(236, 72, 153, 0.25)',
-    backgroundColor: 'var(--neutral-0)',
+    backgroundColor: '#fff',
     paddingHorizontal: 12,
     paddingTop: 14,
     paddingBottom: 10,

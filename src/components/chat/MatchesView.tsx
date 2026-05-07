@@ -535,7 +535,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
                               href={`https://instagram.com/${match.other_user.instagram_handle}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-1 var(--brand-pink-600) hover:text-pink-700 transition-colors text-sm"
+                              className="flex items-center gap-1 text-pink-600 hover:text-pink-700 transition-colors text-sm"
                             >
                               <Instagram className="w-3 h-3" />
                               <span>@{match.other_user.instagram_handle}</span>

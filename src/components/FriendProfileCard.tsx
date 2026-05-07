@@ -230,7 +230,7 @@ export const FriendProfileCard: React.FC<FriendProfileCardProps> = ({
                 Full Profile
               </Button>
               <Button
-                className="flex-1 bg-blue-500 hover:bg-blue-600 var(--neutral-0) text-sm"
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm"
                 size="sm"
                 onClick={(e) => {
                   e.preventDefault();

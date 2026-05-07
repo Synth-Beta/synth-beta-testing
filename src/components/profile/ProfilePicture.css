@@ -70,7 +70,7 @@
 
 /* 75px: h1 typography (for user profile) */
 .profile-picture--75 .profile-picture__initial {
-  font-size: var(--typography-h1-size, var(--typography-h1-size));
+  font-size: var(--typography-h1-size, 35px);
   font-weight: var(--typography-h1-weight, 700);
   line-height: var(--typography-h1-line-height, 1.2);
 }

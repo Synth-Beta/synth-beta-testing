@@ -128,7 +128,7 @@ export const SynthLoader: React.FC<SynthLoaderProps> = ({
             >
               <Music
                 className={cn(
-                  'var(--brand-pink-500) animate-pulse',
+                  'text-synth-pink animate-pulse',
                   size === 'sm' ? 'w-2 h-2' : size === 'md' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-8 h-8'
                 )}
               />
@@ -207,7 +207,7 @@ export const SynthLoadingScreen: React.FC<{
             <div className="relative w-full h-full">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-synth-pink/20 to-synth-pink-light/20 animate-pulse" />
               <div className="absolute inset-2 rounded-full bg-gradient-to-br from-synth-pink to-synth-pink-light flex items-center justify-center">
-                <Music className="w-16 h-16 var(--neutral-0)" />
+                <Music className="w-16 h-16 text-white" />
               </div>
               <div className="absolute inset-0 rounded-full border-4 border-synth-pink/40 animate-ping" />
             </div>

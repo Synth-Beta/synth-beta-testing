@@ -1775,7 +1775,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               </AvatarFallback>
             </Avatar>
             <h2
-              className="font-bold text-[var(--typography-h2-size)] leading-[normal]"
+              className="font-bold text-[24px] leading-[normal]"
               style={{
                 color: 'var(--neutral-900)',
                 overflow: 'hidden',
@@ -1795,7 +1795,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         <h1
           style={{
             fontFamily: 'var(--font-family)',
-            fontSize: 'var(--typography-h2-size, var(--typography-h2-size))',
+            fontSize: 'var(--typography-h2-size, 24px)',
             fontWeight: 'var(--typography-h2-weight, 700)',
             color: 'var(--neutral-900)',
           }}
@@ -2460,7 +2460,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           setChatPendingDeletion(chat);
                           setIsDeleteChatModalOpen(true);
                         }}
-                      className="hover:var(--status-error-500) hover:bg-red-50 p-2 flex-shrink-0 rounded-lg transition-all duration-200" 
+                      className="hover:text-red-500 hover:bg-red-50 p-2 flex-shrink-0 rounded-lg transition-all duration-200" 
                       style={{ color: 'var(--neutral-600)' }}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -2956,7 +2956,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 {loadingReviewDetails ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
-                      <Loader2 className="h-8 w-8 animate-spin var(--info-blue-500) mx-auto mb-2" />
+                      <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mx-auto mb-2" />
                       <p className="text-sm text-gray-500">Loading review details...</p>
                     </div>
                   </div>
@@ -2996,7 +2996,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                 <Star className="w-6 h-6 text-gray-300" />
                                 {(isHalf || isFull) && (
                                   <div className={`absolute left-0 top-0 h-full overflow-hidden pointer-events-none ${isFull ? 'w-full' : 'w-1/2'}`}>
-                                    <Star className="w-6 h-6 var(--rating-star) fill-yellow-500" />
+                                    <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
                                   </div>
                                 )}
                               </div>

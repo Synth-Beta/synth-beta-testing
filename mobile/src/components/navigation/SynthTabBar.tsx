@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: 'var(--status-error-500)',
+    backgroundColor: '#ef4444',
     borderWidth: 2,
     borderColor: SynthTokens.colors.brandPink050,
   },

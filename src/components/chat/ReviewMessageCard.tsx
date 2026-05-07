@@ -204,10 +204,10 @@ export function ReviewMessageCard({
       {/* Header with FileText Icon */}
       <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-3 flex items-center gap-2">
         <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-          <FileText className="w-5 h-5 var(--neutral-0)" />
+          <FileText className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1">
-          <p className="var(--neutral-0) text-xs font-medium">Concert Review</p>
+          <p className="text-white text-xs font-medium">Concert Review</p>
         </div>
         {isPastEvent && (
           <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
@@ -232,7 +232,7 @@ export function ReviewMessageCard({
               {review.event_title}
             </h3>
             {review.artist_name && (
-              <p className="var(--brand-pink-600) font-semibold text-sm">
+              <p className="text-pink-600 font-semibold text-sm">
                 {review.artist_name}
               </p>
             )}
@@ -347,7 +347,7 @@ export function ReviewMessageCard({
         <Button
           variant="ghost"
           size="sm"
-          className="w-full var(--brand-pink-600) hover:text-pink-700 hover:bg-pink-50"
+          className="w-full text-pink-600 hover:text-pink-700 hover:bg-pink-50"
           onClick={(e) => {
             e.stopPropagation();
             const reviewWithEngagement: ReviewWithEngagement = {

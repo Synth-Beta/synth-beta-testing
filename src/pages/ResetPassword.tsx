@@ -127,7 +127,7 @@ export default function ResetPassword() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-[var(--brand-pink-500)] hover:bg-[#E6007A] var(--neutral-0)"
+              className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white"
             >
               {loading ? 'Resetting...' : 'Reset Password'}
             </Button>

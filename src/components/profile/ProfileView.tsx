@@ -3193,7 +3193,7 @@ const { user, sessionExpired } = useAuth();
                               // Fallback to gradient with heart icon if no image
                               return (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Heart className="w-1/3 h-1/3 var(--neutral-0)" />
+                                  <Heart className="w-1/3 h-1/3 text-white" />
                                 </div>
                               );
                             })()}

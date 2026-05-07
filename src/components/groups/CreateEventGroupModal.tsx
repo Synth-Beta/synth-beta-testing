@@ -137,7 +137,7 @@ const [isSubmitting, setIsSubmitting] = useState(false);
           {/* Group Name */}
           <div className="space-y-2">
             <Label htmlFor="name">
-              Group Name <span className="var(--status-error-500)">*</span>
+              Group Name <span className="text-red-500">*</span>
             </Label>
             <Input
               id="name"
