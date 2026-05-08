@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { StatsService, StreamingStats } from '../src/services/statsService';
@@ -20,10 +21,18 @@ import {
 } from '../src/services/streamingConnectionService';
 import { supabase } from '../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Music, Mic2, BarChart3, TrendingUp, ChevronLeft, RefreshCw } from 'lucide-react-native';
+import { Music, Mic2, BarChart3, ChevronLeft, RefreshCw, Headphones, Zap } from 'lucide-react-native';
 import { getExpoSiteUrl } from '../src/utils/siteUrl';
 
 const PINK = SynthTokens.colors.brandPink500;
+const MEDAL_GOLD = '#F5A623';
+const MEDAL_SILVER = '#8E8E93';
+const MEDAL_BRONZE = '#C86A1E';
+
+const GENRE_COLORS = [
+  '#EC4899', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B',
+  '#EF4444', '#3B82F6', '#84CC16', '#F97316', '#A855F7',
+];
 
 function hasAnyStats(stats: StreamingStats | null): boolean {
   if (!stats) return false;
@@ -36,13 +45,17 @@ function hasAnyStats(stats: StreamingStats | null): boolean {
 
 function providerLabel(provider: StreamingProvider): string {
   switch (provider) {
-    case 'spotify':
-      return 'Spotify';
-    case 'apple-music':
-      return 'Apple Music';
-    default:
-      return 'Streaming';
+    case 'spotify': return 'Spotify';
+    case 'apple-music': return 'Apple Music';
+    default: return 'Streaming';
   }
+}
+
+function medalColor(index: number): string {
+  if (index === 0) return MEDAL_GOLD;
+  if (index === 1) return MEDAL_SILVER;
+  if (index === 2) return MEDAL_BRONZE;
+  return SynthTokens.colors.neutral400;
 }
 
 export default function StreamingStatsScreen() {
@@ -61,9 +74,7 @@ export default function StreamingStatsScreen() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user ?? null;
     if (!user) {
       setStats(null);
@@ -77,13 +88,7 @@ export default function StreamingStatsScreen() {
     setLinkStatus(status);
 
     const data = await StatsService.getStats(user.id);
-    setStats(
-      data ?? {
-        top_artists: [],
-        top_genres: [],
-        total_listening_hours: 0,
-      }
-    );
+    setStats(data ?? { top_artists: [], top_genres: [], total_listening_hours: 0 });
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -96,10 +101,9 @@ export default function StreamingStatsScreen() {
 
   const openStreamingOnWeb = (provider?: StreamingProvider) => {
     const base = `${getExpoSiteUrl()}/streaming-stats`;
-    const url =
-      provider && provider !== 'unknown'
-        ? `${base}?connect=${encodeURIComponent(provider)}&source=expo`
-        : `${base}?source=expo`;
+    const url = provider && provider !== 'unknown'
+      ? `${base}?connect=${encodeURIComponent(provider)}&source=expo`
+      : `${base}?source=expo`;
     void WebBrowser.openBrowserAsync(url);
   };
 
@@ -107,12 +111,10 @@ export default function StreamingStatsScreen() {
     setResyncing(true);
     try {
       const base = `${getExpoSiteUrl()}/streaming-stats`;
-      const url =
-        linkStatus.provider && linkStatus.provider !== 'unknown'
-          ? `${base}?connect=${encodeURIComponent(linkStatus.provider)}&source=expo&action=resync`
-          : `${base}?source=expo&action=resync`;
+      const url = linkStatus.provider && linkStatus.provider !== 'unknown'
+        ? `${base}?connect=${encodeURIComponent(linkStatus.provider)}&source=expo&action=resync`
+        : `${base}?source=expo&action=resync`;
       await WebBrowser.openBrowserAsync(url);
-      // After browser closes, refresh stats
       await loadStats(false);
     } finally {
       setResyncing(false);
@@ -132,148 +134,206 @@ export default function StreamingStatsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Top bar */}
+      <View style={styles.topBar}>
         <Pressable style={styles.backBtn} onPress={() => router.back()} accessibilityLabel="Back">
-          <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
+          <ChevronLeft size={26} color={SynthTokens.colors.neutral900} />
         </Pressable>
-        {linked && (
+        <View style={styles.topBarTitle}>
+          <Music size={18} color={PINK} />
+          <Text style={styles.topBarTitleText}>Streaming Stats</Text>
+        </View>
+        {linked ? (
           <Pressable
             style={[styles.resyncBtn, resyncing && { opacity: 0.6 }]}
             onPress={() => void handleResync()}
             disabled={resyncing}
             accessibilityLabel="Resync streaming stats"
           >
-            <RefreshCw size={16} color={SynthTokens.colors.neutral0} style={resyncing ? { opacity: 0.8 } : undefined} />
-            <Text style={styles.resyncBtnText}>{resyncing ? 'Opening…' : 'Resync Stats'}</Text>
+            <RefreshCw size={14} color={SynthTokens.colors.neutral0} />
+            <Text style={styles.resyncBtnText}>{resyncing ? 'Opening…' : 'Resync'}</Text>
           </Pressable>
+        ) : (
+          <View style={styles.backBtn} />
         )}
       </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: SynthTokens.spacing.md }}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void loadStats(true)}
-            tintColor={PINK}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={() => void loadStats(true)} tintColor={PINK} />
         }
       >
-        <View style={styles.titleBlock}>
-          <View style={styles.titleRow}>
-            <Music size={28} color={PINK} />
-            <Text style={styles.pageTitle}>Streaming stats</Text>
-          </View>
-          <SynthText variant="body" color="secondary" style={styles.subtitle}>
-            {linked ? `${providerLabel(linkStatus.provider)} connected` : 'Your music journey on Synth'}
-          </SynthText>
-        </View>
-
+        {/* Connect cards */}
         {showConnectCards ? (
-          <View style={styles.connectBlock}>
+          <View style={styles.connectSection}>
+            <Text style={styles.connectHeading}>Connect your music</Text>
             <SynthText variant="body" color="secondary" style={styles.connectCopy}>
-              Connect Spotify or Apple Music to import listening data and see top artists and genres. OAuth happens on
-              the web for now—tap below, sign in, and connect your account.
+              Import your listening history to see top artists, genres, and get better event recommendations.
             </SynthText>
-            <Pressable
-              style={styles.connectCardSpotify}
-              onPress={() => openStreamingOnWeb('spotify')}
-            >
-              <Text style={styles.connectCardTitle}>Connect Spotify</Text>
-              <SynthText variant="meta" color="secondary">
-                Open streaming stats on the web
-              </SynthText>
+            <Pressable onPress={() => openStreamingOnWeb('spotify')} style={styles.connectCardWrapper}>
+              <LinearGradient
+                colors={['#1DB954', '#15803d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.connectCard}
+              >
+                <View style={styles.connectCardInner}>
+                  <View style={styles.connectCardIcon}>
+                    <Music size={24} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.connectCardTitle}>Connect Spotify</Text>
+                    <Text style={styles.connectCardSub}>Opens on web · takes 30 seconds</Text>
+                  </View>
+                  <Text style={styles.connectCardArrow}>→</Text>
+                </View>
+              </LinearGradient>
             </Pressable>
-            <Pressable
-              style={styles.connectCardApple}
-              onPress={() => openStreamingOnWeb('apple-music')}
-            >
-              <Text style={styles.connectCardTitleApple}>Connect Apple Music</Text>
-              <SynthText variant="meta" color="secondary">
-                Same flow on the web
-              </SynthText>
+            <Pressable onPress={() => openStreamingOnWeb('apple-music')} style={styles.connectCardWrapper}>
+              <LinearGradient
+                colors={['#fc3c44', '#b91c1c']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.connectCard}
+              >
+                <View style={styles.connectCardInner}>
+                  <View style={styles.connectCardIcon}>
+                    <Headphones size={24} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.connectCardTitle}>Connect Apple Music</Text>
+                    <Text style={styles.connectCardSub}>Opens on web · same quick flow</Text>
+                  </View>
+                  <Text style={styles.connectCardArrow}>→</Text>
+                </View>
+              </LinearGradient>
             </Pressable>
           </View>
         ) : null}
 
+        {/* Syncing empty state */}
         {showSyncingEmptyState ? (
           <View style={styles.syncingCard}>
-            <View style={styles.syncingTitleRow}>
-              <Music size={22} color={SynthTokens.colors.neutral900} />
-              <Text style={styles.syncingTitle}>Connected, syncing…</Text>
-            </View>
-            <SynthText variant="body" color="secondary" style={styles.syncingCopy}>
-              We haven’t pulled your listening data into Synth yet. This can take a moment after connecting. Tap refresh
-              to try again, or open the web streaming page to re-sync.
-            </SynthText>
-            <View style={styles.syncingActionsRow}>
-              <Pressable style={styles.refreshBtn} onPress={() => void loadStats(true)}>
-                <RefreshCw size={18} color={SynthTokens.colors.neutral0} />
-                <Text style={styles.refreshBtnText}>Refresh</Text>
-              </Pressable>
-              <Pressable
-                style={styles.openWebBtn}
-                onPress={() => openStreamingOnWeb(linkStatus.provider)}
-              >
-                <Text style={styles.openWebBtnText}>Open on web</Text>
-              </Pressable>
-            </View>
+            <LinearGradient
+              colors={[PINK + '18', PINK + '08']}
+              style={styles.syncingCardGradient}
+            >
+              <View style={styles.syncingIconRow}>
+                <View style={styles.syncingIconBg}>
+                  <Zap size={26} color={PINK} />
+                </View>
+              </View>
+              <Text style={styles.syncingTitle}>Connected — syncing your music</Text>
+              <SynthText variant="body" color="secondary" style={styles.syncingCopy}>
+                Your listening data is being imported. This usually takes a moment after first connecting.
+              </SynthText>
+              <View style={styles.syncingActionsRow}>
+                <Pressable style={styles.refreshBtn} onPress={() => void loadStats(true)}>
+                  <RefreshCw size={16} color={SynthTokens.colors.neutral0} />
+                  <Text style={styles.refreshBtnText}>Refresh</Text>
+                </Pressable>
+                <Pressable style={styles.openWebBtn} onPress={() => openStreamingOnWeb(linkStatus.provider)}>
+                  <Text style={styles.openWebBtnText}>Open on web</Text>
+                </Pressable>
+              </View>
+            </LinearGradient>
           </View>
         ) : null}
 
+        {/* Stats content */}
         {linked && !showSyncingEmptyState ? (
           <>
-            <View style={styles.statCard}>
-              <TrendingUp size={28} color={PINK} />
-              <Text style={styles.bigNumber}>{stats?.total_listening_hours ?? 0}</Text>
-              <SynthText variant="meta" color="secondary">
-                Hours played
-              </SynthText>
-            </View>
+            {/* Hero listening hours card */}
+            <LinearGradient
+              colors={[PINK, '#c026d3']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroCard}
+            >
+              <View style={styles.heroCardInner}>
+                <View style={styles.heroIconCircle}>
+                  <Headphones size={22} color={PINK} />
+                </View>
+                <Text style={styles.heroNumber}>{stats?.total_listening_hours ?? 0}</Text>
+                <Text style={styles.heroLabel}>hours played</Text>
+                <Text style={styles.heroProvider}>
+                  via {providerLabel(linkStatus.provider)}
+                </Text>
+              </View>
+            </LinearGradient>
 
+            {/* Top artists */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Mic2 size={22} color={SynthTokens.colors.neutral900} />
-                <Text style={styles.sectionTitle}>Top artists</Text>
+                <Mic2 size={20} color={PINK} />
+                <Text style={styles.sectionTitle}>Top Artists</Text>
               </View>
-              {(stats?.top_artists ?? []).map(
-                (artist: { name: string; popularity?: number }, index: number) => (
-                  <View key={artist.name} style={styles.artistRow}>
-                    <Text style={styles.rankText}>{index + 1}</Text>
-                    <View style={styles.artistInfo}>
-                      <Text style={styles.artistName}>{artist.name}</Text>
-                      <View style={styles.popularityBarContainer}>
-                        <View style={[styles.popularityBar, { width: `${artist.popularity || 0}%` }]} />
+              {(stats?.top_artists ?? []).length > 0 ? (
+                <View style={styles.artistList}>
+                  {(stats?.top_artists ?? []).map(
+                    (artist: { name: string; popularity?: number }, index: number) => (
+                      <View key={artist.name} style={styles.artistRow}>
+                        <View style={[styles.rankBadge, { backgroundColor: medalColor(index) + '22' }]}>
+                          <Text style={[styles.rankText, { color: medalColor(index) }]}>
+                            {index + 1}
+                          </Text>
+                        </View>
+                        <View style={styles.artistInfo}>
+                          <Text style={styles.artistName} numberOfLines={1}>{artist.name}</Text>
+                          <View style={styles.barTrack}>
+                            <View
+                              style={[
+                                styles.barFill,
+                                {
+                                  width: `${artist.popularity || 0}%`,
+                                  backgroundColor: index < 3 ? medalColor(index) : PINK,
+                                },
+                              ]}
+                            />
+                          </View>
+                        </View>
+                        {index < 3 ? (
+                          <Text style={styles.medalEmoji}>
+                            {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                          </Text>
+                        ) : null}
                       </View>
-                    </View>
-                  </View>
-                )
-              )}
-              {(!stats?.top_artists || stats.top_artists.length === 0) && (
-                <SynthText variant="meta" color="secondary">
-                  No artist data yet.
+                    )
+                  )}
+                </View>
+              ) : (
+                <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
+                  No artist data yet — check back after syncing.
                 </SynthText>
               )}
             </View>
 
+            {/* Top genres */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <BarChart3 size={22} color={SynthTokens.colors.neutral900} />
-                <Text style={styles.sectionTitle}>Top genres</Text>
+                <BarChart3 size={20} color={PINK} />
+                <Text style={styles.sectionTitle}>Top Genres</Text>
               </View>
-              <View style={styles.genresContainer}>
-                {(stats?.top_genres ?? []).map((genre: { genre: string; count: number }) => (
-                  <View key={genre.genre} style={styles.genrePill}>
-                    <Text style={styles.genreName}>{genre.genre}</Text>
-                    <SynthText variant="meta" color="secondary">
-                      {genre.count} plays
-                    </SynthText>
-                  </View>
-                ))}
-              </View>
-              {(!stats?.top_genres || stats.top_genres.length === 0) && (
-                <SynthText variant="meta" color="secondary">
+              {(stats?.top_genres ?? []).length > 0 ? (
+                <View style={styles.genresGrid}>
+                  {(stats?.top_genres ?? []).map((genre: { genre: string; count: number }, i: number) => (
+                    <View
+                      key={genre.genre}
+                      style={[styles.genrePill, { borderColor: GENRE_COLORS[i % GENRE_COLORS.length] + '55' }]}
+                    >
+                      <View style={[styles.genreDot, { backgroundColor: GENRE_COLORS[i % GENRE_COLORS.length] }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.genreName} numberOfLines={1}>{genre.genre}</Text>
+                        <Text style={styles.genreCount}>{genre.count} plays</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
                   No genre breakdown yet.
                 </SynthText>
               )}
@@ -288,18 +348,22 @@ export default function StreamingStatsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: SynthTokens.colors.neutral0,
+    backgroundColor: SynthTokens.colors.neutral50,
   },
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
   },
   topBar: {
-    paddingHorizontal: SynthTokens.spacing.sm,
-    paddingBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: SynthTokens.spacing.sm,
+    paddingBottom: 8,
+    paddingTop: 8,
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: SynthTokens.colors.neutral200,
   },
   backBtn: {
     width: 44,
@@ -307,13 +371,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  topBarTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  topBarTitleText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: SynthTokens.colors.neutral900,
+  },
   resyncBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: PINK,
     borderRadius: 20,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   resyncBtnText: {
@@ -321,197 +395,240 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  titleBlock: {
-    marginBottom: SynthTokens.spacing.xl,
+  scrollContent: {
+    padding: SynthTokens.spacing.md,
+    paddingBottom: 80,
+    gap: SynthTokens.spacing.lg,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 8,
-  },
-  pageTitle: {
-    fontSize: 28,
+
+  // Connect cards
+  connectSection: { gap: SynthTokens.spacing.md },
+  connectHeading: {
+    fontSize: 26,
     fontWeight: '800',
     color: SynthTokens.colors.neutral900,
   },
-  subtitle: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  connectBlock: { gap: 14, marginBottom: SynthTokens.spacing.xl },
-  connectCopy: { lineHeight: 22, marginBottom: 4 },
-  connectCardSpotify: {
-    borderRadius: 16,
-    padding: 18,
-    backgroundColor: '#15803d',
-    borderWidth: 1,
-    borderColor: '#166534',
-  },
-  connectCardApple: {
-    borderRadius: 16,
-    padding: 18,
-    backgroundColor: '#dc2626',
-    borderWidth: 1,
-    borderColor: '#b91c1c',
-  },
-  connectCardTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: SynthTokens.colors.neutral0,
-    marginBottom: 4,
-  },
-  connectCardTitleApple: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: SynthTokens.colors.neutral0,
-    marginBottom: 4,
-  },
-  syncingCard: {
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderRadius: 20,
-    padding: SynthTokens.spacing.lg,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    marginBottom: SynthTokens.spacing.xl,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  syncingTitleRow: {
+  connectCopy: { lineHeight: 22 },
+  connectCardWrapper: { borderRadius: 18, overflow: 'hidden' },
+  connectCard: { borderRadius: 18 },
+  connectCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
+    padding: 18,
+    gap: 14,
+  },
+  connectCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectCardTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 3,
+  },
+  connectCardSub: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  connectCardArrow: {
+    fontSize: 20,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '700',
+  },
+
+  // Syncing state
+  syncingCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: PINK + '30',
+  },
+  syncingCardGradient: {
+    padding: SynthTokens.spacing.lg,
+    alignItems: 'center',
+  },
+  syncingIconRow: { marginBottom: SynthTokens.spacing.md },
+  syncingIconBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: PINK + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   syncingTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: SynthTokens.colors.neutral900,
+    textAlign: 'center',
+    marginBottom: 10,
   },
-  syncingCopy: {
-    lineHeight: 22,
-    marginBottom: 14,
-  },
-  syncingActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  syncingCopy: { lineHeight: 22, textAlign: 'center', marginBottom: SynthTokens.spacing.lg },
+  syncingActionsRow: { flexDirection: 'row', gap: 10, width: '100%' },
   refreshBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 13,
     borderRadius: 14,
     backgroundColor: PINK,
   },
-  refreshBtnText: {
-    color: SynthTokens.colors.neutral0,
-    fontSize: 14,
-    fontWeight: '800',
-  },
+  refreshBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
   openWebBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 13,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: SynthTokens.colors.neutral200,
     backgroundColor: SynthTokens.colors.neutral0,
   },
-  openWebBtnText: {
-    color: SynthTokens.colors.neutral900,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  statCard: {
-    backgroundColor: SynthTokens.colors.neutral0,
+  openWebBtnText: { color: SynthTokens.colors.neutral900, fontSize: 14, fontWeight: '700' },
+
+  // Hero card
+  heroCard: {
     borderRadius: 20,
+    overflow: 'hidden',
+  },
+  heroCardInner: {
     padding: SynthTokens.spacing.xl,
     alignItems: 'center',
+  },
+  heroIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SynthTokens.spacing.md,
+  },
+  heroNumber: {
+    fontSize: 64,
+    fontWeight: '900',
+    color: '#fff',
+    lineHeight: 72,
+  },
+  heroLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 4,
+  },
+  heroProvider: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.65)',
+    marginTop: 6,
+  },
+
+  // Sections
+  section: {
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderRadius: 18,
+    padding: SynthTokens.spacing.lg,
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
-    marginBottom: SynthTokens.spacing.xl,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  bigNumber: {
-    fontSize: 52,
-    fontWeight: '800',
-    color: SynthTokens.colors.neutral900,
-    marginVertical: 8,
-  },
-  section: {
-    marginBottom: SynthTokens.spacing.xxl,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: SynthTokens.spacing.lg,
+    gap: 8,
+    marginBottom: SynthTokens.spacing.md,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: SynthTokens.colors.neutral900,
   },
+  emptyMsg: { lineHeight: 20 },
+
+  // Artist list
+  artistList: { gap: SynthTokens.spacing.sm },
   artistRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SynthTokens.spacing.md,
-    gap: SynthTokens.spacing.md,
+    gap: SynthTokens.spacing.sm,
+  },
+  rankBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rankText: {
-    width: 28,
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '800',
-    color: SynthTokens.colors.neutral400,
   },
-  artistInfo: {
-    flex: 1,
-  },
+  artistInfo: { flex: 1 },
   artistName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: SynthTokens.colors.neutral900,
+    marginBottom: 6,
   },
-  popularityBarContainer: {
-    height: 6,
+  barTrack: {
+    height: 5,
     backgroundColor: SynthTokens.colors.neutral100,
     borderRadius: 3,
-    marginTop: 8,
+    overflow: 'hidden',
   },
-  popularityBar: {
+  barFill: {
     height: '100%',
-    backgroundColor: PINK,
     borderRadius: 3,
   },
-  genresContainer: {
+  medalEmoji: {
+    fontSize: 20,
+    width: 28,
+    textAlign: 'center',
+  },
+
+  // Genre grid
+  genresGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SynthTokens.spacing.sm,
   },
   genrePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     backgroundColor: SynthTokens.colors.neutral50,
     paddingHorizontal: SynthTokens.spacing.md,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    minWidth: '45%',
+    borderWidth: 1.5,
+    minWidth: '47%',
+    flex: 1,
+  },
+  genreDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    flexShrink: 0,
   },
   genreName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: SynthTokens.colors.neutral900,
-    marginBottom: 4,
+    marginBottom: 2,
+  },
+  genreCount: {
+    fontSize: 12,
+    color: SynthTokens.colors.neutral600,
+    fontWeight: '500',
   },
 });

@@ -55,6 +55,19 @@ export function useEventReviewModals(userId: string | undefined, loading: boolea
     return () => window.removeEventListener('open-review-invite', handler);
   }, []);
 
+  // Listen for open-review-modal (dispatched by event detail modals when "I Was There!" is clicked)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.event) {
+        setEventReviewPrefill(detail.event as any);
+        setShowEventReviewModal(true);
+      }
+    };
+    window.addEventListener('open-review-modal', handler);
+    return () => window.removeEventListener('open-review-modal', handler);
+  }, []);
+
   return {
     showEventReviewModal,
     setShowEventReviewModal,

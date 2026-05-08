@@ -193,7 +193,9 @@ export const RightNowSection: React.FC<RightNowSectionProps> = ({
           }}
           onInterestToggle={handleInterestToggle}
           onReview={() => {
-            console.log('Review event:', selectedEvent.id);
+            const ev = selectedEvent;
+            setEventDetailsOpen(false);
+            window.dispatchEvent(new CustomEvent('open-review-modal', { detail: { event: ev } }));
           }}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToChat={onNavigateToChat}

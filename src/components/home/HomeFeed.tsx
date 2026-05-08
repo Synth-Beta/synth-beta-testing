@@ -481,7 +481,7 @@ interface FriendEventInterest {
     } else if (selectedFeedType === 'events') {
       loadFriendSuggestionsForRail();
       if (currentUserId) {
-        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 20).then(setFriendFeedEvents).catch(() => {});
+        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10).then(setFriendFeedEvents).catch(() => {});
       }
     } else if (selectedFeedType === 'group-chats') {
       loadRecommendedGroupChats();
@@ -2423,12 +2423,15 @@ interface FriendEventInterest {
             }
           }}
           onReview={() => {
-            console.log('Review event:', selectedEvent.id);
+            const ev = selectedEvent;
+            setEventDetailsOpen(false);
+            window.dispatchEvent(new CustomEvent('open-review-modal', { detail: { event: ev } }));
           }}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToChat={onNavigateToChat}
         />
       )}
+
 
       {/* Review Detail Modal */}
       {reviewDetailOpen && selectedReview && (

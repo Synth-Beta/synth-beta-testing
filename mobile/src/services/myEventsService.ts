@@ -24,6 +24,7 @@ export interface InterestedEventItem {
     event_date: string;
     image_url?: string;
     venue_city?: string;
+    ticket_url?: string;
 }
 
 /** Web-aligned unreviewed queue: attendance-marker reviews + eligible drafts. */
@@ -394,11 +395,11 @@ export class MyEventsService {
         const eventIds = (relRows || []).map((r: any) => r.event_id).filter(Boolean) as string[];
         if (eventIds.length === 0) return [];
 
-        // Step 2: fetch upcoming events only (same as web — past events are excluded)
+        // Step 2: fetch upcoming events only (past events are excluded from interested tab)
         const now = new Date().toISOString();
         const { data: eventsData, error: eventsError } = await supabase
             .from('events')
-            .select('id, title, event_date, images, artist_id, venue_id, venue_city')
+            .select('id, title, event_date, images, artist_id, venue_id, venue_city, ticket_url')
             .in('id', eventIds)
             .gte('event_date', now);
 
@@ -440,6 +441,7 @@ export class MyEventsService {
                 event_date: ev.event_date || '',
                 image_url: ev.images?.[0]?.url,
                 venue_city: ev.venue_city || undefined,
+                ticket_url: ev.ticket_url || undefined,
             });
         }
         return results;

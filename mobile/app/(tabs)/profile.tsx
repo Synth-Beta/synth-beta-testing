@@ -329,7 +329,7 @@ export default function ProfileScreen() {
           <View style={styles.tabPanel}>
             {interested.length === 0 ? (
               <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
-                No upcoming interested shows.
+                No interested shows yet.
               </SynthText>
             ) : (
               interested.map(ev => (
@@ -342,6 +342,7 @@ export default function ProfileScreen() {
                   event_date={ev.event_date}
                   image_url={ev.image_url}
                   venue_city={ev.venue_city}
+                  ticket_url={ev.ticket_url}
                   initialInterested={true}
                   currentUserId={authUserId}
                   onPress={() => router.push(`/event/${ev.event_id}`)}
@@ -526,8 +527,8 @@ const styles = StyleSheet.create({
   },
   profileTabTxt: { fontWeight: '700', color: SynthTokens.colors.neutral600, fontSize: 13 },
   profileTabTxtOn: { color: SynthTokens.colors.neutral900 },
-  tabPanel: { paddingHorizontal: SynthTokens.spacing.md, marginTop: SynthTokens.spacing.md, gap: 10 },
-  tabBlurb: { lineHeight: 20 },
+  tabPanel: { marginTop: SynthTokens.spacing.md },
+  tabBlurb: { lineHeight: 20, paddingHorizontal: SynthTokens.spacing.md },
   passportContainer: {
     paddingHorizontal: SynthTokens.spacing.md,
     paddingBottom: SynthTokens.spacing.lg,

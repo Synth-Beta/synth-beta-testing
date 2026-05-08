@@ -230,14 +230,16 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       if (extraEvents && extraEvents.length > 0) {
         const seen = new Set(cachedFeed.events.map(e => e.event_id));
         const fresh = extraEvents.filter(e => !seen.has(e.event_id));
-        if (fresh.length > 0) {
+        // Cap injected friend events to at most 1 per 4 main events — no dumping remainder at end
+        const maxInjectable = Math.floor(cachedFeed.events.length / 4);
+        const toInject = fresh.slice(0, maxInjectable);
+        if (toInject.length > 0) {
           merged = [];
           let fi = 0;
           for (let i = 0; i < cachedFeed.events.length; i++) {
             merged.push(cachedFeed.events[i]);
-            if ((i + 1) % 4 === 0 && fi < fresh.length) merged.push(fresh[fi++]);
+            if ((i + 1) % 4 === 0 && fi < toInject.length) merged.push(toInject[fi++]);
           }
-          while (fi < fresh.length) merged.push(fresh[fi++]);
         }
       }
       setAllFetchedEvents(merged);

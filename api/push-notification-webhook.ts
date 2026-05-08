@@ -28,6 +28,59 @@ interface WebhookPayload {
   old_record: unknown;
 }
 
+function isExpoPushToken(deviceToken: unknown): deviceToken is string {
+  return typeof deviceToken === 'string' && deviceToken.startsWith('ExponentPushToken');
+}
+
+async function sendExpoPushNotification(params: {
+  expoPushToken: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const accessToken = process.env.EXPO_ACCESS_TOKEN?.trim();
+  if (!accessToken) {
+    return { ok: false, error: 'EXPO_ACCESS_TOKEN not set' };
+  }
+
+  try {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        to: params.expoPushToken,
+        title: params.title,
+        body: params.body,
+        data: params.data ?? {},
+        sound: 'default',
+      }),
+    });
+
+    const json = (await res.json().catch(() => ({}))) as any;
+    if (!res.ok) {
+      return { ok: false, error: json?.errors?.[0]?.message || res.statusText };
+    }
+
+    // Expo may return `data` as an object or array of tickets depending on batching.
+    const ticket = json?.data;
+    const status = Array.isArray(ticket) ? ticket[0]?.status : ticket?.status;
+    if (status === 'error') {
+      const message = Array.isArray(ticket) ? ticket[0]?.message : ticket?.message;
+      return { ok: false, error: message || 'Expo push error' };
+    }
+
+    return { ok: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
+}
+
 async function getApnProvider(): Promise<{ provider: InstanceType<typeof import('apn').Provider>; Notification: typeof import('apn').Notification } | null> {
   let apnModule: typeof import('apn');
   try {
@@ -142,13 +195,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, skipped: reason });
   }
 
-  // Fetch active iOS device tokens
+  // Fetch active device tokens (Expo tokens can represent iOS or Android).
   const { data: devices, error: devicesError } = await supabase
     .from('device_tokens')
-    .select('device_token')
+    .select('device_token, platform')
     .eq('user_id', record.user_id)
-    .eq('platform', 'ios')
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .in('platform', ['ios', 'android']);
 
   if (devicesError) {
     const reason = 'error fetching device tokens';
@@ -157,7 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (!devices?.length) {
-    const reason = 'no active iOS device tokens';
+    const reason = 'no active device tokens';
     console.log(`[push-webhook] skipped: ${reason}`, { user_id: record.user_id });
     return res.status(200).json({
       ok: true,
@@ -166,60 +219,117 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const apnResult = await getApnProvider();
-  if (!apnResult) {
-    console.error('[push-webhook] APNs not configured (APNS_KEY_CONTENT/APNS_KEY_PATH, APNS_KEY_ID, APNS_TEAM_ID)');
-    return res.status(500).json({ error: 'APNs not configured' });
-  }
-  const { provider, Notification } = apnResult;
+  const dataPayload = { ...(record.data || {}), type: record.type } as Record<string, unknown>;
 
-  const bundleId = (process.env.APNS_BUNDLE_ID ?? '').trim() || 'com.tejpatel.synth';
-  const apnNotification = new Notification();
-  apnNotification.alert = { title: record.title, body: record.message };
-  apnNotification.badge = 1;
-  apnNotification.sound = 'default';
-  apnNotification.topic = bundleId;
-  // Include type in payload so app can route notification taps correctly
-  apnNotification.payload = { ...(record.data || {}), type: record.type };
-  apnNotification.expiry = Math.floor(Date.now() / 1000) + 3600;
-  apnNotification.priority = 10;
-
-  let sent = 0;
-  const errors: string[] = [];
-  for (const { device_token } of devices) {
-    try {
-      const result = await provider.send(apnNotification, device_token);
-      if (result.sent?.length) sent++;
-      if (result.failed?.length) {
-        const err = result.failed[0];
-        errors.push(`${err.response?.reason || err.error || 'unknown'}`);
-      }
-    } catch (err) {
-      errors.push(err instanceof Error ? err.message : String(err));
+  // Initialize APNs once before the loop (only if raw iOS tokens exist).
+  const hasApnsDevices = devices.some(
+    (d: { device_token: string; platform: string }) => !isExpoPushToken(d.device_token) && d.platform === 'ios'
+  );
+  let apnProvider: InstanceType<typeof import('apn').Provider> | null = null;
+  let ApnNotification: typeof import('apn').Notification | null = null;
+  if (hasApnsDevices) {
+    const apnResult = await getApnProvider();
+    if (apnResult) {
+      apnProvider = apnResult.provider;
+      ApnNotification = apnResult.Notification;
     }
   }
 
-  provider.shutdown();
+  let expoSent = 0;
+  let apnsSent = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (const row of devices) {
+    const deviceToken = row.device_token;
+    const platform = row.platform;
+
+    if (isExpoPushToken(deviceToken)) {
+      const expoRes = await sendExpoPushNotification({
+        expoPushToken: deviceToken,
+        title: record.title,
+        body: record.message,
+        data: dataPayload,
+      });
+      if (expoRes.ok) {
+        expoSent++;
+      } else {
+        errors.push(`expo:${expoRes.error}`);
+      }
+      continue;
+    }
+
+    // Non-Expo tokens: only iOS APNs is supported here.
+    if (platform !== 'ios') {
+      skipped++;
+      errors.push('android:non-expo-token-unsupported');
+      continue;
+    }
+
+    if (!apnProvider || !ApnNotification) {
+      // Treat missing APNs credentials as "skipped" (nothing was attempted for this device).
+      skipped++;
+      errors.push('apns:not-configured');
+      continue;
+    }
+
+    try {
+      const bundleId = (process.env.APNS_BUNDLE_ID ?? '').trim() || 'com.tejpatel.synth';
+      const apnNotification = new ApnNotification();
+      apnNotification.alert = { title: record.title, body: record.message };
+      apnNotification.badge = 1;
+      apnNotification.sound = 'default';
+      apnNotification.topic = bundleId;
+      apnNotification.payload = dataPayload;
+      apnNotification.expiry = Math.floor(Date.now() / 1000) + 3600;
+      apnNotification.priority = 10;
+
+      const result = await apnProvider.send(apnNotification, deviceToken);
+      if (result.sent?.length) apnsSent++;
+      if (result.failed?.length) {
+        const err = result.failed[0];
+        errors.push(`apns:${err.response?.reason || err.error || 'unknown'}`);
+      }
+    } catch (err) {
+      errors.push(`apns:${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  if (apnProvider) {
+    apnProvider.shutdown();
+  }
+
+  const total = devices.length;
+  const sent = expoSent + apnsSent;
 
   if (sent > 0) {
-    console.log(`[push-webhook] sent ${sent}/${devices.length}`, {
+    console.log(`[push-webhook] sent ${sent}/${total}`, {
       user_id: record.user_id,
       notification_id: record.id,
-      errors: errors.length ? errors : undefined,
+      expoSent,
+      apnsSent,
+      skipped,
+      errors: errors.length ? errors.slice(0, 10) : undefined,
     });
   } else if (errors.length > 0) {
     console.error('[push-webhook] send failed', {
       user_id: record.user_id,
       notification_id: record.id,
-      errors,
+      expoSent,
+      apnsSent,
+      skipped,
+      errors: errors.slice(0, 10),
     });
   }
 
   return res.status(200).json({
     ok: true,
     sent,
-    total: devices.length,
-    errors: errors.length ? errors : undefined,
+    total,
+    expoSent,
+    apnsSent,
+    skipped,
+    errors: errors.length ? errors.slice(0, 10) : undefined,
   });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

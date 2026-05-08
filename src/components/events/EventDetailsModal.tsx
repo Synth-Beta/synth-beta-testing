@@ -2409,36 +2409,26 @@ export function EventDetailsModal({
                 borderColor: 'var(--neutral-200)'
               }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: 'var(--neutral-200)' }}
-                  >
-                    <Users size={16} style={{ color: 'var(--neutral-900)' }} />
-                  </div>
-                  <div>
-                    <h3
-                      className="font-semibold"
-                      style={{ color: 'var(--neutral-900)' }}
-                    >
-                      Event Attendance
-                    </h3>
-                    <p
-                      className="text-sm"
-                      style={{ color: 'var(--neutral-600)' }}
-                    >
-                      {attendanceLoading ? 'Loading...' :
-                        attendanceCount === null ? 'Loading attendance...' :
-                          attendanceCount === 0 ? 'No one has marked attendance yet' :
-                            `${attendanceCount} person${attendanceCount === 1 ? '' : 's'} attended this event`}
-                    </p>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between">
+                <p
+                  className="text-sm"
+                  style={{ color: 'var(--neutral-600)' }}
+                >
+                  {attendanceLoading ? 'Loading...' :
+                    attendanceCount === null ? '' :
+                      attendanceCount === 0 ? 'Be the first to mark attendance' :
+                        `${attendanceCount} person${attendanceCount === 1 ? '' : 's'} attended`}
+                </p>
                 <Button
                   size="default"
-                  variant="secondary"
-                  onClick={handleAttendanceToggle}
+                  variant={userWasThere ? "default" : "secondary"}
+                  onClick={async () => {
+                    const wasAlreadyThere = userWasThere;
+                    await handleAttendanceToggle();
+                    if (!wasAlreadyThere && onReview) {
+                      onReview(actualEvent.id);
+                    }
+                  }}
                   disabled={attendanceLoading}
                   style={{
                     height: 'var(--size-button-height, 36px)',
@@ -2448,36 +2438,20 @@ export function EventDetailsModal({
                     fontFamily: 'var(--font-family)',
                     fontSize: 'var(--typography-meta-size, 16px)',
                     fontWeight: 'var(--typography-meta-weight, 500)',
-                    lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    ...(userWasThere ? { backgroundColor: 'var(--brand-pink-500)', color: '#fff', border: 'none' } : {})
                   }}
                 >
                   {attendanceLoading ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
-                  ) : userWasThere ? (
-                    <>
-                      <Users size={16} className="mr-2" />
-                      I was there
-                    </>
                   ) : (
                     <>
-                      <Users size={16} className="mr-2" />
-                      I was there
+                      <Star size={16} className={`mr-2${userWasThere ? ' fill-current' : ''}`} />
+                      {userWasThere ? 'Attendance Recorded!' : 'I Was There!'}
                     </>
                   )}
                 </Button>
               </div>
-
-              {userWasThere && (
-                <div
-                  className="text-sm rounded-lg p-2"
-                  style={{
-                    color: 'var(--neutral-600)',
-                    backgroundColor: 'var(--neutral-100)'
-                  }}
-                >
-                  ✅ You've marked that you attended this event
-                </div>
-              )}
             </div>
           )}
 
@@ -2505,31 +2479,11 @@ export function EventDetailsModal({
             </div>
           )}
 
-          {/* Bottom: Actions - Different for past vs upcoming events */}
+          {/* Bottom: Actions - upcoming events only (past events handled in attendance section above) */}
           <div className={`pt-3 border-t ${friendModalOpen ? 'mt-2' : 'mt-4'} w-full max-w-full overflow-x-hidden`}>
             {isPastEvent ? (
-              /* Past Event Actions */
-              <div className="flex flex-wrap items-center gap-2 w-full">
-                {/* I Was There Button for Past Events */}
-                {onReview && (
-                  <Button
-                    variant={hasReviewed ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => onReview(actualEvent.id)}
-                    className={`text-xs px-3 py-1 h-7 ${hasReviewed
-                        ? "bg-yellow-500 hover:bg-yellow-600 text-white"
-                        : "hover:bg-yellow-50 hover:text-yellow-600 hover:border-yellow-300"
-                      }`}
-                  >
-                    {hasReviewed ? (
-                      <Star size={16} className="mr-1 fill-current" />
-                    ) : (
-                      <Star size={16} className="mr-1" />
-                    )}
-                    <span className="text-xs">{hasReviewed ? 'Reviewed' : 'I Was There!'}</span>
-                  </Button>
-                )}
-              </div>
+              /* Past events — attendance + review handled in the section above */
+              null
             ) : (
               /* Upcoming Event Actions */
               <div className="flex flex-col gap-2 w-full">

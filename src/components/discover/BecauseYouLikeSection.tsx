@@ -200,7 +200,9 @@ export const BecauseYouLikeSection: React.FC<BecauseYouLikeSectionProps> = ({
           }}
           onInterestToggle={handleInterestToggle}
           onReview={() => {
-            console.log('Review event:', selectedEvent.id);
+            const ev = selectedEvent;
+            setEventDetailsOpen(false);
+            window.dispatchEvent(new CustomEvent('open-review-modal', { detail: { event: ev } }));
           }}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToChat={onNavigateToChat}

@@ -204,7 +204,7 @@ export default function ArtistDetailScreen() {
             .in('artist_id', artistUuidsToSearch)
             .lt('event_date', todayYmd)
             .order('event_date', { ascending: false })
-            .limit(10),
+            .limit(50),
         ]);
         const upcomingData = upcomingRes.data || [];
         const pastData = pastRes.data || [];

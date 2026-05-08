@@ -22,6 +22,7 @@ import {
     Flag,
     MessageCircle,
     X,
+    Star,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventDetailsSkeleton } from '../../src/components/skeletons/EventDetailsSkeleton';
@@ -513,7 +514,7 @@ export default function EventDetailScreen() {
                         {event.title}
                     </SynthText>
 
-                    {/* Interested + Report */}
+                    {/* Interested / Write Review + Report */}
                     <View style={styles.primaryActionRow}>
                         {isUpcomingEvent ? (
                             <Pressable
@@ -531,10 +532,20 @@ export default function EventDetailScreen() {
                                     {isInterested ? 'Interested' : "I'm Interested"}
                                 </Text>
                             </Pressable>
-                        ) : null}
+                        ) : (
+                            <Pressable
+                                onPress={() => router.push(`/review-compose?eventId=${event.id}`)}
+                                style={styles.outlineAction}
+                                accessibilityRole="button"
+                                accessibilityLabel="Write a review"
+                            >
+                                <Star size={22} color={PINK} />
+                                <Text style={styles.outlineActionText} numberOfLines={1}>Write Review</Text>
+                            </Pressable>
+                        )}
                         <Pressable
                             onPress={() => void reportEvent()}
-                            style={[styles.outlineAction, !isUpcomingEvent && styles.outlineActionSingle]}
+                            style={styles.outlineAction}
                             accessibilityRole="button"
                             accessibilityLabel="Report event"
                         >

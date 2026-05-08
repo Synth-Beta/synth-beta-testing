@@ -209,7 +209,7 @@ export default function VenueDetailScreen() {
             .in('venue_id', venueUuidsToSearch)
             .lt('event_date', todayYmd)
             .order('event_date', { ascending: false })
-            .limit(10),
+            .limit(50),
         ]);
         const upcomingData = upcomingRes.data || [];
         const pastData = pastRes.data || [];

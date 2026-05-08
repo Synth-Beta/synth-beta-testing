@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { SkeletonChatMessage } from '@/components/skeleton/SkeletonChatMessage';
 import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
 import { Button } from '@/components/ui/button';
@@ -2053,6 +2054,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           
                           if (isEventShare && eventId) {
                             return (
+                              <div style={{ width: 300 }}>
                                 <EventMessageCard
                                   eventId={eventId}
                                   customMessage={message.metadata?.custom_message}
@@ -2062,7 +2064,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                   currentUserId={currentUserId}
                                   refreshTrigger={refreshTrigger}
                                 />
-                              );
+                              </div>
+                            );
                           }
                           
                           // Priority 3: Text content (only if not review or event share)
@@ -3036,8 +3039,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         </Dialog>
       )}
 
-      {/* Event Details Modal */}
-      {selectedEvent && (
+      {/* Event Details Modal — rendered via portal to escape the CSS transform containing block
+          created by the view-enter-right animation on the chat view's parent container */}
+      {selectedEvent && createPortal(
         <EventDetailsModal
           event={selectedEvent}
           currentUserId={currentUserId}
@@ -3045,7 +3049,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           onClose={() => {
             setEventDetailsOpen(false);
             setSelectedEvent(null);
-            // Trigger refresh of event message cards when modal closes
             setRefreshTrigger(prev => prev + 1);
           }}
           onEventChange={(newEvent, isInterested) => {
@@ -3054,7 +3057,13 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           }}
           onInterestToggle={handleInterestToggle}
           isInterested={selectedEventInterested}
-        />
+          onReview={() => {
+            const ev = selectedEvent;
+            setEventDetailsOpen(false);
+            window.dispatchEvent(new CustomEvent('open-review-modal', { detail: { event: ev } }));
+          }}
+        />,
+        document.body
       )}
 
       {/* Chat Participants Modal - Group Chat Users */}

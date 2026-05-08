@@ -72,6 +72,31 @@ eas submit --profile production
 
 Use your Expo project’s credentials and bundle identifiers from [app.json](app.json).
 
+## Push notifications (iOS + Android)
+
+This app uses `expo-notifications` and registers **Expo push tokens** (`ExponentPushToken[...]`). Those tokens are stored in Supabase (`device_tokens`) and are sent by the server via the **Expo Push API**.
+
+### Server requirements (for actual device popups)
+
+Wherever you run push sending (Vercel webhook and/or worker), you must set:
+
+- `EXPO_ACCESS_TOKEN` — an Expo access token with permission to send push for your Expo project.
+
+### iOS (APNs) — reuse the same Apple key
+
+- Bundle identifier is `com.tejpatel.synth` (from `app.json`).
+- In Expo/EAS credentials for this Expo project, configure APNs using the **same APNs Auth Key (.p8)** you already have (same **Key ID** + **Team ID**). This is what allows Expo’s push service to deliver to APNs for your app.
+
+### Android (FCM)
+
+To receive Android pushes, Expo needs FCM credentials:
+
+- Create/confirm a Firebase project with an Android app for package name `com.tejpatel.synth`.
+- Download `google-services.json` into `mobile/google-services.json` (do not commit it unless you intend to).
+- Configure FCM v1 for Expo/EAS by providing a Firebase **service account JSON** in Expo/EAS credentials.
+
+This repo includes an `app.config.js` that automatically wires `android.googleServicesFile` **only when** `mobile/google-services.json` exists, so local/dev builds don’t break if you haven’t added it yet.
+
 ## Parity with web
 
 The web app (`src/` + `MainApp`) has more screens and depth than Expo in places. A rough mapping lives in [PARITY.md](PARITY.md) for sprint planning.

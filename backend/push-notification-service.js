@@ -206,7 +206,7 @@ class PushNotificationService {
     // Get all active device tokens for user
     const { data: devices, error } = await this.supabase
       .from('device_tokens')
-      .select('device_token')
+      .select('device_token, platform')
       .eq('user_id', userId)
       .eq('is_active', true)
       .in('platform', ['ios', 'android']);
@@ -220,9 +220,14 @@ class PushNotificationService {
       return { success: true, sent: 0, message: 'No active devices' };
     }
 
-    // Send to all devices
+    // Send to all devices; skip non-Expo Android tokens (APNs only handles iOS)
     const results = await Promise.all(
-      devices.map(device => this.sendNotification(device.device_token, notification))
+      devices.map(device => {
+        if (!PushNotificationService.isExpoPushToken(device.device_token) && device.platform !== 'ios') {
+          return Promise.resolve({ success: false, error: 'android:non-expo-token-unsupported' });
+        }
+        return this.sendNotification(device.device_token, notification);
+      })
     );
 
     const successful = results.filter(r => r.success).length;

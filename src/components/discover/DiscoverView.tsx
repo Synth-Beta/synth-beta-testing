@@ -922,6 +922,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               console.error('Error toggling interest:', error);
             }
           }}
+          onReview={() => {
+            const ev = selectedEvent;
+            setEventDetailsOpen(false);
+            window.dispatchEvent(new CustomEvent('open-review-modal', { detail: { event: ev } }));
+          }}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToChat={onNavigateToChat}
             />

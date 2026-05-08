@@ -136,7 +136,10 @@ export default function PublicUserProfileScreen() {
             venue_name,
             venue_city,
             event_date,
-            images
+            images,
+            artist_id,
+            venue_id,
+            ticket_url
           )
         `
         )

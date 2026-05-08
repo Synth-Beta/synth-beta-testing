@@ -3443,6 +3443,11 @@ const { user, sessionExpired } = useAuth();
             logger.error('Error toggling event interest:', error);
           }
         }}
+        onReview={() => {
+          setDetailsOpen(false);
+          setReviewModalEvent(selectedEvent);
+          setShowAddReview(true);
+        }}
         onNavigateToProfile={onNavigateToProfile}
         onNavigateToChat={onNavigateToChat}
         onAttendanceChange={async (eventId, attended) => {

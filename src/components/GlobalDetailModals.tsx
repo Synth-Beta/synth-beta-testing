@@ -86,11 +86,15 @@ export const GlobalDetailModals = ({
               console.error('Error toggling interest:', error);
             }
           }}
+          onReview={() => {
+            const ev = selectedEventFromVenue;
+            onCloseEventDetailsFromVenue();
+            window.dispatchEvent(new CustomEvent('open-review-modal', { detail: { event: ev } }));
+          }}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToChat={onNavigateToChat}
         />
       )}
-
       {manualArtistDetail.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeManualArtistDetail} />
