@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -34,6 +34,7 @@ import {
   getStreamingLinkStatus,
   type StreamingLinkStatus,
 } from '../../src/services/streamingConnectionService';
+import { filterInterestedRowsForSegment } from '../../src/utils/eventStatusUtils';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -59,6 +60,7 @@ export default function ProfileScreen() {
   });
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const [listRefreshing, setListRefreshing] = useState(false);
+  const [showPastInterested, setShowPastInterested] = useState(false);
   const eventsPanelRef = useRef<ProfileMyEventsPanelHandle>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -176,6 +178,18 @@ export default function ProfileScreen() {
       setListRefreshing(false);
     }
   }, [loadProfile]);
+
+  const interestedForSegment = useMemo(
+    () => filterInterestedRowsForSegment(interested, !showPastInterested),
+    [interested, showPastInterested]
+  );
+
+  const interestedEmptySecondary = useMemo(() => {
+    if (interested.length === 0) return '';
+    return showPastInterested
+      ? 'You haven’t marked any past shows as Interested.'
+      : 'You don’t have any upcoming shows marked as Interested.';
+  }, [interested.length, showPastInterested]);
 
   const profileTabsRow = (
     <View style={styles.profileTabs}>
@@ -327,12 +341,39 @@ export default function ProfileScreen() {
 
         {profileTab === 'interested' ? (
           <View style={styles.tabPanel}>
+            {interested.length > 0 ? (
+              <View style={styles.segmentOuter}>
+                <Pressable
+                  onPress={() => setShowPastInterested(false)}
+                  style={[styles.segmentBtn, !showPastInterested && styles.segmentBtnActive]}
+                >
+                  <Text style={[styles.segmentLabel, !showPastInterested && styles.segmentLabelActive]}>
+                    Upcoming
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setShowPastInterested(true)}
+                  style={[styles.segmentBtn, showPastInterested && styles.segmentBtnActive]}
+                >
+                  <Text style={[styles.segmentLabel, showPastInterested && styles.segmentLabelActive]}>Past</Text>
+                </Pressable>
+              </View>
+            ) : null}
             {interested.length === 0 ? (
               <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
-                No interested shows yet.
+                No interested events yet. Tap Interested on shows to save them here.
               </SynthText>
+            ) : interestedForSegment.length === 0 ? (
+              <>
+                <SynthText variant="body" style={[styles.tabBlurb, { fontWeight: '700', color: SynthTokens.colors.neutral900 }]}>
+                  {showPastInterested ? 'No past events' : 'No upcoming events'}
+                </SynthText>
+                <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
+                  {interestedEmptySecondary}
+                </SynthText>
+              </>
             ) : (
-              interested.map(ev => (
+              interestedForSegment.map(ev => (
                 <EventCard
                   key={ev.event_id}
                   id={ev.event_id}
@@ -345,6 +386,7 @@ export default function ProfileScreen() {
                   ticket_url={ev.ticket_url}
                   initialInterested={true}
                   currentUserId={authUserId}
+                  cornerLabel={showPastInterested ? 'Past' : undefined}
                   onPress={() => router.push(`/event/${ev.event_id}`)}
                 />
               ))
@@ -529,6 +571,36 @@ const styles = StyleSheet.create({
   profileTabTxtOn: { color: SynthTokens.colors.neutral900 },
   tabPanel: { marginTop: SynthTokens.spacing.md },
   tabBlurb: { lineHeight: 20, paddingHorizontal: SynthTokens.spacing.md },
+  segmentOuter: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    backgroundColor: SynthTokens.colors.neutral100,
+    padding: 4,
+    marginHorizontal: SynthTokens.spacing.screenMarginX,
+    marginBottom: SynthTokens.spacing.sm,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  segmentBtnActive: {
+    backgroundColor: SynthTokens.colors.neutral0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  segmentLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: SynthTokens.colors.neutral600,
+  },
+  segmentLabelActive: {
+    color: SynthTokens.colors.neutral900,
+  },
   passportContainer: {
     paddingHorizontal: SynthTokens.spacing.md,
     paddingBottom: SynthTokens.spacing.lg,

@@ -60,16 +60,15 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { toast } from '@/hooks/use-toast';
 import PageShell from '@/components/layout/PageShell';
 
-// Chat Review Message wrapper that displays review using ReviewMessageCard (styled like EventMessageCard)
+// Chat Review Message wrapper — renders exactly like EventMessageCard (no chrome/header)
 const ChatReviewMessage: React.FC<{
   reviewId: string;
   currentUserId?: string;
   onReviewClick?: (review: ReviewWithEngagement) => void;
   metadata?: { review_text?: string; rating?: number; artist_name?: string; venue_name?: string; custom_message?: string; };
-  header?: React.ReactNode;
-}> = ({ reviewId, currentUserId, onReviewClick, metadata, header }) => {
+}> = ({ reviewId, currentUserId, onReviewClick, metadata }) => {
   return (
-    <PageShell header={header}>
+    <div style={{ width: 300 }}>
       <ReviewMessageCard
         reviewId={reviewId}
         currentUserId={currentUserId}
@@ -77,7 +76,7 @@ const ChatReviewMessage: React.FC<{
         customMessage={metadata?.custom_message}
         metadata={metadata}
       />
-    </PageShell>
+    </div>
   );
 };
 
@@ -2043,7 +2042,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                 onReviewClick={handleReviewClick}
                                 currentUserId={currentUserId}
                                 metadata={message.metadata}
-                                header={chatHeader}
                               />
                             );
                           }

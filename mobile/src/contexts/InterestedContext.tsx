@@ -31,11 +31,12 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
     const userIdRef = useRef<string | null>(null);
 
     const load = useCallback(async (userId: string) => {
+        // Align with web `UserEventService.isUserInterested`: interested + going + maybe all count as “saved” for the heart.
         const { data, error } = await supabase
             .from('user_event_relationships')
             .select('event_id')
             .eq('user_id', userId)
-            .eq('relationship_type', 'interested');
+            .in('relationship_type', ['interested', 'going', 'maybe']);
 
         if (error) {
             console.warn('[InterestedContext] load failed', error.message);

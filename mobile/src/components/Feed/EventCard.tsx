@@ -64,8 +64,10 @@ export const EventCard: React.FC<EventCardProps> = ({
   friendsInterested,
 }) => {
   const router = useRouter();
-  const { isInterested, toggle } = useInterested();
-  const interested = isInterested(id);
+  const { isInterested, toggle, loading: interestedLoading } = useInterested();
+  const interested = interestedLoading
+    ? isInterested(id) || initialInterested
+    : isInterested(id);
   const [shareToChatOpen, setShareToChatOpen] = useState(false);
 
   const resolvedUri = resolveFeedImageUri(image_url);

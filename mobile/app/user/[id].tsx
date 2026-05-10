@@ -132,27 +132,36 @@ export default function PublicUserProfileScreen() {
           events (
             id,
             title,
-            artist_name,
-            venue_name,
             venue_city,
             event_date,
             images,
             artist_id,
             venue_id,
-            ticket_url
+            ticket_url,
+            artists(name),
+            venues(name)
           )
         `
         )
         .eq('user_id', id)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(120);
 
       if (relErr) {
         console.warn('[publicProfile] interested', relErr.message);
         setInterestedEvents([]);
       } else {
-        setInterestedEvents((rel || []).map((row: any) => row.events).filter((e: any) => e?.id));
+        setInterestedEvents(
+          (rel || [])
+            .map((row: any) => row.events)
+            .filter((e: any) => e?.id)
+            .map((e: any) => ({
+              ...e,
+              artist_name: e.artists?.name ?? e.artist_name ?? '',
+              venue_name: e.venues?.name ?? e.venue_name ?? '',
+            }))
+        );
       }
 
       const t = await PassportService.getTimeline(id);

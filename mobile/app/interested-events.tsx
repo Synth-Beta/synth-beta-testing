@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, StyleSheet, FlatList, RefreshControl, Text } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { Pressable } from 'react-native';
@@ -9,6 +9,7 @@ import { SynthTokens } from '../src/tokens/SynthTokens';
 import { supabase } from '../src/integrations/supabase/client';
 import { InterestedEventItem, MyEventsService } from '../src/services/myEventsService';
 import { EventCard } from '../src/components/Feed/EventCard';
+import { filterInterestedRowsForSegment } from '../src/utils/eventStatusUtils';
 
 export default function InterestedEventsScreen() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function InterestedEventsScreen() {
   const [items, setItems] = useState<InterestedEventItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [showPastSegment, setShowPastSegment] = useState(false);
 
   const load = useCallback(async () => {
     const {
@@ -40,6 +42,38 @@ export default function InterestedEventsScreen() {
     }, [load])
   );
 
+  const segmented = filterInterestedRowsForSegment(items, !showPastSegment);
+
+  const listEmptyCopy = useMemo(() => {
+    if (items.length === 0) {
+      return { title: '', body: 'No interested events yet.\nTap Interested on shows to save them here.' };
+    }
+    return {
+      title: showPastSegment ? 'No past events' : 'No upcoming events',
+      body: showPastSegment
+        ? 'You haven’t marked any past shows as Interested.'
+        : 'You don’t have any upcoming shows marked as Interested.',
+    };
+  }, [items.length, showPastSegment]);
+
+  const segmentToggle =
+    items.length > 0 ? (
+      <View style={styles.segmentOuter}>
+        <Pressable
+          onPress={() => setShowPastSegment(false)}
+          style={[styles.segmentBtn, !showPastSegment && styles.segmentBtnActive]}
+        >
+          <Text style={[styles.segmentLabel, !showPastSegment && styles.segmentLabelActive]}>Upcoming</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setShowPastSegment(true)}
+          style={[styles.segmentBtn, showPastSegment && styles.segmentBtnActive]}
+        >
+          <Text style={[styles.segmentLabel, showPastSegment && styles.segmentLabelActive]}>Past</Text>
+        </Pressable>
+      </View>
+    ) : null;
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -50,7 +84,7 @@ export default function InterestedEventsScreen() {
         <View style={styles.back} />
       </View>
       <FlatList
-        data={items}
+        data={segmented}
         keyExtractor={i => i.event_id}
         refreshControl={
           <RefreshControl
@@ -59,11 +93,19 @@ export default function InterestedEventsScreen() {
             tintColor={SynthTokens.colors.brandPink500}
           />
         }
-        contentContainerStyle={{ paddingBottom: bottomPadding, paddingTop: SynthTokens.spacing.md }}
+        ListHeaderComponent={<View style={styles.listHeader}>{segmentToggle}</View>}
+        contentContainerStyle={{ paddingBottom: bottomPadding, paddingTop: SynthTokens.spacing.sm }}
         ListEmptyComponent={
-          <SynthText variant="body" color="secondary" style={styles.empty}>
-            No interested events yet.
-          </SynthText>
+          <View style={styles.emptyBlock}>
+            {listEmptyCopy.title ? (
+              <SynthText variant="body" style={styles.emptyTitle}>
+                {listEmptyCopy.title}
+              </SynthText>
+            ) : null}
+            <SynthText variant="body" color="secondary" style={styles.empty}>
+              {listEmptyCopy.body}
+            </SynthText>
+          </View>
         }
         renderItem={({ item }) => (
           <EventCard
@@ -78,6 +120,7 @@ export default function InterestedEventsScreen() {
             initialInterested={true}
             currentUserId={currentUserId}
             onPress={() => router.push(`/event/${item.event_id}`)}
+            cornerLabel={showPastSegment ? 'Past' : undefined}
           />
         )}
       />
@@ -98,5 +141,42 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral0,
   },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  empty: { marginTop: 40, textAlign: 'center', paddingHorizontal: SynthTokens.spacing.md },
+  listHeader: { paddingHorizontal: SynthTokens.spacing.screenMarginX },
+  segmentOuter: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    backgroundColor: SynthTokens.colors.neutral100,
+    padding: 4,
+    marginBottom: SynthTokens.spacing.sm,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  segmentBtnActive: {
+    backgroundColor: SynthTokens.colors.neutral0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  segmentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: SynthTokens.colors.neutral600,
+  },
+  segmentLabelActive: {
+    color: SynthTokens.colors.neutral900,
+  },
+  emptyBlock: { marginTop: 48, paddingHorizontal: SynthTokens.spacing.md },
+  emptyTitle: {
+    marginBottom: 8,
+    textAlign: 'center',
+    fontWeight: '700',
+    color: SynthTokens.colors.neutral900,
+  },
+  empty: { textAlign: 'center' },
 });

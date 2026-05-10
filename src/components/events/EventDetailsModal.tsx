@@ -58,6 +58,7 @@ import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 import { JamBaseAttribution } from '@/components/attribution';
 import { ShareService } from '@/services/shareService';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
+import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import {
   iosModal,
   iosModalBackdrop,
@@ -261,12 +262,19 @@ export function EventDetailsModal({
     setLocalIsInterested(isInterested);
   }, [isInterested]);
 
-  // Lock body scroll while modal is open so the background feed doesn't scroll
+  // Lock scroll while modal is open. Must target both body AND the web scroll container
+  // (#web-content-scroll) because the app scrolls inside that div, not the body.
   useEffect(() => {
     if (isOpen) {
-      const prev = document.body.style.overflow;
+      const scrollEl = document.getElementById('web-content-scroll');
+      const prevBody = document.body.style.overflow;
+      const prevEl = scrollEl ? scrollEl.style.overflow : '';
       document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = prev; };
+      if (scrollEl) scrollEl.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevBody;
+        if (scrollEl) scrollEl.style.overflow = prevEl;
+      };
     }
   }, [isOpen]);
 
@@ -1389,23 +1397,66 @@ export function EventDetailsModal({
         </div>
       </div>
       )}
-        {/* Content area with iOS padding (start 12px below header).
-          Ensure the scrollable content clears the fixed bottom nav and
-          still leaves at least 32px of whitespace visible below the last
-          content row when fully scrolled. The bottom nav is ~80px tall. */}
+        {/* Scrollable content area */}
         <div
           style={{
             flex: 1,
             overflowY: 'auto',
             overflowX: 'hidden',
             WebkitOverflowScrolling: 'touch',
-            padding: '0 20px',
             paddingTop: hasNativeEventHeader
-              ? 'calc(env(safe-area-inset-top, 0px) + 56px + 12px)'
-              : '12px',
+              ? 'calc(env(safe-area-inset-top, 0px) + 56px)'
+              : 0,
             paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px + 32px)',
           }}
         >
+          {/* Hero image — full-bleed at top */}
+          {(() => {
+            const imgs = (actualEvent as any).images;
+            const raw = Array.isArray(imgs) && imgs.length > 0
+              ? (imgs.find((i: any) => i?.url && i?.width >= 1024) || imgs.find((i: any) => i?.url))
+              : null;
+            const src = raw?.url ?? (typeof raw === 'string' ? raw : null)
+              ?? (actualEvent as any).event_media_url
+              ?? (actualEvent as any).poster_image_url
+              ?? null;
+            if (!src) return null;
+            const cleaned = replaceJambasePlaceholder(src);
+            return (
+              <div style={{ position: 'relative', width: '100%', height: isWebDesktop ? 300 : 220, overflow: 'hidden', flexShrink: 0 }}>
+                <img
+                  src={cleaned}
+                  alt={actualEvent.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+                {/* Gradient so title below reads cleanly */}
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.45) 100%)' }} />
+                {/* Past / Upcoming badge */}
+                <div style={{ position: 'absolute', top: 12, right: 12 }}>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '3px 12px',
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    background: isPastEvent ? 'rgba(255,255,255,0.18)' : 'var(--brand-pink-500)',
+                    color: '#fff',
+                    backdropFilter: 'blur(6px)',
+                  }}>
+                    {isPastEvent ? 'Past Event' : 'Upcoming'}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Inner content — horizontal padding + max-width centering on web desktop */}
+          <div
+            style={{
+              padding: '16px 20px 0',
+              ...(isWebDesktop ? { maxWidth: 720, margin: '0 auto' } : {}),
+            }}
+          >
           {/* Event Title (larger, below header) */}
           <h2
             style={{
@@ -2611,6 +2662,7 @@ export function EventDetailsModal({
           <div className="pt-4 mt-4 border-t" style={{ borderColor: 'var(--neutral-200)' }}>
             <JamBaseAttribution variant="footer" />
           </div>
+          </div>{/* end inner content wrapper */}
         </div>
         {/* Friend Profile Modal (inline) */}
         {friendModalOpen && friendModalUser && (

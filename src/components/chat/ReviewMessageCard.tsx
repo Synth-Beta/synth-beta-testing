@@ -1,16 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-
-import { 
-  Calendar, 
-  MapPin, 
-  Star, 
-  ExternalLink,
-  ThumbsUp,
-  MessageCircle,
-  FileText
-} from 'lucide-react';
+import { Star, Calendar, MapPin } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import type { ReviewWithEngagement } from '@/services/reviewService';
@@ -39,7 +28,6 @@ interface ReviewData {
   event_date?: string;
   venue_city?: string;
   venue_state?: string;
-  genres?: string[];
 }
 
 export function ReviewMessageCard({
@@ -48,45 +36,44 @@ export function ReviewMessageCard({
   onReviewClick,
   currentUserId,
   className = '',
-  metadata
+  metadata,
 }: ReviewMessageCardProps) {
   const [review, setReview] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadReview();
-  }, [reviewId]);
+  const metaArtist = metadata?.artist_name;
+  const metaVenue = metadata?.venue_name;
+
+  useEffect(() => { loadReview(); }, [reviewId, metaArtist, metaVenue]);
 
   const loadReview = async () => {
     try {
       setLoading(true);
-      
-      // Fetch review first
       const { data: reviewData, error: reviewError } = await supabase
         .from('reviews')
         .select('id, user_id, event_id, rating, review_text, created_at, likes_count, comments_count')
         .eq('id', reviewId)
         .maybeSingle();
 
-      if (reviewError || !reviewData) {
-        console.error('Error loading shared review:', reviewError);
-        return;
-      }
+      if (reviewError || !reviewData) return;
 
-      // Fetch event data separately
       let eventData: any = {};
       if (reviewData.event_id) {
-        const { data: event, error: eventError } = await supabase
+        // Use same join pattern as EventMessageCard so artist/venue names resolve correctly
+        const { data: event } = await supabase
           .from('events')
-          .select('title, event_date, artist_name, venue_name, venue_city, venue_state, genres')
+          .select('title, event_date, venue_city, venue_state, artists(name), venues(name)')
           .eq('id', reviewData.event_id)
           .maybeSingle();
-        
-        if (!eventError && event) {
-          eventData = event;
+        if (event) {
+          eventData = {
+            ...event,
+            artist_name: (event.artists as any)?.name ?? null,
+            venue_name: (event.venues as any)?.name ?? null,
+          };
         }
       }
-      
+
       setReview({
         id: reviewData.id,
         user_id: reviewData.user_id,
@@ -102,10 +89,9 @@ export function ReviewMessageCard({
         event_date: eventData.event_date,
         venue_city: eventData.venue_city,
         venue_state: eventData.venue_state,
-        genres: eventData.genres || [],
       });
-    } catch (error) {
-      console.error('Error loading shared review:', error);
+    } catch {
+      // silent
     } finally {
       setLoading(false);
     }
@@ -113,271 +99,135 @@ export function ReviewMessageCard({
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '';
-    try {
-      return format(parseISO(dateString), 'EEE, MMM d, yyyy');
-    } catch {
-      return dateString;
-    }
+    try { return format(parseISO(dateString), 'EEE, MMM d, yyyy'); }
+    catch { return dateString; }
   };
 
-  const formatTime = (dateString?: string) => {
-    if (!dateString) return '';
-    try {
-      return format(parseISO(dateString), 'h:mm a');
-    } catch {
-      return '';
-    }
-  };
-
-  const truncateText = (text: string, maxLength: number = 100) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
-
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`w-3 h-3 ${
-          i < Math.floor(rating)
-            ? 'text-yellow-400 fill-current'
-            : i < rating
-            ? 'text-yellow-400 fill-current opacity-50'
-            : 'text-gray-300'
-        }`}
-      />
-    ));
+  const handleClick = () => {
+    if (!review) return;
+    onReviewClick?.({
+      id: review.id,
+      user_id: review.user_id,
+      event_id: review.event_id,
+      rating: review.rating,
+      review_text: review.review_text,
+      is_public: true,
+      created_at: review.created_at,
+      updated_at: review.created_at,
+      likes_count: review.likes_count,
+      comments_count: review.comments_count,
+      shares_count: 0,
+      is_liked_by_user: false,
+      reaction_emoji: '',
+      photos: [],
+      videos: [],
+      mood_tags: [],
+      genre_tags: [],
+      context_tags: [],
+      artist_name: review.artist_name,
+      venue_name: review.venue_name,
+    });
   };
 
   if (loading) {
     return (
-      <Card className={`p-4 bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200 animate-pulse ${className}`}>
-        <div className="space-y-3">
-          <div className="h-4 bg-pink-200 rounded w-3/4"></div>
-          <div className="h-3 bg-pink-200 rounded w-1/2"></div>
-          <div className="h-3 bg-pink-200 rounded w-2/3"></div>
-        </div>
-      </Card>
+      <div
+        className={`w-full rounded-2xl overflow-hidden animate-pulse ${className}`}
+        style={{ height: 160, background: 'var(--neutral-100)' }}
+      />
     );
   }
 
   if (!review) {
     return (
-      <Card className={`p-4 bg-gray-50 border-gray-200 ${className}`}>
-        <p className="text-sm text-gray-500">Review not found</p>
-      </Card>
+      <div className={`w-full rounded-2xl p-4 text-sm ${className}`} style={{ background: 'var(--neutral-100)', color: 'var(--neutral-500)' }}>
+        Review not found
+      </div>
     );
   }
 
-  const isPastEvent = review.event_date ? new Date(review.event_date) < new Date() : false;
+  const filledStars = Math.round(review.rating);
+  const snippet = review.review_text.length > 110
+    ? review.review_text.slice(0, 110) + '…'
+    : review.review_text;
 
   return (
-    <Card 
-      className={`overflow-hidden bg-gradient-to-br from-white via-pink-50/30 to-purple-50/30 border-2 border-pink-200 hover:border-pink-300 transition-all duration-200 hover:shadow-lg cursor-pointer ${className}`}
-      onClick={() => {
-        // Convert to ReviewWithEngagement format for onReviewClick
-        const reviewWithEngagement: ReviewWithEngagement = {
-          id: review.id,
-          user_id: review.user_id,
-          event_id: review.event_id,
-          rating: review.rating,
-          review_text: review.review_text,
-          is_public: true,
-          created_at: review.created_at,
-          updated_at: review.created_at,
-          likes_count: review.likes_count,
-          comments_count: review.comments_count,
-          shares_count: 0,
-          is_liked_by_user: false,
-          reaction_emoji: '',
-          photos: [],
-          videos: [],
-          mood_tags: [],
-          genre_tags: [],
-          context_tags: [],
-          artist_name: review.artist_name,
-          venue_name: review.venue_name,
-        };
-        onReviewClick?.(reviewWithEngagement);
-      }}
+    <div
+      className={`w-full rounded-2xl overflow-hidden cursor-pointer ${className}`}
+      style={{ background: 'var(--neutral-900)', boxShadow: '0 2px 16px rgba(0,0,0,0.18)' }}
+      onClick={handleClick}
     >
-      {/* Header with FileText Icon */}
-      <div className="bg-gradient-to-r from-pink-500 to-purple-600 p-3 flex items-center gap-2">
-        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-          <FileText className="w-5 h-5 text-white" />
-        </div>
-        <div className="flex-1">
-          <p className="text-white text-xs font-medium">Concert Review</p>
-        </div>
-        {isPastEvent && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-            Past Event
+      {/* Gradient header band with star rating */}
+      <div style={{
+        background: 'linear-gradient(135deg, #EC4899 0%, #9333EA 100%)',
+        padding: '12px 14px 10px',
+        position: 'relative',
+      }}>
+        <div style={{ position: 'absolute', top: 10, right: 10 }}>
+          <span style={{
+            display: 'inline-block',
+            padding: '2px 10px',
+            borderRadius: 999,
+            fontSize: 11,
+            fontWeight: 600,
+            background: 'rgba(255,255,255,0.2)',
+            color: '#fff',
+            backdropFilter: 'blur(4px)',
+          }}>
+            Concert Review
           </span>
-        )}
+        </div>
+        <div style={{ display: 'flex', gap: 3, marginBottom: 4 }}>
+          {Array.from({ length: 5 }, (_, i) => (
+            <Star
+              key={i}
+              size={15}
+              fill={i < filledStars ? '#fff' : 'none'}
+              stroke="#fff"
+              strokeWidth={1.5}
+              style={{ opacity: i < filledStars ? 1 : 0.4 }}
+            />
+          ))}
+        </div>
+        <p style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1 }}>
+          {review.rating.toFixed(1)}
+          <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.7, marginLeft: 4 }}>/&nbsp;5</span>
+        </p>
       </div>
 
-      {/* Review Details */}
-      <div className="p-4 space-y-3">
-        {/* Custom Message */}
+      {/* Card body — matches EventMessageCard info section */}
+      <div style={{ padding: '12px 14px 12px' }}>
         {customMessage && (
-          <div className="bg-white/80 rounded-lg p-3 border border-pink-200">
-            <p className="text-sm text-gray-700 italic">"{customMessage}"</p>
-          </div>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 6, fontStyle: 'italic' }}>
+            "{customMessage}"
+          </p>
         )}
-
-        {/* Event Title & Artist */}
-        {review.event_title && (
-          <div>
-            <h3 className="font-bold text-lg text-gray-900 leading-tight mb-1">
-              {review.event_title}
-            </h3>
-            {review.artist_name && (
-              <p className="text-pink-600 font-semibold text-sm">
-                {review.artist_name}
-              </p>
-            )}
-          </div>
+        <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.2, marginBottom: 2 }}>
+          {review.artist_name || review.event_title || 'Concert Review'}
+        </p>
+        {review.artist_name && review.event_title && review.event_title !== review.artist_name && (
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>{review.event_title}</p>
         )}
-
-        {/* Rating */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            {renderStars(review.rating)}
-          </div>
-          <span className="text-sm font-semibold text-gray-700">
-            {review.rating.toFixed(1)} / 5.0
-          </span>
-        </div>
-
-        {/* Review Text Snippet */}
-        {review.review_text && (
-          <div className="bg-white/60 rounded-lg p-3 border border-pink-100">
-            <p className="text-sm text-gray-700 italic">
-              "{truncateText(review.review_text, 120)}"
-            </p>
-          </div>
+        {snippet && (
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', fontStyle: 'italic', marginBottom: 8, lineHeight: 1.4 }}>
+            "{snippet}"
+          </p>
         )}
-
-        {/* Date & Time */}
-        {review.event_date && (
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <Calendar className="w-4 h-4 text-pink-500" />
-            <span className="font-medium">{formatDate(review.event_date)}</span>
-            {formatTime(review.event_date) && (
-              <>
-                <span className="text-gray-400">•</span>
-                <span>{formatTime(review.event_date)}</span>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Venue */}
-        {review.venue_name && (
-          <div className="flex items-start gap-2 text-sm text-gray-700">
-            <MapPin className="w-4 h-4 text-pink-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">{review.venue_name}</p>
-              {(review.venue_city || review.venue_state) && (
-                <p className="text-xs text-gray-500">
-                  {[review.venue_city, review.venue_state].filter(Boolean).join(', ')}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Genres */}
-        {review.genres && review.genres.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {review.genres.slice(0, 3).map((genre, index) => (
-              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                {genre}
-              </span>
-            ))}
-            {review.genres.length > 3 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                +{review.genres.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Engagement Stats */}
-        <div className="text-xs text-gray-500 pt-1 border-t border-pink-100">
-          {review.likes_count > 0 && (
-            <span>{review.likes_count} {review.likes_count === 1 ? 'person' : 'people'} found helpful</span>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          {review.event_date && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+              <Calendar size={11} />
+              {formatDate(review.event_date)}
+            </span>
           )}
-          {review.likes_count > 0 && review.comments_count > 0 && <span> · </span>}
-          {review.comments_count > 0 && (
-            <span>{review.comments_count} {review.comments_count === 1 ? 'comment' : 'comments'}</span>
+          {(review.venue_name || review.venue_city) && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'rgba(255,255,255,0.65)' }}>
+              <MapPin size={11} />
+              {review.venue_name || review.venue_city}
+            </span>
           )}
         </div>
-
-        {/* Action Buttons */}
-        <div className="pt-2 border-t border-pink-100 flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="flex-1 border-pink-300 text-pink-700 hover:bg-pink-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Handle helpful action
-            }}
-          >
-            <ThumbsUp className="w-3 h-3 mr-1" />
-            Helpful
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="outline"
-            className="flex-1 border-pink-300 text-pink-700 hover:bg-pink-50"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Handle comment action
-            }}
-          >
-            <MessageCircle className="w-3 h-3 mr-1" />
-            Comment
-          </Button>
-        </div>
-
-        {/* View Details Link */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full text-pink-600 hover:text-pink-700 hover:bg-pink-50"
-          onClick={(e) => {
-            e.stopPropagation();
-            const reviewWithEngagement: ReviewWithEngagement = {
-              id: review.id,
-              user_id: review.user_id,
-              event_id: review.event_id,
-              rating: review.rating,
-              review_text: review.review_text,
-              is_public: true,
-              created_at: review.created_at,
-              updated_at: review.created_at,
-              likes_count: review.likes_count,
-              comments_count: review.comments_count,
-              shares_count: 0,
-              is_liked_by_user: false,
-              reaction_emoji: '',
-              photos: [],
-              videos: [],
-              mood_tags: [],
-              genre_tags: [],
-              context_tags: [],
-              artist_name: review.artist_name,
-              venue_name: review.venue_name,
-            };
-            onReviewClick?.(reviewWithEngagement);
-          }}
-        >
-          View Full Details →
-        </Button>
       </div>
-    </Card>
+    </div>
   );
 }

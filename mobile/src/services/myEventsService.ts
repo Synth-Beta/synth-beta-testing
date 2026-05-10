@@ -385,7 +385,7 @@ export class MyEventsService {
             .eq('user_id', userId)
             .in('relationship_type', ['interested', 'going', 'maybe'])
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(120);
 
         if (relError) {
             console.warn('[myEvents] getInterestedEvents relationships', relError);
@@ -395,13 +395,25 @@ export class MyEventsService {
         const eventIds = (relRows || []).map((r: any) => r.event_id).filter(Boolean) as string[];
         if (eventIds.length === 0) return [];
 
-        // Step 2: fetch upcoming events only (past events are excluded from interested tab)
-        const now = new Date().toISOString();
+        // Exclude events moved to “My Events” via attendance (matches web ProfileView).
+        const { data: attendanceRows } = await supabase
+            .from('reviews')
+            .select('event_id')
+            .eq('user_id', userId)
+            .eq('was_there', true);
+        const attendedIds = new Set(
+            ((attendanceRows || []) as { event_id?: string | null }[])
+                .map(r => r.event_id)
+                .filter(Boolean) as string[]
+        );
+
+        // Step 2: upcoming + past (screens split like web Interested tab).
+        const idsToFetch = eventIds.filter(id => !attendedIds.has(id));
+        if (idsToFetch.length === 0) return [];
         const { data: eventsData, error: eventsError } = await supabase
             .from('events')
             .select('id, title, event_date, images, artist_id, venue_id, venue_city, ticket_url')
-            .in('id', eventIds)
-            .gte('event_date', now);
+            .in('id', idsToFetch);
 
         if (eventsError) {
             console.warn('[myEvents] getInterestedEvents events', eventsError);
@@ -429,6 +441,7 @@ export class MyEventsService {
 
         const results: InterestedEventItem[] = [];
         for (const eventId of eventIds) {
+            if (attendedIds.has(eventId)) continue;
             const ev = eventsById.get(eventId);
             if (!ev) continue;
             const artistName = (ev.artist_id ? artistMap.get(ev.artist_id) : null) || '';

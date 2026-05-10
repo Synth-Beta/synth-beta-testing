@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { PersonalizedFeedService, type PersonalizedEvent, type FeedItem } from '@/services/personalizedFeedService';
 import { HomeFeedService, type NetworkEvent, type EventList, type TrendingEvent, type NetworkReview } from '@/services/homeFeedService';
 import { UnifiedFeedService, type UnifiedFeedItem } from '@/services/unifiedFeedService';
@@ -398,6 +399,17 @@ interface FriendEventInterest {
       };
     }
   }, [currentUserId]);
+
+  // Lock #web-content-scroll when the review dialog is open (body lock alone doesn't stop it)
+  useEffect(() => {
+    const scrollEl = document.getElementById('web-content-scroll');
+    if (!scrollEl) return;
+    if (reviewDetailOpen) {
+      const prev = scrollEl.style.overflow;
+      scrollEl.style.overflow = 'hidden';
+      return () => { scrollEl.style.overflow = prev; };
+    }
+  }, [reviewDetailOpen]);
 
   // Check for selectedEvent in localStorage (from notification navigation)
   useEffect(() => {
@@ -2398,8 +2410,8 @@ interface FriendEventInterest {
           </div>
         )}
 
-      {/* Event Details Modal */}
-      {eventDetailsOpen && selectedEvent && (
+      {/* Event Details Modal — portalled to body so it escapes any transform ancestor */}
+      {eventDetailsOpen && selectedEvent && createPortal(
         <EventDetailsModal
           isOpen={eventDetailsOpen}
           onClose={() => {
@@ -2414,7 +2426,6 @@ interface FriendEventInterest {
             setSelectedEventInterested(isInterested ?? false);
           }}
           onInterestToggle={async (eventId, interested) => {
-            // Tracking is handled in UserEventService.setEventInterest
             try {
               await UserEventService.setEventInterest(currentUserId, eventId, interested);
               setSelectedEventInterested(interested);
@@ -2429,7 +2440,8 @@ interface FriendEventInterest {
           }}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToChat={onNavigateToChat}
-        />
+        />,
+        document.body
       )}
 
 

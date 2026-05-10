@@ -215,8 +215,8 @@ export default function ChatThreadScreen() {
             }
 
             const result = source === 'camera'
-                ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
-                : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+                ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, base64: true })
+                : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: true });
 
             if (result.canceled || !result.assets?.[0]) return;
 
@@ -225,7 +225,7 @@ export default function ChatThreadScreen() {
 
             setUploadingImage(true);
             try {
-                const imageUrl = await ChatService.uploadChatImage(asset.uri, userId);
+                const imageUrl = await ChatService.uploadChatImage(asset.uri, userId, asset.base64 ?? undefined);
                 if (!imageUrl) {
                     Alert.alert('Upload failed', 'Could not upload image. Please try again.');
                     return;

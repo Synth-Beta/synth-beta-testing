@@ -383,37 +383,60 @@ export class EventService {
             const canonicalEventId = await this.resolveEventQueryId(eventId);
             if (!canonicalEventId) return false;
 
-            // Check current
             const { data: existing } = await supabase
                 .from('user_event_relationships')
-                .select('*')
+                .select('relationship_type')
                 .eq('user_id', userId)
                 .eq('event_id', canonicalEventId)
                 .maybeSingle();
 
+            if (type === 'interested') {
+                // Only un-heart when the current type is specifically 'interested'.
+                // 'going'/'maybe' are stronger RSVPs — leave them intact.
+                if (existing?.relationship_type === 'interested') {
+                    const { error } = await supabase
+                        .from('user_event_relationships')
+                        .delete()
+                        .eq('user_id', userId)
+                        .eq('event_id', canonicalEventId);
+                    return !error;
+                }
+                if (existing?.relationship_type) {
+                    // Already going/maybe — heart is visually on, no change needed
+                    return true;
+                }
+                const { error } = await supabase.from('user_event_relationships').upsert(
+                    {
+                        user_id: userId,
+                        event_id: canonicalEventId,
+                        relationship_type: 'interested',
+                        updated_at: new Date().toISOString(),
+                    },
+                    { onConflict: 'user_id,event_id' }
+                );
+                return !error;
+            }
+
+            // `going`: same-type removes; otherwise upsert (no callers today from InterestedContext).
             if (existing && existing.relationship_type === type) {
-                // Remove if same
                 const { error } = await supabase
                     .from('user_event_relationships')
                     .delete()
                     .eq('user_id', userId)
                     .eq('event_id', canonicalEventId);
                 return !error;
-            } else {
-                // Upsert new
-                const { error } = await supabase
-                    .from('user_event_relationships')
-                    .upsert(
-                        {
-                            user_id: userId,
-                            event_id: canonicalEventId,
-                            relationship_type: type,
-                            updated_at: new Date().toISOString(),
-                        },
-                        { onConflict: 'user_id,event_id' }
-                    );
-                return !error;
             }
+
+            const { error } = await supabase.from('user_event_relationships').upsert(
+                {
+                    user_id: userId,
+                    event_id: canonicalEventId,
+                    relationship_type: type,
+                    updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'user_id,event_id' }
+            );
+            return !error;
         } catch (error) {
             console.error('Error toggling event interaction:', error);
             return false;
