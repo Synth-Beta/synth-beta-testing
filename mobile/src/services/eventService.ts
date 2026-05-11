@@ -378,10 +378,14 @@ export class EventService {
     /**
      * Set user interaction (going/interested)
      */
-    static async toggleInteraction(userId: string, eventId: string, type: 'going' | 'interested'): Promise<boolean> {
+    static async toggleInteraction(
+        userId: string,
+        eventId: string,
+        type: 'going' | 'interested'
+    ): Promise<'added' | 'removed' | 'noop' | null> {
         try {
             const canonicalEventId = await this.resolveEventQueryId(eventId);
-            if (!canonicalEventId) return false;
+            if (!canonicalEventId) return null;
 
             const { data: existing } = await supabase
                 .from('user_event_relationships')
@@ -392,18 +396,17 @@ export class EventService {
 
             if (type === 'interested') {
                 // Only un-heart when the current type is specifically 'interested'.
-                // 'going'/'maybe' are stronger RSVPs — leave them intact.
+                // 'going'/'maybe' are stronger RSVPs — preserve them and signal no-op.
                 if (existing?.relationship_type === 'interested') {
                     const { error } = await supabase
                         .from('user_event_relationships')
                         .delete()
                         .eq('user_id', userId)
                         .eq('event_id', canonicalEventId);
-                    return !error;
+                    return error ? null : 'removed';
                 }
                 if (existing?.relationship_type) {
-                    // Already going/maybe — heart is visually on, no change needed
-                    return true;
+                    return 'noop';
                 }
                 const { error } = await supabase.from('user_event_relationships').upsert(
                     {
@@ -414,17 +417,17 @@ export class EventService {
                     },
                     { onConflict: 'user_id,event_id' }
                 );
-                return !error;
+                return error ? null : 'added';
             }
 
-            // `going`: same-type removes; otherwise upsert (no callers today from InterestedContext).
+            // `going`: same-type removes; otherwise upsert.
             if (existing && existing.relationship_type === type) {
                 const { error } = await supabase
                     .from('user_event_relationships')
                     .delete()
                     .eq('user_id', userId)
                     .eq('event_id', canonicalEventId);
-                return !error;
+                return error ? null : 'removed';
             }
 
             const { error } = await supabase.from('user_event_relationships').upsert(
@@ -436,10 +439,10 @@ export class EventService {
                 },
                 { onConflict: 'user_id,event_id' }
             );
-            return !error;
+            return error ? null : 'added';
         } catch (error) {
             console.error('Error toggling event interaction:', error);
-            return false;
+            return null;
         }
     }
 }

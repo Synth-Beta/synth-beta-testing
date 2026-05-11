@@ -10,6 +10,7 @@ import { supabase } from '../src/integrations/supabase/client';
 import { InterestedEventItem, MyEventsService } from '../src/services/myEventsService';
 import { EventCard } from '../src/components/Feed/EventCard';
 import { filterInterestedRowsForSegment } from '../src/utils/eventStatusUtils';
+import { useInterested } from '../src/contexts/InterestedContext';
 
 export default function InterestedEventsScreen() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function InterestedEventsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showPastSegment, setShowPastSegment] = useState(false);
+  const { isInterested, loading: interestedLoading } = useInterested();
 
   const load = useCallback(async () => {
     const {
@@ -42,7 +44,10 @@ export default function InterestedEventsScreen() {
     }, [load])
   );
 
-  const segmented = filterInterestedRowsForSegment(items, !showPastSegment);
+  const segmented = filterInterestedRowsForSegment(
+    interestedLoading ? items : items.filter(ev => isInterested(ev.event_id)),
+    !showPastSegment
+  );
 
   const listEmptyCopy = useMemo(() => {
     if (items.length === 0) {

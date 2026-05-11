@@ -35,6 +35,7 @@ import {
   type StreamingLinkStatus,
 } from '../../src/services/streamingConnectionService';
 import { filterInterestedRowsForSegment } from '../../src/utils/eventStatusUtils';
+import { useInterested } from '../../src/contexts/InterestedContext';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -64,6 +65,7 @@ export default function ProfileScreen() {
   const eventsPanelRef = useRef<ProfileMyEventsPanelHandle>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isInterested, loading: interestedLoading } = useInterested();
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -180,8 +182,11 @@ export default function ProfileScreen() {
   }, [loadProfile]);
 
   const interestedForSegment = useMemo(
-    () => filterInterestedRowsForSegment(interested, !showPastInterested),
-    [interested, showPastInterested]
+    () => filterInterestedRowsForSegment(
+      interestedLoading ? interested : interested.filter(ev => isInterested(ev.event_id)),
+      !showPastInterested
+    ),
+    [interested, showPastInterested, isInterested, interestedLoading]
   );
 
   const interestedEmptySecondary = useMemo(() => {

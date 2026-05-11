@@ -131,9 +131,10 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             return next;
         });
 
-        const ok = await EventService.toggleInteraction(userId, rawId, 'interested');
-        if (!ok) {
-            // Revert on failure
+        const action = await EventService.toggleInteraction(userId, rawId, 'interested');
+
+        // Revert if the service errored OR returned 'noop' (e.g. user has going/maybe — heart stays on).
+        if (action === null || action === 'noop') {
             setCanonicalSet(prev => {
                 const next = new Set(prev);
                 if (isCurrentlyInterested) {
@@ -144,6 +145,7 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
                 return next;
             });
         }
+        // 'added'/'removed' — optimistic update was correct, keep it.
     }, [canonicalSet, resolve]);
 
     return (
