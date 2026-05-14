@@ -407,16 +407,22 @@ export class MyEventsService {
                 .filter(Boolean) as string[]
         );
 
-        // Step 2: upcoming + past (screens split like web Interested tab).
-        const idsToFetch = eventIds.filter(id => !attendedIds.has(id));
-        if (idsToFetch.length === 0) return [];
-        const { data: eventsData, error: eventsError } = await supabase
-            .from('events')
-            .select('id, title, event_date, images, artist_id, venue_id, venue_city, ticket_url')
-            .in('id', idsToFetch);
-
-        if (eventsError) {
-            console.warn('[myEvents] getInterestedEvents events', eventsError);
+        // Step 2: fetch event rows (chunk .in() — large lists can fail on PostgREST / some clients).
+        const EVENTS_IN_CHUNK = 80;
+        const eventsData: Record<string, unknown>[] = [];
+        for (let i = 0; i < idsToFetch.length; i += EVENTS_IN_CHUNK) {
+            const slice = idsToFetch.slice(i, i + EVENTS_IN_CHUNK);
+            const { data: chunk, error: eventsError } = await supabase
+                .from('events')
+                .select('id, title, event_date, images, artist_id, venue_id, venue_city, ticket_url')
+                .in('id', slice);
+            if (eventsError) {
+                console.warn('[myEvents] getInterestedEvents events', eventsError);
+                continue;
+            }
+            eventsData.push(...((chunk || []) as Record<string, unknown>[]));
+        }
+        if (eventsData.length === 0) {
             return [];
         }
 

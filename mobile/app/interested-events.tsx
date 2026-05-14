@@ -10,7 +10,6 @@ import { supabase } from '../src/integrations/supabase/client';
 import { InterestedEventItem, MyEventsService } from '../src/services/myEventsService';
 import { EventCard } from '../src/components/Feed/EventCard';
 import { filterInterestedRowsForSegment } from '../src/utils/eventStatusUtils';
-import { useInterested } from '../src/contexts/InterestedContext';
 
 export default function InterestedEventsScreen() {
   const router = useRouter();
@@ -20,7 +19,6 @@ export default function InterestedEventsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showPastSegment, setShowPastSegment] = useState(false);
-  const { isInterested } = useInterested();
 
   const load = useCallback(async () => {
     const {
@@ -44,10 +42,7 @@ export default function InterestedEventsScreen() {
     }, [load])
   );
 
-  const segmented = filterInterestedRowsForSegment(
-    items.filter(i => isInterested(i.event_id)),
-    !showPastSegment
-  );
+  const segmented = filterInterestedRowsForSegment(items, !showPastSegment);
 
   const listEmptyCopy = useMemo(() => {
     if (items.length === 0) {
@@ -99,7 +94,11 @@ export default function InterestedEventsScreen() {
           />
         }
         ListHeaderComponent={<View style={styles.listHeader}>{segmentToggle}</View>}
-        contentContainerStyle={{ paddingBottom: bottomPadding, paddingTop: SynthTokens.spacing.sm }}
+        contentContainerStyle={{
+          paddingBottom: bottomPadding,
+          paddingTop: SynthTokens.spacing.sm,
+          paddingHorizontal: SynthTokens.spacing.screenMarginX,
+        }}
         ListEmptyComponent={
           <View style={styles.emptyBlock}>
             {listEmptyCopy.title ? (
@@ -146,7 +145,7 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral0,
   },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  listHeader: { paddingHorizontal: SynthTokens.spacing.screenMarginX },
+  listHeader: { paddingHorizontal: 0 },
   segmentOuter: {
     flexDirection: 'row',
     borderRadius: 10,

@@ -10,15 +10,17 @@ export const getEventStatus = (eventDate: string | Date): EventStatus => {
 
 export const isEventPast = (eventDate: string | Date): boolean => getEventStatus(eventDate) === 'past';
 
+/** Align with web `getEventStatus`: missing date → '' → Invalid Date → past, not forced upcoming. */
+function eventDateForStatus(d: string | null | undefined): string {
+    if (d == null || String(d).trim() === '') return '';
+    return String(d);
+}
+
 export const filterEventsByStatus = <T extends { event_date?: string | null }>(
     events: T[],
     status: EventStatus
-): T[] => events.filter((event) => {
-    // null/undefined dates have no known date → treat as upcoming (included in upcoming, excluded from past)
-    const d = event.event_date;
-    if (d == null || String(d).trim() === '') return status === 'upcoming';
-    return getEventStatus(d) === status;
-});
+): T[] =>
+    events.filter((event) => getEventStatus(eventDateForStatus(event.event_date)) === status);
 
 export const getUpcomingEvents = <T extends { event_date?: string | null }>(events: T[]): T[] =>
     filterEventsByStatus(events, 'upcoming');
