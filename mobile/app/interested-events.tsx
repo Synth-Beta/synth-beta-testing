@@ -20,7 +20,7 @@ export default function InterestedEventsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showPastSegment, setShowPastSegment] = useState(false);
-  const { isInterested, loading: interestedLoading } = useInterested();
+  const { isInterested } = useInterested();
 
   const load = useCallback(async () => {
     const {
@@ -45,7 +45,7 @@ export default function InterestedEventsScreen() {
   );
 
   const segmented = filterInterestedRowsForSegment(
-    interestedLoading ? items : items.filter(ev => isInterested(ev.event_id)),
+    items.filter(i => isInterested(i.event_id)),
     !showPastSegment
   );
 

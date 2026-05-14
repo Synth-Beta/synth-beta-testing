@@ -16,7 +16,8 @@
       "android": { "buildType": "apk" },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://glpiolbrafqikqhnseto.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_TsjAgYyPVN5S9hz3NT_05Q_c0oGx-2b"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_TsjAgYyPVN5S9hz3NT_05Q_c0oGx-2b",
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "$MAPBOX_ACCESS_TOKEN"
       }
     },
     "production": {
@@ -26,7 +27,8 @@
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://glpiolbrafqikqhnseto.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_TsjAgYyPVN5S9hz3NT_05Q_c0oGx-2b"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_TsjAgYyPVN5S9hz3NT_05Q_c0oGx-2b",
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "$MAPBOX_ACCESS_TOKEN"
       }
     }
   },
