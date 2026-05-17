@@ -15,6 +15,7 @@ import type { MyReviewListItem } from '../../src/services/myEventsService';
 import { PassportService, type ProfileTimelineItem } from '../../src/services/passportService';
 import { EventService } from '../../src/services/eventService';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
+import { SafeImage } from '../../src/components/SafeImage';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 import { createFriendRequest } from '@synth/shared';
 
@@ -118,7 +119,7 @@ export default function PublicUserProfileScreen() {
               artist_name: ev?.artist_name || '',
               venue_name: ev?.venue_name || '',
               event_date: ev?.event_date || '',
-              image_url: ev?.images?.[0]?.url,
+              image_url: resolveFeedImageUri(ev?.images?.[0]?.url) ?? undefined,
             } as MyReviewListItem;
           });
         setReviews(list);
@@ -378,14 +379,7 @@ export default function PublicUserProfileScreen() {
                         style={styles.reviewRow}
                         onPress={() => router.push(`/review/${r.id}`)}
                       >
-                        <ExpoImage
-                          source={
-                            r.image_url
-                              ? { uri: r.image_url }
-                              : require('../../assets/Synth_Placeholder.png')
-                          }
-                          style={styles.reviewThumb}
-                        />
+                        <SafeImage uri={r.image_url} style={styles.reviewThumb} />
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
                             {r.artist_name || r.title}
@@ -415,14 +409,7 @@ export default function PublicUserProfileScreen() {
                               style={styles.reviewRow}
                               onPress={() => router.push(`/review/${r.id}`)}
                             >
-                              <ExpoImage
-                                source={
-                                  r.image_url
-                                    ? { uri: r.image_url }
-                                    : require('../../assets/Synth_Placeholder.png')
-                                }
-                                style={styles.reviewThumb}
-                              />
+                              <SafeImage uri={r.image_url} style={styles.reviewThumb} />
                               <View style={{ flex: 1, minWidth: 0 }}>
                                 <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
                                   {r.artist_name || r.title}

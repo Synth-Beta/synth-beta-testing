@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,6 @@ import {
   FlatList,
   RefreshControl,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { PassportService, ProfileTimelineItem, ProfileStats } from '../../src/services/passportService';
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
 import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
+import { SafeImage } from '../../src/components/SafeImage';
 import { InterestedEventItem, MyEventsService } from '../../src/services/myEventsService';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
@@ -45,6 +45,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [interested, setInterested] = useState<InterestedEventItem[]>([]);
+  const [interestedLoading, setInterestedLoading] = useState(false);
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
   const [user, setUser] = useState<{
@@ -62,62 +63,95 @@ export default function ProfileScreen() {
   const [listRefreshing, setListRefreshing] = useState(false);
   const [showPastInterested, setShowPastInterested] = useState(false);
   const eventsPanelRef = useRef<ProfileMyEventsPanelHandle>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
+  const interestedLoadedRef = useRef(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true);
-    // Use getSession() (local storage) instead of getUser() (network round-trip)
-    // so the profile renders immediately without waiting for JWT validation.
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const authUser = session?.user ?? null;
-    if (!authUser) {
-      setAuthUserId(null);
-      setLoading(false);
-      return;
+  const loadInterested = useCallback(async (userId: string) => {
+    setInterestedLoading(true);
+    try {
+      const rows = await MyEventsService.getInterestedEvents(userId);
+      setInterested(rows);
+      interestedLoadedRef.current = true;
+    } catch (e) {
+      console.warn('[profile] getInterestedEvents', e);
+    } finally {
+      setInterestedLoading(false);
     }
-    setAuthUserId(authUser.id);
+  }, []);
 
-    // Fire all queries in parallel — user row + stats + timeline etc simultaneously
-    const [userResult, statsData, timelineData, suggestions, interestedRows, streamingStatus] =
-      await Promise.all([
+  const loadDeferred = useCallback(async (userId: string) => {
+    try {
+      const [timelineData, suggestions, streamingStatus] = await Promise.all([
+        PassportService.getTimeline(userId),
+        HomeFeedService.getFriendSuggestionsForRail(userId, 5),
+        getStreamingLinkStatus(userId),
+      ]);
+      setTimeline(timelineData);
+      setFriendSuggestions(suggestions);
+      setStreaming(streamingStatus);
+    } catch (e) {
+      console.warn('[profile] deferred load', e);
+    }
+  }, []);
+
+  const loadProfile = useCallback(async (opts?: { silent?: boolean }): Promise<string | null> => {
+    const silent = opts?.silent === true && hasLoadedOnceRef.current;
+    if (!silent) setLoading(true);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const authUser = session?.user ?? null;
+      if (!authUser) {
+        setAuthUserId(null);
+        return null;
+      }
+      setAuthUserId(authUser.id);
+
+      const [userResult, statsData] = await Promise.all([
         supabase
           .from('users')
           .select('name, username, avatar_url, instagram_handle')
           .eq('user_id', authUser.id)
           .single(),
         PassportService.getProfileStats(authUser.id),
-        PassportService.getTimeline(authUser.id),
-        HomeFeedService.getFriendSuggestionsForRail(authUser.id, 5),
-        MyEventsService.getInterestedEvents(authUser.id),
-        getStreamingLinkStatus(authUser.id),
       ]);
 
-    const { data: userData, error: userRowError } = userResult;
-    if (userRowError) {
-      console.warn('[profile] users row:', userRowError.message);
+      const { data: userData, error: userRowError } = userResult;
+      if (userRowError) {
+        console.warn('[profile] users row:', userRowError.message);
+      }
+
+      setUser(userRowError || !userData ? null : userData);
+      setStats(statsData);
+      hasLoadedOnceRef.current = true;
+      setHasLoadedOnce(true);
+
+      void loadDeferred(authUser.id);
+      return authUser.id;
+    } catch (e) {
+      console.warn('[profile] loadProfile', e);
+      return null;
+    } finally {
+      setLoading(false);
     }
-
-    setUser(userRowError || !userData ? null : userData);
-    setStats(statsData);
-    setTimeline(timelineData);
-    setFriendSuggestions(suggestions);
-    setInterested(interestedRows);
-    setStreaming(streamingStatus);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void loadProfile();
-  }, [loadProfile]);
+  }, [loadDeferred]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadProfile();
+      void loadProfile({ silent: true });
     }, [loadProfile])
   );
+
+  useEffect(() => {
+    if (!authUserId || profileTab !== 'interested') return;
+    if (interestedLoadedRef.current) return;
+    void loadInterested(authUserId);
+  }, [authUserId, profileTab, loadInterested, interested.length]);
 
   const handle = user?.username ? `@${user.username}` : '@username';
   const displayName = user?.name || 'Your Profile';
@@ -172,12 +206,16 @@ export default function ProfileScreen() {
   const onEventsRefresh = useCallback(async () => {
     setListRefreshing(true);
     try {
-      await loadProfile();
+      interestedLoadedRef.current = false;
+      const freshUserId = await loadProfile({ silent: true });
+      if (freshUserId) {
+        await loadInterested(freshUserId);
+      }
       await eventsPanelRef.current?.reload();
     } finally {
       setListRefreshing(false);
     }
-  }, [loadProfile]);
+  }, [loadProfile, loadInterested]);
 
   const interestedForSegment = useMemo(
     () => filterInterestedRowsForSegment(interested, !showPastInterested),
@@ -221,13 +259,10 @@ export default function ProfileScreen() {
 
       <View style={styles.profileCard}>
         <View style={styles.cardTop}>
-          <Image
-            source={
-              user?.avatar_url
-                ? { uri: user.avatar_url }
-                : require('../../assets/placeholder-user.png')
-            }
+          <SafeImage
+            uri={user?.avatar_url}
             style={styles.avatar}
+            placeholderSource={require('../../assets/placeholder-user.png')}
           />
           <View style={styles.cardInfo}>
             <SynthText variant="h2" style={styles.displayName}>
@@ -301,7 +336,7 @@ export default function ProfileScreen() {
     </>
   );
 
-  if (loading) return <ProfileScreenSkeleton />;
+  if (loading && !hasLoadedOnce) return <ProfileScreenSkeleton />;
 
   if (profileTab === 'reviews' && authUserId) {
     return (
@@ -319,6 +354,7 @@ export default function ProfileScreen() {
                 userId={authUserId}
                 hideTitleBlock={true}
                 contentBottomPadding={0}
+                dataEnabled={!loading}
               />
             </View>
           )}
@@ -341,6 +377,11 @@ export default function ProfileScreen() {
 
         {profileTab === 'interested' ? (
           <View style={styles.tabPanel}>
+            {interestedLoading && interested.length === 0 ? (
+              <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
+                Loading interested events…
+              </SynthText>
+            ) : null}
             {interested.length > 0 ? (
               <View style={styles.segmentOuter}>
                 <Pressable
@@ -359,11 +400,11 @@ export default function ProfileScreen() {
                 </Pressable>
               </View>
             ) : null}
-            {interested.length === 0 ? (
+            {!interestedLoading && interested.length === 0 ? (
               <SynthText variant="body" color="secondary" style={styles.tabBlurb}>
                 No interested events yet. Tap Interested on shows to save them here.
               </SynthText>
-            ) : interestedForSegment.length === 0 ? (
+            ) : interestedForSegment.length === 0 && interested.length > 0 ? (
               <>
                 <SynthText variant="body" style={[styles.tabBlurb, { fontWeight: '700', color: SynthTokens.colors.neutral900 }]}>
                   {showPastInterested ? 'No past events' : 'No upcoming events'}

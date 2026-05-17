@@ -21,19 +21,24 @@ export default function InterestedEventsScreen() {
   const [showPastSegment, setShowPastSegment] = useState(false);
 
   const load = useCallback(async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
-    if (!user) {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user ?? null;
+      if (!user) {
+        setItems([]);
+        return;
+      }
+      setCurrentUserId(user.id);
+      const rows = await MyEventsService.getInterestedEvents(user.id);
+      setItems(rows);
+    } catch (e) {
+      console.warn('[interested-events] load', e);
       setItems([]);
+    } finally {
       setRefreshing(false);
-      return;
     }
-    setCurrentUserId(user.id);
-    const rows = await MyEventsService.getInterestedEvents(user.id);
-    setItems(rows);
-    setRefreshing(false);
   }, []);
 
   useFocusEffect(

@@ -72,6 +72,8 @@ type Props = {
   contentBottomPadding?: number;
   /** Dedicated My Events screen already shows title in the nav header. */
   hideTitleBlock?: boolean;
+  /** When false, skips initial fetch until enabled (profile defers until header is ready). */
+  dataEnabled?: boolean;
 };
 
 const STAR_SECTIONS: Array<{ stars: StarBucket; label: string }> = [
@@ -117,6 +119,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
       routeTab,
       contentBottomPadding = 0,
       hideTitleBlock = false,
+      dataEnabled = true,
     },
     ref
   ) {
@@ -167,8 +170,9 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
     useImperativeHandle(ref, () => ({ reload: () => load({ silent: true }) }), [load]);
 
     useEffect(() => {
+      if (!dataEnabled) return;
       void load();
-    }, [load]);
+    }, [load, dataEnabled]);
 
     useEffect(() => {
       if (routeTab === 'rankings') setMode('rankings');

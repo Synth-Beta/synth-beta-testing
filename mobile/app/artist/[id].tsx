@@ -26,6 +26,7 @@ import { ArtistFollowService } from '../../src/services/artistFollowService';
 import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttributionInline';
 import { isUuid } from '../../src/utils/isUuid';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
+import { SafeImage } from '../../src/components/SafeImage';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 import { todayLocalYmd } from '../../src/utils/localYmd';
 
@@ -168,7 +169,7 @@ export default function ArtistDetailScreen() {
       let artistName = artist?.name?.trim() || '';
       if (artist) {
         setName(artistName || 'Artist');
-        setImageUrl(artist.image_url || null);
+        setImageUrl(resolveFeedImageUri(artist.image_url) || null);
         setArtistId(resolvedId);
         setGenres(Array.isArray(artist.genres) ? artist.genres : []);
       } else {
@@ -387,7 +388,7 @@ export default function ArtistDetailScreen() {
         ) : (
           <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
             {imageUrl ? (
-              <Image source={{ uri: imageUrl }} style={styles.hero} resizeMode="cover" />
+              <SafeImage uri={imageUrl} style={styles.hero} contentFit="cover" />
             ) : null}
 
             {/* Stats row */}

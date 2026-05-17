@@ -98,6 +98,9 @@ export class OnboardingService {
         bio?: string;
     }): Promise<void> {
         try {
+            // Ensure the public.users row exists (fallback if handle_new_user trigger missed it)
+            await supabase.rpc('ensure_public_user');
+
             let isMinor = false;
             if (data.birthday) {
                 const birthDate = new Date(data.birthday);

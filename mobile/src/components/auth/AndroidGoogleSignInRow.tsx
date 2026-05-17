@@ -123,13 +123,8 @@ export const AndroidGoogleSignInRow: React.FC<Props> = ({
   );
 };
 
-/** Shown when Android Google env vars are missing — no auth hooks. */
-export const AndroidGoogleSignInPlaceholder: React.FC = () => (
-  <Text style={styles.hint}>
-    Google sign-in: add EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID and EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID to your build (EAS
-    secrets or `.env`). Use the Android OAuth client with your app&apos;s SHA-1 in Google Cloud Console.
-  </Text>
-);
+/** Renders nothing when Android Google env vars are not configured. */
+export const AndroidGoogleSignInPlaceholder: React.FC = () => null;
 
 const styles = StyleSheet.create({
   button: {

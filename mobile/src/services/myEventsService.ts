@@ -407,6 +407,9 @@ export class MyEventsService {
                 .filter(Boolean) as string[]
         );
 
+        const idsToFetch = eventIds.filter(id => !attendedIds.has(id));
+        if (idsToFetch.length === 0) return [];
+
         // Step 2: fetch event rows (chunk .in() — large lists can fail on PostgREST / some clients).
         const EVENTS_IN_CHUNK = 80;
         const eventsData: Record<string, unknown>[] = [];
@@ -452,13 +455,15 @@ export class MyEventsService {
             if (!ev) continue;
             const artistName = (ev.artist_id ? artistMap.get(ev.artist_id) : null) || '';
             const venueName = (ev.venue_id ? venueMap.get(ev.venue_id) : null) || '';
+            const rawImage = (ev as { images?: Array<{ url?: string }> }).images?.[0]?.url;
+            const imageUrl = resolveFeedImageUri(rawImage) ?? undefined;
             results.push({
                 event_id: ev.id,
                 title: ev.title || artistName || 'Event',
                 artist_name: artistName,
                 venue_name: venueName,
                 event_date: ev.event_date || '',
-                image_url: ev.images?.[0]?.url,
+                image_url: imageUrl,
                 venue_city: ev.venue_city || undefined,
                 ticket_url: ev.ticket_url || undefined,
             });

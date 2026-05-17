@@ -55,6 +55,7 @@ export default function ProfileSetupScreen() {
     const router = useRouter();
 
     const [name, setName] = useState('');
+    const [userId, setUserId] = useState<string | null>(null);
     const [username, setUsername] = useState('');
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
     const [birthday, setBirthday] = useState('');
@@ -66,10 +67,11 @@ export default function ProfileSetupScreen() {
 
     const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Pre-fill name from auth metadata
+    // Pre-fill name from auth metadata and capture userId for self-exclusion in username check
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (!user) return;
+            setUserId(user.id);
             const displayName: string =
                 user.user_metadata?.full_name ||
                 user.user_metadata?.name ||
@@ -92,13 +94,11 @@ export default function ProfileSetupScreen() {
             return;
         }
         setUsernameStatus('checking');
-        const { data } = await supabase
-            .from('users')
-            .select('user_id')
-            .eq('username', uname)
-            .maybeSingle();
+        let query = supabase.from('users').select('user_id').eq('username', uname);
+        if (userId) query = query.neq('user_id', userId);
+        const { data } = await query.maybeSingle();
         setUsernameStatus(data ? 'taken' : 'available');
-    }, []);
+    }, [userId]);
 
     const scheduleUsernameCheck = useCallback((uname: string) => {
         if (usernameCheckTimer.current) clearTimeout(usernameCheckTimer.current);
@@ -141,13 +141,11 @@ export default function ProfileSetupScreen() {
         const bdErr = validateBirthday(birthday);
         if (bdErr) { setBirthdayError(bdErr); return; }
 
-        // Final username check
+        // Final username check (exclude current user so back-navigation doesn't false-positive)
         if (usernameStatus !== 'available') {
-            const fresh = await supabase
-                .from('users')
-                .select('user_id')
-                .eq('username', username)
-                .maybeSingle();
+            let freshQuery = supabase.from('users').select('user_id').eq('username', username);
+            if (userId) freshQuery = freshQuery.neq('user_id', userId);
+            const fresh = await freshQuery.maybeSingle();
             if (fresh.data) {
                 setUsernameStatus('taken');
                 return;

@@ -16,24 +16,16 @@ export interface ProfileStatsSummary {
   following_count: number;
 }
 
-function countReviewPillRows(
-  rows: Array<{ was_there?: boolean | null; review_text?: string | null; rating?: number | null }>
-): number {
-  return rows.filter((item) => {
-    if (item.was_there === true) return true;
-    if (item.review_text && item.review_text !== 'ATTENDANCE_ONLY') return true;
-    // Count quick-flow reviews that have a rating but no text
-    if (typeof item.rating === 'number' && item.rating > 0) return true;
-    return false;
-  }).length;
-}
+/** Matches web ProfileView “Events” pill row filter (was_there, text review, or rated). */
+const REVIEW_PILL_COUNT_OR =
+  'was_there.eq.true,and(review_text.neq.ATTENDANCE_ONLY,review_text.not.is.null),rating.gt.0';
 
 export async function fetchProfileStatsSummary(
   client: SynthSupabaseClient,
   userId: string
 ): Promise<ProfileStatsSummary> {
   try {
-    const [friendRes, reviewRowsRes, artistFollows, venueFollows] = await Promise.all([
+    const [friendRes, reviewCountRes, artistFollows, venueFollows] = await Promise.all([
       client
         .from('user_relationships')
         .select('id', { count: 'exact', head: true })
@@ -42,9 +34,10 @@ export async function fetchProfileStatsSummary(
         .or(`user_id.eq.${userId},related_user_id.eq.${userId}`),
       client
         .from('reviews')
-        .select('was_there, review_text, rating')
+        .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('is_draft', false),
+        .eq('is_draft', false)
+        .or(REVIEW_PILL_COUNT_OR),
       client
         .from('artist_follows')
         .select('*', { count: 'exact', head: true })
@@ -58,7 +51,7 @@ export async function fetchProfileStatsSummary(
     const following = (artistFollows.count || 0) + (venueFollows.count || 0);
 
     return {
-      reviewed_events_count: countReviewPillRows(reviewRowsRes.data ?? []),
+      reviewed_events_count: reviewCountRes.count ?? 0,
       artist_count: 0,
       venue_count: 0,
       friend_count: friendRes.count ?? 0,

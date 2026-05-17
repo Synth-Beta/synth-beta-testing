@@ -26,6 +26,7 @@ import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttri
 import { isUuid } from '../../src/utils/isUuid';
 import { SynthMap } from '../../src/components/maps/SynthMap';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
+import { SafeImage } from '../../src/components/SafeImage';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 import { todayLocalYmd } from '../../src/utils/localYmd';
 
@@ -170,7 +171,7 @@ export default function VenueDetailScreen() {
       if (venue) {
         setName(venueName || 'Venue');
         setCity(venue.city || null);
-        setImageUrl(venue.image_url || null);
+        setImageUrl(resolveFeedImageUri(venue.image_url) || null);
         setVenueId(resolvedId);
         const lat = venue.latitude;
         const lng = venue.longitude;
@@ -377,7 +378,7 @@ export default function VenueDetailScreen() {
         ) : (
           <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
             {imageUrl ? (
-              <Image source={{ uri: imageUrl }} style={styles.hero} resizeMode="cover" />
+              <SafeImage uri={imageUrl} style={styles.hero} contentFit="cover" />
             ) : null}
 
             {/* Stats row */}

@@ -10,6 +10,8 @@ import {
     ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { SafeImage } from '../SafeImage';
+import { resolveFeedImageUri } from '../../utils/eventImages';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { BlurView } from 'expo-blur';
@@ -70,8 +72,11 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
             ? Math.max(0, Math.min(photos.length - 1, Math.floor(thumbIdxRaw)))
             : 0;
     const displayPhoto = photos.length > 0 ? (photos[thumbIdx] ?? photos[0] ?? null) : null;
-    const displayImageUrl = displayPhoto || review.artist_image_url || null;
     const isUserPhoto = photos.length > 0;
+    const displayImageUrl = useMemo(() => {
+        if (isUserPhoto && displayPhoto) return displayPhoto;
+        return resolveFeedImageUri(displayPhoto || review.artist_image_url || null);
+    }, [isUserPhoto, displayPhoto, review.artist_image_url]);
 
     const crop = review.thumbnail_crop;
     const validCrop =
@@ -178,8 +183,8 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                             <>
                                 <View style={styles.imageOverflowCenter}>
                                     <View style={[styles.scaledMediaBox, { width: innerW, height: innerH }]}>
-                                        <Image
-                                            source={{ uri: displayImageUrl }}
+                                        <SafeImage
+                                            uri={displayImageUrl}
                                             style={[styles.scaledImage, cropTransform]}
                                             contentFit="cover"
                                             transition={200}

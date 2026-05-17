@@ -2,6 +2,7 @@ import { Platform, Share } from 'react-native';
 import { supabase } from '../integrations/supabase/client';
 import { getExpoSiteUrl } from '../utils/siteUrl';
 import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
+import { resolveFeedImageUri } from '../utils/eventImages';
 
 export interface EventDetail {
     id: string;
@@ -289,7 +290,12 @@ export class EventService {
                 venue_name: venueRow?.name || (data.venue_name as string) || '',
                 event_date: data.event_date,
                 description: data.description,
-                image_url: (data.images as any)?.[0]?.url || artistRow?.image_url || undefined,
+                image_url:
+                    resolveFeedImageUri(
+                        (data.images as { url?: string }[] | undefined)?.[0]?.url ||
+                            artistRow?.image_url ||
+                            undefined
+                    ) ?? undefined,
                 venue_city: venueRow?.city || (data.venue_city as string | undefined),
                 venue_address: venueRow?.address || (data.venue_address as string | undefined),
                 venue_state:

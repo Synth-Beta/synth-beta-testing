@@ -4,6 +4,7 @@ import { useInterested } from '../../src/contexts/InterestedContext';
 import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
+import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -489,11 +490,7 @@ export default function EventDetailScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Hero */}
                 <View style={styles.heroContainer}>
-                    <Image
-                        source={event.image_url ? { uri: event.image_url } : require('../../assets/Synth_Placeholder.png')}
-                        style={styles.heroImage}
-                        contentFit="cover"
-                    />
+                    <SafeImage uri={event.image_url} style={styles.heroImage} contentFit="cover" />
                     <LinearGradient
                         colors={['rgba(0,0,0,0.35)', 'transparent', 'rgba(0,0,0,0.55)']}
                         style={styles.heroGradient}
