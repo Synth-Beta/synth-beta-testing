@@ -151,11 +151,11 @@ export class InAppShareService {
                 chat_id: chatId,
                 message_id: inserted.id,
                 share_type: 'direct_chat',
-            }).then(() => {}).catch(() => {});
+            }).then(() => {}, () => {});
 
             // Bump chat updated_at so it sorts to top of list
             supabase.from('chats').update({ updated_at: new Date().toISOString() })
-                .eq('id', chatId).then(() => {}).catch(() => {});
+                .eq('id', chatId).then(() => {}, () => {});
 
             return { success: true, message_id: inserted.id, chat_id: chatId };
         } catch (err) {
@@ -237,7 +237,7 @@ export class InAppShareService {
                         return { success: false, error: retryErr?.message || 'Retry failed' };
                     }
                     supabase.from('chats').update({ updated_at: new Date().toISOString() })
-                        .eq('id', chatId).then(() => {}).catch(() => {});
+                        .eq('id', chatId).then(() => {}, () => {});
                     return { success: true, message_id: retry.id, chat_id: chatId };
                 }
                 return { success: false, error: error.message };
@@ -246,7 +246,7 @@ export class InAppShareService {
             if (!inserted) return { success: false, error: 'No data returned' };
 
             supabase.from('chats').update({ updated_at: new Date().toISOString() })
-                .eq('id', chatId).then(() => {}).catch(() => {});
+                .eq('id', chatId).then(() => {}, () => {});
 
             return { success: true, message_id: inserted.id, chat_id: chatId };
         } catch (err) {

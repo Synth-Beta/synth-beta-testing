@@ -1,7 +1,9 @@
 import * as Application from 'expo-application';
+import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../src/integrations/supabase/client';
 import { registerForPushNotificationsAsync } from './registerPushNotifications';
+import Constants from 'expo-constants';
 
 /**
  * Registers the Expo push token with Supabase `register_device_token` (same RPC as Vite `PushTokenService`).
@@ -31,5 +33,17 @@ export async function syncExpoPushTokenWithBackend(): Promise<void> {
 
   if (error) {
     console.warn('[push] register_device_token failed:', error.message);
+  }
+}
+
+export async function unregisterExpoPushToken(): Promise<void> {
+  try {
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+    if (!projectId) return;
+    const { data: tokenData } = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (!tokenData) return;
+    await supabase.rpc('unregister_device_token', { p_device_token: tokenData });
+  } catch {
+    // Best-effort — don't block logout on push cleanup failure
   }
 }

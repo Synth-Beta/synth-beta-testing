@@ -10,12 +10,12 @@ export default function PostScreen() {
     <EventReviewFlow
       initialEventId={null}
       prefill={null}
-      onClose={() => router.replace('/(tabs)/')}
+      onClose={() => router.replace('/(tabs)')}
       onSubmitted={(eid) => {
         Alert.alert('Thanks!', 'Your review was posted.', [
           {
             text: 'Done',
-            onPress: () => (eid ? router.replace(`/event/${eid}`) : router.replace('/(tabs)/')),
+            onPress: () => (eid ? router.replace(`/event/${eid}`) : router.replace('/(tabs)')),
           },
           {
             text: 'Rank in My Events',

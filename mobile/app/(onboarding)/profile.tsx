@@ -132,8 +132,6 @@ export default function ProfileSetupScreen() {
     const canContinue =
         username.length >= 3 &&
         (usernameStatus === 'available' || usernameStatus === 'idle') &&
-        usernameStatus !== 'taken' &&
-        usernameStatus !== 'invalid' &&
         !validateBirthday(birthday);
 
     const handleContinue = async () => {
@@ -167,6 +165,9 @@ export default function ProfileSetupScreen() {
             }
         } catch (e) {
             console.warn('Profile setup write failed:', e);
+            setSaving(false);
+            Alert.alert('Something went wrong', 'Could not save your profile. Please try again.');
+            return;
         } finally {
             setSaving(false);
         }

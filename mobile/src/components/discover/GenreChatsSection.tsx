@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     cardDesc: {
         fontSize: 11,
         lineHeight: 15,
-        color: SynthTokens.colors.neutral500,
+        color: SynthTokens.colors.neutral400,
         flexShrink: 1,
     },
     memberRow: {

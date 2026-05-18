@@ -224,7 +224,7 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [searchQ, setSearchQ] = useState('');
-  const [locationLabel] = useState('Washington DC, DC');
+  const [locationLabel] = useState('Your Location');
   const [showLocationPill, setShowLocationPill] = useState(true);
   const [tab, setTab] = useState<'calendar' | 'tour'>('calendar');
   const [userId, setUserId] = useState<string | null>(null);

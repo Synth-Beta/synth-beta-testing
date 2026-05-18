@@ -225,7 +225,7 @@ export default function PublicUserProfileScreen() {
       } else {
         // Send a new friend request
         const result = await createFriendRequest(supabase as any, id);
-        if (!result.error) setFriendStatus('pending_sent');
+        if (result.ok) setFriendStatus('pending_sent');
       }
     } catch (e) {
       console.warn('[publicProfile] friend action', e);

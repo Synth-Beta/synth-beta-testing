@@ -6,9 +6,6 @@
  * 
  * Strategy:
  * - Single endpoint: /jb-api/v3/events with expandExternalIdentifiers=true
- * - Each response includes complete event, artist, and venue data
- * - Batch upsert: artists → venues → events (sequential due to FK constraints)
- * - ~900 API calls for ~90k events (all data included)
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -123,14 +120,9 @@ class JambaseSyncService {
       return null;
     }
 
-    // Remove "jambase:" prefix from identifier
-    const jambaseArtistId = performer.identifier.replace(/^jambase:/, '');
-    const identifier = performer.identifier; // Full identifier
-
     return {
-      jambase_artist_id: jambaseArtistId,
       name: performer.name || 'Unknown Artist',
-      identifier: identifier,
+      identifier: performer.identifier,
       url: performer.url || null,
       image_url: this.replaceJambasePlaceholder(performer.image) || null,
       date_published: performer.datePublished ? new Date(performer.datePublished).toISOString() : null,
@@ -190,7 +182,6 @@ class JambaseSyncService {
       return null;
     }
 
-    const jambaseVenueId = location.identifier ? location.identifier.replace(/^jambase:/, '') : null;
     const identifier = location.identifier || null;
     const address = location.address || {};
 
@@ -233,7 +224,6 @@ class JambaseSyncService {
     const longitude = geo.longitude ? parseFloat(geo.longitude) : null;
 
     return {
-      jambase_venue_id: jambaseVenueId,
       name: location.name,
       identifier: identifier,
       url: location.url || null,
@@ -348,14 +338,10 @@ class JambaseSyncService {
     const tourName = jambaseEvent.partOfTour?.name || null;
 
     return {
-      jambase_event_id: jambaseEventId,
+      jambase_id: jambaseEventId,
       title: jambaseEvent.name || `${headliner?.name || 'Unknown Artist'} Live`,
-      artist_name: headliner?.name || 'Unknown Artist',
-      artist_jambase_id: artistUuid, // FK UUID from artists table
-      artist_jambase_id_text: artistJambaseId, // Actual Jambase artist ID (TEXT)
-      venue_name: venue?.name || 'Unknown Venue',
-      venue_jambase_id: venueUuid, // FK UUID from venues table
-      venue_jambase_id_text: venueJambaseId, // Actual Jambase venue ID (TEXT)
+      artist_id: artistUuid || null,
+      venue_id: venueUuid || null,
       event_date: jambaseEvent.startDate ? new Date(jambaseEvent.startDate).toISOString() : new Date().toISOString(),
       doors_time: doorsTime,
       description: jambaseEvent.description || null,
@@ -395,11 +381,11 @@ class JambaseSyncService {
       return new Map();
     }
 
-    // Deduplicate by jambase_artist_id
+    // Deduplicate by identifier
     const uniqueArtists = new Map();
     for (const artist of artistsData) {
-      if (artist && artist.jambase_artist_id) {
-        uniqueArtists.set(artist.jambase_artist_id, artist);
+      if (artist && artist.identifier) {
+        uniqueArtists.set(artist.identifier, artist);
       }
     }
 
@@ -410,24 +396,25 @@ class JambaseSyncService {
     }
 
     try {
-      // Upsert with ON CONFLICT
-      const { data, error } = await this.supabase
-        .from('artists')
-        .upsert(artistsArray, {
-          onConflict: 'jambase_artist_id',
-          ignoreDuplicates: false
-        })
-        .select('id, jambase_artist_id');
-
-      if (error) {
-        throw error;
-      }
-
-      // Create UUID mapping
+      // Upsert with ON CONFLICT on identifier (existing unique constraint)
+      // Process in small batches to avoid statement timeout
+      const BATCH_SIZE = 25;
       const uuidMap = new Map();
-      if (data) {
-        for (const artist of data) {
-          uuidMap.set(artist.jambase_artist_id, artist.id);
+
+      for (let i = 0; i < artistsArray.length; i += BATCH_SIZE) {
+        const batch = artistsArray.slice(i, i + BATCH_SIZE);
+        const { data, error } = await this.supabase
+          .from('artists')
+          .upsert(batch, { onConflict: 'identifier', ignoreDuplicates: false })
+          .select('id, identifier');
+
+        if (error) throw error;
+
+        if (data) {
+          for (const artist of data) {
+            const strippedKey = artist.identifier?.replace(/^jambase:/, '');
+            if (strippedKey) uuidMap.set(strippedKey, artist.id);
+          }
         }
       }
 
@@ -449,13 +436,12 @@ class JambaseSyncService {
       return new Map();
     }
 
-    // Deduplicate by jambase_venue_id (handle nulls)
+    // Deduplicate by identifier, fall back to name
     const uniqueVenues = new Map();
     for (const venue of venuesData) {
-      if (venue && venue.jambase_venue_id) {
-        uniqueVenues.set(venue.jambase_venue_id, venue);
+      if (venue && venue.identifier) {
+        uniqueVenues.set(venue.identifier, venue);
       } else if (venue && venue.name) {
-        // Use name as fallback key if no jambase_venue_id
         uniqueVenues.set(`name:${venue.name}`, venue);
       }
     }
@@ -467,76 +453,54 @@ class JambaseSyncService {
     }
 
     try {
-      // Since jambase_venue_id is not unique, we need to manually check and upsert
       const uuidMap = new Map();
-      
+
       for (const venue of venuesArray) {
         let venueId = null;
-        
-          if (venue.jambase_venue_id) {
-          // Check if venue exists by jambase_venue_id
+
+        if (venue.identifier) {
+          // Look up by identifier
           const { data: existing } = await this.supabase
             .from('venues')
             .select('id')
-            .eq('jambase_venue_id', venue.jambase_venue_id)
+            .eq('identifier', venue.identifier)
             .maybeSingle();
-          
+
           if (existing) {
-            // Update existing venue
             const { data: updated, error: updateError } = await this.supabase
-              .from('venues')
-              .update(venue)
-              .eq('id', existing.id)
-              .select('id')
-              .single();
-            
+              .from('venues').update(venue).eq('id', existing.id).select('id').single();
             if (updateError) throw updateError;
             venueId = updated.id;
           } else {
-            // Insert new venue
             const { data: inserted, error: insertError } = await this.supabase
-              .from('venues')
-              .insert(venue)
-              .select('id')
-              .single();
-            
+              .from('venues').insert(venue).select('id').single();
             if (insertError) throw insertError;
             venueId = inserted.id;
           }
-          
-          uuidMap.set(venue.jambase_venue_id, venueId);
+
+          // Key by stripped identifier to match event processing lookup
+          uuidMap.set(venue.identifier.replace(/^jambase:/, ''), venueId);
         } else {
-          // No jambase_venue_id, use name-based lookup
+          // No identifier — fall back to name lookup
           const { data: existing } = await this.supabase
             .from('venues')
             .select('id')
             .eq('name', venue.name)
-            .is('jambase_venue_id', null)
+            .is('identifier', null)
             .maybeSingle();
-          
+
           if (existing) {
-            // Update existing venue
             const { data: updated, error: updateError } = await this.supabase
-              .from('venues')
-              .update(venue)
-              .eq('id', existing.id)
-              .select('id')
-              .single();
-            
+              .from('venues').update(venue).eq('id', existing.id).select('id').single();
             if (updateError) throw updateError;
             venueId = updated.id;
           } else {
-            // Insert new venue
             const { data: inserted, error: insertError } = await this.supabase
-              .from('venues')
-              .insert(venue)
-              .select('id')
-              .single();
-            
+              .from('venues').insert(venue).select('id').single();
             if (insertError) throw insertError;
             venueId = inserted.id;
           }
-          
+
           uuidMap.set(`name:${venue.name}`, venueId);
         }
       }
@@ -559,18 +523,11 @@ class JambaseSyncService {
     }
 
     try {
-      const { data, error } = await this.supabase
+      const { error } = await this.supabase
         .from('events')
-        .upsert(eventsData, {
-          onConflict: 'jambase_event_id',
-          ignoreDuplicates: false
-        })
-        .select('id, jambase_event_id');
+        .upsert(eventsData, { onConflict: 'jambase_id', ignoreDuplicates: false });
 
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       this.stats.eventsProcessed += eventsData.length;
     } catch (error) {
       console.error('Error upserting events:', error);

@@ -262,7 +262,7 @@ export function ShareToChatModal({
                         </View>
                     ) : targets.length === 0 ? (
                         <View style={styles.centered}>
-                            <MessageCircle size={36} color={SynthTokens.colors.neutral300} />
+                            <MessageCircle size={36} color={SynthTokens.colors.neutral200} />
                             <SynthText variant="body" color="secondary" style={{ marginTop: 12, textAlign: 'center' }}>
                                 No chats or friends yet.{'\n'}Start a conversation first.
                             </SynthText>
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
         width: 36,
         height: 4,
         borderRadius: 2,
-        backgroundColor: SynthTokens.colors.neutral300,
+        backgroundColor: SynthTokens.colors.neutral200,
         alignSelf: 'center',
         marginTop: 10,
         marginBottom: 4,
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
         height: 22,
         borderRadius: 11,
         borderWidth: 2,
-        borderColor: SynthTokens.colors.neutral300,
+        borderColor: SynthTokens.colors.neutral200,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
     },
     sendBtnDisabled: {
-        backgroundColor: SynthTokens.colors.neutral300,
+        backgroundColor: SynthTokens.colors.neutral200,
     },
     sendBtnSent: {
         backgroundColor: '#22c55e',

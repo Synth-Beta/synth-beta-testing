@@ -600,7 +600,9 @@ export class HomeFeedService {
                 });
             });
 
+            const today = todayLocalYmd();
             return results
+                .filter(e => !e.event_date || e.event_date >= today)
                 .sort((a, b) => (b.interested_count ?? 0) - (a.interested_count ?? 0))
                 .slice(0, limit);
         } catch (err) {

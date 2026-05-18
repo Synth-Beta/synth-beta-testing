@@ -34,6 +34,7 @@ import {
   updateCurrentUserSettingsPreferences,
 } from '../src/services/userSettingsPreferencesService';
 import { SettingsScreenSkeleton } from '../src/components/skeletons/SettingsScreenSkeleton';
+import { unregisterExpoPushToken } from '../lib/pushTokenSync';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -198,6 +199,7 @@ export default function SettingsScreen() {
   const onSignOut = async () => {
     setSigningOut(true);
     try {
+      await unregisterExpoPushToken();
       await supabase.auth.signOut();
     } finally {
       setSigningOut(false);

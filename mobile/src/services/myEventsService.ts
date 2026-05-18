@@ -1,5 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
-import { resolveFeedImageUri } from '../utils/eventImages';
+import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
 
 export interface MyReviewListItem {
     id: string;
@@ -435,14 +435,19 @@ export class MyEventsService {
 
         const [artistsResult, venuesResult] = await Promise.all([
             allArtistIds.length > 0
-                ? supabase.from('artists').select('id, name').in('id', allArtistIds)
-                : Promise.resolve({ data: [] as Array<{ id: string; name: string }>, error: null }),
+                ? supabase.from('artists').select('id, name, image_url').in('id', allArtistIds)
+                : Promise.resolve({ data: [] as Array<{ id: string; name: string; image_url?: string | null }>, error: null }),
             allVenueIds.length > 0
                 ? supabase.from('venues').select('id, name').in('id', allVenueIds)
                 : Promise.resolve({ data: [] as Array<{ id: string; name: string }>, error: null }),
         ]);
 
-        const artistMap = new Map((artistsResult.data || []).map((a: any) => [a.id, a.name as string]));
+        const artistMap = new Map(
+            (artistsResult.data || []).map((a: { id: string; name: string; image_url?: string | null }) => [
+                a.id,
+                { name: a.name, image_url: a.image_url ?? null },
+            ])
+        );
         const venueMap = new Map((venuesResult.data || []).map((v: any) => [v.id, v.name as string]));
 
         // Preserve order from step 1
@@ -453,9 +458,14 @@ export class MyEventsService {
             if (attendedIds.has(eventId)) continue;
             const ev = eventsById.get(eventId);
             if (!ev) continue;
-            const artistName = (ev.artist_id ? artistMap.get(ev.artist_id) : null) || '';
+            const artistRow = ev.artist_id ? artistMap.get(ev.artist_id) : undefined;
+            const artistName = artistRow?.name || '';
             const venueName = (ev.venue_id ? venueMap.get(ev.venue_id) : null) || '';
-            const rawImage = (ev as { images?: Array<{ url?: string }> }).images?.[0]?.url;
+            const eventPayload = ev as Record<string, unknown>;
+            const rawImage =
+                artistRow?.image_url ||
+                pickFeedImageUrlFromPayload(eventPayload) ||
+                (eventPayload.images as Array<{ url?: string }> | undefined)?.[0]?.url;
             const imageUrl = resolveFeedImageUri(rawImage) ?? undefined;
             results.push({
                 event_id: ev.id,

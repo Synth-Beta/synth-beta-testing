@@ -1,12 +1,11 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, View, Pressable, Dimensions, Text, Linking } from 'react-native';
-import { Image } from 'expo-image';
+import { SafeImage } from '../SafeImage';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { Heart, MapPin, Calendar, Share2, Ticket, Music, Star } from 'lucide-react-native';
 import { EventService } from '../../services/eventService';
-import { resolveFeedImageUri } from '../../utils/eventImages';
 import { isEventPast } from '../../utils/eventStatusUtils';
 import { useInterested } from '../../contexts/InterestedContext';
 import { ShareToChatModal } from '../share/ShareToChatModal';
@@ -18,8 +17,6 @@ const IMAGE_HEIGHT = CARD_WIDTH / ASPECT_RATIO;
 const CARD_RADIUS = SynthTokens.radius.corner;
 
 const PINK = SynthTokens.colors.brandPink500;
-
-const PLACEHOLDER = require('../../../assets/Synth_Placeholder.png');
 
 export interface EventCardProps {
   id: string;
@@ -69,8 +66,6 @@ export const EventCard: React.FC<EventCardProps> = ({
     ? isInterested(id) || initialInterested
     : isInterested(id);
   const [shareToChatOpen, setShareToChatOpen] = useState(false);
-
-  const resolvedUri = resolveFeedImageUri(image_url);
 
   const headline =
     title?.trim() ||
@@ -151,12 +146,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       <View style={styles.cardFace}>
         <Pressable onPress={handleOpen} style={({ pressed }) => [pressed && styles.pressed]}>
           <View style={styles.imageWrap}>
-            <Image
-              source={resolvedUri ? { uri: resolvedUri } : PLACEHOLDER}
-              style={styles.image}
-              contentFit="cover"
-              transition={200}
-            />
+            <SafeImage uri={image_url} style={styles.image} contentFit="cover" transition={200} />
             {cornerLabel ? (
               <View style={styles.cornerLabelWrap} pointerEvents="none">
                 <Text style={styles.cornerLabelText}>{cornerLabel.toUpperCase()}</Text>

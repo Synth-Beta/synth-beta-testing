@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
     },
     friendBio: {
         fontSize: 13,
-        color: SynthTokens.colors.neutral500,
+        color: SynthTokens.colors.neutral400,
         marginTop: 2,
     },
     checkbox: {
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
         height: 24,
         borderRadius: 12,
         borderWidth: 2,
-        borderColor: SynthTokens.colors.neutral300,
+        borderColor: SynthTokens.colors.neutral200,
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
     ctaBtnDisabled: {
-        backgroundColor: SynthTokens.colors.neutral300,
+        backgroundColor: SynthTokens.colors.neutral200,
         shadowOpacity: 0,
         elevation: 0,
     },
