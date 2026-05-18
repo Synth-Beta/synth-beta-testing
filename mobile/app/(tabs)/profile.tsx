@@ -70,13 +70,14 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const loadInterested = useCallback(async (userId: string) => {
+    interestedLoadedRef.current = true; // lock at entry — prevents concurrent/double loads
     setInterestedLoading(true);
     try {
       const rows = await MyEventsService.getInterestedEvents(userId);
       setInterested(rows);
-      interestedLoadedRef.current = true;
     } catch (e) {
       console.warn('[profile] getInterestedEvents', e);
+      interestedLoadedRef.current = false; // allow retry on next focus
     } finally {
       setInterestedLoading(false);
     }
@@ -143,15 +144,21 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadProfile({ silent: true });
-    }, [loadProfile])
+      interestedLoadedRef.current = false; // always re-fetch on focus
+      void (async () => {
+        const freshUserId = await loadProfile({ silent: true });
+        if (freshUserId) {
+          void loadInterested(freshUserId);
+        }
+      })();
+    }, [loadProfile, loadInterested])
   );
 
   useEffect(() => {
     if (!authUserId || profileTab !== 'interested') return;
     if (interestedLoadedRef.current) return;
     void loadInterested(authUserId);
-  }, [authUserId, profileTab, loadInterested, interested.length]);
+  }, [authUserId, profileTab, loadInterested]);
 
   const handle = user?.username ? `@${user.username}` : '@username';
   const displayName = user?.name || 'Your Profile';
