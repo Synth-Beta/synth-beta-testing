@@ -52,33 +52,38 @@ async function fetchFromJamBase(query, date) {
     }
     
     // Use correct JamBase API endpoint from official documentation
-    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${apiKey}`;
-    
+    const baseUrl = 'https://api.data.jambase.com/v3/events';
+
     // Build search parameters
     const params = new URLSearchParams();
-    
+
     // Add artist search if query is provided
     if (query) {
-      // Try different parameter names that might work for artist search
       params.append('artistName', query);
     }
-    
+
     // Add date filtering if provided
     if (date) {
       const dateStr = new Date(date).toISOString().split('T')[0];
       params.append('eventDateFrom', dateStr);
       params.append('eventDateTo', dateStr);
     }
-    
+
     // Set limit (reduced for better performance)
     params.append('limit', '10');
-    
-    const endpoint = `${baseUrl}&${params.toString()}`;
+
+    const endpoint = `${baseUrl}?${params.toString()}`;
 
     console.log('Calling JamBase API:', endpoint);
-    
+
     try {
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'User-Agent': 'PlusOneEventCrew/1.0'
+        }
+      });
       
       if (!response.ok) {
         console.log(`JamBase API failed with status: ${response.status}`);
@@ -701,9 +706,9 @@ router.get('/api/jambase/events',
     }
     
     // Build JamBase API URL
-    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${apiKeyToUse}`;
+    const baseUrl = 'https://api.data.jambase.com/v3/events';
     const params = new URLSearchParams();
-    
+
     // Add search parameters
     if (artistName) params.append('artistName', artistName);
     if (artistId) params.append('artistId', artistId);
@@ -723,13 +728,14 @@ router.get('/api/jambase/events',
     if (geoRadiusUnits) params.append('geoRadiusUnits', geoRadiusUnits);
     if (genreSlug) params.append('genreSlug', genreSlug);
 
-    const url = `${baseUrl}&${params.toString()}`;
+    const url = `${baseUrl}?${params.toString()}`;
     console.log('Calling JamBase API:', url);
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        'Authorization': `Bearer ${apiKeyToUse}`,
         'User-Agent': 'PlusOneEventCrew/1.0'
       }
     });

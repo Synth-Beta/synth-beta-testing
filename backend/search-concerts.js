@@ -17,7 +17,7 @@ const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missi
 const supabase = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
 
 // JamBase API configuration
-const JAMBASE_BASE_URL = process.env.JAMBASE_BASE_URL || 'https://www.jambase.com/jb-api/v1';
+const JAMBASE_BASE_URL = process.env.JAMBASE_BASE_URL || 'https://api.data.jambase.com/v3';
 
 // Sanitization middleware
 const sanitize = createSanitizationMiddleware({ sanitizeBody: true });
@@ -39,7 +39,6 @@ async function fetchFromJamBase(userQuery, filters = {}) {
 
     // Build query parameters
     const params = {
-      apikey: apiKey,
       num: 50, // Always set to 50 as per spec
       page: 0, // Always 0 for first page
       o: 'json' // Always 'json'
@@ -85,6 +84,8 @@ async function fetchFromJamBase(userQuery, filters = {}) {
       params: params,
       timeout: 10000, // 10 second timeout
       headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
         'User-Agent': 'PlusOneEventCrew/1.0'
       }
     };

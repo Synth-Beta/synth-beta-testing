@@ -58,8 +58,8 @@ async function fetchEventsFromJamBaseByLocation(lat, lng, radius = 25, limit = 5
     }
     
     // JamBase API endpoint for events
-    const baseUrl = `https://www.jambase.com/jb-api/v1/events?apikey=${apiKey}`;
-    
+    const baseUrl = 'https://api.data.jambase.com/v3/events';
+
     // Build search parameters for location-based search
     const params = new URLSearchParams();
     params.append('geoLatitude', lat.toString());
@@ -68,14 +68,15 @@ async function fetchEventsFromJamBaseByLocation(lat, lng, radius = 25, limit = 5
     params.append('geoRadiusUnits', 'mi');
     params.append('perPage', Math.min(limit, 100).toString());
     params.append('eventType', 'concerts');
-    
-    const finalUrl = `${baseUrl}&${params.toString()}`;
+
+    const finalUrl = `${baseUrl}?${params.toString()}`;
     console.log('🔍 JamBase location API URL:', finalUrl);
-    
+
     const response = await fetch(finalUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
         'User-Agent': 'PlusOneEventCrew/1.0'
       }
     });

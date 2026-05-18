@@ -5,7 +5,7 @@
  * using a single API endpoint with embedded data.
  * 
  * Strategy:
- * - Single endpoint: /jb-api/v1/events with expandExternalIdentifiers=true
+ * - Single endpoint: /jb-api/v3/events with expandExternalIdentifiers=true
  * - Each response includes complete event, artist, and venue data
  * - Batch upsert: artists → venues → events (sequential due to FK constraints)
  * - ~900 API calls for ~90k events (all data included)
@@ -43,7 +43,7 @@ class JambaseSyncService {
       throw new Error('Missing JAMBASE_API_KEY environment variable. This is required for sync operations.');
     }
     
-    this.baseUrl = 'https://www.jambase.com/jb-api/v1/events';
+    this.baseUrl = 'https://api.data.jambase.com/v3/events';
     
     // Statistics tracking
     this.stats = {
@@ -60,7 +60,6 @@ class JambaseSyncService {
    */
   async fetchEventsPage(page = 1, perPage = 100, dateModifiedFrom = null, retryCount = 0) {
     const params = new URLSearchParams({
-      apikey: this.jambaseApiKey,
       expandExternalIdentifiers: 'true', // CRITICAL: includes all artist/venue IDs
       perPage: perPage.toString(),
       page: page.toString()
@@ -71,13 +70,14 @@ class JambaseSyncService {
     }
 
     const url = `${this.baseUrl}?${params.toString()}`;
-    
+
     this.stats.apiCalls++;
-    
+
     try {
       const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
+          'Authorization': `Bearer ${this.jambaseApiKey}`,
           'User-Agent': 'Synth/1.0'
         },
         // Add timeout to prevent hanging
@@ -129,7 +129,6 @@ class JambaseSyncService {
 
     return {
       jambase_artist_id: jambaseArtistId,
-      artist_data_source: 'jambase',
       name: performer.name || 'Unknown Artist',
       identifier: identifier,
       url: performer.url || null,

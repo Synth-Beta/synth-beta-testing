@@ -417,7 +417,7 @@ export class MyEventsService {
             const slice = idsToFetch.slice(i, i + EVENTS_IN_CHUNK);
             const { data: chunk, error: eventsError } = await supabase
                 .from('events')
-                .select('id, title, event_date, images, artist_id, venue_id, venue_city, ticket_url')
+                .select('id, title, event_date, images, artist_id, venue_id, venue_city, ticket_urls')
                 .in('id', slice);
             if (eventsError) {
                 console.warn('[myEvents] getInterestedEvents events', eventsError);
@@ -465,7 +465,7 @@ export class MyEventsService {
                 event_date: ev.event_date || '',
                 image_url: imageUrl,
                 venue_city: ev.venue_city || undefined,
-                ticket_url: ev.ticket_url || undefined,
+                ticket_url: (ev.ticket_urls as string[] | null)?.[0] || undefined,
             });
         }
         return results;
