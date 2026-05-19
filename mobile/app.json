@@ -13,7 +13,7 @@
       "backgroundColor": "#FDF2F8"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.tejpatel.synth",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
