@@ -18,6 +18,11 @@ function getExpoConfig() {
 
   return {
     ...expo,
+    ios: {
+      ...(expo.ios ?? {}),
+      // iPhone-only App Store binary (no iPad screenshot requirements).
+      supportsTablet: false,
+    },
     android: {
       ...(expo.android ?? {}),
       ...(hasGoogleServices ? { googleServicesFile: './google-services.json' } : {}),
