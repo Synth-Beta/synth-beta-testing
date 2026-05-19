@@ -272,9 +272,10 @@ export class HomeFeedService {
                 }
             }
 
+            const today = todayLocalYmd();
             const mapped: UnifiedPersonalizedEvent[] = rows
                 .map((row: any) => this.mapFeedV5RowToUnifiedEvent(row))
-                .filter(e => e.id.length > 0);
+                .filter(e => e.id.length > 0 && (!e.event_date || e.event_date >= today));
 
             if (mapped.length === 0) {
                 const fallback = await this.getFallbackUpcomingEvents(limit);
