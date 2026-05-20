@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProfileSetupStep, type ProfileSetupStepRef } from './ProfileSetupStep';
 import { MusicTagsStep } from './MusicTagsStep';
@@ -52,13 +53,15 @@ const dedupeFavoriteArtists = (artists: FollowArtistOption[]): FollowArtistOptio
 };
 
 export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
-  const USE_NATIVE_ONBOARDING = true;
+  // Only use the native Swift onboarding on iOS. Web and Android use this React flow.
+  const USE_NATIVE_ONBOARDING =
+    Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 
   useEffect(() => {
     if (USE_NATIVE_ONBOARDING) {
       onComplete();
     }
-  }, [onComplete]);
+  }, [onComplete, USE_NATIVE_ONBOARDING]);
 
   const [loading, setLoading] = useState(false);
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
@@ -248,10 +251,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       (user.user_metadata?.name as string | undefined) ??
       (user.user_metadata?.full_name as string | undefined) ??
       undefined;
-    const finalName = (nameFromAuth ?? '').trim();
-    if (!finalName) {
-      return;
-    }
+    // Fall back to email prefix or 'User' so we never silently block submission
+    const finalName =
+      (nameFromAuth ?? '').trim() ||
+      (user.email?.split('@')[0] ?? '') ||
+      'User';
 
     // Validate profile via ref
     const profileResult = await profileStepRef.current?.validateAndGetData();

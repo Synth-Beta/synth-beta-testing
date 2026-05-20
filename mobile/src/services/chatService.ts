@@ -358,29 +358,36 @@ export class ChatService {
      * @param uri Local file URI from expo-image-picker
      * @param userId The uploader's user id (used as folder prefix for RLS)
      */
-    static async uploadChatImage(uri: string, userId: string, base64?: string): Promise<string | null> {
+    static async uploadChatImage(
+        uri: string,
+        userId: string,
+        meta?: { mimeType?: string | null; fileName?: string | null }
+    ): Promise<string | null> {
         try {
-            const raw = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-            // expo-image-picker converts HEIC to JPEG when base64 is requested
+            const fromName = meta?.fileName?.split('.').pop()?.toLowerCase();
+            const fromUri = uri.split('.').pop()?.toLowerCase();
+            const fromMime = meta?.mimeType?.split('/').pop()?.toLowerCase();
+            const raw = fromName ?? fromUri ?? fromMime ?? 'jpg';
             const ext = raw === 'heic' || raw === 'jpeg' ? 'jpg' : raw;
             const mimeMap: Record<string, string> = {
                 jpg: 'image/jpeg',
+                jpeg: 'image/jpeg',
                 png: 'image/png',
                 webp: 'image/webp',
             };
-            const contentType = mimeMap[ext] ?? 'image/jpeg';
-            const fileName = `${userId}/${Date.now()}.${ext}`;
+            const storagePath = `${userId}/${Date.now()}.${ext}`;
 
-            // Decode base64 → Uint8Array so Supabase receives typed binary — no platform-specific hacks.
-            const binaryString = atob(base64!);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+            const res = await fetch(uri);
+            if (!res.ok) {
+                console.error('[ChatService] uploadChatImage: fetch failed', res.status);
+                return null;
             }
+            const blob = await res.blob();
+            const contentType = blob.type || (mimeMap[ext] ?? 'image/jpeg');
 
             const { data, error } = await supabase.storage
                 .from('chat-images')
-                .upload(fileName, bytes, { contentType, upsert: false });
+                .upload(storagePath, blob, { contentType, upsert: false });
 
             if (error || !data) {
                 console.error('[ChatService] uploadChatImage:', error);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, ActionSheetIOS, Alert } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, ActionSheetIOS, Alert, InteractionManager } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -13,6 +13,24 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PINK = SynthTokens.colors.brandPink500;
+const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+
+const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
+    mediaTypes: ['images'],
+    quality: 0.8,
+    ...(Platform.OS === 'ios'
+        ? {
+              preferredAssetRepresentationMode:
+                  ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+          }
+        : {}),
+};
+
+function scheduleAfterSheetDismiss(fn: () => void) {
+    InteractionManager.runAfterInteractions(() => {
+        setTimeout(fn, 350);
+    });
+}
 
 type ReviewCardInfo = {
     headline: string;
@@ -200,56 +218,75 @@ export default function ChatThreadScreen() {
 
     const handlePickImage = () => {
         const doLaunch = async (source: 'library' | 'camera') => {
-            if (source === 'camera') {
-                const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                if (status !== 'granted') {
-                    Alert.alert('Permission required', 'Camera access is needed to take photos.');
-                    return;
-                }
-            } else {
-                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (status !== 'granted') {
-                    Alert.alert('Permission required', 'Photo library access is needed to send images.');
-                    return;
-                }
-            }
-
-            const result = source === 'camera'
-                ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, base64: true })
-                : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: true });
-
-            if (result.canceled || !result.assets?.[0]) return;
-
-            const asset = result.assets[0];
-            if (!userId) return;
-
-            setUploadingImage(true);
             try {
-                const imageUrl = await ChatService.uploadChatImage(asset.uri, userId, asset.base64 ?? undefined);
-                if (!imageUrl) {
-                    Alert.alert('Upload failed', 'Could not upload image. Please try again.');
+                if (source === 'camera') {
+                    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                    if (status !== 'granted') {
+                        Alert.alert('Permission required', 'Camera access is needed to take photos.');
+                        return;
+                    }
+                } else {
+                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (status !== 'granted') {
+                        Alert.alert('Permission required', 'Photo library access is needed to send images.');
+                        return;
+                    }
+                }
+
+                const result =
+                    source === 'camera'
+                        ? await ImagePicker.launchCameraAsync(PICKER_OPTIONS)
+                        : await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
+
+                if (result.canceled || !result.assets?.[0]) return;
+
+                const asset = result.assets[0];
+                if (!userId) return;
+
+                if (asset.fileSize != null && asset.fileSize > CHAT_IMAGE_MAX_BYTES) {
+                    Alert.alert('File too large', 'Images must be under 8MB.');
                     return;
                 }
 
-                const { error } = await supabase.from('messages').insert({
-                    chat_id: id,
-                    sender_id: userId,
-                    content: '[Image]',
-                    message_type: 'image',
-                    is_encrypted: false,
-                    metadata: { image_url: imageUrl },
-                });
+                setUploadingImage(true);
+                try {
+                    const imageUrl = await ChatService.uploadChatImage(asset.uri, userId, {
+                        mimeType: asset.mimeType,
+                        fileName: asset.fileName,
+                    });
+                    if (!imageUrl) {
+                        Alert.alert('Upload failed', 'Could not upload image. Please try again.');
+                        return;
+                    }
 
-                if (!error) {
-                    await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', id);
-                    await loadMessages();
-                    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
-                } else {
-                    console.error('[chat] insert image message:', error);
-                    Alert.alert('Send failed', 'Could not send image. Please try again.');
+                    const { error } = await supabase.from('messages').insert({
+                        chat_id: id,
+                        sender_id: userId,
+                        content: '[Image]',
+                        message_type: 'image',
+                        is_encrypted: false,
+                        metadata: { image_url: imageUrl },
+                    });
+
+                    if (!error) {
+                        await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', id);
+                        await loadMessages();
+                        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
+                    } else {
+                        console.error('[chat] insert image message:', error);
+                        Alert.alert('Send failed', 'Could not send image. Please try again.');
+                    }
+                } finally {
+                    setUploadingImage(false);
                 }
-            } finally {
-                setUploadingImage(false);
+            } catch (err) {
+                console.error('[chat] image picker:', err);
+                Alert.alert(
+                    'Could not open photos',
+                    source === 'camera'
+                        ? 'The camera could not be opened. Please try again.'
+                        : 'The photo library could not be opened. Please try again.'
+                );
             }
         };
 
@@ -260,15 +297,15 @@ export default function ChatThreadScreen() {
                     cancelButtonIndex: 0,
                 },
                 (buttonIndex) => {
-                    if (buttonIndex === 1) void doLaunch('camera');
-                    else if (buttonIndex === 2) void doLaunch('library');
+                    if (buttonIndex === 1) scheduleAfterSheetDismiss(() => void doLaunch('camera'));
+                    else if (buttonIndex === 2) scheduleAfterSheetDismiss(() => void doLaunch('library'));
                 }
             );
         } else {
             Alert.alert('Send Image', 'Choose a source', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Take Photo', onPress: () => void doLaunch('camera') },
-                { text: 'Choose from Library', onPress: () => void doLaunch('library') },
+                { text: 'Take Photo', onPress: () => scheduleAfterSheetDismiss(() => void doLaunch('camera')) },
+                { text: 'Choose from Library', onPress: () => scheduleAfterSheetDismiss(() => void doLaunch('library')) },
             ]);
         }
     };

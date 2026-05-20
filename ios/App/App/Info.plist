@@ -67,9 +67,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Synth needs access to your camera to upload photos for events and your profile.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Synth needs your location to find events near you.</string>
+	<string>Synth uses your location to show live music events and concerts happening near you. For example, if you are in Chicago, Synth will display upcoming shows at nearby venues and let you see which friends are attending events in your area.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Synth needs your location to find events near you.</string>
+	<string>Synth uses your location to show live music events and concerts happening near you. For example, if you are in Chicago, Synth will display upcoming shows at nearby venues and let you see which friends are attending events in your area.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Synth needs access to your photo library to upload photos for your profile.</string>
 	<key>UIBackgroundModes</key>

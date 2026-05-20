@@ -50,7 +50,6 @@ struct Page1BirthYearGender: View {
         OnboardingPageContainer(
             title: "What year were you born?",
             subtitle: "We use this to personalize your experience and ensure age-appropriate content.",
-            canProceed: hasSelectedAcquisition,
             onNext: {
                 if let year = state.birthYear {
                     let age = currentYear - year

@@ -41,47 +41,52 @@ struct OnboardingPageContainer<Content: View>: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: SynthSpacing.grouped) {
-                if onBack != nil {
-                    Button(action: { onBack?() }) {
-                        HStack(spacing: SynthSpacing.inline) {
-                            Image(systemName: "chevron.left")
-                                .font(SynthFont.font(size: SynthTypography.meta.size, weight: .semibold))
-                            Text("Back")
-                                .font(SynthFont.font(size: SynthTypography.meta.size, weight: .medium))
-                        }
-                        .foregroundColor(SynthColor.neutral600)
-                    }
-                    .padding(.horizontal, SynthSpacing.screenMarginX)
-                    .padding(.bottom, SynthSpacing.small)
-                }
-
-                VStack(alignment: .leading, spacing: SynthSpacing.small) {
-                    Text(title)
-                        .font(SynthFont.font(size: SynthTypography.h2.size, weight: SynthTypography.h2.weight))
-                        .foregroundColor(SynthColor.neutral900)
-                    if let sub = subtitle {
-                        Text(sub)
-                            .font(SynthFont.font(size: SynthTypography.meta.size, weight: SynthTypography.meta.weight))
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: SynthSpacing.grouped) {
+                    if onBack != nil {
+                        Button(action: { onBack?() }) {
+                            HStack(spacing: SynthSpacing.inline) {
+                                Image(systemName: "chevron.left")
+                                    .font(SynthFont.font(size: SynthTypography.meta.size, weight: .semibold))
+                                Text("Back")
+                                    .font(SynthFont.font(size: SynthTypography.meta.size, weight: .medium))
+                            }
                             .foregroundColor(SynthColor.neutral600)
+                        }
+                        .padding(.horizontal, SynthSpacing.screenMarginX)
+                        .padding(.bottom, SynthSpacing.small)
                     }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, SynthSpacing.screenMarginX)
 
-                content
+                    VStack(alignment: .leading, spacing: SynthSpacing.small) {
+                        Text(title)
+                            .font(SynthFont.font(size: SynthTypography.h2.size, weight: SynthTypography.h2.weight))
+                            .foregroundColor(SynthColor.neutral900)
+                        if let sub = subtitle {
+                            Text(sub)
+                                .font(SynthFont.font(size: SynthTypography.meta.size, weight: SynthTypography.meta.weight))
+                                .foregroundColor(SynthColor.neutral600)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, SynthSpacing.screenMarginX)
 
-                HStack(spacing: SynthSpacing.small) {
-                    PrimaryButton(title: "Skip", style: .secondary, action: onSkip)
-                    PrimaryButton(title: "Next", style: .primary, action: onNext)
-                        .opacity(canProceed ? 1 : 0.5)
-                        .disabled(!canProceed)
+                    content
                 }
-                .padding(.horizontal, SynthSpacing.screenMarginX)
-                .padding(.top, SynthSpacing.grouped)
+                .padding(.vertical, SynthSpacing.grouped)
             }
-            .padding(.vertical, SynthSpacing.grouped)
+
+            // Buttons pinned below scroll content — always visible, never buried
+            HStack(spacing: SynthSpacing.small) {
+                PrimaryButton(title: "Skip", style: .secondary, action: onSkip)
+                PrimaryButton(title: "Next", style: .primary, action: onNext)
+                    .opacity(canProceed ? 1 : 0.5)
+                    .disabled(!canProceed)
+            }
+            .padding(.horizontal, SynthSpacing.screenMarginX)
+            .padding(.top, SynthSpacing.grouped)
+            .padding(.bottom, SynthSpacing.grouped)
+            .background(SynthColor.neutral50)
         }
         .background(SynthColor.neutral50)
     }
