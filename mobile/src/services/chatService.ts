@@ -1,7 +1,16 @@
 import { getOrCreateDirectChat } from '@synth/shared';
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../integrations/supabase/client';
 import { encryptMessage } from './chatEncryptionService';
 import { decryptChatMessage } from './chatDecrypt';
+
+const CHAT_IMAGE_ALLOWED_MIME = new Set([
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/heic',
+]);
 
 const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -212,7 +221,9 @@ export class ChatService {
                     let rawContent = typeof msg.content === 'string' ? msg.content : '';
                     let content = rawContent;
 
-                    if (isEncryptedFlag) {
+                    if (rawType === 'image') {
+                        content = '[Image]';
+                    } else if (isEncryptedFlag) {
                         content = await decryptChatMessage(
                             {
                                 content: rawContent,
@@ -242,6 +253,8 @@ export class ChatService {
                     let messageType: ChatMessageType;
                     if (rawType === 'system') {
                         messageType = 'system';
+                    } else if (rawType === 'image') {
+                        messageType = 'image';
                     } else if (reviewId) {
                         messageType = 'review_share';
                     } else if (isEventShare && eventId) {
@@ -376,18 +389,40 @@ export class ChatService {
                 webp: 'image/webp',
             };
             const storagePath = `${userId}/${Date.now()}.${ext}`;
+            const defaultContentType = mimeMap[ext] ?? 'image/jpeg';
 
-            const res = await fetch(uri);
-            if (!res.ok) {
-                console.error('[ChatService] uploadChatImage: fetch failed', res.status);
-                return null;
+            let uploadBody: Blob | Uint8Array;
+            let contentType = defaultContentType;
+
+            try {
+                const res = await fetch(uri);
+                if (!res.ok) {
+                    throw new Error(`fetch status ${res.status}`);
+                }
+                const blob = await res.blob();
+                uploadBody = blob;
+                contentType = blob.type || defaultContentType;
+            } catch (fetchErr) {
+                const base64 = await FileSystem.readAsStringAsync(uri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                uploadBody = bytes;
+                contentType = defaultContentType;
+                console.warn('[ChatService] uploadChatImage: used FileSystem fallback', fetchErr);
             }
-            const blob = await res.blob();
-            const contentType = blob.type || (mimeMap[ext] ?? 'image/jpeg');
+
+            if (!CHAT_IMAGE_ALLOWED_MIME.has(contentType)) {
+                contentType = defaultContentType;
+            }
 
             const { data, error } = await supabase.storage
                 .from('chat-images')
-                .upload(storagePath, blob, { contentType, upsert: false });
+                .upload(storagePath, uploadBody, { contentType, upsert: false });
 
             if (error || !data) {
                 console.error('[ChatService] uploadChatImage:', error);

@@ -45,7 +45,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Synth uses photos you choose to attach to your concert reviews.",
+          "photosPermission": "Synth uses photos you choose to send in chats and attach to concert reviews.",
           "cameraPermission": "Synth uses your camera to take photos for chat messages."
         }
       ],

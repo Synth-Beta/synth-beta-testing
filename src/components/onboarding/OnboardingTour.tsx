@@ -197,9 +197,9 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       target: '[data-tour="feed-toggle"]',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-bold">Toggle Your Feed</h3>
+          <h3 className="text-lg font-bold">Your Home Feed</h3>
           <p>
-            Switch between different feed types: Hand Picked Events, Trending Events, Friends Interested, and more. Each feed shows you different perspectives on what&apos;s happening.
+            Tap the dropdown to switch between <strong>Events</strong> — upcoming shows near you — and <strong>Reviews</strong> — what your friends thought of shows they attended.
           </p>
         </div>
       ),
@@ -227,7 +227,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         <div className="space-y-2">
           <h3 className="text-lg font-bold">Discover by Vibes</h3>
           <p>
-            Browse Vibes lets you explore events by mood and scene. You can also use the Map & Calendar view to see events by location and date. Try different vibes to find shows that match your energy!
+            Tap <strong>Browse Vibes</strong> to filter events by scene and energy — Indie, Hip-Hop, Intimate, High Energy, and more. Use the <strong>Location</strong> filter to find shows in any city.
           </p>
         </div>
       ),
@@ -269,9 +269,9 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       target: '[data-tour="create-review"]',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-bold">Share Your Experience</h3>
+          <h3 className="text-lg font-bold">Log a Show</h3>
           <p>
-            Tap the pink plus button to create a review for any show you&apos;ve attended. Share photos, rate the performance, and let your friends know what you thought!
+            Tap the pink button to log any show. Mark yourself as <strong>interested</strong>, confirm you <strong>attended</strong>, or write a full <strong>review</strong> with photos and a rating. Your friends will see it on their feed.
           </p>
         </div>
       ),

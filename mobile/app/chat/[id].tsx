@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, ActionSheetIOS, Alert, InteractionManager } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
 import { SynthText } from '../../src/components/SynthText';
+import { launchChatImagePicker, type ChatImagePickerSource } from '../../src/utils/launchChatImagePicker';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { ChatService, Message } from '../../src/services/chatService';
 import { EventService, type EventDetail } from '../../src/services/eventService';
@@ -14,23 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PINK = SynthTokens.colors.brandPink500;
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
-
-const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
-    mediaTypes: ['images'],
-    quality: 0.8,
-    ...(Platform.OS === 'ios'
-        ? {
-              preferredAssetRepresentationMode:
-                  ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-          }
-        : {}),
-};
-
-function scheduleAfterSheetDismiss(fn: () => void) {
-    InteractionManager.runAfterInteractions(() => {
-        setTimeout(fn, 350);
-    });
-}
 
 type ReviewCardInfo = {
     headline: string;
@@ -85,6 +69,7 @@ export default function ChatThreadScreen() {
     const [eventById, setEventById] = useState<Record<string, EventDetail | null>>({});
     const [reviewById, setReviewById] = useState<Record<string, ReviewCardInfo>>({});
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [imageSourceSheetVisible, setImageSourceSheetVisible] = useState(false);
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
@@ -216,98 +201,75 @@ export default function ChatThreadScreen() {
         }
     };
 
-    const handlePickImage = () => {
-        const doLaunch = async (source: 'library' | 'camera') => {
-            try {
-                if (source === 'camera') {
-                    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                    if (status !== 'granted') {
-                        Alert.alert('Permission required', 'Camera access is needed to take photos.');
-                        return;
-                    }
-                } else {
-                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                    if (status !== 'granted') {
-                        Alert.alert('Permission required', 'Photo library access is needed to send images.');
-                        return;
-                    }
-                }
-
-                const result =
+    const runImagePick = async (source: ChatImagePickerSource) => {
+        try {
+            const result = await launchChatImagePicker(source);
+            if (result == null) {
+                Alert.alert(
+                    'Permission required',
                     source === 'camera'
-                        ? await ImagePicker.launchCameraAsync(PICKER_OPTIONS)
-                        : await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
+                        ? 'Camera access is needed to take photos.'
+                        : 'Photo library access is needed to send images.'
+                );
+                return;
+            }
 
-                if (result.canceled || !result.assets?.[0]) return;
+            if (result.canceled || !result.assets?.[0]) return;
 
-                const asset = result.assets[0];
-                if (!userId) return;
+            const asset = result.assets[0];
+            if (!userId || !asset.uri) return;
 
-                if (asset.fileSize != null && asset.fileSize > CHAT_IMAGE_MAX_BYTES) {
-                    Alert.alert('File too large', 'Images must be under 8MB.');
+            if (asset.fileSize != null && asset.fileSize > CHAT_IMAGE_MAX_BYTES) {
+                Alert.alert('File too large', 'Images must be under 8MB.');
+                return;
+            }
+
+            setUploadingImage(true);
+            try {
+                const imageUrl = await ChatService.uploadChatImage(asset.uri, userId, {
+                    mimeType: asset.mimeType,
+                    fileName: asset.fileName,
+                });
+                if (!imageUrl) {
+                    Alert.alert('Upload failed', 'Could not upload image. Please try again.');
                     return;
                 }
 
-                setUploadingImage(true);
-                try {
-                    const imageUrl = await ChatService.uploadChatImage(asset.uri, userId, {
-                        mimeType: asset.mimeType,
-                        fileName: asset.fileName,
-                    });
-                    if (!imageUrl) {
-                        Alert.alert('Upload failed', 'Could not upload image. Please try again.');
-                        return;
-                    }
+                const { error } = await supabase.from('messages').insert({
+                    chat_id: id,
+                    sender_id: userId,
+                    content: '[Image]',
+                    message_type: 'image',
+                    is_encrypted: false,
+                    metadata: { image_url: imageUrl },
+                });
 
-                    const { error } = await supabase.from('messages').insert({
-                        chat_id: id,
-                        sender_id: userId,
-                        content: '[Image]',
-                        message_type: 'image',
-                        is_encrypted: false,
-                        metadata: { image_url: imageUrl },
-                    });
-
-                    if (!error) {
-                        await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', id);
-                        await loadMessages();
-                        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
-                    } else {
-                        console.error('[chat] insert image message:', error);
-                        Alert.alert('Send failed', 'Could not send image. Please try again.');
-                    }
-                } finally {
-                    setUploadingImage(false);
+                if (!error) {
+                    await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', id);
+                    await loadMessages();
+                    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
+                } else {
+                    console.error('[chat] insert image message:', error);
+                    Alert.alert('Send failed', 'Could not send image. Please try again.');
                 }
-            } catch (err) {
-                console.error('[chat] image picker:', err);
-                Alert.alert(
-                    'Could not open photos',
-                    source === 'camera'
-                        ? 'The camera could not be opened. Please try again.'
-                        : 'The photo library could not be opened. Please try again.'
-                );
+            } finally {
+                setUploadingImage(false);
             }
-        };
-
-        if (Platform.OS === 'ios') {
-            ActionSheetIOS.showActionSheetWithOptions(
-                {
-                    options: ['Cancel', 'Take Photo', 'Choose from Library'],
-                    cancelButtonIndex: 0,
-                },
-                (buttonIndex) => {
-                    if (buttonIndex === 1) scheduleAfterSheetDismiss(() => void doLaunch('camera'));
-                    else if (buttonIndex === 2) scheduleAfterSheetDismiss(() => void doLaunch('library'));
-                }
+        } catch (err) {
+            console.error('[chat] image picker:', err);
+            Alert.alert(
+                'Could not open photos',
+                source === 'camera'
+                    ? 'The camera could not be opened. Please try again.'
+                    : 'The photo library could not be opened. Please try again.'
             );
-        } else {
-            Alert.alert('Send Image', 'Choose a source', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Take Photo', onPress: () => scheduleAfterSheetDismiss(() => void doLaunch('camera')) },
-                { text: 'Choose from Library', onPress: () => scheduleAfterSheetDismiss(() => void doLaunch('library')) },
-            ]);
         }
+    };
+
+    const handlePickImage = () => {
+        if (uploadingImage) return;
+        Keyboard.dismiss();
+        setImageSourceSheetVisible(true);
     };
 
     const openEvent = async (eventId: string) => {
@@ -534,6 +496,7 @@ export default function ChatThreadScreen() {
     };
 
     return (
+        <>
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -585,6 +548,13 @@ export default function ChatThreadScreen() {
                 </Pressable>
             </View>
         </KeyboardAvoidingView>
+
+        <ChatImageSourceSheet
+            visible={imageSourceSheetVisible}
+            onClose={() => setImageSourceSheetVisible(false)}
+            onChoose={source => void runImagePick(source)}
+        />
+        </>
     );
 }
 

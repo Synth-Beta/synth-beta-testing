@@ -187,9 +187,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   // Check onboarding status on mount
   useEffect(() => {
-    if (isIosNative) {
-      return;
-    }
     const checkOnboardingStatus = async () => {
       if (!user) return;
 
@@ -208,13 +205,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           }, 2000);
         }
 
-        // If user hasn't completed onboarding and hasn't skipped it, redirect to onboarding
+        // If user hasn't completed onboarding and hasn't skipped it, redirect to onboarding.
+        // iOS native: Swift handles the onboarding flow, so never redirect to the React screen.
         if (!status.onboarding_completed && !status.onboarding_skipped) {
           if (isIosNative) {
             return; // Native Swift handles onboarding
           }
           setCurrentView('onboarding');
-        } 
+        }
         if (isIosNative && currentView === 'onboarding') {
           setCurrentView('feed');
         }
@@ -226,8 +224,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             setTimeout(() => setRunTour(true), 1500);
           }
         } else if (status.onboarding_completed && !status.tour_completed) {
-          // If onboarding is complete but tour is not, trigger it after a short delay
-          // Only trigger if we're already on the feed view (not onboarding)
+          // Onboarding done but tour not yet seen — fire it on all platforms.
+          // iOS: native Swift onboarding sets onboarding_completed; tour runs in the Capacitor WebView.
+          // Android/web: React onboarding sets it; tour runs immediately after.
           if (currentView === 'feed') {
             setTimeout(() => setRunTour(true), 1500);
           }
