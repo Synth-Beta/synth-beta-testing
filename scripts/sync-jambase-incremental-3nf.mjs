@@ -1234,15 +1234,38 @@ class IncrementalSync3NF {
     const perPage = 100;
 
     while (currentPage <= totalPages) {
-      const pageData = await this.syncService.fetchEventsPage(
-        currentPage,
-        perPage,
-        dateModifiedFrom
-      );
+      let pageData = null;
+      let pageAttempt = 0;
+      const maxPageAttempts = 3;
 
-      if (!pageData.events || pageData.events.length === 0) {
-        if (currentPage === 1) {
+      while (pageAttempt < maxPageAttempts) {
+        try {
+          pageData = await this.syncService.fetchEventsPage(
+            currentPage,
+            perPage,
+            dateModifiedFrom
+          );
+          break; // success
+        } catch (err) {
+          pageAttempt++;
+          if (pageAttempt >= maxPageAttempts) {
+            console.error(`❌ Page ${currentPage} failed after ${maxPageAttempts} attempts: ${err.message}`);
+            console.log(`⏭️  Skipping page ${currentPage} and continuing...`);
+            break;
+          }
+          const delay = Math.pow(2, pageAttempt) * 2000;
+          console.log(`⚠️  Page ${currentPage} error (attempt ${pageAttempt}/${maxPageAttempts}), retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+
+      if (!pageData || !pageData.events || pageData.events.length === 0) {
+        if (currentPage === 1 && pageData) {
           console.log('✅ No new or modified events found');
+        }
+        if (!pageData) {
+          currentPage++; // skip failed page
+          continue;
         }
         break;
       }
@@ -1254,7 +1277,7 @@ class IncrementalSync3NF {
       currentPage++;
 
       // Small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
 
     // Print statistics

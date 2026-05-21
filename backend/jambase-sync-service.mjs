@@ -78,7 +78,7 @@ class JambaseSyncService {
           'User-Agent': 'Synth/1.0'
         },
         // Add timeout to prevent hanging
-        signal: AbortSignal.timeout(30000) // 30 second timeout
+        signal: AbortSignal.timeout(60000) // 60 second timeout
       });
 
       if (!response.ok) {
@@ -100,9 +100,10 @@ class JambaseSyncService {
       };
     } catch (error) {
       // Retry logic with exponential backoff (max 3 retries)
-      if (retryCount < 3 && (error.name === 'TypeError' || error.message?.includes('fetch failed') || error.message?.includes('network'))) {
-        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-        console.log(`Network error, retrying API call (attempt ${retryCount + 1}/3) after ${delay}ms...`);
+      const isRetryable = error.name === 'TypeError' || error.name === 'TimeoutError' || error.name === 'AbortError' || error.message?.includes('fetch failed') || error.message?.includes('network') || error.message?.includes('timeout');
+      if (retryCount < 3 && isRetryable) {
+        const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+        console.log(`API call timed out or failed, retrying (attempt ${retryCount + 1}/3) after ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         // Don't increment apiCalls on retry
         this.stats.apiCalls--;

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Synth",
     "slug": "synth",
-    "version": "1.3.3",
+    "version": "1.4.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "synth",
@@ -15,8 +15,12 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tejpatel.synth",
+      "buildNumber": "286",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar.",
+        "NSLocationAlwaysUsageDescription": "Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar."
       }
     },
     "android": {
@@ -47,6 +51,16 @@
         {
           "photosPermission": "Synth uses photos you choose to send in chats and attach to concert reviews.",
           "cameraPermission": "Synth uses your camera to take photos for chat messages."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
+          "locationAlwaysAndWhenInUsePermission": "Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar.",
+          "locationAlwaysPermission": "Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       "expo-apple-authentication",
