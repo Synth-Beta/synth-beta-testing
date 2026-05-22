@@ -18,9 +18,7 @@
       "buildNumber": "286",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar.",
-        "NSLocationAlwaysUsageDescription": "Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar."
+        "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover."
       }
     },
     "android": {

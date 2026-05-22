@@ -1270,7 +1270,24 @@ class IncrementalSync3NF {
         break;
       }
 
-      await this.processPage3NF(pageData.events);
+      // Retry processPage3NF on network errors (Supabase fetch can drop mid-page)
+      let processAttempt = 0;
+      const maxProcessAttempts = 3;
+      while (processAttempt < maxProcessAttempts) {
+        try {
+          await this.processPage3NF(pageData.events);
+          break;
+        } catch (err) {
+          processAttempt++;
+          if (processAttempt >= maxProcessAttempts) {
+            console.error(`❌ Page ${currentPage} DB write failed after ${maxProcessAttempts} attempts: ${err.message} — skipping`);
+            break;
+          }
+          const delay = Math.pow(2, processAttempt) * 2000;
+          console.log(`⚠️  Page ${currentPage} DB error (attempt ${processAttempt}/${maxProcessAttempts}), retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
       console.log(`✅ Processed page ${currentPage}/${totalPages} (${pageData.events.length} events)`);
 
       totalPages = pageData.totalPages || 1;

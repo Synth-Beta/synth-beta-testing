@@ -61,10 +61,6 @@
     </array>
     <key>NSLocalNetworkUsageDescription</key>
     <string>Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar.</string>
-    <key>NSLocationAlwaysUsageDescription</key>
-    <string>Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.</string>
     <key>NSUserActivityTypes</key>
