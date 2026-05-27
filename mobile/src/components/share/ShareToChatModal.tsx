@@ -22,17 +22,20 @@ import {
     Modal,
     Platform,
     Pressable,
+    Share,
     StyleSheet,
     Text,
     TextInput,
     View,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
-import { Check, MessageCircle, Search, Send, Users, X } from 'lucide-react-native';
+import { Check, Link2, MessageCircle, Search, Send, Share2, Users, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { InAppShareService, type ShareTarget } from '../../services/inAppShareService';
+import { getExpoSiteUrl } from '../../utils/siteUrl';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -89,6 +92,36 @@ export function ShareToChatModal({
     const [customMessage, setCustomMessage] = useState('');
     const [sent, setSent] = useState(false);
     const inputRef = useRef<TextInput>(null);
+
+    const shareUrl = `${getExpoSiteUrl()}/share?${type}=${encodeURIComponent(entityId)}`;
+
+    const handleCopyLink = async () => {
+        try {
+            await Clipboard.setStringAsync(shareUrl);
+            Alert.alert('Copied', 'Link copied to clipboard.');
+        } catch (err) {
+            console.error('[ShareToChatModal] copy link', err);
+            Alert.alert('Copy failed', 'Could not copy link. Please try again.');
+        }
+    };
+
+    const handleShareExternally = async () => {
+        try {
+            // iOS reads `url`; Android typically uses `message`.
+            const message = title?.trim()
+                ? `${title.trim()}\n\n${shareUrl}`
+                : shareUrl;
+            await Share.share(
+                Platform.OS === 'ios'
+                    ? { title: title || 'Synth', message, url: shareUrl }
+                    : { title: title || 'Synth', message }
+            );
+        } catch (err: any) {
+            // ignore user cancel
+            if (err?.message && /cancel/i.test(String(err.message))) return;
+            console.error('[ShareToChatModal] external share', err);
+        }
+    };
 
     const loadTargets = useCallback(async () => {
         setLoading(true);
@@ -296,6 +329,16 @@ export function ShareToChatModal({
                     {/* Custom message + send */}
                     {!loading && targets.length > 0 ? (
                         <View style={styles.footer}>
+                            <View style={styles.externalRow}>
+                                <Pressable style={styles.externalBtn} onPress={() => void handleShareExternally()}>
+                                    <Share2 size={18} color={SynthTokens.colors.neutral600} />
+                                    <Text style={styles.externalText}>Share externally</Text>
+                                </Pressable>
+                                <Pressable style={styles.externalBtn} onPress={() => void handleCopyLink()}>
+                                    <Link2 size={18} color={SynthTokens.colors.neutral600} />
+                                    <Text style={styles.externalText}>Copy link</Text>
+                                </Pressable>
+                            </View>
                             <View style={styles.messageRow}>
                                 <TextInput
                                     style={styles.messageInput}
@@ -477,6 +520,27 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 12,
         gap: 10,
+    },
+    externalRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    externalBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: SynthTokens.colors.neutral100,
+        borderRadius: 12,
+        paddingVertical: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: SynthTokens.colors.neutral200,
+    },
+    externalText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: SynthTokens.colors.neutral600,
     },
     messageRow: {
         backgroundColor: SynthTokens.colors.neutral100,

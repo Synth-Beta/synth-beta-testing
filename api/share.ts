@@ -37,7 +37,16 @@ interface VenueRow  { id: string; name: string; city: string | null; state: stri
 
 const APP_STORE_URL =
   'https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095';
-const BASE_URL = 'https://plusone.app';
+function getBaseUrl(): string {
+  const raw =
+    process.env.SITE_URL?.trim() ||
+    process.env.VITE_SITE_URL?.trim() ||
+    process.env.VITE_PUBLIC_SITE_URL?.trim() ||
+    '';
+  return (raw || 'https://join.getsynth.app').replace(/\/+$/, '');
+}
+
+const BASE_URL = getBaseUrl();
 const FALLBACK_IMAGE = `${BASE_URL}/og-default.png`;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

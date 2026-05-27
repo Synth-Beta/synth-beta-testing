@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 import {
@@ -13,6 +14,7 @@ import { supabase } from '../src/integrations/supabase/client';
 import { OnboardingService } from '../src/services/onboardingService';
 import { ensureExpoPushNotificationHandler } from '../lib/registerPushNotifications';
 import { syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
+import { NotificationService } from '../src/services/notificationService';
 import { useShareDeepLink } from '../lib/useShareDeepLink';
 import { InterestedProvider } from '../src/contexts/InterestedContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
@@ -157,7 +159,20 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!session?.user) return;
+    const userId = session.user.id;
+
     syncExpoPushTokenWithBackend().catch(() => {});
+
+    // Sync the system badge with DB unread counts on login/boot.
+    // This prevents the icon from getting stuck at an old value.
+    void (async () => {
+      try {
+        const unread = await NotificationService.getUnreadCount(userId);
+        await Notifications.setBadgeCountAsync(unread);
+      } catch {
+        /* best-effort */
+      }
+    })();
   }, [session]);
 
   useShareDeepLink(Boolean(session?.user && isOnboardingComplete));

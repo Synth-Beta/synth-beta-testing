@@ -32,6 +32,7 @@ const StreamingStatsPage = React.lazy(() => import("./pages/StreamingStatsPage")
 const ArtistFollowingPage = React.lazy(() => import("./pages/ArtistFollowingPage").then(m => ({ default: m.ArtistFollowingPage })));
 const ResetPassword = React.lazy(() => import("./pages/ResetPassword").then(m => ({ default: m.default })));
 const NotFound = React.lazy(() => import("./pages/NotFound").then(m => ({ default: m.default })));
+const SharePage = React.lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 
 // Component to handle deep links and auth callbacks
 // Must be inside BrowserRouter to use useLocation and useNavigate
@@ -250,6 +251,7 @@ const App = () => {
               <Route path="/following" element={<ArtistFollowingPage />} />
               <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
+              <Route path="/share" element={<SharePage />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/not-found" element={<NotFound />} />
 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

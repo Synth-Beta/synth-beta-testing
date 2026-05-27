@@ -29,7 +29,14 @@ interface WebhookPayload {
 }
 
 function isExpoPushToken(deviceToken: unknown): deviceToken is string {
-  return typeof deviceToken === 'string' && deviceToken.startsWith('ExponentPushToken');
+  if (typeof deviceToken !== 'string') return false;
+  const t = deviceToken.trim();
+  return (
+    t.startsWith('ExponentPushToken[') ||
+    t.startsWith('ExpoPushToken[') ||
+    t.startsWith('ExponentPushToken') ||
+    t.startsWith('ExpoPushToken')
+  );
 }
 
 async function sendExpoPushNotification(params: {
@@ -39,9 +46,6 @@ async function sendExpoPushNotification(params: {
   data?: Record<string, unknown>;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const accessToken = process.env.EXPO_ACCESS_TOKEN?.trim();
-  if (!accessToken) {
-    return { ok: false, error: 'EXPO_ACCESS_TOKEN not set' };
-  }
 
   try {
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
@@ -50,7 +54,7 @@ async function sendExpoPushNotification(params: {
         Accept: 'application/json',
         'Accept-Encoding': 'gzip, deflate',
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       body: JSON.stringify({
         to: params.expoPushToken,
@@ -241,7 +245,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const errors: string[] = [];
 
   for (const row of devices) {
-    const deviceToken = row.device_token;
+    const deviceToken = typeof row.device_token === 'string' ? row.device_token.trim() : row.device_token;
     const platform = row.platform;
 
     if (isExpoPushToken(deviceToken)) {

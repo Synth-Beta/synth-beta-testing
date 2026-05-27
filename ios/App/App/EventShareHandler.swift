@@ -72,9 +72,9 @@ class EventShareHandler {
         Task { @MainActor in
             // Build the card data model
             let shareUrl = URL(string: event.isReview
-                ? "https://plusone.app/share?review=\(event.reviewId ?? event.eventId)"
-                : "https://plusone.app/share?event=\(event.eventId)"
-            ) ?? URL(string: "https://plusone.app")!
+                ? "https://join.getsynth.app/share?review=\(event.reviewId ?? event.eventId)"
+                : "https://join.getsynth.app/share?event=\(event.eventId)"
+            ) ?? URL(string: "https://join.getsynth.app")!
 
             let cardData = event.isReview
                 ? SynthShareCardData.fromReview(event, shareUrl: shareUrl)

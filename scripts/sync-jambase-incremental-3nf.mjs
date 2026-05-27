@@ -914,210 +914,81 @@ class IncrementalSync3NF {
       return;
     }
 
-    // Get existing events from external_entity_ids
-    // Extract jambase_event_id from eventData (it's in the data but not a column)
-    const eventExternalIds = eventsData
-      .map(e => {
-        // jambase_event_id is in the extracted data but not a column
-        // We need to extract it from the data structure
-        return e.jambase_event_id || null;
-      })
-      .filter(Boolean);
-    
-    const existingEventsMap = await this.getExistingEntityMap('jambase', 'event', eventExternalIds);
+    // Upsert-on-jambase_id approach: avoids duplicate key errors and keeps daily sync cheap.
+    const eventExternalIds = eventsData.map(e => e.jambase_event_id || null).filter(Boolean);
 
-    const newEvents = [];
-    const updateEvents = [];
-
-    // Separate new vs existing events
-    for (const eventData of eventsData) {
-      const jambaseEventId = eventData.jambase_event_id;
-      if (!jambaseEventId) continue;
-
-      const existingUuid = existingEventsMap.get(jambaseEventId);
-
-      if (existingUuid) {
-        // Will update existing event
-        updateEvents.push({ uuid: existingUuid, data: eventData, jambaseEventId });
-      } else {
-        // Will insert new event
-        newEvents.push({ eventData, jambaseEventId });
+    const existingByJambase = new Map();
+    if (eventExternalIds.length > 0) {
+      const { data: existingRows, error: existingErr } = await this.syncService.supabase
+        .from('events')
+        .select('id, jambase_id')
+        .in('jambase_id', eventExternalIds);
+      if (existingErr) throw existingErr;
+      for (const row of existingRows || []) {
+        if (row?.jambase_id && row?.id) existingByJambase.set(row.jambase_id, row.id);
       }
     }
 
-    // Insert new events
-    if (newEvents.length > 0) {
-      // Fetch artist genres for events that need them
-      const artistUuidsToFetch = new Set();
-      for (const { eventData } of newEvents) {
-        const artistUuid = eventData.artist_jambase_id_text 
-          ? artistUuidMap.get(eventData.artist_jambase_id_text) 
-          : null;
-        if (artistUuid && isEmptyGenres(eventData.genres)) {
-          artistUuidsToFetch.add(artistUuid);
-        }
-      }
-      
-      // Fetch genres from database for artists
-      const artistGenresMap = new Map();
-      if (artistUuidsToFetch.size > 0) {
-        const { data: artistsWithGenres, error: fetchError } = await this.syncService.supabase
-          .from('artists')
-          .select('id, genres')
-          .in('id', Array.from(artistUuidsToFetch));
-        
-        if (!fetchError && artistsWithGenres) {
-          for (const artist of artistsWithGenres) {
-            if (!isEmptyGenres(artist.genres)) {
-              artistGenresMap.set(artist.id, artist.genres);
-            }
-          }
-        }
-      }
-      
-      // Map artist/venue Jambase IDs to UUIDs
-      const eventsWithUuids = newEvents.map(({ eventData, jambaseEventId }) => {
-        const artistUuid = eventData.artist_jambase_id_text 
-          ? artistUuidMap.get(eventData.artist_jambase_id_text) 
+    const nowIso = new Date().toISOString();
+    const toUpsert = eventsData
+      .map(eventData => {
+        const jambaseEventId = eventData.jambase_event_id;
+        if (!jambaseEventId) return null;
+
+        const artistUuid = eventData.artist_jambase_id_text
+          ? artistUuidMap.get(eventData.artist_jambase_id_text)
           : null;
         const venueUuid = eventData.venue_jambase_id_text
           ? venueUuidMap.get(eventData.venue_jambase_id_text)
           : null;
 
-        // Remove fields that don't exist in the schema
-        const { 
-          jambase_event_id, 
-          artist_jambase_id, 
-          artist_jambase_id_text, 
-          venue_jambase_id, 
+        const {
+          jambase_event_id,
+          artist_jambase_id,
+          artist_jambase_id_text,
+          venue_jambase_id,
           venue_jambase_id_text,
           artist_name,
           venue_name,
           genres: eventGenres,
-          ...eventDataClean 
+          ...eventDataClean
         } = eventData;
-
-        // If and only if event genres are empty, use artist genres; never overwrite non-empty event genres
-        const artistGenres = artistUuid ? artistGenresMap.get(artistUuid) : undefined;
-        const finalGenres = eventGenresFromArtistIfEmpty(eventGenres, artistGenres);
 
         return {
           ...eventDataClean,
-          genres: finalGenres,
-          artist_id: artistUuid, // UUID FK to artists(id)
-          venue_id: venueUuid, // UUID FK to venues(id)
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          jambase_id: jambaseEventId,
+          artist_id: artistUuid,
+          venue_id: venueUuid,
+          updated_at: nowIso,
+          // Only write genres when present (never clobber with empty)
+          ...(isEmptyGenres(eventGenres) ? {} : { genres: eventGenres }),
         };
-      });
+      })
+      .filter(Boolean);
 
-      const { data: inserted, error } = await this.syncService.supabase
-        .from('events')
-        .insert(eventsWithUuids)
-        .select('id');
+    if (toUpsert.length === 0) return;
 
-      if (error) {
-        throw error;
-      }
+    const { data: upserted, error: upsertErr } = await this.syncService.supabase
+      .from('events')
+      .upsert(toUpsert, { onConflict: 'jambase_id', ignoreDuplicates: false })
+      .select('id, jambase_id, genres');
 
-      if (inserted) {
-        for (let i = 0; i < inserted.length; i++) {
-          const event = inserted[i];
-          const jambaseEventId = newEvents[i].jambaseEventId;
-          
-          this.stats.eventsNew++;
+    if (upsertErr) throw upsertErr;
 
-          // Create external_entity_ids entry
-          await this.upsertExternalId(event.id, 'jambase', 'event', jambaseEventId);
-          
-          // Sync normalized genres for this event
-          const eventGenres = eventsWithUuids[i]?.genres;
-          if (eventGenres && eventGenres.length > 0) {
-            await this.syncEventNormalizedGenres(event.id, eventGenres);
-          }
-        }
-      }
-    }
+    for (const row of upserted || []) {
+      const jid = row?.jambase_id;
+      const id = row?.id;
+      if (!jid || !id) continue;
 
-    // Update existing events
-    // First, fetch artist genres for events that need them
-    const updateArtistUuidsToFetch = new Set();
-    for (const { data } of updateEvents) {
-      const artistUuid = data.artist_jambase_id_text 
-        ? artistUuidMap.get(data.artist_jambase_id_text) 
-        : null;
-      if (artistUuid && isEmptyGenres(data.genres)) {
-        updateArtistUuidsToFetch.add(artistUuid);
-      }
-    }
-    
-    // Fetch genres from database for artists
-    const updateArtistGenresMap = new Map();
-    if (updateArtistUuidsToFetch.size > 0) {
-      const { data: artistsWithGenres, error: fetchError } = await this.syncService.supabase
-        .from('artists')
-        .select('id, genres')
-        .in('id', Array.from(updateArtistUuidsToFetch));
-      
-      if (!fetchError && artistsWithGenres) {
-        for (const artist of artistsWithGenres) {
-          if (!isEmptyGenres(artist.genres)) {
-            updateArtistGenresMap.set(artist.id, artist.genres);
-          }
-        }
-      }
-    }
-    
-    for (const { uuid, data, jambaseEventId } of updateEvents) {
-      const artistUuid = data.artist_jambase_id_text 
-        ? artistUuidMap.get(data.artist_jambase_id_text) 
-        : null;
-      const venueUuid = data.venue_jambase_id_text
-        ? venueUuidMap.get(data.venue_jambase_id_text)
-        : null;
+      if (existingByJambase.has(jid)) this.stats.eventsUpdated++;
+      else this.stats.eventsNew++;
 
-      // Remove fields that don't exist in the schema
-      const { 
-        jambase_event_id, 
-        artist_jambase_id, 
-        artist_jambase_id_text, 
-        venue_jambase_id, 
-        venue_jambase_id_text,
-        artist_name,
-        venue_name,
-        genres: eventGenres,
-        ...eventDataClean 
-      } = data;
+      // Ensure external id mapping exists for 3NF lookups
+      await this.upsertExternalId(id, 'jambase', 'event', jid);
 
-      // If and only if event genres are empty, use artist genres; never overwrite non-empty event genres
-      const artistGenres = artistUuid ? updateArtistGenresMap.get(artistUuid) : undefined;
-      const finalGenres = eventGenresFromArtistIfEmpty(eventGenres, artistGenres);
-
-      const updateData = {
-        ...eventDataClean,
-        artist_id: artistUuid, // UUID FK to artists(id)
-        venue_id: venueUuid, // UUID FK to venues(id)
-        updated_at: new Date().toISOString()
-      };
-      // Only write genres when we have a value (don't overwrite DB with empty)
-      if (!isEmptyGenres(finalGenres)) {
-        updateData.genres = finalGenres;
-      }
-
-      const { error } = await this.syncService.supabase
-        .from('events')
-        .update(updateData)
-        .eq('id', uuid);
-
-      if (error) {
-        throw error;
-      }
-
-      this.stats.eventsUpdated++;
-      
-      // Sync normalized genres for this event
-      if (!isEmptyGenres(finalGenres)) {
-        await this.syncEventNormalizedGenres(uuid, finalGenres);
+      const g = row.genres;
+      if (Array.isArray(g) && g.length > 0) {
+        await this.syncEventNormalizedGenres(id, g);
       }
     }
   }
@@ -1192,7 +1063,14 @@ class IncrementalSync3NF {
       );
 
       if (eventData) {
-        eventsData.push(eventData);
+        // `extractEventData` returns `jambase_id`; the 3NF upsert path expects
+        // explicit Jambase id fields for dedupe + FK resolution.
+        eventsData.push({
+          ...eventData,
+          jambase_event_id: eventData.jambase_id,
+          artist_jambase_id_text: jambaseArtistId || null,
+          venue_jambase_id_text: jambaseVenueId || null,
+        });
       }
     }
 
@@ -1232,8 +1110,13 @@ class IncrementalSync3NF {
     let currentPage = 1;
     let totalPages = 1;
     const perPage = 100;
+    const maxPagesRaw = process.env.JAMBASE_MAX_PAGES?.trim();
+    const maxPages = maxPagesRaw ? parseInt(maxPagesRaw, 10) : Number.POSITIVE_INFINITY;
+    if (Number.isFinite(maxPages) && maxPages > 0 && maxPages !== Number.POSITIVE_INFINITY) {
+      console.log(`🧪 JAMBASE_MAX_PAGES enabled: will process at most ${maxPages} page(s)\n`);
+    }
 
-    while (currentPage <= totalPages) {
+    while (currentPage <= totalPages && currentPage <= maxPages) {
       let pageData = null;
       let pageAttempt = 0;
       const maxPageAttempts = 3;

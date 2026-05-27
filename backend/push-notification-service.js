@@ -82,30 +82,35 @@ class PushNotificationService {
    * @see https://docs.expo.dev/push-notifications/sending-notifications/
    */
   static isExpoPushToken(deviceToken) {
-    return typeof deviceToken === 'string' && deviceToken.startsWith('ExponentPushToken');
+    if (typeof deviceToken !== 'string') return false;
+    const t = deviceToken.trim();
+    // Expo historically used `ExponentPushToken[...]` and has also used `ExpoPushToken[...]` in some clients.
+    return (
+      t.startsWith('ExponentPushToken[') ||
+      t.startsWith('ExpoPushToken[') ||
+      t.startsWith('ExponentPushToken') ||
+      t.startsWith('ExpoPushToken')
+    );
   }
 
   /**
    * Send via Expo Push API (requires EXPO_ACCESS_TOKEN from expo.dev).
    */
   async sendExpoPushNotification(deviceToken, notification) {
-    const accessToken = process.env.EXPO_ACCESS_TOKEN;
-    if (!accessToken) {
-      console.warn('⚠️  EXPO_ACCESS_TOKEN not set; cannot send Expo push');
-      return { success: false, error: 'EXPO_ACCESS_TOKEN not set' };
-    }
+    const accessToken = process.env.EXPO_ACCESS_TOKEN?.trim();
 
     try {
+      const to = typeof deviceToken === 'string' ? deviceToken.trim() : deviceToken;
       const res = await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
         headers: {
           Accept: 'application/json',
           'Accept-Encoding': 'gzip, deflate',
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
-          to: deviceToken,
+          to,
           title: notification.title,
           body: notification.message,
           data: notification.data || {},
@@ -134,12 +139,15 @@ class PushNotificationService {
    * Send push notification to a device
    */
   async sendNotification(deviceToken, notification) {
-    if (PushNotificationService.isExpoPushToken(deviceToken)) {
-      return this.sendExpoPushNotification(deviceToken, notification);
+    const normalizedToken = typeof deviceToken === 'string' ? deviceToken.trim() : deviceToken;
+    if (PushNotificationService.isExpoPushToken(normalizedToken)) {
+      return this.sendExpoPushNotification(normalizedToken, notification);
     }
 
     if (!this.apnProvider) {
-      return { success: false, error: 'APNs provider not initialized' };
+      // If we don't have APNs configured, don't keep retrying forever.
+      // Expo tokens should still deliver; raw APNs tokens cannot.
+      return { success: false, error: 'apns:not-configured' };
     }
 
     const apnNotification = new apn.Notification();
@@ -157,7 +165,7 @@ class PushNotificationService {
     apnNotification.priority = 10;
 
     try {
-      const result = await this.apnProvider.send(apnNotification, deviceToken);
+      const result = await this.apnProvider.send(apnNotification, normalizedToken);
       
       if (result.failed && result.failed.length > 0) {
         const error = result.failed[0];
@@ -166,7 +174,7 @@ class PushNotificationService {
         // Handle invalid device tokens
         if (error.status === '410' || error.response?.reason === 'BadDeviceToken') {
           // Mark device token as inactive in database
-          await this.deactivateDeviceToken(deviceToken);
+          await this.deactivateDeviceToken(normalizedToken);
         }
         
         return { success: false, error: error.response?.reason || error.error };
@@ -286,7 +294,9 @@ class PushNotificationService {
         .from('notifications')
         .select('id, user_id, title, message, data')
         .eq('is_read', false)
-        .order('created_at', { ascending: true })
+        // Prefer newest notifications first so users get timely pushes and we don't get stuck
+        // working through a huge backlog.
+        .order('created_at', { ascending: false })
         .limit(limit * 2);
 
       if (notifError) {
@@ -356,15 +366,19 @@ class PushNotificationService {
       const { data: existing, error: existingError } = await this.supabase
         .from('push_notification_queue')
         .select('notification_id, device_token')
-        .in('notification_id', notificationIds);
+        .in('notification_id', notificationIds)
+        // Allow re-queueing items that previously failed (e.g. infra was fixed, credentials added, etc).
+        // Only treat pending/sent rows as "already handled".
+        .in('status', ['pending', 'sent']);
 
       if (existingError) {
         console.error('Error fetching existing queue entries:', existingError);
         return { queued: 0, error: existingError.message };
       }
 
+      const normalizeTokenKey = (t) => (typeof t === 'string' ? t.trim() : t);
       const existingSet = new Set(
-        (existing || []).map(e => `${e.notification_id}:${e.device_token}`)
+        (existing || []).map(e => `${e.notification_id}:${normalizeTokenKey(e.device_token)}`)
       );
 
       // Step 5: Build queue items (notification x device_token per user)
@@ -372,11 +386,18 @@ class PushNotificationService {
       for (const notification of enabledNotifications) {
         const tokens = tokensByUser.get(notification.user_id) || [];
         for (const deviceToken of tokens) {
-          const key = `${notification.id}:${deviceToken}`;
+          const normalizedToken = normalizeTokenKey(deviceToken);
+          const isExpo = PushNotificationService.isExpoPushToken(normalizedToken);
+          // If APNs isn't configured, avoid queueing non-Expo tokens (they can never be sent).
+          if (!isExpo && !this.apnProvider) {
+            continue;
+          }
+
+          const key = `${notification.id}:${normalizedToken}`;
           if (!existingSet.has(key)) {
             queueItems.push({
               user_id: notification.user_id,
-              device_token: deviceToken,
+              device_token: normalizedToken,
               notification_id: notification.id,
               title: notification.title,
               body: notification.message,
@@ -448,9 +469,15 @@ class PushNotificationService {
         const currentRetryCount = item.retry_count || 0;
         const newRetryCount = result.success ? currentRetryCount : currentRetryCount + 1;
         
+        // If APNs isn't configured for non-Expo tokens, fail fast (do not retry).
+        const failFast =
+          result?.success === false &&
+          (result.error === 'apns:not-configured' ||
+            result.error === 'android:non-expo-token-unsupported');
+
         // Only mark as 'failed' if retry limit reached (3 retries = 4 total attempts)
         // retry_count represents the number of failed attempts, so >= 4 means initial + 3 retries
-        const shouldMarkAsFailed = !result.success && newRetryCount >= 4;
+        const shouldMarkAsFailed = (!result.success && newRetryCount >= 4) || failFast;
         const newStatus = result.success ? 'sent' : (shouldMarkAsFailed ? 'failed' : 'pending');
         
         await this.supabase

@@ -72,7 +72,7 @@ final class SynthDeepLinkRouter {
 
     private func isSynthShareUrl(_ url: URL) -> Bool {
         guard let host = url.host else { return false }
-        return host.contains("plusone.app") && url.path.hasPrefix("/share")
+        return (host.contains("join.getsynth.app") || host.contains("plusone.app")) && url.path.hasPrefix("/share")
     }
 
     private func fireLinkEvent(url: URL) {

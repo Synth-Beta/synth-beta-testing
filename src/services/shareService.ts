@@ -66,10 +66,19 @@ function fireNativeShare(payload: NativeSharePayload): void {
 
 export class ShareService {
   private static getBaseUrl(): string {
+    const envBase =
+      (import.meta.env.VITE_PUBLIC_SITE_URL as string | undefined)?.trim() ||
+      (import.meta.env.VITE_SITE_URL as string | undefined)?.trim() ||
+      (import.meta.env.VITE_WEB_BASE_URL as string | undefined)?.trim() ||
+      '';
+
+    if (envBase) return envBase.replace(/\/+$/, '');
+
     if (typeof window !== 'undefined' && window.location) {
       return window.location.origin;
     }
-    return 'https://plusone.app';
+
+    return 'https://join.getsynth.app';
   }
 
   // ── URL builders ─────────────────────────────────────────────────────────

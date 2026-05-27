@@ -5,6 +5,8 @@ import {
     deleteFriendRequestNotificationsByRequestId,
     pruneStaleFriendRequestNotifications as pruneStaleFriendRequestsShared,
 } from '@synth/shared';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import { supabase } from '../integrations/supabase/client';
 
 const UUID_RE =
@@ -30,6 +32,23 @@ export interface Notification {
 }
 
 export class NotificationService {
+    /**
+     * Keep iOS app icon badge in sync with current unread count.
+     * This is required because the mobile service marks rows as read in the DB,
+     * but does not automatically clear the system badge.
+     */
+    private static async syncExpoBadgeToUnread(userId: string): Promise<void> {
+        if (Platform.OS === 'web') return;
+
+        try {
+            const unread = await NotificationService.getUnreadCount(userId);
+            await Notifications.setBadgeCountAsync(unread);
+        } catch (err) {
+            // Badge updates are best-effort; don't block notification actions.
+            console.warn('[notifications] badge sync failed', err);
+        }
+    }
+
     static async deleteExpiredFriendAcceptedNotifications(userId: string): Promise<void> {
         await deleteExpiredFriendAcceptedShared(supabase, userId);
     }
@@ -124,7 +143,16 @@ export class NotificationService {
                 .from('notifications')
                 .update({ is_read: true })
                 .eq('id', notificationId);
-            return !error;
+
+            const ok = !error;
+            if (ok) {
+                const {
+                    data: { user },
+                } = await supabase.auth.getUser();
+                if (user) await NotificationService.syncExpoBadgeToUnread(user.id);
+            }
+
+            return ok;
         } catch (error) {
             console.error('Error marking notification as read:', error);
             return false;
@@ -138,7 +166,13 @@ export class NotificationService {
                 .update({ is_read: true })
                 .eq('user_id', userId)
                 .eq('is_read', false);
-            return !error;
+
+            const ok = !error;
+            if (ok) {
+                await NotificationService.syncExpoBadgeToUnread(userId);
+            }
+
+            return ok;
         } catch (error) {
             console.error('Error marking all notifications as read:', error);
             return false;
