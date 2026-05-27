@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 /** Picker options aligned with the working review-photo flow (no base64, no extra iOS flags). */
@@ -6,9 +5,6 @@ const CHAT_IMAGE_PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     quality: 0.8,
     allowsEditing: false,
-    ...(Platform.OS === 'ios'
-        ? { presentationStyle: ImagePicker.UIImagePickerPresentationStyle.FULL_SCREEN }
-        : {}),
 };
 
 export type ChatImagePickerSource = 'library' | 'camera';

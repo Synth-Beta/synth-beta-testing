@@ -1,8 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
     InteractionManager,
-    Modal,
-    Platform,
     Pressable,
     StyleSheet,
     Text,
@@ -23,25 +21,48 @@ type ChatImageSourceSheetProps = {
     onChoose: (source: ChatImagePickerSource) => void;
 };
 
+/**
+ * In-app overlay (not RN Modal) so presenting UIImagePicker / camera does not
+ * stack two native modals and crash on iOS.
+ */
 export function ChatImageSourceSheet({ visible, onClose, onChoose }: ChatImageSourceSheetProps) {
     const insets = useSafeAreaInsets();
+    const pendingSourceRef = useRef<ChatImagePickerSource | null>(null);
+    const wasVisibleRef = useRef(false);
 
-    const choose = (source: ChatImagePickerSource) => {
-        onClose();
-        InteractionManager.runAfterInteractions(() => {
-            setTimeout(() => onChoose(source), Platform.OS === 'ios' ? 500 : 300);
-        });
+    const flushPendingChoice = () => {
+        const source = pendingSourceRef.current;
+        pendingSourceRef.current = null;
+        if (source) {
+            onChoose(source);
+        }
     };
 
+    const choose = (source: ChatImagePickerSource) => {
+        pendingSourceRef.current = source;
+        onClose();
+    };
+
+    useEffect(() => {
+        if (visible) {
+            wasVisibleRef.current = true;
+            return;
+        }
+        if (!wasVisibleRef.current) return;
+        wasVisibleRef.current = false;
+        InteractionManager.runAfterInteractions(() => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(flushPendingChoice);
+            });
+        });
+    }, [visible]);
+
+    if (!visible) {
+        return null;
+    }
+
     return (
-        <Modal
-            visible={visible}
-            animationType="slide"
-            transparent
-            onRequestClose={onClose}
-            presentationStyle="overFullScreen"
-            statusBarTranslucent
-        >
+        <View style={styles.root} pointerEvents="box-none">
             <Pressable style={styles.backdrop} onPress={onClose} />
             <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
                 <View style={styles.handle} />
@@ -60,20 +81,22 @@ export function ChatImageSourceSheet({ visible, onClose, onChoose }: ChatImageSo
                     <Text style={styles.cancelText}>Cancel</Text>
                 </Pressable>
             </View>
-        </Modal>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
+    root: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 1000,
+        elevation: 1000,
+        justifyContent: 'flex-end',
+    },
     backdrop: {
-        flex: 1,
+        ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(0,0,0,0.45)',
     },
     sheet: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
         backgroundColor: SynthTokens.colors.neutral0,
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
