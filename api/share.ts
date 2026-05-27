@@ -87,6 +87,27 @@ function starRating(score: number): string {
   return '★'.repeat(full) + '☆'.repeat(5 - full);
 }
 
+function renderUnavailable(opts: {
+  canonicalUrl: string;
+  badge: string;
+  headline: string;
+  sublines?: string[];
+  referrerId?: string;
+}): string {
+  const { canonicalUrl, badge, headline, sublines, referrerId } = opts;
+  return renderPage({
+    ogTitle: `${headline} on Synth`,
+    ogDescription: 'Open this link in Synth to view the full details.',
+    ogImage: FALLBACK_IMAGE,
+    canonicalUrl,
+    badge,
+    headline,
+    sublines: (sublines ?? []).filter(Boolean),
+    heroImage: '',
+    referrerId,
+  });
+}
+
 // ─── Page renderer ──────────────────────────────────────────────────────────
 
 function renderPage(opts: {
@@ -319,11 +340,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl || !supabaseKey) {
-    return res.status(500).send('Server configuration error');
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
   const { event, review, artist, venue, ref: referrerId } = req.query as Record<string, string | undefined>;
 
   // Cache 5 min, stale up to 1 hour — safe since content rarely changes
@@ -331,10 +347,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
   try {
+    // If the env is misconfigured, DO NOT redirect away from /share links — that
+    // breaks copied URLs and causes confusing "bounce to home" behavior. Instead,
+    // render a safe fallback OG page that preserves the original /share URL.
+    if (!supabaseUrl || !supabaseKey) {
+      if (event)  return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share?event=${event}`,  badge: 'Live Event', headline: 'Event',  referrerId }));
+      if (review) return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share?review=${review}`, badge: 'Review',     headline: 'Review', referrerId }));
+      if (artist) return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share?artist=${artist}`, badge: 'Artist',    headline: 'Artist', referrerId }));
+      if (venue)  return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share?venue=${venue}`,  badge: 'Venue',      headline: 'Venue',  referrerId }));
+      return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share`, badge: 'Synth', headline: 'Synth', referrerId }));
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // ── Event ──────────────────────────────────────────────────────────────
     if (event) {
       const data = await fetchEvent(supabase, event);
-      if (!data) return res.redirect(302, BASE_URL);
+      if (!data) {
+        return res.send(renderUnavailable({
+          canonicalUrl: `${BASE_URL}/share?event=${event}`,
+          badge: 'Live Event',
+          headline: 'Event',
+          sublines: ['This event may have been removed or is temporarily unavailable.'],
+          referrerId,
+        }));
+      }
 
       const artistRef  = Array.isArray(data.artists) ? data.artists[0] : data.artists;
       const venueRef   = Array.isArray(data.venues)  ? data.venues[0]  : data.venues;
@@ -370,7 +407,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Review ─────────────────────────────────────────────────────────────
     if (review) {
       const data = await fetchReview(supabase, review);
-      if (!data) return res.redirect(302, BASE_URL);
+      if (!data) {
+        return res.send(renderUnavailable({
+          canonicalUrl: `${BASE_URL}/share?review=${review}`,
+          badge: 'Review',
+          headline: 'Review',
+          sublines: ['This review may have been removed or is temporarily unavailable.'],
+          referrerId,
+        }));
+      }
 
       const ev          = data.events ?? {} as NonNullable<ReviewRow['events']>;
       const profile     = data.profiles;
@@ -409,7 +454,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Artist ─────────────────────────────────────────────────────────────
     if (artist) {
       const data = await fetchArtist(supabase, artist);
-      if (!data) return res.redirect(302, BASE_URL);
+      if (!data) {
+        return res.send(renderUnavailable({
+          canonicalUrl: `${BASE_URL}/share?artist=${artist}`,
+          badge: 'Artist',
+          headline: 'Artist',
+          sublines: ['This artist is temporarily unavailable.'],
+          referrerId,
+        }));
+      }
 
       const genres  = Array.isArray(data.genres) ? (data.genres as string[]).slice(0, 3).join(', ') : '';
       const ogTitle = `${data.name} on Synth`;
@@ -431,7 +484,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Venue ──────────────────────────────────────────────────────────────
     if (venue) {
       const data = await fetchVenue(supabase, venue);
-      if (!data) return res.redirect(302, BASE_URL);
+      if (!data) {
+        return res.send(renderUnavailable({
+          canonicalUrl: `${BASE_URL}/share?venue=${venue}`,
+          badge: 'Venue',
+          headline: 'Venue',
+          sublines: ['This venue is temporarily unavailable.'],
+          referrerId,
+        }));
+      }
 
       const location = [data.city, data.state].filter(Boolean).join(', ');
       const ogTitle  = `${data.name} on Synth`;
@@ -452,11 +513,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
     }
 
-    // No recognised param — send to app
-    return res.redirect(302, BASE_URL);
+    // No recognised param — still render a page (avoid redirect loops / surprises)
+    return res.send(renderUnavailable({
+      canonicalUrl: `${BASE_URL}/share`,
+      badge: 'Synth',
+      headline: 'Synth',
+      referrerId,
+    }));
 
   } catch (err) {
     console.error('[share] Error:', err);
-    return res.redirect(302, BASE_URL);
+    if (event)  return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share?event=${event}`,  badge: 'Live Event', headline: 'Event',  referrerId }));
+    if (review) return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share?review=${review}`, badge: 'Review',     headline: 'Review', referrerId }));
+    if (artist) return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share?artist=${artist}`, badge: 'Artist',    headline: 'Artist', referrerId }));
+    if (venue)  return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share?venue=${venue}`,  badge: 'Venue',      headline: 'Venue',  referrerId }));
+    return res.send(renderUnavailable({ canonicalUrl: `${BASE_URL}/share`, badge: 'Synth', headline: 'Synth', referrerId }));
   }
 }
