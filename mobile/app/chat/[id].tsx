@@ -496,7 +496,7 @@ export default function ChatThreadScreen() {
     };
 
     return (
-        <>
+        <View style={styles.screenRoot}>
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -554,11 +554,14 @@ export default function ChatThreadScreen() {
             onClose={() => setImageSourceSheetVisible(false)}
             onChoose={source => void runImagePick(source)}
         />
-        </>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
+    screenRoot: {
+        flex: 1,
+    },
     container: {
         flex: 1,
         backgroundColor: SynthTokens.colors.neutral50,

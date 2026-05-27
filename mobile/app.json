@@ -18,7 +18,9 @@
       "buildNumber": "286",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover."
+        "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
+        "NSCameraUsageDescription": "Synth uses your camera to take photos for chat messages.",
+        "NSPhotoLibraryUsageDescription": "Synth uses photos you choose to send in chats and attach to concert reviews."
       }
     },
     "android": {
