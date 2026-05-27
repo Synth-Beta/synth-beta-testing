@@ -191,7 +191,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
                   ))}
                 </div>
               )}
-              {(interestedCount ?? 0) > 12 && onOpenGuestList && (
+              {(interestedCount ?? 0) > 5 && onOpenGuestList && (
                 <button
                   className="text-sm underline cursor-pointer"
                   style={{ color: 'var(--brand-pink-500)' }}
