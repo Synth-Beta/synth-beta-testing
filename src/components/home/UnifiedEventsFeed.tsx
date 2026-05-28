@@ -815,16 +815,14 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     }
   };
 
-  const getImageUrl = (event: UnifiedEventItem): string | undefined => {
-    if (event.event_media_url) return replaceJambasePlaceholder(event.event_media_url);
-    if (event.images && Array.isArray(event.images) && event.images.length > 0) {
-      const bestImage = event.images.find((img: any) => img?.url && (img?.ratio === '16_9' || (img?.width && img.width > 1000)))
-        || event.images.find((img: any) => img?.url);
-      return bestImage?.url ? replaceJambasePlaceholder(bestImage.url) : undefined;
-    }
-    if (event.poster_image_url) return replaceJambasePlaceholder(event.poster_image_url);
-    return undefined;
-  };
+  const getImageUrl = (event: UnifiedEventItem): string =>
+    resolveEventCardImageUrl({
+      id: event.event_id,
+      event_media_url: event.event_media_url,
+      images: event.images,
+      poster_image_url: event.poster_image_url,
+      image_url: event.image_url,
+    });
 
   if (loading && displayedEvents.length === 0) {
     return (
