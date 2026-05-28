@@ -6,6 +6,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { SynthLoader } from "@/components/ui/SynthLoader";
 import SpotifyCallback from "./pages/SpotifyCallback";
 import AppPage from "./pages/App";
+import { ShareLinkBootstrap } from "@/components/ShareLinkBootstrap";
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -237,6 +238,7 @@ const App = () => {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <BrowserRouter>
+            <ShareLinkBootstrap />
             <DeepLinkHandlerInner />
             <ScrollToTop />
             <Suspense fallback={<RouteFallback />}>

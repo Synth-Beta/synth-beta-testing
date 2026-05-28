@@ -44,6 +44,17 @@ function buildWebAppUrlFromShareCanonical(siteUrl: string, canonicalShareUrl: st
   return null;
 }
 
+function spaRedirectForQuery(
+  siteUrl: string,
+  kind: 'event' | 'review' | 'artist' | 'venue',
+  id: string,
+  referrerId?: string
+): string {
+  const base = siteUrl.replace(/\/+$/, '');
+  const refSuffix = referrerId ? `&ref=${encodeURIComponent(referrerId)}` : '';
+  return `${base}/?${kind}=${encodeURIComponent(id)}${refSuffix}`;
+}
+
 // Local shape types — keeps the fetchers free of `any` casts
 interface ArtistRef { name: string }
 interface VenueRef  { name: string; city: string; state: string }
@@ -269,19 +280,8 @@ function renderPage(opts: {
     <div class="divider"></div>
 
     <div class="cta">
-      <a href="${appStoreLink}" class="btn-primary">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79
-            -1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45
-            4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78
-            0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15
-            3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13
-            3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85
-            -1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-        </svg>
-        Get Synth — Free on App Store
-      </a>
-      <a href="${esc(spaUrl)}" class="btn-ghost">Open in browser instead</a>
+      <a href="${esc(spaUrl)}" class="btn-primary">Open in Synth</a>
+      <a href="${appStoreLink}" class="btn-ghost">Get the app on the App Store</a>
     </div>
 
     <div class="foot">Synth · Discover live music with friends</div>
@@ -363,7 +363,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Event ──────────────────────────────────────────────────────────────
     if (event) {
       const data = await fetchEvent(supabase, event);
-      if (!data) return res.redirect(302, BASE_URL);
+      if (!data) {
+        return res.redirect(302, spaRedirectForQuery(BASE_URL, 'event', event, referrerId));
+      }
 
       const artistRef  = Array.isArray(data.artists) ? data.artists[0] : data.artists;
       const venueRef   = Array.isArray(data.venues)  ? data.venues[0]  : data.venues;
@@ -399,7 +401,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Review ─────────────────────────────────────────────────────────────
     if (review) {
       const data = await fetchReview(supabase, review);
-      if (!data) return res.redirect(302, BASE_URL);
+      if (!data) {
+        return res.redirect(302, spaRedirectForQuery(BASE_URL, 'review', review, referrerId));
+      }
 
       const ev          = data.events ?? {} as NonNullable<ReviewRow['events']>;
       const profile     = data.profiles;
@@ -438,7 +442,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Artist ─────────────────────────────────────────────────────────────
     if (artist) {
       const data = await fetchArtist(supabase, artist);
-      if (!data) return res.redirect(302, BASE_URL);
+      if (!data) {
+        return res.redirect(302, spaRedirectForQuery(BASE_URL, 'artist', artist, referrerId));
+      }
 
       const genres  = Array.isArray(data.genres) ? (data.genres as string[]).slice(0, 3).join(', ') : '';
       const ogTitle = `${data.name} on Synth`;
@@ -460,7 +466,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Venue ──────────────────────────────────────────────────────────────
     if (venue) {
       const data = await fetchVenue(supabase, venue);
-      if (!data) return res.redirect(302, BASE_URL);
+      if (!data) {
+        return res.redirect(302, spaRedirectForQuery(BASE_URL, 'venue', venue, referrerId));
+      }
 
       const location = [data.city, data.state].filter(Boolean).join(', ');
       const ogTitle  = `${data.name} on Synth`;
@@ -486,6 +494,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (err) {
     console.error('[share] Error:', err);
+    if (event) return res.redirect(302, spaRedirectForQuery(BASE_URL, 'event', event, referrerId));
+    if (review) return res.redirect(302, spaRedirectForQuery(BASE_URL, 'review', review, referrerId));
+    if (artist) return res.redirect(302, spaRedirectForQuery(BASE_URL, 'artist', artist, referrerId));
+    if (venue) return res.redirect(302, spaRedirectForQuery(BASE_URL, 'venue', venue, referrerId));
     return res.redirect(302, BASE_URL);
   }
 }

@@ -50,21 +50,23 @@ export function useShareDeepLink({
   const isNative    = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
   const processedRef = useRef(false); // ensure we only process once per auth session
 
-  // ── Step 1: Capture link from URL params on mount ────────────────────────
+  // ── Step 1: Capture link from URL params (/?event= after ShareLinkBootstrap) ──
   useEffect(() => {
-    const link = parseShareUrl(location.search);
+    const link =
+      parseShareUrl(location.search) ||
+      parseShareUrl(window.location.href);
+
     if (link) {
       storePendingLink(link);
-      // Clean URL so a page-refresh doesn't re-trigger
-      navigate(location.pathname, { replace: true });
+      if (location.search) {
+        navigate(location.pathname, { replace: true });
+      }
     }
 
-    // On iOS native: tell Swift the web layer is alive so it can flush any
-    // Universal Link that arrived before React had a chance to mount.
     if (isNative && typeof (window as any).synthSignalDeepLinkReady === 'function') {
       (window as any).synthSignalDeepLinkReady();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — mount only
+  }, [location.pathname, location.search, navigate, isNative]);
 
   // ── Step 2: Listen for Universal Links arriving while app is running ─────
   useEffect(() => {
