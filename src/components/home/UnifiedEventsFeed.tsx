@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CompactEventCard, type EventReason } from './CompactEventCard';
 import { Button } from '@/components/ui/button';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
-import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+import { resolveEventCardImageUrl } from '@/utils/eventImageFallbacks';
 import type { PersonalizedFeedFilters } from '@/services/personalizedFeedService';
 import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';

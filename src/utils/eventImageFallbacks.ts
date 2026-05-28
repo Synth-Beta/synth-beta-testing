@@ -83,3 +83,43 @@ export function getAllFallbackEventImages(): readonly string[] {
   return EVENT_FALLBACK_IMAGES.map((image) => encodeURI(image));
 }
 
+type EventImageSource = {
+  id?: string;
+  poster_image_url?: string | null;
+  image_url?: string | null;
+  event_media_url?: string | null;
+  images?: unknown;
+};
+
+function pickFromImagesJson(images: unknown): string | null {
+  if (!Array.isArray(images) || images.length === 0) return null;
+  const withUrl = images.filter(
+    (img): img is { url?: string; ratio?: string; width?: number } =>
+      !!img && typeof img === 'object' && typeof (img as { url?: string }).url === 'string'
+  );
+  const best =
+    withUrl.find(img => img.url && (img.ratio === '16_9' || (img.width && img.width > 1000))) ||
+    withUrl.find(img => img.url);
+  const url = best?.url?.trim();
+  return url || null;
+}
+
+/**
+ * Best event hero URL for feed cards — never returns null (uses bundled placeholder).
+ */
+export function resolveEventCardImageUrl(event: EventImageSource): string {
+  const candidates = [
+    event.event_media_url,
+    pickFromImagesJson(event.images),
+    event.poster_image_url,
+    event.image_url,
+  ];
+
+  for (const raw of candidates) {
+    const resolved = replaceJambasePlaceholder(raw);
+    if (resolved) return resolved;
+  }
+
+  return getSynthPlaceholderImage();
+}
+

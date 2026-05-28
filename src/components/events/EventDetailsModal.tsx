@@ -58,7 +58,7 @@ import { VerifiedChatBadge } from '@/components/chats/VerifiedChatBadge';
 import { JamBaseAttribution } from '@/components/attribution';
 import { ShareService } from '@/services/shareService';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
-import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
+import { replaceJambasePlaceholder, getFallbackEventImage, getSynthPlaceholderImage } from '@/utils/eventImageFallbacks';
 import {
   iosModal,
   iosModalBackdrop,
@@ -1419,15 +1419,29 @@ export function EventDetailsModal({
             const src = raw?.url ?? (typeof raw === 'string' ? raw : null)
               ?? (actualEvent as any).event_media_url
               ?? (actualEvent as any).poster_image_url
+              ?? (actualEvent as any).image_url
               ?? null;
-            if (!src) return null;
-            const cleaned = replaceJambasePlaceholder(src);
+            const cleaned =
+              (src ? replaceJambasePlaceholder(src) : null) ||
+              getFallbackEventImage(actualEvent.id);
             return (
-              <div style={{ position: 'relative', width: '100%', height: isWebDesktop ? 300 : 220, overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ position: 'relative', width: '100%', height: isWebDesktop ? 300 : 220, overflow: 'hidden', flexShrink: 0, backgroundColor: 'var(--neutral-100)' }}>
                 <img
                   src={cleaned}
                   alt={actualEvent.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', padding: 12 }}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    const fallback = getFallbackEventImage(actualEvent.id);
+                    const synth = getSynthPlaceholderImage();
+                    if (!target.src.includes('Generic') && target.src !== fallback) {
+                      target.src = fallback;
+                    } else if (!target.src.includes('Synth_Placeholder')) {
+                      target.src = synth;
+                    } else {
+                      target.onerror = null;
+                    }
+                  }}
                 />
                 {/* Gradient so title below reads cleanly */}
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.45) 100%)' }} />

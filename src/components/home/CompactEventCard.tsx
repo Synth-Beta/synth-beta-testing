@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar, MapPin, Send, Check, Heart } from 'lucide-react';
@@ -43,9 +43,32 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   onClick,
   className,
 }) => {
-  const rawImageUrl = event.poster_image_url || event.image_url;
-  const imageUrl = rawImageUrl ? replaceJambasePlaceholder(rawImageUrl) : null;
+  const resolvedImageUrl = useMemo(() => {
+    const raw = event.poster_image_url || event.image_url;
+    const cleaned = raw ? replaceJambasePlaceholder(raw) : null;
+    return cleaned || getFallbackEventImage(event.id);
+  }, [event.id, event.image_url, event.poster_image_url]);
+
   const eventDate = event.event_date ? new Date(event.event_date) : null;
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const target = e.currentTarget;
+    const synthPlaceholder = getSynthPlaceholderImage();
+    const genericFallback = getFallbackEventImage(event.id);
+    if (target.src.includes('Synth_Placeholder')) {
+      target.onerror = null;
+      return;
+    }
+    if (!target.src.includes('Generic') && target.src !== genericFallback) {
+      target.src = genericFallback;
+      return;
+    }
+    if (target.src !== synthPlaceholder) {
+      target.src = synthPlaceholder;
+      return;
+    }
+    target.onerror = null;
+  };
 
   const formatDate = (date: Date | null) => {
     if (!date) return '';
@@ -163,80 +186,45 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       role="button"
       aria-label={`View event: ${event.title}`}
     >
-      {/* Event Image - overfill the card, centered; card clips overflow */}
-      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden bg-black">
-      {imageUrl ? (
-        <>
-            <ClickableImage
-              imageUrl={imageUrl}
-              alt={event.artist_name && event.venue_name 
+      {/* Event image — contain logos/posters on a light field; always show a real image URL */}
+      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden bg-neutral-100">
+        <ClickableImage
+          imageUrl={resolvedImageUrl}
+          alt={
+            event.artist_name && event.venue_name
+              ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
+              : event.title
+                ? `${event.title} event photo`
+                : 'Event photo'
+          }
+          className="absolute inset-0 flex items-center justify-center"
+        >
+          <img
+            src={resolvedImageUrl}
+            alt={
+              event.artist_name && event.venue_name
                 ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
-                : event.title 
+                : event.title
                   ? `${event.title} event photo`
-                  : "Event photo"}
-              className="absolute inset-0 flex items-center justify-center"
-            >
-              {/* Inner wrapper 120% size, centered, so image overfills card and card clips */}
-              <div className="absolute w-[120%] h-[120%] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                <img 
-                  src={imageUrl} 
-                  alt={event.artist_name && event.venue_name 
-                    ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
-                    : event.title 
-                      ? `${event.title} event photo`
-                      : "Event photo"} 
-                  className="w-full h-full object-cover object-center"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  const synthPlaceholder = getSynthPlaceholderImage();
-                  const alreadyTriedFallback = target.src.includes('Generic') || target.src.includes('Generic%20Images');
-                  const alreadyTriedSynth = target.src.includes('Synth_Placeholder');
-                  if (!alreadyTriedFallback) {
-                    // First failure: try Generic Images from public folder
-                    target.src = getFallbackEventImage(event.id);
-                  } else if (!alreadyTriedSynth) {
-                    // Generic Images failed (e.g. ERR_CONNECTION_REFUSED); use bundled placeholder
-                    target.src = synthPlaceholder;
-                  } else {
-                    // Both failed; prevent infinite loop
-                    target.onerror = null;
-                  }
-                }}
-                />
-              </div>
-            </ClickableImage>
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  'linear-gradient(to top, rgba(14, 14, 14, 0.8) 0%, rgba(14, 14, 14, 0.4) 50%, transparent 100%)',
-              }}
-            />
-            {reason && getReasonBadge()}
-            {isCommunityPhoto && (
-              <div className="absolute top-4 right-4 swift-ui-badge z-50" aria-hidden="true">
-                <span className="swift-ui-badge-text">Community Photo</span>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center swift-ui-gradient-bg">
-            <div className="text-center px-4">
-              <p
-                className="line-clamp-2"
-                style={{
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-h2-size, 24px)',
-                  fontWeight: 'var(--typography-h2-weight, 700)',
-                  lineHeight: 'var(--typography-h2-line-height, 1.3)',
-                  color: 'var(--neutral-0)',
-                }}
-              >
-              {event.title}
-            </p>
+                  : 'Event photo'
+            }
+            className="w-full h-full max-h-full object-contain object-center p-4"
+            onError={handleImageError}
+          />
+        </ClickableImage>
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(to top, rgba(14, 14, 14, 0.55) 0%, rgba(14, 14, 14, 0.15) 45%, transparent 100%)',
+          }}
+        />
+        {reason && getReasonBadge()}
+        {isCommunityPhoto && (
+          <div className="absolute top-4 right-4 swift-ui-badge z-50" aria-hidden="true">
+            <span className="swift-ui-badge-text">Community Photo</span>
           </div>
-        </div>
-      )}
+        )}
       </div>
 
       {/* Content Overlay */}
