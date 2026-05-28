@@ -626,6 +626,13 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     }));
   };
 
+  const handleNavigateToReview = (reviewId: string) => {
+    setCurrentView('feed');
+    window.dispatchEvent(
+      new CustomEvent('open-review-by-id', { detail: { reviewId } })
+    );
+  };
+
   // ── Share deep-link hook ────────────────────────────────────────────────────
   // Handles: URL param capture, Universal Links, native SynthDeepLinkRouter events,
   // auto-friend the referrer, route to shared content + welcome toast.
@@ -633,8 +640,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     userId:  user?.id,
     loading,
     onNavigate: (instruction) => {
-      if (instruction.type === 'event' || instruction.type === 'review') {
+      if (instruction.type === 'event') {
         handleNavigateToEvent(instruction.id);
+      } else if (instruction.type === 'review' && instruction.reviewId) {
+        handleNavigateToReview(instruction.reviewId);
       } else if (instruction.type === 'artist') {
         handleNavigateToArtist(instruction.id);
       } else if (instruction.type === 'venue') {

@@ -1,5 +1,6 @@
 import { getOrCreateDirectChat } from '@synth/shared';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
 import { supabase } from '../integrations/supabase/client';
 import { encryptMessage } from './chatEncryptionService';
 import { decryptChatMessage } from './chatDecrypt';
@@ -11,6 +12,60 @@ const CHAT_IMAGE_ALLOWED_MIME = new Set([
     'image/webp',
     'image/heic',
 ]);
+
+/** React Native file object accepted by supabase-js storage uploads. */
+type ReactNativeUploadFile = {
+    uri: string;
+    name: string;
+    type: string;
+};
+
+function decodeBase64ToBytes(b64: string): Uint8Array {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+}
+
+function resolveChatImageType(
+    uri: string,
+    meta?: { mimeType?: string | null; fileName?: string | null }
+): { ext: string; contentType: string } {
+    const mimeMap: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+        heic: 'image/heic',
+    };
+
+    let contentType = meta?.mimeType?.trim().toLowerCase() || '';
+    if (contentType === 'image/jpg') contentType = 'image/jpeg';
+
+    const fromName = meta?.fileName?.split('.').pop()?.toLowerCase();
+    const fromUri = uri.split('?')[0]?.split('.').pop()?.toLowerCase();
+    const fromMime = contentType.split('/').pop()?.toLowerCase();
+    const rawExt = fromName ?? fromUri ?? fromMime ?? 'jpg';
+    let ext = rawExt === 'jpeg' ? 'jpg' : rawExt;
+
+    if (!contentType || !CHAT_IMAGE_ALLOWED_MIME.has(contentType)) {
+        contentType = mimeMap[ext] ?? 'image/jpeg';
+    }
+
+    if (contentType === 'image/heic') ext = 'heic';
+    if (contentType === 'image/jpeg') ext = 'jpg';
+    if (contentType === 'image/png') ext = 'png';
+    if (contentType === 'image/webp') ext = 'webp';
+
+    if (!mimeMap[ext]) {
+        ext = 'jpg';
+        contentType = 'image/jpeg';
+    }
+
+    return { ext, contentType };
+}
 
 const UUID_RE =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -377,52 +432,59 @@ export class ChatService {
         meta?: { mimeType?: string | null; fileName?: string | null }
     ): Promise<string | null> {
         try {
-            const fromName = meta?.fileName?.split('.').pop()?.toLowerCase();
-            const fromUri = uri.split('.').pop()?.toLowerCase();
-            const fromMime = meta?.mimeType?.split('/').pop()?.toLowerCase();
-            const raw = fromName ?? fromUri ?? fromMime ?? 'jpg';
-            const ext = raw === 'heic' || raw === 'jpeg' ? 'jpg' : raw;
-            const mimeMap: Record<string, string> = {
-                jpg: 'image/jpeg',
-                jpeg: 'image/jpeg',
-                png: 'image/png',
-                webp: 'image/webp',
-            };
-            const storagePath = `${userId}/${Date.now()}.${ext}`;
-            const defaultContentType = mimeMap[ext] ?? 'image/jpeg';
+            const { ext, contentType } = resolveChatImageType(uri, meta);
+            const fileName = `${Date.now()}.${ext}`;
+            const storagePath = `${userId}/${fileName}`;
+
+            // On native, fetch(file://) often returns an empty blob — use RN file upload instead.
+            if (Platform.OS !== 'web') {
+                const rnFile: ReactNativeUploadFile = { uri, name: fileName, type: contentType };
+                const { data, error } = await supabase.storage
+                    .from('chat-images')
+                    .upload(storagePath, rnFile as unknown as Blob, { contentType, upsert: false });
+
+                if (!error && data) {
+                    const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(data.path);
+                    return urlData.publicUrl ?? null;
+                }
+
+                console.warn('[ChatService] uploadChatImage: RN file upload failed, trying bytes', error);
+            }
 
             let uploadBody: Blob | Uint8Array;
-            let contentType = defaultContentType;
+            let resolvedType = contentType;
 
             try {
+                const base64 = await FileSystem.readAsStringAsync(uri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                if (!base64?.length) {
+                    throw new Error('empty base64 read');
+                }
+                uploadBody = decodeBase64ToBytes(base64);
+            } catch (fsErr) {
                 const res = await fetch(uri);
                 if (!res.ok) {
                     throw new Error(`fetch status ${res.status}`);
                 }
                 const blob = await res.blob();
-                uploadBody = blob;
-                contentType = blob.type || defaultContentType;
-            } catch (fetchErr) {
-                const base64 = await FileSystem.readAsStringAsync(uri, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-                const binary = atob(base64);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) {
-                    bytes[i] = binary.charCodeAt(i);
+                if (!blob.size) {
+                    throw new Error('empty blob from fetch');
                 }
-                uploadBody = bytes;
-                contentType = defaultContentType;
-                console.warn('[ChatService] uploadChatImage: used FileSystem fallback', fetchErr);
+                uploadBody = blob;
+                if (blob.type && CHAT_IMAGE_ALLOWED_MIME.has(blob.type)) {
+                    resolvedType = blob.type;
+                }
+                console.warn('[ChatService] uploadChatImage: used fetch fallback', fsErr);
             }
 
-            if (!CHAT_IMAGE_ALLOWED_MIME.has(contentType)) {
-                contentType = defaultContentType;
+            if (!CHAT_IMAGE_ALLOWED_MIME.has(resolvedType)) {
+                resolvedType = contentType;
             }
 
             const { data, error } = await supabase.storage
                 .from('chat-images')
-                .upload(storagePath, uploadBody, { contentType, upsert: false });
+                .upload(storagePath, uploadBody, { contentType: resolvedType, upsert: false });
 
             if (error || !data) {
                 console.error('[ChatService] uploadChatImage:', error);

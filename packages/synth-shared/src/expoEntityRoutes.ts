@@ -8,7 +8,7 @@ export function expoPathForShareTarget(type: ShareContentType, id: string): stri
     case 'event':
       return `/event/${id}`;
     case 'review':
-      return `/event/${id}`;
+      return `/review/${id}`;
     case 'artist':
       return `/artist/${id}`;
     case 'venue':

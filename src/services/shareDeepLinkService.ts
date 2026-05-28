@@ -14,6 +14,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import {
   parseShareUrl,
+  PENDING_SHARE_STORAGE_KEY,
   type ShareContentType,
   type PendingShareLink,
 } from '@synth/shared';
@@ -23,7 +24,7 @@ export { parseShareUrl };
 
 // ─── Storage key ─────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'synth_pending_share_link';
+const STORAGE_KEY = PENDING_SHARE_STORAGE_KEY;
 
 // parseShareUrl: @synth/shared (also used by Expo)
 

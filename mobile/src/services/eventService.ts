@@ -1,3 +1,4 @@
+import { buildShareLandingUrl } from '@synth/shared';
 import { Platform, Share } from 'react-native';
 import { supabase } from '../integrations/supabase/client';
 import { getExpoSiteUrl } from '../utils/siteUrl';
@@ -161,7 +162,7 @@ export class EventService {
         meta: { headline: string; formattedDate: string }
     ): Promise<void> {
         const routeId = await this.toEventRouteId(eventId);
-        const url = `${getExpoSiteUrl()}/event/${encodeURIComponent(routeId)}`;
+        const url = buildShareLandingUrl(getExpoSiteUrl(), 'event', routeId);
         const message = `${meta.headline} — ${meta.formattedDate}\n\n${url}`;
         try {
             if (Platform.OS === 'ios') {
@@ -179,7 +180,7 @@ export class EventService {
         reviewId: string,
         meta: { headline: string; snippet?: string }
     ): Promise<void> {
-        const url = `${getExpoSiteUrl()}/share?review=${encodeURIComponent(reviewId)}`;
+        const url = buildShareLandingUrl(getExpoSiteUrl(), 'review', reviewId);
         const message = meta.snippet
             ? `${meta.headline}\n\n"${meta.snippet}"\n\n${url}`
             : `${meta.headline}\n\n${url}`;

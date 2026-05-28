@@ -1,4 +1,12 @@
-export { parseShareUrl, type ShareContentType, type PendingShareLink } from './shareUrl';
+export {
+  parseShareUrl,
+  buildShareLandingUrl,
+  buildWebAppUrlFromShare,
+  buildWebAppUrlFromShareCanonical,
+  PENDING_SHARE_STORAGE_KEY,
+  type ShareContentType,
+  type PendingShareLink,
+} from './shareUrl';
 export { getAuthRedirectOrigin } from './siteOrigin';
 export type { SynthSupabaseClient } from './supabaseClientType';
 export {

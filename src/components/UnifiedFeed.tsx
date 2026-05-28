@@ -811,6 +811,29 @@ export const UnifiedFeed = ({
     return () => window.removeEventListener('open-event-details', stableListener);
   }, []);
 
+  // Share deep links: ?review= → open review detail modal
+  useEffect(() => {
+    const handleOpenReviewById = async (e: Event) => {
+      const reviewId = (e as CustomEvent<{ reviewId?: string }>).detail?.reviewId;
+      if (!reviewId?.trim()) return;
+
+      try {
+        const item = await UnifiedFeedService.getReviewFeedItemById(reviewId.trim());
+        if (!item) {
+          console.warn('Review not found for share link:', reviewId);
+          return;
+        }
+        setSelectedReviewDetail(item);
+        setShowReviewDetailModal(true);
+      } catch (err) {
+        console.error('Error opening review from share link:', err);
+      }
+    };
+
+    window.addEventListener('open-review-by-id', handleOpenReviewById);
+    return () => window.removeEventListener('open-review-by-id', handleOpenReviewById);
+  }, []);
+
   // Note: Interested events are now loaded immediately on mount via loadAllInterestedEvents()
   // This useEffect is kept as a fallback but should rarely trigger since we load all events upfront
   useEffect(() => {

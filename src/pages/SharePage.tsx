@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
+import { parseShareUrl, buildWebAppUrlFromShare } from '@synth/shared';
 
 function useQuery(): URLSearchParams {
   const { search } = useLocation();
@@ -21,6 +22,16 @@ export function SharePage() {
 
   const kind = event ? 'event' : review ? 'review' : artist ? 'artist' : venue ? 'venue' : null;
   const id = event ?? review ?? artist ?? venue;
+
+  const pending = parseShareUrl(q.toString() ? `?${q.toString()}` : '');
+  const siteUrl =
+    typeof window !== 'undefined' ? window.location.origin : 'https://join.getsynth.app';
+  const inAppPath = pending
+    ? (() => {
+        const u = new URL(buildWebAppUrlFromShare(siteUrl, pending));
+        return `${u.pathname}${u.search}`;
+      })()
+    : '/';
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -50,9 +61,9 @@ export function SharePage() {
           >
             Open Synth (home)
           </Link>
-          {kind && id ? (
+          {kind && id && pending ? (
             <Link
-              to={kind === 'event' ? `/event/${encodeURIComponent(id)}` : '/'}
+              to={inAppPath}
               style={{
                 padding: '12px 14px',
                 borderRadius: 12,
@@ -62,7 +73,7 @@ export function SharePage() {
                 fontWeight: 600,
               }}
             >
-              Try open in-app route
+              Open {kind} in app
             </Link>
           ) : null}
         </div>
@@ -75,4 +86,3 @@ export function SharePage() {
     </div>
   );
 }
-

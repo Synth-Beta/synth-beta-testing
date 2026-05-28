@@ -15,6 +15,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { buildWebAppUrlFromShareCanonical } from '@synth/shared';
 
 // Local shape types — keeps the fetchers free of `any` casts
 interface ArtistRef { name: string }
@@ -102,7 +103,8 @@ function renderPage(opts: {
   referrerId?: string;  // passed through to App Store URL for attribution
 }): string {
   const { ogTitle, ogDescription, ogImage, canonicalUrl, badge, headline, sublines, heroImage, rating, referrerId } = opts;
-  const spaUrl = canonicalUrl.replace('/share?', '/?');
+  const spaUrl =
+    buildWebAppUrlFromShareCanonical(BASE_URL, canonicalUrl) ?? `${BASE_URL}/`;
   // If a referrer is present, append ?referral= to the App Store link so the
   // app can read it on first launch for attribution (best-effort; App Store
   // does not guarantee delivery of custom params but some analytics tools pick it up).

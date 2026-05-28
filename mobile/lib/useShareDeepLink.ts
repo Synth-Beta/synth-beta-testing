@@ -1,67 +1,102 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { parseShareUrl, expoPathForShareTarget } from '@synth/shared';
+import {
+  parseShareUrl,
+  expoPathForShareTarget,
+  type PendingShareLink,
+} from '@synth/shared';
+import {
+  storePendingShareLink,
+  loadPendingShareLink,
+  clearPendingShareLink,
+} from './shareDeepLinkStorage';
+
+function pendingFromPath(path: string): PendingShareLink | null {
+  const normalized = path.replace(/^\//, '');
+  const eventSeg = normalized.match(/^event\/([^/?#]+)/);
+  if (eventSeg?.[1]) {
+    return { type: 'event', id: eventSeg[1], referrerId: null };
+  }
+  const reviewSeg = normalized.match(/^review\/([^/?#]+)/);
+  if (reviewSeg?.[1]) {
+    return { type: 'review', id: reviewSeg[1], referrerId: null };
+  }
+  return null;
+}
 
 /**
- * Handles cold start + runtime URLs: `?event=` / `?review=` / … (shared package) and `/event/:id` paths.
- * Run only when the user is signed in (caller gates) so auth redirects stay authoritative.
+ * Captures share URLs on cold start + runtime (even when logged out).
+ * Navigates to event/review/artist/venue routes when `navigateEnabled` is true.
  */
-export function useShareDeepLink(enabled: boolean) {
+export function useShareDeepLink(navigateEnabled: boolean) {
   const router = useRouter();
-  const handledRef = useRef<string | null>(null);
+  const navigateEnabledRef = useRef(navigateEnabled);
+  const lastCapturedRef = useRef<string | null>(null);
 
+  navigateEnabledRef.current = navigateEnabled;
+
+  const navigateForPending = useCallback(
+    async (pending: PendingShareLink) => {
+      await clearPendingShareLink();
+      router.push(expoPathForShareTarget(pending.type, pending.id) as any);
+    },
+    [router]
+  );
+
+  const captureFromUrl = useCallback(
+    async (raw: string) => {
+      if (!raw || lastCapturedRef.current === raw) return;
+
+      let pending = parseShareUrl(raw);
+      if (!pending) {
+        const parsed = Linking.parse(raw);
+        const path = parsed.path || '';
+        pending = pendingFromPath(path);
+      }
+
+      if (!pending) {
+        const parsed = Linking.parse(raw);
+        const path = (parsed.path || '').replace(/^\//, '');
+        const chatSeg = path.match(/^chat\/([^/?#]+)/);
+        if (chatSeg?.[1] && navigateEnabledRef.current) {
+          lastCapturedRef.current = raw;
+          router.push(`/chat/${chatSeg[1]}`);
+        }
+        return;
+      }
+
+      lastCapturedRef.current = raw;
+      await storePendingShareLink(pending);
+
+      if (navigateEnabledRef.current) {
+        await navigateForPending(pending);
+      }
+    },
+    [router, navigateForPending]
+  );
+
+  // Always listen for incoming URLs (persist before auth).
   useEffect(() => {
-    if (!enabled) return;
-
-    const navigateForParsed = (pending: NonNullable<ReturnType<typeof parseShareUrl>>) => {
-      switch (pending.type) {
-        case 'event':
-          router.push(`/event/${pending.id}` as any);
-          break;
-        case 'review':
-          router.push(`/review/${pending.id}` as any);
-          break;
-        case 'artist':
-        case 'venue':
-          router.push(expoPathForShareTarget(pending.type, pending.id) as any);
-          break;
-        default:
-          console.warn('[useShareDeepLink] unhandled share link type; ignoring', pending);
-      }
-    };
-
-    const handle = (raw: string) => {
-      if (!raw || handledRef.current === raw) return;
-
-      const pending = parseShareUrl(raw);
-      if (pending) {
-        handledRef.current = raw;
-        navigateForParsed(pending);
-        return;
-      }
-
-      const parsed = Linking.parse(raw);
-      const path = (parsed.path || '').replace(/^\//, '');
-      const eventSeg = path.match(/^event\/([^/?#]+)/);
-      if (eventSeg?.[1]) {
-        handledRef.current = raw;
-        router.push(`/event/${eventSeg[1]}`);
-        return;
-      }
-
-      const chatSeg = path.match(/^chat\/([^/?#]+)/);
-      if (chatSeg?.[1]) {
-        handledRef.current = raw;
-        router.push(`/chat/${chatSeg[1]}`);
-      }
-    };
-
     void Linking.getInitialURL().then((u) => {
-      if (u) handle(u);
+      if (u) void captureFromUrl(u);
     });
 
-    const sub = Linking.addEventListener('url', ({ url }) => handle(url));
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      void captureFromUrl(url);
+    });
     return () => sub.remove();
-  }, [enabled, router]);
+  }, [captureFromUrl]);
+
+  // After sign-in + onboarding, process any pending share stored earlier.
+  useEffect(() => {
+    if (!navigateEnabled) return;
+
+    void (async () => {
+      const pending = await loadPendingShareLink();
+      if (pending) {
+        await navigateForPending(pending);
+      }
+    })();
+  }, [navigateEnabled, navigateForPending]);
 }

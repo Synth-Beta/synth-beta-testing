@@ -35,6 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { InAppShareService, type ShareTarget } from '../../services/inAppShareService';
+import { buildShareLandingUrl } from '@synth/shared';
 import { getExpoSiteUrl } from '../../utils/siteUrl';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -93,7 +94,7 @@ export function ShareToChatModal({
     const [sent, setSent] = useState(false);
     const inputRef = useRef<TextInput>(null);
 
-    const shareUrl = `${getExpoSiteUrl()}/share?${type}=${encodeURIComponent(entityId)}`;
+    const shareUrl = buildShareLandingUrl(getExpoSiteUrl(), type, entityId);
 
     const handleCopyLink = async () => {
         try {

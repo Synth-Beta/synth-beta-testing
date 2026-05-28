@@ -917,4 +917,73 @@ export class UnifiedFeedService {
 
     return result;
   }
+
+  /**
+   * Load a single review as a feed item (e.g. share deep link ?review=).
+   */
+  static async getReviewFeedItemById(reviewId: string): Promise<UnifiedFeedItem | null> {
+    const { data: review, error } = await supabase
+      .from('reviews')
+      .select(`
+        *,
+        user:users!reviews_user_id_fkey (
+          name,
+          avatar_url,
+          verified,
+          account_type
+        ),
+        events (
+          id,
+          title,
+          venue_name,
+          event_date,
+          artist_name,
+          artist_id,
+          venue_id
+        )
+      `)
+      .eq('id', reviewId)
+      .maybeSingle();
+
+    if (error || !review) {
+      console.warn('[UnifiedFeedService] getReviewFeedItemById', error);
+      return null;
+    }
+
+    const event = (review as any).events;
+    const user = (review as any).user;
+
+    return {
+      id: `share-review-${review.id}`,
+      type: 'review' as const,
+      review_id: review.id,
+      title: `${user?.name || 'User'}'s Review`,
+      content: review.review_text || '',
+      author: {
+        id: review.user_id,
+        name: user?.name || 'Anonymous',
+        avatar_url: user?.avatar_url,
+        verified: user?.verified,
+        account_type: user?.account_type,
+      },
+      created_at: review.created_at,
+      updated_at: review.updated_at,
+      rating: review.rating,
+      is_public: review.is_public,
+      photos: review.photos || undefined,
+      setlist: review.setlist || undefined,
+      likes_count: review.likes_count || 0,
+      comments_count: review.comments_count || 0,
+      shares_count: review.shares_count || 0,
+      event_info: {
+        event_name: event?.title || 'Concert Review',
+        venue_name: event?.venue_name || 'Unknown Venue',
+        event_date: event?.event_date || review.created_at,
+        artist_name: event?.artist_name,
+        artist_id: event?.artist_id,
+        venue_id: event?.venue_id,
+      },
+      relevance_score: 1,
+    };
+  }
 }

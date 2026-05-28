@@ -1,3 +1,5 @@
+import { buildShareLandingUrl } from '@synth/shared';
+
 /** App Store link for Synth. Append ?referral=<code> when available for attribution. */
 export const SYNTH_APP_STORE_URL = 'https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095';
 
@@ -84,23 +86,19 @@ export class ShareService {
   // ── URL builders ─────────────────────────────────────────────────────────
 
   static getEventUrl(eventId: string, referrerId?: string | null): string {
-    const base = `${this.getBaseUrl()}/share?event=${encodeURIComponent(eventId)}`;
-    return referrerId ? `${base}&ref=${encodeURIComponent(referrerId)}` : base;
+    return buildShareLandingUrl(this.getBaseUrl(), 'event', eventId, referrerId);
   }
 
   static getReviewUrl(reviewId: string, referrerId?: string | null): string {
-    const base = `${this.getBaseUrl()}/share?review=${encodeURIComponent(reviewId)}`;
-    return referrerId ? `${base}&ref=${encodeURIComponent(referrerId)}` : base;
+    return buildShareLandingUrl(this.getBaseUrl(), 'review', reviewId, referrerId);
   }
 
   static getArtistUrl(artistId: string, referrerId?: string | null): string {
-    const base = `${this.getBaseUrl()}/share?artist=${encodeURIComponent(artistId)}`;
-    return referrerId ? `${base}&ref=${encodeURIComponent(referrerId)}` : base;
+    return buildShareLandingUrl(this.getBaseUrl(), 'artist', artistId, referrerId);
   }
 
   static getVenueUrl(venueId: string, referrerId?: string | null): string {
-    const base = `${this.getBaseUrl()}/share?venue=${encodeURIComponent(venueId)}`;
-    return referrerId ? `${base}&ref=${encodeURIComponent(referrerId)}` : base;
+    return buildShareLandingUrl(this.getBaseUrl(), 'venue', venueId, referrerId);
   }
 
   // ── Native share (iOS card renderer) ─────────────────────────────────────

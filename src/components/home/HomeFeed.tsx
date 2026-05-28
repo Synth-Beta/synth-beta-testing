@@ -460,6 +460,29 @@ interface FriendEventInterest {
     };
   }, [currentUserId]);
 
+  // Share deep links: ?review= → review detail modal
+  useEffect(() => {
+    const handleOpenReviewById = async (e: Event) => {
+      const reviewId = (e as CustomEvent<{ reviewId?: string }>).detail?.reviewId;
+      if (!reviewId?.trim()) return;
+
+      try {
+        const item = await UnifiedFeedService.getReviewFeedItemById(reviewId.trim());
+        if (!item) {
+          console.warn('Review not found for share link:', reviewId);
+          return;
+        }
+        setSelectedReview(item);
+        setReviewDetailOpen(true);
+      } catch (err) {
+        console.error('Error opening review from share link:', err);
+      }
+    };
+
+    window.addEventListener('open-review-by-id', handleOpenReviewById);
+    return () => window.removeEventListener('open-review-by-id', handleOpenReviewById);
+  }, []);
+
   // Note: Location filtering is now handled by loadFeedLocation which always uses lat/long + radius
   // This useEffect is kept for backwards compatibility but doesn't set city names anymore
 

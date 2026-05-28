@@ -3,6 +3,7 @@ import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
 import { SynthText } from '../../src/components/SynthText';
@@ -295,14 +296,19 @@ export default function ChatThreadScreen() {
 
         // ── IMAGE MESSAGE ─────────────────────────────────────────────────────
         const inlineMeta = (item.metadata ?? {}) as Record<string, unknown>;
-        const imageUrl = typeof inlineMeta.image_url === 'string' ? inlineMeta.image_url : null;
+        const imageUrl =
+            (typeof inlineMeta.image_url === 'string' && inlineMeta.image_url.trim()) ||
+            (typeof inlineMeta.imageUrl === 'string' && inlineMeta.imageUrl.trim()) ||
+            null;
         if (item.message_type === 'image' && imageUrl) {
             return (
                 <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
-                    <Image
-                        source={{ uri: imageUrl }}
+                    <SafeImage
+                        uri={imageUrl}
                         style={styles.chatImage}
                         contentFit="cover"
+                        recyclingKey={item.id}
+                        cachePolicy="memory-disk"
                     />
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

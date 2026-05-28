@@ -15,6 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tejpatel.synth",
+      "associatedDomains": ["applinks:join.getsynth.app"],
       "buildNumber": "293",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

@@ -16,6 +16,7 @@ import { ensureExpoPushNotificationHandler } from '../lib/registerPushNotificati
 import { syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
 import { NotificationService } from '../src/services/notificationService';
 import { useShareDeepLink } from '../lib/useShareDeepLink';
+import { loadPendingShareLink } from '../lib/shareDeepLinkStorage';
 import { InterestedProvider } from '../src/contexts/InterestedContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 
@@ -184,13 +185,20 @@ export default function RootLayout() {
 
     // `useSegments()` can be empty at `/` before `app/index.tsx` resolves — otherwise no branch matches and the UI can stall.
     if (seg0 === undefined) {
-      if (!session) {
-        router.replace('/(auth)/sign-in');
-      } else if (!isOnboardingComplete) {
-        router.replace(ONBOARDING_FLOW_ENTRY);
-      } else {
-        router.replace('/(tabs)');
-      }
+      void (async () => {
+        const pendingShare = await loadPendingShareLink();
+        // Let useShareDeepLink route to /event or /review instead of overwriting with home.
+        if (pendingShare && session && isOnboardingComplete) {
+          return;
+        }
+        if (!session) {
+          router.replace('/(auth)/sign-in');
+        } else if (!isOnboardingComplete) {
+          router.replace(ONBOARDING_FLOW_ENTRY);
+        } else {
+          router.replace('/(tabs)');
+        }
+      })();
       return;
     }
 
