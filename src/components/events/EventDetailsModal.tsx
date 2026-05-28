@@ -1425,11 +1425,11 @@ export function EventDetailsModal({
               (src ? replaceJambasePlaceholder(src) : null) ||
               getFallbackEventImage(actualEvent.id);
             return (
-              <div style={{ position: 'relative', width: '100%', height: isWebDesktop ? 300 : 220, overflow: 'hidden', flexShrink: 0, backgroundColor: 'var(--neutral-100)' }}>
+              <div style={{ position: 'relative', width: '100%', height: isWebDesktop ? 300 : 220, overflow: 'hidden', flexShrink: 0 }}>
                 <img
                   src={cleaned}
                   alt={actualEvent.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', padding: 12 }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     const fallback = getFallbackEventImage(actualEvent.id);

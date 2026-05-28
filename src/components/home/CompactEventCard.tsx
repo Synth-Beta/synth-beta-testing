@@ -186,8 +186,8 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       role="button"
       aria-label={`View event: ${event.title}`}
     >
-      {/* Event image — contain logos/posters on a light field; always show a real image URL */}
-      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden bg-neutral-100">
+      {/* Event image — full-bleed cover (original layout); fallback URL prevents blank black hero */}
+      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden bg-black">
         <ClickableImage
           imageUrl={resolvedImageUrl}
           alt={
@@ -199,24 +199,26 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
           }
           className="absolute inset-0 flex items-center justify-center"
         >
-          <img
-            src={resolvedImageUrl}
-            alt={
-              event.artist_name && event.venue_name
-                ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
-                : event.title
-                  ? `${event.title} event photo`
-                  : 'Event photo'
-            }
-            className="w-full h-full max-h-full object-contain object-center p-4"
-            onError={handleImageError}
-          />
+          <div className="absolute w-[120%] h-[120%] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <img
+              src={resolvedImageUrl}
+              alt={
+                event.artist_name && event.venue_name
+                  ? `${event.title} - ${event.artist_name} at ${event.venue_name}`
+                  : event.title
+                    ? `${event.title} event photo`
+                    : 'Event photo'
+              }
+              className="w-full h-full object-cover object-center"
+              onError={handleImageError}
+            />
+          </div>
         </ClickableImage>
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'linear-gradient(to top, rgba(14, 14, 14, 0.55) 0%, rgba(14, 14, 14, 0.15) 45%, transparent 100%)',
+              'linear-gradient(to top, rgba(14, 14, 14, 0.8) 0%, rgba(14, 14, 14, 0.4) 50%, transparent 100%)',
           }}
         />
         {reason && getReasonBadge()}
