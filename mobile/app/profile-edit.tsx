@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Bell, ChevronLeft, Music, RefreshCw, CheckCircle } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +24,8 @@ import {
   type StreamingLinkStatus,
 } from '../src/services/streamingConnectionService';
 import { getExpoSiteUrl } from '../src/utils/siteUrl';
+import { launchChatImagePicker } from '../src/utils/launchChatImagePicker';
+import { uploadProfileAvatarFromUri } from '../src/services/profileAvatarUpload';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -54,6 +57,8 @@ export default function ProfileEditScreen() {
   const [bio, setBio] = useState('');
   const [instagramHandle, setInstagramHandle] = useState('');
   const [gender, setGender] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Genre preferences
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
@@ -82,7 +87,7 @@ export default function ProfileEditScreen() {
       const [profileResult, signalsResult] = await Promise.all([
         supabase
           .from('users')
-          .select('name, username, location_city, bio, instagram_handle, gender, similar_users_notifications')
+        .select('name, username, location_city, bio, instagram_handle, gender, similar_users_notifications, avatar_url')
           .eq('user_id', user.id)
           .single(),
         supabase
@@ -101,6 +106,7 @@ export default function ProfileEditScreen() {
         setInstagramHandle(d.instagram_handle || '');
         setGender(d.gender || '');
         setSimilarUsersNotifications(d.similar_users_notifications !== false);
+        setAvatarUrl(d.avatar_url || null);
       }
 
       if (signalsResult.data) {
@@ -177,6 +183,64 @@ export default function ProfileEditScreen() {
     );
   };
 
+  const handleAvatarUpload = async (uri: string) => {
+    if (!userId) return;
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadProfileAvatarFromUri(userId, uri);
+      if (!url) throw new Error('Failed to upload avatar');
+      const { error } = await supabase
+        .from('users')
+        .update({ avatar_url: url, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+      if (error) throw error;
+      setAvatarUrl(url);
+    } catch (error) {
+      console.warn('[profile-edit] avatar upload failed', error);
+      Alert.alert('Upload failed', 'Could not upload your profile photo. Please try again.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!userId) return;
+    setUploadingAvatar(true);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ avatar_url: null, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+      if (error) throw error;
+      setAvatarUrl(null);
+    } catch (error) {
+      console.warn('[profile-edit] remove avatar failed', error);
+      Alert.alert('Could not remove photo', 'Please try again.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const pickAvatarSource = async (source: 'camera' | 'library') => {
+    const result = await launchChatImagePicker(source);
+    if (!result || result.canceled) return;
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+    await handleAvatarUpload(asset.uri);
+  };
+
+  const promptAvatarAction = () => {
+    const buttons: { text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }[] = [
+      { text: 'Take photo', onPress: () => void pickAvatarSource('camera') },
+      { text: 'Choose from library', onPress: () => void pickAvatarSource('library') },
+    ];
+    if (avatarUrl) {
+      buttons.push({ text: 'Remove photo', style: 'destructive', onPress: () => void handleRemoveAvatar() });
+    }
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Profile photo', 'Add or update your profile picture.', buttons);
+  };
+
   const toggleGenre = (genre: string) => {
     setSelectedGenres(prev => {
       const next = new Set(prev);
@@ -196,6 +260,7 @@ export default function ProfileEditScreen() {
           name: name.trim() || null,
           username: username.trim() || null,
           location_city: locationCity.trim() || null,
+          avatar_url: avatarUrl?.trim() || null,
           bio: bio.trim() || null,
           instagram_handle: instagramHandle.trim() || null,
           gender: gender.trim() || null,
@@ -267,6 +332,49 @@ export default function ProfileEditScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Profile photo ─────────────────────────────────────── */}
+        <View style={styles.card}>
+          <View style={styles.sectionHead}>
+            <Text style={styles.sectionTitle}>Profile photo</Text>
+          </View>
+          <SynthText variant="meta" color="secondary" style={styles.avatarHint}>
+            Tap to add or change your avatar (max 2MB, JPG/PNG/WEBP/HEIC).
+          </SynthText>
+          <Pressable
+            style={[
+              styles.avatarActionRow,
+              uploadingAvatar && styles.avatarActionDisabled,
+            ]}
+            onPress={promptAvatarAction}
+            disabled={uploadingAvatar}
+          >
+            <View style={styles.avatarFrame}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImg} contentFit="cover" />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitial}>
+                    {((name || username || 'S').trim().charAt(0) || 'S').toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              {uploadingAvatar && (
+                <View style={styles.avatarOverlay}>
+                  <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+                </View>
+              )}
+            </View>
+            <View style={styles.avatarDetails}>
+              <SynthText variant="body" style={styles.avatarTitle}>
+                {avatarUrl ? 'Change photo' : 'Add profile photo'}
+              </SynthText>
+              <SynthText variant="meta" color="secondary">
+                {uploadingAvatar ? 'Uploading…' : 'Tap to choose a new photo'}
+              </SynthText>
+            </View>
+          </Pressable>
+        </View>
+
         {/* ── Profile fields ──────────────────────────────────────── */}
         <View style={styles.card}>
           <FieldLabel>Display name</FieldLabel>
@@ -466,6 +574,57 @@ const styles = StyleSheet.create({
     borderRadius: SynthTokens.radius.large,
     padding: SynthTokens.spacing.md,
     gap: 8,
+  },
+  avatarActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  avatarActionDisabled: {
+    opacity: 0.6,
+  },
+  avatarFrame: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    backgroundColor: SynthTokens.colors.neutral100,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarFallback: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitial: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: SynthTokens.colors.neutral600,
+  },
+  avatarDetails: {
+    flex: 1,
+    minHeight: 88,
+    justifyContent: 'center',
+  },
+  avatarTitle: {
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  avatarHint: {
+    marginBottom: 8,
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   input: {
     backgroundColor: SynthTokens.colors.neutral0,

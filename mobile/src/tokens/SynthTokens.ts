@@ -18,6 +18,9 @@ export const SynthTokens = {
         brandPink600: '#951A6D',
         brandPink700: '#7B1559',
         brandPink050: '#FDF2F7',
+        brandInstagram: '#E1306C',
+        brandSpotify: '#1DB954',
+        brandAppleMusic: '#FB5C74',
         purpleAccent: '#8D1FF4',
 
         // Status (from tokens.css)

@@ -53,6 +53,7 @@ export default function ProfileScreen() {
     username?: string;
     avatar_url?: string;
     instagram_handle?: string | null;
+    bio?: string | null;
   } | null>(null);
   const [streaming, setStreaming] = useState<StreamingLinkStatus>({
     linked: false,
@@ -115,7 +116,7 @@ export default function ProfileScreen() {
       const [userResult, statsData] = await Promise.all([
         supabase
           .from('users')
-          .select('name, username, avatar_url, instagram_handle')
+          .select('name, username, avatar_url, instagram_handle, bio')
           .eq('user_id', authUser.id)
           .single(),
         PassportService.getProfileStats(authUser.id),
@@ -209,6 +210,18 @@ export default function ProfileScreen() {
     setProfileTab('reviews');
   }, []);
 
+  const instagramIconColor = user?.instagram_handle?.trim()
+    ? SynthTokens.colors.brandInstagram
+    : SynthTokens.colors.neutral400;
+  const spotifyIconColor =
+    streaming.provider === 'spotify'
+      ? SynthTokens.colors.brandSpotify
+      : SynthTokens.colors.neutral400;
+  const appleMusicIconColor =
+    streaming.provider === 'apple-music'
+      ? SynthTokens.colors.brandAppleMusic
+      : SynthTokens.colors.neutral400;
+
   const onEventsRefresh = useCallback(async () => {
     setListRefreshing(true);
     try {
@@ -270,6 +283,11 @@ export default function ProfileScreen() {
             <SynthText variant="meta" color="secondary" style={styles.handleInCard}>
               {handle}
             </SynthText>
+            {user?.bio ? (
+              <SynthText variant="body" style={styles.bioSection} numberOfLines={3}>
+                {user.bio}
+              </SynthText>
+            ) : null}
             <View style={styles.statsRow}>
               <Pressable style={styles.statCol} onPress={goToFriends} accessibilityRole="button">
                 <Text style={styles.statNum}>{stats?.friend_count ?? 0}</Text>
@@ -306,18 +324,14 @@ export default function ProfileScreen() {
           >
             <Instagram
               size={20}
-              color={
-                user?.instagram_handle?.trim()
-                  ? SynthTokens.colors.neutral900
-                  : SynthTokens.colors.neutral400
-              }
+              color={instagramIconColor}
             />
           </Pressable>
           <Pressable style={styles.socialIcon} onPress={() => void openStreaming()}>
             {streaming.provider === 'spotify' ? (
-              <FontAwesome5 name="spotify" size={20} color={SynthTokens.colors.neutral900} />
+              <FontAwesome5 name="spotify" size={20} color={spotifyIconColor} />
             ) : streaming.provider === 'apple-music' ? (
-              <FontAwesome5 name="apple" size={20} color={SynthTokens.colors.neutral900} />
+              <FontAwesome5 name="apple" size={20} color={appleMusicIconColor} />
             ) : (
               <Music2 size={20} color={SynthTokens.colors.neutral900} />
             )}
@@ -488,6 +502,11 @@ const styles = StyleSheet.create({
   handleInCard: {
     marginTop: 2,
     fontSize: 15,
+  },
+  bioSection: {
+    marginTop: 6,
+    lineHeight: 20,
+    color: SynthTokens.colors.neutral900,
   },
   statsRow: {
     flexDirection: 'row',
