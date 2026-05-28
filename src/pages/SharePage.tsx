@@ -24,7 +24,7 @@ export function SharePage() {
 
     storePendingLink(pending);
     const target = new URL(buildWebAppUrlFromShare(window.location.origin, pending));
-    navigate(`${target.pathname}${target.search}`, { replace: true });
+    window.location.replace(target.href);
   }, [location.search, navigate]);
 
   return (

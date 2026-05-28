@@ -598,9 +598,17 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
       localStorage.setItem('selectedEvent', JSON.stringify(normalizedEvent));
       setCurrentView('feed');
-      window.dispatchEvent(new CustomEvent('open-event-details', {
-        detail: { event: normalizedEvent }
-      }));
+
+      const open = () => {
+        window.dispatchEvent(
+          new CustomEvent('open-event-details', {
+            detail: { event: normalizedEvent },
+          })
+        );
+      };
+      open();
+      setTimeout(open, 300);
+      setTimeout(open, 1000);
     } catch (error) {
       console.error('Error navigating to event:', error);
     }

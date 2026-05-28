@@ -39,6 +39,36 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var u = new URL(window.location.href);
+          var eventId = u.searchParams.get('event');
+          var reviewId = u.searchParams.get('review');
+          var artistId = u.searchParams.get('artist');
+          var venueId = u.searchParams.get('venue');
+          var ref = u.searchParams.get('ref');
+          var onSharePath = u.pathname === '/share' || u.pathname === '/share/';
+
+          if (!eventId && !reviewId && !artistId && !venueId && !onSharePath) return;
+
+          var type = eventId ? 'event' : reviewId ? 'review' : artistId ? 'artist' : venueId ? 'venue' : null;
+          var id = eventId || reviewId || artistId || venueId;
+          if (!id && onSharePath) return;
+
+          var pending = { type: type, id: id, referrerId: ref };
+          sessionStorage.setItem('synth_pending_share_link', JSON.stringify(pending));
+
+          if (onSharePath && type && id) {
+            var q = type + '=' + encodeURIComponent(id);
+            if (ref) q += '&ref=' + encodeURIComponent(ref);
+            window.location.replace('/?' + q);
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

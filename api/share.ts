@@ -55,6 +55,73 @@ function spaRedirectForQuery(
   return `${base}/?${kind}=${encodeURIComponent(id)}${refSuffix}`;
 }
 
+/** Vercel rewrites can leave `req.query` empty; always fall back to the request URL. */
+function readShareQuery(req: VercelRequest): {
+  event?: string;
+  review?: string;
+  artist?: string;
+  venue?: string;
+  referrerId?: string;
+} {
+  const pick = (key: string): string | undefined => {
+    const raw = req.query[key];
+    if (typeof raw === 'string' && raw.trim()) return raw.trim();
+    if (Array.isArray(raw) && typeof raw[0] === 'string' && raw[0].trim()) return raw[0].trim();
+    return undefined;
+  };
+
+  const fromSearchParams = (params: URLSearchParams) => ({
+    event: params.get('event')?.trim() || undefined,
+    review: params.get('review')?.trim() || undefined,
+    artist: params.get('artist')?.trim() || undefined,
+    venue: params.get('venue')?.trim() || undefined,
+    referrerId: params.get('ref')?.trim() || undefined,
+  });
+
+  const direct = {
+    event: pick('event'),
+    review: pick('review'),
+    artist: pick('artist'),
+    venue: pick('venue'),
+    referrerId: pick('ref'),
+  };
+  if (direct.event || direct.review || direct.artist || direct.venue) {
+    return direct;
+  }
+
+  const urlCandidates: string[] = [];
+  if (typeof req.url === 'string' && req.url) urlCandidates.push(req.url);
+
+  const forwarded = req.headers['x-vercel-forwarded-url'];
+  if (typeof forwarded === 'string') urlCandidates.push(forwarded);
+  const original = req.headers['x-vercel-original-url'];
+  if (typeof original === 'string') urlCandidates.push(original);
+
+  for (const raw of urlCandidates) {
+    try {
+      const pathAndQuery = raw.startsWith('http')
+        ? raw
+        : `https://placeholder.local${raw.startsWith('/') ? raw : `/${raw}`}`;
+      const parsed = fromSearchParams(new URL(pathAndQuery).searchParams);
+      if (parsed.event || parsed.review || parsed.artist || parsed.venue) {
+        return parsed;
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return direct;
+}
+
+/** Crawlers need HTML+OG tags; real users should go straight to the in-app deep link. */
+function isSocialPreviewCrawler(userAgent: string | undefined): boolean {
+  if (!userAgent) return false;
+  return /bot|crawl|spider|facebookexternalhit|twitterbot|slackbot|whatsapp|telegram|linkedinbot|discordbot|preview|googlebot|bingpreview|embed/i.test(
+    userAgent
+  );
+}
+
 // Local shape types — keeps the fetchers free of `any` casts
 interface ArtistRef { name: string }
 interface VenueRef  { name: string; city: string; state: string }
@@ -352,8 +419,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).send('Server configuration error');
   }
 
+  const { event, review, artist, venue, referrerId } = readShareQuery(req);
+  const userAgent = req.headers['user-agent'] as string | undefined;
+
+  // Real users opening a share link: skip OG landing page, go directly to event/review in the app.
+  if (!isSocialPreviewCrawler(userAgent)) {
+    if (event) {
+      return res.redirect(302, spaRedirectForQuery(BASE_URL, 'event', event, referrerId));
+    }
+    if (review) {
+      return res.redirect(302, spaRedirectForQuery(BASE_URL, 'review', review, referrerId));
+    }
+    if (artist) {
+      return res.redirect(302, spaRedirectForQuery(BASE_URL, 'artist', artist, referrerId));
+    }
+    if (venue) {
+      return res.redirect(302, spaRedirectForQuery(BASE_URL, 'venue', venue, referrerId));
+    }
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const { event, review, artist, venue, ref: referrerId } = req.query as Record<string, string | undefined>;
 
   // Cache 5 min, stale up to 1 hour — safe since content rarely changes
   res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');

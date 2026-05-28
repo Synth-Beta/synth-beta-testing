@@ -446,9 +446,24 @@ interface FriendEventInterest {
     checkForSelectedEvent();
 
     // Also listen for the open-event-details custom event
-    const handleOpenEventDetails = (e: Event) => {
+    const handleOpenEventDetails = async (e: Event) => {
       const detail = (e as CustomEvent).detail as { event?: any; eventId?: string };
       if (detail?.event) {
+        const eventData = detail.event;
+        setSelectedEvent(eventData);
+        if (eventData.id) {
+          try {
+            const interested = await UserEventService.isUserInterested(currentUserId, eventData.id);
+            setSelectedEventInterested(interested);
+          } catch {
+            /* ignore */
+          }
+        }
+        setEventDetailsOpen(true);
+        localStorage.removeItem('selectedEvent');
+        return;
+      }
+      if (detail?.eventId) {
         checkForSelectedEvent();
       }
     };

@@ -48,7 +48,30 @@ export function useShareDeepLink({
   const location    = useLocation();
   const navigate    = useNavigate();
   const isNative    = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-  const processedRef = useRef(false); // ensure we only process once per auth session
+  const processedRef = useRef(false);
+
+  const tryProcessPending = async () => {
+    if (loading || !userId || processedRef.current) return;
+
+    const instruction = await processPendingShareLink(userId);
+    if (!instruction) return;
+
+    processedRef.current = true;
+
+    if (instruction.referrer) {
+      const name =
+        instruction.referrer.display_name ||
+        (instruction.referrer.username ? `@${instruction.referrer.username}` : null);
+      if (name) {
+        toast(`${name} shared this with you on Synth 🎶`, {
+          description: 'A friend request has been sent automatically.',
+          duration: 5000,
+        });
+      }
+    }
+
+    onNavigate(instruction);
+  };
 
   // ── Step 1: Capture link from URL params (/?event= after ShareLinkBootstrap) ──
   useEffect(() => {
@@ -94,37 +117,24 @@ export function useShareDeepLink({
     };
   }, [isNative]);
 
-  // ── Step 3: Process pending link once user is authenticated ─────────────
+  // ── Step 3: Open event/review card once authenticated (retry until feed is ready) ──
   useEffect(() => {
-    if (loading || !userId || processedRef.current) return;
+    if (loading || !userId) return;
 
-    // Small delay so the feed and modal listeners are mounted first
-    const timer = setTimeout(async () => {
-      const instruction = await processPendingShareLink(userId);
-      if (!instruction) return;
+    void tryProcessPending();
+    const t1 = setTimeout(() => void tryProcessPending(), 400);
+    const t2 = setTimeout(() => void tryProcessPending(), 1200);
 
-      processedRef.current = true;
+    const onPending = () => void tryProcessPending();
+    window.addEventListener('synth-pending-share', onPending);
 
-      // Show welcome toast if someone referred this user
-      if (instruction.referrer) {
-        const name =
-          instruction.referrer.display_name ||
-          (instruction.referrer.username ? `@${instruction.referrer.username}` : null);
-        if (name) {
-          toast(`${name} shared this with you on Synth 🎶`, {
-            description: 'A friend request has been sent automatically.',
-            duration: 5000,
-          });
-        }
-      }
-
-      onNavigate(instruction);
-    }, 700);
-
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('synth-pending-share', onPending);
+    };
   }, [loading, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset processed flag when user logs out so a new session can process links
   useEffect(() => {
     if (!userId) processedRef.current = false;
   }, [userId]);

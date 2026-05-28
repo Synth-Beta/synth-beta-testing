@@ -26,8 +26,15 @@ export function ShareLinkBootstrap() {
     const currentPath = `${location.pathname}${location.search}`;
 
     if (currentPath !== targetPath) {
+      // Hard navigation for /share so we never stay on a dead route if the router lags.
+      if (location.pathname === '/share' || location.pathname === '/share/') {
+        window.location.replace(target.href);
+        return;
+      }
       navigate(targetPath, { replace: true });
     }
+
+    window.dispatchEvent(new CustomEvent('synth-pending-share'));
   }, [location.pathname, location.search, navigate]);
 
   return null;
