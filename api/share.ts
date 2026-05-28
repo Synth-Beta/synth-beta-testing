@@ -15,7 +15,34 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { buildWebAppUrlFromShareCanonical } from '@synth/shared';
+
+/**
+ * Inlined from @synth/shared — Vercel serverless cannot bundle the workspace
+ * package barrel (pulls friendNotifications, passport, etc. and crashes).
+ */
+function buildWebAppUrlFromShareCanonical(siteUrl: string, canonicalShareUrl: string): string | null {
+  try {
+    const params = new URL(canonicalShareUrl).searchParams;
+    const ref = params.get('ref');
+    const refSuffix = ref ? `&ref=${encodeURIComponent(ref)}` : '';
+    const base = siteUrl.replace(/\/+$/, '');
+
+    const event = params.get('event');
+    if (event) return `${base}/?event=${encodeURIComponent(event)}${refSuffix}`;
+
+    const review = params.get('review');
+    if (review) return `${base}/?review=${encodeURIComponent(review)}${refSuffix}`;
+
+    const artist = params.get('artist');
+    if (artist) return `${base}/?artist=${encodeURIComponent(artist)}${refSuffix}`;
+
+    const venue = params.get('venue');
+    if (venue) return `${base}/?venue=${encodeURIComponent(venue)}${refSuffix}`;
+  } catch {
+    // malformed URL
+  }
+  return null;
+}
 
 // Local shape types — keeps the fetchers free of `any` casts
 interface ArtistRef { name: string }

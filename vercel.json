@@ -10,6 +10,7 @@
   "rewrites": [
     { "source": "/auth/spotify/callback", "destination": "/" },
     { "source": "/share", "destination": "/api/share" },
+    { "source": "/share/", "destination": "/api/share" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     {
       "source": "/((?!assets/|\\.well-known/).*)",

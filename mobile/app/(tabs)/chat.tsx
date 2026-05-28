@@ -96,7 +96,12 @@ export default function ChatListScreen() {
 
     return (
       <Pressable
-        onPress={() => router.push(`/chat/${item.id}`)}
+        onPress={() =>
+            router.push({
+                pathname: '/chat/[id]',
+                params: { id: item.id, title: item.chat_name },
+            })
+        }
         style={({ pressed }) => [styles.chatItem, pressed && styles.pressed]}
       >
         {item.image_url ? (

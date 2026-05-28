@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard, InteractionManager } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -63,8 +63,9 @@ function resolveReviewId(m: Message): string | null {
 }
 
 export default function ChatThreadScreen() {
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const { id, title: titleParam } = useLocalSearchParams<{ id: string; title?: string }>();
     const [messages, setMessages] = useState<Message[]>([]);
+    const [chatTitle, setChatTitle] = useState(() => (typeof titleParam === 'string' ? titleParam.trim() : '') || '');
     const [inputText, setInputText] = useState('');
     const [userId, setUserId] = useState<string | null>(null);
     const [eventById, setEventById] = useState<Record<string, EventDetail | null>>({});
@@ -74,6 +75,12 @@ export default function ChatThreadScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
+    const stickToBottomRef = useRef(true);
+
+    const scrollToLatest = useCallback((animated = false) => {
+        if (!flatListRef.current || messages.length === 0) return;
+        flatListRef.current.scrollToOffset({ offset: 0, animated });
+    }, [messages.length]);
 
     const loadMessages = useCallback(async () => {
         const {
@@ -85,11 +92,41 @@ export default function ChatThreadScreen() {
 
         const data = await ChatService.getMessages(id, user.id);
         setMessages(data);
+        stickToBottomRef.current = true;
     }, [id]);
 
     useEffect(() => {
         void loadMessages();
     }, [loadMessages]);
+
+    useEffect(() => {
+        const fromRoute = typeof titleParam === 'string' ? titleParam.trim() : '';
+        if (fromRoute) {
+            setChatTitle(fromRoute);
+            return;
+        }
+        if (!userId || !id) return;
+        let cancelled = false;
+        void ChatService.getChatDisplayName(id, userId).then(name => {
+            if (!cancelled && name) setChatTitle(name);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [id, userId, titleParam]);
+
+    // Open on the most recent messages (inverted list uses offset 0 = bottom).
+    useEffect(() => {
+        if (messages.length === 0) return;
+        const task = InteractionManager.runAfterInteractions(() => {
+            requestAnimationFrame(() => {
+                if (stickToBottomRef.current) {
+                    scrollToLatest(false);
+                }
+            });
+        });
+        return () => task.cancel();
+    }, [messages.length, id, scrollToLatest]);
 
     // Realtime: append new messages as they arrive in this chat
     useEffect(() => {
@@ -100,13 +137,14 @@ export default function ChatThreadScreen() {
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${id}` },
                 () => {
+                    stickToBottomRef.current = true;
                     void loadMessages();
-                    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 150);
+                    setTimeout(() => scrollToLatest(true), 150);
                 }
             )
             .subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, [id, userId, loadMessages]);
+    }, [id, userId, loadMessages, scrollToLatest]);
 
     useEffect(() => {
         let cancelled = false;
@@ -191,14 +229,22 @@ export default function ChatThreadScreen() {
         };
     }, [messages]);
 
+    // Share/event cards change height after load — keep pinned to latest when appropriate.
+    useEffect(() => {
+        if (!stickToBottomRef.current || messages.length === 0) return;
+        const t = setTimeout(() => scrollToLatest(false), 120);
+        return () => clearTimeout(t);
+    }, [eventById, reviewById, messages.length, scrollToLatest]);
+
     const handleSend = async () => {
         if (!inputText.trim() || !userId) return;
 
         const success = await ChatService.sendMessage(id, userId, inputText);
         if (success) {
             setInputText('');
+            stickToBottomRef.current = true;
             await loadMessages();
-            setTimeout(() => flatListRef.current?.scrollToEnd(), 200);
+            setTimeout(() => scrollToLatest(true), 200);
         }
     };
 
@@ -247,8 +293,9 @@ export default function ChatThreadScreen() {
 
                 if (!error) {
                     await supabase.from('chats').update({ updated_at: new Date().toISOString() }).eq('id', id);
+                    stickToBottomRef.current = true;
                     await loadMessages();
-                    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
+                    setTimeout(() => scrollToLatest(true), 200);
                 } else {
                     console.error('[chat] insert image message:', error);
                     Alert.alert('Send failed', 'Could not send image. Please try again.');
@@ -512,8 +559,8 @@ export default function ChatThreadScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft size={24} color={SynthTokens.colors.neutral900} />
                 </Pressable>
-                <SynthText variant="h2" style={styles.headerTitle}>
-                    Chat
+                <SynthText variant="h2" style={styles.headerTitle} numberOfLines={1}>
+                    {chatTitle || 'Messages'}
                 </SynthText>
                 <View style={{ width: 40 }} />
             </View>
@@ -523,8 +570,14 @@ export default function ChatThreadScreen() {
                 data={messages}
                 renderItem={renderMessage}
                 keyExtractor={item => item.id}
+                inverted
                 contentContainerStyle={styles.messageList}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+                keyboardShouldPersistTaps="handled"
+                onScroll={e => {
+                    const y = e.nativeEvent.contentOffset.y;
+                    stickToBottomRef.current = y < 80;
+                }}
+                scrollEventThrottle={100}
             />
 
             <View style={[styles.inputArea, { paddingBottom: insets.bottom + 8 }]}>
@@ -586,8 +639,11 @@ const styles = StyleSheet.create({
         padding: 8,
     },
     headerTitle: {
+        flex: 1,
         fontSize: 18,
         fontWeight: 'bold',
+        textAlign: 'center',
+        marginHorizontal: 4,
     },
     messageList: {
         padding: SynthTokens.spacing.md,

@@ -100,7 +100,62 @@ export interface Message {
     metadata?: Record<string, unknown> | null;
 }
 
+async function resolveChatDisplayName(
+    chat: { id: string; chat_name: string | null; is_group_chat: boolean | null },
+    userId: string
+): Promise<string> {
+    const isGroup = !!chat.is_group_chat;
+    let title = (chat.chat_name || '').trim() || 'Chat';
+
+    if (!isGroup) {
+        const { data: parts } = await supabase
+            .from('chat_participants')
+            .select('user_id')
+            .eq('chat_id', chat.id)
+            .neq('user_id', userId)
+            .limit(1);
+
+        const otherUid = parts?.[0]?.user_id as string | undefined;
+        if (otherUid) {
+            const { data: userRow } = await supabase
+                .from('users')
+                .select('name, username')
+                .eq('user_id', otherUid)
+                .maybeSingle();
+            const peerName =
+                (typeof userRow?.name === 'string' && userRow.name.trim()) ||
+                (typeof userRow?.username === 'string' && userRow.username.trim()
+                    ? `@${userRow.username.trim()}`
+                    : '');
+            if (peerName) title = peerName;
+            else if (UUID_RE.test(title)) title = 'Direct Chat';
+        } else if (UUID_RE.test(title)) {
+            title = 'Direct Chat';
+        }
+    } else if (!title || title === 'Chat') {
+        title = 'Group Chat';
+    }
+
+    return title;
+}
+
 export class ChatService {
+    /** Display name for a thread header (peer name, group name, etc.). */
+    static async getChatDisplayName(chatId: string, userId: string): Promise<string> {
+        try {
+            const { data: chat, error } = await supabase
+                .from('chats')
+                .select('id, chat_name, is_group_chat')
+                .eq('id', chatId)
+                .maybeSingle();
+
+            if (error || !chat) return 'Chat';
+            return resolveChatDisplayName(chat, userId);
+        } catch {
+            return 'Chat';
+        }
+    }
+
     /**
      * Get all chat threads for user
      */
@@ -179,6 +234,12 @@ export class ChatService {
                         }
                     } else if (!title) {
                         title = 'Group Chat';
+                    }
+                    // Re-resolve when list batch didn't have peer names (username-only accounts, etc.)
+                    if (!isGroup && (title === 'Chat' || title === 'Direct Chat' || UUID_RE.test(String(title)))) {
+                        title = await resolveChatDisplayName(chat, userId);
+                    } else if (isGroup && (!chat.chat_name || !String(chat.chat_name).trim())) {
+                        title = await resolveChatDisplayName(chat, userId);
                     }
 
                     let preview = chat.messages?.content as string | undefined;
