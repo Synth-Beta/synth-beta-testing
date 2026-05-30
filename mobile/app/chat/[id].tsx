@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard, InteractionManager } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { SafeImage } from '../../src/components/SafeImage';
@@ -77,10 +77,13 @@ export default function ChatThreadScreen() {
     const flatListRef = useRef<FlatList>(null);
     const stickToBottomRef = useRef(true);
 
+    /** Inverted list: index 0 renders at the bottom — newest message first. */
+    const listMessages = useMemo(() => [...messages].reverse(), [messages]);
+
     const scrollToLatest = useCallback((animated = false) => {
-        if (!flatListRef.current || messages.length === 0) return;
+        if (!flatListRef.current || listMessages.length === 0) return;
         flatListRef.current.scrollToOffset({ offset: 0, animated });
-    }, [messages.length]);
+    }, [listMessages.length]);
 
     const loadMessages = useCallback(async () => {
         const {
@@ -99,6 +102,12 @@ export default function ChatThreadScreen() {
         void loadMessages();
     }, [loadMessages]);
 
+    useFocusEffect(
+        useCallback(() => {
+            void loadMessages();
+        }, [loadMessages])
+    );
+
     useEffect(() => {
         const fromRoute = typeof titleParam === 'string' ? titleParam.trim() : '';
         if (fromRoute) {
@@ -115,9 +124,9 @@ export default function ChatThreadScreen() {
         };
     }, [id, userId, titleParam]);
 
-    // Open on the most recent messages (inverted list uses offset 0 = bottom).
+    // Open on the most recent messages (inverted list: offset 0 = newest at bottom).
     useEffect(() => {
-        if (messages.length === 0) return;
+        if (listMessages.length === 0) return;
         const task = InteractionManager.runAfterInteractions(() => {
             requestAnimationFrame(() => {
                 if (stickToBottomRef.current) {
@@ -126,7 +135,7 @@ export default function ChatThreadScreen() {
             });
         });
         return () => task.cancel();
-    }, [messages.length, id, scrollToLatest]);
+    }, [listMessages.length, id, scrollToLatest]);
 
     // Realtime: append new messages as they arrive in this chat
     useEffect(() => {
@@ -567,12 +576,17 @@ export default function ChatThreadScreen() {
 
             <FlatList
                 ref={flatListRef}
-                data={messages}
+                data={listMessages}
                 renderItem={renderMessage}
                 keyExtractor={item => item.id}
                 inverted
                 contentContainerStyle={styles.messageList}
                 keyboardShouldPersistTaps="handled"
+                onContentSizeChange={() => {
+                    if (stickToBottomRef.current) {
+                        scrollToLatest(false);
+                    }
+                }}
                 onScroll={e => {
                     const y = e.nativeEvent.contentOffset.y;
                     stickToBottomRef.current = y < 80;

@@ -180,9 +180,16 @@ export class ChatService {
           updated_at,
           latest_message_id,
           messages!latest_message_id (
+            id,
             content,
             created_at,
-            is_encrypted
+            is_encrypted,
+            message_type,
+            sender_id,
+            users!messages_sender_id_fkey (
+              user_id,
+              name
+            )
           )
         `
                 )
@@ -242,14 +249,26 @@ export class ChatService {
                         title = await resolveChatDisplayName(chat, userId);
                     }
 
-                    let preview = chat.messages?.content as string | undefined;
-                    if (chat.messages?.is_encrypted && preview) {
+                    const latestMsg = chat.messages as {
+                        content?: string;
+                        is_encrypted?: boolean;
+                        message_type?: string;
+                    } | null;
+                    const rawType = latestMsg?.message_type;
+                    let preview = latestMsg?.content as string | undefined;
+                    if (rawType === 'image') {
+                        preview = 'Photo';
+                    } else if (rawType === 'event_share') {
+                        preview = 'Shared an event';
+                    } else if (rawType === 'review_share') {
+                        preview = 'Shared a review';
+                    } else if (latestMsg?.is_encrypted && preview) {
                         try {
                             preview = await decryptChatMessage(
                                 {
                                     content: preview,
                                     chat_id: chat.id,
-                                    is_encrypted: chat.messages.is_encrypted,
+                                    is_encrypted: latestMsg.is_encrypted,
                                 },
                                 userId
                             );
@@ -259,7 +278,7 @@ export class ChatService {
                     } else if (preview && looksLikeOpaquePreview(preview)) {
                         preview = 'Message';
                     }
-                    if (!preview) preview = 'No messages yet';
+                    if (!preview?.trim()) preview = 'No messages yet';
 
                     return {
                         id: chat.id,
@@ -279,9 +298,12 @@ export class ChatService {
     }
 
     /**
-     * Get messages for a specific chat
+     * Get messages for a specific chat (most recent window, chronological order).
+     * Web loads full history with no limit; mobile caps at MESSAGE_LIMIT but must
+     * fetch newest rows — ascending + limit alone only returns the oldest messages.
      */
     static async getMessages(chatId: string, userId: string): Promise<Message[]> {
+        const MESSAGE_LIMIT = 300;
         try {
             const { data, error } = await supabase
                 .from('messages')
@@ -289,12 +311,12 @@ export class ChatService {
                     'id, chat_id, sender_id, content, is_encrypted, created_at, message_type, shared_event_id, shared_review_id, metadata'
                 )
                 .eq('chat_id', chatId)
-                .order('created_at', { ascending: true })
-                .limit(100);
+                .order('created_at', { ascending: false })
+                .limit(MESSAGE_LIMIT);
 
             if (error) throw error;
 
-            const rows = data || [];
+            const rows = (data || []).slice().reverse();
             const messageIds = rows.map((m: { id: string }) => m.id);
             let eventIdByMessageId = new Map<string, string>();
             if (messageIds.length > 0) {
