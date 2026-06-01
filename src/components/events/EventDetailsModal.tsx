@@ -946,6 +946,9 @@ export function EventDetailsModal({
   if (!actualEvent) return null;
   // All data is real; no demo flags
 
+  const interestedCountValue = interestedCount ?? 0;
+  const showViewMoreButton = interestedCountValue >= 5 || interestedCountValue > guestListAllUsers.length;
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -2270,7 +2273,7 @@ export function EventDetailsModal({
                         </button>
                       ))}
                     </div>
-                    {(interestedCount ?? 0) > guestListAllUsers.length && (
+                    {showViewMoreButton && (
                       <button
                         className="text-sm text-center underline cursor-pointer"
                         style={{ color: 'var(--brand-pink-500)' }}
