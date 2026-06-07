@@ -8,6 +8,12 @@ const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
 const { concertSearchQuerySchema } = require('./validation/schemas');
 
 const router = express.Router();
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Security: Never expose raw error.message to clients in production.
+function clientErrorDetails(error) {
+  return NODE_ENV === 'development' ? error?.message : 'Something went wrong';
+}
 
 // Initialize Supabase client using secure configuration
 const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missing
@@ -276,7 +282,7 @@ router.get('/api/concerts/search',
       return res.status(500).json({
         success: false,
         error: 'Database search failed',
-        details: error.message
+        details: clientErrorDetails(error)
       });
     }
 
@@ -393,7 +399,7 @@ router.get('/api/concerts/search',
     res.status(500).json({
       success: false,
       error: 'Internal server error during search',
-      details: error.message
+      details: clientErrorDetails(error)
     });
   }
 });
@@ -439,7 +445,7 @@ router.get('/api/concerts/recent',
       return res.status(500).json({
         success: false,
         error: 'Failed to fetch recent concerts',
-        details: error.message
+        details: clientErrorDetails(error)
       });
     }
 
@@ -461,7 +467,7 @@ router.get('/api/concerts/recent',
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      details: error.message
+      details: clientErrorDetails(error)
     });
   }
 });
@@ -490,7 +496,7 @@ router.get('/api/concerts/stats',
       return res.status(500).json({
         success: false,
         error: 'Failed to fetch statistics',
-        details: error.message
+        details: clientErrorDetails(error)
       });
     }
 
@@ -533,7 +539,7 @@ router.get('/api/concerts/stats',
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      details: error.message
+      details: clientErrorDetails(error)
     });
   }
 });
@@ -602,7 +608,7 @@ router.get('/api/concerts/:id',
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      details: error.message
+      details: clientErrorDetails(error)
     });
   }
 });
@@ -630,7 +636,7 @@ router.get('/api/concerts/health',
       return res.status(500).json({
         success: false,
         error: 'Database connection failed',
-        details: error.message
+        details: clientErrorDetails(error)
       });
     }
 
@@ -646,7 +652,7 @@ router.get('/api/concerts/health',
     res.status(500).json({
       success: false,
       error: 'Health check failed',
-      details: error.message
+      details: clientErrorDetails(error)
     });
   }
 });
@@ -675,7 +681,6 @@ router.get('/api/jambase/events',
       geoRadiusAmount,
       geoRadiusUnits = 'mi',
       genreSlug,
-      apikey
     } = req.query;
 
     console.log('JamBase Events API request:', { 
@@ -688,21 +693,17 @@ router.get('/api/jambase/events',
       perPage 
     });
 
-    // Get API key using rotation framework (use provided key if available, otherwise get from config)
+    // Security: Never accept client-supplied apikey — prevents proxy abuse of our JamBase quota.
     let apiKeyToUse;
-    if (apikey) {
-      apiKeyToUse = apikey;
-    } else {
-      try {
-        apiKeyToUse = getApiKey('jambase');
-      } catch (error) {
-        console.error('JamBase API key error:', error.message);
-        return res.status(503).json({
-          success: false,
-          error: 'External service unavailable',
-          message: 'JamBase API key not configured'
-        });
-      }
+    try {
+      apiKeyToUse = getApiKey('jambase');
+    } catch (error) {
+      console.error('JamBase API key error:', error.message);
+      return res.status(503).json({
+        success: false,
+        error: 'External service unavailable',
+        message: 'JamBase API key not configured'
+      });
     }
     
     // Build JamBase API URL
@@ -896,7 +897,7 @@ router.get('/api/jambase/events',
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      details: error.message,
+      details: clientErrorDetails(error),
       events: [],
       total: 0,
       page: parseInt(req.query.page) || 1,

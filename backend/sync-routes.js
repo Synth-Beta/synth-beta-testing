@@ -10,10 +10,12 @@
 const express = require('express');
 const { spawn } = require('child_process');
 const path = require('path');
+const { createRateLimiter } = require('./middleware/rateLimiter');
 
 const router = express.Router();
 
-router.post('/internal/sync-events', (req, res) => {
+// Security: Rate-limit cron secret brute-force attempts
+router.post('/internal/sync-events', createRateLimiter('moderate'), (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
 
   // Require a configured secret — never allow open execution in production

@@ -246,6 +246,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
             if (item.type === 'friend_request') {
               await NotificationService.markAsRead(item.id);
               setNotifications(prev => prev.map(n => (n.id === item.id ? { ...n, is_read: true } : n)));
+              setUnreadCount(prev => Math.max(0, prev - 1));
               const actorId =
                 item.actor_user_id ||
                 (item.data?.actor_user_id != null ? String(item.data.actor_user_id) : '');
@@ -258,6 +259,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
             }
             await NotificationService.markAsRead(item.id);
             setNotifications(prev => prev.map(n => (n.id === item.id ? { ...n, is_read: true } : n)));
+            setUnreadCount(prev => Math.max(0, prev - 1));
 
             let dest = resolveNotificationExpoPath(item.type, item.data, {
               actorUserId: item.actor_user_id,

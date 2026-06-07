@@ -259,6 +259,9 @@ const jambaseLocationSearchGetQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(50),
 }).unknown(false);
 
+/** POST /api/jambase/location-search — same shape as GET query params in JSON body */
+const jambaseLocationSearchPostBodySchema = jambaseLocationSearchGetQuerySchema;
+
 module.exports = {
   searchConcertSchema,
   streamingProfileUploadSchema,
@@ -267,6 +270,7 @@ module.exports = {
   setlistSearchQuerySchema,
   locationSearchQuerySchema,
   jambaseLocationSearchGetQuerySchema,
+  jambaseLocationSearchPostBodySchema,
   concertSearchQuerySchema,
   serviceParamSchema,
   uuidParamSchema,

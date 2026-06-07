@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,7 +7,7 @@ import {
   Image,
   Text,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
@@ -32,44 +32,47 @@ export default function AppMenuScreen() {
   const [friendReqUnread, setFriendReqUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
 
-  useEffect(() => {
-    const load = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const user = session?.user ?? null;
-      if (!user) return;
+  const loadMenuCounts = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
+    if (!user) return;
 
-      const { data: row } = await supabase
-        .from('users')
-        .select('name, username, avatar_url, account_type')
-        .eq('user_id', user.id)
-        .maybeSingle();
+    const { data: row } = await supabase
+      .from('users')
+      .select('name, username, avatar_url, account_type')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-      setName(row?.name || 'User');
-      setUsername(row?.username ? `@${row.username}` : user.email?.split('@')[0] || '');
-      setAvatarUrl(row?.avatar_url ?? null);
-      setAccountType((row as { account_type?: string } | null)?.account_type ?? null);
+    setName(row?.name || 'User');
+    setUsername(row?.username ? `@${row.username}` : user.email?.split('@')[0] || '');
+    setAvatarUrl(row?.avatar_url ?? null);
+    setAccountType((row as { account_type?: string } | null)?.account_type ?? null);
 
-      const { count: frCount } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false)
-        .eq('type', 'friend_request');
+    const { count: frCount } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
+      .eq('type', 'friend_request');
 
-      const { count: notifCount } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false)
-        .neq('type', 'friend_request');
+    const { count: notifCount } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
+      .neq('type', 'friend_request');
 
-      setFriendReqUnread(frCount ?? 0);
-      setNotifUnread(notifCount ?? 0);
-    };
-    void load();
+    setFriendReqUnread(frCount ?? 0);
+    setNotifUnread(notifCount ?? 0);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadMenuCounts();
+    }, [loadMenuCounts])
+  );
 
   const close = () => router.back();
 

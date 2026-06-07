@@ -52,6 +52,7 @@ export {
   type NotificationNavContext,
 } from './notificationNavigation';
 export { getOrCreateDirectChat } from './directChat';
+export { getOrCreateGenreChat } from './genreChat';
 
 /** AsyncStorage / SecureStore key for mobile review wizard drafts (parity with web local draft concept). */
 export function mobileReviewDraftStorageKey(userId: string): string {

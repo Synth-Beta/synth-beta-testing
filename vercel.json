@@ -29,12 +29,19 @@
     },
     "api/cron/sync-events.ts": {
       "maxDuration": 10
+    },
+    "api/cron/seed-bot-messages.ts": {
+      "maxDuration": 10
     }
   },
   "crons": [
     {
       "path": "/api/cron/sync-events",
       "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron/seed-bot-messages",
+      "schedule": "0 10 * * *"
     }
   ]
 }

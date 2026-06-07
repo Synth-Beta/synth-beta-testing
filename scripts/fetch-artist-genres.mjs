@@ -83,42 +83,45 @@ export async function fetchGenresForArtist(artistData) {
         } catch (e) {
           // Ignore cleanup errors
         }
-        
+
+        const sqlFile = fs.readdirSync(tempDir)
+          .find(f => f.startsWith(`artist_${id}_`) && f.endsWith('_updates.sql'));
+
+        const cleanupOutputFiles = () => {
+          if (!sqlFile) return;
+          try {
+            const sqlPath = path.join(tempDir, sqlFile);
+            if (fs.existsSync(sqlPath)) fs.unlinkSync(sqlPath);
+            const reportPath = path.join(tempDir, sqlFile.replace('_updates.sql', '_report.md'));
+            if (fs.existsSync(reportPath)) fs.unlinkSync(reportPath);
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+        };
+
         if (code !== 0) {
+          cleanupOutputFiles();
           console.warn(`⚠️  Python script exited with code ${code} for ${name}: ${stderr}`);
           resolve({ genres: [], source: 'None' });
           return;
         }
-        
+
         // Parse the SQL output file to extract genres
-        const sqlFile = fs.readdirSync(tempDir)
-          .find(f => f.startsWith(`artist_${id}_`) && f.endsWith('_updates.sql'));
-        
         if (sqlFile) {
           const sqlPath = path.join(tempDir, sqlFile);
           const sqlContent = fs.readFileSync(sqlPath, 'utf-8');
-          
+
           // Extract genres from SQL: UPDATE artists SET genres = '["genre1","genre2"]'::jsonb WHERE id = '...';
           const match = sqlContent.match(/genres = '(\[.*?\])'::jsonb/);
           if (match) {
             try {
               const genres = JSON.parse(match[1]);
-              // Clean up temp files
-              try {
-                fs.unlinkSync(sqlPath);
-                const reportFile = sqlFile.replace('_updates.sql', '_report.md');
-                const reportPath = path.join(tempDir, reportFile);
-                if (fs.existsSync(reportPath)) {
-                  fs.unlinkSync(reportPath);
-                }
-              } catch (e) {
-                // Ignore cleanup errors
-              }
-              
+              cleanupOutputFiles();
+
               // Extract source from report if available
               const reportMatch = sqlContent.match(/Found via (.+?):/);
               const source = reportMatch ? reportMatch[1] : 'External API';
-              
+
               resolve({ genres, source });
               return;
             } catch (e) {
@@ -126,7 +129,8 @@ export async function fetchGenresForArtist(artistData) {
             }
           }
         }
-        
+
+        cleanupOutputFiles();
         resolve({ genres: [], source: 'None' });
       });
       

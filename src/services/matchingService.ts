@@ -3,6 +3,7 @@
  * Leverages existing matches and user_swipes tables for concert buddy matching
  */
 
+import { getOrCreateDirectChat } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SwipeAction {
@@ -413,47 +414,11 @@ export class MatchingService {
     eventId: string
   ): Promise<void> {
     try {
-      // Check if there's a direct chat with both users (Bug 1 fix: check for query errors)
-      const { data: user1Chats, error: user1ChatsError } = await supabase
-        .from('chat_participants')
-        .select('chat_id')
-        .eq('user_id', user1Id);
-
-      if (user1ChatsError) {
-        throw new Error(`Failed to check existing chats for user1: ${user1ChatsError.message}`);
+      const { chatId, error: chatError } = await getOrCreateDirectChat(supabase, user1Id, user2Id);
+      if (chatError || !chatId) {
+        throw new Error(`Failed to create chat: ${chatError || 'Unknown error'}`);
       }
 
-      const { data: user2Chats, error: user2ChatsError } = await supabase
-        .from('chat_participants')
-        .select('chat_id')
-        .eq('user_id', user2Id);
-
-      if (user2ChatsError) {
-        throw new Error(`Failed to check existing chats for user2: ${user2ChatsError.message}`);
-      }
-
-      const user1ChatIds = new Set(user1Chats?.map(p => p.chat_id) || []);
-      const user2ChatIds = new Set(user2Chats?.map(p => p.chat_id) || []);
-      const commonChatIds = [...user1ChatIds].filter(id => user2ChatIds.has(id));
-
-      if (commonChatIds.length > 0) {
-        // Check if any of these are direct chats (non-group)
-        const { data: existingChats, error: existingChatsError } = await supabase
-          .from('chats')
-          .select('id')
-          .in('id', commonChatIds)
-          .eq('is_group_chat', false)
-          .limit(1);
-
-        if (existingChatsError) {
-          console.error('Error checking for existing direct chat:', existingChatsError);
-          // Continue to create new chat if check fails (fail open)
-        } else if (existingChats && existingChats.length > 0) {
-          return; // Chat already exists
-        }
-      }
-
-      // Get event details for chat name
       const { data: eventData } = await supabase
         .from('events_with_artist_venue')
         .select('title, artist_name_normalized')
@@ -461,61 +426,14 @@ export class MatchingService {
         .single();
 
       const chatName = eventData?.title || 'Concert Chat';
-
-      // Create new chat (without users array - will add participants separately)
-      const { data: chat, error: chatError } = await supabase
-        .from('chats')
-        .insert({
-          chat_name: chatName,
-          is_group_chat: false,
-        })
-        .select()
-        .single();
-
-      if (chatError || !chat) {
-        throw new Error(`Failed to create chat: ${chatError?.message || 'Unknown error'}`);
-      }
-
-      // Add both users as participants (Bug 1 fix: check for errors and cleanup on failure)
-      const { error: participantsError } = await supabase
-        .from('chat_participants')
-        .insert([
-          { chat_id: chat.id, user_id: user1Id },
-          { chat_id: chat.id, user_id: user2Id }
-        ]);
-
-      if (participantsError) {
-        // Cleanup: delete the orphaned chat if participant insert failed
-        // Critical: If cleanup fails, log it as a critical error to prevent orphaned chats
-        const { error: deleteError } = await supabase
-          .from('chats')
-          .delete()
-          .eq('id', chat.id);
-        
-        if (deleteError) {
-          // Critical: Cleanup failed - orphaned chat may exist
-          console.error(
-            `CRITICAL: Failed to cleanup orphaned chat ${chat.id} after participant insert failure. ` +
-            `Original error: ${participantsError.message}. Cleanup error: ${deleteError.message}`
-          );
-          // Still throw the original error, but include cleanup failure info
-          throw new Error(
-            `Failed to add participants to chat: ${participantsError.message}. ` +
-            `CRITICAL: Cleanup also failed - orphaned chat ${chat.id} may exist: ${deleteError.message}`
-          );
-        }
-        
-        // Cleanup succeeded, throw original error
-        throw new Error(`Failed to add participants to chat: ${participantsError.message}`);
-      }
+      await supabase.from('chats').update({ chat_name: chatName }).eq('id', chatId);
 
       // Send welcome message (non-critical, log error but don't fail)
-      // Use encryption service for consistency
       try {
         const { sendEncryptedMessage } = await import('./chatService');
         const { error: messageError } = await sendEncryptedMessage(
-          chat.id,
-          user1Id, // System message sent as user1
+          chatId,
+          user1Id,
           `🎉 You matched! Start chatting about ${eventData?.title || 'the event'}!`
         );
 

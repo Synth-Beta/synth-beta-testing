@@ -58,6 +58,7 @@ import { VerifiedChatService } from '@/services/verifiedChatService';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { toast } from '@/hooks/use-toast';
+import { buildChatImageStoragePath, resolveChatImageDisplayUrl } from '@/utils/chatImageStorage';
 import PageShell from '@/components/layout/PageShell';
 
 // Chat Review Message wrapper — renders exactly like EventMessageCard (no chrome/header)
@@ -75,6 +76,43 @@ const ChatReviewMessage: React.FC<{
         onReviewClick={onReviewClick}
         customMessage={metadata?.custom_message}
         metadata={metadata}
+      />
+    </div>
+  );
+};
+
+// Security: Private chat-images bucket — resolve signed URLs at render time.
+const ChatImageMessage: React.FC<{
+  imageUrl?: string;
+  storagePath?: string;
+  alignSelf: string;
+}> = ({ imageUrl, storagePath, alignSelf }) => {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolveChatImageDisplayUrl(imageUrl, storagePath).then((url) => {
+      if (!cancelled) setSrc(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl, storagePath]);
+
+  if (!src) return null;
+
+  return (
+    <div style={{ alignSelf, display: 'inline-block' }}>
+      <img
+        src={src}
+        alt="Shared image"
+        style={{
+          maxWidth: 280,
+          maxHeight: 320,
+          borderRadius: 12,
+          display: 'block',
+          objectFit: 'cover',
+        }}
       />
     </div>
   );
@@ -1059,7 +1097,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     setIsUploadingImage(true);
     try {
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
-      const fileName = `${currentUserId}/${Date.now()}.${ext}`;
+      const fileName = buildChatImageStoragePath(currentUserId, ext);
       const { data, error } = await supabase.storage
         .from('chat-images')
         .upload(fileName, file, { contentType: file.type, upsert: false });
@@ -1070,8 +1108,16 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         return;
       }
 
-      const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(data.path);
-      const imageUrl = urlData.publicUrl;
+      // Security: Bucket is private — store path + short-lived signed URL in metadata.
+      const { data: signedData, error: signError } = await supabase.storage
+        .from('chat-images')
+        .createSignedUrl(data.path, 60 * 60);
+
+      if (signError || !signedData?.signedUrl) {
+        console.error('[chat] signed URL:', signError);
+        toast({ title: 'Upload failed', description: 'Could not finalize image upload.', variant: 'destructive' });
+        return;
+      }
 
       const { error: msgError } = await supabase.from('messages').insert({
         chat_id: selectedChat.id,
@@ -1079,7 +1125,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         content: '[Image]',
         message_type: 'image',
         is_encrypted: false,
-        metadata: { image_url: imageUrl },
+        metadata: { storage_path: data.path, image_url: signedData.signedUrl },
       });
 
       if (!msgError) {
@@ -2015,22 +2061,14 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                         {(() => {
                           // Priority 0: Image message
                           const inlineImageUrl = message.metadata?.image_url as string | undefined;
-                          if (message.message_type === 'image' && inlineImageUrl) {
+                          const inlineStoragePath = message.metadata?.storage_path as string | undefined;
+                          if (message.message_type === 'image' && (inlineImageUrl || inlineStoragePath)) {
                             return (
-                              <div style={{ alignSelf: isSent ? 'flex-end' : 'flex-start', display: 'inline-block' }}>
-                                <img
-                                  src={inlineImageUrl}
-                                  alt="Shared image"
-                                  style={{
-                                    maxWidth: '260px',
-                                    maxHeight: '320px',
-                                    borderRadius: '14px',
-                                    display: 'block',
-                                    objectFit: 'cover',
-                                    border: '1px solid var(--neutral-200)',
-                                  }}
-                                />
-                              </div>
+                              <ChatImageMessage
+                                imageUrl={inlineImageUrl}
+                                storagePath={inlineStoragePath}
+                                alignSelf={isSent ? 'flex-end' : 'flex-start'}
+                              />
                             );
                           }
 

@@ -1,6 +1,7 @@
 import { getOrCreateDirectChat } from '@synth/shared';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
+import { uploadChatImageAndGetMetadata } from '@/utils/chatImageStorage';
 import { supabase } from '../integrations/supabase/client';
 import { encryptMessage } from './chatEncryptionService';
 import { decryptChatMessage } from './chatDecrypt';
@@ -92,6 +93,8 @@ export interface Message {
     id: string;
     content: string;
     sender_id: string;
+    sender_name?: string;
+    sender_avatar?: string | null;
     created_at: string;
     is_mine: boolean;
     message_type: ChatMessageType;
@@ -317,6 +320,21 @@ export class ChatService {
             if (error) throw error;
 
             const rows = (data || []).slice().reverse();
+            const senderIds = [...new Set(rows.map((m: { sender_id: string }) => m.sender_id))];
+            const senderProfiles = new Map<string, { name: string; avatar_url: string | null }>();
+            if (senderIds.length > 0) {
+                const { data: users } = await supabase
+                    .from('users')
+                    .select('user_id, name, avatar_url')
+                    .in('user_id', senderIds);
+                for (const u of users || []) {
+                    senderProfiles.set(u.user_id, {
+                        name: u.name || 'User',
+                        avatar_url: u.avatar_url ?? null,
+                    });
+                }
+            }
+
             const messageIds = rows.map((m: { id: string }) => m.id);
             let eventIdByMessageId = new Map<string, string>();
             if (messageIds.length > 0) {
@@ -405,6 +423,8 @@ export class ChatService {
                         id: msg.id,
                         content,
                         sender_id: msg.sender_id,
+                        sender_name: senderProfiles.get(msg.sender_id)?.name ?? 'User',
+                        sender_avatar: senderProfiles.get(msg.sender_id)?.avatar_url ?? null,
                         created_at: msg.created_at,
                         is_mine: msg.sender_id === userId,
                         message_type: messageType,
@@ -505,33 +525,29 @@ export class ChatService {
     }
 
     /**
-     * Upload an image file to the chat-images bucket and return its public URL.
-     * @param uri Local file URI from expo-image-picker
-     * @param userId The uploader's user id (used as folder prefix for RLS)
+     * Upload an image to the private chat-images bucket.
+     * Security: Returns storage_path + signed URL — never uses public URLs.
      */
     static async uploadChatImage(
         uri: string,
         userId: string,
         meta?: { mimeType?: string | null; fileName?: string | null }
-    ): Promise<string | null> {
+    ): Promise<{ storage_path: string; image_url: string } | null> {
         try {
             const { ext, contentType } = resolveChatImageType(uri, meta);
             const fileName = `${Date.now()}.${ext}`;
             const storagePath = `${userId}/${fileName}`;
 
-            // On native, fetch(file://) often returns an empty blob — use RN file upload instead.
             if (Platform.OS !== 'web') {
                 const rnFile: ReactNativeUploadFile = { uri, name: fileName, type: contentType };
-                const { data, error } = await supabase.storage
-                    .from('chat-images')
-                    .upload(storagePath, rnFile as unknown as Blob, { contentType, upsert: false });
+                const uploaded = await uploadChatImageAndGetMetadata(
+                    storagePath,
+                    rnFile as unknown as Blob,
+                    contentType
+                );
+                if (uploaded) return uploaded;
 
-                if (!error && data) {
-                    const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(data.path);
-                    return urlData.publicUrl ?? null;
-                }
-
-                console.warn('[ChatService] uploadChatImage: RN file upload failed, trying bytes', error);
+                console.warn('[ChatService] uploadChatImage: RN file upload failed, trying bytes');
             }
 
             let uploadBody: Blob | Uint8Array;
@@ -565,17 +581,7 @@ export class ChatService {
                 resolvedType = contentType;
             }
 
-            const { data, error } = await supabase.storage
-                .from('chat-images')
-                .upload(storagePath, uploadBody, { contentType: resolvedType, upsert: false });
-
-            if (error || !data) {
-                console.error('[ChatService] uploadChatImage:', error);
-                return null;
-            }
-
-            const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(data.path);
-            return urlData.publicUrl ?? null;
+            return uploadChatImageAndGetMetadata(storagePath, uploadBody, resolvedType);
         } catch (e) {
             console.error('[ChatService] uploadChatImage exception:', e);
             return null;

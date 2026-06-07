@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, View, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { FeedHeader, FeedDisplayMode } from '../../src/components/Feed/FeedHeader';
@@ -147,6 +147,25 @@ export default function FeedScreen() {
   useEffect(() => {
     void fetchFeed();
   }, [fetchFeed]);
+
+  const refreshNotificationBadge = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
+    if (!user) {
+      setNotificationCount(0);
+      return;
+    }
+    const unread = await NotificationService.getUnreadCount(user.id);
+    setNotificationCount(unread);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshNotificationBadge();
+    }, [refreshNotificationBadge])
+  );
 
   // Auto-retry: if events come back empty after the initial load, retry once
   // after 4 seconds. This handles GPS cold-start and RPC warm-up delays where

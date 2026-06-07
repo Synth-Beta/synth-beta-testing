@@ -828,6 +828,11 @@ export class NotificationService {
       }
 
       // Update iOS badge count after marking as read
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        cacheService.clearPattern(`unread_count_${user.id}`);
+        cacheService.clearPattern(`notifications_${user.id}_`);
+      }
       const { BadgeService } = await import('./badgeService');
       await BadgeService.updateBadgeCount();
     } catch (error) {
@@ -860,6 +865,11 @@ export class NotificationService {
       }
 
       // Update iOS badge count after marking all as read
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        cacheService.clearPattern(`unread_count_${user.id}`);
+        cacheService.clearPattern(`notifications_${user.id}_`);
+      }
       const { BadgeService } = await import('./badgeService');
       await BadgeService.updateBadgeCount();
     } catch (error) {

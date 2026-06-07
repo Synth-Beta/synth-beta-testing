@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, useMap, Circle } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { JamBaseEventResponse } from '@/types/eventTypes';
-import { useEffect } from 'react';
+import { getMapboxToken } from '@/utils/mapboxToken';
 // Venue grouping interface
 interface VenueWithEvents {
   venueId: string;
@@ -208,7 +208,7 @@ export const EventMap: React.FC<EventMapProps> = ({
         ref={mapRef}
       >
         <TileLayer
-          url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w'}`}
+          url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${getMapboxToken()}`}
           attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
         

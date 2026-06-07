@@ -3,11 +3,16 @@ const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const { getSupabaseConfig, getApiKey, reportKeyFailure } = require('./config/apiKeys');
 const { createRateLimiter } = require('./middleware/rateLimiter');
-const { validateQuery } = require('./middleware/validateInput');
+const { validateQuery, validateBody } = require('./middleware/validateInput');
 const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
-const { jambaseLocationSearchGetQuerySchema } = require('./validation/schemas');
+const { jambaseLocationSearchGetQuerySchema, jambaseLocationSearchPostBodySchema } = require('./validation/schemas');
 
 const router = express.Router();
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+function clientErrorDetails(error) {
+  return NODE_ENV === 'development' ? error?.message : 'Something went wrong';
+}
 
 // Initialize Supabase client using secure configuration
 const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missing
@@ -303,6 +308,7 @@ function toBoundedInt(value, fallback, min, max) {
 router.post('/api/jambase/location-search',
   sanitize,
   createRateLimiter('strict'),
+  validateBody(jambaseLocationSearchPostBodySchema),
   async (req, res) => {
     try {
       const { location, radius = 25, limit = 50 } = req.body;
@@ -312,7 +318,7 @@ router.post('/api/jambase/location-search',
       res.status(500).json({
         success: false,
         error: 'Internal server error',
-        message: error.message,
+        message: clientErrorDetails(error),
       });
     }
   }
@@ -337,7 +343,7 @@ router.get(
       res.status(500).json({
         success: false,
         error: 'Internal server error',
-        message: error.message,
+        message: clientErrorDetails(error),
       });
     }
   }

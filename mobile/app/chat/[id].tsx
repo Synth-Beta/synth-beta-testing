@@ -13,6 +13,7 @@ import { ChatService, Message } from '../../src/services/chatService';
 import { EventService, type EventDetail } from '../../src/services/eventService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resolveChatImageDisplayUrl } from '../../src/utils/chatImageStorage';
 
 const PINK = SynthTokens.colors.brandPink500;
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
@@ -37,6 +38,33 @@ function formatEventWhen(iso: string | undefined): string {
 function isPlaceholderContent(s: string): boolean {
     const t = s.trim();
     return t === 'Message' || t === '[Unable to decrypt message]' || t === '[Encrypted message]';
+}
+
+/** Security: Private chat-images bucket — resolve signed URL at render time. */
+function ChatImageBubble({ imageUrl, storagePath }: { imageUrl?: string | null; storagePath?: string | null }) {
+    const [uri, setUri] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        resolveChatImageDisplayUrl(imageUrl, storagePath).then((resolved) => {
+            if (!cancelled) setUri(resolved);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [imageUrl, storagePath]);
+
+    if (!uri) return null;
+
+    return (
+        <SafeImage
+            uri={uri}
+            style={styles.chatImage}
+            contentFit="cover"
+            recyclingKey={uri}
+            cachePolicy="memory-disk"
+        />
+    );
 }
 
 /** Match web UnifiedChatView: column first, then metadata (web shares often use metadata.event_id only). */
@@ -72,6 +100,7 @@ export default function ChatThreadScreen() {
     const [reviewById, setReviewById] = useState<Record<string, ReviewCardInfo>>({});
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageSourceSheetVisible, setImageSourceSheetVisible] = useState(false);
+    const [isGroupChat, setIsGroupChat] = useState(false);
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
@@ -105,8 +134,27 @@ export default function ChatThreadScreen() {
     useFocusEffect(
         useCallback(() => {
             void loadMessages();
-        }, [loadMessages])
+            if (id) {
+                void supabase.rpc('mark_chat_as_read', { p_chat_id: id });
+            }
+        }, [loadMessages, id])
     );
+
+    useEffect(() => {
+        if (!id) return;
+        let cancelled = false;
+        void supabase
+            .from('chats')
+            .select('is_group_chat')
+            .eq('id', id)
+            .maybeSingle()
+            .then(({ data }) => {
+                if (!cancelled) setIsGroupChat(!!data?.is_group_chat);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [id]);
 
     useEffect(() => {
         const fromRoute = typeof titleParam === 'string' ? titleParam.trim() : '';
@@ -282,11 +330,11 @@ export default function ChatThreadScreen() {
 
             setUploadingImage(true);
             try {
-                const imageUrl = await ChatService.uploadChatImage(asset.uri, userId, {
+                const imageMeta = await ChatService.uploadChatImage(asset.uri, userId, {
                     mimeType: asset.mimeType,
                     fileName: asset.fileName,
                 });
-                if (!imageUrl) {
+                if (!imageMeta) {
                     Alert.alert('Upload failed', 'Could not upload image. Please try again.');
                     return;
                 }
@@ -297,7 +345,7 @@ export default function ChatThreadScreen() {
                     content: '[Image]',
                     message_type: 'image',
                     is_encrypted: false,
-                    metadata: { image_url: imageUrl },
+                    metadata: imageMeta,
                 });
 
                 if (!error) {
@@ -346,7 +394,38 @@ export default function ChatThreadScreen() {
 
     const isPast = (iso?: string | null) => !!iso && new Date(iso) < new Date();
 
-    const renderMessage = ({ item }: { item: Message }) => {
+    const shouldShowSenderHeader = useCallback(
+        (item: Message, listIndex: number) => {
+            if (!isGroupChat || item.is_mine) return false;
+            const olderAbove = listMessages[listIndex + 1];
+            if (!olderAbove) return true;
+            if (olderAbove.sender_id !== item.sender_id) return true;
+            const groupable: Message['message_type'][] = ['text', 'review_share', 'event_share', 'image'];
+            return !groupable.includes(olderAbove.message_type);
+        },
+        [isGroupChat, listMessages]
+    );
+
+    const renderSenderHeader = (item: Message) => {
+        const name = item.sender_name || 'User';
+        const initial = name.trim().charAt(0).toUpperCase() || 'U';
+        return (
+            <View style={styles.senderRow}>
+                {item.sender_avatar ? (
+                    <Image source={{ uri: item.sender_avatar }} style={styles.senderAvatar} contentFit="cover" />
+                ) : (
+                    <View style={styles.senderAvatarFallback}>
+                        <Text style={styles.senderAvatarInitial}>{initial}</Text>
+                    </View>
+                )}
+                <Text style={styles.senderName}>{name}</Text>
+            </View>
+        );
+    };
+
+    const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+        const showSender = shouldShowSenderHeader(item, index);
+        const senderHeader = showSender ? renderSenderHeader(item) : null;
         const meta = item.metadata ?? {};
         const reviewId = resolveReviewId(item);
 
@@ -356,16 +435,13 @@ export default function ChatThreadScreen() {
             (typeof inlineMeta.image_url === 'string' && inlineMeta.image_url.trim()) ||
             (typeof inlineMeta.imageUrl === 'string' && inlineMeta.imageUrl.trim()) ||
             null;
-        if (item.message_type === 'image' && imageUrl) {
+        const storagePath =
+            (typeof inlineMeta.storage_path === 'string' && inlineMeta.storage_path.trim()) || null;
+        if (item.message_type === 'image' && (imageUrl || storagePath)) {
             return (
                 <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
-                    <SafeImage
-                        uri={imageUrl}
-                        style={styles.chatImage}
-                        contentFit="cover"
-                        recyclingKey={item.id}
-                        cachePolicy="memory-disk"
-                    />
+                    {senderHeader}
+                    <ChatImageBubble imageUrl={imageUrl} storagePath={storagePath} />
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </SynthText>
@@ -385,6 +461,7 @@ export default function ChatThreadScreen() {
             const past = isPast(rc?.event_date);
             return (
                 <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                    {senderHeader}
                     <Pressable onPress={() => router.push(`/review/${reviewId}`)} style={styles.shareCard}>
                         {/* Gradient header band */}
                         <LinearGradient
@@ -483,6 +560,7 @@ export default function ChatThreadScreen() {
                 (customNote || (!isPlaceholderContent(item.content) ? item.content : '')).trim() || null;
             return (
                 <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                    {senderHeader}
                     <Pressable onPress={() => void openEvent(eventId)} style={styles.shareCard}>
                         {/* Gradient header band */}
                         <LinearGradient
@@ -545,6 +623,7 @@ export default function ChatThreadScreen() {
         // ── PLAIN TEXT MESSAGE ────────────────────────────────────────────────
         return (
             <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                {senderHeader}
                 <View style={[styles.messageBubble, item.is_mine ? styles.myBubble : styles.theirBubble]}>
                     <SynthText variant="meta" color={item.is_mine ? 'white' : 'primary'}>
                         {item.content}
@@ -577,7 +656,7 @@ export default function ChatThreadScreen() {
             <FlatList
                 ref={flatListRef}
                 data={listMessages}
-                renderItem={renderMessage}
+                renderItem={({ item, index }) => renderMessage({ item, index })}
                 keyExtractor={item => item.id}
                 inverted
                 contentContainerStyle={styles.messageList}
@@ -862,5 +941,34 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#374151',
         marginLeft: 4,
+    },
+    senderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 6,
+    },
+    senderAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+    },
+    senderAvatarFallback: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: SynthTokens.colors.brandPink500,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    senderAvatarInitial: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    senderName: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: SynthTokens.colors.neutral900,
     },
 });

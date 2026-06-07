@@ -22,10 +22,14 @@ if hasattr(sys.stdout, "reconfigure"):
         except Exception:
             pass
 
-# API Credentials
-SPOTIFY_CLIENT_ID = "00c8ab88043a4d53bc3ec13684885ca9"
-SPOTIFY_CLIENT_SECRET = "0c8ae2f4f5b54f1bb5b00511f7da52ad"
-LASTFM_API_KEY = "17cbdf1d52cd6f49d3ea93de0e03241e"
+# Security: Load API credentials from environment — never hardcode secrets in source.
+SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID", "").strip()
+SPOTIFY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET", "").strip()
+LASTFM_API_KEY = os.environ.get("LASTFM_API_KEY", "").strip()
+
+if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
+    print("Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET (see .env.example).", file=sys.stderr)
+    sys.exit(1)
 
 def get_spotify_token():
     url = "https://accounts.spotify.com/api/token"

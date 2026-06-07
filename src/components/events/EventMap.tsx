@@ -10,7 +10,7 @@ import { JamBaseEventResponse } from '@/types/eventTypes';
 import { formatPrice } from '@/utils/currencyUtils';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { trackInteraction } from '@/services/interactionTrackingService';
-import { getEventUuid } from '@/utils/entityUuidResolver';
+import { getMapboxToken } from '@/utils/mapboxToken';
 
 // Fix for default markers in React Leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -214,7 +214,7 @@ export const EventMap: React.FC<EventMapProps> = ({ center, zoom, events, onEven
         wheelPxPerZoomLevel={60}
       >
         <TileLayer
-          url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || import.meta.env.VITE_MAPBOX_KEY || 'pk.eyJ1Ijoic2xvaXRlcnN0ZWluIiwiYSI6ImNtamhvM3ozOTFnOHIza29yZHJmcGQ0ZGkifQ.5FU9eVyo5DAhSfESdWrI9w'}`}
+          url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${getMapboxToken()}`}
           attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
         

@@ -4,6 +4,7 @@ const { getSupabaseConfig } = require('./config/apiKeys');
 const { createRateLimiter } = require('./middleware/rateLimiter');
 const { validateBody, validateQuery, validateParams } = require('./middleware/validateInput');
 const { createSanitizationMiddleware } = require('./middleware/sanitizeInput');
+const { requireAuth, requireSelfUserId } = require('./middleware/requireAuth');
 const {
   streamingProfileUploadSchema,
   streamingProfileGetQuerySchema,
@@ -13,20 +14,32 @@ const {
 
 const router = express.Router();
 
-// Initialize Supabase client using secure configuration
-const supabaseConfig = getSupabaseConfig('anon', false); // Don't throw if missing (routes will handle)
-const supabase = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
+const supabaseConfig = getSupabaseConfig('anon', false);
+const supabaseAnon = supabaseConfig ? createClient(supabaseConfig.url, supabaseConfig.key) : null;
 
-// Sanitization middleware (apply to all routes)
+/** Security: Supabase client scoped to the caller JWT so RLS enforces auth.uid(). */
+function createUserSupabaseClient(req) {
+  if (!supabaseConfig || !req.authToken) {
+    return null;
+  }
+  return createClient(supabaseConfig.url, supabaseConfig.key, {
+    global: { headers: { Authorization: `Bearer ${req.authToken}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 const sanitize = createSanitizationMiddleware({ sanitizeBody: true, sanitizeQuery: true });
 
 // POST /api/user/streaming-profile - Upload streaming profile data
 router.post('/api/user/streaming-profile',
   sanitize,
   createRateLimiter('strict'),
+  requireAuth,
   validateBody(streamingProfileUploadSchema),
+  requireSelfUserId('body'),
   async (req, res) => {
     try {
+      const supabase = createUserSupabaseClient(req);
       if (!supabase) {
         return res.status(503).json({
           success: false,
@@ -34,7 +47,8 @@ router.post('/api/user/streaming-profile',
         });
       }
 
-      const { service, data, userId } = req.body;
+      const { service, data } = req.body;
+      const userId = req.user.id;
 
     // Normalize profile_data so capture_streaming_music_data trigger can process it.
     // Apple Music sends { id, attributes: { name, genreNames } }; trigger expects { name, id, genres }.
@@ -62,7 +76,7 @@ router.post('/api/user/streaming-profile',
     const { data: existingProfile, error: fetchError } = await supabase
       .from('streaming_profiles')
       .select('id')
-      .eq('user_id', userId || 'anonymous') // Handle anonymous users for now
+      .eq('user_id', userId)
       .eq('service_type', service)
       .single();
 
@@ -148,10 +162,13 @@ router.post('/api/user/streaming-profile',
 router.get('/api/user/streaming-profile/:service',
   sanitize,
   createRateLimiter('moderate'),
+  requireAuth,
   validateParams({ service: serviceParamSchema }),
   validateQuery(streamingProfileGetQuerySchema),
+  requireSelfUserId('query'),
   async (req, res) => {
     try {
+      const supabase = createUserSupabaseClient(req);
       if (!supabase) {
         return res.status(503).json({
           success: false,
@@ -160,7 +177,7 @@ router.get('/api/user/streaming-profile/:service',
       }
 
       const { service } = req.params;
-      const { userId } = req.query;
+      const userId = req.user.id;
 
     const { data: profile, error } = await supabase
       .from('streaming_profiles')
@@ -204,10 +221,13 @@ router.get('/api/user/streaming-profile/:service',
 router.delete('/api/user/streaming-profile/:service',
   sanitize,
   createRateLimiter('strict'),
+  requireAuth,
   validateParams({ service: serviceParamSchema }),
   validateBody(streamingProfileDeleteSchema),
+  requireSelfUserId('body'),
   async (req, res) => {
     try {
+      const supabase = createUserSupabaseClient(req);
       if (!supabase) {
         return res.status(503).json({
           success: false,
@@ -216,7 +236,7 @@ router.delete('/api/user/streaming-profile/:service',
       }
 
       const { service } = req.params;
-      const { userId } = req.body;
+      const userId = req.user.id;
 
     const { error } = await supabase
       .from('streaming_profiles')
@@ -244,11 +264,13 @@ router.delete('/api/user/streaming-profile/:service',
   }
 });
 
-// GET /api/streaming-profiles/stats - Get aggregated stats across all users
+// GET /api/streaming-profiles/stats - Get aggregated stats (admin/internal; requires auth)
 router.get('/api/streaming-profiles/stats',
   sanitize,
   createRateLimiter('moderate'),
+  requireAuth,
   async (req, res) => {
+    const supabase = createUserSupabaseClient(req);
     if (!supabase) {
       return res.status(503).json({
         success: false,

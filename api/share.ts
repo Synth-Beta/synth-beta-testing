@@ -16,6 +16,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Security: Reject malformed UUID query params before hitting the database. */
+function isValidShareUuid(value: string | undefined): value is string {
+  return typeof value === 'string' && UUID_PATTERN.test(value.trim());
+}
+
 /**
  * Inlined from @synth/shared — Vercel serverless cannot bundle the workspace
  * package barrel (pulls friendNotifications, passport, etc. and crashes).
@@ -420,6 +428,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { event, review, artist, venue, referrerId } = readShareQuery(req);
+
+  // Security: Validate entity IDs are UUIDs to reduce junk DB queries and open redirects.
+  if (event && !isValidShareUuid(event)) {
+    return res.status(400).send('Invalid event id');
+  }
+  if (review && !isValidShareUuid(review)) {
+    return res.status(400).send('Invalid review id');
+  }
+  if (artist && !isValidShareUuid(artist)) {
+    return res.status(400).send('Invalid artist id');
+  }
+  if (venue && !isValidShareUuid(venue)) {
+    return res.status(400).send('Invalid venue id');
+  }
+  if (referrerId && !isValidShareUuid(referrerId)) {
+    return res.status(400).send('Invalid referrer id');
+  }
+
   const userAgent = req.headers['user-agent'] as string | undefined;
 
   // Real users opening a share link: skip OG landing page, go directly to event/review in the app.

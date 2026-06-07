@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData?.user?.id) {
       console.error('[delete-account] Invalid token', userError);
-      return res.status(401).json({ error: 'Invalid token', message: userError?.message });
+      return res.status(401).json({ error: 'Invalid token' });
     }
 
     const userId = userData.user.id;
@@ -85,7 +85,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return fkBlockerResponse();
       }
 
-      return res.status(500).json({ error: 'Failed to delete account', message: deleteError.message });
+      return res.status(500).json({ error: 'Failed to delete account' });
     }
 
     console.log(`[delete-account] Successfully deleted user ${userId}`);

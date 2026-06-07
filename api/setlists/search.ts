@@ -4,11 +4,34 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const SETLIST_FM_API_KEY = process.env.SETLIST_FM_API_KEY;
 const SETLIST_FM_BASE_URL = 'https://api.setlist.fm/rest/1.0';
 
-// Rate limiting: setlist.fm allows ~2 requests per second
-const RATE_LIMIT_DELAY = 1000; // ms between requests
-let lastRequestTime = 0;
+const MAX_QUERY_LEN = 200;
+const STATE_CODE_PATTERN = /^[A-Za-z]{2}$/;
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+function sanitizeQueryString(value: unknown, maxLen = MAX_QUERY_LEN): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLen) return undefined;
+  return trimmed;
+}
+
+/** Security: Validate setlist search query params before calling paid Setlist.fm API. */
+function parseSetlistSearchQuery(query: VercelRequest['query']) {
+  const artistName = sanitizeQueryString(query.artistName);
+  const date = sanitizeQueryString(query.date, 32);
+  const venueName = sanitizeQueryString(query.venueName);
+  const cityName = sanitizeQueryString(query.cityName);
+  const stateRaw = sanitizeQueryString(query.stateCode, 2);
+  const stateCode = stateRaw && STATE_CODE_PATTERN.test(stateRaw) ? stateRaw.toUpperCase() : undefined;
+
+  if (!artistName && !date && !venueName && !cityName && !stateCode) {
+    return { ok: false as const, error: 'At least one search parameter is required' };
+  }
+
+  return {
+    ok: true as const,
+    params: { artistName, date, venueName, cityName, stateCode },
+  };
+}
 
 /**
  * Format date for Setlist.fm API (DD-MM-YYYY)
@@ -127,38 +150,34 @@ export default async function handler(
   }
 
   try {
-    // Rate limiting
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
-    if (timeSinceLastRequest < RATE_LIMIT_DELAY) {
-      await sleep(RATE_LIMIT_DELAY - timeSinceLastRequest);
+    const parsed = parseSetlistSearchQuery(req.query);
+    if (!parsed.ok) {
+      return res.status(400).json({ error: parsed.error });
     }
-    lastRequestTime = Date.now();
 
-    // Extract query parameters
-    const { artistName, date, venueName, cityName, stateCode } = req.query;
+    const { artistName, date, venueName, cityName, stateCode } = parsed.params;
 
     // Build query string for setlist.fm API
     const queryParams = new URLSearchParams();
-    if (artistName && typeof artistName === 'string') {
+    if (artistName) {
       queryParams.append('artistName', artistName);
     }
     
     // Format date properly for Setlist.fm API (DD-MM-YYYY)
-    if (date && typeof date === 'string') {
+    if (date) {
       const formattedDate = formatDateForAPI(date);
       if (formattedDate) {
         queryParams.append('date', formattedDate);
       }
     }
     
-    if (venueName && typeof venueName === 'string') {
+    if (venueName) {
       queryParams.append('venueName', venueName);
     }
-    if (cityName && typeof cityName === 'string') {
+    if (cityName) {
       queryParams.append('cityName', cityName);
     }
-    if (stateCode && typeof stateCode === 'string') {
+    if (stateCode) {
       queryParams.append('stateCode', stateCode);
     }
 
@@ -188,11 +207,10 @@ export default async function handler(
         return res.status(200).json({ setlist: [] }); // No setlists found
       }
       
-      // Return more specific error information
-      return res.status(response.status).json({
+      // Security: Do not expose upstream response body to clients.
+      return res.status(response.status >= 500 ? 502 : response.status).json({
         error: 'Setlist.fm API error',
         message: `Setlist.fm returned ${response.status}: ${response.statusText}`,
-        details: errorText
       });
     }
 
@@ -218,8 +236,7 @@ export default async function handler(
     }
     return res.status(500).json({ 
       error: 'Failed to fetch setlists',
-      message: error?.message || 'Unknown error',
-      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      message: process.env.NODE_ENV === 'development' ? (error?.message || 'Unknown error') : 'Something went wrong',
     });
   }
 }

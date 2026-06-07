@@ -4,9 +4,21 @@ const root = path.resolve(__dirname, '..');
 require('dotenv').config({ path: path.join(root, '.env') });
 require('dotenv').config({ path: path.join(root, '.env.local'), override: true });
 
-// Validate API keys on startup
+// Validate environment and API keys on startup
+const { assertRequiredEnv } = require('./config/checkEnv');
 const { validateApiKeys } = require('./config/apiKeys');
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Security: Fail fast when required env vars are missing (see backend/config/checkEnv.js)
+try {
+  assertRequiredEnv(NODE_ENV !== 'production');
+} catch (error) {
+  console.error('❌ Environment validation failed:', error.message);
+  if (NODE_ENV === 'production') {
+    process.exit(1);
+  }
+  console.warn('⚠️  Continuing in development mode with missing env vars');
+}
 
 // In production, require all keys. In development, allow missing keys with warnings
 try {
@@ -36,6 +48,7 @@ const setlistRoutes = require('./setlist-routes');
 const ticketmasterRoutes = require('./ticketmaster-routes');
 const authRoutes = require('./auth-routes');
 const syncRoutes = require('./sync-routes');
+const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -70,6 +83,9 @@ const allowedOrigins = [
   'https://synth-beta-testing.vercel.app',
   'https://synth.app',
   'https://www.synth.app',
+  'https://getsynth.app',
+  'https://www.getsynth.app',
+  'https://join.getsynth.app',
   'capacitor://localhost',
   'ionic://localhost',
   'http://localhost',
@@ -180,15 +196,8 @@ app.get('/health', createRateLimiter('lenient'), (req, res) => {
   });
 });
 
-// Error handling middleware
-app.use((error, req, res, next) => {
-  console.error('Unhandled server error:', error);
-  res.status(500).json({
-    success: false,
-    error: 'Internal server error',
-    details: NODE_ENV === 'development' ? error.message : 'Something went wrong'
-  });
-});
+// Error handling middleware — Security: generic client message in production
+app.use(errorHandler);
 
 // 404 handler
 app.use('*', (req, res) => {

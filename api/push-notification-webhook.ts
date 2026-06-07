@@ -7,6 +7,7 @@
  * - Table: notifications
  * - Events: INSERT
  * - URL: https://YOUR_VERCEL_URL/api/push-notification-webhook
+ * - HTTP Header: x-webhook-secret = PUSH_WEBHOOK_SECRET (must match Vercel env)
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -148,6 +149,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Security: Verify Supabase Database Webhook shared secret — prevents spoofed push requests.
+  const webhookSecret = process.env.PUSH_WEBHOOK_SECRET?.trim();
+  if (!webhookSecret) {
+    console.error('[push-webhook] PUSH_WEBHOOK_SECRET not configured');
+    return res.status(500).json({ error: 'Webhook not configured' });
+  }
+  const headerSecret = req.headers['x-webhook-secret'];
+  if (typeof headerSecret !== 'string' || headerSecret !== webhookSecret) {
+    console.warn('[push-webhook] Unauthorized webhook attempt');
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const payload = req.body as WebhookPayload;
@@ -339,10 +352,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;
     console.error('[push-webhook] Unhandled error:', message, stack);
+    // Security: Do not expose internal error details to webhook callers.
     return res.status(500).json({
-      error: 'Function invocation failed',
-      message,
-      hint: 'Check Vercel logs for full stack trace',
+      error: 'Something went wrong',
     });
   }
 }

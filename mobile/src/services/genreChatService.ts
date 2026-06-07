@@ -3,6 +3,7 @@
  * Manages persistent genre-based community group chats.
  * Uses entity_type='genre' + entity_id=slug on the chats table.
  */
+import { getOrCreateGenreChat } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
 
 export interface GenreConfig {
@@ -125,31 +126,16 @@ export class GenreChatService {
             if (existing?.id) {
                 chatId = existing.id;
             } else {
-                // Create the genre chat on demand
-                const { data: created, error } = await supabase
-                    .from('chats')
-                    .insert({
-                        chat_name: `${genre.emoji} ${genre.fullName}`,
-                        is_group_chat: true,
-                        entity_type: 'genre',
-                        entity_id: genreId,
-                    })
-                    .select('id')
-                    .single();
-                if (error || !created) {
-                    // Race condition — another user may have just created it
-                    const { data: retry } = await supabase
-                        .from('chats')
-                        .select('id')
-                        .eq('entity_type', 'genre')
-                        .eq('entity_id', genreId)
-                        .eq('is_group_chat', true)
-                        .maybeSingle();
-                    if (!retry?.id) return null;
-                    chatId = retry.id;
-                } else {
-                    chatId = created.id;
+                const { chatId: createdId, error: rpcError } = await getOrCreateGenreChat(
+                    supabase,
+                    genreId,
+                    `${genre.emoji} ${genre.fullName}`
+                );
+                if (rpcError || !createdId) {
+                    console.error('[GenreChatService] joinGenre get_or_create_genre_chat:', rpcError);
+                    return null;
                 }
+                chatId = createdId;
             }
 
             // Join — insert or do nothing if already a member

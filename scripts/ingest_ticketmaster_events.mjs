@@ -17,29 +17,20 @@
 import { createClient } from '@supabase/supabase-js';
 
 const TM_API = 'https://app.ticketmaster.com/discovery/v2';
-// Prefer explicit env vars; fall back to names used elsewhere in repo; lastly use repo defaults
-const TM_API_KEY =
-  process.env.TM_API_KEY ||
-  process.env.TICKETMASTER_API_KEY ||
-  'rM94dPPl7ne1EAkGeZBEq5AH7zLvCAVA';
-const SUPABASE_URL =
-  process.env.SUPABASE_URL ||
-  'https://glpiolbrafqikqhnseto.supabase.co';
+// Security: No hardcoded API keys — fail fast if env is missing (prevents committed secrets).
+const TM_API_KEY = process.env.TM_API_KEY || process.env.TICKETMASTER_API_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY =
   process.env.SUPABASE_SERVICE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdscGlvbGJyYWZxaWtxaG5zZXRvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjkzNzgyNCwiZXhwIjoyMDcyNTEzODI0fQ.cS0y6dQiw2VvGD7tKfKADKqM8whaopJ716G4dexBRGI';
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Soft warnings only; proceed with repository defaults if provided
-if (!process.env.TM_API_KEY && !process.env.TICKETMASTER_API_KEY) {
-  console.warn('Using fallback Ticketmaster API key from repository defaults.');
+if (!TM_API_KEY) {
+  console.error('Missing TM_API_KEY or TICKETMASTER_API_KEY. Set in .env.local (see .env.example).');
+  process.exit(1);
 }
-if (!process.env.SUPABASE_URL) {
-  console.warn('Using fallback Supabase URL from repository defaults.');
-}
-if (!process.env.SUPABASE_SERVICE_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_ANON_KEY) {
-  console.warn('Using fallback Supabase key from repository defaults.');
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Set in .env.local (see .env.example).');
+  process.exit(1);
 }
 
 // ESM Node 18+ has global fetch

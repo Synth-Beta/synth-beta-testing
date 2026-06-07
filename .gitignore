@@ -1,5 +1,8 @@
-# Temp sync artifacts
+# Temp sync / genre-fetch scratch artifacts (see scripts/fetch-artist-genres.mjs)
 temp/
+
+# Bot seeding generated artifact
+scripts/bot-accounts.json
 
 # Logs
 logs
