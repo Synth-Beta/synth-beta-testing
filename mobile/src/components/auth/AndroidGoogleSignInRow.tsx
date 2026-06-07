@@ -91,7 +91,7 @@ export const AndroidGoogleSignInRow: React.FC<Props> = ({
       }
       if (res.type === 'error') {
         setLoading(false);
-        setError(res.error?.message ?? 'Google Sign In failed');
+        setError(res.error?.description ?? 'Google Sign In failed');
         return;
       }
       // success / opened / locked: OAuth finished; Supabase sign-in runs in useEffect on `googleResult`.

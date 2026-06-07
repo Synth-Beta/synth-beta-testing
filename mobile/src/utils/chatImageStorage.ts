@@ -53,7 +53,7 @@ export async function resolveChatImageDisplayUrl(
 
 export async function uploadChatImageAndGetMetadata(
   storagePath: string,
-  body: Blob | File | ArrayBuffer,
+  body: Blob | File | ArrayBuffer | Uint8Array,
   contentType: string
 ): Promise<{ storage_path: string; image_url: string } | null> {
   const { data, error } = await supabase.storage

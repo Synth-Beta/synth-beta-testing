@@ -4,13 +4,10 @@
     "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@synth/shared": [
-        "../packages/synth-shared/src/index.ts"
-      ]
+      "@/*": ["./*", "./src/*"],
+      "@synth/shared": ["../packages/synth-shared/src/index.ts"]
     }
   },
   "include": [

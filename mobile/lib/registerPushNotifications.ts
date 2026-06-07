@@ -3,6 +3,21 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+function notificationPermissionGranted(
+  settings: Notifications.NotificationPermissionsStatus,
+): boolean {
+  const base = settings as Notifications.NotificationPermissionsStatus & {
+    granted?: boolean;
+    status?: 'granted' | 'denied' | 'undetermined';
+  };
+  return (
+    base.granted === true ||
+    base.status === 'granted' ||
+    settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL ||
+    settings.ios?.status === Notifications.IosAuthorizationStatus.AUTHORIZED
+  );
+}
+
 let notificationHandlerInstalled = false;
 
 /** Call once after the JS runtime is up (e.g. root layout mount). Avoids module-scope native work during the first tick. */
@@ -36,13 +51,13 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     return null;
   }
 
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let finalStatus = existing;
-  if (existing !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+  const existing = await Notifications.getPermissionsAsync();
+  let granted = notificationPermissionGranted(existing);
+  if (!granted) {
+    const requested = await Notifications.requestPermissionsAsync();
+    granted = notificationPermissionGranted(requested);
   }
-  if (finalStatus !== 'granted') {
+  if (!granted) {
     return null;
   }
 
