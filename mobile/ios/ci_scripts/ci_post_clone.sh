@@ -67,6 +67,16 @@ command -v npm >/dev/null 2>&1 || { echo "ci_post_clone: npm still not available
 
 echo "ci_post_clone: node $(node -v), npm $(npm -v)"
 
+# xcodebuild runs with -hideShellScriptEnvironment; RN bundle scripts need NODE_BINARY on disk.
+NODE_PATH="$(command -v node)"
+if [[ -z "${NODE_PATH}" || ! -x "${NODE_PATH}" ]]; then
+  echo "ci_post_clone: node executable not found after ensure_npm" >&2
+  exit 127
+fi
+umask 077
+printf 'export NODE_BINARY=%q\n' "${NODE_PATH}" > "${REPO}/mobile/ios/.xcode.env.local"
+echo "ci_post_clone: wrote mobile/ios/.xcode.env.local (NODE_BINARY=${NODE_PATH})"
+
 cd "${REPO}/mobile"
 
 # Expo inlines EXPO_PUBLIC_* at bundle time; Xcode Cloud does not load a local .env.
