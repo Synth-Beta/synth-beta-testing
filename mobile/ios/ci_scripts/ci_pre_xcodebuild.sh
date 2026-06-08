@@ -83,4 +83,20 @@ if [[ -z "${CLI_PATH}" || ! -f "${CLI_PATH}" ]]; then
 fi
 echo "ci_pre_xcodebuild: @expo/cli OK"
 
+# Release archive bundles JS (export:embed). Fail here with a clear log if Metro chokes.
+if [[ -f "${MOBILE_DIR}/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "${MOBILE_DIR}/.env"
+  set +a
+fi
+echo "ci_pre_xcodebuild: smoke export:embed (catches bundle errors before xcodebuild 65)..."
+(
+  cd "${MOBILE_DIR}"
+  export NODE_BINARY="${NODE_PATH}"
+  export CI=
+  npx expo export --platform ios --output-dir "${TMPDIR:-/tmp}/synth-xcode-cloud-smoke" --clear
+)
+echo "ci_pre_xcodebuild: smoke export:embed OK"
+
 echo "ci_pre_xcodebuild: ready for xcodebuild archive"
