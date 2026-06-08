@@ -113,6 +113,12 @@ fi
 echo "ci_post_clone: npm ci in mobile/"
 npm ci
 
+if [[ ! -d node_modules/@synth/shared ]]; then
+  echo "ci_post_clone: @synth/shared missing after npm ci (file:../packages/synth-shared)" >&2
+  exit 1
+fi
+echo "ci_post_clone: @synth/shared linked"
+
 cd "${REPO}/mobile/ios"
 
 # CocoaPods default CDN (cdn.cocoapods.org) often hits Net::OpenTimeout on Xcode Cloud.

@@ -339,7 +339,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Synth/expo-configure-project.sh\"\n";
+			shellScript = "set -e\n# POSIX sh (/bin/sh) — no bash [[ ]] or source.\nif [ -f \"$SRCROOT/.xcode.env\" ]; then . \"$SRCROOT/.xcode.env\"; fi\nif [ -f \"$SRCROOT/.xcode.env.local\" ]; then . \"$SRCROOT/.xcode.env.local\"; fi\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:${PATH}\"\nif [ -z \"${NODE_BINARY:-}\" ] || [ ! -x \"${NODE_BINARY}\" ]; then\n  echo \"error: [Expo] Configure project — NODE_BINARY missing. Check ci_post_clone / ci_pre_xcodebuild.\" >&2\n  exit 1\nfi\n\"$NODE_BINARY\" --version\nexec bash \"$SRCROOT/Pods/Target Support Files/Pods-Synth/expo-configure-project.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
