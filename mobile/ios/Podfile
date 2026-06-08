@@ -70,14 +70,26 @@ target 'Synth' do
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
 
-    # Xcode Cloud prints hundreds of warnings from Expo/RN/third-party Pods (Sendable,
-    # deprecated iOS APIs, umbrella headers, etc.). We do not own that source; suppress
-    # warnings on Pod targets only so app code in the Synth project still warns normally.
+    # Xcode 15+ User Script Sandboxing blocks RN/Expo build phases (expo-configure-project.sh,
+    # Bundle React Native, Pods resource scripts). Required for Xcode Cloud archive.
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |cfg|
+        cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
         cfg.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
-        # Xcode 14+ — silences Swift warnings in dependencies (expo-modules-core, etc.)
         cfg.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+      end
+    end
+    installer.pods_project.build_configurations.each do |cfg|
+      cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+    end
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.user_project.native_targets.each do |target|
+        target.build_configurations.each do |cfg|
+          cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+        end
+      end
+      aggregate_target.user_project.build_configurations.each do |cfg|
+        cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
       end
     end
   end
