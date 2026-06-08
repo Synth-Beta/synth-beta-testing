@@ -95,11 +95,17 @@ if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" && -n "${EXPO_PUBLIC_SUPABASE_ANON_KEY:
       printf '%s\n' "EXPO_PUBLIC_SUPABASE_URL=${EXPO_PUBLIC_SUPABASE_URL}"
       printf '%s\n' "EXPO_PUBLIC_SUPABASE_ANON_KEY=${EXPO_PUBLIC_SUPABASE_ANON_KEY}"
     } > .env
-    # Optional mobile vars (Google sign-in on Android, site URL, etc.)
-    [[ -n "${EXPO_PUBLIC_SITE_URL:-}" ]] && printf '%s\n' "EXPO_PUBLIC_SITE_URL=${EXPO_PUBLIC_SITE_URL}" >> .env
-    [[ -n "${EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID:-}" ]] && printf '%s\n' "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=${EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID}" >> .env
-    [[ -n "${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:-}" ]] && printf '%s\n' "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID}" >> .env
+    if [[ -n "${EXPO_PUBLIC_SITE_URL:-}" ]]; then
+      printf '%s\n' "EXPO_PUBLIC_SITE_URL=${EXPO_PUBLIC_SITE_URL}" >> .env
+    fi
+    if [[ -n "${EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID:-}" ]]; then
+      printf '%s\n' "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=${EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID}" >> .env
+    fi
+    if [[ -n "${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:-}" ]]; then
+      printf '%s\n' "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID}" >> .env
+    fi
   )
+  echo "ci_post_clone: wrote mobile/.env"
 else
   echo "ci_post_clone: WARNING: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY not set — add them in Xcode Cloud workflow environment (App Store Connect)."
 fi
