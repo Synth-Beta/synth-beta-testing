@@ -37,7 +37,7 @@ fi
   {
     printf 'export NODE_BINARY=%q\n' "${NODE_PATH}"
     # Xcode Cloud sets CI=true; some Metro/RN tooling treats that as strict mode.
-    printf 'export CI=\n'
+    printf 'export CI=false\n'
   } > "${IOS_DIR}/.xcode.env.local"
 )
 
@@ -106,7 +106,7 @@ export PODS_ROOT="${IOS_DIR}/Pods"
 export SRCROOT="${IOS_DIR}"
 export DEV=false
 export NODE_BINARY="${NODE_PATH}"
-export CI=
+export CI=false
 export NODE_ENV=production
 export ENTRY_FILE="${ENTRY_FILE}"
 export CLI_PATH="${CLI_PATH}"

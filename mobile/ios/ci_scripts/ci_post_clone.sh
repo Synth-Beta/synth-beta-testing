@@ -77,7 +77,7 @@ fi
   umask 077
   {
     printf 'export NODE_BINARY=%q\n' "${NODE_PATH}"
-    printf 'export CI=\n'
+    printf 'export CI=false\n'
   } > "${REPO}/mobile/ios/.xcode.env.local"
 )
 echo "ci_post_clone: wrote mobile/ios/.xcode.env.local (NODE_BINARY=${NODE_PATH})"
