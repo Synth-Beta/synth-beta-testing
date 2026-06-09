@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "postinstall": "node scripts/patch-expo-notifications-badge.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

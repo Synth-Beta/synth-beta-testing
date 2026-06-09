@@ -119,6 +119,9 @@ if [[ ! -d node_modules/@synth/shared ]]; then
 fi
 echo "ci_post_clone: @synth/shared linked"
 
+echo "ci_post_clone: patch expo-notifications BadgeModule.swift (RCTSharedApplication)"
+bash "${REPO}/mobile/ios/ci_scripts/patch-expo-notifications-badge.sh"
+
 cd "${REPO}/mobile/ios"
 
 # CocoaPods default CDN (cdn.cocoapods.org) often hits Net::OpenTimeout on Xcode Cloud.
