@@ -83,20 +83,43 @@ if [[ -z "${CLI_PATH}" || ! -f "${CLI_PATH}" ]]; then
 fi
 echo "ci_pre_xcodebuild: @expo/cli OK"
 
-# Release archive bundles JS (export:embed). Fail here with a clear log if Metro chokes.
+# Release archive bundles JS via react-native-xcode.sh + export:embed (NOT plain `expo export`).
 if [[ -f "${MOBILE_DIR}/.env" ]]; then
   set -a
   # shellcheck disable=SC1091
   source "${MOBILE_DIR}/.env"
   set +a
 fi
-echo "ci_pre_xcodebuild: smoke export:embed (catches bundle errors before xcodebuild 65)..."
-(
-  cd "${MOBILE_DIR}"
-  export NODE_BINARY="${NODE_PATH}"
-  export CI=
-  npx expo export --platform ios --output-dir "${TMPDIR:-/tmp}/synth-xcode-cloud-smoke" --clear
-)
+
+SMOKE_DIR="${TMPDIR:-/tmp}/synth-xcode-cloud-embed-smoke"
+rm -rf "${SMOKE_DIR}"
+mkdir -p "${SMOKE_DIR}/Release-iphoneos/Synth.app"
+
+export CONFIGURATION=Release
+export CONFIGURATION_BUILD_DIR="${SMOKE_DIR}/Release-iphoneos"
+export UNLOCALIZED_RESOURCES_FOLDER_PATH="Synth.app"
+export TARGET_BUILD_DIR="${CONFIGURATION_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+export PLATFORM_NAME=iphoneos
+export PROJECT_DIR="${IOS_DIR}"
+export PROJECT_ROOT="${MOBILE_DIR}"
+export PODS_ROOT="${IOS_DIR}/Pods"
+export SRCROOT="${IOS_DIR}"
+export DEV=false
+export NODE_BINARY="${NODE_PATH}"
+export CI=
+export NODE_ENV=production
+export ENTRY_FILE="$("${NODE_PATH}" -e "require('expo/scripts/resolveAppEntry')" "${MOBILE_DIR}" ios absolute 2>/dev/null | tail -n 1)"
+export CLI_PATH="$("${NODE_PATH}" --print "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })")"
+export BUNDLE_COMMAND=export:embed
+
+RN_XCODE="${MOBILE_DIR}/node_modules/react-native/scripts/react-native-xcode.sh"
+if [[ ! -f "${RN_XCODE}" ]]; then
+  echo "ci_pre_xcodebuild: react-native-xcode.sh missing at ${RN_XCODE}" >&2
+  exit 1
+fi
+
+echo "ci_pre_xcodebuild: smoke export:embed (same path as xcodebuild archive)..."
+bash "${RN_XCODE}"
 echo "ci_pre_xcodebuild: smoke export:embed OK"
 
 echo "ci_pre_xcodebuild: ready for xcodebuild archive"
