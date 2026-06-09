@@ -108,8 +108,8 @@ export DEV=false
 export NODE_BINARY="${NODE_PATH}"
 export CI=
 export NODE_ENV=production
-export ENTRY_FILE="$("${NODE_PATH}" -e "require('expo/scripts/resolveAppEntry')" "${MOBILE_DIR}" ios absolute 2>/dev/null | tail -n 1)"
-export CLI_PATH="$("${NODE_PATH}" --print "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })")"
+export ENTRY_FILE="${ENTRY_FILE}"
+export CLI_PATH="${CLI_PATH}"
 export BUNDLE_COMMAND=export:embed
 
 RN_XCODE="${MOBILE_DIR}/node_modules/react-native/scripts/react-native-xcode.sh"
