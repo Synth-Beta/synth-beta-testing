@@ -1,10 +1,5 @@
 #!/bin/bash
-# Patch expo-notifications BadgeModule.swift after npm ci (see mobile/scripts/patch-expo-notifications-badge.mjs).
+# Back-compat wrapper — use patch-expo-ios-swift.sh
 set -euo pipefail
-REPO="${CI_PRIMARY_REPOSITORY_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
-NODE="$(command -v node 2>/dev/null || true)"
-if [[ -z "${NODE}" ]]; then
-  echo "patch-expo-notifications-badge: node not found" >&2
-  exit 1
-fi
-"${NODE}" "${REPO}/mobile/scripts/patch-expo-notifications-badge.mjs"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "${SCRIPT_DIR}/patch-expo-ios-swift.sh"

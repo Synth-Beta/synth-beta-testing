@@ -119,8 +119,8 @@ if [[ ! -d node_modules/@synth/shared ]]; then
 fi
 echo "ci_post_clone: @synth/shared linked"
 
-echo "ci_post_clone: patch expo-notifications BadgeModule.swift (RCTSharedApplication)"
-bash "${REPO}/mobile/ios/ci_scripts/patch-expo-notifications-badge.sh"
+echo "ci_post_clone: patch Expo iOS Swift (RN API workarounds)"
+bash "${REPO}/mobile/ios/ci_scripts/patch-expo-ios-swift.sh"
 
 cd "${REPO}/mobile/ios"
 

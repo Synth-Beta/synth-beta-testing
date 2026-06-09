@@ -53,8 +53,8 @@ if [[ ! -d "${MOBILE_DIR}/node_modules/@synth/shared" ]]; then
   (cd "${MOBILE_DIR}" && npm ci)
 fi
 
-echo "ci_pre_xcodebuild: patch expo-notifications BadgeModule.swift"
-bash "${REPO}/mobile/ios/ci_scripts/patch-expo-notifications-badge.sh"
+echo "ci_pre_xcodebuild: patch Expo iOS Swift (RN API workarounds)"
+bash "${REPO}/mobile/ios/ci_scripts/patch-expo-ios-swift.sh"
 
 if [[ ! -d "${IOS_DIR}/Pods" ]]; then
   echo "ci_pre_xcodebuild: Pods/ missing — running pod install"
