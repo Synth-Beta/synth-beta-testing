@@ -1,10 +1,33 @@
 // Dynamic Expo config wrapper.
 //
-// We keep the canonical config in `app.json`, but conditionally attach
-// Android `googleServicesFile` only when the file is present. This avoids
-// breaking local/dev builds for contributors who haven't added Firebase yet.
+// We keep the canonical config in `app.json`, but:
+// - Attach Android `googleServicesFile` only when the file is present.
+// - Set expo-notifications APNs mode per EAS profile (production vs sandbox).
 const fs = require('fs');
 const path = require('path');
+
+function getNotificationsApnsMode() {
+  // EAS sets EAS_BUILD_PROFILE to development | preview | production.
+  // Xcode Cloud / local dev: default to sandbox (matches Synth.entitlements).
+  return process.env.EAS_BUILD_PROFILE === 'production' ? 'production' : 'development';
+}
+
+function applyNotificationsPluginMode(plugins) {
+  const mode = getNotificationsApnsMode();
+
+  return plugins.map((plugin) => {
+    if (plugin === 'expo-notifications') {
+      return ['expo-notifications', { mode }];
+    }
+
+    if (Array.isArray(plugin) && plugin[0] === 'expo-notifications') {
+      const [, options = {}] = plugin;
+      return ['expo-notifications', { ...options, mode }];
+    }
+
+    return plugin;
+  });
+}
 
 /** @type {import('@expo/config').ExpoConfig} */
 function getExpoConfig() {
@@ -27,8 +50,8 @@ function getExpoConfig() {
       ...(expo.android ?? {}),
       ...(hasGoogleServices ? { googleServicesFile: './google-services.json' } : {}),
     },
+    plugins: applyNotificationsPluginMode(expo.plugins ?? []),
   };
 }
 
 module.exports = getExpoConfig;
-

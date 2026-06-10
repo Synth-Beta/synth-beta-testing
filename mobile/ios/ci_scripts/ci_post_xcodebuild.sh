@@ -80,7 +80,7 @@ print_release_entitlements_file() {
     entitlements="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/Synth/Synth.release.entitlements"
   fi
   if [[ -f "${entitlements}" ]]; then
-    echo "ci_post_xcodebuild: --- Synth.release.entitlements ---"
+    echo "ci_post_xcodebuild: --- Synth.release.entitlements (Release archive) ---"
     cat "${entitlements}"
     echo ""
   fi
@@ -94,12 +94,11 @@ if [[ -d "${ARCHIVE_PATH}" ]]; then
   echo "ci_post_xcodebuild: --- checking exportArchive logs (exit 70 = signing/entitlements mismatch) ---"
   dump_export_logs
 
-  echo "ci_post_xcodebuild: If export failed, enable these App ID capabilities for com.tejpatel.synth"
-  echo "ci_post_xcodebuild: at https://developer.apple.com/account/resources/identifiers"
-  echo "ci_post_xcodebuild:   - Push Notifications"
-  echo "ci_post_xcodebuild:   - Sign in with Apple"
-  echo "ci_post_xcodebuild:   - Associated Domains"
-  echo "ci_post_xcodebuild: Then start a new Xcode Cloud build so managed profiles regenerate."
+  echo "ci_post_xcodebuild: Export exit 70 fixes (try in order):"
+  echo "ci_post_xcodebuild: 1) Download export log artifact from this build; search for 'exportArchive:' and 'doesn't include'"
+  echo "ci_post_xcodebuild: 2) developer.apple.com → Identifiers → com.tejpatel.synth → enable Push, Sign in with Apple, Associated Domains → Save → Confirm"
+  echo "ci_post_xcodebuild: 3) developer.apple.com → Certificates → revoke expired 'Managed (Xcode Cloud)' certs → rebuild"
+  echo "ci_post_xcodebuild: 4) Re-run Xcode Cloud after profiles regenerate (new build, not retry)"
   exit 0
 fi
 
