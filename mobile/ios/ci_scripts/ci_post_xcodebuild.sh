@@ -58,6 +58,32 @@ dump_export_log_file() {
   echo ""
 }
 
+print_export_archive_errors() {
+  local logfile had_errors=0
+  echo "ci_post_xcodebuild: --- exportArchive error lines (root cause for exit 70) ---"
+  for logfile in \
+    /Volumes/workspace/tmp/app-store-export-archive-logs/xcodebuild-export-archive.log \
+    /Volumes/workspace/tmp/ad-hoc-export-archive-logs/xcodebuild-export-archive.log \
+    /Volumes/workspace/tmp/development-export-archive-logs/xcodebuild-export-archive.log \
+    /Volumes/Task/logs/app-store-export-archive-logs/xcodebuild-export-archive.log \
+    /Volumes/Task/logs/ad-hoc-export-archive-logs/xcodebuild-export-archive.log \
+    /Volumes/Task/logs/development-export-archive-logs/xcodebuild-export-archive.log; do
+    [[ -f "${logfile}" ]] || continue
+    echo "ci_post_xcodebuild: from ${logfile}:"
+    if grep -Eiq "error: exportArchive|Error Domain|No signing certificate|doesn't include|doesn't support|EXPORT FAILED" "${logfile}" 2>/dev/null; then
+      grep -Ei "error: exportArchive|Error Domain|No signing certificate|doesn't include|doesn't support|EXPORT FAILED" "${logfile}" 2>/dev/null | tail -80 || true
+      had_errors=1
+    else
+      tail -15 "${logfile}" 2>/dev/null || true
+    fi
+    echo ""
+  done
+  if [[ "${had_errors}" -eq 0 ]]; then
+    echo "ci_post_xcodebuild: (no exportArchive error lines in standard log paths — see full export logs below)"
+    echo ""
+  fi
+}
+
 dump_export_logs() {
   local found=0
   local logdir logfile
@@ -140,19 +166,25 @@ if [[ -d "${ARCHIVE_PATH}" ]]; then
   print_archived_entitlements
   print_release_entitlements_file
 
-  echo "ci_post_xcodebuild: --- exportArchive logs (exit 70 = signing / entitlements / certs) ---"
-  dump_export_logs
-
   if [[ "${export_failed}" -eq 1 ]]; then
-    echo "ci_post_xcodebuild: ========== EXPORT FAILED (archive OK) =========="
-    echo "ci_post_xcodebuild: Fix in Apple Developer (com.tejpatel.synth):"
-    echo "ci_post_xcodebuild:  A) Identifiers → enable Push Notifications, Sign in with Apple, Associated Domains → Save → Confirm"
-    echo "ci_post_xcodebuild:  B) Certificates → revoke ALL expired/duplicate 'Managed (Xcode Cloud)' Distribution + Development certs"
-    echo "ci_post_xcodebuild:  C) Start a NEW Xcode Cloud build (not Retry) so profiles regenerate"
-    echo "ci_post_xcodebuild: Optional: run ONE 'eas build -p ios --profile production' locally to sync capabilities (needs EXPO_TOKEN), then retry Xcode Cloud."
-    echo "ci_post_xcodebuild: Search export log above for: exportArchive: | doesn't include | No signing certificate"
+    echo "ci_post_xcodebuild: ========== EXPORT FAILED (archive OK, exit 70) =========="
+    print_export_archive_errors
+    echo "ci_post_xcodebuild: --- full export logs ---"
+    dump_export_logs
+    echo "ci_post_xcodebuild: Required App ID capabilities for com.tejpatel.synth:"
+    echo "ci_post_xcodebuild:   https://developer.apple.com/account/resources/identifiers"
+    echo "ci_post_xcodebuild:   → Push Notifications"
+    echo "ci_post_xcodebuild:   → Sign in with Apple"
+    echo "ci_post_xcodebuild:   → Associated Domains (for applinks:join.getsynth.app)"
+    echo "ci_post_xcodebuild:   Save → Confirm → NEW Xcode Cloud build (not Retry)"
+    echo "ci_post_xcodebuild: If still failing: revoke expired 'Managed (Xcode Cloud)' certs at"
+    echo "ci_post_xcodebuild:   https://developer.apple.com/account/resources/certificates/list"
+    echo "ci_post_xcodebuild: Fastest ship path: cd mobile && eas build -p ios --profile production"
     echo "ci_post_xcodebuild: ================================================"
+    exit 1
   fi
+
+  echo "ci_post_xcodebuild: Export succeeded."
   exit 0
 fi
 
