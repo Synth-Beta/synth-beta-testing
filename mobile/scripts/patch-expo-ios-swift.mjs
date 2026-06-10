@@ -18,12 +18,12 @@ function applyPatches(content) {
     'UIApplication.shared.applicationIconBadgeNumber',
   );
 
-  patched = patched.replace(
+  patched = patched.replaceAll(
     /RCTFatal\s*\(\s*RCTErrorWithMessage\s*\(([\s\S]*?)\)\s*\)/g,
     'fatalError($1)',
   );
 
-  patched = patched.replace(
+  patched = patched.replaceAll(
     /EXFatal\s*\(\s*EXErrorWithMessage\s*\(([\s\S]*?)\)\s*\)/g,
     'fatalError($1)',
   );
