@@ -9,6 +9,9 @@ RESULT_BUNDLE="${CI_RESULT_BUNDLE_PATH:-/Volumes/workspace/resultbundle.xcresult
 echo "ci_post_xcodebuild: CI_XCODEBUILD_ACTION=${CI_XCODEBUILD_ACTION:-unknown}"
 echo "ci_post_xcodebuild: CI_XCODEBUILD_EXIT_CODE=${CI_XCODEBUILD_EXIT_CODE:-unknown}"
 echo "ci_post_xcodebuild: CI_ARCHIVE_PATH=${ARCHIVE_PATH}"
+echo "ci_post_xcodebuild: CI_APP_STORE_SIGNED_APP_PATH=${CI_APP_STORE_SIGNED_APP_PATH:-unset}"
+echo "ci_post_xcodebuild: CI_AD_HOC_SIGNED_APP_PATH=${CI_AD_HOC_SIGNED_APP_PATH:-unset}"
+echo "ci_post_xcodebuild: CI_DEVELOPMENT_SIGNED_APP_PATH=${CI_DEVELOPMENT_SIGNED_APP_PATH:-unset}"
 
 read_activity_log() {
   local file="$1"
@@ -26,8 +29,32 @@ dump_activity_log_errors() {
   local file="$1"
   echo "ci_post_xcodebuild: --- build activity log: ${file} ---"
   read_activity_log "${file}" \
-    | grep -E "error:|fatal error:|BUILD FAILED|Command .* failed|Signing|entitlements|provisioning profile|No profiles|CodeSign|exportArchive|IDEDistribution|doesn't include|doesn't support" \
+    | grep -E "error:|fatal error:|BUILD FAILED|Command .* failed|Signing|entitlements|provisioning profile|No profiles|CodeSign|exportArchive|IDEDistribution|doesn't include|doesn't support|No signing certificate" \
     | tail -80 || true
+  echo ""
+}
+
+dump_export_log_file() {
+  local logfile="$1"
+  echo "ci_post_xcodebuild: --- ${logfile} ---"
+  if [[ ! -f "${logfile}" ]]; then
+    echo "(missing)"
+    echo ""
+    return 0
+  fi
+
+  # Primary export log from Xcode Cloud (tee'd from xcodebuild -exportArchive).
+  if [[ "$(basename "${logfile}")" == "xcodebuild-export-archive.log" ]]; then
+    tail -120 "${logfile}" 2>/dev/null || true
+    echo ""
+    return 0
+  fi
+
+  if grep -Eiq "error:|exportArchive|Error Domain|doesn't include|doesn't support|No signing certificate|EXPORT FAILED" "${logfile}" 2>/dev/null; then
+    grep -Ei "error:|exportArchive|Error Domain|doesn't include|doesn't support|No signing certificate|EXPORT FAILED" "${logfile}" 2>/dev/null | tail -80 || true
+  else
+    tail -40 "${logfile}" 2>/dev/null || true
+  fi
   echo ""
 }
 
@@ -47,16 +74,29 @@ dump_export_logs() {
     [[ -d "${logdir}" ]] || continue
     found=1
     echo "ci_post_xcodebuild: --- export log directory: ${logdir} ---"
+    ls -la "${logdir}" 2>/dev/null || true
+    echo ""
+
+    if [[ -f "${logdir}/xcodebuild-export-archive.log" ]]; then
+      dump_export_log_file "${logdir}/xcodebuild-export-archive.log"
+    fi
+
     while IFS= read -r logfile; do
-      echo "ci_post_xcodebuild: --- ${logfile} ---"
-      grep -E "error:|Error Domain|exportArchive|entitlements|provisioning profile|doesn't include|doesn't support|Signing|IDEDistribution" "${logfile}" 2>/dev/null | tail -60 || true
-      echo ""
-    done < <(find "${logdir}" -type f \( -name "*.log" -o -name "*.txt" \) 2>/dev/null | sort)
+      [[ "${logfile}" == *"/xcodebuild-export-archive.log" ]] && continue
+      dump_export_log_file "${logfile}"
+    done < <(find "${logdir}" -type f 2>/dev/null | sort)
   done
 
   if [[ "${found}" -eq 0 ]]; then
-    echo "ci_post_xcodebuild: (no export log directories found under /Volumes/workspace/tmp or /Volumes/Task/logs)"
-    echo ""
+    echo "ci_post_xcodebuild: searching /Volumes/workspace/tmp for export logs..."
+    while IFS= read -r logfile; do
+      found=1
+      dump_export_log_file "${logfile}"
+    done < <(find /Volumes/workspace/tmp -maxdepth 3 -type f \( -name 'xcodebuild-export-archive.log' -o -name '*export*.log' \) 2>/dev/null)
+    if [[ "${found}" -eq 0 ]]; then
+      echo "ci_post_xcodebuild: (no export log directories or files found)"
+      echo ""
+    fi
   fi
 }
 
@@ -66,6 +106,8 @@ print_archived_entitlements() {
     app_path="$(find "${ARCHIVE_PATH}/Products/Applications" -maxdepth 1 -name "*.app" -type d 2>/dev/null | head -1)"
   fi
   if [[ -z "${app_path}" || ! -d "${app_path}" ]]; then
+    echo "ci_post_xcodebuild: (archive app bundle not found under ${ARCHIVE_PATH})"
+    echo ""
     return 0
   fi
 
@@ -86,19 +128,31 @@ print_release_entitlements_file() {
   fi
 }
 
+export_failed=0
+if [[ -d "${ARCHIVE_PATH}" ]]; then
+  if [[ -z "${CI_APP_STORE_SIGNED_APP_PATH:-}" && -z "${CI_AD_HOC_SIGNED_APP_PATH:-}" && -z "${CI_DEVELOPMENT_SIGNED_APP_PATH:-}" ]]; then
+    export_failed=1
+  fi
+fi
+
 if [[ -d "${ARCHIVE_PATH}" ]]; then
   echo "ci_post_xcodebuild: Archive exists — xcodebuild archive succeeded."
   print_archived_entitlements
   print_release_entitlements_file
 
-  echo "ci_post_xcodebuild: --- checking exportArchive logs (exit 70 = signing/entitlements mismatch) ---"
+  echo "ci_post_xcodebuild: --- exportArchive logs (exit 70 = signing / entitlements / certs) ---"
   dump_export_logs
 
-  echo "ci_post_xcodebuild: Export exit 70 fixes (try in order):"
-  echo "ci_post_xcodebuild: 1) Download export log artifact from this build; search for 'exportArchive:' and 'doesn't include'"
-  echo "ci_post_xcodebuild: 2) developer.apple.com → Identifiers → com.tejpatel.synth → enable Push, Sign in with Apple, Associated Domains → Save → Confirm"
-  echo "ci_post_xcodebuild: 3) developer.apple.com → Certificates → revoke expired 'Managed (Xcode Cloud)' certs → rebuild"
-  echo "ci_post_xcodebuild: 4) Re-run Xcode Cloud after profiles regenerate (new build, not retry)"
+  if [[ "${export_failed}" -eq 1 ]]; then
+    echo "ci_post_xcodebuild: ========== EXPORT FAILED (archive OK) =========="
+    echo "ci_post_xcodebuild: Fix in Apple Developer (com.tejpatel.synth):"
+    echo "ci_post_xcodebuild:  A) Identifiers → enable Push Notifications, Sign in with Apple, Associated Domains → Save → Confirm"
+    echo "ci_post_xcodebuild:  B) Certificates → revoke ALL expired/duplicate 'Managed (Xcode Cloud)' Distribution + Development certs"
+    echo "ci_post_xcodebuild:  C) Start a NEW Xcode Cloud build (not Retry) so profiles regenerate"
+    echo "ci_post_xcodebuild: Optional: run ONE 'eas build -p ios --profile production' locally to sync capabilities (needs EXPO_TOKEN), then retry Xcode Cloud."
+    echo "ci_post_xcodebuild: Search export log above for: exportArchive: | doesn't include | No signing certificate"
+    echo "ci_post_xcodebuild: ================================================"
+  fi
   exit 0
 fi
 
@@ -163,7 +217,7 @@ fi
 if [[ -d "${DERIVED_DATA}/Logs" ]]; then
   while IFS= read -r logfile; do
     echo "ci_post_xcodebuild: --- log file: ${logfile} ---"
-    grep -E "error:|fatal error:|BUILD FAILED|Signing|entitlements|provisioning profile|exportArchive" "${logfile}" 2>/dev/null | tail -40 || true
+    grep -E "error:|fatal error:|BUILD FAILED|Signing|entitlements|provisioning profile|exportArchive|No signing certificate" "${logfile}" 2>/dev/null | tail -40 || true
     echo ""
   done < <(find "${DERIVED_DATA}/Logs" -name "*.log" -type f 2>/dev/null | sort -r | head -5)
 fi
@@ -171,5 +225,4 @@ fi
 dump_export_logs
 
 echo "ci_post_xcodebuild: ========== END ERROR SUMMARY =========="
-echo "ci_post_xcodebuild: Copy everything between the === lines and send it for debugging."
 exit 0

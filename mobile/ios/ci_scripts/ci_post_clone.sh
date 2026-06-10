@@ -118,6 +118,12 @@ fi
 )
 echo "ci_post_clone: wrote mobile/ios/.xcode.env.local (NODE_BINARY=${NODE_PATH})"
 
+echo "ci_post_clone: iOS App ID com.tejpatel.synth must have these capabilities enabled for export (exit 70 if missing):"
+echo "ci_post_clone:   Push Notifications | Sign in with Apple | Associated Domains"
+echo "ci_post_clone:   https://developer.apple.com/account/resources/identifiers"
+echo "ci_post_clone: If export fails after archive, revoke expired 'Managed (Xcode Cloud)' certs and start a NEW build."
+echo "ci_post_clone: Optional one-time: eas build -p ios --profile production (syncs capabilities; requires EXPO_TOKEN)."
+
 cd "${REPO}/mobile"
 
 # Expo inlines EXPO_PUBLIC_* at bundle time; Xcode Cloud does not load a local .env.
