@@ -71,6 +71,10 @@ if [[ ! -f "${IOS_DIR}/Synth/Synth.release.entitlements" ]]; then
   exit 1
 fi
 
+echo "ci_pre_xcodebuild: Release entitlements (must match App ID capabilities on developer.apple.com):"
+/usr/libexec/PlistBuddy -c 'Print' "${IOS_DIR}/Synth/Synth.release.entitlements" 2>/dev/null || cat "${IOS_DIR}/Synth/Synth.release.entitlements"
+echo ""
+
 # Smoke-test the same entry resolution the Xcode bundle phase uses.
 ENTRY_FILE="$("${NODE_PATH}" -e "require('expo/scripts/resolveAppEntry')" "${MOBILE_DIR}" ios absolute 2>/dev/null | tail -n 1 || true)"
 if [[ -z "${ENTRY_FILE}" || ! -f "${ENTRY_FILE}" ]]; then
