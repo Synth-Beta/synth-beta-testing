@@ -5,6 +5,8 @@ set -uo pipefail
 ARCHIVE_PATH="${CI_ARCHIVE_PATH:-/Volumes/workspace/build.xcarchive}"
 DERIVED_DATA="${CI_DERIVED_DATA_PATH:-/Volumes/workspace/DerivedData}"
 RESULT_BUNDLE="${CI_RESULT_BUNDLE_PATH:-/Volumes/workspace/resultbundle.xcresult}"
+# ERE alternation: match "error:" OR "exportArchive" (not the literal "error: exportArchive").
+EXPORT_ERROR_GREP_PATTERN="error:|exportArchive|Error Domain|No signing certificate|doesn't include|doesn't support|EXPORT FAILED"
 
 echo "ci_post_xcodebuild: CI_XCODEBUILD_ACTION=${CI_XCODEBUILD_ACTION:-unknown}"
 echo "ci_post_xcodebuild: CI_XCODEBUILD_EXIT_CODE=${CI_XCODEBUILD_EXIT_CODE:-unknown}"
@@ -50,8 +52,8 @@ dump_export_log_file() {
     return 0
   fi
 
-  if grep -Eiq "error:|exportArchive|Error Domain|doesn't include|doesn't support|No signing certificate|EXPORT FAILED" "${logfile}" 2>/dev/null; then
-    grep -Ei "error:|exportArchive|Error Domain|doesn't include|doesn't support|No signing certificate|EXPORT FAILED" "${logfile}" 2>/dev/null | tail -80 || true
+  if grep -Eiq "${EXPORT_ERROR_GREP_PATTERN}" "${logfile}" 2>/dev/null; then
+    grep -Ei "${EXPORT_ERROR_GREP_PATTERN}" "${logfile}" 2>/dev/null | tail -80 || true
   else
     tail -40 "${logfile}" 2>/dev/null || true
   fi
@@ -70,8 +72,8 @@ print_export_archive_errors() {
     /Volumes/Task/logs/development-export-archive-logs/xcodebuild-export-archive.log; do
     [[ -f "${logfile}" ]] || continue
     echo "ci_post_xcodebuild: from ${logfile}:"
-    if grep -Eiq "error: exportArchive|Error Domain|No signing certificate|doesn't include|doesn't support|EXPORT FAILED" "${logfile}" 2>/dev/null; then
-      grep -Ei "error: exportArchive|Error Domain|No signing certificate|doesn't include|doesn't support|EXPORT FAILED" "${logfile}" 2>/dev/null | tail -80 || true
+    if grep -Eiq "${EXPORT_ERROR_GREP_PATTERN}" "${logfile}" 2>/dev/null; then
+      grep -Ei "${EXPORT_ERROR_GREP_PATTERN}" "${logfile}" 2>/dev/null | tail -80 || true
       had_errors=1
     else
       tail -15 "${logfile}" 2>/dev/null || true
