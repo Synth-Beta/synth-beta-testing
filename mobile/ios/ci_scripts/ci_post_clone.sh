@@ -17,20 +17,43 @@ GIT_FULL="$(git -C "${REPO}" rev-parse HEAD 2>/dev/null || echo unknown)"
 echo "ci_post_clone: git ${GIT_SHA} (${GIT_FULL})"
 echo "ci_post_clone: After TestFlight install, confirm the build matches this commit (Xcode Cloud build logs / App Store Connect)."
 
+# RN 0.83 / Metro 0.83 require Node >= 20.19.4 (see npm EBADENGINE in mobile deps).
+XCODE_CLOUD_NODE_MIN_VERSION="${XCODE_CLOUD_NODE_MIN_VERSION:-20.19.4}"
+XCODE_CLOUD_NODE_VERSION="${XCODE_CLOUD_NODE_VERSION:-20.19.4}"
+
+node_version_meets_minimum() {
+  local node_bin="${1:-node}"
+  "${node_bin}" -e "
+    const min = process.env.XCODE_CLOUD_NODE_MIN_VERSION.split('.').map(Number);
+    const cur = process.versions.node.split('.').map(Number);
+    const ok =
+      cur[0] > min[0] ||
+      (cur[0] === min[0] &&
+        (cur[1] > min[1] || (cur[1] === min[1] && cur[2] >= min[2])));
+    process.exit(ok ? 0 : 1);
+  " 2>/dev/null
+}
+
 ensure_npm() {
+  export XCODE_CLOUD_NODE_MIN_VERSION
+
   # Apple Silicon + Intel Homebrew locations (not always on default PATH).
   export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
 
-  if command -v npm >/dev/null 2>&1; then
-    echo "ci_post_clone: found npm at $(command -v npm)"
+  if command -v npm >/dev/null 2>&1 && node_version_meets_minimum; then
+    echo "ci_post_clone: found npm at $(command -v npm) ($(node -v))"
     return 0
   fi
 
-  # Prior tarball install from an earlier ci_post_clone on this worker.
+  if command -v npm >/dev/null 2>&1; then
+    echo "ci_post_clone: npm on PATH is too old ($(node -v)); need >= ${XCODE_CLOUD_NODE_MIN_VERSION}" >&2
+  fi
+
+  # Prior tarball install from an earlier ci_post_clone on this worker (skip if too old).
   for prior_dir in "${HOME}"/.xcode-cloud-node/node-v*-darwin-*; do
-    if [[ -x "${prior_dir}/bin/npm" ]]; then
+    if [[ -x "${prior_dir}/bin/npm" ]] && node_version_meets_minimum "${prior_dir}/bin/node"; then
       export PATH="${prior_dir}/bin:${PATH}"
-      echo "ci_post_clone: found npm from prior tarball at ${prior_dir}/bin/npm"
+      echo "ci_post_clone: found npm from prior tarball at ${prior_dir}/bin/npm ($(node -v))"
       return 0
     fi
   done
@@ -38,7 +61,7 @@ ensure_npm() {
   # Official Node binary from nodejs.org — preferred on Xcode Cloud because
   # `brew install node` pulls dozens of bottles from ghcr.io (often unreachable).
   local ver arch dir attempt max_attempts wait_seconds
-  ver="${XCODE_CLOUD_NODE_VERSION:-20.18.1}"
+  ver="${XCODE_CLOUD_NODE_VERSION}"
   arch="$(uname -m)"
   case "${arch}" in
     arm64) arch=arm64 ;;
@@ -66,11 +89,11 @@ ensure_npm() {
       tar -xzf /tmp/xcode-cloud-node.tgz -C "${HOME}/.xcode-cloud-node"
       rm -f /tmp/xcode-cloud-node.tgz
       export PATH="${dir}/bin:${PATH}"
-      if command -v npm >/dev/null 2>&1; then
-        echo "ci_post_clone: Node tarball install OK (${dir})"
+      if command -v npm >/dev/null 2>&1 && node_version_meets_minimum; then
+        echo "ci_post_clone: Node tarball install OK (${dir}, $(node -v))"
         return 0
       fi
-      echo "ci_post_clone: tarball extracted but npm not found in ${dir}/bin" >&2
+      echo "ci_post_clone: tarball extracted but npm missing or Node too old in ${dir}/bin" >&2
     fi
     if [[ "${attempt}" -lt "${max_attempts}" ]]; then
       echo "ci_post_clone: Node download failed; retrying in ${wait_seconds}s..."
@@ -86,8 +109,8 @@ ensure_npm() {
     export HOMEBREW_NO_ENV_HINTS=1
     if brew install node; then
       hash -r || true
-      if command -v npm >/dev/null 2>&1; then
-        echo "ci_post_clone: Homebrew node install OK"
+      if command -v npm >/dev/null 2>&1 && node_version_meets_minimum; then
+        echo "ci_post_clone: Homebrew node install OK ($(node -v))"
         return 0
       fi
     fi
@@ -152,8 +175,39 @@ else
   echo "ci_post_clone: WARNING: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY not set — add them in Xcode Cloud workflow environment (App Store Connect)."
 fi
 
-echo "ci_post_clone: npm ci in mobile/"
-npm ci
+echo "ci_post_clone: npm ci in mobile/ (requires Node >= ${XCODE_CLOUD_NODE_MIN_VERSION})"
+run_npm_ci() {
+  local max_attempts="${XCODE_CLOUD_NPM_CI_ATTEMPTS:-3}"
+  local wait_seconds="${XCODE_CLOUD_NPM_CI_RETRY_WAIT:-20}"
+  local attempt=1
+
+  while [[ "${attempt}" -le "${max_attempts}" ]]; do
+    echo "ci_post_clone: npm ci attempt ${attempt}/${max_attempts}..."
+    if [[ "${attempt}" -gt 1 ]]; then
+      rm -rf node_modules
+    fi
+    if npm ci && [[ -d node_modules/expo && -d node_modules/react-native ]]; then
+      return 0
+    fi
+    echo "ci_post_clone: npm ci failed or mobile deps incomplete (expo/react-native missing)" >&2
+    if [[ "${attempt}" -lt "${max_attempts}" ]]; then
+      echo "ci_post_clone: retrying npm ci in ${wait_seconds}s..."
+      sleep "${wait_seconds}"
+    fi
+    attempt=$((attempt + 1))
+  done
+  return 1
+}
+
+if ! run_npm_ci; then
+  echo "ci_post_clone: npm ci failed after retries (node $(node -v))" >&2
+  exit 1
+fi
+
+if [[ ! -d node_modules/expo ]]; then
+  echo "ci_post_clone: node_modules/expo missing after npm ci" >&2
+  exit 1
+fi
 
 if [[ ! -d node_modules/@synth/shared ]]; then
   echo "ci_post_clone: @synth/shared missing after npm ci (file:../packages/synth-shared)" >&2

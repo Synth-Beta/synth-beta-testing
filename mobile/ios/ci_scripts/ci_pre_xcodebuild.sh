@@ -8,12 +8,34 @@ IOS_DIR="${REPO}/mobile/ios"
 MOBILE_DIR="${REPO}/mobile"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH}"
-# Node tarball from ci_post_clone (either arch)
+
+XCODE_CLOUD_NODE_MIN_VERSION="${XCODE_CLOUD_NODE_MIN_VERSION:-20.19.4}"
+export XCODE_CLOUD_NODE_MIN_VERSION
+
+node_version_meets_minimum() {
+  local node_bin="${1:-node}"
+  "${node_bin}" -e "
+    const min = process.env.XCODE_CLOUD_NODE_MIN_VERSION.split('.').map(Number);
+    const cur = process.versions.node.split('.').map(Number);
+    const ok =
+      cur[0] > min[0] ||
+      (cur[0] === min[0] &&
+        (cur[1] > min[1] || (cur[1] === min[1] && cur[2] >= min[2])));
+    process.exit(ok ? 0 : 1);
+  " 2>/dev/null
+}
+
+# Prefer newest cached tarball that meets the minimum (avoid stale 20.18.x on PATH).
+best_tarball_bin=""
 for dir in "${HOME}"/.xcode-cloud-node/node-v*-darwin-*; do
-  if [[ -d "${dir}/bin" ]]; then
-    export PATH="${dir}/bin:${PATH}"
+  [[ -x "${dir}/bin/node" ]] || continue
+  if node_version_meets_minimum "${dir}/bin/node"; then
+    best_tarball_bin="${dir}/bin"
   fi
 done
+if [[ -n "${best_tarball_bin}" ]]; then
+  export PATH="${best_tarball_bin}:${PATH}"
+fi
 
 NODE_PATH=""
 for candidate in \
@@ -29,6 +51,11 @@ done
 
 if [[ -z "${NODE_PATH}" ]]; then
   echo "ci_pre_xcodebuild: node not found on PATH" >&2
+  exit 127
+fi
+
+if ! node_version_meets_minimum "${NODE_PATH}"; then
+  echo "ci_pre_xcodebuild: node too old ($("${NODE_PATH}" -v)); need >= ${XCODE_CLOUD_NODE_MIN_VERSION}" >&2
   exit 127
 fi
 
