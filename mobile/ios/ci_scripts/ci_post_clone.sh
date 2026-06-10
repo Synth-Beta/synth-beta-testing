@@ -26,18 +26,18 @@ ensure_npm() {
     return 0
   fi
 
-  if command -v brew >/dev/null 2>&1; then
-    echo "ci_post_clone: npm missing; installing Node via Homebrew..."
-    # Avoid long Homebrew auto-update + extra network on CI (often slow/flaky).
-    export HOMEBREW_NO_AUTO_UPDATE=1
-    export HOMEBREW_NO_ENV_HINTS=1
-    brew install node
-    hash -r || true
-    return 0
-  fi
+  # Prior tarball install from an earlier ci_post_clone on this worker.
+  for prior_dir in "${HOME}"/.xcode-cloud-node/node-v*-darwin-*; do
+    if [[ -x "${prior_dir}/bin/npm" ]]; then
+      export PATH="${prior_dir}/bin:${PATH}"
+      echo "ci_post_clone: found npm from prior tarball at ${prior_dir}/bin/npm"
+      return 0
+    fi
+  done
 
-  # Last resort: official Node binary (no Homebrew).
-  local ver arch dir
+  # Official Node binary from nodejs.org — preferred on Xcode Cloud because
+  # `brew install node` pulls dozens of bottles from ghcr.io (often unreachable).
+  local ver arch dir attempt max_attempts wait_seconds
   ver="${XCODE_CLOUD_NODE_VERSION:-20.18.1}"
   arch="$(uname -m)"
   case "${arch}" in
@@ -50,16 +50,52 @@ ensure_npm() {
   esac
 
   dir="${HOME}/.xcode-cloud-node/node-v${ver}-darwin-${arch}"
-  if [[ ! -x "${dir}/bin/npm" ]]; then
-    echo "ci_post_clone: installing Node ${ver} (${arch}) from nodejs.org..."
-    mkdir -p "${HOME}/.xcode-cloud-node"
-    curl -fsSL "https://nodejs.org/dist/v${ver}/node-v${ver}-darwin-${arch}.tar.gz" -o /tmp/xcode-cloud-node.tgz
-    rm -rf "${dir}"
-    tar -xzf /tmp/xcode-cloud-node.tgz -C "${HOME}/.xcode-cloud-node"
-    rm -f /tmp/xcode-cloud-node.tgz
+  max_attempts="${XCODE_CLOUD_NODE_DOWNLOAD_ATTEMPTS:-5}"
+  wait_seconds="${XCODE_CLOUD_NODE_DOWNLOAD_RETRY_WAIT:-15}"
+
+  echo "ci_post_clone: npm missing; installing Node ${ver} (${arch}) from nodejs.org..."
+  mkdir -p "${HOME}/.xcode-cloud-node"
+
+  attempt=1
+  while [[ "${attempt}" -le "${max_attempts}" ]]; do
+    echo "ci_post_clone: Node download attempt ${attempt}/${max_attempts}..."
+    if curl -fsSL --max-time 180 --retry 3 --retry-delay 5 \
+      "https://nodejs.org/dist/v${ver}/node-v${ver}-darwin-${arch}.tar.gz" \
+      -o /tmp/xcode-cloud-node.tgz; then
+      rm -rf "${dir}"
+      tar -xzf /tmp/xcode-cloud-node.tgz -C "${HOME}/.xcode-cloud-node"
+      rm -f /tmp/xcode-cloud-node.tgz
+      export PATH="${dir}/bin:${PATH}"
+      if command -v npm >/dev/null 2>&1; then
+        echo "ci_post_clone: Node tarball install OK (${dir})"
+        return 0
+      fi
+      echo "ci_post_clone: tarball extracted but npm not found in ${dir}/bin" >&2
+    fi
+    if [[ "${attempt}" -lt "${max_attempts}" ]]; then
+      echo "ci_post_clone: Node download failed; retrying in ${wait_seconds}s..."
+      sleep "${wait_seconds}"
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  # Last resort only — Homebrew depends on ghcr.io and often fails on Xcode Cloud.
+  if command -v brew >/dev/null 2>&1; then
+    echo "ci_post_clone: nodejs.org tarball failed; trying Homebrew (may fail if ghcr.io is blocked)..."
+    export HOMEBREW_NO_AUTO_UPDATE=1
+    export HOMEBREW_NO_ENV_HINTS=1
+    if brew install node; then
+      hash -r || true
+      if command -v npm >/dev/null 2>&1; then
+        echo "ci_post_clone: Homebrew node install OK"
+        return 0
+      fi
+    fi
+    echo "ci_post_clone: Homebrew node install failed" >&2
   fi
 
-  export PATH="${dir}/bin:${PATH}"
+  echo "ci_post_clone: could not install Node/npm (nodejs.org and Homebrew both failed)" >&2
+  exit 127
 }
 
 ensure_npm
