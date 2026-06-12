@@ -386,10 +386,19 @@ function buildQuestionDay(content, bots, daysAgo, genreSlug) {
  * @param {string} [opts.batch='initial-v2']
  * @param {number} [opts.activeDays=10]
  */
+export function botDisplayName(bot) {
+  if (!bot) return null;
+  const name = typeof bot.displayName === 'string' ? bot.displayName.trim() : '';
+  if (name) return name;
+  const username = typeof bot.username === 'string' ? bot.username.trim() : '';
+  return username || null;
+}
+
 export function generateSeedMessages({ genreSlug, bots, batch = 'initial-v2', activeDays = 10 }) {
   const content = GENRE_CONTENT[genreSlug];
   if (!content || !bots?.length) return [];
 
+  const botById = new Map(bots.map((b) => [b.user_id, b]));
   const messages = [];
   for (let daysAgo = activeDays; daysAgo >= 1; daysAgo--) {
     const isQuestionDay = daysAgo % 2 === 0;
@@ -398,7 +407,15 @@ export function generateSeedMessages({ genreSlug, bots, batch = 'initial-v2', ac
       : buildConversationDay(content, bots, daysAgo);
 
     for (const m of dayMessages) {
-      messages.push({ ...m, metadata: { bot_seed: true, batch } });
+      const senderDisplayName = botDisplayName(botById.get(m.sender_id));
+      messages.push({
+        ...m,
+        metadata: {
+          bot_seed: true,
+          batch,
+          ...(senderDisplayName ? { sender_display_name: senderDisplayName } : {}),
+        },
+      });
     }
   }
 
@@ -425,7 +442,11 @@ export function generateDailyBotMessage({ genreSlug, bot }) {
     created_at: new Date().toISOString(),
     message_type: 'text',
     is_encrypted: false,
-    metadata: { bot_seed: true, batch: 'daily' },
+    metadata: {
+      bot_seed: true,
+      batch: 'daily',
+      ...(botDisplayName(bot) ? { sender_display_name: botDisplayName(bot) } : {}),
+    },
   };
 }
 

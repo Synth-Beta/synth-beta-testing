@@ -6,6 +6,92 @@ import { supabase } from '../integrations/supabase/client';
 import { encryptMessage } from './chatEncryptionService';
 import { decryptChatMessage } from './chatDecrypt';
 
+const CHAT_SENDER_NAME_FALLBACK = 'Unknown';
+
+type ChatSenderProfile = {
+    name: string;
+    avatar_url: string | null;
+    bio: string | null;
+    account_type: string | null;
+};
+
+function normalizeChatSenderProfile(row: {
+    user_id: string;
+    name?: string | null;
+    username?: string | null;
+    avatar_url?: string | null;
+    bio?: string | null;
+    account_type?: string | null;
+}): ChatSenderProfile {
+    const trimmedName = row.name?.trim() ?? '';
+    const trimmedUsername = row.username?.trim() ?? '';
+    return {
+        name: trimmedName || trimmedUsername || CHAT_SENDER_NAME_FALLBACK,
+        avatar_url: row.avatar_url ?? null,
+        bio: row.bio ?? null,
+        account_type: row.account_type ?? null,
+    };
+}
+
+function resolveSenderDisplayName(
+    profile: { name?: string | null; username?: string | null } | undefined,
+    metadata?: Record<string, unknown> | null
+): string {
+    const fromMeta =
+        typeof metadata?.sender_display_name === 'string' ? metadata.sender_display_name.trim() : '';
+    if (fromMeta) return fromMeta;
+
+    const name = typeof profile?.name === 'string' ? profile.name.trim() : '';
+    if (name) return name;
+
+    const username = typeof profile?.username === 'string' ? profile.username.trim() : '';
+    if (username) return username.startsWith('@') ? username : `@${username}`;
+
+    return 'Unknown';
+}
+
+async function fetchChatSenderProfiles(
+    chatId: string,
+    senderIds: string[]
+): Promise<Map<string, ChatSenderProfile>> {
+    const map = new Map<string, ChatSenderProfile>();
+    const unique = [...new Set(senderIds.filter(Boolean))];
+    if (!unique.length || !chatId) return map;
+
+    const { data: rpcData, error: rpcError } = await supabase.rpc('get_chat_sender_profiles', {
+        p_chat_id: chatId,
+        p_sender_ids: unique,
+    });
+
+    if (!rpcError && rpcData?.length) {
+        for (const row of rpcData as Array<{
+            user_id: string;
+            name: string | null;
+            username: string | null;
+            avatar_url: string | null;
+            bio?: string | null;
+            account_type?: string | null;
+        }>) {
+            map.set(row.user_id, normalizeChatSenderProfile(row));
+        }
+        if (map.size >= unique.length) return map;
+    }
+
+    const missing = unique.filter((id) => !map.has(id));
+    if (!missing.length) return map;
+
+    const { data: direct } = await supabase
+        .from('users')
+        .select('user_id, name, username, avatar_url, bio, account_type')
+        .in('user_id', missing);
+
+    for (const u of direct || []) {
+        map.set(u.user_id, normalizeChatSenderProfile(u));
+    }
+
+    return map;
+}
+
 const CHAT_IMAGE_ALLOWED_MIME = new Set([
     'image/jpeg',
     'image/jpg',
@@ -321,19 +407,10 @@ export class ChatService {
 
             const rows = (data || []).slice().reverse();
             const senderIds = [...new Set(rows.map((m: { sender_id: string }) => m.sender_id))];
-            const senderProfiles = new Map<string, { name: string; avatar_url: string | null }>();
-            if (senderIds.length > 0) {
-                const { data: users } = await supabase
-                    .from('users')
-                    .select('user_id, name, avatar_url')
-                    .in('user_id', senderIds);
-                for (const u of users || []) {
-                    senderProfiles.set(u.user_id, {
-                        name: u.name || 'User',
-                        avatar_url: u.avatar_url ?? null,
-                    });
-                }
-            }
+            const senderProfiles =
+                senderIds.length > 0
+                    ? await fetchChatSenderProfiles(chatId, senderIds)
+                    : new Map<string, ChatSenderProfile>();
 
             const messageIds = rows.map((m: { id: string }) => m.id);
             let eventIdByMessageId = new Map<string, string>();
@@ -423,7 +500,10 @@ export class ChatService {
                         id: msg.id,
                         content,
                         sender_id: msg.sender_id,
-                        sender_name: senderProfiles.get(msg.sender_id)?.name ?? 'User',
+                        sender_name: resolveSenderDisplayName(
+                            senderProfiles.get(msg.sender_id),
+                            meta
+                        ),
                         sender_avatar: senderProfiles.get(msg.sender_id)?.avatar_url ?? null,
                         created_at: msg.created_at,
                         is_mine: msg.sender_id === userId,

@@ -285,3 +285,97 @@ export function isMessageEncrypted(message: { is_encrypted?: boolean; content?: 
   
   return false;
 }
+
+export const CHAT_SENDER_NAME_FALLBACK = 'Unknown';
+
+export type ChatSenderProfile = {
+  user_id: string;
+  name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  account_type: string | null;
+};
+
+/** Single normalization path for chat sender/participant profile rows. */
+export function normalizeChatSenderProfile(row: {
+  user_id: string;
+  name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+  bio?: string | null;
+  account_type?: string | null;
+}): ChatSenderProfile {
+  const trimmedName = row.name?.trim() ?? '';
+  const trimmedUsername = row.username?.trim() ?? '';
+  return {
+    user_id: row.user_id,
+    name: trimmedName || trimmedUsername || CHAT_SENDER_NAME_FALLBACK,
+    avatar_url: row.avatar_url ?? null,
+    bio: row.bio ?? null,
+    account_type: row.account_type ?? null,
+  };
+}
+
+/** Resolve display name from profile row and optional message metadata (bot seed fallback). */
+export function resolveSenderDisplayName(
+  profile: { name?: string | null; username?: string | null } | undefined,
+  metadata?: Record<string, unknown> | null
+): string {
+  const fromMeta =
+    typeof metadata?.sender_display_name === 'string' ? metadata.sender_display_name.trim() : '';
+  if (fromMeta) return fromMeta;
+
+  const name = typeof profile?.name === 'string' ? profile.name.trim() : '';
+  if (name) return name;
+
+  const username = typeof profile?.username === 'string' ? profile.username.trim() : '';
+  if (username) return username.startsWith('@') ? username : `@${username}`;
+
+  return 'Unknown';
+}
+
+/**
+ * Fetch sender profiles for a chat (includes bot co-participants after RLS fix).
+ * Uses get_chat_sender_profiles RPC when available; falls back to direct users SELECT.
+ */
+export async function fetchChatSenderProfiles(
+  chatId: string,
+  senderIds: string[]
+): Promise<Map<string, ChatSenderProfile>> {
+  const map = new Map<string, ChatSenderProfile>();
+  const unique = [...new Set(senderIds.filter(Boolean))];
+  if (!unique.length || !chatId) return map;
+
+  const { data: rpcData, error: rpcError } = await supabase.rpc('get_chat_sender_profiles', {
+    p_chat_id: chatId,
+    p_sender_ids: unique,
+  });
+
+  if (!rpcError && rpcData?.length) {
+    for (const row of rpcData as Array<{
+      user_id: string;
+      name: string | null;
+      username: string | null;
+      avatar_url: string | null;
+      bio?: string | null;
+      account_type?: string | null;
+    }>) {
+      map.set(row.user_id, normalizeChatSenderProfile(row));
+    }
+    if (map.size >= unique.length) return map;
+  }
+
+  const missing = unique.filter((id) => !map.has(id));
+  if (missing.length === 0) return map;
+
+  const { data: direct } = await supabase
+    .from('users')
+    .select('user_id, name, username, avatar_url, bio, account_type')
+    .in('user_id', missing);
+
+  for (const u of direct || []) {
+    map.set(u.user_id, normalizeChatSenderProfile(u));
+  }
+
+  return map;
+}

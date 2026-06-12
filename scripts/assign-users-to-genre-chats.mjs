@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import {
   BOT_SEED_ANALYTICS_NOTE,
+  botDisplayName,
   getGenreConfig,
   log,
   parseArgs,
@@ -133,7 +134,12 @@ async function sendWelcomeMessage(chatId, genreSlug, user, botsInChat) {
     content,
     message_type: 'text',
     is_encrypted: false,
-    metadata: { bot_seed: true, batch: 'welcome', welcome_user_id: user.user_id },
+    metadata: {
+      bot_seed: true,
+      batch: 'welcome',
+      welcome_user_id: user.user_id,
+      ...(botDisplayName(bot) ? { sender_display_name: botDisplayName(bot) } : {}),
+    },
   });
 
   if (error) {

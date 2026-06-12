@@ -50,7 +50,13 @@ import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
-import { fetchUserChats, sendEncryptedMessage, decryptChatMessage } from '@/services/chatService';
+import {
+  fetchUserChats,
+  sendEncryptedMessage,
+  decryptChatMessage,
+  fetchChatSenderProfiles,
+  resolveSenderDisplayName,
+} from '@/services/chatService';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
@@ -950,8 +956,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       const messageIds = rawMessages.map(m => m.id);
       const senderIds = [...new Set(rawMessages.map(msg => msg.sender_id))];
 
-      // event_shares and profiles in parallel
-      const [eventSharesResult, profilesResult] = await Promise.all([
+      const [eventSharesResult, senderProfiles] = await Promise.all([
         messageIds.length > 0
           ? supabase
               .from('event_shares')
@@ -960,19 +965,18 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               .in('message_id', messageIds)
           : Promise.resolve({ data: [] }),
         senderIds.length > 0
-          ? supabase.from('users').select('user_id, name, avatar_url').in('user_id', senderIds)
-          : Promise.resolve({ data: [] })
+          ? fetchChatSenderProfiles(chatId, senderIds)
+          : Promise.resolve(new Map()),
       ]);
 
       const eventShares = eventSharesResult.data || [];
-      const profiles = profilesResult.data || [];
       const eventIdByMessageId = new Map(
         eventShares.map((s: { message_id: string; event_id: string }) => [s.message_id, s.event_id])
       );
 
       // Decrypt encrypted messages and merge event_id from event_shares when missing
       const transformedMessages = await Promise.all(rawMessages.map(async (msg) => {
-        const profile = profiles?.find(p => p.user_id === msg.sender_id);
+        const profile = senderProfiles.get(msg.sender_id);
         const fallbackEventId = eventIdByMessageId.get(msg.id);
         
         // Parse metadata if it's a string (JSONB can sometimes be returned as string)
@@ -1021,8 +1025,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           content: decryptedContent,
           is_encrypted: msg.is_encrypted,
           created_at: msg.created_at,
-          sender_name: profile?.name || 'Unknown',
-          sender_avatar: profile?.avatar_url || null,
+          sender_name: resolveSenderDisplayName(profile, parsedMetadata),
+          sender_avatar: profile?.avatar_url ?? null,
           message_type: isEventShare ? 'event_share' : (msg.message_type || 'text'),
           shared_event_id: msg.shared_event_id ?? fallbackEventId ?? null,
           shared_review_id: msg.shared_review_id,
@@ -1557,14 +1561,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           joined_at,
           last_read_at,
           is_admin,
-          notifications_enabled,
-          users!user_id(
-            user_id,
-            name,
-            avatar_url,
-            bio,
-            account_type
-          )
+          notifications_enabled
         `)
         .eq('chat_id', chatId)
         .order('joined_at', { ascending: true });
@@ -1579,8 +1576,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         return;
       }
 
-      // Fetch verification status for all participants
       const userIds = participantData.map(p => p.user_id).filter(Boolean);
+      const profileMap = await fetchChatSenderProfiles(chatId, userIds);
       const verificationMap = new Map<string, boolean>();
       
       if (userIds.length > 0) {
@@ -1599,20 +1596,19 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       // Map participant data with user info
       const participantList = participantData
         .map(p => {
-          const user = p.users as any;
-          if (!user) return null;
-          
-          // Get verified status from verification map
+          const profile = profileMap.get(p.user_id);
+          if (!profile) return null;
+
           const verified = verificationMap.get(p.user_id) || false;
 
           return {
             id: p.id,
         user_id: p.user_id,
-            name: user.name || 'Unknown User',
-            avatar_url: user.avatar_url || null,
-            bio: user.bio || null,
+            name: profile.name,
+            avatar_url: profile.avatar_url,
+            bio: profile.bio,
             verified: verified,
-            account_type: user.account_type || null,
+            account_type: profile.account_type,
             joined_at: p.joined_at,
             last_read_at: p.last_read_at,
             is_admin: p.is_admin || false,

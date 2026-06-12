@@ -24,7 +24,14 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { ContentModerationService } from '@/services/contentModerationService';
-import { fetchUserChats, sendEncryptedMessage, decryptChatMessage } from '@/services/chatService';
+import {
+  fetchUserChats,
+  sendEncryptedMessage,
+  decryptChatMessage,
+  fetchChatSenderProfiles,
+  resolveSenderDisplayName,
+  CHAT_SENDER_NAME_FALLBACK,
+} from '@/services/chatService';
 
 interface ChatMessage {
   id: string;
@@ -219,26 +226,25 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         let displayName = chat.chat_name;
 
         if (!chat.is_group_chat) {
-          // For direct chats, get the other user's profile from chat_participants
           const { data: chatParticipants } = await supabase
             .from('chat_participants')
-            .select('user_id, users!user_id(name, avatar_url)')
+            .select('user_id')
             .eq('chat_id', chat.id)
             .neq('user_id', currentUserId);
-          
-          const otherParticipant = chatParticipants?.[0];
-          if (otherParticipant) {
-            const otherUserId = otherParticipant.user_id;
-            const otherUserProfile = otherParticipant.users as any;
-            
+
+          const otherUserId = chatParticipants?.[0]?.user_id;
+          if (otherUserId) {
+            const profiles = await fetchChatSenderProfiles(chat.id, [otherUserId]);
+            const otherUserProfile = profiles.get(otherUserId);
+
             participants = [{
               user_id: otherUserId,
-              name: otherUserProfile?.name || 'Unknown User',
-              avatar_url: otherUserProfile?.avatar_url || null,
+              name: otherUserProfile?.name ?? CHAT_SENDER_NAME_FALLBACK,
+              avatar_url: otherUserProfile?.avatar_url ?? null,
               role: 'member' as const
             }];
-            
-            displayName = otherUserProfile?.name || 'Unknown User';
+
+            displayName = otherUserProfile?.name ?? CHAT_SENDER_NAME_FALLBACK;
           }
         }
 
@@ -356,53 +362,26 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         return;
       }
 
-      // Get unique sender IDs and fetch profiles in parallel
       const senderIds = [...new Set(data.map(msg => msg.sender_id))];
-      
-      // Fetch profiles while processing messages (parallel operation)
-      const profilesPromise = senderIds.length > 0
-        ? supabase
-            .from('users')
-            .select('id, user_id, name, avatar_url')
-            .in('user_id', senderIds)
-        : Promise.resolve({ data: [], error: null });
-      
-      const { data: profiles, error: profilesError } = await profilesPromise;
+      const senderProfiles =
+        senderIds.length > 0
+          ? await fetchChatSenderProfiles(selectedChat.id, senderIds)
+          : new Map();
 
-      if (profilesError) {
-        console.error('Error fetching sender profiles:', profilesError);
-        // Still set messages but without sender info
-        const transformedMessages = await Promise.all(data.map(async (msg) => {
-          // Decrypt message content if encrypted
-          let decryptedContent = msg.content;
-          if (msg.is_encrypted) {
-            try {
-              decryptedContent = await decryptChatMessage(
-                { content: msg.content, chat_id: msg.chat_id, is_encrypted: msg.is_encrypted },
-                currentUserId
-              );
-            } catch (error) {
-              console.error('Error decrypting message:', error);
-              decryptedContent = '[Unable to decrypt message]';
-            }
-          }
-          
-          return {
-            ...msg,
-            message: decryptedContent,
-            sender: {
-              name: 'Unknown',
-              avatar_url: null
-            }
-          };
-        }));
-        setMessages(transformedMessages);
-        return;
-      }
-
-      // Transform the data to match the expected interface and decrypt encrypted messages
       const transformedMessages = await Promise.all(data.map(async (msg) => {
-        const profile = profiles?.find(p => p.user_id === msg.sender_id);
+        const profile = senderProfiles.get(msg.sender_id);
+        let parsedMetadata: Record<string, unknown> = {};
+        if (msg.metadata) {
+          if (typeof msg.metadata === 'string') {
+            try {
+              parsedMetadata = JSON.parse(msg.metadata) as Record<string, unknown>;
+            } catch {
+              parsedMetadata = {};
+            }
+          } else {
+            parsedMetadata = msg.metadata as Record<string, unknown>;
+          }
+        }
         
         // Decrypt message content if encrypted
         let decryptedContent = msg.content;
@@ -423,8 +402,8 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           message: decryptedContent, // Map content to message for compatibility
           is_encrypted: msg.is_encrypted,
           sender: {
-            name: profile?.name || 'Unknown',
-            avatar_url: profile?.avatar_url || null
+            name: resolveSenderDisplayName(profile, parsedMetadata),
+            avatar_url: profile?.avatar_url ?? null
           }
         };
       }));
@@ -585,10 +564,9 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
   // Fetch chat participants for group chats
   const fetchChatParticipants = async (chatId: string) => {
     try {
-      // Get participants from chat_participants table
       const { data: participantData, error: participantsError } = await supabase
         .from('chat_participants')
-        .select('user_id, users!user_id(user_id, name, avatar_url)')
+        .select('user_id')
         .eq('chat_id', chatId);
 
       if (participantsError) {
@@ -601,16 +579,17 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         return;
       }
 
-      // Extract user profiles from the joined data
-      const profiles = participantData
-        .map(p => p.users as any)
-        .filter(Boolean);
+      const participantIds = participantData.map((p) => p.user_id);
+      const profiles = await fetchChatSenderProfiles(chatId, participantIds);
 
-      const participantList = profiles?.map(p => ({
-        user_id: p.user_id,
-        name: p.name || 'Unknown User',
-        avatar_url: p.avatar_url || null
-      })) || [];
+      const participantList = participantIds.map((userId) => {
+        const profile = profiles.get(userId);
+        return {
+          user_id: userId,
+          name: profile?.name ?? CHAT_SENDER_NAME_FALLBACK,
+          avatar_url: profile?.avatar_url ?? null,
+        };
+      });
 
       setChatParticipants(participantList);
     } catch (error) {
