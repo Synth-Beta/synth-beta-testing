@@ -24,7 +24,7 @@
       "associatedDomains": [
         "applinks:join.getsynth.app"
       ],
-      "buildNumber": "294",
+      "buildNumber": "296",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
