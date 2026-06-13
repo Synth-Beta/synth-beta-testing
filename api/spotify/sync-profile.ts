@@ -46,7 +46,11 @@ async function getAccessToken(refreshToken: string, clientId: string, clientSecr
   if (!res.ok) {
     throw new Error(errorMessageFromResponse(res, data, text));
   }
-  return data.access_token as string;
+  const accessToken = data.access_token;
+  if (typeof accessToken !== 'string' || !accessToken.trim()) {
+    throw new Error('Spotify token response missing access_token');
+  }
+  return accessToken;
 }
 
 async function spotifyApi(accessToken: string, path: string) {
