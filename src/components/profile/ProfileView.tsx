@@ -61,8 +61,7 @@ import appleMusicLogo from '@/assets/icons/Apple-Music-Logo.svg';
 import spotifyLogo from '@/assets/icons/Spotify-Logo.svg';
 import { OnboardingService } from '@/services/onboardingService';
 import { MusicServiceActionModal, type MusicServiceType } from '@/components/profile/MusicServiceActionModal';
-import { spotifyService } from '@/services/spotifyService';
-import { appleMusicService } from '@/services/appleMusicService';
+import { syncStreamingProfile } from '@/services/streamingSyncActions';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { toast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logger';
@@ -899,53 +898,35 @@ const { user, sessionExpired } = useAuth();
   };
 
   const handleMusicActionSync = async () => {
+    if (!currentUserId) return;
     setMusicActionSyncing(true);
-    let syncStarted = false;
     try {
-      if (musicServiceType === 'spotify') {
-        const hasSession = await spotifyService.ensureSession();
-        if (!hasSession || !spotifyService.isAuthenticated()) {
-          setMusicActionSyncing(false);
-          toast({ title: 'Not connected', description: 'Connect Spotify in Settings → Streaming Stats first.', variant: 'destructive' });
-          return;
-        }
-        streamingSyncService.startSync('spotify');
-        syncStarted = true;
-        await spotifyService.syncUserMusicPreferences();
-        streamingSyncService.completeSync();
-        toast({ title: 'Spotify synced', description: 'Your music preferences have been updated.' });
-      } else {
-        if (!appleMusicService.checkStoredToken()) {
-          setMusicActionSyncing(false);
-          toast({ title: 'Not connected', description: 'Connect Apple Music in Settings → Streaming Stats first.', variant: 'destructive' });
-          return;
-        }
-        streamingSyncService.startSync('apple-music');
-        syncStarted = true;
-        const success = await appleMusicService.syncProfileData();
-        if (success) {
-          streamingSyncService.completeSync();
-          toast({ title: 'Apple Music synced', description: 'Your music preferences have been updated.' });
-        } else {
-          streamingSyncService.errorSync('Sync failed');
-          toast({ title: 'Sync failed', description: 'Could not sync Apple Music data.', variant: 'destructive' });
-          return;
-        }
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sync failed';
-      const isAuthError = /authentication failed|expired|401|reconnect/i.test(message);
-      if (syncStarted) {
-        streamingSyncService.errorSync(message);
+      const serviceType = musicServiceType === 'spotify' ? 'spotify' : 'apple-music';
+      const result = await syncStreamingProfile(currentUserId, serviceType);
+      if (result.ok) {
+        toast({
+          title: `${musicServiceType === 'spotify' ? 'Spotify' : 'Apple Music'} synced`,
+          description: 'Your music preferences have been updated.',
+        });
+        return;
       }
       toast({
-        title: isAuthError ? 'Session expired' : 'Sync failed',
-        description: isAuthError
-          ? 'Your music session may have expired. Reconnect in Settings → Streaming Stats, then try again.'
-          : message,
+        title:
+          result.skipped === 'no-session' || result.skipped === 'no-stored-token'
+            ? 'Reconnect to sync'
+            : 'Sync failed',
+        description:
+          result.message ||
+          'Open Settings → Profile & Preferences → Streaming Account to resync.',
         variant: 'destructive',
       });
-      throw error;
+    } catch (error) {
+      const syncErrorMessage = error instanceof Error ? error.message : 'Sync failed';
+      toast({
+        title: 'Sync failed',
+        description: syncErrorMessage,
+        variant: 'destructive',
+      });
     } finally {
       setMusicActionSyncing(false);
     }

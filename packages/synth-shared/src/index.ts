@@ -45,6 +45,17 @@ export {
   type UserStreamingStatsSnapshot,
   fetchUserStreamingStatsSnapshot,
 } from './streamingStatsCore';
+export {
+  type StreamingProvider,
+  type StreamingLinkStatus,
+  getStreamingLinkStatus,
+} from './streamingLinkStatus';
+export {
+  type SpotifyTimeRange,
+  hasPerRangeData,
+  getSpotifyTimeRangeList,
+  SPOTIFY_TIME_RANGE_LABELS,
+} from './streamingProfileData';
 export { expoPathForShareTarget } from './expoEntityRoutes';
 export {
   resolveNotificationExpoPath,

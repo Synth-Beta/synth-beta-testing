@@ -286,6 +286,11 @@ export class SpotifyService {
           long_term: topArtistsLong.items,
         },
         topTracks: allTopTracks,
+        topTracksByTimeRange: {
+          short_term: topTracksShort.items,
+          medium_term: topTracksMed.items,
+          long_term: topTracksLong.items,
+        },
         recentlyPlayed: recentlyPlayed.items,
         userProfile
       });
@@ -501,6 +506,11 @@ export class SpotifyService {
       long_term: SpotifyArtist[];
     };
     topTracks: SpotifyTrack[];
+    topTracksByTimeRange?: {
+      short_term: SpotifyTrack[];
+      medium_term: SpotifyTrack[];
+      long_term: SpotifyTrack[];
+    };
     recentlyPlayed: any[];
     userProfile: SpotifyUser | null;
   }): Promise<void> {
@@ -517,6 +527,7 @@ export class SpotifyService {
         topArtists: data.topArtists,
         topArtistsByTimeRange: data.topArtistsByTimeRange ?? null,
         topTracks: data.topTracks,
+        topTracksByTimeRange: data.topTracksByTimeRange ?? null,
         recentlyPlayed: data.recentlyPlayed,
         userProfile: data.userProfile,
         external_urls: data.userProfile?.external_urls,

@@ -108,6 +108,11 @@ async function syncOneUser(userId, refreshToken) {
       long_term: artistsLong,
     },
     topTracks: [...tracksShort, ...tracksMed, ...tracksLong],
+    topTracksByTimeRange: {
+      short_term: tracksShort,
+      medium_term: tracksMed,
+      long_term: tracksLong,
+    },
     recentlyPlayed: recent,
     userProfile: me,
     external_urls: me?.external_urls,

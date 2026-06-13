@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { MUSIC_GENRES } from '@/data/musicGenres';
 import { MusicTagsStep } from '@/components/onboarding/MusicTagsStep';
+import { StreamingAccountSettings } from '@/components/streaming/StreamingAccountSettings';
 
 interface OnboardingPreferencesSettingsProps {
   onClose?: () => void;
@@ -498,6 +499,19 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
         </CardContent>
       </Card>
 
+      {/* Streaming account (OAuth link, resync, disconnect) */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Music className="w-4 h-4" />
+            Streaming Account
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StreamingAccountSettings />
+        </CardContent>
+      </Card>
+
       {/* Music Preferences */}
       <Card>
         <CardHeader className="pb-3">
@@ -509,6 +523,7 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
         <CardContent className="space-y-4">
           <MusicTagsStep
             showButtons={false}
+            showStreamingConnect={false}
             initialGenres={musicPreferences.genres}
             initialArtists={musicPreferences.artists}
             onChange={handleMusicPreferencesChange}

@@ -40,6 +40,8 @@ import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
 import { HomeFeed } from './home/HomeFeed';
 import { streamingSyncService } from '@/services/streamingSyncService';
+import { runStreamingAutoSync } from '@/services/streamingAutoSyncService';
+import { getStreamingLinkStatus } from '@/services/streamingConnectionService';
 import { SynthLoadingScreen } from './ui/SynthLoader';
 import { PushTokenService } from '@/services/pushTokenService';
 import { UserEventService } from '@/services/userEventService';
@@ -184,6 +186,36 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       unsubscribe();
     };
   }, [isIosNative]);
+
+  // Background streaming refresh when linked (weekly stale data + one-time migrations)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    void (async () => {
+      try {
+        const linkStatus = await getStreamingLinkStatus(user.id);
+        if (!linkStatus.linked || linkStatus.provider === 'unknown') return;
+
+        const serviceType = linkStatus.provider;
+        const { data: row } = await supabase
+          .from('streaming_profiles')
+          .select('profile_data, last_updated')
+          .eq('user_id', user.id)
+          .eq('service_type', serviceType)
+          .maybeSingle();
+
+        await runStreamingAutoSync({
+          userId: user.id,
+          serviceType,
+          profileData: (row?.profile_data as Record<string, unknown> | null) ?? null,
+          lastSynced: row?.last_updated ?? null,
+          linked: true,
+        });
+      } catch (error) {
+        console.warn('Background streaming auto-sync skipped:', error);
+      }
+    })();
+  }, [user?.id]);
 
   // Check onboarding status on mount
   useEffect(() => {

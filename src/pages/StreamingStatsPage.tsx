@@ -2,22 +2,29 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Music, RefreshCw, Headphones, BarChart3, User, Clock } from 'lucide-react';
+import { ArrowLeft, Music, RefreshCw, Headphones } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
 import { streamingSyncService } from '@/services/streamingSyncService';
+import { runStreamingAutoSync } from '@/services/streamingAutoSyncService';
+import { syncStreamingProfile } from '@/services/streamingSyncActions';
+import { getStreamingLinkStatus } from '@/services/streamingConnectionService';
+import { fetchUserStreamingStatsSnapshot } from '@synth/shared';
 import { toast } from '@/hooks/use-toast';
 import PageShell from '@/components/layout/PageShell';
 import { formatDistanceToNow } from 'date-fns';
 import { SpotifyUser } from '@/types/spotify';
+import {
+  getSpotifyTimeRangeList,
+  hasPerRangeData,
+  type SpotifyTimeRange,
+} from '@/utils/streamingProfileData';
 
 interface StreamingStatsPageProps {
   onBack?: () => void;
 }
-
-type SpotifyTimeRange = 'short_term' | 'medium_term' | 'long_term';
 
 const TIME_RANGE_LABELS: Record<SpotifyTimeRange, string> = {
   short_term: '4 Weeks',
@@ -36,6 +43,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [needsConnection, setNeedsConnection] = useState(false);
   const [timeRange, setTimeRange] = useState<SpotifyTimeRange>('medium_term');
+  const [autoSyncAttempted, setAutoSyncAttempted] = useState(false);
 
   useEffect(() => {
     if (user) loadProfile();
@@ -53,78 +61,104 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, serviceType]);
 
+  // Background refresh: one-time song-period migration + weekly stale refresh
+  useEffect(() => {
+    if (!user || loading || needsConnection || !serviceType || autoSyncAttempted) return;
+
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    if (params.get('action') === 'resync') return;
+
+    setAutoSyncAttempted(true);
+    void (async () => {
+      setSyncing(true);
+      try {
+        const result = await runStreamingAutoSync({
+          userId: user.id,
+          serviceType,
+          profileData,
+          lastSynced,
+          linked: true,
+          options: { reason: 'migration' },
+        });
+        if (result.ok) {
+          await loadProfile();
+        } else if (result.skipped && result.skipped !== 'not-needed' && result.skipped !== 'throttled') {
+          console.warn('Streaming auto-sync skipped:', result.skipped);
+        }
+      } finally {
+        setSyncing(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, needsConnection, serviceType, autoSyncAttempted]);
+
   const loadProfile = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Detect service type from users.music_streaming_profile (Spotify sets this)
-      const { data: userData } = await supabase
-        .from('users')
-        .select('music_streaming_profile')
+      const linkStatus = await getStreamingLinkStatus(user.id);
+
+      const { data: streamingRows } = await supabase
+        .from('streaming_profiles')
+        .select('profile_data, last_updated, service_type')
         .eq('user_id', user.id)
-        .single();
+        .order('last_updated', { ascending: false });
 
-      const profileUrl = userData?.music_streaming_profile || null;
-      let detectedType: 'spotify' | 'apple-music' | null = null;
+      const preferredType =
+        linkStatus.provider !== 'unknown' ? linkStatus.provider : null;
 
-      if (profileUrl?.includes('spotify')) {
-        detectedType = 'spotify';
-      } else {
-        // Check for Apple Music via streaming_profiles row or active MusicKit session
-        const { data: amRow } = await supabase
-          .from('streaming_profiles')
-          .select('profile_data')
-          .eq('user_id', user.id)
-          .eq('service_type', 'apple-music')
-          .maybeSingle();
+      const profileRow =
+        (preferredType
+          ? streamingRows?.find((row) => row.service_type === preferredType)
+          : null) ??
+        streamingRows?.find((row) => row.profile_data) ??
+        streamingRows?.[0] ??
+        null;
 
-        if (amRow) {
-          detectedType = 'apple-music';
-        } else if (appleMusicService.checkStoredToken()) {
-          detectedType = 'apple-music';
-        }
-      }
+      const resolvedType: 'spotify' | 'apple-music' | null =
+        profileRow?.service_type === 'spotify' || profileRow?.service_type === 'apple-music'
+          ? profileRow.service_type
+          : linkStatus.provider !== 'unknown'
+            ? linkStatus.provider
+            : null;
 
-      if (!detectedType) {
-        const hasSpotifySignal =
-          spotifyService.checkStoredToken() || spotifyService.isAuthenticated();
-        if (hasSpotifySignal) {
-          detectedType = 'spotify';
-        }
-      }
-
-      if (!detectedType) {
+      if (!linkStatus.linked && !profileRow?.profile_data) {
         setNeedsConnection(true);
+        setServiceType(null);
+        setProfileData(null);
+        setLastSynced(null);
         return;
       }
 
-      if (detectedType === 'spotify') {
-        const sessionEstablished = await spotifyService.ensureSession();
-        if (!sessionEstablished) {
-          setNeedsConnection(true);
-          return;
+      setServiceType(resolvedType);
+
+      if (profileRow?.profile_data) {
+        setProfileData(profileRow.profile_data);
+        setLastSynced(profileRow.last_updated ?? null);
+        setNeedsConnection(false);
+      } else {
+        const snapshot = await fetchUserStreamingStatsSnapshot(supabase, user.id);
+        if (snapshot && (snapshot.top_artists.length > 0 || snapshot.top_genres.length > 0)) {
+          setProfileData({
+            topArtists: snapshot.top_artists.map((artist) => ({
+              name: artist.name,
+              popularity: artist.popularity,
+              genres: [],
+            })),
+            topTracks: [],
+            topGenresSnapshot: snapshot.top_genres,
+          });
+        } else {
+          setProfileData(null);
         }
+        setLastSynced(null);
+        setNeedsConnection(false);
+      }
+
+      // Best-effort: refresh Spotify profile URL when this browser has a live session.
+      if (resolvedType === 'spotify' && (await spotifyService.ensureSession())) {
         await persistSpotifyProfileUrl();
       }
-
-      setServiceType(detectedType);
-
-      // 2. Load stored profile data from streaming_profiles
-      const { data: row } = await supabase
-        .from('streaming_profiles')
-        .select('profile_data, last_updated')
-        .eq('user_id', user.id)
-        .eq('service_type', detectedType)
-        .maybeSingle();
-
-      if (row?.profile_data) {
-        setProfileData(row.profile_data);
-        setLastSynced(row.last_updated);
-      } else {
-        setProfileData(null);
-      }
-
-      setNeedsConnection(false);
     } catch (err) {
       console.error('Error loading streaming profile:', err);
       setNeedsConnection(true);
@@ -159,43 +193,43 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   };
 
   const handleSync = async () => {
-    if (!serviceType) return;
+    if (!serviceType || !user) return;
     setSyncing(true);
     try {
-      if (serviceType === 'spotify') {
-        const sessionOk = await spotifyService.ensureSession();
-        if (!sessionOk) {
-          if (profileData) {
-            toast({
-              title: 'Connect Spotify to refresh',
-              description: 'Reconnect to Spotify to refresh your streaming stats.',
-            });
-            try {
-              await spotifyService.reauthenticate();
-            } catch (error) {
-              console.error('Spotify reauthentication error:', error);
-            }
-            return;
-          }
-          setNeedsConnection(true);
-          return;
-        }
-        await spotifyService.syncUserMusicPreferences();
-      } else {
-        if (!appleMusicService.checkStoredToken()) {
-          setNeedsConnection(true);
-          return;
-        }
-        const data = await appleMusicService.generateProfileData();
-        if (data) await appleMusicService.uploadProfileData(data);
-      }
+      const result = await syncStreamingProfile(user.id, serviceType, { manual: true });
       await loadProfile();
-      toast({ title: 'Stats updated', description: 'Your streaming data has been refreshed.' });
+
+      if (result.ok) {
+        toast({
+          title: 'Stats updated',
+          description: result.usedServer
+            ? 'Your streaming data has been refreshed from Spotify.'
+            : 'Your streaming data has been refreshed.',
+        });
+        return;
+      }
+
+      if (result.skipped === 'no-stored-token' || result.skipped === 'no-session') {
+        toast({
+          title: 'Connect Spotify to sync',
+          description:
+            result.message ||
+            'Use the Connect Spotify button above to sign in once — then Sync now will work in place.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Sync failed',
+        description: result.message || 'Could not refresh stats. Please try again.',
+        variant: 'destructive',
+      });
     } catch (err) {
       console.error('Sync error:', err);
       toast({
         title: 'Sync failed',
-        description: 'Could not refresh stats. Please try again.',
+        description: err instanceof Error ? err.message : 'Could not refresh stats. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -286,24 +320,49 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
   const displayArtists = useMemo<any[]>(() => {
     if (!profileData) return [];
-    // Spotify: use time-range-specific list if available
-    if (serviceType === 'spotify' && profileData.topArtistsByTimeRange?.[timeRange]) {
-      return profileData.topArtistsByTimeRange[timeRange].slice(0, 20);
+    if (serviceType === 'spotify') {
+      return getSpotifyTimeRangeList(
+        profileData,
+        timeRange,
+        'topArtistsByTimeRange',
+        'topArtists'
+      ).items as any[];
     }
-    return (profileData.topArtists || []).slice(0, 20);
+    return Array.isArray(profileData.topArtists) ? profileData.topArtists.slice(0, 20) : [];
   }, [profileData, timeRange, serviceType]);
 
-  const displayTracks = useMemo<any[]>(() => {
-    if (!profileData) return [];
-    return (profileData.topTracks || []).slice(0, 20);
-  }, [profileData]);
-
-  const recentlyPlayed = useMemo<any[]>(() => {
-    if (!profileData?.recentlyPlayed) return [];
-    return profileData.recentlyPlayed.slice(0, 15);
-  }, [profileData]);
+  const { items: displaySongs, needsResync: songsNeedResync } = useMemo(() => {
+    if (!profileData) {
+      return { items: [] as any[], needsResync: false };
+    }
+    if (serviceType === 'spotify') {
+      const result = getSpotifyTimeRangeList(
+        profileData,
+        timeRange,
+        'topTracksByTimeRange',
+        'topTracks'
+      );
+      return { items: result.items as any[], needsResync: result.needsResync };
+    }
+    const flat = Array.isArray(profileData.topTracks) ? profileData.topTracks.slice(0, 20) : [];
+    return { items: flat as any[], needsResync: false };
+  }, [profileData, timeRange, serviceType]);
 
   const genres = useMemo<{ name: string; count: number; pct: number }[]>(() => {
+    const snapshotGenres = profileData?.topGenresSnapshot as
+      | Array<{ genre: string; count: number }>
+      | undefined;
+    if (Array.isArray(snapshotGenres) && snapshotGenres.length > 0) {
+      const max = snapshotGenres[0]?.count || 1;
+      return snapshotGenres
+        .slice(0, 12)
+        .map((entry) => ({
+          name: entry.genre,
+          count: entry.count,
+          pct: Math.round((entry.count / max) * 100),
+        }));
+    }
+
     const counts: Record<string, number> = {};
     displayArtists.forEach((a: any) => {
       (a.genres || []).forEach((g: string) => {
@@ -317,24 +376,14 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     return entries.map(([name, count]) => ({ name, count, pct: Math.round((count / max) * 100) }));
   }, [displayArtists]);
 
-  const statsOverview = useMemo(() => {
-    // Estimate listening time from recently played (sum of track duration_ms)
-    const totalMs = recentlyPlayed.reduce((sum: number, item: any) => {
-      return sum + (item.track?.duration_ms || item.duration_ms || 0);
-    }, 0);
-    const listeningHours = totalMs > 0 ? Math.round(totalMs / 3_600_000) : null;
-    return {
-      artistCount: displayArtists.length,
-      trackCount: displayTracks.length,
-      listeningHours,
-      genreCount: genres.length,
-    };
-  }, [displayArtists, displayTracks, recentlyPlayed, genres]);
-
   const isSpotify = serviceType === 'spotify';
   const accentColor = isSpotify ? '#1DB954' : '#FC3C44';
   const serviceName = isSpotify ? 'Spotify' : 'Apple Music';
-  const hasTimeRanges = isSpotify && !!profileData?.topArtistsByTimeRange;
+  const hasTimeRanges =
+    isSpotify &&
+    (hasPerRangeData(profileData, 'topArtistsByTimeRange') ||
+      hasPerRangeData(profileData, 'topTracksByTimeRange'));
+  const showSongResyncBanner = isSpotify && songsNeedResync && !syncing;
 
   // ─── Loading ────────────────────────────────────────────────────────────────
 
@@ -368,7 +417,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
           </div>
           <h2 className="type-h2 mb-2 synth-gradient-text">Streaming Stats</h2>
           <p className="text-muted-foreground text-sm mb-8">
-            Connect your music app to see your top artists, tracks, and listening habits.
+            Connect your music app to see your top artists, songs, and genres.
           </p>
 
           <div className="space-y-3">
@@ -388,7 +437,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
                 <p className="font-semibold text-sm">
                   {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
                 </p>
-                <p className="text-xs text-muted-foreground">Top artists, tracks, and genres</p>
+                <p className="text-xs text-muted-foreground">Top artists, songs, and genres</p>
               </div>
             </button>
 
@@ -462,32 +511,6 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
           )}
         </div>
 
-        {/* Stat overview pills */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <User className="w-5 h-5 mb-2" style={{ color: accentColor }} />
-            <p className="text-2xl font-bold">{statsOverview.artistCount}</p>
-            <p className="text-xs text-muted-foreground">Top Artists</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <Music className="w-5 h-5 mb-2" style={{ color: accentColor }} />
-            <p className="text-2xl font-bold">{statsOverview.trackCount}</p>
-            <p className="text-xs text-muted-foreground">Top Tracks</p>
-          </div>
-          {statsOverview.listeningHours !== null && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <Clock className="w-5 h-5 mb-2" style={{ color: accentColor }} />
-              <p className="text-2xl font-bold">{statsOverview.listeningHours}h</p>
-              <p className="text-xs text-muted-foreground">Listening Time</p>
-            </div>
-          )}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-            <BarChart3 className="w-5 h-5 mb-2" style={{ color: accentColor }} />
-            <p className="text-2xl font-bold">{statsOverview.genreCount}</p>
-            <p className="text-xs text-muted-foreground">Genres</p>
-          </div>
-        </div>
-
         {/* Time range selector (Spotify only) */}
         {hasTimeRanges && (
           <div className="flex gap-2">
@@ -530,20 +553,44 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
           </Card>
         )}
 
+        {syncing && songsNeedResync ? (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+            Refreshing song rankings for each period…
+          </div>
+        ) : null}
+
+        {showSongResyncBanner ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Song rankings by period need a refresh. Artists are up to date — sync once for{' '}
+              {TIME_RANGE_LABELS[timeRange]} and all periods.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-amber-300 bg-white hover:bg-amber-100"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing…' : 'Sync now'}
+            </Button>
+          </div>
+        ) : null}
+
         {/* Tabs */}
         {profileData && (
           <Tabs defaultValue="artists">
-            <TabsList className="w-full grid grid-cols-4">
+            <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="artists">Artists</TabsTrigger>
-              <TabsTrigger value="tracks">Tracks</TabsTrigger>
+              <TabsTrigger value="songs">Songs</TabsTrigger>
               <TabsTrigger value="genres">Genres</TabsTrigger>
-              <TabsTrigger value="recent">Recent</TabsTrigger>
             </TabsList>
 
             {/* Artists */}
             <TabsContent value="artists" className="mt-3 space-y-2">
               {displayArtists.length === 0 ? (
-                <EmptyTab message="No artist data. Tap ↻ to sync." />
+                <EmptyTab message="No artist data for this period. Tap ↻ to sync." />
               ) : (
                 displayArtists.map((artist: any, i: number) => (
                   <ArtistRow key={artist.id || i} artist={artist} rank={i + 1} accentColor={accentColor} />
@@ -551,12 +598,18 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
               )}
             </TabsContent>
 
-            {/* Tracks */}
-            <TabsContent value="tracks" className="mt-3 space-y-2">
-              {displayTracks.length === 0 ? (
-                <EmptyTab message="No track data. Tap ↻ to sync." />
+            {/* Songs (top tracks for selected time range) */}
+            <TabsContent value="songs" className="mt-3 space-y-2">
+              {displaySongs.length === 0 ? (
+                <EmptyTab
+                  message={
+                    songsNeedResync
+                      ? 'Song rankings for each period are missing. Tap ↻ to sync once — then 4 Weeks, 6 Months, and All Time will show different top songs.'
+                      : `No song data for ${TIME_RANGE_LABELS[timeRange]}. Tap ↻ to sync.`
+                  }
+                />
               ) : (
-                displayTracks.map((track: any, i: number) => (
+                displaySongs.map((track: any, i: number) => (
                   <TrackRow key={track.id || i} track={track} rank={i + 1} accentColor={accentColor} />
                 ))
               )}
@@ -565,7 +618,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
             {/* Genres */}
             <TabsContent value="genres" className="mt-3 space-y-2">
               {genres.length === 0 ? (
-                <EmptyTab message="Genres are derived from your top artists. Tap ↻ to sync." />
+                <EmptyTab message="Genres are derived from your top artists for this period. Tap ↻ to sync." />
               ) : (
                 genres.map((g) => (
                   <div key={g.name} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
@@ -583,54 +636,6 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
                     </div>
                   </div>
                 ))
-              )}
-            </TabsContent>
-
-            {/* Recently Played */}
-            <TabsContent value="recent" className="mt-3 space-y-2">
-              {recentlyPlayed.length === 0 ? (
-                <EmptyTab message="No recently played data. Tap ↻ to sync." />
-              ) : (
-                recentlyPlayed.map((item: any, i: number) => {
-                  const track = item.track || item;
-                  const playedAt = item.played_at;
-                  const artistName =
-                    track.artists?.[0]?.name || track.artist || 'Unknown Artist';
-                  const imageUrl =
-                    track.album?.images?.[0]?.url ||
-                    track.album?.images?.[1]?.url;
-
-                  return (
-                    <div
-                      key={i}
-                      className="bg-white rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 p-3"
-                    >
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={track.name}
-                          className="w-11 h-11 rounded-lg object-cover flex-shrink-0"
-                        />
-                      ) : (
-                        <div
-                          className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: accentColor + '20' }}
-                        >
-                          <Music className="w-5 h-5" style={{ color: accentColor }} />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{track.name || 'Unknown Track'}</p>
-                        <p className="text-xs text-muted-foreground truncate">{artistName}</p>
-                      </div>
-                      {playedAt && (
-                        <p className="text-xs text-muted-foreground flex-shrink-0 pl-2">
-                          {formatDistanceToNow(new Date(playedAt), { addSuffix: true })}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })
               )}
             </TabsContent>
           </Tabs>

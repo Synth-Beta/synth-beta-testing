@@ -19,8 +19,7 @@ import {
   getUsernameSuggestions 
 } from '@/services/usernameService';
 import { sanitizeUsername, validateUsernameFormat } from '@/utils/usernameUtils';
-import { spotifyService } from '@/services/spotifyService';
-import { appleMusicService } from '@/services/appleMusicService';
+import { StreamingAccountSettings } from '@/components/streaming/StreamingAccountSettings';
 import { toast } from '@/hooks/use-toast';
 
 interface ProfileEditProps {
@@ -500,6 +499,19 @@ useEffect(() => {
               </p>
             </div>
 
+            {/* Streaming account (OAuth) */}
+            <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+              <Label className="flex items-center gap-2">
+                <Music className="w-4 h-4" />
+                Streaming account
+              </Label>
+              <StreamingAccountSettings compact />
+              <p className="text-xs text-muted-foreground">
+                OAuth connection syncs stats and recommendations. The profile link below is optional for
+                displaying your public music profile.
+              </p>
+            </div>
+
             {/* Music Streaming Profile Field */}
             <div className="space-y-2">
               <Label htmlFor="music-streaming-service" className="flex items-center gap-2">
@@ -531,57 +543,8 @@ useEffect(() => {
                   maxLength={200}
                 />
               )}
-              {formData.music_streaming_service === 'spotify' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => {
-                    if (spotifyService.isConfigured()) {
-                      if (typeof window !== 'undefined') {
-                        localStorage.setItem('spotify_connect_source', 'profile');
-                      }
-                      spotifyService.authenticate();
-                    } else {
-                      toast({
-                        title: 'Spotify not configured',
-                        description: 'Spotify linking is not available right now.',
-                        variant: 'destructive',
-                      });
-                    }
-                  }}
-                >
-                  Link Spotify account to sync your taste
-                </Button>
-              )}
-              {formData.music_streaming_service === 'apple_music' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={async () => {
-                    try {
-                      await appleMusicService.authenticate();
-                      toast({
-                        title: 'Apple Music connected',
-                        description: 'Your Apple Music account is now linked. Syncing stats is optional and can be done from Streaming Stats.',
-                      });
-                    } catch (error) {
-                      toast({
-                        title: 'Apple Music not available',
-                        description: 'Apple Music linking is not available right now.',
-                        variant: 'destructive',
-                      });
-                    }
-                  }}
-                >
-                  Connect Apple Music to sync your stats (optional)
-                </Button>
-              )}
               <p className="text-xs text-muted-foreground">
-                Share your Spotify, Apple Music, or other streaming profile link. You can paste @username or a full profile URL. This controls the music icon on your profile; syncing is optional and only affects stats and recommendations.
+                Optional display link for the music icon on your profile (@username or full URL).
               </p>
             </div>
 

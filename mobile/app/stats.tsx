@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,123 +7,290 @@ import {
   Text,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
+import {
+  getSpotifyTimeRangeList,
+  hasPerRangeData,
+  SPOTIFY_TIME_RANGE_LABELS,
+  type SpotifyTimeRange,
+} from '@synth/shared';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
-import { StatsService, StreamingStats } from '../src/services/statsService';
 import {
-  getStreamingLinkStatus,
+  loadStreamingProfile,
+  hasAnyProfileStats,
+  providerAccentColor,
+  type StreamingServiceType,
+} from '../src/services/streamingProfileService';
+import {
   type StreamingLinkStatus,
   type StreamingProvider,
 } from '../src/services/streamingConnectionService';
 import { supabase } from '../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Music, Mic2, BarChart3, ChevronLeft, RefreshCw, Headphones, Zap } from 'lucide-react-native';
+import { Music, ChevronLeft, RefreshCw, Headphones, Zap } from 'lucide-react-native';
 import { getExpoSiteUrl } from '../src/utils/siteUrl';
+import { syncStreamingProfile } from '../src/services/streamingSyncActions';
+import { runStreamingAutoSync } from '../src/services/streamingAutoSyncService';
+import { formatRelativeTime } from '../src/utils/formatRelativeTime';
+import { StreamingTimeRangePicker } from '../src/components/streaming/StreamingTimeRangePicker';
+import {
+  StreamingStatsTabBar,
+  type StreamingStatsTab,
+} from '../src/components/streaming/StreamingStatsTabBar';
+import { StreamingArtistRow } from '../src/components/streaming/StreamingArtistRow';
+import { StreamingSongRow } from '../src/components/streaming/StreamingSongRow';
+import { StreamingGenreRow } from '../src/components/streaming/StreamingGenreRow';
 
 const PINK = SynthTokens.colors.brandPink500;
-const MEDAL_GOLD = '#F5A623';
-const MEDAL_SILVER = '#8E8E93';
-const MEDAL_BRONZE = '#C86A1E';
-
-const GENRE_COLORS = [
-  '#EC4899', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B',
-  '#EF4444', '#3B82F6', '#84CC16', '#F97316', '#A855F7',
-];
-
-function hasAnyStats(stats: StreamingStats | null): boolean {
-  if (!stats) return false;
-  return (
-    (stats.top_artists?.length ?? 0) > 0 ||
-    (stats.top_genres?.length ?? 0) > 0 ||
-    (stats.total_listening_hours ?? 0) > 0
-  );
-}
 
 function providerLabel(provider: StreamingProvider): string {
   switch (provider) {
-    case 'spotify': return 'Spotify';
-    case 'apple-music': return 'Apple Music';
-    default: return 'Streaming';
+    case 'spotify':
+      return 'Spotify';
+    case 'apple-music':
+      return 'Apple Music';
+    default:
+      return 'Streaming';
   }
 }
 
-function medalColor(index: number): string {
-  if (index === 0) return MEDAL_GOLD;
-  if (index === 1) return MEDAL_SILVER;
-  if (index === 2) return MEDAL_BRONZE;
-  return SynthTokens.colors.neutral400;
-}
-
 export default function StreamingStatsScreen() {
-  const [stats, setStats] = useState<StreamingStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
+  const [serviceType, setServiceType] = useState<StreamingServiceType | null>(null);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [linkStatus, setLinkStatus] = useState<StreamingLinkStatus>({
     linked: false,
     provider: 'unknown',
     profileUrl: null,
   });
+  const [needsConnection, setNeedsConnection] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
+  const [autoSyncAttempted, setAutoSyncAttempted] = useState(false);
+  const [timeRange, setTimeRange] = useState<SpotifyTimeRange>('medium_term');
+  const [activeTab, setActiveTab] = useState<StreamingStatsTab>('artists');
+
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const loadStats = useCallback(async (isRefresh: boolean) => {
+  const loadProfile = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     const user = session?.user ?? null;
     if (!user) {
-      setStats(null);
+      setProfileData(null);
+      setServiceType(null);
+      setLastSynced(null);
       setLinkStatus({ linked: false, provider: 'unknown', profileUrl: null });
+      setNeedsConnection(true);
       setLoading(false);
       setRefreshing(false);
       return;
     }
 
-    const status = await getStreamingLinkStatus(user.id);
-    setLinkStatus(status);
-
-    const data = await StatsService.getStats(user.id);
-    setStats(data ?? { top_artists: [], top_genres: [], total_listening_hours: 0 });
+    const result = await loadStreamingProfile(user.id);
+    setLinkStatus(result.linkStatus);
+    setServiceType(result.serviceType);
+    setProfileData(result.profileData);
+    setLastSynced(result.lastSynced);
+    setNeedsConnection(result.needsConnection);
     setLoading(false);
     setRefreshing(false);
   }, []);
 
   useEffect(() => {
-    void loadStats(false);
-  }, [loadStats]);
-
-  const [resyncing, setResyncing] = useState(false);
+    void loadProfile(false);
+  }, [loadProfile]);
 
   const openStreamingOnWeb = (provider?: StreamingProvider) => {
     const base = `${getExpoSiteUrl()}/streaming-stats`;
-    const url = provider && provider !== 'unknown'
-      ? `${base}?connect=${encodeURIComponent(provider)}&source=expo`
-      : `${base}?source=expo`;
+    const url =
+      provider && provider !== 'unknown'
+        ? `${base}?connect=${encodeURIComponent(provider)}&source=expo`
+        : `${base}?source=expo`;
     void WebBrowser.openBrowserAsync(url);
   };
 
   const handleResync = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user) return;
+
+    if (!linkStatus.linked || linkStatus.provider === 'unknown') {
+      openStreamingOnWeb();
+      return;
+    }
+
+    if (linkStatus.provider === 'apple-music') {
+      Alert.alert(
+        'Sync on web',
+        'Apple Music resync opens in your browser once to refresh your stats.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open web', onPress: () => openStreamingOnWeb('apple-music') },
+        ]
+      );
+      return;
+    }
+
     setResyncing(true);
     try {
-      const base = `${getExpoSiteUrl()}/streaming-stats`;
-      const url = linkStatus.provider && linkStatus.provider !== 'unknown'
-        ? `${base}?connect=${encodeURIComponent(linkStatus.provider)}&source=expo&action=resync`
-        : `${base}?source=expo&action=resync`;
-      await WebBrowser.openBrowserAsync(url);
-      await loadStats(false);
+      const result = await syncStreamingProfile(user.id, 'spotify', { manual: true });
+      await loadProfile(false);
+      if (result.ok) return;
+
+      if (result.skipped === 'no-stored-token') {
+        Alert.alert(
+          'Connect Spotify first',
+          'Complete Spotify login once on the web — then resync works right here in the app.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Connect', onPress: () => openStreamingOnWeb('spotify') },
+          ]
+        );
+        return;
+      }
+
+      Alert.alert('Sync failed', result.message || 'Could not refresh your stats. Try again.');
     } finally {
       setResyncing(false);
     }
   };
 
+  useEffect(() => {
+    if (
+      loading ||
+      autoSyncAttempted ||
+      needsConnection ||
+      !linkStatus.linked ||
+      linkStatus.provider !== 'spotify' ||
+      !serviceType
+    ) {
+      return;
+    }
+
+    setAutoSyncAttempted(true);
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) return;
+
+      setResyncing(true);
+      try {
+        const result = await runStreamingAutoSync({
+          userId: user.id,
+          serviceType: 'spotify',
+          profileData,
+          lastSynced,
+          linked: true,
+          options: { reason: 'migration' },
+        });
+        if (result.ok) {
+          await loadProfile(false);
+        }
+      } finally {
+        setResyncing(false);
+      }
+    })();
+  }, [
+    loading,
+    autoSyncAttempted,
+    needsConnection,
+    linkStatus.linked,
+    linkStatus.provider,
+    serviceType,
+    profileData,
+    lastSynced,
+    loadProfile,
+  ]);
+
+  const accentColor = providerAccentColor(linkStatus.provider);
+  const isSpotify = serviceType === 'spotify';
+  const hasTimeRanges =
+    isSpotify &&
+    (hasPerRangeData(profileData, 'topArtistsByTimeRange') ||
+      hasPerRangeData(profileData, 'topTracksByTimeRange'));
+
+  const displayArtists = useMemo(() => {
+    if (!profileData) return [];
+    if (serviceType === 'spotify') {
+      return getSpotifyTimeRangeList(
+        profileData,
+        timeRange,
+        'topArtistsByTimeRange',
+        'topArtists'
+      ).items;
+    }
+    const flat = profileData.topArtists;
+    return Array.isArray(flat) ? flat.slice(0, 20) : [];
+  }, [profileData, timeRange, serviceType]);
+
+  const { items: displaySongs, needsResync: songsNeedResync } = useMemo(() => {
+    if (!profileData) {
+      return { items: [] as unknown[], needsResync: false };
+    }
+    if (serviceType === 'spotify') {
+      return getSpotifyTimeRangeList(
+        profileData,
+        timeRange,
+        'topTracksByTimeRange',
+        'topTracks'
+      );
+    }
+    const flat = profileData.topTracks;
+    const items = Array.isArray(flat) ? flat.slice(0, 20) : [];
+    return { items, needsResync: false };
+  }, [profileData, timeRange, serviceType]);
+
+  const genres = useMemo(() => {
+    const snapshotGenres = profileData?.topGenresSnapshot as
+      | Array<{ genre: string; count: number }>
+      | undefined;
+    if (Array.isArray(snapshotGenres) && snapshotGenres.length > 0) {
+      const max = snapshotGenres[0]?.count || 1;
+      return snapshotGenres.slice(0, 12).map((entry) => ({
+        name: entry.genre,
+        count: entry.count,
+        pct: Math.round((entry.count / max) * 100),
+      }));
+    }
+
+    const counts: Record<string, number> = {};
+    displayArtists.forEach((a) => {
+      const artist = a as { genres?: string[] };
+      (artist.genres || []).forEach((g: string) => {
+        counts[g] = (counts[g] || 0) + 1;
+      });
+    });
+    const entries = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12);
+    const max = entries[0]?.[1] || 1;
+    return entries.map(([name, count]) => ({
+      name,
+      count,
+      pct: Math.round((count / max) * 100),
+    }));
+  }, [displayArtists, profileData]);
+
   const linked = linkStatus.linked;
-  const showConnectCards = !linked;
-  const showSyncingEmptyState = linked && !hasAnyStats(stats);
+  const showConnectCards = needsConnection && !linked;
+  const showSyncingEmptyState = linked && !hasAnyProfileStats(profileData);
+  const showSongResyncBanner = isSpotify && songsNeedResync && !resyncing;
 
   if (loading) {
     return (
@@ -135,7 +302,6 @@ export default function StreamingStatsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Top bar */}
       <View style={styles.topBar}>
         <Pressable style={styles.backBtn} onPress={() => router.back()} accessibilityLabel="Back">
           <ChevronLeft size={26} color={SynthTokens.colors.neutral900} />
@@ -152,7 +318,7 @@ export default function StreamingStatsScreen() {
             accessibilityLabel="Resync streaming stats"
           >
             <RefreshCw size={14} color={SynthTokens.colors.neutral0} />
-            <Text style={styles.resyncBtnText}>{resyncing ? 'Opening…' : 'Resync'}</Text>
+            <Text style={styles.resyncBtnText}>{resyncing ? 'Syncing…' : 'Resync'}</Text>
           </Pressable>
         ) : (
           <View style={styles.backBtn} />
@@ -163,15 +329,29 @@ export default function StreamingStatsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void loadStats(true)} tintColor={PINK} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void loadProfile(true)}
+            tintColor={PINK}
+          />
         }
       >
-        {/* Connect cards */}
+        <View style={styles.titleBlock}>
+          <Text style={styles.pageTitle}>Streaming Stats</Text>
+          {lastSynced ? (
+            <Text style={styles.lastSynced}>Updated {formatRelativeTime(lastSynced)}</Text>
+          ) : linked ? (
+            <Text style={styles.lastSynced}>
+              via {providerLabel(linkStatus.provider)} — tap Resync to refresh
+            </Text>
+          ) : null}
+        </View>
+
         {showConnectCards ? (
           <View style={styles.connectSection}>
             <Text style={styles.connectHeading}>Connect your music</Text>
             <SynthText variant="body" color="secondary" style={styles.connectCopy}>
-              Import your listening history to see top artists, genres, and get better event recommendations.
+              Import your listening history to see top artists, songs, and genres.
             </SynthText>
             <Pressable onPress={() => openStreamingOnWeb('spotify')} style={styles.connectCardWrapper}>
               <LinearGradient
@@ -214,13 +394,9 @@ export default function StreamingStatsScreen() {
           </View>
         ) : null}
 
-        {/* Syncing empty state */}
         {showSyncingEmptyState ? (
           <View style={styles.syncingCard}>
-            <LinearGradient
-              colors={[PINK + '18', PINK + '08']}
-              style={styles.syncingCardGradient}
-            >
+            <LinearGradient colors={[PINK + '18', PINK + '08']} style={styles.syncingCardGradient}>
               <View style={styles.syncingIconRow}>
                 <View style={styles.syncingIconBg}>
                   <Zap size={26} color={PINK} />
@@ -231,9 +407,9 @@ export default function StreamingStatsScreen() {
                 Your listening data is being imported. This usually takes a moment after first connecting.
               </SynthText>
               <View style={styles.syncingActionsRow}>
-                <Pressable style={styles.refreshBtn} onPress={() => void loadStats(true)}>
+                <Pressable style={styles.refreshBtn} onPress={() => void handleResync()}>
                   <RefreshCw size={16} color={SynthTokens.colors.neutral0} />
-                  <Text style={styles.refreshBtnText}>Refresh</Text>
+                  <Text style={styles.refreshBtnText}>{resyncing ? 'Syncing…' : 'Sync now'}</Text>
                 </Pressable>
                 <Pressable style={styles.openWebBtn} onPress={() => openStreamingOnWeb(linkStatus.provider)}>
                   <Text style={styles.openWebBtnText}>Open on web</Text>
@@ -243,100 +419,93 @@ export default function StreamingStatsScreen() {
           </View>
         ) : null}
 
-        {/* Stats content */}
-        {linked && !showSyncingEmptyState ? (
+        {linked && profileData && !showSyncingEmptyState ? (
           <>
-            {/* Hero listening hours card */}
-            <LinearGradient
-              colors={[PINK, '#c026d3']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroCard}
-            >
-              <View style={styles.heroCardInner}>
-                <View style={styles.heroIconCircle}>
-                  <Headphones size={22} color={PINK} />
-                </View>
-                <Text style={styles.heroNumber}>{stats?.total_listening_hours ?? 0}</Text>
-                <Text style={styles.heroLabel}>hours played</Text>
-                <Text style={styles.heroProvider}>
-                  via {providerLabel(linkStatus.provider)}
+            {hasTimeRanges ? (
+              <StreamingTimeRangePicker
+                value={timeRange}
+                onChange={setTimeRange}
+                accentColor={accentColor}
+              />
+            ) : null}
+
+            {resyncing && songsNeedResync ? (
+              <View style={styles.bannerBlue}>
+                <Text style={styles.bannerBlueText}>
+                  Refreshing song rankings for each period…
                 </Text>
               </View>
-            </LinearGradient>
+            ) : null}
 
-            {/* Top artists */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Mic2 size={20} color={PINK} />
-                <Text style={styles.sectionTitle}>Top Artists</Text>
+            {showSongResyncBanner ? (
+              <View style={styles.bannerAmber}>
+                <Text style={styles.bannerAmberText}>
+                  Song rankings by period need a refresh. Artists are up to date — sync once for{' '}
+                  {SPOTIFY_TIME_RANGE_LABELS[timeRange]} and all periods.
+                </Text>
+                <Pressable style={styles.bannerBtn} onPress={() => void handleResync()} disabled={resyncing}>
+                  <RefreshCw size={14} color="#92400e" />
+                  <Text style={styles.bannerBtnText}>{resyncing ? 'Syncing…' : 'Sync now'}</Text>
+                </Pressable>
               </View>
-              {(stats?.top_artists ?? []).length > 0 ? (
-                <View style={styles.artistList}>
-                  {(stats?.top_artists ?? []).map(
-                    (artist: { name: string; popularity?: number }, index: number) => (
-                      <View key={artist.name} style={styles.artistRow}>
-                        <View style={[styles.rankBadge, { backgroundColor: medalColor(index) + '22' }]}>
-                          <Text style={[styles.rankText, { color: medalColor(index) }]}>
-                            {index + 1}
-                          </Text>
-                        </View>
-                        <View style={styles.artistInfo}>
-                          <Text style={styles.artistName} numberOfLines={1}>{artist.name}</Text>
-                          <View style={styles.barTrack}>
-                            <View
-                              style={[
-                                styles.barFill,
-                                {
-                                  width: `${artist.popularity || 0}%`,
-                                  backgroundColor: index < 3 ? medalColor(index) : PINK,
-                                },
-                              ]}
-                            />
-                          </View>
-                        </View>
-                        {index < 3 ? (
-                          <Text style={styles.medalEmoji}>
-                            {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                          </Text>
-                        ) : null}
-                      </View>
-                    )
-                  )}
-                </View>
-              ) : (
-                <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
-                  No artist data yet — check back after syncing.
-                </SynthText>
-              )}
-            </View>
+            ) : null}
 
-            {/* Top genres */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <BarChart3 size={20} color={PINK} />
-                <Text style={styles.sectionTitle}>Top Genres</Text>
-              </View>
-              {(stats?.top_genres ?? []).length > 0 ? (
-                <View style={styles.genresGrid}>
-                  {(stats?.top_genres ?? []).map((genre: { genre: string; count: number }, i: number) => (
-                    <View
-                      key={genre.genre}
-                      style={[styles.genrePill, { borderColor: GENRE_COLORS[i % GENRE_COLORS.length] + '55' }]}
-                    >
-                      <View style={[styles.genreDot, { backgroundColor: GENRE_COLORS[i % GENRE_COLORS.length] }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.genreName} numberOfLines={1}>{genre.genre}</Text>
-                        <Text style={styles.genreCount}>{genre.count} plays</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
-                  No genre breakdown yet.
-                </SynthText>
-              )}
+            <StreamingStatsTabBar value={activeTab} onChange={setActiveTab} accentColor={accentColor} />
+
+            <View style={styles.list}>
+              {activeTab === 'artists' ? (
+                displayArtists.length === 0 ? (
+                  <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
+                    No artist data for this period. Tap Resync to sync.
+                  </SynthText>
+                ) : (
+                  displayArtists.map((artist, i) => (
+                    <StreamingArtistRow
+                      key={(artist as { id?: string }).id || `artist-${i}`}
+                      artist={artist as Parameters<typeof StreamingArtistRow>[0]['artist']}
+                      rank={i + 1}
+                      accentColor={accentColor}
+                    />
+                  ))
+                )
+              ) : null}
+
+              {activeTab === 'songs' ? (
+                displaySongs.length === 0 ? (
+                  <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
+                    {songsNeedResync
+                      ? 'Song rankings for each period are missing. Tap Resync once — then all time ranges will show different top songs.'
+                      : `No song data for ${SPOTIFY_TIME_RANGE_LABELS[timeRange]}. Tap Resync to sync.`}
+                  </SynthText>
+                ) : (
+                  displaySongs.map((track, i) => (
+                    <StreamingSongRow
+                      key={(track as { id?: string }).id || `track-${i}`}
+                      track={track as Parameters<typeof StreamingSongRow>[0]['track']}
+                      rank={i + 1}
+                      accentColor={accentColor}
+                    />
+                  ))
+                )
+              ) : null}
+
+              {activeTab === 'genres' ? (
+                genres.length === 0 ? (
+                  <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
+                    Genres are derived from your top artists for this period. Tap Resync to sync.
+                  </SynthText>
+                ) : (
+                  genres.map((g) => (
+                    <StreamingGenreRow
+                      key={g.name}
+                      name={g.name}
+                      count={g.count}
+                      pct={g.pct}
+                      accentColor={accentColor}
+                    />
+                  ))
+                )
+              ) : null}
             </View>
           </>
         ) : null}
@@ -398,13 +567,21 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: SynthTokens.spacing.md,
     paddingBottom: 80,
-    gap: SynthTokens.spacing.lg,
+    gap: SynthTokens.spacing.md,
   },
-
-  // Connect cards
+  titleBlock: { gap: 4 },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: SynthTokens.colors.neutral900,
+  },
+  lastSynced: {
+    fontSize: 12,
+    color: SynthTokens.colors.neutral600,
+  },
   connectSection: { gap: SynthTokens.spacing.md },
   connectHeading: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     color: SynthTokens.colors.neutral900,
   },
@@ -440,8 +617,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     fontWeight: '700',
   },
-
-  // Syncing state
   syncingCard: {
     borderRadius: 20,
     overflow: 'hidden',
@@ -492,143 +667,49 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral0,
   },
   openWebBtnText: { color: SynthTokens.colors.neutral900, fontSize: 14, fontWeight: '700' },
-
-  // Hero card
-  heroCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  heroCardInner: {
-    padding: SynthTokens.spacing.xl,
-    alignItems: 'center',
-  },
-  heroIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SynthTokens.spacing.md,
-  },
-  heroNumber: {
-    fontSize: 64,
-    fontWeight: '900',
-    color: '#fff',
-    lineHeight: 72,
-  },
-  heroLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
-    marginTop: 4,
-  },
-  heroProvider: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.65)',
-    marginTop: 6,
-  },
-
-  // Sections
-  section: {
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderRadius: 18,
-    padding: SynthTokens.spacing.lg,
+  bannerBlue: {
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    borderColor: '#bfdbfe',
+    backgroundColor: '#eff6ff',
+    padding: 12,
   },
-  sectionHeader: {
+  bannerBlueText: {
+    fontSize: 13,
+    color: '#1e3a8a',
+    lineHeight: 18,
+  },
+  bannerAmber: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    backgroundColor: '#fffbeb',
+    padding: 12,
+    gap: 10,
+  },
+  bannerAmberText: {
+    fontSize: 13,
+    color: '#78350f',
+    lineHeight: 18,
+  },
+  bannerBtn: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: SynthTokens.spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: SynthTokens.colors.neutral900,
-  },
-  emptyMsg: { lineHeight: 20 },
-
-  // Artist list
-  artistList: { gap: SynthTokens.spacing.sm },
-  artistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SynthTokens.spacing.sm,
-  },
-  rankBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    backgroundColor: '#fff',
   },
-  rankText: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  artistInfo: { flex: 1 },
-  artistName: {
-    fontSize: 15,
+  bannerBtnText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: SynthTokens.colors.neutral900,
-    marginBottom: 6,
+    color: '#92400e',
   },
-  barTrack: {
-    height: 5,
-    backgroundColor: SynthTokens.colors.neutral100,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  medalEmoji: {
-    fontSize: 20,
-    width: 28,
-    textAlign: 'center',
-  },
-
-  // Genre grid
-  genresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SynthTokens.spacing.sm,
-  },
-  genrePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: SynthTokens.colors.neutral50,
-    paddingHorizontal: SynthTokens.spacing.md,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    minWidth: '47%',
-    flex: 1,
-  },
-  genreDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    flexShrink: 0,
-  },
-  genreName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: SynthTokens.colors.neutral900,
-    marginBottom: 2,
-  },
-  genreCount: {
-    fontSize: 12,
-    color: SynthTokens.colors.neutral600,
-    fontWeight: '500',
-  },
+  list: { gap: 8 },
+  emptyMsg: { lineHeight: 20, paddingVertical: 12, textAlign: 'center' },
 });

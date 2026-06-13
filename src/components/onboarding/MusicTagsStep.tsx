@@ -27,6 +27,8 @@ interface MusicTagsStepProps {
   showButtons?: boolean;
   /** Parent can receive current genres/artists for single-page submit. */
   onChange?: (data: { genres: string[]; artists: string[] }) => void;
+  /** When false, hide optional Spotify/Apple connect buttons (e.g. settings has StreamingAccountSettings). */
+  showStreamingConnect?: boolean;
   initialGenres?: string[];
   initialArtists?: string[];
 }
@@ -37,6 +39,7 @@ export const MusicTagsStep = ({
   onSkip,
   showButtons = true,
   onChange,
+  showStreamingConnect = true,
   initialGenres,
   initialArtists,
 }: MusicTagsStepProps) => {
@@ -501,6 +504,7 @@ export const MusicTagsStep = ({
       </div>
 
       {/* Optional: Connect your music */}
+      {showStreamingConnect ? (
       <div className="space-y-3">
         <p className="text-[16px] font-medium leading-[1.5] text-muted-foreground">
           Connect your music (optional)
@@ -546,6 +550,7 @@ export const MusicTagsStep = ({
           </Button>
         </div>
       </div>
+      ) : null}
 
       {showButtons && (
         <div className="flex gap-3 pt-4">
