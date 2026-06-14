@@ -17,6 +17,7 @@ import { getStreamingLinkStatus, type StreamingProvider } from '../../services/s
 import {
   disconnectStreamingAccount,
   syncStreamingProfile,
+  buildExpoSpotifyConnectUrl,
 } from '../../services/streamingSyncActions';
 import { getExpoSiteUrl } from '../../utils/siteUrl';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
@@ -78,7 +79,10 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
   }, [refreshStatus]);
 
   const openConnectStreaming = (connectProvider: 'spotify' | 'apple-music') => {
-    const url = `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent(connectProvider)}&source=expo`;
+    const url =
+      connectProvider === 'spotify'
+        ? buildExpoSpotifyConnectUrl()
+        : `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent(connectProvider)}&source=expo`;
     void WebBrowser.openBrowserAsync(url);
   };
 
@@ -104,16 +108,27 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
     try {
       const result = await syncStreamingProfile(userId, 'spotify', { manual: true });
       if (result.ok) {
-        Alert.alert('Stats updated', 'Your streaming data has been refreshed.');
+        Alert.alert(
+          'Stats updated',
+          'Your streaming data has been refreshed. Your event feed will reflect your taste.'
+        );
         await refreshStatus();
+        return;
+      }
+
+      if (result.skipped === 'partial-sync') {
+        Alert.alert(
+          'Songs not synced',
+          result.message || 'Reconnect Spotify on the web, then resync in the app.'
+        );
         return;
       }
 
       if (result.skipped === 'no-stored-token' || result.skipped === 'no-session') {
         Alert.alert(
-          'Connect Spotify first',
+          'One-time setup in browser',
           result.message ||
-            'Complete Spotify login once on the web — then resync works right here in the app.',
+            'Connect Spotify once on the web to save your token. Return here and tap Resync again.',
           [
             { text: 'Cancel', style: 'cancel' },
             {

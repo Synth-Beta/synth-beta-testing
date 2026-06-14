@@ -1,5 +1,8 @@
 import { syncStreamingProfile } from '@/services/streamingSyncActions';
-import { hasPerRangeData } from '@/utils/streamingProfileData';
+import {
+  hasNonEmptyPerRangeData,
+  streamingProfileNeedsTrackResync,
+} from '@/utils/streamingProfileData';
 
 export const STREAMING_AUTO_SYNC_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 export const STREAMING_AUTO_SYNC_THROTTLE_MS = 24 * 60 * 60 * 1000;
@@ -42,8 +45,11 @@ export function evaluateStreamingAutoSync(params: {
   }
 
   if (params.serviceType === 'spotify' && params.profileData) {
-    const artistsHaveRanges = hasPerRangeData(params.profileData, 'topArtistsByTimeRange');
-    const songsHaveRanges = hasPerRangeData(params.profileData, 'topTracksByTimeRange');
+    if (streamingProfileNeedsTrackResync(params.profileData)) {
+      return { shouldSync: true, reason: 'migration' };
+    }
+    const artistsHaveRanges = hasNonEmptyPerRangeData(params.profileData, 'topArtistsByTimeRange');
+    const songsHaveRanges = hasNonEmptyPerRangeData(params.profileData, 'topTracksByTimeRange');
     if (artistsHaveRanges && !songsHaveRanges) {
       return { shouldSync: true, reason: 'migration' };
     }

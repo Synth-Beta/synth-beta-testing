@@ -1,14 +1,90 @@
 import { supabase } from '../integrations/supabase/client';
 import { getExpoSiteUrl } from '../utils/siteUrl';
-import { clearAutoSyncThrottle } from './streamingAutoSyncService';
+import {
+  clearAutoSyncThrottle,
+  markAutoSynced,
+} from './streamingAutoSyncStorage';
+import {
+  hasNonEmptyPerRangeData,
+  streamingProfileNeedsTrackResync,
+} from '@synth/shared';
 
 export const STREAMING_AUTO_SYNC_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type StreamingSyncResult = {
   ok: boolean;
-  skipped?: 'no-session' | 'no-stored-token' | 'sync-failed' | 'error' | 'not-configured' | 'apple-music-web-only';
+  skipped?:
+    | 'no-session'
+    | 'no-stored-token'
+    | 'sync-failed'
+    | 'partial-sync'
+    | 'error'
+    | 'not-configured'
+    | 'apple-music-web-only';
   message?: string;
 };
+
+const TRACKS_RECONNECT_MESSAGE =
+  'Your artists synced but songs are missing. Connect on the web, disconnect and reconnect Spotify to grant track permissions (user-top-read), then resync here.';
+
+function parseApiErrorBody(text: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'string') out[key] = value;
+    }
+    return out;
+  } catch {
+    if (text.trim().startsWith('<')) {
+      return { error: 'Server sync returned an HTML error page.' };
+    }
+    return text ? { error: text.slice(0, 200) } : {};
+  }
+}
+
+async function fetchSpotifyProfileData(
+  userId: string
+): Promise<Record<string, unknown> | null> {
+  const { data } = await supabase
+    .from('streaming_profiles')
+    .select('profile_data')
+    .eq('user_id', userId)
+    .eq('service_type', 'spotify')
+    .maybeSingle();
+
+  return (data?.profile_data as Record<string, unknown> | null) ?? null;
+}
+
+function profileHasTracks(profileData: Record<string, unknown> | null): boolean {
+  if (!profileData) return false;
+  if (hasNonEmptyPerRangeData(profileData, 'topTracksByTimeRange')) return true;
+  const flat = profileData.topTracks;
+  return Array.isArray(flat) && flat.length > 0;
+}
+
+async function refreshFeedAfterStreamingSync(userId: string): Promise<void> {
+  const { error: refreshError } = await supabase.rpc('refresh_user_preferences_v5', {
+    p_user_id: userId,
+  });
+  if (refreshError) {
+    console.warn('refresh_user_preferences_v5 after streaming sync:', refreshError.message);
+  }
+
+  const { error: cacheError } = await supabase.rpc('invalidate_personalized_feed_cache', {
+    p_user_id: userId,
+  });
+  if (cacheError) {
+    console.warn('invalidate_personalized_feed_cache after streaming sync:', cacheError.message);
+  }
+}
+
+/** Deep link for one-time web connect when no stored refresh token exists. */
+export function buildExpoSpotifyConnectUrl(): string {
+  const base = `${getExpoSiteUrl()}/streaming-stats`;
+  return `${base}?connect=${encodeURIComponent('spotify')}&source=expo&action=resync`;
+}
 
 function hasPerRangeBucket(
   profileData: Record<string, unknown> | null | undefined,
@@ -17,7 +93,9 @@ function hasPerRangeBucket(
   const byRange = profileData?.[field];
   if (!byRange || typeof byRange !== 'object') return false;
   const record = byRange as Record<string, unknown>;
-  return ['short_term', 'medium_term', 'long_term'].some((key) => Array.isArray(record[key]));
+  return ['short_term', 'medium_term', 'long_term'].some(
+    (key) => Array.isArray(record[key]) && (record[key] as unknown[]).length > 0
+  );
 }
 
 /** When linked Spotify data should be refreshed (stale, empty, or missing song periods). */
@@ -26,6 +104,8 @@ export function shouldRefreshStreamingProfile(params: {
   lastSynced: string | null;
 }): boolean {
   if (!params.lastSynced) return true;
+
+  if (streamingProfileNeedsTrackResync(params.profileData)) return true;
 
   const artistsHaveRanges = hasPerRangeBucket(params.profileData, 'topArtistsByTimeRange');
   const songsHaveRanges = hasPerRangeBucket(params.profileData, 'topTracksByTimeRange');
@@ -53,13 +133,23 @@ export async function requestServerSpotifySync(): Promise<StreamingSyncResult> {
       },
     });
 
-    const body = await response.json().catch(() => ({}));
+    const text = await response.text();
+    const body = parseApiErrorBody(text);
 
     if (response.status === 404 && body.error === 'no_stored_token') {
       return {
         ok: false,
         skipped: 'no-stored-token',
-        message: 'Connect Spotify once on the web to enable in-app sync.',
+        message:
+          'One-time setup: connect Spotify on the web to save your token, then resync works in the app.',
+      };
+    }
+
+    if (response.status === 422 && body.error === 'tracks_empty') {
+      return {
+        ok: false,
+        skipped: 'partial-sync',
+        message: body.message || TRACKS_RECONNECT_MESSAGE,
       };
     }
 
@@ -105,8 +195,38 @@ export async function syncStreamingProfile(
     await clearAutoSyncThrottle(userId);
   }
 
-  void userId;
-  return requestServerSpotifySync();
+  const serverResult = await requestServerSpotifySync();
+
+  const profileData = await fetchSpotifyProfileData(userId);
+  const tracksOk = profileHasTracks(profileData);
+
+  if (tracksOk) {
+    await markAutoSynced(userId);
+    await refreshFeedAfterStreamingSync(userId);
+    return { ok: true };
+  }
+
+  if (serverResult.skipped === 'no-stored-token') {
+    return serverResult;
+  }
+
+  if (serverResult.skipped === 'partial-sync' || streamingProfileNeedsTrackResync(profileData)) {
+    return {
+      ok: false,
+      skipped: 'partial-sync',
+      message: serverResult.message || TRACKS_RECONNECT_MESSAGE,
+    };
+  }
+
+  if (!serverResult.ok) {
+    return serverResult;
+  }
+
+  return {
+    ok: false,
+    skipped: 'partial-sync',
+    message: TRACKS_RECONNECT_MESSAGE,
+  };
 }
 
 export async function disconnectStreamingAccount(userId: string): Promise<void> {

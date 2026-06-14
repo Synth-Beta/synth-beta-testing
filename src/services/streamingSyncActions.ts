@@ -7,19 +7,37 @@ import {
   markAutoSynced,
   clearAutoSyncThrottle,
 } from '@/services/streamingAutoSyncService';
+import {
+  hasNonEmptyPerRangeData,
+  streamingProfileNeedsTrackResync,
+} from '@/utils/streamingProfileData';
 
 export type StreamingSyncResult = {
   ok: boolean;
-  skipped?: 'no-session' | 'no-stored-token' | 'sync-failed' | 'error' | 'not-configured';
+  skipped?:
+    | 'no-session'
+    | 'no-stored-token'
+    | 'sync-failed'
+    | 'partial-sync'
+    | 'error'
+    | 'not-configured';
   message?: string;
   usedClient?: boolean;
   usedServer?: boolean;
 };
 
+const TRACKS_RECONNECT_MESSAGE =
+  'Your artists synced but songs are missing. Disconnect and reconnect Spotify to grant track permissions (user-top-read), then sync again.';
+
 function parseApiErrorBody(text: string): Record<string, string> {
   try {
-    const parsed = JSON.parse(text) as Record<string, string>;
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'string') out[key] = value;
+    }
+    return out;
   } catch {
     if (text.includes('DEPLOYMENT_NOT_FOUND')) {
       return {
@@ -32,6 +50,48 @@ function parseApiErrorBody(text: string): Record<string, string> {
       };
     }
     return text ? { error: text.slice(0, 200) } : {};
+  }
+}
+
+async function fetchSpotifyProfileData(
+  userId: string
+): Promise<Record<string, unknown> | null> {
+  const { data } = await supabase
+    .from('streaming_profiles')
+    .select('profile_data')
+    .eq('user_id', userId)
+    .eq('service_type', 'spotify')
+    .maybeSingle();
+
+  return (data?.profile_data as Record<string, unknown> | null) ?? null;
+}
+
+function profileHasTracks(profileData: Record<string, unknown> | null): boolean {
+  if (!profileData) return false;
+  if (hasNonEmptyPerRangeData(profileData, 'topTracksByTimeRange')) return true;
+  const flat = profileData.topTracks;
+  return Array.isArray(flat) && flat.length > 0;
+}
+
+export async function refreshFeedAfterStreamingSync(userId: string): Promise<void> {
+  const { error: refreshError } = await supabase.rpc('refresh_user_preferences_v5', {
+    p_user_id: userId,
+  });
+  if (refreshError) {
+    console.warn('refresh_user_preferences_v5 after streaming sync:', refreshError.message);
+  }
+
+  const { error: cacheError } = await supabase.rpc('invalidate_personalized_feed_cache', {
+    p_user_id: userId,
+  });
+  if (cacheError) {
+    console.warn('invalidate_personalized_feed_cache after streaming sync:', cacheError.message);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('synth:streaming-sync-complete', { detail: { userId } })
+    );
   }
 }
 
@@ -64,6 +124,15 @@ export async function requestServerSpotifySync(): Promise<StreamingSyncResult> {
         ok: false,
         skipped: 'no-stored-token',
         message: 'Connect Spotify once to save a refresh token for background sync.',
+        usedServer: true,
+      };
+    }
+
+    if (response.status === 422 && body.error === 'tracks_empty') {
+      return {
+        ok: false,
+        skipped: 'partial-sync',
+        message: body.message || TRACKS_RECONNECT_MESSAGE,
         usedServer: true,
       };
     }
@@ -118,12 +187,21 @@ export async function syncStreamingProfile(
 
   try {
     if (serviceType === 'spotify') {
-      const clientResult = await tryClientSpotifySync();
+      // Server sync is authoritative when a stored refresh token exists.
       const serverResult = await requestServerSpotifySync();
+      let clientResult: { ok: boolean; message?: string } = { ok: false };
 
-      if (clientResult.ok || serverResult.ok) {
+      if (!serverResult.ok && serverResult.skipped !== 'partial-sync') {
+        clientResult = await tryClientSpotifySync();
+      }
+
+      const profileData = await fetchSpotifyProfileData(userId);
+      const tracksOk = profileHasTracks(profileData);
+
+      if (tracksOk) {
         streamingSyncService.completeSync();
         markAutoSynced(userId);
+        await refreshFeedAfterStreamingSync(userId);
         return {
           ok: true,
           usedClient: clientResult.ok,
@@ -131,23 +209,41 @@ export async function syncStreamingProfile(
         };
       }
 
-      const message =
-        serverResult.message ||
-        clientResult.message ||
-        'Could not refresh Spotify stats. Connect Spotify once, then try again.';
+      const partialMessage =
+        serverResult.skipped === 'partial-sync'
+          ? serverResult.message || TRACKS_RECONNECT_MESSAGE
+          : streamingProfileNeedsTrackResync(profileData)
+            ? TRACKS_RECONNECT_MESSAGE
+            : serverResult.message ||
+              clientResult.message ||
+              'Could not refresh Spotify stats. Connect Spotify once, then try again.';
 
-      streamingSyncService.errorSync(message);
+      streamingSyncService.errorSync(partialMessage);
 
-      if (serverResult.skipped === 'no-stored-token' && !clientResult.ok) {
-        return { ok: false, skipped: 'no-stored-token', message, usedServer: true };
+      if (
+        serverResult.skipped === 'no-stored-token' &&
+        !clientResult.ok &&
+        !streamingProfileNeedsTrackResync(profileData)
+      ) {
+        return { ok: false, skipped: 'no-stored-token', message: partialMessage, usedServer: true };
+      }
+
+      if (streamingProfileNeedsTrackResync(profileData) || serverResult.skipped === 'partial-sync') {
+        return {
+          ok: false,
+          skipped: 'partial-sync',
+          message: partialMessage,
+          usedClient: clientResult.ok,
+          usedServer: serverResult.ok,
+        };
       }
 
       return {
         ok: false,
-        skipped: serverResult.skipped ?? 'sync-failed',
-        message,
-        usedClient: false,
-        usedServer: true,
+        skipped: 'sync-failed',
+        message: partialMessage,
+        usedClient: clientResult.ok,
+        usedServer: serverResult.ok,
       };
     }
 
@@ -169,6 +265,7 @@ export async function syncStreamingProfile(
     appleMusicService.markSyncCompleted();
     streamingSyncService.completeSync();
     markAutoSynced(userId);
+    await refreshFeedAfterStreamingSync(userId);
     return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Sync failed';

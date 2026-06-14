@@ -906,15 +906,17 @@ const { user, sessionExpired } = useAuth();
       if (result.ok) {
         toast({
           title: `${musicServiceType === 'spotify' ? 'Spotify' : 'Apple Music'} synced`,
-          description: 'Your music preferences have been updated.',
+          description: 'Your music preferences have been updated. Your event feed will reflect your taste.',
         });
         return;
       }
       toast({
         title:
-          result.skipped === 'no-session' || result.skipped === 'no-stored-token'
-            ? 'Reconnect to sync'
-            : 'Sync failed',
+          result.skipped === 'partial-sync'
+            ? 'Songs not synced'
+            : result.skipped === 'no-session' || result.skipped === 'no-stored-token'
+              ? 'Reconnect to sync'
+              : 'Sync failed',
         description:
           result.message ||
           'Open Settings → Profile & Preferences → Streaming Account to resync.',

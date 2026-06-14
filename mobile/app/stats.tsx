@@ -34,7 +34,7 @@ import { supabase } from '../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Music, ChevronLeft, RefreshCw, Headphones, Zap } from 'lucide-react-native';
 import { getExpoSiteUrl } from '../src/utils/siteUrl';
-import { syncStreamingProfile } from '../src/services/streamingSyncActions';
+import { syncStreamingProfile, buildExpoSpotifyConnectUrl } from '../src/services/streamingSyncActions';
 import { runStreamingAutoSync } from '../src/services/streamingAutoSyncService';
 import { formatRelativeTime } from '../src/utils/formatRelativeTime';
 import { StreamingTimeRangePicker } from '../src/components/streaming/StreamingTimeRangePicker';
@@ -121,6 +121,10 @@ export default function StreamingStatsScreen() {
     void WebBrowser.openBrowserAsync(url);
   };
 
+  const openSpotifyConnectOnWeb = () => {
+    void WebBrowser.openBrowserAsync(buildExpoSpotifyConnectUrl());
+  };
+
   const handleResync = async () => {
     const {
       data: { session },
@@ -128,20 +132,26 @@ export default function StreamingStatsScreen() {
     const user = session?.user;
     if (!user) return;
 
-    if (!linkStatus.linked || linkStatus.provider === 'unknown') {
-      openStreamingOnWeb();
-      return;
-    }
-
     if (linkStatus.provider === 'apple-music') {
       Alert.alert(
         'Sync on web',
         'Apple Music resync opens in your browser once to refresh your stats.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Open web', onPress: () => openStreamingOnWeb('apple-music') },
+          {
+            text: 'Open web',
+            onPress: () => {
+              const url = `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent('apple-music')}&source=expo`;
+              void WebBrowser.openBrowserAsync(url);
+            },
+          },
         ]
       );
+      return;
+    }
+
+    if (!linkStatus.linked || linkStatus.provider === 'unknown') {
+      openSpotifyConnectOnWeb();
       return;
     }
 
@@ -149,17 +159,30 @@ export default function StreamingStatsScreen() {
     try {
       const result = await syncStreamingProfile(user.id, 'spotify', { manual: true });
       await loadProfile(false);
-      if (result.ok) return;
+
+      if (result.ok) {
+        Alert.alert(
+          'Stats updated',
+          'Your streaming data has been refreshed. Your event feed will reflect your taste.'
+        );
+        return;
+      }
 
       if (result.skipped === 'no-stored-token') {
         Alert.alert(
-          'Connect Spotify first',
-          'Complete Spotify login once on the web — then resync works right here in the app.',
+          'One-time setup in browser',
+          result.message ||
+            'Connect Spotify once on the web to save your token. Return here and tap Resync again.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Connect', onPress: () => openStreamingOnWeb('spotify') },
+            { text: 'Connect on web', onPress: openSpotifyConnectOnWeb },
           ]
         );
+        return;
+      }
+
+      if (result.skipped === 'partial-sync') {
+        Alert.alert('Songs not synced', result.message || 'Reconnect Spotify on the web, then resync.');
         return;
       }
 

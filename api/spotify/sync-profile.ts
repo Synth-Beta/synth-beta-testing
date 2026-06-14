@@ -84,6 +84,9 @@ async function getAllTopItems(
   return items;
 }
 
+const TRACKS_RECONNECT_MESSAGE =
+  'Your artists synced but songs are missing. Disconnect and reconnect Spotify on the web to grant track permissions (user-top-read).';
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -164,6 +167,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         spotifyApi(accessToken, '/me').catch(() => null),
       ]);
 
+    const artistCount = artistsShort.length + artistsMed.length + artistsLong.length;
+    const trackCount = tracksShort.length + tracksMed.length + tracksLong.length;
+
+    if (artistCount > 0 && trackCount === 0) {
+      return res.status(422).json({
+        error: 'tracks_empty',
+        message: TRACKS_RECONNECT_MESSAGE,
+        counts: { artists: artistCount, tracks: 0 },
+      });
+    }
+
     const profileData = {
       topArtists: [...artistsShort, ...artistsMed, ...artistsLong],
       topArtistsByTimeRange: {
@@ -213,7 +227,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('user_id', userId);
     }
 
-    return res.status(200).json({ ok: true, lastUpdated: new Date().toISOString() });
+    // Belt-and-suspenders: triggers also refresh preferences; explicit call for mobile-only path.
+    await supabase.rpc('refresh_user_preferences_v5', { p_user_id: userId });
+
+    await supabase.from('personalized_feed_cache').delete().eq('user_id', userId);
+
+    return res.status(200).json({
+      ok: true,
+      lastUpdated: new Date().toISOString(),
+      counts: { artists: artistCount, tracks: trackCount },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Sync failed';
     console.error('[spotify/sync-profile]', message);

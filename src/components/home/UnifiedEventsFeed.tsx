@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { hapticLight } from '@/utils/haptics';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PersonalizationEngineV5, type PersonalizedEvent } from '@/services/personalizedFeedService';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
@@ -126,6 +126,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   middleSection,
   extraEvents,
 }) => {
+  const queryClient = useQueryClient();
+
   // All fetched events (batch of 100) and displayed events (paginated from batch)
   const [allFetchedEvents, setAllFetchedEvents] = useState<UnifiedEventItem[]>([]);
   const [displayedEvents, setDisplayedEvents] = useState<UnifiedEventItem[]>([]);
@@ -139,6 +141,18 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
+
+  useEffect(() => {
+    const onStreamingSyncComplete = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string }>).detail;
+      if (detail?.userId && detail.userId !== currentUserId) return;
+      void queryClient.invalidateQueries({ queryKey: ['feed', 'home', currentUserId] });
+    };
+    window.addEventListener('synth:streaming-sync-complete', onStreamingSyncComplete);
+    return () => {
+      window.removeEventListener('synth:streaming-sync-complete', onStreamingSyncComplete);
+    };
+  }, [currentUserId, queryClient]);
   
   // Background prefetching state
   const isPrefetchingRef = useRef(false);

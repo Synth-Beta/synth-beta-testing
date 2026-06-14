@@ -255,11 +255,51 @@ export class SpotifyService {
         this.getTopArtists('long_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopArtistsResponse))
       ]);
 
-      const [topTracksShort, topTracksMed, topTracksLong] = await Promise.all([
-        this.getTopTracks('short_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopTracksResponse)),
-        this.getTopTracks('medium_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopTracksResponse)),
-        this.getTopTracks('long_term', 50, 0).catch(() => ({ items: [] } as SpotifyTopTracksResponse))
+      const trackFetchResults = await Promise.all([
+        this.getTopTracks('short_term', 50, 0)
+          .then((data) => ({ ok: true as const, data }))
+          .catch((error: unknown) => ({ ok: false as const, error })),
+        this.getTopTracks('medium_term', 50, 0)
+          .then((data) => ({ ok: true as const, data }))
+          .catch((error: unknown) => ({ ok: false as const, error })),
+        this.getTopTracks('long_term', 50, 0)
+          .then((data) => ({ ok: true as const, data }))
+          .catch((error: unknown) => ({ ok: false as const, error })),
       ]);
+
+      const topTracksShort = trackFetchResults[0].ok
+        ? trackFetchResults[0].data
+        : ({ items: [] } as SpotifyTopTracksResponse);
+      const topTracksMed = trackFetchResults[1].ok
+        ? trackFetchResults[1].data
+        : ({ items: [] } as SpotifyTopTracksResponse);
+      const topTracksLong = trackFetchResults[2].ok
+        ? trackFetchResults[2].data
+        : ({ items: [] } as SpotifyTopTracksResponse);
+
+      const trackFetchFailures = trackFetchResults.filter((r) => !r.ok);
+      const allTopArtistsPreview = [
+        ...topArtistsShort.items,
+        ...topArtistsMed.items,
+        ...topArtistsLong.items,
+      ];
+      const allTopTracksPreview = [
+        ...topTracksShort.items,
+        ...topTracksMed.items,
+        ...topTracksLong.items,
+      ];
+      if (
+        allTopArtistsPreview.length > 0 &&
+        allTopTracksPreview.length === 0 &&
+        trackFetchFailures.length === 3
+      ) {
+        const firstError = trackFetchFailures[0]?.error;
+        const detail =
+          firstError instanceof Error ? firstError.message : 'Spotify track API failed';
+        throw new Error(
+          `Spotify did not return top tracks (${detail}). Disconnect and reconnect Spotify to grant track permissions (user-top-read).`
+        );
+      }
 
       const recentlyPlayed = await this.getRecentlyPlayed(50).catch(() => ({ items: [] } as SpotifyRecentlyPlayedResponse));
       const userProfile = await this.getUserProfile().catch(() => null);

@@ -48,6 +48,11 @@ const SpotifyCallback = () => {
                 return;
               }
 
+              if (source === 'expo') {
+                window.location.href = '/streaming-stats?source=expo&synced=1';
+                return;
+              }
+
               if (source === 'onboarding') {
                 localStorage.setItem('intendedView', 'onboarding');
                 window.location.href = '/';

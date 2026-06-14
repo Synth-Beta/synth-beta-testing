@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -44,13 +44,38 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   const [needsConnection, setNeedsConnection] = useState(false);
   const [timeRange, setTimeRange] = useState<SpotifyTimeRange>('medium_term');
   const [autoSyncAttempted, setAutoSyncAttempted] = useState(false);
+  const [showExpoReturnBanner, setShowExpoReturnBanner] = useState(false);
+  const connectFromExpoAttempted = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('source') === 'expo' && params.get('synced') === '1') {
+      setShowExpoReturnBanner(true);
+    }
+  }, []);
+
+  // Auto-connect when opened from Expo with ?connect=spotify (new link or one-time token save)
+  useEffect(() => {
+    if (!user || loading || connectFromExpoAttempted.current) return;
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const connect = params.get('connect');
+    if (connect !== 'spotify') return;
+    if (!needsConnection && params.get('action') !== 'resync') return;
+
+    connectFromExpoAttempted.current = true;
+    localStorage.setItem(
+      'spotify_connect_source',
+      params.get('source') === 'expo' ? 'expo' : 'streaming_stats'
+    );
+    void handleConnectSpotify();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading, needsConnection]);
 
   useEffect(() => {
     if (user) loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
-
-  // Auto-sync when opened from mobile Expo app with ?action=resync
   useEffect(() => {
     if (!user || loading) return;
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
@@ -67,6 +92,8 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     if (params.get('action') === 'resync') return;
+    if (params.get('connect')) return;
+    if (params.get('connect')) return;
 
     setAutoSyncAttempted(true);
     void (async () => {
@@ -203,8 +230,19 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         toast({
           title: 'Stats updated',
           description: result.usedServer
-            ? 'Your streaming data has been refreshed from Spotify.'
+            ? 'Your streaming data has been refreshed from Spotify. Your event feed will reflect your taste.'
             : 'Your streaming data has been refreshed.',
+        });
+        return;
+      }
+
+      if (result.skipped === 'partial-sync') {
+        toast({
+          title: 'Songs not synced',
+          description:
+            result.message ||
+            'Your artists synced but songs are missing. Disconnect and reconnect Spotify, then sync again.',
+          variant: 'destructive',
         });
         return;
       }
@@ -249,7 +287,13 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         return;
       }
 
-      localStorage.setItem('spotify_connect_source', 'streaming_stats');
+      localStorage.setItem(
+        'spotify_connect_source',
+        typeof window !== 'undefined' &&
+          new URLSearchParams(window.location.search).get('source') === 'expo'
+          ? 'expo'
+          : 'streaming_stats'
+      );
 
       const isNativeCapacitor =
         typeof window !== 'undefined' && typeof (window as any).Capacitor !== 'undefined';
@@ -510,6 +554,13 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
             </p>
           )}
         </div>
+
+        {showExpoReturnBanner ? (
+          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-950">
+            Spotify connected and stats synced. You can close this browser tab and return to the Synth
+            app, then tap Resync on the Stats screen.
+          </div>
+        ) : null}
 
         {/* Time range selector (Spotify only) */}
         {hasTimeRanges && (

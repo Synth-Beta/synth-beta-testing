@@ -1,35 +1,28 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { hasPerRangeData } from '@synth/shared';
+import {
+  hasNonEmptyPerRangeData,
+  streamingProfileNeedsTrackResync,
+} from '@synth/shared';
 import { syncStreamingProfile } from './streamingSyncActions';
+import {
+  markAutoSynced,
+  wasRecentlyAutoSynced,
+  STREAMING_AUTO_SYNC_THROTTLE_MS,
+} from './streamingAutoSyncStorage';
+
+export {
+  markAutoSynced,
+  clearAutoSyncThrottle,
+  wasRecentlyAutoSynced,
+  STREAMING_AUTO_SYNC_THROTTLE_MS,
+} from './streamingAutoSyncStorage';
 
 export const STREAMING_AUTO_SYNC_STALE_MS = 7 * 24 * 60 * 60 * 1000;
-export const STREAMING_AUTO_SYNC_THROTTLE_MS = 24 * 60 * 60 * 1000;
 
 export type StreamingAutoSyncReason = 'migration' | 'stale' | 'never';
 
 export interface StreamingAutoSyncDecision {
   shouldSync: boolean;
   reason: StreamingAutoSyncReason | null;
-}
-
-function autoSyncThrottleKey(userId: string): string {
-  return `streaming_auto_sync_at_${userId}`;
-}
-
-export async function wasRecentlyAutoSynced(userId: string): Promise<boolean> {
-  const raw = await AsyncStorage.getItem(autoSyncThrottleKey(userId));
-  if (!raw) return false;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return false;
-  return Date.now() - parsed < STREAMING_AUTO_SYNC_THROTTLE_MS;
-}
-
-export async function markAutoSynced(userId: string): Promise<void> {
-  await AsyncStorage.setItem(autoSyncThrottleKey(userId), String(Date.now()));
-}
-
-export async function clearAutoSyncThrottle(userId: string): Promise<void> {
-  await AsyncStorage.removeItem(autoSyncThrottleKey(userId));
 }
 
 export function evaluateStreamingAutoSync(params: {
@@ -43,8 +36,11 @@ export function evaluateStreamingAutoSync(params: {
   }
 
   if (params.serviceType === 'spotify' && params.profileData) {
-    const artistsHaveRanges = hasPerRangeData(params.profileData, 'topArtistsByTimeRange');
-    const songsHaveRanges = hasPerRangeData(params.profileData, 'topTracksByTimeRange');
+    if (streamingProfileNeedsTrackResync(params.profileData)) {
+      return { shouldSync: true, reason: 'migration' };
+    }
+    const artistsHaveRanges = hasNonEmptyPerRangeData(params.profileData, 'topArtistsByTimeRange');
+    const songsHaveRanges = hasNonEmptyPerRangeData(params.profileData, 'topTracksByTimeRange');
     if (artistsHaveRanges && !songsHaveRanges) {
       return { shouldSync: true, reason: 'migration' };
     }

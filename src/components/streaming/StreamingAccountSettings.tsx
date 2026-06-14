@@ -95,8 +95,20 @@ export function StreamingAccountSettings({
     try {
       const result = await syncStreamingProfile(user.id, linkStatus.provider, { manual: true });
       if (result.ok) {
-        toast({ title: 'Stats updated', description: 'Your streaming data has been refreshed.' });
+        toast({
+          title: 'Stats updated',
+          description: 'Your streaming data has been refreshed. Your event feed will reflect your taste.',
+        });
         await refreshStatus();
+      } else if (result.skipped === 'partial-sync') {
+        toast({
+          title: 'Songs not synced',
+          description:
+            result.message ||
+            'Your artists synced but songs are missing. Disconnect and reconnect Spotify, then sync again.',
+          variant: 'destructive',
+        });
+        onNavigateToStreamingStats?.();
       } else if (result.skipped === 'no-stored-token' || result.skipped === 'no-session') {
         toast({
           title: 'Reconnect to refresh',
