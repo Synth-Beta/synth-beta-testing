@@ -12,7 +12,12 @@ import { streamingSyncService } from '@/services/streamingSyncService';
 import { runStreamingAutoSync } from '@/services/streamingAutoSyncService';
 import { syncStreamingProfile } from '@/services/streamingSyncActions';
 import { getStreamingLinkStatus } from '@/services/streamingConnectionService';
-import { fetchUserStreamingStatsSnapshot } from '@synth/shared';
+import {
+  fetchUserStreamingStatsSnapshot,
+  enrichProfileDataWithGenres,
+  formatTopGenresForDisplay,
+  computeTopGenresFromArtists,
+} from '@synth/shared';
 import { toast } from '@/hooks/use-toast';
 import PageShell from '@/components/layout/PageShell';
 import { formatDistanceToNow } from 'date-fns';
@@ -160,7 +165,12 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
       setServiceType(resolvedType);
 
       if (profileRow?.profile_data) {
-        setProfileData(profileRow.profile_data);
+        const snapshot = await fetchUserStreamingStatsSnapshot(supabase, user.id);
+        setProfileData(
+          enrichProfileDataWithGenres(profileRow.profile_data as Record<string, unknown>, {
+            prefsGenres: snapshot?.top_genres,
+          })
+        );
         setLastSynced(profileRow.last_updated ?? null);
         setNeedsConnection(false);
       } else {
@@ -410,32 +420,16 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   }, [profileData, timeRange, serviceType]);
 
   const genres = useMemo<{ name: string; count: number; pct: number }[]>(() => {
-    const snapshotGenres = profileData?.topGenresSnapshot as
+    if (!profileData) return [];
+
+    const snapshotGenres = profileData.topGenresSnapshot as
       | Array<{ genre: string; count: number }>
       | undefined;
-    if (Array.isArray(snapshotGenres) && snapshotGenres.length > 0) {
-      const max = snapshotGenres[0]?.count || 1;
-      return snapshotGenres
-        .slice(0, 12)
-        .map((entry) => ({
-          name: entry.genre,
-          count: entry.count,
-          pct: Math.round((entry.count / max) * 100),
-        }));
-    }
+    const fromSnapshot = formatTopGenresForDisplay(snapshotGenres);
+    if (fromSnapshot.length > 0) return fromSnapshot;
 
-    const counts: Record<string, number> = {};
-    displayArtists.forEach((a: any) => {
-      (a.genres || []).forEach((g: string) => {
-        counts[g] = (counts[g] || 0) + 1;
-      });
-    });
-    const entries = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12);
-    const max = entries[0]?.[1] || 1;
-    return entries.map(([name, count]) => ({ name, count, pct: Math.round((count / max) * 100) }));
-  }, [displayArtists]);
+    return formatTopGenresForDisplay(computeTopGenresFromArtists(profileData));
+  }, [profileData]);
 
   const isSpotify = serviceType === 'spotify';
   const accentColor = isSpotify ? '#1DB954' : '#FC3C44';

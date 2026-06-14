@@ -147,3 +147,95 @@ export const SPOTIFY_TIME_RANGE_LABELS: Record<SpotifyTimeRange, string> = {
   medium_term: '6 Months',
   long_term: 'All Time',
 };
+
+export type TopGenreEntry = { genre: string; count: number };
+
+/** Aggregate genre tags from all saved artist lists (all time ranges + flat). */
+export function computeTopGenresFromArtists(
+  profileData: Record<string, unknown> | null | undefined,
+  limit = 12
+): TopGenreEntry[] {
+  if (!profileData) return [];
+
+  const counts: Record<string, number> = {};
+
+  const addArtist = (artist: unknown) => {
+    if (!artist || typeof artist !== 'object') return;
+    const genres = (artist as { genres?: string[] }).genres;
+    if (!Array.isArray(genres)) return;
+    for (const raw of genres) {
+      const genre = String(raw).trim();
+      if (genre) counts[genre] = (counts[genre] || 0) + 1;
+    }
+  };
+
+  const byRange = profileData.topArtistsByTimeRange;
+  if (byRange && typeof byRange === 'object') {
+    for (const range of SPOTIFY_TIME_RANGES) {
+      const list = (byRange as Record<string, unknown>)[range];
+      if (Array.isArray(list)) list.forEach(addArtist);
+    }
+  }
+
+  const flat = profileData.topArtists;
+  if (Array.isArray(flat)) flat.forEach(addArtist);
+
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([genre, count]) => ({ genre, count }));
+}
+
+function normalizeGenreEntries(
+  raw: unknown,
+  limit = 12
+): TopGenreEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const entries: TopGenreEntry[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const genre = String((item as { genre?: string }).genre ?? '').trim();
+    const count = Number((item as { count?: number }).count ?? 0);
+    if (genre) entries.push({ genre, count: Number.isFinite(count) ? count : 0 });
+  }
+  return entries.slice(0, limit);
+}
+
+/** Prefer prefs-derived genres, then artist tags, then any prior snapshot. */
+export function pickTopGenresSnapshot(
+  ...sources: Array<TopGenreEntry[] | null | undefined>
+): TopGenreEntry[] {
+  for (const src of sources) {
+    if (Array.isArray(src) && src.length > 0) return src;
+  }
+  return [];
+}
+
+export function enrichProfileDataWithGenres(
+  profileData: Record<string, unknown>,
+  options?: {
+    prefsGenres?: TopGenreEntry[] | null;
+    preserveSnapshot?: TopGenreEntry[] | null;
+  }
+): Record<string, unknown> {
+  const topGenresSnapshot = pickTopGenresSnapshot(
+    options?.prefsGenres,
+    computeTopGenresFromArtists(profileData),
+    options?.preserveSnapshot,
+    normalizeGenreEntries(profileData.topGenresSnapshot)
+  );
+  return { ...profileData, topGenresSnapshot };
+}
+
+export function formatTopGenresForDisplay(
+  entries: TopGenreEntry[] | undefined,
+  limit = 12
+): Array<{ name: string; count: number; pct: number }> {
+  if (!entries?.length) return [];
+  const max = entries[0]?.count || 1;
+  return entries.slice(0, limit).map((entry) => ({
+    name: entry.genre,
+    count: entry.count,
+    pct: Math.round((entry.count / max) * 100),
+  }));
+}

@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 import { logger } from '@/utils/logger';
 import { getSpotifyRedirectUri } from '@/utils/canonicalSiteUrl';
+import { enrichProfileDataWithGenres } from '@/utils/streamingProfileData';
 
 interface SpotifyAuthenticateOptions {
   onNavigate?: (url: string) => Promise<void> | void;
@@ -566,23 +567,40 @@ export class SpotifyService {
       }
 
       // Prepare profile data for streaming_profiles table
-      const profileData = {
-        topArtists: data.topArtists,
-        topArtistsByTimeRange: data.topArtistsByTimeRange ?? null,
-        topTracks: data.topTracks,
-        topTracksByTimeRange: data.topTracksByTimeRange ?? null,
-        recentlyPlayed: data.recentlyPlayed,
-        userProfile: data.userProfile,
-        external_urls: data.userProfile?.external_urls,
-        followers: data.userProfile?.followers,
-        country: data.userProfile?.country,
-        display_name: data.userProfile?.display_name,
-        email: data.userProfile?.email,
-        images: data.userProfile?.images,
-        product: data.userProfile?.product,
-        type: data.userProfile?.type,
-        uri: data.userProfile?.uri
-      };
+      const { data: existingRow } = await supabase
+        .from('streaming_profiles')
+        .select('profile_data')
+        .eq('user_id', user.id)
+        .eq('service_type', 'spotify')
+        .maybeSingle();
+
+      const preserveSnapshot = Array.isArray(
+        (existingRow?.profile_data as { topGenresSnapshot?: unknown } | null)?.topGenresSnapshot
+      )
+        ? ((existingRow?.profile_data as { topGenresSnapshot: { genre: string; count: number }[] })
+            .topGenresSnapshot)
+        : null;
+
+      const profileData = enrichProfileDataWithGenres(
+        {
+          topArtists: data.topArtists,
+          topArtistsByTimeRange: data.topArtistsByTimeRange ?? null,
+          topTracks: data.topTracks,
+          topTracksByTimeRange: data.topTracksByTimeRange ?? null,
+          recentlyPlayed: data.recentlyPlayed,
+          userProfile: data.userProfile,
+          external_urls: data.userProfile?.external_urls,
+          followers: data.userProfile?.followers,
+          country: data.userProfile?.country,
+          display_name: data.userProfile?.display_name,
+          email: data.userProfile?.email,
+          images: data.userProfile?.images,
+          product: data.userProfile?.product,
+          type: data.userProfile?.type,
+          uri: data.userProfile?.uri,
+        },
+        { preserveSnapshot }
+      );
 
       // Use upsert to handle both insert and update in one operation
       // This avoids the 406/409 errors by using ON CONFLICT

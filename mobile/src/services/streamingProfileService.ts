@@ -1,5 +1,6 @@
 import {
   fetchUserStreamingStatsSnapshot,
+  enrichProfileDataWithGenres,
   type StreamingLinkStatus,
   type StreamingProvider,
 } from '@synth/shared';
@@ -82,10 +83,13 @@ export async function loadStreamingProfile(userId: string): Promise<StreamingPro
   }
 
   if (profileRow?.profile_data) {
+    const snapshot = await fetchUserStreamingStatsSnapshot(supabase, userId);
     return {
       linkStatus,
       serviceType: resolvedType,
-      profileData: profileRow.profile_data as Record<string, unknown>,
+      profileData: enrichProfileDataWithGenres(profileRow.profile_data as Record<string, unknown>, {
+        prefsGenres: snapshot?.top_genres,
+      }),
       lastSynced: profileRow.last_updated ?? null,
       needsConnection: false,
     };
