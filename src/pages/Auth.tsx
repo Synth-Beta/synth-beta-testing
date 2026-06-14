@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { handleAppleSignInFromNative, setupAppleSignInListeners } from '@/services/appleAuthService';
 import { Capacitor } from '@capacitor/core';
+import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
 
 // Add the elegant-shift animation keyframes
 const styles = `
@@ -109,13 +110,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         : `https://${envUrlRaw}`
       : null;
 
-    // Only accept http(s) origins as safe web redirect targets.
-    const windowOriginRaw = typeof window !== 'undefined' ? window.location.origin : null;
-    const windowOrigin =
-      windowOriginRaw && /^https?:\/\//i.test(windowOriginRaw) ? windowOriginRaw : null;
-    const fallback = 'https://synth-beta-testing.vercel.app';
+    const fallback = getCanonicalSiteUrl();
 
-    const candidate = envUrl ?? windowOrigin ?? fallback;
+    const candidate = envUrl ?? fallback;
     try {
       // Ensure we always return a clean origin (no path/query/hash).
       return new URL(candidate).origin;

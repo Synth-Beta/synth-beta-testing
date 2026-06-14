@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
+import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { useAuth } from '@/hooks/useAuth';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
@@ -120,7 +121,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
       const isMobile = Capacitor.isNativePlatform();
       const redirectUrl = isMobile
         ? 'synth://reset-password'
-        : 'https://synth-beta-testing.vercel.app/reset-password';
+        : `${getCanonicalSiteUrl()}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(userEmail, { redirectTo: redirectUrl });
       if (error) throw error;
       toast({ title: 'Email sent', description: `Password reset link sent to ${userEmail}.` });

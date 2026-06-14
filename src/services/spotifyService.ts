@@ -15,6 +15,7 @@ import { trackInteraction, interactionTracker } from '@/services/interactionTrac
 import { supabase } from '@/integrations/supabase/client';
 import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
 import { logger } from '@/utils/logger';
+import { getSpotifyRedirectUri } from '@/utils/canonicalSiteUrl';
 
 interface SpotifyAuthenticateOptions {
   onNavigate?: (url: string) => Promise<void> | void;
@@ -29,10 +30,7 @@ export class SpotifyService {
 
   private constructor() {
     const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID || '';
-    // Set VITE_SPOTIFY_REDIRECT_URI in production (e.g. Vercel) to your app URL, e.g. https://yourapp.vercel.app/auth/spotify/callback
-    const redirectUri =
-      import.meta.env.VITE_SPOTIFY_REDIRECT_URI ||
-      (typeof window !== 'undefined' ? `${window.location.origin}/auth/spotify/callback` : '');
+    const redirectUri = getSpotifyRedirectUri();
     
     logger.debug('🔍 Spotify Config:', { hasClientId: !!clientId, hasRedirectUri: !!redirectUri });
     

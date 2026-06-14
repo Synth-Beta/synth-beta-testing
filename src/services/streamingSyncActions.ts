@@ -101,6 +101,13 @@ function profileHasTracks(profileData: Record<string, unknown> | null): boolean 
   return Array.isArray(flat) && flat.length > 0;
 }
 
+/** Matches Streaming Stats UI: per-range tracks required when artists have per-range data. */
+function profileSyncComplete(profileData: Record<string, unknown> | null): boolean {
+  if (!profileData) return false;
+  if (streamingProfileNeedsTrackResync(profileData)) return false;
+  return profileHasTracks(profileData);
+}
+
 function getProfileSyncCounts(
   profileData: Record<string, unknown> | null
 ): { artists: number; tracks: number } {
@@ -246,7 +253,7 @@ export async function syncStreamingProfile(
       clientResult = await tryClientSpotifySync();
 
       let profileData = await fetchSpotifyProfileData(userId);
-      let tracksOk = profileHasTracks(profileData);
+      let tracksOk = profileSyncComplete(profileData);
 
       if (!tracksOk) {
         if (!isManual && shouldSkipServerSpotifySync(userId)) {
@@ -267,19 +274,21 @@ export async function syncStreamingProfile(
         }
 
         profileData = await fetchSpotifyProfileData(userId);
-        tracksOk = profileHasTracks(profileData);
+        tracksOk = profileSyncComplete(profileData);
       }
 
       // Manual resync: retry client after server (server may have backfilled, or session refreshed).
       if (!tracksOk && isManual && serverResult.skipped !== 'partial-sync') {
         clientResult = await tryClientSpotifySync();
         profileData = await fetchSpotifyProfileData(userId);
-        tracksOk = profileHasTracks(profileData);
+        tracksOk = profileSyncComplete(profileData);
       }
 
       const counts = getProfileSyncCounts(profileData);
+      const needsTrackResync = streamingProfileNeedsTrackResync(profileData);
+      const syncRan = clientResult.ok || serverResult.ok;
 
-      if (tracksOk) {
+      if (tracksOk && (syncRan || !isManual)) {
         streamingSyncService.completeSync();
         markAutoSynced(userId);
         await refreshFeedAfterStreamingSync(userId);
@@ -288,6 +297,8 @@ export async function syncStreamingProfile(
           manual: isManual,
           usedClient: clientResult.ok,
           usedServer: serverResult.ok,
+          needsTrackResync,
+          syncRan,
           counts,
         });
         return {
@@ -298,10 +309,29 @@ export async function syncStreamingProfile(
         };
       }
 
+      if (tracksOk && isManual && !syncRan) {
+        logSyncResult({
+          ok: true,
+          manual: true,
+          usedClient: false,
+          usedServer: false,
+          needsTrackResync: false,
+          syncRan: false,
+          counts,
+          note: 'Profile already complete; no Spotify session or server token to refresh.',
+        });
+        return {
+          ok: true,
+          usedClient: false,
+          usedServer: false,
+          counts,
+        };
+      }
+
       const partialMessage =
         serverResult.skipped === 'partial-sync'
           ? serverResult.message || TRACKS_RECONNECT_MESSAGE
-          : streamingProfileNeedsTrackResync(profileData)
+          : needsTrackResync
             ? TRACKS_RECONNECT_MESSAGE
             : serverResult.message ||
               clientResult.message ||
@@ -313,11 +343,13 @@ export async function syncStreamingProfile(
         ok: false,
         manual: isManual,
         skipped:
-          streamingProfileNeedsTrackResync(profileData) || serverResult.skipped === 'partial-sync'
+          needsTrackResync || serverResult.skipped === 'partial-sync'
             ? 'partial-sync'
             : serverResult.skipped ?? 'sync-failed',
         usedClient: clientResult.ok,
         usedServer: serverResult.ok,
+        needsTrackResync,
+        syncRan,
         counts,
         message: partialMessage,
       });
@@ -325,7 +357,7 @@ export async function syncStreamingProfile(
       if (
         serverResult.skipped === 'no-stored-token' &&
         !clientResult.ok &&
-        !streamingProfileNeedsTrackResync(profileData)
+        !needsTrackResync
       ) {
         return {
           ok: false,
@@ -336,7 +368,7 @@ export async function syncStreamingProfile(
         };
       }
 
-      if (streamingProfileNeedsTrackResync(profileData) || serverResult.skipped === 'partial-sync') {
+      if (needsTrackResync || serverResult.skipped === 'partial-sync') {
         return {
           ok: false,
           skipped: 'partial-sync',

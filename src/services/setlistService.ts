@@ -1,7 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
 
 const REMOTE_PROXY_URL =
-  import.meta.env.VITE_REMOTE_SETLIST_PROXY_URL || 'https://synth-beta-testing.vercel.app';
+  import.meta.env.VITE_REMOTE_SETLIST_PROXY_URL || getCanonicalSiteUrl();
 
 // Determine the correct backend URL based on environment
 // Supports: localhost, Vercel web, iOS (Capacitor), Android (Capacitor)
@@ -30,7 +31,7 @@ const getBackendUrl = () => {
   if (isCapacitor) {
     // For Capacitor apps (iOS/Android), always use the Vercel production URL
     // This ensures the serverless function works in native apps
-    return import.meta.env.VITE_VERCEL_URL || 'https://synth-beta-testing.vercel.app';
+    return import.meta.env.VITE_VERCEL_URL || getCanonicalSiteUrl();
   }
   
   // Production web (Vercel): use relative URL for serverless functions

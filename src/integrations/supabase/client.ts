@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { nativeStorage } from '@/lib/nativeStorage';
+import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
 
 // Get Supabase credentials from environment variables
 // These MUST be set at build time (npm run build) for mobile apps
@@ -70,7 +71,7 @@ const supabaseConfig: any = {
     // Redirect URLs based on platform
     redirectTo: isMobile 
       ? 'synth://'
-      : typeof window !== 'undefined' ? window.location.origin : 'https://synth-beta-testing.vercel.app',
+      : getCanonicalSiteUrl(),
   },
 };
 

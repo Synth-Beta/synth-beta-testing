@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { getCanonicalSiteUrl } from '../utils/canonicalSiteUrl';
 import { ArtistProfile, JamBaseArtistResponse, transformJamBaseArtistToProfile } from '../types/artistProfile';
 
 export interface ArtistSearchResult {
@@ -175,7 +176,7 @@ export class UnifiedArtistSearchService {
       });
     } else {
       candidateUrls.push({
-        url: 'https://synth-beta-testing.vercel.app/api/ticketmaster/attractions?' + queryParams,
+        url: `${getCanonicalSiteUrl()}/api/ticketmaster/attractions?${queryParams}`,
         label: 'Default remote fallback'
       });
     }
