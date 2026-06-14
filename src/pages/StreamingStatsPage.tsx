@@ -93,7 +93,6 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     if (params.get('action') === 'resync') return;
     if (params.get('connect')) return;
-    if (params.get('connect')) return;
 
     setAutoSyncAttempted(true);
     void (async () => {
@@ -226,22 +225,32 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
       const result = await syncStreamingProfile(user.id, serviceType, { manual: true });
       await loadProfile();
 
+      const counts = result.counts;
+      const countLine =
+        counts != null
+          ? `${counts.artists} artist${counts.artists === 1 ? '' : 's'}, ${counts.tracks} song${counts.tracks === 1 ? '' : 's'} in your profile.`
+          : null;
+
       if (result.ok) {
         toast({
           title: 'Stats updated',
-          description: result.usedServer
-            ? 'Your streaming data has been refreshed from Spotify. Your event feed will reflect your taste.'
-            : 'Your streaming data has been refreshed.',
+          description: countLine
+            ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
+            : result.usedServer
+              ? 'Your streaming data has been refreshed from Spotify. Your event feed will reflect your taste.'
+              : 'Your streaming data has been refreshed.',
         });
         return;
       }
 
       if (result.skipped === 'partial-sync') {
         toast({
-          title: 'Songs not synced',
+          title: 'Sync incomplete — songs missing',
           description:
-            result.message ||
-            'Your artists synced but songs are missing. Disconnect and reconnect Spotify, then sync again.',
+            countLine != null
+              ? `${countLine} ${result.message || 'Try Sync now again. If songs stay empty, use Reconnect Spotify once.'}`
+              : result.message ||
+                'Artists synced but songs are missing. Try Sync now again, or Reconnect Spotify once.',
           variant: 'destructive',
         });
         return;
@@ -249,10 +258,10 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
       if (result.skipped === 'no-stored-token' || result.skipped === 'no-session') {
         toast({
-          title: 'Connect Spotify to sync',
+          title: 'Sync could not reach Spotify',
           description:
             result.message ||
-            'Use the Connect Spotify button above to sign in once — then Sync now will work in place.',
+            'This browser needs a one-time Spotify login. Use Connect Spotify below, then tap Sync again.',
           variant: 'destructive',
         });
         return;
@@ -260,7 +269,10 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
       toast({
         title: 'Sync failed',
-        description: result.message || 'Could not refresh stats. Please try again.',
+        description:
+          countLine != null
+            ? `${countLine} ${result.message || 'Could not refresh your stats. Try again.'}`
+            : result.message || 'Could not refresh stats. Please try again.',
         variant: 'destructive',
       });
     } catch (err) {
@@ -275,7 +287,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     }
   };
 
-  const handleConnectSpotify = async () => {
+  const handleConnectSpotify = async (options?: { forceConsent?: boolean }) => {
     setConnectingSpotify(true);
     try {
       if (!spotifyService.isConfigured()) {
@@ -299,6 +311,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         typeof window !== 'undefined' && typeof (window as any).Capacitor !== 'undefined';
 
       await spotifyService.authenticate({
+        forceConsent: options?.forceConsent,
         onNavigate: isNativeCapacitor
           ? async (url: string) => {
               const { Browser } = await import('@capacitor/browser');
@@ -316,6 +329,10 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     } finally {
       setConnectingSpotify(false);
     }
+  };
+
+  const handleReconnectSpotify = () => {
+    void handleConnectSpotify({ forceConsent: true });
   };
 
   const handleConnectAppleMusic = async () => {
@@ -613,19 +630,30 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         {showSongResyncBanner ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>
-              Song rankings by period need a refresh. Artists are up to date — sync once for{' '}
-              {TIME_RANGE_LABELS[timeRange]} and all periods.
+              Songs are missing from your last sync. Artists look up to date — tap Sync now first. If songs
+              still don&apos;t appear, use Reconnect Spotify once.
             </span>
-            <Button
-              size="sm"
-              variant="outline"
-              className="shrink-0 border-amber-300 bg-white hover:bg-amber-100"
-              onClick={handleSync}
-              disabled={syncing}
-            >
-              <RefreshCw className={`w-4 h-4 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
-              {syncing ? 'Syncing…' : 'Sync now'}
-            </Button>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                size="sm"
+                className="text-white"
+                style={{ backgroundColor: accentColor }}
+                onClick={handleReconnectSpotify}
+                disabled={connectingSpotify || syncing}
+              >
+                {connectingSpotify ? 'Opening Spotify…' : 'Reconnect Spotify'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-300 bg-white hover:bg-amber-100"
+                onClick={handleSync}
+                disabled={syncing || connectingSpotify}
+              >
+                <RefreshCw className={`w-4 h-4 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing…' : 'Sync now'}
+              </Button>
+            </div>
           </div>
         ) : null}
 

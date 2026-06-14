@@ -18,6 +18,8 @@ import { logger } from '@/utils/logger';
 
 interface SpotifyAuthenticateOptions {
   onNavigate?: (url: string) => Promise<void> | void;
+  /** Re-show Spotify consent (needed to grant scopes like user-top-read on reconnect). */
+  forceConsent?: boolean;
 }
 
 export class SpotifyService {
@@ -74,7 +76,7 @@ export class SpotifyService {
       throw new Error('Spotify integration is not configured. Please contact the administrator.');
     }
 
-    const authUrl = await this.prepareAuthRequest();
+    const authUrl = await this.prepareAuthRequest(options?.forceConsent ?? false);
 
     if (options?.onNavigate) {
       await options.onNavigate(authUrl.toString());
@@ -84,7 +86,7 @@ export class SpotifyService {
     window.location.href = authUrl.toString();
   }
 
-  private async prepareAuthRequest(): Promise<URL> {
+  private async prepareAuthRequest(forceConsent = false): Promise<URL> {
     const state = this.generateRandomString(16);
     const codeVerifier = this.generateRandomString(64);
     const codeChallenge = await this.generateCodeChallenge(codeVerifier);
@@ -99,6 +101,9 @@ export class SpotifyService {
     authUrl.searchParams.append('scope', this.config.scopes.join(' '));
     authUrl.searchParams.append('code_challenge_method', 'S256');
     authUrl.searchParams.append('code_challenge', codeChallenge);
+    if (forceConsent) {
+      authUrl.searchParams.append('show_dialog', 'true');
+    }
 
     try {
       trackInteraction.click('profile', 'connect_spotify', {
@@ -112,10 +117,10 @@ export class SpotifyService {
   }
 
   public async reauthenticate(): Promise<void> {
-    // Clear existing tokens and force re-auth
+    // Clear existing tokens and force re-auth with consent screen for scope updates
     logger.debug('🔄 Forcing re-authentication...');
     await this.logout();
-    this.authenticate();
+    await this.authenticate({ forceConsent: true });
   }
 
   public async validateTokenAndReauthIfNeeded(): Promise<boolean> {
@@ -669,16 +674,17 @@ export class SpotifyService {
     const storedToken = localStorage.getItem('spotify_access_token');
     const tokenExpiryStr = localStorage.getItem('spotify_token_expiry');
     if (storedToken && tokenExpiryStr) {
-      const tokenExpiry = parseInt(tokenExpiryStr);
-      if (Date.now() < tokenExpiry) {
+      const tokenExpiry = parseInt(tokenExpiryStr, 10);
+      if (Number.isFinite(tokenExpiry) && Date.now() < tokenExpiry) {
         this.accessToken = storedToken;
         return true;
       }
-      // Try silent refresh
-      const refreshed = await this.refreshToken();
-      return refreshed;
+      return this.refreshToken();
     }
-    // No token, cannot ensure session without user interaction
+    // Access token missing or expired — silent refresh when refresh_token remains.
+    if (localStorage.getItem('spotify_refresh_token')) {
+      return this.refreshToken();
+    }
     return false;
   }
 
@@ -897,10 +903,16 @@ export class SpotifyService {
       if (data.access_token) {
         this.accessToken = data.access_token;
         const expiryTime = Date.now() + (data.expires_in * 1000);
-        
+
         localStorage.setItem('spotify_access_token', data.access_token);
         localStorage.setItem('spotify_token_expiry', expiryTime.toString());
-        
+
+        const tokenToPersist = data.refresh_token ?? refreshToken;
+        if (data.refresh_token) {
+          localStorage.setItem('spotify_refresh_token', data.refresh_token);
+        }
+        await this.saveRefreshTokenToServer(tokenToPersist);
+
         return true;
       }
       return false;
@@ -946,14 +958,9 @@ export class SpotifyService {
     }
 
     if (response.status === 403) {
-      // Forbidden - likely missing scopes or old token
-      logger.debug('🚨 403 Forbidden detected, clearing all stored data...');
-      await this.clearStoredData();
-      // Dispatch a custom event to notify components
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('spotify-token-cleared'));
-      }
-      throw new Error('Access forbidden. Please reconnect with proper permissions.');
+      throw new Error(
+        'Spotify access forbidden (403). Try syncing again — if songs stay empty, reconnect once to refresh permissions.'
+      );
     }
 
     if (response.status === 404) {

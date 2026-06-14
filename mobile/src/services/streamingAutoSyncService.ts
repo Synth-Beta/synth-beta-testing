@@ -88,8 +88,10 @@ export async function runStreamingAutoSync(params: {
     try {
       const result = await syncStreamingProfile(params.userId, params.serviceType, { manual: false });
       if (result.ok) {
-        await markAutoSynced(params.userId);
         return { ok: true };
+      }
+      if (decision.reason === 'migration') {
+        await markAutoSynced(params.userId);
       }
       return { ok: false, skipped: result.skipped ?? 'error' };
     } finally {

@@ -10,6 +10,7 @@ import {
 import {
   hasNonEmptyPerRangeData,
   streamingProfileNeedsTrackResync,
+  countPerRangeItems,
 } from '@/utils/streamingProfileData';
 
 export type StreamingSyncResult = {
@@ -24,10 +25,37 @@ export type StreamingSyncResult = {
   message?: string;
   usedClient?: boolean;
   usedServer?: boolean;
+  counts?: { artists: number; tracks: number };
 };
 
 const TRACKS_RECONNECT_MESSAGE =
   'Your artists synced but songs are missing. Disconnect and reconnect Spotify to grant track permissions (user-top-read), then sync again.';
+
+const NO_SERVER_TOKEN_CACHE_MS = 60 * 60 * 1000;
+
+function noServerTokenCacheKey(userId: string): string {
+  return `spotify_no_server_token_${userId}`;
+}
+
+function shouldSkipServerSpotifySync(userId: string): boolean {
+  if (typeof sessionStorage === 'undefined') return false;
+  const raw = sessionStorage.getItem(noServerTokenCacheKey(userId));
+  if (!raw) return false;
+  const ts = Number(raw);
+  return Number.isFinite(ts) && Date.now() - ts < NO_SERVER_TOKEN_CACHE_MS;
+}
+
+function markNoServerSpotifyToken(userId: string): void {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(noServerTokenCacheKey(userId), String(Date.now()));
+  }
+}
+
+function clearNoServerSpotifyTokenCache(userId: string): void {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem(noServerTokenCacheKey(userId));
+  }
+}
 
 function parseApiErrorBody(text: string): Record<string, string> {
   try {
@@ -71,6 +99,24 @@ function profileHasTracks(profileData: Record<string, unknown> | null): boolean 
   if (hasNonEmptyPerRangeData(profileData, 'topTracksByTimeRange')) return true;
   const flat = profileData.topTracks;
   return Array.isArray(flat) && flat.length > 0;
+}
+
+function getProfileSyncCounts(
+  profileData: Record<string, unknown> | null
+): { artists: number; tracks: number } {
+  if (!profileData) return { artists: 0, tracks: 0 };
+  const artistsFromRange = countPerRangeItems(profileData, 'topArtistsByTimeRange');
+  const tracksFromRange = countPerRangeItems(profileData, 'topTracksByTimeRange');
+  const flatArtists = Array.isArray(profileData.topArtists) ? profileData.topArtists.length : 0;
+  const flatTracks = Array.isArray(profileData.topTracks) ? profileData.topTracks.length : 0;
+  return {
+    artists: artistsFromRange > 0 ? artistsFromRange : flatArtists,
+    tracks: tracksFromRange > 0 ? tracksFromRange : flatTracks,
+  };
+}
+
+function logSyncResult(detail: Record<string, unknown>): void {
+  console.info('[streaming-sync]', detail);
 }
 
 export async function refreshFeedAfterStreamingSync(userId: string): Promise<void> {
@@ -160,7 +206,11 @@ export async function requestServerSpotifySync(): Promise<StreamingSyncResult> {
 async function tryClientSpotifySync(): Promise<{ ok: boolean; message?: string }> {
   const sessionOk = await spotifyService.ensureSession();
   if (!sessionOk) {
-    return { ok: false, message: 'No active Spotify session in this browser' };
+    return {
+      ok: false,
+      message:
+        'No Spotify session in this browser. Your account is linked, but this tab needs a one-time Spotify login to resync.',
+    };
   }
 
   try {
@@ -181,31 +231,70 @@ export async function syncStreamingProfile(
 ): Promise<StreamingSyncResult> {
   if (options?.manual) {
     clearAutoSyncThrottle(userId);
+    clearNoServerSpotifyTokenCache(userId);
   }
 
   streamingSyncService.startSync(serviceType);
 
   try {
     if (serviceType === 'spotify') {
-      // Server sync is authoritative when a stored refresh token exists.
-      const serverResult = await requestServerSpotifySync();
+      const isManual = options?.manual ?? false;
       let clientResult: { ok: boolean; message?: string } = { ok: false };
+      let serverResult: StreamingSyncResult = { ok: false, skipped: 'not-configured' };
 
-      if (!serverResult.ok && serverResult.skipped !== 'partial-sync') {
-        clientResult = await tryClientSpotifySync();
+      // Client sync first — restores session from refresh_token and writes to streaming_profiles.
+      clientResult = await tryClientSpotifySync();
+
+      let profileData = await fetchSpotifyProfileData(userId);
+      let tracksOk = profileHasTracks(profileData);
+
+      if (!tracksOk) {
+        if (!isManual && shouldSkipServerSpotifySync(userId)) {
+          serverResult = {
+            ok: false,
+            skipped: 'no-stored-token',
+            message:
+              'Connect Spotify in this browser once to save your token — then sync will work here and in the app.',
+            usedServer: true,
+          };
+        } else {
+          serverResult = await requestServerSpotifySync();
+          if (serverResult.skipped === 'no-stored-token') {
+            markNoServerSpotifyToken(userId);
+          } else if (serverResult.ok) {
+            clearNoServerSpotifyTokenCache(userId);
+          }
+        }
+
+        profileData = await fetchSpotifyProfileData(userId);
+        tracksOk = profileHasTracks(profileData);
       }
 
-      const profileData = await fetchSpotifyProfileData(userId);
-      const tracksOk = profileHasTracks(profileData);
+      // Manual resync: retry client after server (server may have backfilled, or session refreshed).
+      if (!tracksOk && isManual && serverResult.skipped !== 'partial-sync') {
+        clientResult = await tryClientSpotifySync();
+        profileData = await fetchSpotifyProfileData(userId);
+        tracksOk = profileHasTracks(profileData);
+      }
+
+      const counts = getProfileSyncCounts(profileData);
 
       if (tracksOk) {
         streamingSyncService.completeSync();
         markAutoSynced(userId);
         await refreshFeedAfterStreamingSync(userId);
+        logSyncResult({
+          ok: true,
+          manual: isManual,
+          usedClient: clientResult.ok,
+          usedServer: serverResult.ok,
+          counts,
+        });
         return {
           ok: true,
           usedClient: clientResult.ok,
           usedServer: serverResult.ok,
+          counts,
         };
       }
 
@@ -220,12 +309,31 @@ export async function syncStreamingProfile(
 
       streamingSyncService.errorSync(partialMessage);
 
+      logSyncResult({
+        ok: false,
+        manual: isManual,
+        skipped:
+          streamingProfileNeedsTrackResync(profileData) || serverResult.skipped === 'partial-sync'
+            ? 'partial-sync'
+            : serverResult.skipped ?? 'sync-failed',
+        usedClient: clientResult.ok,
+        usedServer: serverResult.ok,
+        counts,
+        message: partialMessage,
+      });
+
       if (
         serverResult.skipped === 'no-stored-token' &&
         !clientResult.ok &&
         !streamingProfileNeedsTrackResync(profileData)
       ) {
-        return { ok: false, skipped: 'no-stored-token', message: partialMessage, usedServer: true };
+        return {
+          ok: false,
+          skipped: 'no-stored-token',
+          message: partialMessage,
+          usedServer: true,
+          counts,
+        };
       }
 
       if (streamingProfileNeedsTrackResync(profileData) || serverResult.skipped === 'partial-sync') {
@@ -235,6 +343,7 @@ export async function syncStreamingProfile(
           message: partialMessage,
           usedClient: clientResult.ok,
           usedServer: serverResult.ok,
+          counts,
         };
       }
 
@@ -244,6 +353,7 @@ export async function syncStreamingProfile(
         message: partialMessage,
         usedClient: clientResult.ok,
         usedServer: serverResult.ok,
+        counts,
       };
     }
 

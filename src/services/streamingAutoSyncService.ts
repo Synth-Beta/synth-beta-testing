@@ -99,6 +99,10 @@ export async function runStreamingAutoSync(params: {
       if (result.ok) {
         return { ok: true };
       }
+      // Migration retries bypass the normal throttle — back off after failure to avoid API spam.
+      if (decision.reason === 'migration') {
+        markAutoSynced(params.userId);
+      }
       return { ok: false, skipped: result.skipped ?? 'error' };
     } finally {
       inFlightAutoSync = null;
