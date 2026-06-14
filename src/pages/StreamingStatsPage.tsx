@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -307,8 +308,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
           : 'streaming_stats'
       );
 
-      const isNativeCapacitor =
-        typeof window !== 'undefined' && typeof (window as any).Capacitor !== 'undefined';
+      const isNativeCapacitor = Capacitor.isNativePlatform();
 
       await spotifyService.authenticate({
         forceConsent: options?.forceConsent,

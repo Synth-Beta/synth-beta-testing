@@ -392,7 +392,7 @@ export class NotificationService {
         // Fetch review and event details if review_id exists
         if (notif.review_id) {
           const { data: review } = await supabase
-            .from('user_reviews')
+            .from('reviews')
             .select('review_text, rating, event_id')
             .eq('id', notif.review_id)
             .single();
@@ -404,15 +404,15 @@ export class NotificationService {
             // Fetch event details
             if (review.event_id) {
               const { data: event } = await supabase
-                .from('jambase_events')
-                .select('title, artist_name, venue_name')
+                .from('events_with_artist_venue')
+                .select('title, artist_name_normalized, venue_name_normalized')
                 .eq('id', review.event_id)
                 .single();
               
               if (event) {
                 enriched.event_title = event.title;
-                enriched.artist_name = event.artist_name;
-                enriched.venue_name = event.venue_name;
+                enriched.artist_name = event.artist_name_normalized;
+                enriched.venue_name = event.venue_name_normalized;
               }
             }
           }
@@ -477,7 +477,7 @@ export class NotificationService {
     // Fetch review and event details if review_id exists
     if (notif.review_id) {
       const { data: review } = await supabase
-        .from('user_reviews')
+        .from('reviews')
         .select('review_text, rating, event_id')
         .eq('id', notif.review_id)
         .single();
@@ -489,15 +489,15 @@ export class NotificationService {
         // Fetch event details
         if (review.event_id) {
           const { data: event } = await supabase
-            .from('jambase_events')
-            .select('title, artist_name, venue_name')
+            .from('events_with_artist_venue')
+            .select('title, artist_name_normalized, venue_name_normalized')
             .eq('id', review.event_id)
             .single();
           
           if (event) {
             enriched.event_title = event.title;
-            enriched.artist_name = event.artist_name;
-            enriched.venue_name = event.venue_name;
+            enriched.artist_name = event.artist_name_normalized;
+            enriched.venue_name = event.venue_name_normalized;
           }
         }
       }

@@ -310,21 +310,27 @@ export async function syncStreamingProfile(
       }
 
       if (tracksOk && isManual && !syncRan) {
+        const noRefreshMessage =
+          'Could not reach Spotify to refresh. Use Connect Spotify below, complete login, then tap Sync again.';
+        streamingSyncService.errorSync(noRefreshMessage);
         logSyncResult({
-          ok: true,
+          ok: false,
           manual: true,
+          skipped: 'no-stored-token',
           usedClient: false,
           usedServer: false,
-          needsTrackResync: false,
+          needsTrackResync,
           syncRan: false,
           counts,
-          note: 'Profile already complete; no Spotify session or server token to refresh.',
+          message: noRefreshMessage,
         });
         return {
-          ok: true,
+          ok: false,
+          skipped: 'no-stored-token',
           usedClient: false,
           usedServer: false,
           counts,
+          message: noRefreshMessage,
         };
       }
 
