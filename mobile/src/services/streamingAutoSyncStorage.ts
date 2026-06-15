@@ -21,3 +21,24 @@ export async function markAutoSynced(userId: string): Promise<void> {
 export async function clearAutoSyncThrottle(userId: string): Promise<void> {
   await AsyncStorage.removeItem(autoSyncThrottleKey(userId));
 }
+
+export const NO_SERVER_SPOTIFY_TOKEN_CACHE_MS = 60 * 60 * 1000;
+
+function noServerTokenCacheKey(userId: string): string {
+  return `spotify_no_server_token_${userId}`;
+}
+
+export async function shouldSkipServerSpotifySync(userId: string): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(noServerTokenCacheKey(userId));
+  if (!raw) return false;
+  const ts = Number(raw);
+  return Number.isFinite(ts) && Date.now() - ts < NO_SERVER_SPOTIFY_TOKEN_CACHE_MS;
+}
+
+export async function markNoServerSpotifyToken(userId: string): Promise<void> {
+  await AsyncStorage.setItem(noServerTokenCacheKey(userId), String(Date.now()));
+}
+
+export async function clearNoServerSpotifyTokenCache(userId: string): Promise<void> {
+  await AsyncStorage.removeItem(noServerTokenCacheKey(userId));
+}

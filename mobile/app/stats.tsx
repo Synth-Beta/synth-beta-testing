@@ -16,6 +16,9 @@ import {
   getSpotifyTimeRangeList,
   hasPerRangeData,
   SPOTIFY_TIME_RANGE_LABELS,
+  computeTopGenresForTimeRange,
+  computeTopGenresFromArtistList,
+  formatTopGenresForDisplay,
   type SpotifyTimeRange,
 } from '@synth/shared';
 import { SynthText } from '../src/components/SynthText';
@@ -34,7 +37,7 @@ import { supabase } from '../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Music, ChevronLeft, RefreshCw, Headphones, Zap } from 'lucide-react-native';
 import { getExpoSiteUrl } from '../src/utils/siteUrl';
-import { syncStreamingProfile, buildExpoSpotifyConnectUrl } from '../src/services/streamingSyncActions';
+import { syncStreamingProfile, buildExpoSpotifyConnectUrl, buildExpoSpotifyReconnectUrl, formatStreamingSyncCountLine } from '../src/services/streamingSyncActions';
 import { runStreamingAutoSync } from '../src/services/streamingAutoSyncService';
 import { formatRelativeTime } from '../src/utils/formatRelativeTime';
 import { StreamingTimeRangePicker } from '../src/components/streaming/StreamingTimeRangePicker';
@@ -125,6 +128,10 @@ export default function StreamingStatsScreen() {
     void WebBrowser.openBrowserAsync(buildExpoSpotifyConnectUrl());
   };
 
+  const openSpotifyReconnectOnWeb = () => {
+    void WebBrowser.openBrowserAsync(buildExpoSpotifyReconnectUrl());
+  };
+
   const handleResync = async () => {
     const {
       data: { session },
@@ -160,17 +167,21 @@ export default function StreamingStatsScreen() {
       const result = await syncStreamingProfile(user.id, 'spotify', { manual: true });
       await loadProfile(false);
 
+      const countLine = formatStreamingSyncCountLine(result.counts);
+
       if (result.ok) {
         Alert.alert(
           'Stats updated',
-          'Your streaming data has been refreshed. Your event feed will reflect your taste.'
+          countLine
+            ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
+            : 'Your streaming data has been refreshed. Your event feed will reflect your taste.'
         );
         return;
       }
 
       if (result.skipped === 'no-stored-token') {
         Alert.alert(
-          'One-time setup in browser',
+          'Sync could not reach Spotify',
           result.message ||
             'Connect Spotify once on the web to save your token. Return here and tap Resync again.',
           [
@@ -182,11 +193,21 @@ export default function StreamingStatsScreen() {
       }
 
       if (result.skipped === 'partial-sync') {
-        Alert.alert('Songs not synced', result.message || 'Reconnect Spotify on the web, then resync.');
+        Alert.alert(
+          'Sync incomplete — songs missing',
+          countLine
+            ? `${countLine} ${result.message || 'Try Sync now again. If songs stay empty, reconnect Spotify on the web.'}`
+            : result.message || 'Artists synced but songs are missing. Reconnect Spotify on the web, then resync.'
+        );
         return;
       }
 
-      Alert.alert('Sync failed', result.message || 'Could not refresh your stats. Try again.');
+      Alert.alert(
+        'Sync failed',
+        countLine
+          ? `${countLine} ${result.message || 'Could not refresh your stats. Try again.'}`
+          : result.message || 'Could not refresh your stats. Try again.'
+      );
     } finally {
       setResyncing(false);
     }
@@ -280,35 +301,21 @@ export default function StreamingStatsScreen() {
   }, [profileData, timeRange, serviceType]);
 
   const genres = useMemo(() => {
-    const snapshotGenres = profileData?.topGenresSnapshot as
-      | Array<{ genre: string; count: number }>
-      | undefined;
-    if (Array.isArray(snapshotGenres) && snapshotGenres.length > 0) {
-      const max = snapshotGenres[0]?.count || 1;
-      return snapshotGenres.slice(0, 12).map((entry) => ({
-        name: entry.genre,
-        count: entry.count,
-        pct: Math.round((entry.count / max) * 100),
-      }));
+    if (!profileData) return [];
+
+    if (serviceType === 'spotify') {
+      return formatTopGenresForDisplay(
+        computeTopGenresForTimeRange(profileData, timeRange)
+      ).map((g) => ({ name: g.name, count: g.count, pct: g.pct }));
     }
 
-    const counts: Record<string, number> = {};
-    displayArtists.forEach((a) => {
-      const artist = a as { genres?: string[] };
-      (artist.genres || []).forEach((g: string) => {
-        counts[g] = (counts[g] || 0) + 1;
-      });
-    });
-    const entries = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12);
-    const max = entries[0]?.[1] || 1;
-    return entries.map(([name, count]) => ({
-      name,
-      count,
-      pct: Math.round((count / max) * 100),
+    const artists = Array.isArray(profileData.topArtists) ? profileData.topArtists : [];
+    return formatTopGenresForDisplay(computeTopGenresFromArtistList(artists)).map((g) => ({
+      name: g.name,
+      count: g.count,
+      pct: g.pct,
     }));
-  }, [displayArtists, profileData]);
+  }, [profileData, timeRange, serviceType]);
 
   const linked = linkStatus.linked;
   const showConnectCards = needsConnection && !linked;
@@ -376,7 +383,7 @@ export default function StreamingStatsScreen() {
             <SynthText variant="body" color="secondary" style={styles.connectCopy}>
               Import your listening history to see top artists, songs, and genres.
             </SynthText>
-            <Pressable onPress={() => openStreamingOnWeb('spotify')} style={styles.connectCardWrapper}>
+            <Pressable onPress={openSpotifyConnectOnWeb} style={styles.connectCardWrapper}>
               <LinearGradient
                 colors={['#1DB954', '#15803d']}
                 start={{ x: 0, y: 0 }}
@@ -463,13 +470,22 @@ export default function StreamingStatsScreen() {
             {showSongResyncBanner ? (
               <View style={styles.bannerAmber}>
                 <Text style={styles.bannerAmberText}>
-                  Song rankings by period need a refresh. Artists are up to date — sync once for{' '}
-                  {SPOTIFY_TIME_RANGE_LABELS[timeRange]} and all periods.
+                  Songs are missing from your last sync. Artists look up to date — tap Sync now first.
+                  If songs still don't appear, reconnect Spotify on the web once.
                 </Text>
-                <Pressable style={styles.bannerBtn} onPress={() => void handleResync()} disabled={resyncing}>
-                  <RefreshCw size={14} color="#92400e" />
-                  <Text style={styles.bannerBtnText}>{resyncing ? 'Syncing…' : 'Sync now'}</Text>
-                </Pressable>
+                <View style={styles.bannerActionsRow}>
+                  <Pressable
+                    style={[styles.bannerBtnPrimary, { backgroundColor: accentColor }]}
+                    onPress={openSpotifyReconnectOnWeb}
+                    disabled={resyncing}
+                  >
+                    <Text style={styles.bannerBtnPrimaryText}>Reconnect on web</Text>
+                  </Pressable>
+                  <Pressable style={styles.bannerBtn} onPress={() => void handleResync()} disabled={resyncing}>
+                    <RefreshCw size={14} color="#92400e" />
+                    <Text style={styles.bannerBtnText}>{resyncing ? 'Syncing…' : 'Sync now'}</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : null}
 
@@ -515,7 +531,8 @@ export default function StreamingStatsScreen() {
               {activeTab === 'genres' ? (
                 genres.length === 0 ? (
                   <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
-                    Genres are derived from your top artists for this period. Tap Resync to sync.
+                    No genre data for {SPOTIFY_TIME_RANGE_LABELS[timeRange]}. Genres come from your
+                    top artists in that period — tap Resync to sync.
                   </SynthText>
                 ) : (
                   genres.map((g) => (
@@ -714,6 +731,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#78350f',
     lineHeight: 18,
+  },
+  bannerActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  bannerBtnPrimary: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  bannerBtnPrimaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
   },
   bannerBtn: {
     flexDirection: 'row',

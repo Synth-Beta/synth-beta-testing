@@ -59,6 +59,8 @@ export {
   streamingProfileNeedsTrackResync,
   getSpotifyTimeRangeList,
   computeTopGenresFromArtists,
+  computeTopGenresFromArtistList,
+  computeTopGenresForTimeRange,
   pickTopGenresSnapshot,
   enrichProfileDataWithGenres,
   formatTopGenresForDisplay,

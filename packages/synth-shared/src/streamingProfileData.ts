@@ -150,6 +150,63 @@ export const SPOTIFY_TIME_RANGE_LABELS: Record<SpotifyTimeRange, string> = {
 
 export type TopGenreEntry = { genre: string; count: number };
 
+function countGenresFromArtists(artists: unknown[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+
+  for (const artist of artists) {
+    if (!artist || typeof artist !== 'object') continue;
+    const record = artist as {
+      genres?: string[];
+      attributes?: { genreNames?: string[] };
+    };
+    const genres =
+      record.genres ??
+      (Array.isArray(record.attributes?.genreNames) ? record.attributes.genreNames : []);
+    if (!Array.isArray(genres)) continue;
+    for (const raw of genres) {
+      const genre = String(raw).trim();
+      if (genre) counts[genre] = (counts[genre] || 0) + 1;
+    }
+  }
+
+  return counts;
+}
+
+function topGenreEntriesFromCounts(
+  counts: Record<string, number>,
+  limit = 12
+): TopGenreEntry[] {
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([genre, count]) => ({ genre, count }));
+}
+
+/** Aggregate genre tags from a list of artist objects (Spotify/Apple shape). */
+export function computeTopGenresFromArtistList(
+  artists: unknown[],
+  limit = 12
+): TopGenreEntry[] {
+  return topGenreEntriesFromCounts(countGenresFromArtists(artists), limit);
+}
+
+/** Genres for one Spotify time range — same artist bucket as the Artists tab. */
+export function computeTopGenresForTimeRange(
+  profileData: Record<string, unknown> | null | undefined,
+  timeRange: SpotifyTimeRange,
+  limit = 12
+): TopGenreEntry[] {
+  if (!profileData) return [];
+  const { items } = getSpotifyTimeRangeList(
+    profileData,
+    timeRange,
+    'topArtistsByTimeRange',
+    'topArtists',
+    50
+  );
+  return computeTopGenresFromArtistList(items, limit);
+}
+
 /** Aggregate genre tags from all saved artist lists (all time ranges + flat). */
 export function computeTopGenresFromArtists(
   profileData: Record<string, unknown> | null | undefined,
@@ -160,12 +217,8 @@ export function computeTopGenresFromArtists(
   const counts: Record<string, number> = {};
 
   const addArtist = (artist: unknown) => {
-    if (!artist || typeof artist !== 'object') return;
-    const genres = (artist as { genres?: string[] }).genres;
-    if (!Array.isArray(genres)) return;
-    for (const raw of genres) {
-      const genre = String(raw).trim();
-      if (genre) counts[genre] = (counts[genre] || 0) + 1;
+    for (const [genre, count] of Object.entries(countGenresFromArtists([artist]))) {
+      counts[genre] = (counts[genre] || 0) + count;
     }
   };
 
@@ -180,10 +233,7 @@ export function computeTopGenresFromArtists(
   const flat = profileData.topArtists;
   if (Array.isArray(flat)) flat.forEach(addArtist);
 
-  return Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([genre, count]) => ({ genre, count }));
+  return topGenreEntriesFromCounts(counts, limit);
 }
 
 function normalizeGenreEntries(

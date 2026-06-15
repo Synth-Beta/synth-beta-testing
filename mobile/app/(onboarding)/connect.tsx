@@ -12,6 +12,7 @@ import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 import { getStreamingLinkStatus } from '../../src/services/streamingConnectionService';
+import { buildExpoSpotifyConnectUrl } from '../../src/services/streamingSyncActions';
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
 
 export default function ConnectScreen() {
@@ -20,7 +21,10 @@ export default function ConnectScreen() {
     const [checking, setChecking] = useState(false);
 
     const openConnect = useCallback(async (provider: 'spotify' | 'apple-music') => {
-        const url = `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent(provider)}&source=expo`;
+        const url =
+            provider === 'spotify'
+                ? buildExpoSpotifyConnectUrl()
+                : `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent(provider)}&source=expo`;
         await WebBrowser.openBrowserAsync(url);
         // After browser closes, check if they connected
         setChecking(true);

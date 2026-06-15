@@ -18,6 +18,8 @@ import {
   disconnectStreamingAccount,
   syncStreamingProfile,
   buildExpoSpotifyConnectUrl,
+  buildExpoSpotifyReconnectUrl,
+  formatStreamingSyncCountLine,
 } from '../../services/streamingSyncActions';
 import { getExpoSiteUrl } from '../../utils/siteUrl';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
@@ -107,10 +109,14 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
     setSyncing(true);
     try {
       const result = await syncStreamingProfile(userId, 'spotify', { manual: true });
+      const countLine = formatStreamingSyncCountLine(result.counts);
+
       if (result.ok) {
         Alert.alert(
           'Stats updated',
-          'Your streaming data has been refreshed. Your event feed will reflect your taste.'
+          countLine
+            ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
+            : 'Your streaming data has been refreshed. Your event feed will reflect your taste.'
         );
         await refreshStatus();
         return;
@@ -118,21 +124,28 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
 
       if (result.skipped === 'partial-sync') {
         Alert.alert(
-          'Songs not synced',
-          result.message || 'Reconnect Spotify on the web, then resync in the app.'
+          'Sync incomplete — songs missing',
+          countLine
+            ? `${countLine} ${result.message || 'Reconnect Spotify on the web, then resync in the app.'}`
+            : result.message || 'Reconnect Spotify on the web, then resync in the app.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Reconnect on web', onPress: () => void WebBrowser.openBrowserAsync(buildExpoSpotifyReconnectUrl()) },
+            { text: 'Resync', onPress: () => void handleResync() },
+          ]
         );
         return;
       }
 
       if (result.skipped === 'no-stored-token' || result.skipped === 'no-session') {
         Alert.alert(
-          'One-time setup in browser',
+          'Sync could not reach Spotify',
           result.message ||
             'Connect Spotify once on the web to save your token. Return here and tap Resync again.',
           [
             { text: 'Cancel', style: 'cancel' },
             {
-              text: 'Connect',
+              text: 'Connect on web',
               onPress: () => openConnectStreaming('spotify'),
             },
             ...(onNavigateToStats
@@ -143,7 +156,12 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
         return;
       }
 
-      Alert.alert('Sync failed', result.message || 'Could not refresh stats.');
+      Alert.alert(
+        'Sync failed',
+        countLine
+          ? `${countLine} ${result.message || 'Could not refresh stats.'}`
+          : result.message || 'Could not refresh stats.'
+      );
     } finally {
       setSyncing(false);
     }

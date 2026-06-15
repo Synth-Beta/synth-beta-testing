@@ -16,7 +16,8 @@ import {
   fetchUserStreamingStatsSnapshot,
   enrichProfileDataWithGenres,
   formatTopGenresForDisplay,
-  computeTopGenresFromArtists,
+  computeTopGenresForTimeRange,
+  computeTopGenresFromArtistList,
 } from '@synth/shared';
 import { toast } from '@/hooks/use-toast';
 import PageShell from '@/components/layout/PageShell';
@@ -67,14 +68,14 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     const connect = params.get('connect');
     if (connect !== 'spotify') return;
-    if (!needsConnection && params.get('action') !== 'resync') return;
+    if (!needsConnection && params.get('action') !== 'resync' && params.get('reconnect') !== '1') return;
 
     connectFromExpoAttempted.current = true;
     localStorage.setItem(
       'spotify_connect_source',
       params.get('source') === 'expo' ? 'expo' : 'streaming_stats'
     );
-    void handleConnectSpotify();
+    void handleConnectSpotify({ forceConsent: params.get('reconnect') === '1' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading, needsConnection]);
 
@@ -422,14 +423,15 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   const genres = useMemo<{ name: string; count: number; pct: number }[]>(() => {
     if (!profileData) return [];
 
-    const snapshotGenres = profileData.topGenresSnapshot as
-      | Array<{ genre: string; count: number }>
-      | undefined;
-    const fromSnapshot = formatTopGenresForDisplay(snapshotGenres);
-    if (fromSnapshot.length > 0) return fromSnapshot;
+    if (serviceType === 'spotify') {
+      return formatTopGenresForDisplay(
+        computeTopGenresForTimeRange(profileData, timeRange)
+      );
+    }
 
-    return formatTopGenresForDisplay(computeTopGenresFromArtists(profileData));
-  }, [profileData]);
+    const artists = Array.isArray(profileData.topArtists) ? profileData.topArtists : [];
+    return formatTopGenresForDisplay(computeTopGenresFromArtistList(artists));
+  }, [profileData, timeRange, serviceType]);
 
   const isSpotify = serviceType === 'spotify';
   const accentColor = isSpotify ? '#1DB954' : '#FC3C44';
@@ -691,7 +693,9 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
             {/* Genres */}
             <TabsContent value="genres" className="mt-3 space-y-2">
               {genres.length === 0 ? (
-                <EmptyTab message="Genres are derived from your top artists for this period. Tap ↻ to sync." />
+                <EmptyTab
+                  message={`No genre data for ${TIME_RANGE_LABELS[timeRange]}. Genres come from your top artists in that period — tap ↻ to sync.`}
+                />
               ) : (
                 genres.map((g) => (
                   <div key={g.name} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
