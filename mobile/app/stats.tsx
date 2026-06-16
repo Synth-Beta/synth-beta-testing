@@ -19,6 +19,7 @@ import {
   computeTopGenresForTimeRange,
   computeTopGenresFromArtistList,
   formatTopGenresForDisplay,
+  type TopGenreEntry,
   type SpotifyTimeRange,
 } from '@synth/shared';
 import { SynthText } from '../src/components/SynthText';
@@ -37,7 +38,13 @@ import { supabase } from '../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Music, ChevronLeft, RefreshCw, Headphones, Zap } from 'lucide-react-native';
 import { getExpoSiteUrl } from '../src/utils/siteUrl';
-import { syncStreamingProfile, buildExpoSpotifyConnectUrl, buildExpoSpotifyReconnectUrl, formatStreamingSyncCountLine } from '../src/services/streamingSyncActions';
+import {
+  syncStreamingProfile,
+  buildExpoSpotifyConnectUrl,
+  buildExpoSpotifyReconnectUrl,
+  formatStreamingSyncCountLine,
+} from '../src/services/streamingSyncActions';
+import { authenticateSpotifyInApp } from '../src/services/spotifyAuthService';
 import { runStreamingAutoSync } from '../src/services/streamingAutoSyncService';
 import { formatRelativeTime } from '../src/utils/formatRelativeTime';
 import { StreamingTimeRangePicker } from '../src/components/streaming/StreamingTimeRangePicker';
@@ -132,6 +139,43 @@ export default function StreamingStatsScreen() {
     void WebBrowser.openBrowserAsync(buildExpoSpotifyReconnectUrl());
   };
 
+  const handleConnectSpotifyInApp = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const user = session?.user;
+    if (!user) return;
+
+    setResyncing(true);
+    try {
+      const authResult = await authenticateSpotifyInApp();
+      if (!authResult.ok) {
+        if (!authResult.cancelled) {
+          Alert.alert('Connect failed', authResult.error);
+        }
+        return;
+      }
+
+      // Token saved — now trigger a full server sync.
+      const syncResult = await syncStreamingProfile(user.id, 'spotify', { manual: true });
+      await loadProfile(false);
+
+      if (syncResult.ok) {
+        const countLine = formatStreamingSyncCountLine(syncResult.counts);
+        Alert.alert(
+          'Spotify connected!',
+          countLine
+            ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
+            : 'Spotify connected and your stats are importing.'
+        );
+      } else if (syncResult.skipped !== 'no-stored-token') {
+        Alert.alert('Connected, sync pending', syncResult.message || 'Stats are syncing — pull to refresh in a moment.');
+      }
+    } finally {
+      setResyncing(false);
+    }
+  };
+
   const handleResync = async () => {
     const {
       data: { session },
@@ -158,7 +202,37 @@ export default function StreamingStatsScreen() {
     }
 
     if (!linkStatus.linked || linkStatus.provider === 'unknown') {
-      openSpotifyConnectOnWeb();
+      // Not yet connected — run full in-app connect (which handles token save + first sync).
+      setResyncing(true);
+      try {
+        const result = await syncStreamingProfile(user.id, 'spotify', { manual: true });
+        await loadProfile(false);
+        if (result.ok) {
+          Alert.alert('Connected!', 'Spotify connected and stats imported.');
+          return;
+        }
+
+        if (result.skipped === 'no-stored-token') {
+          Alert.alert(
+            'Spotify not connected',
+            result.message || 'Spotify sign-in was cancelled. Tap Resync to try again.',
+            [
+              { text: 'OK', style: 'cancel' },
+              { text: 'Reconnect on web', onPress: openSpotifyReconnectOnWeb },
+            ]
+          );
+          return;
+        }
+
+        if (result.skipped === 'error') {
+          Alert.alert('Connect failed', result.message || 'Could not connect Spotify. Please try again.');
+          return;
+        }
+
+        Alert.alert('Connect failed', result.message || 'Could not connect Spotify. Please try again.');
+      } finally {
+        setResyncing(false);
+      }
       return;
     }
 
@@ -180,13 +254,13 @@ export default function StreamingStatsScreen() {
       }
 
       if (result.skipped === 'no-stored-token') {
+        // In-app OAuth was cancelled or failed — offer reconnect on web as fallback.
         Alert.alert(
-          'Sync could not reach Spotify',
-          result.message ||
-            'Connect Spotify once on the web to save your token. Return here and tap Resync again.',
+          'Could not reach Spotify',
+          result.message || 'Sign in to Spotify in the app or try reconnecting on the web.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Connect on web', onPress: openSpotifyConnectOnWeb },
+            { text: 'Reconnect on web', onPress: openSpotifyReconnectOnWeb },
           ]
         );
         return;
@@ -196,8 +270,9 @@ export default function StreamingStatsScreen() {
         Alert.alert(
           'Sync incomplete — songs missing',
           countLine
-            ? `${countLine} ${result.message || 'Try Sync now again. If songs stay empty, reconnect Spotify on the web.'}`
-            : result.message || 'Artists synced but songs are missing. Reconnect Spotify on the web, then resync.'
+            ? `${countLine} ${result.message || 'Try syncing again. If songs stay empty, reconnect Spotify on the web.'}`
+            : result.message ||
+                'Artists synced but songs are missing. Try again or reconnect Spotify on the web.'
         );
         return;
       }
@@ -303,18 +378,27 @@ export default function StreamingStatsScreen() {
   const genres = useMemo(() => {
     if (!profileData) return [];
 
+    const toDisplay = (entries: TopGenreEntry[]) =>
+      formatTopGenresForDisplay(entries).map((g) => ({ name: g.name, count: g.count, pct: g.pct }));
+
     if (serviceType === 'spotify') {
-      return formatTopGenresForDisplay(
-        computeTopGenresForTimeRange(profileData, timeRange)
-      ).map((g) => ({ name: g.name, count: g.count, pct: g.pct }));
+      const perRange = computeTopGenresForTimeRange(profileData, timeRange);
+      if (perRange.length > 0) return toDisplay(perRange);
+
+      // Fall back to the snapshot genres when per-range artist data has no genre tags
+      // (common when the profile was built from user_preferences snapshot, not a full sync).
+      const snapshot = profileData.topGenresSnapshot as TopGenreEntry[] | undefined;
+      if (Array.isArray(snapshot) && snapshot.length > 0) return toDisplay(snapshot);
+      return [];
     }
 
     const artists = Array.isArray(profileData.topArtists) ? profileData.topArtists : [];
-    return formatTopGenresForDisplay(computeTopGenresFromArtistList(artists)).map((g) => ({
-      name: g.name,
-      count: g.count,
-      pct: g.pct,
-    }));
+    const fromArtists = computeTopGenresFromArtistList(artists);
+    if (fromArtists.length > 0) return toDisplay(fromArtists);
+
+    const snapshot = profileData.topGenresSnapshot as TopGenreEntry[] | undefined;
+    if (Array.isArray(snapshot) && snapshot.length > 0) return toDisplay(snapshot);
+    return [];
   }, [profileData, timeRange, serviceType]);
 
   const linked = linkStatus.linked;
@@ -383,7 +467,11 @@ export default function StreamingStatsScreen() {
             <SynthText variant="body" color="secondary" style={styles.connectCopy}>
               Import your listening history to see top artists, songs, and genres.
             </SynthText>
-            <Pressable onPress={openSpotifyConnectOnWeb} style={styles.connectCardWrapper}>
+            <Pressable
+              onPress={() => void handleConnectSpotifyInApp()}
+              style={styles.connectCardWrapper}
+              disabled={resyncing}
+            >
               <LinearGradient
                 colors={['#1DB954', '#15803d']}
                 start={{ x: 0, y: 0 }}
@@ -396,7 +484,9 @@ export default function StreamingStatsScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.connectCardTitle}>Connect Spotify</Text>
-                    <Text style={styles.connectCardSub}>Opens on web · takes 30 seconds</Text>
+                    <Text style={styles.connectCardSub}>
+                      {resyncing ? 'Connecting…' : 'Stay in app · takes 30 seconds'}
+                    </Text>
                   </View>
                   <Text style={styles.connectCardArrow}>→</Text>
                 </View>
@@ -531,8 +621,8 @@ export default function StreamingStatsScreen() {
               {activeTab === 'genres' ? (
                 genres.length === 0 ? (
                   <SynthText variant="meta" color="secondary" style={styles.emptyMsg}>
-                    No genre data for {SPOTIFY_TIME_RANGE_LABELS[timeRange]}. Genres come from your
-                    top artists in that period — tap Resync to sync.
+                    No genre data yet. Genres are derived from your top artists — tap Resync to
+                    import them.
                   </SynthText>
                 ) : (
                   genres.map((g) => (

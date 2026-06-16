@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, Pressable, SafeAreaView, Text } from 'react-native';
+import { StyleSheet, View, Pressable, SafeAreaView, Text, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
@@ -12,21 +12,18 @@ import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 import { getStreamingLinkStatus } from '../../src/services/streamingConnectionService';
-import { buildExpoSpotifyConnectUrl } from '../../src/services/streamingSyncActions';
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
+import { authenticateSpotifyInApp } from '../../src/services/spotifyAuthService';
+import { syncStreamingProfile } from '../../src/services/streamingSyncActions';
 
 export default function ConnectScreen() {
     const router = useRouter();
     const [isLinked, setIsLinked] = useState(false);
     const [checking, setChecking] = useState(false);
 
-    const openConnect = useCallback(async (provider: 'spotify' | 'apple-music') => {
-        const url =
-            provider === 'spotify'
-                ? buildExpoSpotifyConnectUrl()
-                : `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent(provider)}&source=expo`;
+    const openConnectAppleMusic = useCallback(async () => {
+        const url = `${getExpoSiteUrl()}/streaming-stats?connect=apple-music&source=expo`;
         await WebBrowser.openBrowserAsync(url);
-        // After browser closes, check if they connected
         setChecking(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -39,6 +36,35 @@ export default function ConnectScreen() {
             }
         } catch {
             // ignore
+        } finally {
+            setChecking(false);
+        }
+    }, []);
+
+    const handleConnectSpotify = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        setChecking(true);
+        try {
+            const authResult = await authenticateSpotifyInApp();
+            if (!authResult.ok) {
+                // Silently ignore cancellation; show an alert for real errors.
+                if (!authResult.cancelled) {
+                    Alert.alert('Connect failed', authResult.error);
+                }
+                return;
+            }
+
+            // Token persisted — trigger first server sync.
+            await syncStreamingProfile(user.id, 'spotify', { manual: true });
+            const status = await getStreamingLinkStatus(user.id);
+            if (status.linked) {
+                setIsLinked(true);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+        } catch {
+            // ignore transient errors in onboarding
         } finally {
             setChecking(false);
         }
@@ -95,26 +121,25 @@ export default function ConnectScreen() {
                         name="Spotify"
                         color="#1DB954"
                         isConnected={isLinked}
-                        onConnect={() => void openConnect('spotify')}
+                        connecting={checking}
+                        onConnect={() => void handleConnectSpotify()}
+                        subtitle={checking ? 'Connecting…' : 'Stay in app · takes 30 seconds'}
                     />
                     <ServiceCard
                         name="Apple Music"
                         color="#FA243C"
                         isConnected={isLinked}
-                        onConnect={() => void openConnect('apple-music')}
+                        onConnect={() => void openConnectAppleMusic()}
+                        subtitle="Opens on web · same quick flow"
                     />
                 </View>
 
                 <Pressable onPress={() => void checkStatus()} style={styles.refreshRow} disabled={checking}>
                     <RefreshCw size={14} color={SynthTokens.colors.neutral600} />
                     <Text style={styles.refreshTxt}>
-                        {checking ? 'Checking…' : 'Refresh status after connecting'}
+                        {checking ? 'Checking…' : 'Refresh status'}
                     </Text>
                 </Pressable>
-
-                <SynthText variant="meta" color="secondary" style={styles.note}>
-                    OAuth happens on the web — tap a button above, sign in, then tap Refresh status.
-                </SynthText>
             </View>
 
             <View style={styles.footer}>
@@ -128,19 +153,26 @@ export default function ConnectScreen() {
     );
 }
 
-function ServiceCard({ name, color, isConnected, onConnect }: {
-    name: string; color: string; isConnected: boolean; onConnect: () => void;
+function ServiceCard({ name, color, isConnected, connecting, onConnect, subtitle }: {
+    name: string;
+    color: string;
+    isConnected: boolean;
+    connecting?: boolean;
+    onConnect: () => void;
+    subtitle?: string;
 }) {
+    const sub = isConnected ? 'Connected ✓' : (subtitle ?? 'Tap to connect');
     return (
-        <Pressable onPress={isConnected ? undefined : onConnect} style={styles.cardPressable}>
+        <Pressable
+            onPress={isConnected || connecting ? undefined : onConnect}
+            style={[styles.cardPressable, connecting && { opacity: 0.7 }]}
+        >
             <View style={[styles.serviceCard, { borderColor: isConnected ? color : SynthTokens.colors.neutral200 }]}>
                 <View style={styles.cardHeader}>
                     <SynthText variant="accent">{name}</SynthText>
                     {isConnected ? <CheckCircle2 color={color} size={24} /> : null}
                 </View>
-                <SynthText variant="meta" color="secondary">
-                    {isConnected ? 'Connected ✓' : 'Tap to connect'}
-                </SynthText>
+                <SynthText variant="meta" color="secondary">{sub}</SynthText>
             </View>
         </Pressable>
     );

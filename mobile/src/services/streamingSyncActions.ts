@@ -12,6 +12,7 @@ import {
   streamingProfileNeedsTrackResync,
   countPerRangeItems,
 } from '@synth/shared';
+import { authenticateSpotifyInApp } from './spotifyAuthService';
 
 export const STREAMING_AUTO_SYNC_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -214,7 +215,11 @@ export interface SyncStreamingProfileOptions {
 }
 
 /**
- * In-app Spotify resync via server API (no in-app OAuth). Apple Music still requires web OAuth.
+ * In-app Spotify resync. Tries the server sync first; if no stored token exists and this is a
+ * manual resync, runs in-app Spotify OAuth to acquire + persist a refresh token, then retries
+ * the server sync. This avoids ever opening a Safari tab just to sync.
+ *
+ * Apple Music still requires the web OAuth flow.
  */
 export async function syncStreamingProfile(
   userId: string,
@@ -247,7 +252,33 @@ export async function syncStreamingProfile(
     serverResult = await requestServerSpotifySync();
     syncRan = serverResult.ok;
 
-    if (serverResult.skipped === 'no-stored-token') {
+    // If the server says no stored token and this is a manual resync, try in-app OAuth to
+    // acquire + persist the token, then immediately retry the server sync.
+    if (serverResult.skipped === 'no-stored-token' && isManual) {
+      const authResult = await authenticateSpotifyInApp();
+      if (authResult.ok) {
+        // Token persisted by authenticateSpotifyInApp — retry server sync.
+        await clearNoServerSpotifyTokenCache(userId);
+        serverResult = await requestServerSpotifySync();
+        syncRan = serverResult.ok;
+      } else if (!authResult.cancelled) {
+        // OAuth failed for a real reason — surface it.
+        return {
+          ok: false,
+          skipped: 'error',
+          message: authResult.error,
+          counts: getProfileSyncCounts(profileData),
+        };
+      } else {
+        // User cancelled the OAuth prompt.
+        return {
+          ok: false,
+          skipped: 'no-stored-token',
+          message: 'Spotify sign-in was cancelled. Tap Sync again to try.',
+          counts: getProfileSyncCounts(profileData),
+        };
+      }
+    } else if (serverResult.skipped === 'no-stored-token') {
       await markNoServerSpotifyToken(userId);
     } else if (serverResult.ok) {
       await clearNoServerSpotifyTokenCache(userId);
@@ -276,7 +307,7 @@ export async function syncStreamingProfile(
 
   if (complete && isManual && !syncRan) {
     const noRefreshMessage =
-      'Could not reach Spotify to refresh. Connect on the web, complete login, then tap Resync again.';
+      'Could not reach Spotify. Tap Sync again — if it keeps failing, use Reconnect on web.';
     logSyncResult({
       ok: false,
       manual: true,
@@ -299,7 +330,7 @@ export async function syncStreamingProfile(
       ? serverResult.message || TRACKS_RECONNECT_MESSAGE
       : needsTrackResync
         ? TRACKS_RECONNECT_MESSAGE
-        : serverResult.message || 'Could not refresh Spotify stats. Connect on the web, then try again.';
+        : serverResult.message || 'Could not refresh Spotify stats. Tap Sync again to retry.';
 
   logSyncResult({
     ok: false,

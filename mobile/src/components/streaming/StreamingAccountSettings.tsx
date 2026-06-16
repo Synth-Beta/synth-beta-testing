@@ -17,10 +17,10 @@ import { getStreamingLinkStatus, type StreamingProvider } from '../../services/s
 import {
   disconnectStreamingAccount,
   syncStreamingProfile,
-  buildExpoSpotifyConnectUrl,
   buildExpoSpotifyReconnectUrl,
   formatStreamingSyncCountLine,
 } from '../../services/streamingSyncActions';
+import { authenticateSpotifyInApp } from '../../services/spotifyAuthService';
 import { getExpoSiteUrl } from '../../utils/siteUrl';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
 
@@ -80,12 +80,44 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
     void refreshStatus();
   }, [refreshStatus]);
 
-  const openConnectStreaming = (connectProvider: 'spotify' | 'apple-music') => {
-    const url =
-      connectProvider === 'spotify'
-        ? buildExpoSpotifyConnectUrl()
-        : `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent(connectProvider)}&source=expo`;
+  const openConnectAppleMusic = () => {
+    const url = `${getExpoSiteUrl()}/streaming-stats?connect=apple-music&source=expo`;
     void WebBrowser.openBrowserAsync(url);
+  };
+
+  const handleConnectSpotifyInApp = async () => {
+    if (!userId) return;
+    setSyncing(true);
+    try {
+      const authResult = await authenticateSpotifyInApp();
+      if (!authResult.ok) {
+        if (!authResult.cancelled) {
+          Alert.alert('Connect failed', authResult.error);
+        }
+        return;
+      }
+
+      // Token is now persisted — run a full server sync.
+      const syncResult = await syncStreamingProfile(userId, 'spotify', { manual: true });
+      await refreshStatus();
+
+      if (syncResult.ok) {
+        const countLine = formatStreamingSyncCountLine(syncResult.counts);
+        Alert.alert(
+          'Spotify connected!',
+          countLine
+            ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
+            : 'Spotify connected and your stats are importing.'
+        );
+      } else if (syncResult.skipped !== 'no-stored-token') {
+        Alert.alert(
+          'Connected, sync pending',
+          syncResult.message || 'Stats are syncing — pull to refresh in a moment.'
+        );
+      }
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const serviceLabel =
@@ -139,18 +171,12 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
 
       if (result.skipped === 'no-stored-token' || result.skipped === 'no-session') {
         Alert.alert(
-          'Sync could not reach Spotify',
-          result.message ||
-            'Connect Spotify once on the web to save your token. Return here and tap Resync again.',
+          'Could not reach Spotify',
+          result.message || 'Sign in to Spotify in the app or reconnect on the web.',
           [
             { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Connect on web',
-              onPress: () => openConnectStreaming('spotify'),
-            },
-            ...(onNavigateToStats
-              ? [{ text: 'View stats', onPress: onNavigateToStats }]
-              : [{ text: 'View stats', onPress: () => router.push('/stats') }]),
+            { text: 'Connect Spotify', onPress: () => void handleConnectSpotifyInApp() },
+            { text: 'Reconnect on web', onPress: () => void WebBrowser.openBrowserAsync(buildExpoSpotifyReconnectUrl()) },
           ]
         );
         return;
@@ -263,16 +289,17 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
       </SynthText>
 
       <Pressable
-        style={[styles.btnSpotify]}
-        onPress={() => openConnectStreaming('spotify')}
+        style={[styles.btnSpotify, syncing && styles.btnDisabled]}
+        onPress={() => void handleConnectSpotifyInApp()}
+        disabled={syncing}
       >
         <Music size={16} color={SynthTokens.colors.neutral0} />
-        <Text style={styles.btnSpotifyText}>Connect Spotify</Text>
+        <Text style={styles.btnSpotifyText}>{syncing ? 'Connecting…' : 'Connect Spotify'}</Text>
       </Pressable>
 
       <Pressable
         style={styles.btnApple}
-        onPress={() => openConnectStreaming('apple-music')}
+        onPress={openConnectAppleMusic}
       >
         <Music size={16} color={SynthTokens.colors.neutral900} />
         <Text style={styles.btnAppleText}>Connect Apple Music</Text>
@@ -285,13 +312,9 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
       >
         <RefreshCw size={14} color={SynthTokens.colors.neutral600} />
         <SynthText variant="meta" color="secondary">
-          {loading ? 'Refreshing…' : 'Refresh status after connecting'}
+          {loading ? 'Refreshing…' : 'Refresh status'}
         </SynthText>
       </Pressable>
-
-      <SynthText variant="meta" color="secondary" style={styles.note}>
-        OAuth happens on the web — sign in there, then return and tap Refresh status.
-      </SynthText>
     </View>
   );
 }
