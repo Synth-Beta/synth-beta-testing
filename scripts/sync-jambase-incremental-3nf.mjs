@@ -954,7 +954,8 @@ class IncrementalSync3NF {
           ...eventDataClean
         } = eventData;
 
-        return {
+        const isUpdate = existingByJambase.has(jambaseEventId);
+        const row = {
           ...eventDataClean,
           jambase_id: jambaseEventId,
           artist_id: artistUuid,
@@ -963,6 +964,15 @@ class IncrementalSync3NF {
           // Only write genres when present (never clobber with empty)
           ...(isEmptyGenres(eventGenres) ? {} : { genres: eventGenres }),
         };
+
+        // Existing rows: do not overwrite stored images with null/empty from JamBase metadata-only updates.
+        if (isUpdate) {
+          if (!row.event_media_url) delete row.event_media_url;
+          if (!row.images || (Array.isArray(row.images) && row.images.length === 0)) delete row.images;
+          if (!row.media_urls || (Array.isArray(row.media_urls) && row.media_urls.length === 0)) delete row.media_urls;
+        }
+
+        return row;
       })
       .filter(Boolean);
 

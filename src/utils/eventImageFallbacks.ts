@@ -1,34 +1,49 @@
 import synthPlaceholderImage from '@src/assets/Synth_Placeholder.png';
 
-// JamBase placeholder image URL that should be replaced
-const JAMBASE_PLACEHOLDER_URL = 'https://www.jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png';
 const SYNTH_PLACEHOLDER_PATH = synthPlaceholderImage;
 
 /** Bundled placeholder - always works even when public/Generic Images aren't reachable (e.g. ERR_CONNECTION_REFUSED). */
 export const getSynthPlaceholderImage = (): string => SYNTH_PLACEHOLDER_PATH;
 
+const JAMBASE_PLACEHOLDER_SUBSTRINGS = [
+  'jambase-default-band-image-bw-1480x832.png',
+  'jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png',
+] as const;
+
+/** True for JamBase generic art or broken stored synth placeholder paths (not a real remote image). */
+export function isPlaceholderImageUrl(imageUrl: string | null | undefined): boolean {
+  if (imageUrl == null) return true;
+  const u = String(imageUrl).trim();
+  if (!u || u === 'null' || u === 'undefined') return true;
+  if (JAMBASE_PLACEHOLDER_SUBSTRINGS.some((s) => u.includes(s))) return true;
+  if (u === '/Synth_Placeholder.png' || u.includes('/Synth_Placeholder.png')) return true;
+  return false;
+}
+
 /**
- * Replace JamBase placeholder image URL with Synth placeholder
- * This should be called on any image URL before displaying or storing
+ * For DB writes and enrichment: return a usable remote URL or null.
+ * Placeholders are not stored — display layer uses {@link getSynthPlaceholderImage} instead.
+ */
+export function resolveStoredImageUrl(imageUrl: string | null | undefined): string | null {
+  if (imageUrl == null) return null;
+  const trimmed = String(imageUrl).trim();
+  if (!trimmed || isPlaceholderImageUrl(trimmed)) return null;
+  return trimmed;
+}
+
+/**
+ * Replace JamBase placeholder image URL with Synth placeholder for display only.
  */
 export function replaceJambasePlaceholder(imageUrl: string | null | undefined): string | null {
   if (!imageUrl) {
     return null;
   }
-  
-  // Check if it's a JamBase placeholder that needs replacement
-  const isJambasePlaceholder = imageUrl.includes('jambase-default-band-image-bw-1480x832.png') || 
-      imageUrl === JAMBASE_PLACEHOLDER_URL ||
-      imageUrl.includes('jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png');
-  
-  // Also check if it's the incorrect Synth placeholder path that needs fixing
-  const isIncorrectSynthPlaceholder = imageUrl === '/Synth_Placeholder.png' || 
-      imageUrl.includes('/Synth_Placeholder.png');
-  
-  const wasReplaced = isJambasePlaceholder || isIncorrectSynthPlaceholder;
-  const result = wasReplaced ? SYNTH_PLACEHOLDER_PATH : imageUrl;
-  
-  return result;
+
+  if (isPlaceholderImageUrl(imageUrl)) {
+    return SYNTH_PLACEHOLDER_PATH;
+  }
+
+  return imageUrl;
 }
 
 const EVENT_FALLBACK_IMAGES = [
@@ -116,8 +131,8 @@ export function resolveEventCardImageUrl(event: EventImageSource): string {
   ];
 
   for (const raw of candidates) {
-    const resolved = replaceJambasePlaceholder(raw);
-    if (resolved) return resolved;
+    const stored = resolveStoredImageUrl(raw);
+    if (stored) return stored;
   }
 
   return getSynthPlaceholderImage();

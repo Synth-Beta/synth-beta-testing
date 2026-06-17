@@ -14,6 +14,7 @@ import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
 import { LocationService } from '@/services/locationService';
 import { getLastKnownLocation, saveLastKnownLocation } from '@/services/locationCacheService';
+import { isEventUpcomingForFeed } from '@/utils/localYmd';
 
 interface UnifiedEventItem {
   event_id: string;
@@ -52,6 +53,10 @@ const LOCATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const LOCATION_RELOAD_THRESHOLD_MILES = 50; // Only reload when location changes meaningfully
 const LOCATION_MATCH_THRESHOLD_MILES = 25; // Locations within 25mi are considered "same"
 
+function filterUpcomingFeedItems(items: UnifiedEventItem[]): UnifiedEventItem[] {
+  return items.filter((item) => isEventUpcomingForFeed(item.event_date));
+}
+
 /** Fetch feed for one or both locations when they don't match; merge and dedupe by event_id */
 async function fetchFeedForLocations(
   userId: string,
@@ -71,7 +76,10 @@ async function fetchFeedForLocations(
 
   if (locs.length === 0) {
     const result = await PersonalizationEngineV5.getUnifiedFeed(userId, limit, 0, baseFilters);
-    return { events: result.events.map(e => personalEventToItem(e, (e as any).event_type)), hasMore: result.hasMore };
+    return {
+      events: filterUpcomingFeedItems(result.events.map((e) => personalEventToItem(e, (e as any).event_type))),
+      hasMore: result.hasMore,
+    };
   }
 
   const results = await Promise.all(
@@ -91,7 +99,7 @@ async function fetchFeedForLocations(
     }
   }
   const hasMore = results.some(r => r.hasMore) || merged.length >= limit;
-  return { events: merged, hasMore };
+  return { events: filterUpcomingFeedItems(merged), hasMore };
 }
 
 function personalEventToItem(event: PersonalizedEvent, eventType?: string): UnifiedEventItem {
@@ -240,20 +248,21 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   useEffect(() => {
     if (cachedFeed) {
       // Merge friend events into the feed, interleaved every 4 events
-      let merged = cachedFeed.events;
+      let merged = filterUpcomingFeedItems(cachedFeed.events);
       if (extraEvents && extraEvents.length > 0) {
-        const seen = new Set(cachedFeed.events.map(e => e.event_id));
-        const fresh = extraEvents.filter(e => !seen.has(e.event_id));
+        const seen = new Set(merged.map((e) => e.event_id));
+        const fresh = filterUpcomingFeedItems(extraEvents).filter((e) => !seen.has(e.event_id));
         // Cap injected friend events to at most 1 per 4 main events — no dumping remainder at end
-        const maxInjectable = Math.floor(cachedFeed.events.length / 4);
+        const maxInjectable = Math.floor(merged.length / 4);
         const toInject = fresh.slice(0, maxInjectable);
         if (toInject.length > 0) {
-          merged = [];
+          const interleaved: UnifiedEventItem[] = [];
           let fi = 0;
-          for (let i = 0; i < cachedFeed.events.length; i++) {
-            merged.push(cachedFeed.events[i]);
-            if ((i + 1) % 4 === 0 && fi < toInject.length) merged.push(toInject[fi++]);
+          for (let i = 0; i < merged.length; i++) {
+            interleaved.push(merged[i]);
+            if ((i + 1) % 4 === 0 && fi < toInject.length) interleaved.push(toInject[fi++]);
           }
+          merged = filterUpcomingFeedItems(interleaved);
         }
       }
       setAllFetchedEvents(merged);
@@ -505,7 +514,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     const result = await PersonalizationEngineV5.getUnifiedFeed(currentUserId, BATCH_SIZE, offset, feedFilters);
     console.log('🎯 [UnifiedEventsFeed] fetchBatch result:', result.events.length, 'events, hasMore:', result.hasMore);
     
-    const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
+    const items = filterUpcomingFeedItems(result.events.map((e) => personalEventToItem(e, (e as any).event_type)));
     if (feedFilters?.latitude != null && feedFilters?.longitude != null) {
       lastReloadLocationRef.current = {
         lat: feedFilters.latitude,
@@ -682,7 +691,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         console.log('🔄 [UnifiedEventsFeed] Refresh filters:', feedFilters);
         
         const result = await PersonalizationEngineV5.getUnifiedFeed(currentUserId, BATCH_SIZE, 0, feedFilters);
-        const items = result.events.map(e => personalEventToItem(e, (e as any).event_type));
+        const items = filterUpcomingFeedItems(result.events.map((e) => personalEventToItem(e, (e as any).event_type)));
         
         setAllFetchedEvents(items);
         setDisplayedEvents(items.slice(0, PAGE_SIZE));

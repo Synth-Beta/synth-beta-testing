@@ -27,6 +27,7 @@ import { EventFilters, type FilterState } from '@/components/search/EventFilters
 import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
 import { Icon } from '@/components/Icon';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
+import { isEventUpcomingForFeed } from '@/utils/localYmd';
 import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
 import { FriendsService } from '@/services/friendsService';
 import { Button } from '@/components/ui/button';
@@ -173,7 +174,9 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   // Feed sections state
   const [recommendedEvents, setRecommendedEvents] = useState<PersonalizedEvent[]>([]);
   const [friendFeedEvents, setFriendFeedEvents] = useState<NetworkEvent[]>([]); // injected into main events feed
-  const friendExtraEvents = useMemo(() => friendFeedEvents.map(ne => ({
+  const friendExtraEvents = useMemo(() => friendFeedEvents
+    .filter((ne) => isEventUpcomingForFeed(ne.event_date))
+    .map(ne => ({
     event_id: ne.event_id,
     title: ne.title,
     artist_name: ne.artist_name,

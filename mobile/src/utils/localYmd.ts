@@ -50,6 +50,13 @@ export function isEventUpcomingLocalDay(raw: unknown, now = new Date()): boolean
     return ymd >= todayLocalYmd(now);
 }
 
+/** Stricter gate for feeds — excludes past and rows without a parseable date. */
+export function isEventUpcomingForFeed(raw: unknown, now = new Date()): boolean {
+    const ymd = eventDateToLocalYmd(raw);
+    if (!ymd) return false;
+    return ymd >= todayLocalYmd(now);
+}
+
 export function eventRawMatchesLocalYmd(raw: unknown, dayYmd: string): boolean {
     const target = String(dayYmd).slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) return false;

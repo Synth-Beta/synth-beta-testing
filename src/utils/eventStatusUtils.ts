@@ -3,6 +3,8 @@
  * Determines if events are upcoming or past using frontend logic
  */
 
+import { eventDateToLocalYmd, todayLocalYmd } from '@/utils/localYmd';
+
 export type EventStatus = 'upcoming' | 'past';
 
 /**
@@ -11,14 +13,9 @@ export type EventStatus = 'upcoming' | 'past';
  * @returns 'upcoming' if event is in the future, 'past' if it has passed
  */
 export const getEventStatus = (eventDate: string | Date): EventStatus => {
-  const eventDateTime = new Date(eventDate);
-  const now = new Date();
-  
-  // Clear time components to compare dates only
-  const eventDateOnly = new Date(eventDateTime.getFullYear(), eventDateTime.getMonth(), eventDateTime.getDate());
-  const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  
-  return eventDateOnly >= todayOnly ? 'upcoming' : 'past';
+  const ymd = eventDateToLocalYmd(eventDate);
+  if (!ymd) return 'past';
+  return ymd >= todayLocalYmd() ? 'upcoming' : 'past';
 };
 
 /**

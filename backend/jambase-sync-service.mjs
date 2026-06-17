@@ -273,19 +273,22 @@ class JambaseSyncService {
   }
 
   /**
-   * Replace JamBase placeholder image URL with Synth placeholder
+   * JamBase sends a generic placeholder for many artists — store null, not a local path.
    */
   replaceJambasePlaceholder(imageUrl) {
     if (!imageUrl) {
       return null;
     }
-    
-    // Check if the URL matches the JamBase placeholder
-    if (imageUrl.includes('jambase-default-band-image-bw-1480x832.png') || 
-        imageUrl.includes('jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png')) {
-      return '/Synth_Placeholder.png';
+
+    if (
+      imageUrl.includes('jambase-default-band-image-bw-1480x832.png') ||
+      imageUrl.includes('jambase.com/wp-content/uploads/2021/08/jambase-default-band-image-bw-1480x832.png') ||
+      imageUrl === '/Synth_Placeholder.png' ||
+      imageUrl.includes('/Synth_Placeholder.png')
+    ) {
+      return null;
     }
-    
+
     return imageUrl;
   }
 

@@ -1,8 +1,8 @@
 import { getSimilarUsersToFriend, rankFriendSuggestionsForRail } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
 import { ReviewEngagementService } from './reviewEngagementService';
-import { isEventUpcomingLocalDay, todayLocalYmd } from '../utils/localYmd';
-import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
+import { isEventUpcomingForFeed, todayLocalYmd } from '../utils/localYmd';
+import { pickFeedImageUrlFromPayload, resolveFeedImageUri, hasUsableFeedImageUrl } from '../utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
 
 /** Single event row from personalized feed RPC (unified recommended / social / trending ordering). */
@@ -71,6 +71,7 @@ export interface NetworkEvent {
     id: string;
     title: string;
     artist_name: string;
+    artist_id?: string;
     venue_name: string;
     venue_city?: string;
     event_date: string;
@@ -167,14 +168,45 @@ export class HomeFeedService {
         };
     }
 
-    private static isCachedFeedWrapperMissing(error: any): boolean {
+    private static feedRpcShouldFallback(error: any): boolean {
         return (
             error &&
             (error.code === '42883' ||
                 error.code === 'PGRST116' ||
                 error.code === 'PGRST204' ||
-                /get_or_refresh_feed_v5_cached/.test(String(error.message || '')))
+                error.code === '57014' ||
+                error.code === 'PGRST002' ||
+                /get_or_refresh_feed_v5_cached|statement timeout|canceling statement|schema cache/i.test(
+                    String(error.message || '')
+                ))
         );
+    }
+
+    static async enrichUnifiedEventsWithArtistImages(
+        events: UnifiedPersonalizedEvent[]
+    ): Promise<UnifiedPersonalizedEvent[]> {
+        const withoutUsable = events.filter((e) => !hasUsableFeedImageUrl(e.image_url));
+        if (withoutUsable.length === 0) return events;
+
+        const artistIds = [...new Set(withoutUsable.map((e) => e.artist_id).filter(Boolean))] as string[];
+        const imageByArtist = new Map<string, string>();
+        if (artistIds.length > 0) {
+            const { data: artists } = await supabase
+                .from('artists')
+                .select('id, image_url')
+                .in('id', artistIds);
+
+            for (const a of artists || []) {
+                const uri = resolveFeedImageUri(a.image_url);
+                if (uri) imageByArtist.set(a.id, uri);
+            }
+        }
+
+        return events.map((event) => {
+            if (hasUsableFeedImageUrl(event.image_url)) return event;
+            const artistImage = event.artist_id ? imageByArtist.get(event.artist_id) : undefined;
+            return { ...event, image_url: artistImage };
+        });
     }
 
     private static async fetchPersonalizedFeedV5Rows(rpcPayload: {
@@ -204,10 +236,22 @@ export class HomeFeedService {
             error = rpcErr;
         }
 
-        if (this.isCachedFeedWrapperMissing(error)) {
+        if (this.feedRpcShouldFallback(error)) {
             const direct = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
             data = direct.data;
             error = direct.error;
+        }
+
+        if (error) {
+            const isTimeout =
+                error.code === '57014' ||
+                /statement timeout|canceling statement/i.test(String(error.message || ''));
+            if (isTimeout) {
+                await new Promise((r) => setTimeout(r, 2000));
+                const retry = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+                data = retry.data;
+                error = retry.error;
+            }
         }
 
         if (error) {
@@ -272,9 +316,11 @@ export class HomeFeedService {
                 }
             }
 
-            const mapped: UnifiedPersonalizedEvent[] = rows
+            let mapped: UnifiedPersonalizedEvent[] = rows
                 .map((row: any) => this.mapFeedV5RowToUnifiedEvent(row))
-                .filter(e => e.id.length > 0 && isEventUpcomingLocalDay(e.event_date));
+                .filter(e => e.id.length > 0 && isEventUpcomingForFeed(e.event_date));
+
+            mapped = await this.enrichUnifiedEventsWithArtistImages(mapped);
 
             if (mapped.length === 0) {
                 const fallback = await this.getFallbackUpcomingEvents(limit);
@@ -330,7 +376,7 @@ export class HomeFeedService {
         }
 
         return rows
-            .filter((event: any) => isEventUpcomingLocalDay(event.event_date))
+            .filter((event: any) => isEventUpcomingForFeed(event.event_date))
             .map((event: any) => {
             const rawImg = pickFeedImageUrlFromPayload({
                 images: event.images,
@@ -545,7 +591,7 @@ export class HomeFeedService {
                     user_id,
                     users:user_id ( user_id, name, avatar_url ),
                     events:event_id (
-                        id, title, artist_name, venue_name, venue_city,
+                        id, title, artist_name, artist_id, venue_name, venue_city,
                         event_date, images, event_media_url, media_urls
                     )
                 `)
@@ -572,19 +618,20 @@ export class HomeFeedService {
                 const primary = eventRows[0];
                 const user = primary.users as any;
 
-                // Pick best image
-                let image_url: string | undefined;
-                if (Array.isArray(ev.images) && ev.images.length > 0) {
-                    const best = ev.images.find((img: any) => img?.url && (img?.ratio === '16_9' || img?.width > 1000))
-                        || ev.images.find((img: any) => img?.url);
-                    image_url = best?.url;
-                }
-                image_url = image_url || ev.event_media_url || (Array.isArray(ev.media_urls) ? ev.media_urls[0] : undefined);
+                const image_url =
+                    resolveFeedImageUri(
+                        pickFeedImageUrlFromPayload({
+                            images: ev.images,
+                            event_media_url: ev.event_media_url,
+                            media_urls: ev.media_urls,
+                        })
+                    ) ?? undefined;
 
                 results.push({
                     id: ev.id,
                     title: ev.title || 'Event',
                     artist_name: ev.artist_name || '',
+                    artist_id: ev.artist_id != null ? String(ev.artist_id) : undefined,
                     venue_name: ev.venue_name || '',
                     venue_city: ev.venue_city || undefined,
                     event_date: ev.event_date || '',
@@ -603,7 +650,7 @@ export class HomeFeedService {
             });
 
             return results
-                .filter(e => isEventUpcomingLocalDay(e.event_date))
+                .filter(e => isEventUpcomingForFeed(e.event_date))
                 .sort((a, b) => (b.interested_count ?? 0) - (a.interested_count ?? 0))
                 .slice(0, limit);
         } catch (err) {

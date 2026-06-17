@@ -4,6 +4,39 @@ import type { JamBaseEvent } from '@/types/eventTypes';
 import { cacheService, CacheTTL } from './cacheService';
 import { logger } from '@/utils/logger';
 import { filterContentForMinors } from '@/utils/contentFilter';
+import { resolveStoredImageUrl } from '@/utils/eventImageFallbacks';
+import { isEventUpcomingForFeed } from '@/utils/localYmd';
+
+function feedRpcShouldFallback(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const e = error as { code?: string; message?: string };
+  return (
+    e.code === '42883' ||
+    e.code === 'PGRST116' ||
+    e.code === 'PGRST204' ||
+    e.code === '57014' ||
+    e.code === 'PGRST002' ||
+    /get_or_refresh_feed_v5_cached|statement timeout|canceling statement|schema cache/i.test(
+      String(e.message || '')
+    )
+  );
+}
+
+function eventHasDisplayImage(event: PersonalizedEvent): boolean {
+  if (resolveStoredImageUrl(event.event_media_url)) return true;
+  if (resolveStoredImageUrl(event.poster_image_url)) return true;
+  const imgs = event.images;
+  if (Array.isArray(imgs)) {
+    return imgs.some(
+      (img) =>
+        img &&
+        typeof img === 'object' &&
+        typeof (img as { url?: string }).url === 'string' &&
+        resolveStoredImageUrl((img as { url: string }).url)
+    );
+  }
+  return false;
+}
 
 /**
  * Row returned by the Supabase personalized feed RPC.
@@ -223,17 +256,9 @@ export class PersonalizationEngineV5 {
         error = rpcErr;
       }
 
-      // If wrapper function is missing / not yet migrated, fall back to direct RPC
-      const isWrapperMissing =
-        error &&
-        (error.code === '42883' || // undefined_function
-          error.code === 'PGRST116' || // function not found in schema cache
-          error.code === 'PGRST204' || // not found
-          /get_or_refresh_feed_v5_cached/.test(error.message || ''));
-
-      if (isWrapperMissing) {
+      if (feedRpcShouldFallback(error)) {
         logger.warn(
-          '⚠️ get_or_refresh_feed_v5_cached not available, falling back to get_personalized_feed_v5',
+          '⚠️ get_or_refresh_feed_v5_cached failed, falling back to get_personalized_feed_v5',
           error
         );
         const direct = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
@@ -242,9 +267,24 @@ export class PersonalizationEngineV5 {
       }
 
       if (error) {
-        const isTimeout = error?.code === '57014' || /statement timeout|canceling statement/i.test(String(error?.message || ''));
+        const isTimeout =
+          (error as { code?: string })?.code === '57014' ||
+          /statement timeout|canceling statement/i.test(String((error as { message?: string })?.message || ''));
         if (isTimeout) {
-          logger.warn('⚠️ Feed RPC timed out (will retry on next load):', error);
+          logger.warn('⚠️ Feed RPC timed out, retrying once…', error);
+          await new Promise((r) => setTimeout(r, 2000));
+          const retry = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+          data = retry.data;
+          error = retry.error;
+        }
+      }
+
+      if (error) {
+        const isTimeout =
+          (error as { code?: string })?.code === '57014' ||
+          /statement timeout|canceling statement/i.test(String((error as { message?: string })?.message || ''));
+        if (isTimeout) {
+          logger.warn('⚠️ Feed RPC timed out after retry:', error);
         } else {
           logger.error('❌ get_personalized_feed_v5 error:', error);
         }
@@ -285,14 +325,20 @@ export class PersonalizationEngineV5 {
       }
       
       // Map rows to events, preserving event_type from context
-      const events = rows.map((row) => {
+      let events = rows.map((row) => {
         const event = PersonalizationEngineV5.rowToEvent(row);
         return {
           ...event,
           event_type: row.context?.event_type ?? row.section ?? 'trending',
         };
       });
-      
+
+      events = await PersonalizationEngineV5.enrichEventsWithArtistImages(events);
+
+      if (!normalizedFilters.includePast) {
+        events = events.filter((event) => isEventUpcomingForFeed(event.event_date));
+      }
+
       return {
         events,
         hasMore: rows.length >= limit,
@@ -460,6 +506,35 @@ export class PersonalizationEngineV5 {
         trending: { events: [], hasMore: false },
       };
     }
+  }
+
+  private static async enrichEventsWithArtistImages<T extends PersonalizedEvent>(
+    events: T[]
+  ): Promise<T[]> {
+    const needsImage = events.filter((e) => e.artist_id && !eventHasDisplayImage(e));
+    if (needsImage.length === 0) return events;
+
+    const artistIds = [...new Set(needsImage.map((e) => e.artist_id).filter(Boolean))] as string[];
+    const { data: artists } = await supabase
+      .from('artists')
+      .select('id, image_url')
+      .in('id', artistIds);
+
+    const imageByArtist = new Map(
+      (artists || [])
+        .map((a) => {
+          const url = resolveStoredImageUrl(a.image_url);
+          return url ? ([a.id, url] as const) : null;
+        })
+        .filter((entry): entry is readonly [string, string] => entry !== null)
+    );
+
+    return events.map((event) => {
+      if (!event.artist_id || eventHasDisplayImage(event)) return event;
+      const artistImage = imageByArtist.get(event.artist_id);
+      if (!artistImage) return event;
+      return { ...event, event_media_url: artistImage };
+    });
   }
 
   private static rowToEvent(row: FeedV5Row): PersonalizedEvent {
@@ -1389,20 +1464,10 @@ export class PersonalizedFeedService {
     let result = rows;
     const initialCount = rows.length;
 
-    // Date filtering: Only filter out past events if includePast is false
-    // Note: RPC already filters events to be within a reasonable date range
-    // Only apply this filter if RPC didn't already filter by date range (i.e., no coordinates were used)
-    // AND no explicit date range filter is provided (date range filter handles past events)
-    const shouldRunPastEventsFilter = !includePast && !filters.cityCoordinates && !filters.dateStart && !filters.dateEnd;
-    if (shouldRunPastEventsFilter) {
-      const now = Date.now();
+  // Always drop past rows for upcoming feeds (RPC/cache/friend injections can still leak them).
+    if (!includePast) {
       const beforeDateFilter = result.length;
-      result = result.filter((row) => {
-        if (!row.event_date) return true; // Keep events without dates
-        const eventTime = Date.parse(row.event_date);
-        if (Number.isNaN(eventTime)) return true;
-        return eventTime >= now;
-      });
+      result = result.filter((row) => isEventUpcomingForFeed(row.event_date));
       if (result.length < beforeDateFilter) {
         logger.debug(`📅 Date filter removed ${beforeDateFilter - result.length} past events`);
       }

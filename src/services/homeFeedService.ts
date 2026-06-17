@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { isEventUpcomingForFeed } from '@/utils/localYmd';
 import type { PersonalizedEvent } from './personalizedFeedService';
 
 export interface NetworkEvent {
@@ -188,8 +189,8 @@ export class HomeFeedService {
         });
       });
 
-      // Sort by created_at
       return networkEvents
+        .filter((event) => isEventUpcomingForFeed(event.event_date))
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, limit);
     } catch (error) {
@@ -265,7 +266,9 @@ export class HomeFeedService {
 
       if (eventsError) throw eventsError;
 
-      return (events || []).map((event: any) => {
+      return (events || [])
+        .filter((event: any) => isEventUpcomingForFeed(event.event_date))
+        .map((event: any) => {
         const eventData = eventCounts.get(event.id);
         const primaryUser = eventData?.users?.[0];
 

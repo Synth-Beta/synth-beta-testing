@@ -23,7 +23,8 @@ import { getCurrentLatLng } from '../../src/services/locationService';
 import { EventService } from '../../src/services/eventService';
 import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { useInterested } from '../../src/contexts/InterestedContext';
-import { isEventUpcomingLocalDay } from '../../src/utils/localYmd';
+import { resolveFeedImageUri } from '../../src/utils/eventImages';
+import { isEventUpcomingForFeed } from '../../src/utils/localYmd';
 
 type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
@@ -99,12 +100,12 @@ export default function FeedScreen() {
             venue_name: ne.venue_name,
             venue_city: ne.venue_city,
             event_date: ne.event_date,
-            image_url: ne.image_url,
+            image_url: resolveFeedImageUri(ne.image_url) ?? undefined,
             feedLabel: 'FRIENDS' as const,
             interested_count: ne.interested_count ?? 0,
             user_is_interested: false,
             ticket_url: undefined,
-            artist_id: undefined,
+            artist_id: ne.artist_id,
             venue_id: undefined,
             friends_interested: ne.friends_all ?? [],
           }));
@@ -121,7 +122,8 @@ export default function FeedScreen() {
         // Append any remaining friend events at the end
         while (fi < friendsAsUnified.length) merged.push(friendsAsUnified[fi++]);
 
-        const upcomingOnly = merged.filter(e => isEventUpcomingLocalDay(e.event_date));
+        const enriched = await HomeFeedService.enrichUnifiedEventsWithArtistImages(merged);
+        const upcomingOnly = enriched.filter((e) => isEventUpcomingForFeed(e.event_date));
         setEvents(upcomingOnly);
         seedFromFeed(upcomingOnly);
       } else {
