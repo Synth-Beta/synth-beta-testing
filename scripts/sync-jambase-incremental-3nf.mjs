@@ -2,7 +2,7 @@
  * Daily Incremental Jambase Sync - 3NF Compliant
  * 
  * Strategy:
- * 1. Fetch events modified since MAX(last_modified_at) from events table
+ * 1. Fetch upcoming events only (eventDateFrom=today) modified since MAX(last_modified_at)
  * 2. Use external_entity_ids table as source of truth for deduplication
  * 3. For each event, check external_entity_ids to see if it exists
  * 4. For each artist/venue, check external_entity_ids to see if it exists
@@ -997,12 +997,17 @@ class IncrementalSync3NF {
    * Process a page of events with 3NF compliance
    */
   async processPage3NF(jambaseEvents) {
+    const includePast = process.env.JAMBASE_INCLUDE_PAST === '1';
+    const upcomingEvents = includePast
+      ? jambaseEvents
+      : jambaseEvents.filter((e) => this.syncService.isUpcomingEvent(e));
+
     // Step 1: Extract all artist and venue data
     const artistsData = [];
     const venuesData = [];
     const eventsData = [];
 
-    for (const jambaseEvent of jambaseEvents) {
+    for (const jambaseEvent of upcomingEvents) {
       const headliner = jambaseEvent.performer?.find(p => p['x-isHeadliner']) || jambaseEvent.performer?.[0];
       if (headliner) {
         const artistData = this.syncService.extractArtistData(headliner);
@@ -1026,7 +1031,7 @@ class IncrementalSync3NF {
     const venueUuidMap = await this.upsertVenues3NF(venuesData);
 
     // Step 4: Extract event data
-    for (const jambaseEvent of jambaseEvents) {
+    for (const jambaseEvent of upcomingEvents) {
       const headliner = jambaseEvent.performer?.find(p => p['x-isHeadliner']) || jambaseEvent.performer?.[0];
       const venue = jambaseEvent.location;
 
@@ -1103,7 +1108,19 @@ class IncrementalSync3NF {
       );
     }
 
-    console.log(`📅 dateModifiedFrom: ${lastModifiedAt}\n`);
+    console.log(`📅 dateModifiedFrom: ${lastModifiedAt}`);
+
+    // Upcoming only: new listings + updates to future shows (skips past-event metadata noise).
+    const includePast = process.env.JAMBASE_INCLUDE_PAST === '1';
+    const eventDateFrom = includePast
+      ? null
+      : (process.env.JAMBASE_EVENT_DATE_FROM?.trim() || new Date().toISOString().slice(0, 10));
+    if (eventDateFrom) {
+      console.log(`📅 eventDateFrom (upcoming only): ${eventDateFrom}`);
+    } else {
+      console.log('📅 eventDateFrom: not set (JAMBASE_INCLUDE_PAST=1 — includes past events)');
+    }
+    console.log('');
 
     // Fetch events modified since last sync (or since override — use after a partial run so older pages are not skipped)
     const dateModifiedFrom = new Date(lastModifiedAt).toISOString();
@@ -1126,7 +1143,8 @@ class IncrementalSync3NF {
           pageData = await this.syncService.fetchEventsPage(
             currentPage,
             perPage,
-            dateModifiedFrom
+            dateModifiedFrom,
+            eventDateFrom
           );
           break; // success
         } catch (err) {
@@ -1171,7 +1189,13 @@ class IncrementalSync3NF {
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
-      console.log(`✅ Processed page ${currentPage}/${totalPages} (${pageData.events.length} events)`);
+      const upcomingOnPage = includePast
+        ? pageData.events.length
+        : pageData.events.filter((e) => this.syncService.isUpcomingEvent(e)).length;
+      const pageLabel = includePast
+        ? `${pageData.events.length} events`
+        : `${upcomingOnPage}/${pageData.events.length} upcoming`;
+      console.log(`✅ Processed page ${currentPage}/${totalPages} (${pageLabel})`);
 
       totalPages = pageData.totalPages || 1;
       currentPage++;

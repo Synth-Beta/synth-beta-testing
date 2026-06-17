@@ -1,6 +1,6 @@
 #!/bin/bash
 # Daily Jambase Sync Script
-# Runs incremental sync and logs output.
+# Runs incremental upcoming-only sync (eventDateFrom=today + dateModifiedFrom watermark) and logs output.
 # With RUN_AT_1AM_EST=1 (e.g. from cron), only runs when current hour in America/New_York is 01.
 
 # Set full paths to avoid PATH issues in cron

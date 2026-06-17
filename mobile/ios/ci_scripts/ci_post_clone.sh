@@ -169,8 +169,14 @@ if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" && -n "${EXPO_PUBLIC_SUPABASE_ANON_KEY:
     if [[ -n "${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID:-}" ]]; then
       printf '%s\n' "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=${EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID}" >> .env
     fi
+    if [[ -n "${EXPO_PUBLIC_SPOTIFY_CLIENT_ID:-}" ]]; then
+      printf '%s\n' "EXPO_PUBLIC_SPOTIFY_CLIENT_ID=${EXPO_PUBLIC_SPOTIFY_CLIENT_ID}" >> .env
+    fi
   )
   echo "ci_post_clone: wrote mobile/.env"
+  if [[ -z "${EXPO_PUBLIC_SPOTIFY_CLIENT_ID:-}" ]]; then
+    echo "ci_post_clone: WARNING: EXPO_PUBLIC_SPOTIFY_CLIENT_ID not set — in-app Spotify connect/resync will fail in TestFlight. Add it in Xcode Cloud workflow environment (App Store Connect)."
+  fi
 else
   echo "ci_post_clone: WARNING: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY not set — add them in Xcode Cloud workflow environment (App Store Connect)."
 fi

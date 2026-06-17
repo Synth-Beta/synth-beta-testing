@@ -53,9 +53,30 @@ class JambaseSyncService {
   }
 
   /**
-   * Fetch events from Jambase API with pagination
+   * True when the JamBase event startDate is today or later (UTC day boundary).
+   * Missing or invalid startDate returns false — same as feed exclusion (no dead rows).
    */
-  async fetchEventsPage(page = 1, perPage = 100, dateModifiedFrom = null, retryCount = 0) {
+  isUpcomingEvent(jambaseEvent) {
+    if (!jambaseEvent?.startDate) return false;
+    const start = new Date(jambaseEvent.startDate);
+    if (Number.isNaN(start.getTime())) return false;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    return start >= today;
+  }
+
+  /**
+   * Fetch events from Jambase API with pagination.
+   * @param {string|null} dateModifiedFrom - incremental watermark (RFC 3339)
+   * @param {string|null} eventDateFrom - when set (YYYY-MM-DD), only events on/after this date
+   */
+  async fetchEventsPage(
+    page = 1,
+    perPage = 100,
+    dateModifiedFrom = null,
+    eventDateFrom = null,
+    retryCount = 0
+  ) {
     const params = new URLSearchParams({
       expandExternalIdentifiers: 'true', // CRITICAL: includes all artist/venue IDs
       perPage: perPage.toString(),
@@ -64,6 +85,9 @@ class JambaseSyncService {
 
     if (dateModifiedFrom) {
       params.append('dateModifiedFrom', dateModifiedFrom);
+    }
+    if (eventDateFrom) {
+      params.append('eventDateFrom', eventDateFrom);
     }
 
     const url = `${this.baseUrl}?${params.toString()}`;
@@ -107,7 +131,7 @@ class JambaseSyncService {
         await new Promise(resolve => setTimeout(resolve, delay));
         // Don't increment apiCalls on retry
         this.stats.apiCalls--;
-        return this.fetchEventsPage(page, perPage, dateModifiedFrom, retryCount + 1);
+        return this.fetchEventsPage(page, perPage, dateModifiedFrom, eventDateFrom, retryCount + 1);
       }
       throw error;
     }

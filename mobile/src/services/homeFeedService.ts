@@ -1,7 +1,7 @@
 import { getSimilarUsersToFriend, rankFriendSuggestionsForRail } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
 import { ReviewEngagementService } from './reviewEngagementService';
-import { todayLocalYmd } from '../utils/localYmd';
+import { isEventUpcomingLocalDay, todayLocalYmd } from '../utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
 
@@ -272,10 +272,9 @@ export class HomeFeedService {
                 }
             }
 
-            const today = todayLocalYmd();
             const mapped: UnifiedPersonalizedEvent[] = rows
                 .map((row: any) => this.mapFeedV5RowToUnifiedEvent(row))
-                .filter(e => e.id.length > 0 && (!e.event_date || e.event_date >= today));
+                .filter(e => e.id.length > 0 && isEventUpcomingLocalDay(e.event_date));
 
             if (mapped.length === 0) {
                 const fallback = await this.getFallbackUpcomingEvents(limit);
@@ -330,7 +329,9 @@ export class HomeFeedService {
             (venues || []).forEach((v: any) => venueMap.set(v.id, v.name));
         }
 
-        return rows.map((event: any) => {
+        return rows
+            .filter((event: any) => isEventUpcomingLocalDay(event.event_date))
+            .map((event: any) => {
             const rawImg = pickFeedImageUrlFromPayload({
                 images: event.images,
                 poster_image_url: undefined,
@@ -601,9 +602,8 @@ export class HomeFeedService {
                 });
             });
 
-            const today = todayLocalYmd();
             return results
-                .filter(e => !e.event_date || e.event_date >= today)
+                .filter(e => isEventUpcomingLocalDay(e.event_date))
                 .sort((a, b) => (b.interested_count ?? 0) - (a.interested_count ?? 0))
                 .slice(0, limit);
         } catch (err) {

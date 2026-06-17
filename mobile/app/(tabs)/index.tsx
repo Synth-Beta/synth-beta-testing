@@ -23,6 +23,7 @@ import { getCurrentLatLng } from '../../src/services/locationService';
 import { EventService } from '../../src/services/eventService';
 import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { useInterested } from '../../src/contexts/InterestedContext';
+import { isEventUpcomingLocalDay } from '../../src/utils/localYmd';
 
 type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
@@ -120,8 +121,9 @@ export default function FeedScreen() {
         // Append any remaining friend events at the end
         while (fi < friendsAsUnified.length) merged.push(friendsAsUnified[fi++]);
 
-        setEvents(merged);
-        seedFromFeed(merged);
+        const upcomingOnly = merged.filter(e => isEventUpcomingLocalDay(e.event_date));
+        setEvents(upcomingOnly);
+        seedFromFeed(upcomingOnly);
       } else {
         const networkReviews = await HomeFeedService.getNetworkReviews(user.id, 20);
         setReviews(networkReviews);

@@ -40,6 +40,16 @@ export function eventDateToLocalYmd(raw: unknown): string | null {
     return toLocalYmd(d);
 }
 
+/**
+ * True when `event_date` is today or later in the user's local calendar (home feed gate).
+ * Missing or unparseable dates are treated as upcoming — same as legacy `!e.event_date || e.event_date >= today`.
+ */
+export function isEventUpcomingLocalDay(raw: unknown, now = new Date()): boolean {
+    const ymd = eventDateToLocalYmd(raw);
+    if (!ymd) return true;
+    return ymd >= todayLocalYmd(now);
+}
+
 export function eventRawMatchesLocalYmd(raw: unknown, dayYmd: string): boolean {
     const target = String(dayYmd).slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) return false;
