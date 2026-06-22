@@ -1,84 +1,49 @@
-# Temp sync / genre-fetch scratch artifacts (see scripts/fetch-artist-genres.mjs)
-temp/
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# Bot seeding generated artifact
-scripts/bot-accounts.json
-
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
+# compiled output
 dist
-dist-ssr
-ios/App/App/public
-# Environment variables - NEVER commit these!
-.env
-.env.local
-.env*.local
-.env.bak
-*.env
-!.env.example
-backend/.env
+tmp
+out-tsc
+*.tsbuildinfo
+.expo
+.expo-shared
 
-# Security - API Keys and Authentication Files - NEVER commit these!
-ios/debug.xcconfig
-*.p8
-*.p12
-*.pem
-*.cer
-*.key
-**/secure/**
-**/secrets/**
-AuthKey*.p8
-backend/secure/
-supabase/migrations/backend/secure/
+# dependencies
+node_modules
 
-# Swift Package Manager build artifacts (never commit)
-synth-native-ios/.build/
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
-# Claude / AI assistants — machine-local config (do not commit)
-.claude/settings.local.json
-
-# Editor directories and files
+# IDE - VSCode
 .vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
 !.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 
-# Xcode / iOS
-ios/**/DerivedData/
-**/DerivedData/
-**/build/
-**/*.xcuserstate
-**/xcuserdata/
-*.xccheckout
-*.xcscmblueprint
-*.moved-aside
-*.mode1v3
-*.mode2v3
-*.perspectivev3
-*.hmap
-*.ipa
-*.dSYM
-*.dSYM.zip
-*.swiftdoc
-*.swiftmodule
-*.swiftinterface
-*.swiftdeps
-*.xcodeproj/*.pbxuser
-*.xcodeproj/*.mode1v3
-*.xcodeproj/*.mode2v3
-*.xcodeproj/*.perspectivev3
-*.xcodeproj/*.userdata
-ios/debug.xcconfig
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Replit
+.cache/
+.local/
