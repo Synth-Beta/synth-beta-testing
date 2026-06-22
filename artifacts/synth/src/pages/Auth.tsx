@@ -8,23 +8,6 @@ import { handleAppleSignInFromNative, setupAppleSignInListeners } from '@/servic
 import { Capacitor } from '@capacitor/core';
 import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
 
-// Add the elegant-shift animation keyframes
-const styles = `
-  @keyframes elegant-shift {
-    0% { background-position: 0% 50%; }
-    25% { background-position: 100% 50%; }
-    50% { background-position: 100% 100%; }
-    75% { background-position: 0% 100%; }
-    100% { background-position: 0% 50%; }
-  }
-`;
-
-// Inject styles into the document head
-if (typeof document !== 'undefined') {
-  const styleSheet = document.createElement('style');
-  styleSheet.textContent = styles;
-  document.head.appendChild(styleSheet);
-}
 
 interface AuthProps {
   onAuthSuccess: () => void;

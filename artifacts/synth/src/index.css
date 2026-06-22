@@ -126,67 +126,12 @@ body,
   }
   }
 
-  /* Enhanced animated gradient background for entire app */
-  body {
-    background: linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, #fce7f3 50%, var(--neutral-0) 75%, #fdf2f8 100%);
-    background-size: 400% 400%;
-    animation: elegant-shift 20s ease infinite;
-    min-height: 100vh;
-    position: relative;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-  @keyframes elegant-shift {
-    0% {
-      background-position: 0% 50%;
-    }
-    25% {
-      background-position: 100% 50%;
-    }
-    50% {
-      background-position: 100% 100%;
-    }
-    75% {
-      background-position: 0% 100%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
-  }
-  }
-
-  /* Overlay pattern for subtle texture */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.03) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: -1;
-  }
-
-  /* Enhanced glassmorphism card styles */
+  /* Card styles — design system compliant */
   .glass-card {
-    @apply bg-white/75 backdrop-blur-lg;
-    @apply border border-white/50;
-    @apply shadow-xl shadow-pink-500/15;
-    @apply rounded-2xl;
+    background-color: var(--neutral-50);
+    border: var(--border-default);
+    border-radius: var(--radius-corner);
     position: relative;
-  }
-
-  .glass-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(236,72,153,0.05) 100%);
-    border-radius: inherit;
-    pointer-events: none;
   }
 
   /* Enhanced universal hover animations for cards */
@@ -196,8 +141,8 @@ body,
   }
 
   .hover-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 30px 60px -12px rgba(236, 72, 153, 0.4), 0 0 0 1px rgba(236, 72, 153, 0.1);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-default);
   }
 
   /* Enhanced universal button animations */
@@ -221,8 +166,8 @@ body,
   }
 
   .hover-icon:hover {
-    transform: scale(1.25) rotate(6deg);
-    filter: drop-shadow(0 4px 8px rgba(236, 72, 153, 0.3));
+    transform: scale(1.15);
+    filter: drop-shadow(0 4px 8px color-mix(in srgb, var(--brand-pink-500) 30%, transparent));
   }
 
   /* Special micro-interactions */
@@ -232,7 +177,7 @@ body,
 
   .hover-heart:hover {
     transform: scale(1.3);
-    filter: drop-shadow(0 0 8px rgba(236, 72, 153, 0.6));
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--brand-pink-500) 60%, transparent));
   }
 
   .hover-social {
@@ -261,16 +206,20 @@ body,
   }
   }
 
-  /* Enhanced gradient text utility */
+  /* Gradient text utility */
   .gradient-text {
-    @apply bg-gradient-to-r from-pink-600 via-pink-500 to-pink-400;
-    @apply bg-clip-text text-transparent;
-    animation: gradient-text-shift 3s ease-in-out infinite;
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .gradient-text-bold {
-    @apply bg-gradient-to-r from-pink-700 via-pink-600 to-pink-500;
-    @apply bg-clip-text text-transparent font-semibold;
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -386,11 +335,12 @@ body,
 
   
 
-  /* Glassmorphism navigation */
+  /* Bottom navigation — design system compliant */
   .glass-nav {
-    @apply bg-white/80 backdrop-blur-lg;
-    @apply border-t border-pink-200/50;
-    @apply shadow-md shadow-pink-500/10;
+    background-color: var(--brand-pink-050);
+    border-top: 2px solid var(--neutral-200);
+    border-top-left-radius: var(--radius-corner);
+    border-top-right-radius: var(--radius-corner);
   }
 
   /* Enhanced tab animations */
@@ -424,25 +374,6 @@ body,
     transform: translateY(-1px);
   }
 
-  /* Enhanced glassmorphism navigation */
-  .glass-nav {
-    @apply bg-white/85 backdrop-blur-xl;
-    @apply border-t border-pink-200/50;
-    @apply shadow-lg shadow-pink-500/20;
-    position: relative;
-  }
-
-  .glass-nav::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(236,72,153,0.05) 100%);
-    pointer-events: none;
-    border-radius: inherit;
-  }
 
   .nav-button {
     @apply transition-all duration-300;
@@ -479,24 +410,13 @@ body,
     @apply var(--neutral-600) hover:text-pink-500 hover:scale-110;
   }
 
-  /* Enhanced header styles */
+  /* Header — design system compliant */
   .glass-header {
-    @apply bg-white/80 backdrop-blur-lg;
-    @apply sticky top-0 z-50;
-    @apply shadow-md shadow-pink-500/10;
-    position: relative;
-  }
-
-  .glass-header::before {
-    content: '';
-    position: absolute;
+    background-color: var(--neutral-50);
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(236,72,153,0.05) 100%);
-    pointer-events: none;
-    border-radius: inherit;
+    z-index: var(--z-index-nav);
+    box-shadow: var(--shadow-default);
   }
 
   /* Keep all headers pinned so iOS webview sections stay visible while scrolling */
@@ -777,8 +697,10 @@ body,
   
   /* Synth Logo Styles */
   .synth-logo {
-    @apply font-bold text-4xl;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-family);
+    font-size: var(--typography-h1-size);
+    font-weight: var(--typography-h1-weight);
+    line-height: var(--typography-h1-line-height);
     letter-spacing: -0.05em;
   }
   
@@ -807,24 +729,14 @@ body,
     @apply bg-synth-beige text-synth-black border border-synth-beige-dark; 
   }
   
-  /* Enhanced Synth Card Styles */
+  /* Card styles — design system compliant */
   .synth-card {
-    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl shadow-lg;
-    transition: var(--transition-smooth);
+    background-color: var(--neutral-50);
+    border: var(--border-default);
+    border-radius: var(--radius-corner);
+    transition: box-shadow 0.2s ease;
     position: relative;
     overflow: hidden;
-  }
-  
-  .synth-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 51, 153, 0.3), transparent);
-    opacity: 0;
-    transition: opacity 0.3s ease;
   }
   
   .synth-card:hover {
@@ -1091,36 +1003,53 @@ body,
     box-shadow: var(--shadow-glow);
   }
   
-  /* Modern Glass Effect */
+  /* Subtle glass surface */
   .glass-effect {
-    @apply bg-white/10 backdrop-blur-md border border-white/20;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    background-color: color-mix(in srgb, var(--neutral-0) 10%, transparent);
+    backdrop-filter: blur(12px);
+    border: var(--border-default);
   }
   
-  /* Enhanced Input Styles */
+  /* Input styles — design system compliant */
   .synth-input {
-    @apply bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-4 py-3;
-    transition: var(--transition-smooth);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    background-color: var(--neutral-50);
+    border: var(--border-default);
+    border-radius: var(--radius-corner);
+    padding: var(--spacing-small) var(--spacing-small);
+    height: var(--size-input-height);
+    font-family: var(--font-family);
+    font-size: var(--typography-body-size);
+    font-weight: var(--typography-body-weight);
+    color: var(--neutral-900);
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
   }
   
   .synth-input:focus {
-    @apply border-synth-pink/50 shadow-lg shadow-synth-pink/10;
-    outline: none;
+    outline: 2px solid var(--brand-pink-500);
+    outline-offset: -2px;
+    border-color: var(--brand-pink-500);
   }
   
-  /* Enhanced Badge Styles */
+  /* Badge/chip styles — design system compliant */
   .synth-badge {
-    @apply px-3 py-1 rounded-full text-xs font-medium;
-    background: linear-gradient(135deg, rgba(255, 51, 153, 0.1), rgba(255, 102, 179, 0.1));
-    border: 1px solid rgba(255, 51, 153, 0.2);
-    color: rgb(255, 51, 153);
-    transition: var(--transition-smooth);
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--spacing-small);
+    height: 25px;
+    border-radius: 999px;
+    background-color: var(--brand-pink-050);
+    border: var(--border-brand);
+    color: var(--brand-pink-500);
+    font-family: var(--font-family);
+    font-size: var(--typography-meta-size);
+    font-weight: var(--typography-meta-weight);
+    transition: background-color 0.2s ease;
   }
   
   .synth-badge:hover {
-    background: linear-gradient(135deg, rgba(255, 51, 153, 0.2), rgba(255, 102, 179, 0.2));
-    transform: translateY(-1px);
+    background-color: var(--brand-pink-050);
+    border-color: var(--brand-pink-600);
   }
   
   /* Enhanced Loading States */
