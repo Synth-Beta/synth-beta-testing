@@ -1,0 +1,86 @@
+/**
+ * MenuCategory Styles
+ * 
+ * Styles for MenuCategory component using design tokens.
+ * Matches Figma design specifications.
+ */
+
+.menu-category {
+  /* Container: width = hamburger menu width minus 40px */
+  /* Hamburger menu width is calc(100vw - 78px), so this is calc(100vw - 78px - 40px) */
+  width: calc(100vw - 118px);
+  height: var(--spacing-menu-item-row-height, 48px);
+  padding: 11px 0;
+  padding-left: var(--spacing-screen-margin-x, 20px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+/* Ensure ALL icons in MenuCategory are DarkGrey */
+/* Using currentColor in SVGs - set color via CSS for exact color accuracy */
+.menu-category .icon-text__icon,
+.menu-category .synth-icon,
+.menu-category svg,
+.menu-category .icon-text__icon svg,
+.menu-category .icon-text__icon .synth-icon {
+  color: var(--neutral-600) !important;
+}
+
+/* Also target icons directly within MenuCategory content */
+.menu-category__content .icon-text__icon,
+.menu-category__content .synth-icon,
+.menu-category__content svg {
+  color: var(--neutral-600) !important;
+}
+
+/* Target IconText component icons within MenuCategory */
+.menu-category .icon-text .icon-text__icon,
+.menu-category .icon-text .synth-icon,
+.menu-category .icon-text svg {
+  color: var(--neutral-600) !important;
+}
+
+.menu-category__content {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.menu-category__icon-text {
+  /* IconText uses leftIcon variant by default */
+  width: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* Clickable variant */
+.menu-category--clickable {
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s ease;
+}
+
+.menu-category--clickable:hover {
+  background-color: var(--brand-pink-050);
+}
+
+.menu-category--clickable:active {
+  background-color: var(--brand-pink-050);
+  opacity: 0.8;
+}
+
+.menu-category--clickable:focus-visible {
+  outline: 2px solid var(--brand-pink-500);
+  outline-offset: -2px;
+  border-radius: var(--radius-corner, 10px);
+}
+

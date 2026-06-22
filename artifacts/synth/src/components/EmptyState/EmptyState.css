@@ -1,0 +1,53 @@
+/**
+ * EmptyState Component Styles
+ * 
+ * Styles for EmptyState component using design tokens.
+ * Displays centered content with icon, heading, and description.
+ */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  padding: var(--spacing-big-section, 60px) var(--spacing-screen-margin-x, 20px);
+  box-sizing: border-box;
+}
+
+/* Large icon - dark grey */
+.empty-state__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--spacing-inline, 6px);
+}
+
+/* Icon color: dark grey */
+.empty-state__icon .synth-icon,
+.empty-state__icon svg {
+  color: var(--neutral-600) !important;
+}
+
+/* Heading - body typography, off black */
+.empty-state__heading {
+  font-family: var(--font-family);
+  font-size: var(--typography-body-size, 20px);
+  font-weight: var(--typography-body-weight, 500);
+  line-height: var(--typography-body-line-height, 1.5);
+  color: var(--neutral-900);
+  margin: 0;
+  margin-bottom: var(--spacing-inline, 6px);
+}
+
+/* Description - meta typography, dark grey */
+.empty-state__description {
+  font-family: var(--font-family);
+  font-size: var(--typography-meta-size, 16px);
+  font-weight: var(--typography-meta-weight, 500);
+  line-height: var(--typography-meta-line-height, 1.5);
+  color: var(--neutral-600);
+  margin: 0;
+}
+

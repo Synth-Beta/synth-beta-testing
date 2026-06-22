@@ -1,0 +1,12 @@
+/**
+ * Legacy Design Tokens File
+ * 
+ * This file is kept for backward compatibility.
+ * New design tokens are defined in src/styles/tokens.css
+ * 
+ * This file re-exports the new tokens for any components that import it directly.
+ */
+
+/* Import the main tokens file */
+@import '../styles/tokens.css';
+

@@ -1,0 +1,118 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+
+interface DatabaseStatusProps {
+  currentUserId: string;
+}
+
+export const DatabaseStatus = ({ currentUserId }: DatabaseStatusProps) => {
+  const [profileData, setProfileData] = useState<any>(null);
+  const [tableInfo, setTableInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const checkDatabaseStatus = async () => {
+    setLoading(true);
+    try {
+      // Get current profile data
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('user_id', currentUserId)
+        .single();
+
+      if (profileError) {
+        console.error('Profile error:', profileError);
+      }
+
+      setProfileData(profile);
+
+      // Try to get table structure by selecting from information_schema
+      const { data: columns, error: columnsError } = await supabase
+        .from('information_schema.columns')
+        .select('column_name, data_type, is_nullable')
+        .eq('table_name', 'users')
+        .eq('table_schema', 'public');
+
+      if (columnsError) {
+        console.error('Columns error:', columnsError);
+      }
+
+      setTableInfo(columns);
+
+    } catch (error) {
+      console.error('Database status check error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkDatabaseStatus();
+  }, [currentUserId]);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Database Status
+            <Button onClick={checkDatabaseStatus} disabled={loading} size="sm">
+              {loading ? 'Checking...' : 'Refresh'}
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Profile Data */}
+          <div>
+            <h4 className="font-semibold mb-2">Current Profile Data:</h4>
+            <pre className="bg-muted p-3 rounded text-xs overflow-auto">
+              {JSON.stringify(profileData, null, 2)}
+            </pre>
+          </div>
+
+          {/* Table Structure */}
+          <div>
+            <h4 className="font-semibold mb-2">Users Table Structure:</h4>
+            {tableInfo ? (
+              <div className="space-y-1">
+                {tableInfo.map((column: any) => (
+                  <div key={column.column_name} className="flex items-center gap-2 text-sm">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{column.column_name}</span>
+                    <span className="text-muted-foreground">{column.data_type}</span>
+                    <span className="text-muted-foreground">
+                      {column.is_nullable === 'YES' ? '(nullable)' : '(required)'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">Could not fetch table structure</p>
+            )}
+          </div>
+
+          {/* Migration Status */}
+          <div>
+            <h4 className="font-semibold mb-2">Migration Status:</h4>
+            <div className="space-y-1 text-sm">
+              <div className="flex items-center gap-2">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                  Instagram Handle
+                </span>
+                {profileData?.instagram_handle !== undefined ? '✅' : '❌'}
+              </div>
+              <div className="flex items-center gap-2">
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                  Music Streaming Profile
+                </span>
+                {profileData?.music_streaming_profile !== undefined ? '✅' : '❌'}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

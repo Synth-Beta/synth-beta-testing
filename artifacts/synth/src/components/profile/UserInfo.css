@@ -1,0 +1,173 @@
+/**
+ * UserInfo Styles
+ *
+ * Horizontal user info layout that composes ProfilePicture.
+ */
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-inline, 6px);
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.user-info__avatar {
+  flex-shrink: 0;
+}
+
+.user-info__content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.user-info__name {
+  margin: 0;
+  color: var(--neutral-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-info__username {
+  margin: 0;
+  color: var(--neutral-600);
+  font-size: var(--typography-meta-size);
+  font-weight: var(--typography-meta-weight);
+  line-height: var(--typography-meta-line-height);
+}
+
+/* Variant-specific typography */
+.user-info--user .user-info__name,
+.user-info--artist .user-info__name {
+  font-size: var(--typography-body-size);
+  font-weight: var(--typography-accent-weight);
+  line-height: var(--typography-body-line-height);
+}
+
+.user-info--chat .user-info__name {
+  font-size: var(--typography-body-size);
+  font-weight: var(--typography-body-weight, 700);
+  line-height: var(--typography-body-line-height);
+}
+
+.user-info--userProfile .user-info__name {
+  font-size: var(--typography-h2-size);
+  font-weight: var(--typography-h2-weight);
+  line-height: var(--typography-h2-line-height);
+}
+
+.user-info--userProfile .user-info__username {
+  margin-top: 2px;
+}
+
+.user-info__subtitle {
+  margin-top: 2px;
+}
+
+/* Stats row for userProfile variant */
+.user-info__stats {
+  display: flex;
+  gap: var(--spacing-inline, 6px);
+  margin-top: var(--spacing-small, 12px);
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.user-info__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.user-info__stat-value {
+  font-size: var(--typography-h2-size, 24px);
+  font-weight: var(--typography-h2-weight, 700);
+  line-height: var(--typography-h2-line-height, 1.3);
+  color: var(--neutral-900);
+  white-space: nowrap;
+}
+
+.user-info__stat-label {
+  font-size: var(--typography-meta-size);
+  font-weight: var(--typography-meta-weight);
+  line-height: var(--typography-meta-line-height);
+  color: var(--neutral-600);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 430px) {
+  .user-info__stats {
+    gap: 4px;
+  }
+  
+  .user-info__stat {
+    padding: 0 6px;
+  }
+  
+  .user-info__stat-value {
+    font-size: 22px;
+  }
+  
+  .user-info__stat-label {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 375px) {
+  .user-info__stats {
+    gap: 2px;
+  }
+  
+  .user-info__stat {
+    padding: 0 4px;
+  }
+  
+  .user-info__stat-value {
+    font-size: 20px;
+  }
+  
+  .user-info__stat-label {
+    font-size: 13px;
+  }
+}
+
+/* Extra small screens (iPhone SE, etc.) */
+@media (max-width: 320px) {
+  .user-info__stats {
+    gap: 1px;
+  }
+  
+  .user-info__stat {
+    padding: 0 2px;
+  }
+  
+  .user-info__stat-value {
+    font-size: 18px;
+  }
+  
+  .user-info__stat-label {
+    font-size: 12px;
+  }
+}
+
+/* Hamburger menu: emphasize user name only */
+.user-info--user .user-info__name {
+  font-weight: var(--typography-bold-weight);
+}
+
+
+

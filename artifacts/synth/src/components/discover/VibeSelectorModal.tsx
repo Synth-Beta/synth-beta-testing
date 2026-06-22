@@ -1,0 +1,301 @@
+import React, { useRef, useState } from 'react';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { VibeCard } from './VibeCard';
+import type { IconName } from '@/config/iconMapping';
+import type { VibeType } from '@/services/discoverVibeService';
+
+interface Vibe {
+  id: VibeType;
+  title: string;
+  description: string;
+  icon: IconName;
+  category: 'taste' | 'context' | 'discovery' | 'opinion';
+}
+
+const VIBES: Vibe[] = [
+  // By Taste
+  {
+    id: 'similar-artists',
+    title: 'Similar to Artists You Love',
+    description: 'Events by artists similar to ones you\'ve seen',
+    icon: 'music',
+    category: 'taste',
+  },
+  {
+    id: 'last-5-attended',
+    title: 'Based on Your Last 5 Shows',
+    description: 'Recommendations from your recent attendance',
+    icon: 'calendar',
+    category: 'taste',
+  },
+  {
+    id: 'similar-taste-users',
+    title: 'Highly Rated by Similar Tastes',
+    description: 'Events loved by users with similar music taste',
+    icon: 'twoUsers',
+    category: 'taste',
+  },
+  // By Context
+  {
+    id: 'this-weekend',
+    title: 'This Weekend',
+    description: 'Shows happening this Saturday and Sunday',
+    icon: 'calendar',
+    category: 'context',
+  },
+  {
+    id: 'under-25',
+    title: 'Under $25',
+    description: 'Affordable shows under $25',
+    icon: 'dollar',
+    category: 'context',
+  },
+  {
+    id: 'small-venues',
+    title: 'Small Venues',
+    description: 'Intimate shows at smaller venues',
+    icon: 'building',
+    category: 'context',
+  },
+  {
+    id: 'late-shows',
+    title: 'Late Shows',
+    description: 'Shows starting after 10 PM',
+    icon: 'clock',
+    category: 'context',
+  },
+  // By Discovery Energy
+  {
+    id: 'up-and-coming',
+    title: 'Up-and-Coming Artists',
+    description: 'Artists with fewer than 10 reviews',
+    icon: 'trendingUp',
+    category: 'discovery',
+  },
+  {
+    id: 'less-than-10-reviews',
+    title: 'Events with <10 Reviews',
+    description: 'Be among the first to review these shows',
+    icon: 'mediumShootingStar',
+    category: 'discovery',
+  },
+  // By Opinion
+  {
+    id: 'highest-rated-month',
+    title: 'Highest-Rated This Month',
+    description: 'Events rated 4.5+ stars this month',
+    icon: 'star',
+    category: 'opinion',
+  },
+  {
+    id: 'best-venues',
+    title: 'Best Venues',
+    description: 'Events at venues rated 4+ stars',
+    icon: 'ribbonAward',
+    category: 'opinion',
+  },
+  {
+    id: 'best-value',
+    title: 'Best Value',
+    description: 'Events rated highly for value-for-price',
+    icon: 'target',
+    category: 'opinion',
+  },
+];
+
+interface VibeSelectorModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelectVibe: (vibeType: VibeType) => void;
+  isMobile?: boolean;
+}
+
+export const VibeSelectorModal: React.FC<VibeSelectorModalProps> = ({
+  isOpen,
+  onClose,
+  onSelectVibe,
+  isMobile = false,
+}) => {
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startYRef = useRef(0);
+  const didDragRef = useRef(false);
+  const DRAG_THRESHOLD = 120;
+
+  const resetDrag = () => {
+    setDragY(0);
+    setIsDragging(false);
+    startYRef.current = 0;
+    didDragRef.current = false;
+  };
+
+  const handlePointerDown: React.PointerEventHandler<HTMLDivElement> = (event) => {
+    const target = event.target as Element;
+    if (target.closest('button, a, input, select, textarea, [role="button"]')) {
+      return;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setIsDragging(true);
+    startYRef.current = event.clientY;
+    didDragRef.current = false;
+  };
+
+  const handlePointerMove: React.PointerEventHandler<HTMLDivElement> = (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    const currentY = event.clientY;
+    const delta = Math.max(0, currentY - startYRef.current);
+    didDragRef.current = delta > 0;
+    setDragY(delta);
+  };
+
+  const handlePointerEnd: React.PointerEventHandler<HTMLDivElement> = (event) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (dragY > DRAG_THRESHOLD && didDragRef.current) {
+      resetDrag();
+      onClose();
+      return;
+    }
+
+    resetDrag();
+  };
+
+  const handleSelect = (vibeType: VibeType) => {
+    onSelectVibe(vibeType);
+    onClose();
+  };
+
+  const tasteVibes = VIBES.filter(v => v.category === 'taste');
+  const contextVibes = VIBES.filter(v => v.category === 'context');
+  const discoveryVibes = VIBES.filter(v => v.category === 'discovery');
+  const opinionVibes = VIBES.filter(v => v.category === 'opinion');
+
+  const content = (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold mb-2">Start with a Vibe</h2>
+        <p className="text-sm text-muted-foreground">
+          Choose a curated entry point to discover events through different perspectives
+        </p>
+      </div>
+
+      {/* By Taste */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase">By Taste</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {tasteVibes.map((vibe) => (
+            <VibeCard
+              key={vibe.id}
+              title={vibe.title}
+              description={vibe.description}
+              icon={vibe.icon}
+              onClick={() => handleSelect(vibe.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* By Context */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase">By Context</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {contextVibes.map((vibe) => (
+            <VibeCard
+              key={vibe.id}
+              title={vibe.title}
+              description={vibe.description}
+              icon={vibe.icon}
+              onClick={() => handleSelect(vibe.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* By Discovery Energy */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase">By Discovery Energy</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {discoveryVibes.map((vibe) => (
+            <VibeCard
+              key={vibe.id}
+              title={vibe.title}
+              description={vibe.description}
+              icon={vibe.icon}
+              onClick={() => handleSelect(vibe.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* By Opinion */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase">By Opinion</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {opinionVibes.map((vibe) => (
+            <VibeCard
+              key={vibe.id}
+              title={vibe.title}
+              description={vibe.description}
+              icon={vibe.icon}
+              onClick={() => handleSelect(vibe.id)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={isOpen} onOpenChange={onClose}>
+        <SheetContent
+          side="bottom"
+          className="h-[90vh] overflow-y-auto"
+          style={{
+            transform: `translateY(${dragY}px)`,
+            transition: isDragging ? 'none' : 'transform 180ms ease-out',
+          }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+        >
+          <SheetHeader>
+            <SheetTitle>Browse by Vibe</SheetTitle>
+            <SheetDescription>
+              Choose a curated entry point to discover events
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6">{content}</div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Browse by Vibe</DialogTitle>
+          <DialogDescription>
+            Choose a curated entry point to discover events through different perspectives
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-4">{content}</div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+

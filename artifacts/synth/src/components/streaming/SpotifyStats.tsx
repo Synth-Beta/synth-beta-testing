@@ -1,0 +1,701 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Music, 
+  ExternalLink, 
+  LogOut, 
+  Clock, 
+  TrendingUp, 
+  User,
+  Headphones,
+  Calendar,
+  Star,
+  Users,
+  Disc,
+  Activity
+} from 'lucide-react';
+import { spotifyService } from '@/services/spotifyService';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  SpotifyUser,
+  SpotifyTrack,
+  SpotifyArtist,
+  SpotifyPlayHistoryObject,
+  SpotifyTimeRange,
+  SpotifyListeningStats
+} from '@/types/spotify';
+
+interface SpotifyStatsProps {
+  className?: string;
+}
+
+export const SpotifyStats = ({ className }: SpotifyStatsProps) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [authenticating, setAuthenticating] = useState(false);
+  const [hasPermissionError, setHasPermissionError] = useState(false);
+  const [userProfile, setUserProfile] = useState<SpotifyUser | null>(null);
+  const [topTracks, setTopTracks] = useState<SpotifyTrack[]>([]);
+  const [topArtists, setTopArtists] = useState<SpotifyArtist[]>([]);
+  const [recentTracks, setRecentTracks] = useState<SpotifyPlayHistoryObject[]>([]);
+  const [listeningStats, setListeningStats] = useState<SpotifyListeningStats | null>(null);
+  const [currentPeriod, setCurrentPeriod] = useState<SpotifyTimeRange>('short_term');
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    initializeSpotify();
+
+    // Listen for token cleared events
+    const handleTokenCleared = () => {
+      console.log('🔄 Token cleared event received, resetting component state...');
+      setIsAuthenticated(false);
+      setUserProfile(null);
+      setTopTracks([]);
+      setTopArtists([]);
+      setRecentTracks([]);
+      setListeningStats(null);
+      setHasPermissionError(false);
+      setLoading(false);
+    };
+
+    window.addEventListener('spotify-token-cleared', handleTokenCleared);
+    
+    return () => {
+      window.removeEventListener('spotify-token-cleared', handleTokenCleared);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadStats();
+    }
+  }, [isAuthenticated, currentPeriod]);
+
+  const initializeSpotify = async () => {
+    try {
+      // Check for callback
+      const hasCallback = await spotifyService.handleAuthCallback();
+      if (hasCallback) {
+        setIsAuthenticated(true);
+        setHasPermissionError(false);
+        const profile = await loadUserProfile();
+        await persistSpotifyProfileUrl(profile);
+        return;
+      }
+
+      // Check for stored token
+      const hasStoredToken = spotifyService.checkStoredToken();
+      if (hasStoredToken) {
+        console.log('🔍 Validating stored token...');
+        const isValid = await spotifyService.validateTokenAndReauthIfNeeded();
+        if (isValid) {
+          setIsAuthenticated(true);
+          setHasPermissionError(false);
+          const profile = await loadUserProfile();
+          await persistSpotifyProfileUrl(profile);
+        } else {
+          // Re-authentication was triggered, will redirect
+          return;
+        }
+      } else {
+        // No valid token found, might have been cleared due to old PKCE token
+        console.log('ℹ️ No valid token found, user needs to authenticate');
+        setIsAuthenticated(false);
+        setUserProfile(null);
+        setTopTracks([]);
+        setTopArtists([]);
+        setRecentTracks([]);
+        setListeningStats(null);
+        setHasPermissionError(false);
+      }
+    } catch (error) {
+      console.error('Spotify initialization error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    if (!spotifyService.isConfigured()) {
+      setConnectError('Spotify integration is not configured yet. Please check your environment.');
+      return;
+    }
+
+    setConnectError(null);
+    setAuthenticating(true);
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('spotify_connect_source', 'profile');
+      }
+      await spotifyService.authenticate();
+      setAuthenticating(false);
+    } catch (error) {
+      console.error('Authentication error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unable to connect to Spotify at this time.';
+      setConnectError(errorMessage);
+      setAuthenticating(false);
+    }
+  };
+
+  const handleReconnect = async () => {
+    if (!spotifyService.isConfigured()) {
+      return;
+    }
+
+    setAuthenticating(true);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('spotify_connect_source', 'profile');
+      }
+      await spotifyService.reauthenticate();
+    } catch (error) {
+      console.error('Reconnection error:', error);
+      setAuthenticating(false);
+    }
+  };
+
+  const handleClearData = async () => {
+    await spotifyService.clearStoredData();
+    setIsAuthenticated(false);
+    setUserProfile(null);
+    setTopTracks([]);
+    setTopArtists([]);
+    setRecentTracks([]);
+    setListeningStats(null);
+    setHasPermissionError(false);
+    setConnectError(null);
+    setRefreshError(null);
+    
+    };
+
+  const handleForceReconnect = async () => {
+    await spotifyService.forceClearAndReauth();
+  };
+
+  const handleNuclearReset = () => {
+    if (confirm('This will clear ALL Spotify data and reload the page. Are you sure?')) {
+      spotifyService.nuclearReset();
+    }
+  };
+
+  const handleLogout = async () => {
+    await spotifyService.logout();
+    setIsAuthenticated(false);
+    setUserProfile(null);
+    setTopTracks([]);
+    setTopArtists([]);
+    setRecentTracks([]);
+    setListeningStats(null);
+    setRefreshError(null);
+    setConnectError(null);
+    
+    };
+
+  const loadUserProfile = async (): Promise<SpotifyUser | null> => {
+    // Don't try to load profile if not authenticated
+    if (!isAuthenticated || !spotifyService.isAuthenticated()) {
+      console.log('⚠️ Not authenticated, skipping profile load');
+      // Reset the component state if we're not actually authenticated
+      if (!spotifyService.isAuthenticated()) {
+        setIsAuthenticated(false);
+        setUserProfile(null);
+        setTopTracks([]);
+        setTopArtists([]);
+        setRecentTracks([]);
+        setListeningStats(null);
+        setHasPermissionError(false);
+      }
+      return null;
+    }
+
+    try {
+      // First check token scopes
+      await spotifyService.checkTokenScopes();
+      
+      const profile = await spotifyService.getUserProfile();
+      setUserProfile(profile);
+      return profile;
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load Spotify profile.';
+      
+      // If it's a permission error, suggest reconnecting
+      if (errorMessage.includes('permissions') || errorMessage.includes('403')) {
+        setHasPermissionError(true);
+        }
+      return null;
+    }
+  };
+
+  const persistSpotifyProfileUrl = async (profile?: SpotifyUser | null) => {
+    if (!user?.id) {
+      return;
+    }
+
+    const url = profile?.external_urls?.spotify;
+    if (!url) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ music_streaming_profile: url })
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error persisting Spotify profile URL:', error);
+      }
+    } catch (error) {
+      console.error('Error persisting Spotify profile URL:', error);
+    }
+  };
+
+  const loadStats = async () => {
+    const hasSession = isAuthenticated || spotifyService.isAuthenticated();
+    if (!hasSession) {
+      console.log('⚠️ Not authenticated, skipping stats load');
+      setIsAuthenticated(false);
+      setHasPermissionError(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setRefreshError(null);
+
+      const [topTracksResponse, topArtistsResponse, recentlyPlayedResponse] = await Promise.allSettled([
+        spotifyService.getTopTracks(currentPeriod, 50),
+        spotifyService.getTopArtists(currentPeriod, 50),
+        spotifyService.getRecentlyPlayed(50)
+      ]);
+
+      const tracksSuccess = topTracksResponse.status === 'fulfilled';
+      const artistsSuccess = topArtistsResponse.status === 'fulfilled';
+      const recentSuccess = recentlyPlayedResponse.status === 'fulfilled';
+
+      const updatedTopTracks = tracksSuccess ? topTracksResponse.value.items : topTracks;
+      const updatedTopArtists = artistsSuccess ? topArtistsResponse.value.items : topArtists;
+      const updatedRecentTracks = recentSuccess ? recentlyPlayedResponse.value.items : recentTracks;
+
+      if (tracksSuccess) {
+        setTopTracks(updatedTopTracks);
+      }
+      if (artistsSuccess) {
+        setTopArtists(updatedTopArtists);
+      }
+      if (recentSuccess) {
+        setRecentTracks(updatedRecentTracks);
+      }
+
+      const stats = spotifyService.calculateListeningStats(updatedTopTracks, updatedTopArtists);
+      setListeningStats(stats);
+
+      const failedSections: string[] = [];
+      if (!tracksSuccess) failedSections.push('top tracks');
+      if (!artistsSuccess) failedSections.push('top artists');
+      if (!recentSuccess) failedSections.push('recent tracks');
+
+      if (failedSections.length > 0) {
+        setRefreshError(`Unable to refresh ${failedSections.join(', ')}. Showing last known data.`);
+      } else {
+        setRefreshError(null);
+        // Fire full sync in background so the DB pipeline (user_preference_signals →
+        // user_preferences → get_personalized_feed_v5) gets fresh data. Don't await —
+        // the UI is already showing the correct period data above.
+        spotifyService.syncUserMusicPreferences().catch(() => {/* silent — non-critical */});
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+      setRefreshError('Unable to refresh Spotify stats at this time.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchTimePeriod = (period: SpotifyTimeRange) => {
+    setCurrentPeriod(period);
+  };
+
+  const getPeriodLabel = (period: SpotifyTimeRange) => {
+    switch (period) {
+      case 'short_term': return 'Last Month';
+      case 'medium_term': return 'Last 6 Months';
+      case 'long_term': return 'All Time';
+    }
+  };
+
+  if (loading && !isAuthenticated) {
+    return (
+      <Card className={className}>
+        <CardContent className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading Spotify connection...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Music className="w-5 h-5 text-green-600" />
+            Spotify Music Stats
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Music className="w-8 h-8 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Connect Your Spotify</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Connect your Spotify account to see your listening stats, top tracks, and favorite artists.
+            </p>
+            <Button 
+              onClick={handleConnect}
+              disabled={authenticating}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {authenticating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Music className="w-4 h-4 mr-2" />
+                  Connect to Spotify
+                </>
+              )}
+            </Button>
+            {connectError && (
+              <p className="text-sm text-red-500 mt-3">
+                {connectError}
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Music className="w-5 h-5 text-green-600" />
+            Spotify Music Stats
+          </CardTitle>
+        <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={loadStats}
+              disabled={loading}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Activity className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Disconnect
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {refreshError && (
+          <p className="text-sm text-red-500">
+            {refreshError}
+          </p>
+        )}
+        {/* User Profile Section */}
+        {userProfile && (
+          <div className="flex items-center gap-4 p-4 rounded-lg bg-green-50 border border-green-200">
+            <Avatar className="w-12 h-12">
+              <AvatarImage src={userProfile.images[0]?.url} />
+              <AvatarFallback className="bg-green-600 text-white">
+                <User className="w-6 h-6" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <h3 className="font-semibold text-green-900">
+                {userProfile.display_name || 'Spotify User'}
+              </h3>
+              <p className="text-sm text-green-700">
+                {userProfile.followers.total.toLocaleString()} followers
+              </p>
+            </div>
+            <a
+              href={userProfile.external_urls.spotify}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-600 hover:text-green-700"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        )}
+
+        {/* Time Period Controls */}
+        <div className="flex gap-2 p-1 bg-muted rounded-lg">
+          {(['short_term', 'medium_term', 'long_term'] as SpotifyTimeRange[]).map((period) => (
+            <Button
+              key={period}
+              variant={currentPeriod === period ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => switchTimePeriod(period)}
+              className="flex-1"
+            >
+              {getPeriodLabel(period)}
+            </Button>
+          ))}
+        </div>
+
+        {/* Stats Overview */}
+        {listeningStats && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <div className="text-2xl font-bold text-primary">{listeningStats.totalTracks}</div>
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Headphones className="w-3 h-3" />
+                Top Tracks
+              </div>
+            </div>
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <div className="text-2xl font-bold text-primary">{listeningStats.uniqueArtists}</div>
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Users className="w-3 h-3" />
+                Artists
+              </div>
+            </div>
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <div className="text-2xl font-bold text-primary">{listeningStats.totalHours}h</div>
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Clock className="w-3 h-3" />
+                Est. Time
+              </div>
+            </div>
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <div className="text-2xl font-bold text-primary">{listeningStats.uniqueAlbums}</div>
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Disc className="w-3 h-3" />
+                Albums
+              </div>
+            </div>
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <div className="text-2xl font-bold text-primary">{listeningStats.avgPopularity}%</div>
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <TrendingUp className="w-3 h-3" />
+                Avg Popular
+              </div>
+            </div>
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <div className="text-2xl font-bold text-primary">{listeningStats.topGenres.length}</div>
+              <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Star className="w-3 h-3" />
+                Top Genres
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Detailed Stats Tabs */}
+        <Tabs defaultValue="tracks" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="tracks">Top Tracks</TabsTrigger>
+            <TabsTrigger value="artists">Top Artists</TabsTrigger>
+            <TabsTrigger value="recent">Recent</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="tracks" className="mt-4">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading tracks...</p>
+                </div>
+              ) : topTracks.length === 0 ? (
+                <div className="text-center py-8">
+                  <Music className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground mb-2">No top tracks found</p>
+                  <p className="text-sm text-muted-foreground">Listen to more music on Spotify to see your top tracks here</p>
+                </div>
+              ) : (
+                topTracks.map((track, index) => (
+                  <div key={track.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <span className="text-sm font-medium text-muted-foreground w-6 text-center">
+                      {index + 1}
+                    </span>
+                    <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
+                      {track.album.images[2]?.url ? (
+                        <img 
+                          src={track.album.images[2].url} 
+                          alt={track.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Music className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{track.name}</p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {track.artists.map(a => a.name).join(', ')}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {track.album.name}
+                      </p>
+                    </div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                      {track.popularity}%
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="artists" className="mt-4">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading artists...</p>
+                </div>
+              ) : topArtists.length === 0 ? (
+                <div className="text-center py-8">
+                  <User className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground mb-2">No top artists found</p>
+                  <p className="text-sm text-muted-foreground">Listen to more music on Spotify to see your top artists here</p>
+                </div>
+              ) : (
+                topArtists.map((artist, index) => (
+                  <div key={artist.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <span className="text-sm font-medium text-muted-foreground w-6 text-center">
+                      {index + 1}
+                    </span>
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex-shrink-0">
+                      {artist.images[2]?.url ? (
+                        <img 
+                          src={artist.images[2].url} 
+                          alt={artist.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <User className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{artist.name}</p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {artist.genres.slice(0, 3).join(', ')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {artist.followers.total.toLocaleString()} followers
+                      </p>
+                    </div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                      {artist.popularity}%
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="recent" className="mt-4">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading recent tracks...</p>
+                </div>
+              ) : recentTracks.length === 0 ? (
+                <div className="text-center py-8">
+                  <Activity className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground mb-2">No recent tracks found</p>
+                  <p className="text-sm text-muted-foreground">Play some music on Spotify to see your recent activity here</p>
+                </div>
+              ) : (
+                recentTracks.map((item, index) => {
+                  const track = item.track;
+                  const playedAt = new Date(item.played_at);
+                  return (
+                    <div key={`${track.id}-${item.played_at}`} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
+                        {track.album.images[2]?.url ? (
+                          <img 
+                            src={track.album.images[2].url} 
+                            alt={track.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Music className="w-6 h-6 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{track.name}</p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {track.artists.map(a => a.name).join(', ')}
+                        </p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {spotifyService.formatDate(playedAt)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Top Genres */}
+        {listeningStats && listeningStats.topGenres.length > 0 && (
+          <div>
+            <h4 className="font-medium mb-3 flex items-center gap-2">
+              <Star className="w-4 h-4" />
+              Top Genres
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {listeningStats.topGenres.map((genre) => (
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                  {genre}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};

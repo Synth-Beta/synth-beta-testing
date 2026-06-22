@@ -1,0 +1,366 @@
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+import { Music, ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { CustomSetlistSong, ReviewCustomSetlistPayload } from '@/services/reviewService';
+
+interface SetlistDisplayProps {
+  setlist?: any; // SetlistData from setlistService (API verified)
+  // User-created custom setlist(s). Supports legacy single-array-of-songs or new array-of-setlists shape.
+  customSetlist?: CustomSetlistSong[] | ReviewCustomSetlistPayload[];
+  className?: string;
+  compact?: boolean;
+  type?: 'api' | 'custom'; // Type of setlist
+}
+
+export function SetlistDisplay({ setlist, customSetlist, className, compact = false, type }: SetlistDisplayProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Determine type if not explicitly provided
+  const actualType = type || (customSetlist ? 'custom' : 'api');
+  const displayData = actualType === 'custom' ? customSetlist : setlist;
+
+  if (!displayData) return null;
+  
+  // For custom setlists, we have a simpler structure
+  if (actualType === 'custom') {
+    const raw = customSetlist || [];
+
+    if (raw.length === 0) return null;
+
+    const isMulti =
+      Array.isArray(raw) &&
+      raw.length > 0 &&
+      (raw[0] as any)?.songs &&
+      Array.isArray((raw[0] as any).songs);
+
+    let songs: CustomSetlistSong[] = [];
+
+    if (isMulti) {
+      // Flatten multiple setlists into a single list for display, preserving song order
+      (raw as ReviewCustomSetlistPayload[]).forEach((set) => {
+        set.songs.forEach((song) => {
+          songs.push({
+            ...song,
+            position: songs.length + 1,
+          });
+        });
+      });
+    } else {
+      songs = raw as CustomSetlistSong[];
+    }
+    const totalSongs = songs.length;
+
+    if (totalSongs === 0) return null;
+
+    if (compact) {
+      return (
+        <div>
+          <button
+            className={cn("flex items-center justify-between gap-2 p-3 bg-purple-50 rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors w-full", className)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-medium text-purple-800">
+                Custom Setlist • {totalSongs} song{totalSongs !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {isExpanded ? <ChevronUp className="w-4 h-4 text-purple-600" /> : <ChevronDown className="w-4 h-4 text-purple-600" />}
+          </button>
+          {isExpanded && (
+            <div className="mt-2 p-4 bg-white rounded-lg border border-purple-200">
+              <div className="space-y-2">
+                {songs.map((song, index) => (
+                  <div key={index} className="flex items-start gap-3 p-2 bg-purple-50/30 rounded">
+                    <span className="text-sm font-medium text-purple-500 w-8 text-right flex-shrink-0">
+                      {song.position}.
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-900 block">
+                        {song.song_name}
+                      </span>
+                      {song.cover_artist && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                          Cover: {song.cover_artist}
+                        </span>
+                      )}
+                      {song.notes && (
+                        <p className="text-xs var(--neutral-600) mt-1 italic">
+                          "{song.notes}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <Card className={cn("border-purple-300 bg-gradient-to-br from-purple-50 to-pink-50", className)}>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="w-5 h-5 text-purple-600" />
+                <h4 className="font-semibold text-purple-900">Custom Setlist</h4>
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                  {totalSongs} song{totalSongs !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <p className="text-xs text-purple-600">User-created setlist for this show</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-purple-600 border-purple-300 hover:bg-purple-100"
+            >
+              {isExpanded ? <ChevronUp className="w-4 h-4 mr-1" /> : <ChevronDown className="w-4 h-4 mr-1" />}
+              {isExpanded ? 'Hide' : 'Show'} Setlist
+            </Button>
+          </div>
+        </CardHeader>
+
+        {isExpanded && (
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              {songs.map((song, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 bg-white/60 rounded border border-purple-100">
+                  <span className="text-sm font-medium text-purple-500 w-8 text-right flex-shrink-0">
+                    {song.position}.
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-purple-900 block">
+                      {song.song_name}
+                    </span>
+                    {song.cover_artist && (
+                      <div className="mt-1">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                          Cover: {song.cover_artist}
+                        </span>
+                      </div>
+                    )}
+                    {song.notes && (
+                      <p className="text-xs text-purple-700 mt-1 italic">
+                        "{song.notes}"
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+    );
+  }
+
+  // Original API setlist display logic below
+  if (!setlist) return null;
+
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const groupSongsBySet = (songs: any[]) => {
+    const sets: { [key: number]: any[] } = {};
+    songs.forEach(song => {
+      if (!sets[song.setNumber]) {
+        sets[song.setNumber] = [];
+      }
+      sets[song.setNumber].push(song);
+    });
+    return sets;
+  };
+
+  const sets = groupSongsBySet(setlist.songs || []);
+  const totalSongs = setlist.songs?.length || 0;
+
+  if (compact) {
+    return (
+      <div>
+        <button
+          className={cn("flex items-center justify-between gap-2 p-3 bg-purple-50 rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors w-full", className)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <Music className="w-4 h-4 text-purple-600" />
+            <span className="text-sm font-medium text-purple-800">
+              {totalSongs} songs • {Object.keys(sets).length} set{Object.keys(sets).length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {isExpanded ? <ChevronUp className="w-4 h-4 text-purple-600" /> : <ChevronDown className="w-4 h-4 text-purple-600" />}
+        </button>
+        {isExpanded && (
+          <div className="mt-2 p-4 bg-white rounded-lg border border-purple-200">
+            {Object.entries(sets).map(([setNum, songs]) => (
+              <div key={setNum} className="mb-4 last:mb-0">
+                <h5 className="text-sm font-bold text-purple-900 mb-2">
+                  Set {setNum} ({songs.length} songs)
+                </h5>
+                <div className="space-y-1">
+                  {songs.map((song: any, idx: number) => (
+                    <div key={idx} className="flex items-start gap-2 text-sm">
+                      <span className="text-purple-400 font-medium w-6 text-right flex-shrink-0">
+                        {idx + 1}.
+                      </span>
+                      <div className="flex-1">
+                        <span className="text-gray-900">{song.name}</span>
+                        {song.info && <span className="text-gray-500 ml-2 text-xs">({song.info})</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("space-y-6", className)}>
+      {/* Section Header with Setlist.fm button */}
+      <div className="flex items-center justify-between" style={{ paddingLeft: '20px', paddingRight: '20px' }}>
+        <h2 className="text-2xl font-bold" style={{ color: 'var(--neutral-900)' }}>
+          Setlist
+        </h2>
+        {setlist.url && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(setlist.url, '_blank')}
+            className="text-purple-600 border-purple-300 hover:bg-purple-100"
+          >
+            <ExternalLink className="w-4 h-4 mr-1" />
+            Setlist.fm
+          </Button>
+        )}
+      </div>
+
+      {/* Purple Container */}
+      <div className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg" style={{
+        boxShadow: '0 4px 4px rgba(0, 0, 0, 0.25)',
+        padding: '24px 20px',
+      }}>
+        {/* Container Header with Setlist title and View/Hide button */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Music className="w-5 h-5 text-purple-600" />
+            <h3 className="font-semibold text-purple-900">Setlist</h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-purple-600 border-purple-300 hover:bg-purple-100"
+          >
+            <span 
+              className="text-purple-600"
+              style={{
+                fontFamily: 'var(--font-family)',
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
+                lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              }}
+            >
+              {isExpanded ? 'Hide' : 'View'} Setlist
+            </span>
+            {isExpanded ? <ChevronUp className="w-6 h-6 ml-1 text-purple-600" /> : <ChevronDown className="w-6 h-6 ml-1 text-purple-600" />}
+          </Button>
+        </div>
+
+        {/* Songs badge and date - directly under Setlist title, aligned with text */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+              {totalSongs} songs
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-6 h-6" style={{ color: 'var(--neutral-600)' }} />
+            <span style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
+              color: 'var(--neutral-600)'
+            }}>
+              {formatDate(setlist.eventDate)}
+            </span>
+          </div>
+        </div>
+
+      {isExpanded && (
+        <div className="pt-0">
+          {setlist.info && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+              {setlist.info}
+            </div>
+          )}
+          
+          <div className="space-y-4">
+            {Object.entries(sets).map(([setNumber, songs]) => (
+              <div key={setNumber} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                    {songs[0]?.setName || `Set ${setNumber}`}
+                  </span>
+                  <span className="text-sm text-purple-600">
+                    {songs.length} song{songs.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                
+                <div className="space-y-1">
+                  {songs.map((song, songIndex) => (
+                    <div key={songIndex} className="flex items-center gap-3 p-2 bg-white/60 rounded border border-purple-100">
+                      <span className="text-sm font-medium text-purple-500 w-8 text-right">
+                        {song.position}.
+                      </span>
+                      <span className="text-sm flex-1 text-purple-900">
+                        {song.name}
+                      </span>
+                      {song.cover && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                          {song.cover.artist}
+                        </span>
+                      )}
+                      {song.tape && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                          Tape
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      </div>
+    </div>
+  );
+}

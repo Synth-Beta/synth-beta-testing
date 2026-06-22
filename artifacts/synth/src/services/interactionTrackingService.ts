@@ -1,0 +1,849 @@
+/**
+ * Unified Interaction Tracking Service
+ * 
+ * This service provides a centralized way to track all user interactions
+ * across the application for ML and analytics purposes.
+ * 
+ * All interactions are logged to the user_interactions table in Supabase
+ * following 3NF principles for OLTP source of truth.
+ */
+
+import { supabase } from '@/integrations/supabase/client';
+
+export interface InteractionEvent {
+  sessionId?: string;
+  eventType: string;
+  entityType: string;
+  entityId?: string | null; // Legacy external ID (optional, kept as metadata)
+  entityUuid?: string | null; // UUID foreign key (preferred for UUID-based entities)
+  metadata?: Record<string, any>;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface SessionMetrics {
+  duration: number;
+  interactionCount: number;
+  engagementScore: number;
+  pageViews: number;
+  bounceRate: number;
+}
+
+export interface BatchedInteractionEvent extends InteractionEvent {
+  timestamp?: string;
+}
+
+// Standardized event types for validation
+const VALID_EVENT_TYPES = [
+  'view', 'click', 'like', 'share', 'interest', 'search', 'review', 'comment',
+  'navigate', 'form_submit', 'profile_update', 'swipe', 'follow', 'unfollow',
+  'attendance', 'ticket_click', 'streaming_top', 'streaming_recent'
+] as const;
+
+const VALID_ENTITY_TYPES = [
+  'event', 'artist', 'venue', 'review', 'user', 'profile', 'view', 'form',
+  'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'search'
+] as const;
+
+class InteractionTrackingService {
+  private sessionId: string;
+  private eventQueue: BatchedInteractionEvent[] = [];
+  private batchTimeout: NodeJS.Timeout | null = null;
+  private readonly BATCH_SIZE = 10;
+  private readonly BATCH_DELAY = 2000; // 2 seconds
+  private sessionStartTime: Date;
+  private sessionInteractions: number = 0;
+  private sessionPageViews: number = 0;
+
+  constructor() {
+    this.sessionId = this.generateSessionId();
+    this.sessionStartTime = new Date();
+  }
+
+  private generateSessionId(): string {
+    return crypto.randomUUID();
+  }
+
+  // UUID validation regex
+  private readonly UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  /**
+   * Helper to check if a string is a valid UUID
+   */
+  private isValidUuid(value?: string | null): boolean {
+    return typeof value === 'string' && this.UUID_REGEX.test(value);
+  }
+
+  /**
+   * Normalize interaction event: if entityId is a UUID and entityUuid is not set, use entityId as entityUuid
+   */
+  private normalizeInteractionEvent(event: InteractionEvent): InteractionEvent {
+    // If entityId is a UUID and entityUuid is not set, automatically set entityUuid
+    if (event.entityId && this.isValidUuid(event.entityId) && !event.entityUuid) {
+      return {
+        ...event,
+        entityUuid: event.entityId
+      };
+    }
+    return event;
+  }
+
+  /**
+   * Validate interaction data before logging
+   */
+  private validateInteractionData(event: InteractionEvent): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Required fields validation
+    if (!event.eventType) {
+      errors.push('eventType is required');
+    } else if (!VALID_EVENT_TYPES.includes(event.eventType as any)) {
+      errors.push(`Invalid eventType: ${event.eventType}. Must be one of: ${VALID_EVENT_TYPES.join(', ')}`);
+    }
+
+    if (!event.entityType) {
+      errors.push('entityType is required');
+    } else if (!VALID_ENTITY_TYPES.includes(event.entityType as any)) {
+      errors.push(`Invalid entityType: ${event.entityType}. Must be one of: ${VALID_ENTITY_TYPES.join(', ')}`);
+    }
+
+    // Entity identifier validation
+    // After normalization: entityUuid is preferred for UUID-based entities (artists, venues, events)
+    // entityId is optional metadata. Some entity types don't require UUIDs (search, view, form, scene, profile, etc.)
+    // Note: 'scene' can optionally have an identifier but doesn't require one (matches DB constraint)
+    const entityTypesWithoutUuid = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'profile'];
+    const requiresUuid = !entityTypesWithoutUuid.includes(event.entityType);
+    
+    if (requiresUuid) {
+      // For UUID-based entities, require at least entityUuid (preferred) or entityId (legacy)
+      if (!event.entityUuid && !event.entityId) {
+        errors.push(`entityUuid or entityId is required for entityType: ${event.entityType}`);
+      }
+    } else {
+      // For non-UUID entities, entityId is optional but recommended
+      // Note: entityUuid doesn't make sense for these types, so we only check entityId
+      if (!event.entityId) {
+        warnings.push(`No entity identifier provided for entityType: ${event.entityType}. Consider providing entityId for better tracking.`);
+      }
+    }
+
+    // Metadata validation
+    if (event.metadata) {
+      const metadataValidation = this.validateMetadata(event.entityType, event.metadata);
+      if (!metadataValidation.isValid) {
+        errors.push(...metadataValidation.errors);
+      }
+      warnings.push(...metadataValidation.warnings);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Validate metadata based on entity type
+   */
+  private validateMetadata(entityType: string, metadata: Record<string, any>): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    switch (entityType) {
+      case 'event':
+        if (metadata.artist_name && typeof metadata.artist_name !== 'string') {
+          errors.push('artist_name must be a string');
+        }
+        if (metadata.venue_name && typeof metadata.venue_name !== 'string') {
+          errors.push('venue_name must be a string');
+        }
+        if (metadata.event_date && !this.isValidDate(metadata.event_date)) {
+          errors.push('event_date must be a valid ISO date string');
+        }
+        break;
+
+      case 'artist':
+        if (metadata.artist_name && typeof metadata.artist_name !== 'string') {
+          errors.push('artist_name must be a string');
+        }
+        if (metadata.genres && !Array.isArray(metadata.genres)) {
+          errors.push('genres must be an array');
+        }
+        break;
+
+      case 'venue':
+        if (metadata.venue_name && typeof metadata.venue_name !== 'string') {
+          errors.push('venue_name must be a string');
+        }
+        if (metadata.venue_city && typeof metadata.venue_city !== 'string') {
+          errors.push('venue_city must be a string');
+        }
+        if (metadata.venue_state && typeof metadata.venue_state !== 'string') {
+          errors.push('venue_state must be a string');
+        }
+        break;
+
+      case 'review':
+        if (metadata.rating && (typeof metadata.rating !== 'number' || metadata.rating < 1 || metadata.rating > 5)) {
+          errors.push('rating must be a number between 1 and 5');
+        }
+        if (metadata.review_text && typeof metadata.review_text !== 'string') {
+          errors.push('review_text must be a string');
+        }
+        break;
+
+      case 'ticket_link':
+        if (metadata.price && typeof metadata.price !== 'number') {
+          errors.push('price must be a number');
+        }
+        if (metadata.currency && typeof metadata.currency !== 'string') {
+          errors.push('currency must be a string');
+        }
+        break;
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Check if a string is a valid ISO date
+   */
+  private isValidDate(dateString: string): boolean {
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date.getTime());
+  }
+
+  /**
+   * Log error to structured error monitoring
+   * DISABLED: system_errors table doesn't exist
+   */
+  private async logError(context: string, error: any, metadata?: any): Promise<void> {
+    // Disabled - system_errors table doesn't exist
+    // Just log to console instead
+    console.error(`[${context}]`, error, metadata);
+  }
+
+  /**
+   * Calculate session metrics
+   */
+  private calculateSessionMetrics(): SessionMetrics {
+    const duration = Date.now() - this.sessionStartTime.getTime();
+    const engagementScore = this.calculateEngagementScore();
+    const bounceRate = this.sessionPageViews <= 1 ? 100 : 0;
+
+    return {
+      duration,
+      interactionCount: this.sessionInteractions,
+      engagementScore,
+      pageViews: this.sessionPageViews,
+      bounceRate
+    };
+  }
+
+  /**
+   * Write a preference signal for personalization (user_preference_signals).
+   * Only runs for preference-relevant events: interest, follow, view on event/artist/venue.
+   * Genre is filled by DB trigger auto_generate_genre_signals when entity_id is set.
+   */
+  private async upsertPreferenceSignal(userId: string, event: InteractionEvent | BatchedInteractionEvent): Promise<void> {
+    const PREFERENCE_EVENT_TYPES = ['interest', 'follow', 'view'] as const;
+    const PREFERENCE_ENTITY_TYPES = ['event', 'artist', 'venue'] as const;
+    if (!PREFERENCE_EVENT_TYPES.includes(event.eventType as any) || !PREFERENCE_ENTITY_TYPES.includes(event.entityType as any)) {
+      return;
+    }
+    const entityUuid = event.entityUuid ?? event.entityId ?? null;
+    if (!entityUuid && event.entityType !== 'genre') {
+      return;
+    }
+    const signalType = event.eventType === 'follow' ? 'follow' : event.eventType === 'view' ? 'view' : 'interest';
+    const weight = event.eventType === 'follow' ? 2.0 : event.eventType === 'view' ? 0.5 : 1.5;
+    const entityName = event.metadata?.artist_name ?? event.metadata?.venue_name ?? event.metadata?.event_name ?? null;
+    const now = new Date().toISOString();
+    try {
+      const { error } = await supabase.from('user_preference_signals').insert({
+        user_id: userId,
+        signal_type: signalType,
+        entity_type: event.entityType as 'event' | 'artist' | 'venue',
+        entity_id: entityUuid,
+        entity_name: entityName,
+        signal_weight: weight,
+        genre: null,
+        context: { source: 'app', event_type: event.eventType },
+        occurred_at: (event as BatchedInteractionEvent).timestamp ?? now,
+      });
+
+      if (error) {
+        console.error('Error writing user_preference_signals from InteractionTrackingService:', {
+          error,
+          userId,
+          eventType: event.eventType,
+          entityType: event.entityType,
+          entityUuid,
+        });
+      }
+
+      // Best-effort: refresh aggregated preferences immediately for higher-signal events.
+      // Skip for plain views to avoid calling the function too frequently.
+      if (event.eventType === 'interest' || event.eventType === 'follow') {
+        try {
+          const { error: refreshError } = await supabase.rpc('refresh_user_preferences_v5', {
+            p_user_id: userId,
+          });
+          if (refreshError) {
+            console.warn(
+              'InteractionTrackingService: refresh_user_preferences_v5 failed after preference signal insert:',
+              refreshError
+            );
+          }
+        } catch (refreshErr) {
+          console.warn(
+            'InteractionTrackingService: unexpected error calling refresh_user_preferences_v5:',
+            refreshErr
+          );
+        }
+      }
+    } catch (err) {
+      console.error('Unexpected error writing user_preference_signals:', {
+        error: err,
+        userId,
+        eventType: event.eventType,
+        entityType: event.entityType,
+        entityUuid,
+      });
+    }
+  }
+
+  /**
+   * Calculate engagement score based on interaction patterns
+   */
+  private calculateEngagementScore(): number {
+    if (this.sessionInteractions === 0) return 0;
+    
+    const duration = Date.now() - this.sessionStartTime.getTime();
+    const durationMinutes = duration / (1000 * 60);
+    
+    // Base score from interaction count
+    let score = Math.min(this.sessionInteractions * 10, 50);
+    
+    // Bonus for longer sessions
+    if (durationMinutes > 5) score += 20;
+    if (durationMinutes > 15) score += 20;
+    if (durationMinutes > 30) score += 10;
+    
+    // Penalty for very short sessions
+    if (durationMinutes < 1) score *= 0.5;
+    
+    return Math.min(Math.round(score), 100);
+  }
+
+  /**
+   * Log a single interaction event
+   */
+  async logInteraction(event: InteractionEvent): Promise<void> {
+    // Normalize event: convert UUID entityId to entityUuid if applicable
+    // Declare outside try block so it's accessible in catch block
+    const normalizedEvent = this.normalizeInteractionEvent(event);
+    
+    try {
+
+      // Validate interaction data
+      const validation = this.validateInteractionData(normalizedEvent);
+      if (!validation.isValid) {
+        await this.logError('interaction_validation_error', new Error(validation.errors.join(', ')), normalizedEvent);
+        console.warn('Invalid interaction data:', validation.errors);
+        return;
+      }
+
+      // Log warnings if any
+      if (validation.warnings.length > 0) {
+        console.warn('Interaction validation warnings:', validation.warnings);
+      }
+
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('No authenticated user for interaction logging');
+        return;
+      }
+
+      // Verify user exists in public.users table before logging interactions
+      // This prevents foreign key constraint violations
+      const { data: publicUser, error: userError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (userError || !publicUser) {
+        console.warn('User not found in public.users table, skipping interaction logging:', userError?.message || 'User not found');
+        return;
+      }
+
+      // Track session metrics
+      this.sessionInteractions++;
+      if (normalizedEvent.eventType === 'view') {
+        this.sessionPageViews++;
+      }
+
+      // Use insert instead of rpc due to lint error and to match table structure
+      // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
+      // entity_id is kept as metadata for legacy support
+      // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene, profile
+      const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'profile'];
+      
+      // Skip if entity_type requires entity_uuid but it's not provided
+      if (!ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT.includes(normalizedEvent.entityType) && !normalizedEvent.entityUuid) {
+        console.warn(`Skipping interaction: entity_type '${normalizedEvent.entityType}' requires entity_uuid but it was not provided`, normalizedEvent);
+        return;
+      }
+      
+      // Insert interaction into database
+      // Note: metadata column doesn't exist in the schema, so metadata is not persisted
+      // Marketing metadata would need to be stored separately or added as a column in the future
+      const { error } = await supabase
+        .from('interactions')
+        .insert([{
+          user_id: user.id,
+          session_id: normalizedEvent.sessionId || this.sessionId,
+          event_type: normalizedEvent.eventType,
+          entity_type: normalizedEvent.entityType,
+          entity_id: normalizedEvent.entityId || null,
+          entity_uuid: normalizedEvent.entityUuid || null
+        }]);
+
+      if (error) {
+        // Handle specific error cases
+        if (error.code === '23503') {
+          // Foreign key constraint violation - user doesn't exist
+          console.warn('Foreign key constraint violation: User may not exist in users table. Skipping interaction.');
+          return;
+        } else if (error.code === '23505' || error.message?.includes('409')) {
+          // Unique constraint violation or conflict - duplicate interaction
+          console.warn('Duplicate interaction detected (409 Conflict). Skipping.');
+          return;
+        } else {
+          await this.logError('interaction_logging_error', error, normalizedEvent);
+          console.error('Failed to log interaction:', error);
+          // Don't throw - logging failures shouldn't break the app
+        }
+      } else {
+        // Personalization path: write to user_preference_signals for preference-relevant events
+        // Genre is filled by DB trigger auto_generate_genre_signals when entity_id is set
+        this.upsertPreferenceSignal(user.id, normalizedEvent).catch(() => {});
+      }
+    } catch (error) {
+      await this.logError('interaction_logging_exception', error, normalizedEvent);
+      console.error('Error logging interaction:', error);
+    }
+  }
+
+  /**
+   * Queue an interaction for batch processing
+   */
+  queueInteraction(event: InteractionEvent): void {
+    this.eventQueue.push({
+      ...event,
+      sessionId: event.sessionId || this.sessionId,
+      timestamp: new Date().toISOString()
+    });
+
+    // Process batch if it's full
+    if (this.eventQueue.length >= this.BATCH_SIZE) {
+      this.flushBatch();
+    } else {
+      // Set timeout to flush batch after delay
+      if (this.batchTimeout) {
+        clearTimeout(this.batchTimeout);
+      }
+      this.batchTimeout = setTimeout(() => {
+        this.flushBatch();
+      }, this.BATCH_DELAY);
+    }
+  }
+
+  /**
+   * Flush the current batch of interactions
+   */
+  private async flushBatch(): Promise<void> {
+    if (this.eventQueue.length === 0) return;
+
+    const batch = [...this.eventQueue];
+    this.eventQueue = [];
+
+    if (this.batchTimeout) {
+      clearTimeout(this.batchTimeout);
+      this.batchTimeout = null;
+    }
+
+    // Declare validEvents outside try block so it's accessible in catch block
+    const validEvents: BatchedInteractionEvent[] = [];
+
+    try {
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('No authenticated user for batch logging');
+        return;
+      }
+
+      // Verify user exists in public.users table before logging interactions
+      // This prevents foreign key constraint violations
+      const { data: publicUser, error: userError } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (userError || !publicUser) {
+        console.warn('User not found in public.users table, skipping interaction logging:', userError?.message || 'User not found');
+        return;
+      }
+
+      // Normalize and validate all interactions in the batch before inserting
+      // Filter out invalid interactions and log warnings/errors
+      // IMPORTANT: Normalize BEFORE validation to match logInteraction behavior
+      const invalidEvents: { event: BatchedInteractionEvent; errors: string[] }[] = [];
+
+      for (const event of batch) {
+        // Normalize event first (convert UUID entityId to entityUuid if applicable)
+        const normalizedEvent = this.normalizeInteractionEvent(event);
+        
+        // Then validate the normalized event (consistent with logInteraction)
+        const validation = this.validateInteractionData(normalizedEvent);
+        if (!validation.isValid) {
+          invalidEvents.push({ event: normalizedEvent, errors: validation.errors });
+          // Log validation errors
+          await this.logError('interaction_validation_error', new Error(validation.errors.join(', ')), normalizedEvent);
+          console.warn('Invalid interaction in batch:', validation.errors, normalizedEvent);
+        } else {
+          // Log warnings if any
+          if (validation.warnings.length > 0) {
+            console.warn('Interaction validation warnings:', validation.warnings, normalizedEvent);
+          }
+          // Store normalized event for insertion
+          validEvents.push(normalizedEvent);
+        }
+      }
+
+      // Only insert valid interactions
+      if (validEvents.length === 0) {
+        console.warn('No valid interactions in batch to insert');
+        if (invalidEvents.length > 0) {
+          console.warn(`Skipped ${invalidEvents.length} invalid interactions`);
+        }
+        return;
+      }
+
+      // Map camelCase to snake_case for database
+      // Note: entity_uuid is preferred for UUID-based entities (artists, venues, events)
+      // entity_id is kept as metadata for legacy support
+      // Entity types that don't require entity_uuid: search, view, form, ticket_link, song, album, playlist, genre, scene, profile
+      // Note: Events are already normalized in the validation loop above, no need to normalize again
+      const ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT = ['search', 'view', 'form', 'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'profile'];
+      
+      const dbBatch = validEvents
+        .filter(event => {
+          // Filter out events that violate the constraint
+          // If entity_type is NOT in the exception list, entity_uuid must be provided
+          if (!ENTITY_TYPES_WITHOUT_UUID_REQUIREMENT.includes(event.entityType) && !event.entityUuid) {
+            console.warn(`Skipping interaction: entity_type '${event.entityType}' requires entity_uuid but it was not provided`, event);
+            return false;
+          }
+          return true;
+        })
+        .map(event => ({
+        user_id: user.id,
+        session_id: event.sessionId || this.sessionId,
+        event_type: event.eventType,
+        entity_type: event.entityType,
+        entity_id: event.entityId || null,
+        entity_uuid: event.entityUuid || null
+        // Note: metadata column doesn't exist in the interactions table schema
+        // Marketing metadata is not persisted but can be logged to console for debugging
+      }));
+
+      // Insert batch into database
+      const { error } = await supabase
+        .from('interactions')
+        .insert(dbBatch);
+
+      if (error) {
+        console.error('Failed to log interaction batch:', error);
+        // Log error for each failed event
+        for (const event of validEvents) {
+          await this.logError('interaction_logging_error', error, event);
+        }
+      } else {
+        console.debug(`✅ Logged ${dbBatch.length} interactions`);
+        if (invalidEvents.length > 0) {
+          console.warn(`⚠️ Skipped ${invalidEvents.length} invalid interactions`);
+        }
+        // Personalization path: write preference signals for preference-relevant events
+        for (const ev of validEvents) {
+          this.upsertPreferenceSignal(user.id, ev).catch(() => {});
+        }
+      }
+    } catch (error) {
+      console.error('Error logging interaction batch:', error);
+      // Log error only for events that were actually attempted to be persisted
+      // Invalid events were already logged as 'interaction_validation_error' during validation
+      for (const event of validEvents) {
+        await this.logError('interaction_logging_exception', error, event);
+      }
+    }
+  }
+
+  /**
+   * Force flush any pending interactions
+   */
+  async flush(): Promise<void> {
+    await this.flushBatch();
+  }
+
+  /**
+   * Start a new session
+   */
+  startNewSession(): string {
+    this.sessionId = this.generateSessionId();
+    this.sessionStartTime = new Date();
+    this.sessionInteractions = 0;
+    this.sessionPageViews = 0;
+    return this.sessionId;
+  }
+
+  /**
+   * Get current session metrics
+   */
+  getSessionMetrics(): SessionMetrics {
+    return this.calculateSessionMetrics();
+  }
+
+  /**
+   * Get current session ID
+   */
+  getSessionId(): string {
+    return this.sessionId;
+  }
+}
+
+// Export singleton instance
+export const interactionTracker = new InteractionTrackingService();
+
+// Convenience functions for common interaction types
+export const trackInteraction = {
+  // Search interactions
+  search: (query: string, entityType: string, entityId: string, metadata?: Record<string, any>) => {
+    interactionTracker.queueInteraction({
+      eventType: 'search',
+      entityType,
+      entityId,
+      metadata: {
+        query,
+        ...metadata
+      }
+    });
+  },
+
+  // Click interactions
+  click: (entityType: string, entityId: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'click',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata
+    });
+  },
+
+  // Like interactions
+  like: (entityType: string, entityId: string, isLiked: boolean, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'like',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        isLiked,
+        ...metadata
+      }
+    });
+  },
+
+  // Share interactions
+  share: (entityType: string, entityId: string, platform?: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'share',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        platform,
+        ...metadata
+      }
+    });
+  },
+
+  // Comment interactions
+  comment: (entityType: string, entityId: string, commentLength?: number, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'comment',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        commentLength,
+        ...metadata
+      }
+    });
+  },
+
+  // Review interactions
+  review: (entityType: string, entityId: string, rating?: number, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'review',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        rating,
+        ...metadata
+      }
+    });
+  },
+
+  // Interest interactions
+  interest: (entityType: string, entityId: string, isInterested: boolean, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'interest',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        isInterested,
+        ...metadata
+      }
+    });
+  },
+
+  // Swipe interactions
+  swipe: (entityType: string, entityId: string, direction: 'like' | 'pass', metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'swipe',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        direction,
+        ...metadata
+      }
+    });
+  },
+
+  // View interactions
+  view: (entityType: string, entityId: string, duration?: number, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'view',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        duration,
+        ...metadata
+      }
+    });
+  },
+
+  // Feed impression tracking
+  trackFeedImpression: (eventId: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'view',
+      entityType: 'event',
+      entityId: eventId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        source: 'feed',
+        impression: true,
+        ...metadata
+      }
+    });
+  },
+
+  // Navigation interactions
+  navigate: (fromView: string, toView: string, metadata?: Record<string, any>) => {
+    interactionTracker.queueInteraction({
+      eventType: 'navigate',
+      entityType: 'view',
+      entityId: toView,
+      metadata: {
+        fromView,
+        ...metadata
+      }
+    });
+  },
+
+  // Form interactions
+  formSubmit: (formType: string, entityId: string, success: boolean, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'form_submit',
+      entityType: formType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata: {
+        success,
+        ...metadata
+      }
+    });
+  },
+
+  // Profile interactions
+  profileUpdate: (field: string, entityId: string, metadata?: Record<string, any>) => {
+    interactionTracker.queueInteraction({
+      eventType: 'profile_update',
+      entityType: 'profile',
+      entityId,
+      metadata: {
+        field,
+        ...metadata
+      }
+    });
+  },
+
+  // Follow interactions
+  follow: (entityType: string, entityId: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'follow',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata
+    });
+  },
+
+  // Unfollow interactions
+  unfollow: (entityType: string, entityId: string, metadata?: Record<string, any>, entityUuid?: string | null) => {
+    interactionTracker.queueInteraction({
+      eventType: 'unfollow',
+      entityType,
+      entityId,
+      entityUuid: entityUuid || undefined,
+      metadata
+    });
+  }
+};
+
+// Auto-flush on page unload
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    interactionTracker.flush();
+  });
+}

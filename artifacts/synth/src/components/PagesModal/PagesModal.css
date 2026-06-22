@@ -1,0 +1,162 @@
+/**
+ * PagesModal Component Styles
+ * 
+ * Styles for PagesModal component using design tokens.
+ * Pop-up modal that displays all pages organized by category.
+ */
+
+.pages-modal__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--overlay-50);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-screen-margin-x, 20px);
+  box-sizing: border-box;
+}
+
+.pages-modal {
+  /* Pop-up width: device width - 40px (20px margins on each side) */
+  width: var(--size-popup-width, calc(100vw - 40px));
+  max-width: var(--size-popup-width, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
+  background-color: var(--neutral-50);
+  border-radius: var(--radius-corner, 10px);
+  box-shadow: 0 4px 8px var(--shadow-color);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  z-index: 201;
+}
+
+/* Header with X button */
+.pages-modal__header {
+  position: relative;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 var(--spacing-screen-margin-x, 20px);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.pages-modal__close-button {
+  width: var(--size-input-height, 44px);
+  height: var(--size-input-height, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.2s ease;
+  line-height: 0;
+}
+
+.pages-modal__close-button > * {
+  margin: 0;
+  padding: 0;
+  display: block;
+  flex-shrink: 0;
+}
+
+.pages-modal__close-button:hover {
+  opacity: 0.8;
+}
+
+.pages-modal__close-button:active {
+  opacity: 0.6;
+}
+
+.pages-modal__close-button:focus-visible {
+  outline: 2px solid var(--brand-pink-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-corner, 10px);
+}
+
+/* Content area - scrollable */
+.pages-modal__content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Content width: pop-up width - 40px (20px margins inside pop-up) */
+  padding: var(--spacing-screen-margin-x, 20px);
+  box-sizing: border-box;
+}
+
+/* Category */
+.pages-modal__category {
+  margin-bottom: var(--spacing-big-section, 60px);
+}
+
+.pages-modal__category:last-child {
+  margin-bottom: 0;
+}
+
+/* Category title - h1 typography */
+.pages-modal__category-title {
+  font-family: var(--font-family);
+  font-size: var(--typography-h1-size, 35px);
+  font-weight: var(--typography-h1-weight, 700);
+  line-height: var(--typography-h1-line-height, 1.2);
+  color: var(--neutral-900);
+  margin: 0 0 var(--spacing-grouped, 24px) 0;
+}
+
+/* Page list */
+.pages-modal__page-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-inline, 6px);
+}
+
+.pages-modal__page-item {
+  margin: 0;
+  padding: 0;
+}
+
+/* Page button */
+.pages-modal__page-button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--spacing-small, 12px) 0;
+  font-family: var(--font-family);
+  font-size: var(--typography-body-size, 20px);
+  font-weight: var(--typography-body-weight, 500);
+  line-height: var(--typography-body-line-height, 1.5);
+  color: var(--neutral-900);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s ease;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.pages-modal__page-button:hover {
+  color: var(--brand-pink-500);
+}
+
+.pages-modal__page-button:active {
+  opacity: 0.8;
+}
+
+.pages-modal__page-button:focus-visible {
+  outline: 2px solid var(--brand-pink-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-corner, 10px);
+}
+

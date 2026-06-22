@@ -1,0 +1,881 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Star, MapPin, Building2, ChevronDown, Camera, Share2, ChevronLeft } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { VenueFollowButton } from '@/components/venues/VenueFollowButton';
+import { EventMap } from '@/components/EventMap';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
+import type { ReviewWithEngagement } from '@/services/reviewService';
+import { JamBaseAttribution } from '@/components/attribution';
+import {
+  iosModal,
+  iosModalBackdrop,
+  iosHeader,
+  iosIconButton,
+  glassCard,
+  glassCardLight,
+  textStyles,
+  animations,
+} from '@/styles/glassmorphism';
+import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
+import { ShareService } from '@/services/shareService';
+import { UniversalShareModal } from '@/components/share/UniversalShareModal';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
+import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
+
+interface VenueDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  venueId: string;
+  venueName: string;
+  currentUserId: string;
+  /** When provided, clicking an event card navigates to the event page/details. When omitted, dispatches 'open-event-details' for global handling (e.g. MainApp). */
+  onEventClick?: (eventId: string) => void;
+}
+
+const INITIAL_UPCOMING_COUNT = 5;
+const INITIAL_PAST_COUNT = 3;
+const LOAD_MORE_COUNT = 10;
+
+export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
+  isOpen,
+  onClose,
+  venueId,
+  venueName,
+  currentUserId,
+  onEventClick,
+}) => {
+  const [venueCity, setVenueCity] = useState<string | null>(null);
+  const [venueState, setVenueState] = useState<string | null>(null);
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithEngagement[]>([]);
+  const [reviewUserProfiles, setReviewUserProfiles] = useState<Record<string, { name: string; avatar_url?: string }>>({});
+  const [mediaItems, setMediaItems] = useState<{ url: string; type: 'photo' | 'video' }[]>([]);
+  const [averageRating, setAverageRating] = useState<number | null>(null);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
+  const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
+  const [reviewsShown, setReviewsShown] = useState(3);
+  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
+  const [hasOuterMobileHeader, setHasOuterMobileHeader] = useState(true);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  useLockBodyScroll(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadVenueData();
+      // Reset pagination when modal opens
+      setUpcomingShown(INITIAL_UPCOMING_COUNT);
+      setPastShown(INITIAL_PAST_COUNT);
+    }
+  }, [isOpen, venueId, venueName]);
+
+  // If this modal is opened from a context that doesn't render the standard MobileHeader
+  // (for example, inside the EventDetailsModal), render an internal header so we never
+  // "inherit" an event-style header above.
+  useEffect(() => {
+    if (!isOpen) return;
+    const check = () => {
+      const el = document.querySelector('.mobile-header');
+      setHasOuterMobileHeader(Boolean(el));
+    };
+    check();
+    const t = window.setTimeout(check, 0);
+    return () => window.clearTimeout(t);
+  }, [isOpen]);
+
+  const useInternalHeader = isOpen && !hasOuterMobileHeader;
+  const {
+    titleRef: venueTitleRef,
+    variant: venueTitleVariant,
+    allowWrap: venueTitleWrap,
+  } = useModalHeaderTitle(venueName);
+
+  // Focus management for accessibility
+  useEffect(() => {
+    if (isOpen) {
+      // Store the element that had focus before modal opened
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      
+      // Focus first focusable element in modal
+      const firstFocusable = modalRef.current?.querySelector(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      ) as HTMLElement;
+      
+      // Use setTimeout to ensure modal is rendered
+      setTimeout(() => {
+        firstFocusable?.focus();
+      }, 0);
+
+      // Focus trap: prevent tabbing outside modal
+      const handleTabKey = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+        
+        const focusableElements = modalRef.current?.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ) as NodeListOf<HTMLElement>;
+        
+        if (!focusableElements || focusableElements.length === 0) return;
+        
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        if (e.shiftKey) {
+          // Shift + Tab
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          // Tab
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleTabKey);
+      
+      return () => {
+        document.removeEventListener('keydown', handleTabKey);
+        // Restore focus to previous element when modal closes
+        previousFocusRef.current?.focus();
+      };
+    }
+  }, [isOpen]);
+
+  const reviewSelect = `
+    id, user_id, event_id, artist_id, venue_id, rating, review_text, photos, videos,
+    mood_tags, genre_tags, context_tags, likes_count, comments_count, shares_count,
+    is_public, created_at, updated_at, artist_performance_rating, production_rating,
+    venue_rating, location_rating, value_rating, "Event_date"
+  `;
+
+  const loadVenueData = async () => {
+    try {
+      setLoading(true);
+
+      // Wave 1: events, venue details, direct reviews in parallel
+      const [eventsRes, venueRes, directReviewsRes] = await Promise.all([
+        supabase.from('events').select('*').eq('venue_id', venueId).order('event_date', { ascending: true }),
+        supabase.from('venues').select('id, name, state, latitude, longitude, street_address, zip, country').eq('id', venueId).maybeSingle(),
+        supabase.from('reviews').select(reviewSelect).eq('venue_id', venueId).eq('is_public', true).eq('is_draft', false).order('created_at', { ascending: false })
+      ]);
+
+      const eventsData = eventsRes.data || [];
+      const eventsError = eventsRes.error;
+      const venueData = venueRes.data;
+
+      if (eventsError) console.warn('Error fetching venue events:', eventsError);
+      if (venueData) {
+        if (venueData.state) setVenueState(venueData.state);
+        if (venueData.latitude != null) setLatitude(Number(venueData.latitude));
+        if (venueData.longitude != null) setLongitude(Number(venueData.longitude));
+      }
+
+      if (eventsData.length > 0) {
+        setEvents(eventsData);
+        const firstEvent = eventsData[0];
+        if (firstEvent.venue_city) setVenueCity(firstEvent.venue_city);
+        if (firstEvent.venue_state) setVenueState(firstEvent.venue_state);
+        if (firstEvent.latitude) setLatitude(Number(firstEvent.latitude));
+        if (firstEvent.longitude) setLongitude(Number(firstEvent.longitude));
+      }
+
+      const eventIds = eventsData.map(e => e.id);
+      const directReviews = directReviewsRes.data || [];
+
+      // Wave 2: event-linked reviews
+      let eventLinkedReviews: any[] = [];
+      if (eventIds.length > 0) {
+        const { data: eventReviews } = await supabase
+          .from('reviews')
+          .select(reviewSelect)
+          .in('event_id', eventIds)
+          .eq('is_public', true)
+          .eq('is_draft', false)
+          .order('created_at', { ascending: false });
+        eventLinkedReviews = eventReviews || [];
+      }
+
+      const allReviewsRaw = [...directReviews, ...eventLinkedReviews];
+      const uniqueReviewIds = new Set<string>();
+      const uniqueReviews = allReviewsRaw.filter(r => {
+        if (uniqueReviewIds.has(r.id)) return false;
+        uniqueReviewIds.add(r.id);
+        return true;
+      });
+
+      if (uniqueReviews.length > 0) {
+        const ratings = uniqueReviews
+          .map(r => r.venue_rating || r.rating)
+          .filter((r): r is number => typeof r === 'number' && !isNaN(r) && r > 0);
+        if (ratings.length > 0) setAverageRating(ratings.reduce((sum, r) => sum + r, 0) / ratings.length);
+        setTotalReviews(uniqueReviews.length);
+      }
+
+      const userIds = [...new Set(uniqueReviews.map(r => r.user_id).filter(Boolean))];
+      const artistIds = [...new Set(uniqueReviews.map(r => r.artist_id).filter(Boolean))];
+
+      // Wave 3: profiles and artists in parallel
+      const [profilesRes, artistsRes] = await Promise.all([
+        userIds.length > 0 ? supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds) : Promise.resolve({ data: [] }),
+        artistIds.length > 0 ? supabase.from('artists').select('id, name, image_url').in('id', artistIds) : Promise.resolve({ data: [] })
+      ]);
+      const profiles = profilesRes.data || [];
+      const artists = artistsRes.data || [];
+
+      if (profiles.length > 0) {
+        const profileMap: Record<string, { name: string; avatar_url?: string }> = {};
+        profiles.forEach(p => {
+          profileMap[p.user_id] = { name: p.name || 'User', avatar_url: p.avatar_url || undefined };
+        });
+        setReviewUserProfiles(profileMap);
+      }
+
+      // Transform reviews to ReviewWithEngagement format
+      const transformedReviews: ReviewWithEngagement[] = uniqueReviews.map(r => {
+        const profile = profiles?.find(p => p.user_id === r.user_id);
+        const artist = artists?.find(a => a.id === r.artist_id);
+        const event = eventsData?.find(e => e.id === r.event_id);
+
+        return {
+          id: r.id,
+          user_id: r.user_id,
+          event_id: r.event_id || '',
+          artist_id: r.artist_id,
+          venue_id: r.venue_id,
+          rating: r.rating,
+          review_text: r.review_text,
+          is_public: r.is_public,
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+          likes_count: r.likes_count || 0,
+          comments_count: r.comments_count || 0,
+          shares_count: r.shares_count || 0,
+          is_liked_by_user: false,
+          reaction_emoji: '',
+          photos: r.photos || [],
+          videos: r.videos || [],
+          mood_tags: r.mood_tags || [],
+          genre_tags: r.genre_tags || [],
+          context_tags: r.context_tags || [],
+          artist_name: artist?.name || event?.artist_name || '',
+          venue_name: venueName,
+          Event_date: r.Event_date || event?.event_date,
+          artist_performance_rating: r.artist_performance_rating,
+          production_rating: r.production_rating,
+          venue_rating: r.venue_rating,
+          location_rating: r.location_rating,
+          value_rating: r.value_rating,
+        };
+      });
+
+      setReviews(transformedReviews);
+
+      // Collect media from reviews
+      const allMedia: { url: string; type: 'photo' | 'video' }[] = [];
+      uniqueReviews.forEach(r => {
+        if (r.photos && Array.isArray(r.photos)) {
+          r.photos.forEach((url: string) => {
+            if (url) allMedia.push({ url, type: 'photo' });
+          });
+        }
+        if (r.videos && Array.isArray(r.videos)) {
+          r.videos.forEach((url: string) => {
+            if (url) allMedia.push({ url, type: 'video' });
+          });
+        }
+      });
+      setMediaItems(allMedia);
+
+    } catch (error) {
+      console.error('Error loading venue data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const upcomingEvents = events.filter(e => new Date(e.event_date) >= new Date());
+  const pastEvents = events.filter(e => new Date(e.event_date) < new Date());
+
+  const hasMoreUpcoming = upcomingEvents.length > upcomingShown;
+  const hasMorePast = pastEvents.length > pastShown;
+
+  const loadMoreButtonStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+    padding: '14px 20px',
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: 600,
+    borderRadius: 12,
+    border: '1.5px solid var(--brand-pink-500)',
+    background: 'rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(20px)',
+    color: 'var(--brand-pink-500)',
+    cursor: 'pointer',
+    transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        style={{
+          ...iosModalBackdrop,
+          // Keep app chrome (header + bottom nav) above the overlay.
+          zIndex: useInternalHeader ? 6000 : 25,
+          top: useInternalHeader
+            ? 'var(--onboarding-banner-height, 0px)'
+            : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+        }}
+        onClick={onClose}
+      />
+      
+      {/* Detail overlay (scrolls between header and bottom nav) */}
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Venue details: ${venueName}`}
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          top: useInternalHeader
+            ? 'var(--onboarding-banner-height, 0px)'
+            : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          background: 'var(--neutral-50, var(--neutral-50))',
+          zIndex: useInternalHeader ? 6001 : 26,
+        }}
+      >
+        {useInternalHeader && (
+          <div
+            style={{
+              ...iosHeader,
+              position: 'sticky',
+              top: 0,
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+              zIndex: 7000,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <button
+              onClick={onClose}
+              type="button"
+              aria-label="Back"
+              style={{
+                ...iosIconButton,
+                width: 44,
+                height: 44,
+                minWidth: 44,
+                minHeight: 44,
+                flex: '0 0 auto',
+              }}
+            >
+              <ChevronLeft size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+            </button>
+
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                marginLeft: 6,
+                marginRight: 6,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              {(() => {
+                const TitleTag = venueTitleVariant === 'h1' ? 'h1' : 'h2';
+                const titleTypography =
+                  venueTitleVariant === 'h1' ? textStyles.largeTitle : textStyles.title2;
+                const titleStyles: React.CSSProperties = {
+                  ...titleTypography,
+                  color: 'var(--neutral-900)',
+                  margin: 0,
+                  textAlign: 'left',
+                  lineHeight: 1.2,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: venueTitleWrap ? '-webkit-box' : 'block',
+                  whiteSpace: venueTitleWrap ? 'normal' : 'nowrap',
+                  WebkitLineClamp: venueTitleWrap ? 2 : 1,
+                  WebkitBoxOrient: venueTitleWrap ? 'vertical' : undefined,
+                };
+
+                return (
+                  <TitleTag ref={venueTitleRef} style={titleStyles}>
+                    {venueName}
+                  </TitleTag>
+                );
+              })()}
+            </div>
+
+            <div style={{ flex: '0 0 auto' }}>
+              <button
+                onClick={() => setShareModalOpen(true)}
+                type="button"
+                aria-label="Share"
+                style={{
+                  ...iosIconButton,
+                  width: 44,
+                  height: 44,
+                  minWidth: 44,
+                  minHeight: 44,
+                }}
+              >
+                <Share2 size={24} style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content */}
+        <div
+          style={{
+            paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+            paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+            paddingTop: 'var(--spacing-small, 12px)',
+            paddingBottom: 'var(--spacing-bottom-nav, 32px)',
+          }}
+        >
+        {loading ? (
+            <div 
+              aria-busy="true"
+              aria-live="polite"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 0' }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  border: '3px solid var(--neutral-200)',
+                  borderTopColor: 'var(--brand-pink-500)',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                }}
+              />
+              <span className="sr-only">Loading venue information...</span>
+          </div>
+        ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {/* Hero Section - Venue Info */}
+              <div
+                style={{
+                  ...glassCard,
+                  padding: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  gap: 12,
+                }}
+              >
+                {/* Venue Icon */}
+                <div
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 20,
+                    background: 'linear-gradient(135deg, var(--brand-pink-500) 0%, #8D1FF4 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                    boxShadow: '0 8px 24px rgba(204, 36, 134, 0.3)',
+                  }}
+                >
+                  <Building2 size={36} color="#fff" />
+              </div>
+                
+                {/* Venue Name */}
+                <h2 style={{ ...textStyles.title1, color: 'var(--neutral-900)', marginBottom: 8 }}>
+                  {venueName}
+                </h2>
+                
+                {/* Location */}
+                {(venueCity || venueState) && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <MapPin size={16} style={{ color: 'var(--neutral-600)' }} />
+                    <span style={{ ...textStyles.callout, color: 'var(--neutral-600)' }}>
+                      {[venueCity, venueState].filter(Boolean).join(', ')}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Rating */}
+                {averageRating !== null && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          size={18}
+                          fill={i < Math.floor(averageRating) ? 'var(--rating-star)' : 'none'}
+                          style={{
+                            color: i < Math.floor(averageRating) ? 'var(--rating-star)' : 'var(--neutral-300)',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span style={{ ...textStyles.callout, fontWeight: 600 }}>{averageRating.toFixed(1)}</span>
+                    {totalReviews > 0 && (
+                      <span style={{ ...textStyles.footnote }}>
+                        ({totalReviews} {totalReviews === 1 ? 'review' : 'reviews'})
+                      </span>
+                    )}
+                  </div>
+                )}
+                
+                {/* Follow Button */}
+                  <VenueFollowButton
+                    venueName={venueName}
+                    venueCity={venueCity || undefined}
+                    venueState={venueState || undefined}
+                    userId={currentUserId}
+                  />
+            </div>
+
+              {/* Map Section - wrapped in ErrorBoundary to prevent Leaflet _leaflet_pos crash from breaking event card clicks */}
+            {latitude && longitude && (
+                <div
+                  style={{
+                    ...glassCardLight,
+                    padding: 0,
+                    overflow: 'hidden',
+                    height: 200,
+                    borderRadius: 16,
+                  }}
+                >
+                <ErrorBoundary fallback={<div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-500)' }}>Map unavailable</div>}>
+                  <EventMap
+                    center={[latitude, longitude]}
+                    zoom={15}
+                    events={[{
+                      id: venueId,
+                      jambase_event_id: venueId,
+                      title: venueName,
+                      artist_name: venueName,
+                      artist_id: '',
+                      venue_name: venueName,
+                      venue_id: venueId,
+                      event_date: new Date().toISOString(),
+                      latitude,
+                      longitude,
+                    }]}
+                    onEventClick={() => {}}
+                  />
+                </ErrorBoundary>
+              </div>
+            )}
+
+              {/* Reviews Section - Yelp/Google style (ABOVE events) */}
+              <div>
+                <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
+                  Reviews {reviews.length > 0 && `(${reviews.length})`}
+                </h3>
+                {reviews.length > 0 ? (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {reviews.slice(0, reviewsShown).map((review) => {
+                        const profile = reviewUserProfiles[review.user_id];
+                        const venueRating = (review as any).venue_rating;
+                        const locationRating = (review as any).location_rating;
+                        return (
+                          <div
+                            key={review.id}
+                            onClick={() => setSelectedReviewId(review.id)}
+                            style={{
+                              ...glassCardLight,
+                              padding: 16,
+                              borderRadius: 12,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {/* Rating Row - Venue Ratings Only */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                {/* Primary Rating: Venue (or fallback to overall) */}
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  background: 'var(--brand-pink-500)',
+                                  color: '#fff',
+                                  padding: '4px 8px',
+                                  borderRadius: 6,
+                                  fontSize: 14,
+                                  fontWeight: 600,
+                                }}>
+                                  <Building2 size={14} />
+                                  {(venueRating || review.rating)?.toFixed(1) || 'N/A'}
+                                </div>
+                                {/* Secondary: Location Rating */}
+                                {locationRating && (
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    background: 'var(--neutral-100)',
+                                    color: 'var(--neutral-700)',
+                                    padding: '4px 8px',
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                  }}>
+                                    <MapPin size={12} />
+                                    Location: {locationRating.toFixed(1)}
+                                  </div>
+                                )}
+                              </div>
+                              <span style={{ ...textStyles.caption, color: 'var(--neutral-500)' }}>
+                                {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
+                            
+                            {/* Review Text */}
+                            {review.review_text && (
+                              <p style={{
+                                ...textStyles.body,
+                                color: 'var(--neutral-700)',
+                                margin: '8px 0',
+                                lineHeight: 1.5,
+                              }}>
+                                "{review.review_text}"
+                              </p>
+                            )}
+                            
+                            {/* User Profile Button with Avatar */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.dispatchEvent(
+                                  new CustomEvent('open-user-profile', { detail: { userId: review.user_id } })
+                                );
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                marginTop: 12,
+                                padding: '8px 12px',
+                                background: 'rgba(255,255,255,0.8)',
+                                border: '1.5px solid var(--brand-pink-500)',
+                                borderRadius: 20,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                              }}
+                            >
+                              {/* Profile Pic */}
+                              <div style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                background: profile?.avatar_url ? `url(${profile.avatar_url}) center/cover` : 'var(--brand-pink-500)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#fff',
+                                fontSize: 11,
+                                fontWeight: 600,
+                              }}>
+                                {!profile?.avatar_url && (profile?.name?.charAt(0).toUpperCase() || 'U')}
+                              </div>
+                              <span style={{
+                                fontSize: 14,
+                                color: 'var(--brand-pink-500)',
+                                fontWeight: 500,
+                              }}>
+                                {profile?.name || 'User'}
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {reviews.length > reviewsShown && (
+                      <button
+                        onClick={() => setReviewsShown(prev => prev + LOAD_MORE_COUNT)}
+                        style={loadMoreButtonStyle}
+                      >
+                        <ChevronDown size={18} />
+                        Load More ({reviews.length - reviewsShown} remaining)
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div
+                    style={{
+                      ...glassCardLight,
+                      padding: 24,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <p style={{ ...textStyles.body, color: 'var(--neutral-600)' }}>
+                      No reviews yet for {venueName}
+                    </p>
+              </div>
+                )}
+              </div>
+
+              {/* Upcoming Events Section */}
+              {upcomingEvents.length > 0 && (
+                <div>
+                  <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
+                    Upcoming Events ({upcomingEvents.length})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {upcomingEvents.slice(0, upcomingShown).map((event) => (
+                      <SwiftUIEventCard
+                        key={event.id}
+                        event={event}
+                        currentUserId={currentUserId}
+                        showActions={false}
+                        compact={true}
+                        onClick={() => {
+                          const eventId = event.id || event.event_id || event.jambase_event_id || '';
+                          if (!eventId) return;
+                          if (onEventClick) {
+                            onEventClick(eventId);
+                          } else {
+                            window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId } }));
+                          }
+                        }}
+                      />
+                    ))}
+              </div>
+                  {hasMoreUpcoming && (
+                    <button
+                      onClick={() => setUpcomingShown(prev => prev + LOAD_MORE_COUNT)}
+                      style={loadMoreButtonStyle}
+                    >
+                      <ChevronDown size={18} />
+                      Load More ({upcomingEvents.length - upcomingShown} remaining)
+                    </button>
+                  )}
+            </div>
+              )}
+
+              {/* Past Events Section */}
+              {pastEvents.length > 0 && (
+              <div>
+                  <h3 style={{ ...textStyles.title2, color: 'var(--neutral-900)', marginBottom: 16 }}>
+                    Past Events ({pastEvents.length})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {pastEvents.slice(0, pastShown).map((event) => (
+                      <SwiftUIEventCard
+                        key={event.id}
+                        event={event}
+                        currentUserId={currentUserId}
+                        showActions={false}
+                        compact={true}
+                        onClick={() => {
+                          const eventId = event.id || event.event_id || event.jambase_event_id || '';
+                          if (!eventId) return;
+                          if (onEventClick) {
+                            onEventClick(eventId);
+                          } else {
+                            window.dispatchEvent(new CustomEvent('open-event-details', { detail: { eventId } }));
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
+                  {hasMorePast && (
+                    <button
+                      onClick={() => setPastShown(prev => prev + LOAD_MORE_COUNT)}
+                      style={loadMoreButtonStyle}
+                    >
+                      <ChevronDown size={18} />
+                      Load More ({pastEvents.length - pastShown} remaining)
+                    </button>
+                  )}
+              </div>
+            )}
+
+              {/* Empty State */}
+              {events.length === 0 && (
+                <div
+                  style={{
+                    ...glassCardLight,
+                    padding: 40,
+                    textAlign: 'center',
+                  }}
+                >
+                  <Building2 size={48} style={{ color: 'var(--neutral-400)', marginBottom: 16 }} />
+                  <p style={{ ...textStyles.body, color: 'var(--neutral-600)' }}>
+                    No events found for this venue
+                  </p>
+                </div>
+              )}
+
+              {/* JamBase Attribution – match event details footer spacing/style */}
+              <div
+                className="pt-4 mt-4 border-t"
+                style={{ borderColor: 'var(--neutral-200)' }}
+              >
+                <JamBaseAttribution variant="footer" />
+              </div>
+          </div>
+        )}
+        </div>
+      </div>
+
+      {shareModalOpen && (
+        <UniversalShareModal
+          type="venue"
+          title={venueName}
+          url={ShareService.getVenueUrl(venueId)}
+          currentUserId={currentUserId}
+          isOpen={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
+
+      {/* Full-screen review detail overlay when a review is selected */}
+      {selectedReviewId && (
+        <ReviewDetailView
+          reviewId={selectedReviewId}
+          currentUserId={currentUserId}
+          onBack={() => setSelectedReviewId(null)}
+          onOpenProfile={(userId) => {
+            // Close the review detail overlay and open the tapped user's profile
+            setSelectedReviewId(null);
+            window.dispatchEvent(
+              new CustomEvent('open-user-profile', {
+                detail: { userId },
+              })
+            );
+          }}
+        />
+      )}
+    </>
+  );
+};
