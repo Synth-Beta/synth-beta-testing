@@ -89,7 +89,7 @@ export default function ConnectScreen() {
                 <View
                   style={[
                     s.avatar,
-                    { backgroundColor: avatarColor + "33" },
+                    { backgroundColor: avatarColor + "22" },
                   ]}
                 >
                   <Text style={[s.avatarInitial, { color: avatarColor }]}>
@@ -151,9 +151,16 @@ const styles = (
 ) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
-    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, gap: 4 },
+    header: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 16,
+      gap: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
     title: {
-      fontSize: 26,
+      fontSize: 28,
       fontFamily: "Inter_700Bold",
       color: colors.text,
       letterSpacing: -0.5,
@@ -164,12 +171,12 @@ const styles = (
       color: colors.mutedForeground,
     },
     loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-    list: { paddingHorizontal: 20, paddingBottom: 100, gap: 10 },
+    list: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 112, gap: 10 },
     card: {
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 10,
       padding: 14,
       borderWidth: 1,
       borderColor: colors.border,

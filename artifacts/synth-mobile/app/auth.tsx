@@ -174,8 +174,8 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
     logoContainer: {
       width: 72,
       height: 72,
-      borderRadius: 20,
-      backgroundColor: colors.surface,
+      borderRadius: 10,
+      backgroundColor: colors.pink050,
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 16,
@@ -185,7 +185,7 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
     wordmark: {
       fontSize: 36,
       fontFamily: "Inter_700Bold",
-      color: colors.text,
+      color: colors.primary,
       letterSpacing: -1,
     },
     tagline: {
@@ -210,11 +210,11 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: colors.surface,
-      borderRadius: 12,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.border,
       paddingHorizontal: 14,
-      height: 52,
+      height: 44,
     },
     inputIcon: {
       marginRight: 10,
@@ -236,8 +236,8 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
     },
     submitBtn: {
       backgroundColor: colors.primary,
-      borderRadius: 12,
-      height: 52,
+      borderRadius: 10,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
       marginTop: 4,

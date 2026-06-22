@@ -101,7 +101,7 @@ export default function ChatScreen() {
                 ]}
               >
                 <View
-                  style={[s.avatar, { backgroundColor: color + "33" }]}
+                  style={[s.avatar, { backgroundColor: color + "22" }]}
                 >
                   <Text style={[s.avatarInitial, { color }]}>
                     {(item.chat_name ?? "?")[0].toUpperCase()}
@@ -165,15 +165,17 @@ const styles = (
       alignItems: "center",
       paddingHorizontal: 20,
       paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
     },
     title: {
-      fontSize: 26,
+      fontSize: 28,
       fontFamily: "Inter_700Bold",
       color: colors.text,
       letterSpacing: -0.5,
     },
     loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-    list: { paddingBottom: 100 },
+    list: { paddingBottom: 112 },
     separator: { height: 1, backgroundColor: colors.border, marginLeft: 80 },
     convoRow: {
       flexDirection: "row",

@@ -178,10 +178,15 @@ const styles = (
 ) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
-    scroll: { paddingBottom: 120 },
-    header: { paddingHorizontal: 20, paddingVertical: 12 },
+    scroll: { paddingBottom: 112 },
+    header: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
     title: {
-      fontSize: 26,
+      fontSize: 28,
       fontFamily: "Inter_700Bold",
       color: colors.text,
       letterSpacing: -0.5,
@@ -200,7 +205,7 @@ const styles = (
       width: 88,
       height: 88,
       borderRadius: 44,
-      backgroundColor: colors.primary + "33",
+      backgroundColor: colors.pink050,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 2,
@@ -232,21 +237,21 @@ const styles = (
     editBtn: {
       paddingHorizontal: 20,
       paddingVertical: 8,
-      borderRadius: 20,
+      borderRadius: 999,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.primary,
       marginTop: 4,
     },
     editBtnText: {
       fontSize: 13,
       fontFamily: "Inter_500Medium",
-      color: colors.text,
+      color: colors.primary,
     },
     statsRow: {
       flexDirection: "row",
       marginHorizontal: 20,
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.border,
       padding: 16,
@@ -259,7 +264,7 @@ const styles = (
     statValue: {
       fontSize: 22,
       fontFamily: "Inter_700Bold",
-      color: colors.text,
+      color: colors.primary,
     },
     statLabel: {
       fontSize: 12,
@@ -276,7 +281,7 @@ const styles = (
     },
     settingsCard: {
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.border,
       overflow: "hidden",
@@ -285,18 +290,18 @@ const styles = (
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 16,
-      paddingVertical: 14,
+      height: 48,
       gap: 14,
     },
     settingIcon: {
       width: 32,
       height: 32,
       borderRadius: 8,
-      backgroundColor: colors.primary + "22",
+      backgroundColor: colors.pink050,
       alignItems: "center",
       justifyContent: "center",
     },
-    settingIconDanger: { backgroundColor: colors.destructive + "22" },
+    settingIconDanger: { backgroundColor: "#FDECEA" },
     settingLabel: {
       flex: 1,
       fontSize: 15,

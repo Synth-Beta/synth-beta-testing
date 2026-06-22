@@ -26,6 +26,19 @@ Added: `--shadow-default`, `--shadow-modal`, `--border-default`, `--border-brand
 - Body animated gradient background (`elegant-shift`) removed — violated `--neutral-50` page background rule.
 - Dead `elegant-shift` keyframe injection in `Auth.tsx` removed.
 
+## Mobile theme (Phase 4)
+
+The mobile app was converted from dark (`#0E0E0E`) to light (`#FCFCFC`) to match the web.
+- `constants/theme.ts` is the authoritative mobile token file — all new screens must import from it.
+- `constants/colors.ts` holds the light/dark palettes consumed by `useColors()` hook.
+- Dark palette is preserved in `colors.dark` for system dark-mode compatibility.
+- Typography scaled: web body 20px → mobile 16px (÷1.25 ratio across all sizes).
+- `pink050` (#FDF2F7) added to colors palette — use instead of `primary + "33"` for avatar/icon bgs.
+- Avatar overlay opacity changed from 33 → 22 (lighter on white background).
+- BlurView tint changed from "dark" → "light" in `_layout.tsx` for iOS tab bar.
+- `paddingBottom` for all list `contentContainerStyle`: 100/120 → 112 (matches `--spacing-bottom-nav`).
+- `borderRadius` standardized: cards=10, pill buttons=999, avatars = size/2.
+
 ## Glass/glassmorphism pattern
 
 `swift-ui-card` class (in index.css) uses `color-mix()` for glassmorphism — this is the approved pattern for SwiftUI-inspired cards only. Generic cards should use `var(--neutral-50)` background.
