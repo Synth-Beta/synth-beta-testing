@@ -58,3 +58,9 @@ externalPort = 80
 [[ports]]
 localPort = 20089
 externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://glpiolbrafqikqhnseto.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY = ""
