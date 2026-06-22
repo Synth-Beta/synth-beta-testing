@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import React from "react";
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -13,17 +15,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-
-interface StatItem {
-  label: string;
-  value: string;
-}
-
-const STATS: StatItem[] = [
-  { label: "Events", value: "23" },
-  { label: "Friends", value: "48" },
-  { label: "Artists", value: "12" },
-];
+import {
+  fetchProfile,
+  fetchProfileStats,
+} from "@/lib/queries";
 
 interface SettingRow {
   icon: keyof typeof Feather.glyphMap;
@@ -38,8 +33,25 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const displayName = user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "Synth User";
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: () => fetchProfile(user!.id),
+    enabled: !!user,
+  });
+
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ["profile-stats", user?.id],
+    queryFn: () => fetchProfileStats(user!.id),
+    enabled: !!user,
+  });
+
+  const displayName =
+    profile?.name ??
+    user?.user_metadata?.full_name ??
+    user?.email?.split("@")[0] ??
+    "Synth User";
   const email = user?.email ?? "";
+  const initial = displayName[0]?.toUpperCase() ?? "S";
 
   const handleSignOut = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -55,6 +67,12 @@ export default function ProfileScreen() {
     { icon: "log-out", label: "Sign Out", action: handleSignOut, danger: true },
   ];
 
+  const statItems = [
+    { label: "Reviews", value: stats?.reviews ?? 0 },
+    { label: "Events", value: stats?.events ?? 0 },
+    { label: "Friends", value: stats?.friends ?? 0 },
+  ];
+
   const s = styles(colors);
 
   return (
@@ -67,27 +85,42 @@ export default function ProfileScreen() {
         <Text style={s.title}>Profile</Text>
       </View>
 
-      <View style={s.avatarSection}>
-        <View style={s.avatarLarge}>
-          <Text style={s.avatarLargeInitial}>
-            {displayName[0]?.toUpperCase() ?? "S"}
-          </Text>
+      {profileLoading ? (
+        <View style={s.loadingSection}>
+          <ActivityIndicator color={colors.primary} />
         </View>
-        <Text style={s.displayName}>{displayName}</Text>
-        {email ? <Text style={s.emailText}>{email}</Text> : null}
-        <Pressable style={s.editBtn}>
-          <Text style={s.editBtnText}>Edit Profile</Text>
-        </Pressable>
-      </View>
-
-      <View style={s.statsRow}>
-        {STATS.map((stat) => (
-          <View key={stat.label} style={s.statItem}>
-            <Text style={s.statValue}>{stat.value}</Text>
-            <Text style={s.statLabel}>{stat.label}</Text>
+      ) : (
+        <View style={s.avatarSection}>
+          <View style={s.avatarLarge}>
+            <Text style={s.avatarLargeInitial}>{initial}</Text>
           </View>
-        ))}
-      </View>
+          <Text style={s.displayName}>{displayName}</Text>
+          {email ? <Text style={s.emailText}>{email}</Text> : null}
+          {profile?.bio ? (
+            <Text style={s.bioText} numberOfLines={2}>
+              {profile.bio}
+            </Text>
+          ) : null}
+          <Pressable style={s.editBtn}>
+            <Text style={s.editBtnText}>Edit Profile</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {statsLoading ? (
+        <View style={[s.statsRow, { justifyContent: "center" }]}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <View style={s.statsRow}>
+          {statItems.map((stat) => (
+            <View key={stat.label} style={s.statItem}>
+              <Text style={s.statValue}>{stat.value}</Text>
+              <Text style={s.statLabel}>{stat.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={s.section}>
         <Text style={s.sectionTitle}>Settings</Text>
@@ -96,7 +129,10 @@ export default function ProfileScreen() {
             <React.Fragment key={row.label}>
               <Pressable
                 onPress={row.action}
-                style={({ pressed }) => [s.settingRow, pressed && { opacity: 0.7 }]}
+                style={({ pressed }) => [
+                  s.settingRow,
+                  pressed && { opacity: 0.7 },
+                ]}
               >
                 <View
                   style={[
@@ -107,11 +143,16 @@ export default function ProfileScreen() {
                   <Feather
                     name={row.icon}
                     size={16}
-                    color={row.danger ? colors.destructive : colors.primary}
+                    color={
+                      row.danger ? colors.destructive : colors.primary
+                    }
                   />
                 </View>
                 <Text
-                  style={[s.settingLabel, row.danger && s.settingLabelDanger]}
+                  style={[
+                    s.settingLabel,
+                    row.danger && s.settingLabelDanger,
+                  ]}
                 >
                   {row.label}
                 </Text>
@@ -132,24 +173,23 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>) =>
+const styles = (
+  colors: ReturnType<typeof import("@/hooks/useColors").useColors>
+) =>
   StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    scroll: {
-      paddingBottom: 120,
-    },
-    header: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-    },
+    root: { flex: 1, backgroundColor: colors.background },
+    scroll: { paddingBottom: 120 },
+    header: { paddingHorizontal: 20, paddingVertical: 12 },
     title: {
       fontSize: 26,
       fontFamily: "Inter_700Bold",
       color: colors.text,
       letterSpacing: -0.5,
+    },
+    loadingSection: {
+      height: 180,
+      alignItems: "center",
+      justifyContent: "center",
     },
     avatarSection: {
       alignItems: "center",
@@ -182,6 +222,13 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       fontFamily: "Inter_400Regular",
       color: colors.mutedForeground,
     },
+    bioText: {
+      fontSize: 13,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+      textAlign: "center",
+      paddingHorizontal: 32,
+    },
     editBtn: {
       paddingHorizontal: 20,
       paddingVertical: 8,
@@ -205,11 +252,10 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       padding: 16,
       justifyContent: "space-around",
       marginBottom: 24,
-    },
-    statItem: {
+      minHeight: 70,
       alignItems: "center",
-      gap: 4,
     },
+    statItem: { alignItems: "center", gap: 4 },
     statValue: {
       fontSize: 22,
       fontFamily: "Inter_700Bold",
@@ -220,10 +266,7 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       fontFamily: "Inter_400Regular",
       color: colors.mutedForeground,
     },
-    section: {
-      paddingHorizontal: 20,
-      gap: 12,
-    },
+    section: { paddingHorizontal: 20, gap: 12 },
     sectionTitle: {
       fontSize: 13,
       fontFamily: "Inter_500Medium",
@@ -253,18 +296,14 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       alignItems: "center",
       justifyContent: "center",
     },
-    settingIconDanger: {
-      backgroundColor: colors.destructive + "22",
-    },
+    settingIconDanger: { backgroundColor: colors.destructive + "22" },
     settingLabel: {
       flex: 1,
       fontSize: 15,
       fontFamily: "Inter_400Regular",
       color: colors.text,
     },
-    settingLabelDanger: {
-      color: colors.destructive,
-    },
+    settingLabelDanger: { color: colors.destructive },
     divider: {
       height: 1,
       backgroundColor: colors.border,

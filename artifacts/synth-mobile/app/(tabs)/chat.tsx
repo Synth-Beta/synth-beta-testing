@@ -1,40 +1,57 @@
 import { Feather } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
 import React from "react";
 import {
+  ActivityIndicator,
+  FlatList,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { ChatItem, fetchChats } from "@/lib/queries";
 
-interface Conversation {
-  id: string;
-  name: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  event: string;
-}
-
-const CONVERSATIONS: Conversation[] = [
-  { id: "1", name: "The Midnight crew", lastMessage: "Anyone need a +1?", time: "2m", unread: 3, event: "The Midnight @ Brooklyn Steel" },
-  { id: "2", name: "Sam K.", lastMessage: "See you at ODESZA!", time: "14m", unread: 0, event: "ODESZA @ Barclays" },
-  { id: "3", name: "ODESZA group", lastMessage: "Front row secured 🎉", time: "1h", unread: 7, event: "ODESZA @ Barclays" },
-  { id: "4", name: "Alex R.", lastMessage: "Want to meet before the show?", time: "3h", unread: 1, event: "Bonobo @ Terminal 5" },
-  { id: "5", name: "Phoebe fans", lastMessage: "Setlist predictions?", time: "1d", unread: 0, event: "Phoebe Bridgers @ Forest Hills" },
+const AVATAR_COLORS = [
+  "#CC2486",
+  "#8D1FF4",
+  "#0EA5E9",
+  "#22C55E",
+  "#F59E0B",
 ];
 
-const AVATAR_COLORS = ["#CC2486", "#8D1FF4", "#0EA5E9", "#22C55E", "#F59E0B"];
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return "";
+  const now = Date.now();
+  const d = new Date(dateStr).getTime();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return "now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
+}
 
 export default function ChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
+
+  const {
+    data: chats = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useQuery({
+    queryKey: ["chats", user?.id],
+    queryFn: () => fetchChats(user!.id),
+    enabled: !!user,
+    refetchInterval: 30_000,
+  });
 
   const s = styles(colors);
 
@@ -47,73 +64,101 @@ export default function ChatScreen() {
         </Pressable>
       </View>
 
-      <FlatList
-        data={CONVERSATIONS}
-        keyExtractor={(c) => c.id}
-        contentContainerStyle={s.list}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={s.separator} />}
-        ListEmptyComponent={
-          <View style={s.empty}>
-            <Feather name="message-circle" size={40} color={colors.mutedForeground} />
-            <Text style={s.emptyText}>No messages yet</Text>
-            <Text style={s.emptySubtext}>Connect with people going to the same events</Text>
-          </View>
-        }
-        renderItem={({ item, index }) => (
-          <Pressable
-            style={({ pressed }) => [s.convoRow, pressed && { opacity: 0.7 }]}
-          >
-            <View
-              style={[
-                s.avatar,
-                { backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length] + "33" },
-              ]}
-            >
-              <Text
-                style={[
-                  s.avatarInitial,
-                  { color: AVATAR_COLORS[index % AVATAR_COLORS.length] },
+      {isLoading ? (
+        <View style={s.loading}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      ) : (
+        <FlatList
+          data={chats}
+          keyExtractor={(c) => c.id}
+          contentContainerStyle={s.list}
+          showsVerticalScrollIndicator={false}
+          onRefresh={refetch}
+          refreshing={isRefetching}
+          ItemSeparatorComponent={() => <View style={s.separator} />}
+          ListEmptyComponent={
+            <View style={s.empty}>
+              <Feather
+                name="message-circle"
+                size={40}
+                color={colors.mutedForeground}
+              />
+              <Text style={s.emptyTitle}>No messages yet</Text>
+              <Text style={s.emptySubtext}>
+                Connect with people going to the same events
+              </Text>
+            </View>
+          }
+          renderItem={({ item, index }: { item: ChatItem; index: number }) => {
+            const color = AVATAR_COLORS[index % AVATAR_COLORS.length];
+            const hasUnread = item.unread > 0;
+            return (
+              <Pressable
+                style={({ pressed }) => [
+                  s.convoRow,
+                  pressed && { opacity: 0.7 },
                 ]}
               >
-                {item.name[0]}
-              </Text>
-            </View>
+                <View
+                  style={[s.avatar, { backgroundColor: color + "33" }]}
+                >
+                  <Text style={[s.avatarInitial, { color }]}>
+                    {(item.chat_name ?? "?")[0].toUpperCase()}
+                  </Text>
+                </View>
 
-            <View style={s.convoBody}>
-              <View style={s.convoTop}>
-                <Text style={s.convoName}>{item.name}</Text>
-                <Text style={s.convoTime}>{item.time}</Text>
-              </View>
-              <Text style={s.eventTag} numberOfLines={1}>
-                {item.event}
-              </Text>
-              <Text
-                style={[s.lastMsg, item.unread > 0 && s.lastMsgUnread]}
-                numberOfLines={1}
-              >
-                {item.lastMessage}
-              </Text>
-            </View>
+                <View style={s.convoBody}>
+                  <View style={s.convoTop}>
+                    <Text style={s.convoName} numberOfLines={1}>
+                      {item.chat_name}
+                    </Text>
+                    <Text style={s.convoTime}>
+                      {timeAgo(item.latest_message_at)}
+                    </Text>
+                  </View>
+                  {item.entity_type ? (
+                    <Text style={s.entityTag} numberOfLines={1}>
+                      {item.entity_type === "event"
+                        ? "Event chat"
+                        : item.entity_type === "artist"
+                        ? "Artist chat"
+                        : "Venue chat"}
+                    </Text>
+                  ) : null}
+                  {item.latest_message ? (
+                    <Text
+                      style={[s.lastMsg, hasUnread && s.lastMsgUnread]}
+                      numberOfLines={1}
+                    >
+                      {item.latest_sender
+                        ? `${item.latest_sender}: ${item.latest_message}`
+                        : item.latest_message}
+                    </Text>
+                  ) : (
+                    <Text style={s.lastMsg}>No messages yet</Text>
+                  )}
+                </View>
 
-            {item.unread > 0 && (
-              <View style={s.badge}>
-                <Text style={s.badgeText}>{item.unread}</Text>
-              </View>
-            )}
-          </Pressable>
-        )}
-      />
+                {hasUnread && (
+                  <View style={s.badge}>
+                    <Text style={s.badgeText}>{item.unread}</Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          }}
+        />
+      )}
     </View>
   );
 }
 
-const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>) =>
+const styles = (
+  colors: ReturnType<typeof import("@/hooks/useColors").useColors>
+) =>
   StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
+    root: { flex: 1, backgroundColor: colors.background },
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -127,14 +172,9 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       color: colors.text,
       letterSpacing: -0.5,
     },
-    list: {
-      paddingBottom: 100,
-    },
-    separator: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginLeft: 80,
-    },
+    loading: { flex: 1, alignItems: "center", justifyContent: "center" },
+    list: { paddingBottom: 100 },
+    separator: { height: 1, backgroundColor: colors.border, marginLeft: 80 },
     convoRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -149,14 +189,8 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       alignItems: "center",
       justifyContent: "center",
     },
-    avatarInitial: {
-      fontSize: 20,
-      fontFamily: "Inter_700Bold",
-    },
-    convoBody: {
-      flex: 1,
-      gap: 3,
-    },
+    avatarInitial: { fontSize: 20, fontFamily: "Inter_700Bold" },
+    convoBody: { flex: 1, gap: 3 },
     convoTop: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -166,13 +200,15 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       fontSize: 15,
       fontFamily: "Inter_600SemiBold",
       color: colors.text,
+      flex: 1,
     },
     convoTime: {
       fontSize: 12,
       fontFamily: "Inter_400Regular",
       color: colors.mutedForeground,
+      marginLeft: 4,
     },
-    eventTag: {
+    entityTag: {
       fontSize: 11,
       fontFamily: "Inter_500Medium",
       color: colors.primary,
@@ -205,7 +241,7 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       gap: 10,
       paddingHorizontal: 40,
     },
-    emptyText: {
+    emptyTitle: {
       fontSize: 16,
       fontFamily: "Inter_500Medium",
       color: colors.mutedForeground,

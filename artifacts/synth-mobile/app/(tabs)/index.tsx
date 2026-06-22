@@ -1,8 +1,11 @@
 import { Feather } from "@expo/vector-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -11,57 +14,49 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import {
+  FeedEvent,
+  fetchFeedEvents,
+  setEventRelationship,
+} from "@/lib/queries";
 
-interface Event {
-  id: string;
-  artist: string;
-  venue: string;
-  date: string;
-  genre: string;
-  friendsGoing: number;
-  liked: boolean;
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
-
-const MOCK_FEED: Event[] = [
-  { id: "1", artist: "The Midnight", venue: "Brooklyn Steel", date: "Jul 12", genre: "Synth-pop", friendsGoing: 4, liked: false },
-  { id: "2", artist: "Parcels", venue: "Music Hall of Williamsburg", date: "Jul 18", genre: "Indie", friendsGoing: 2, liked: true },
-  { id: "3", artist: "Chrome Sparks", venue: "Elsewhere", date: "Jul 22", genre: "Electronic", friendsGoing: 6, liked: false },
-  { id: "4", artist: "Phoebe Bridgers", venue: "Forest Hills Stadium", date: "Aug 3", genre: "Indie Folk", friendsGoing: 9, liked: false },
-  { id: "5", artist: "ODESZA", venue: "Barclays Center", date: "Aug 10", genre: "Electronic", friendsGoing: 12, liked: true },
-];
-
-const GENRE_COLORS: Record<string, string> = {
-  "Synth-pop": "#CC2486",
-  "Indie": "#8D1FF4",
-  "Electronic": "#0EA5E9",
-  "Indie Folk": "#22C55E",
-  "default": "#666666",
-};
 
 export default function FeedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [events, setEvents] = useState<Event[]>(MOCK_FEED);
-  const [refreshing, setRefreshing] = useState(false);
-
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setRefreshing(false);
-  };
+  const [savingId, setSavingId] = useState<string | null>(null);
 
-  const toggleLike = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, liked: !e.liked } : e))
-    );
-  };
+  const {
+    data: events = [],
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["feed-events", user?.id],
+    queryFn: () => fetchFeedEvents(user!.id),
+    enabled: !!user,
+  });
 
-  const genreColor = (genre: string) =>
-    GENRE_COLORS[genre] ?? GENRE_COLORS.default;
+  const handleInterest = async (event: FeedEvent) => {
+    if (!user || savingId === event.event_id) return;
+    setSavingId(event.event_id);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const next =
+      event.my_relationship === "interested" ? null : "interested";
+    await setEventRelationship(user.id, event.event_id, next);
+    await queryClient.invalidateQueries({ queryKey: ["feed-events"] });
+    setSavingId(null);
+  };
 
   const s = styles(colors);
 
@@ -74,75 +69,112 @@ export default function FeedScreen() {
         </Pressable>
       </View>
 
-      <FlatList
-        data={events}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={s.list}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={!!events.length}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
-        }
-        ListHeaderComponent={
-          <Text style={s.sectionTitle}>Upcoming near you</Text>
-        }
-        ListEmptyComponent={
-          <View style={s.empty}>
-            <Feather name="calendar" size={40} color={colors.mutedForeground} />
-            <Text style={s.emptyText}>No events yet</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            style={({ pressed }) => [s.card, pressed && s.cardPressed]}
-          >
-            <View style={s.cardTop}>
-              <View style={[s.genrePill, { backgroundColor: genreColor(item.genre) + "22" }]}>
-                <Text style={[s.genreText, { color: genreColor(item.genre) }]}>
-                  {item.genre}
+      {isLoading ? (
+        <View style={s.loading}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      ) : (
+        <FlatList
+          data={events}
+          keyExtractor={(item) => item.event_id}
+          contentContainerStyle={s.list}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={!!events.length}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={colors.primary}
+            />
+          }
+          ListHeaderComponent={
+            events.length > 0 ? (
+              <Text style={s.sectionTitle}>Upcoming events</Text>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={s.empty}>
+              <Feather name="calendar" size={40} color={colors.mutedForeground} />
+              <Text style={s.emptyTitle}>No upcoming events</Text>
+              <Text style={s.emptySubtext}>
+                Events from your network will appear here
+              </Text>
+            </View>
+          }
+          renderItem={({ item }) => {
+            const interested = item.my_relationship === "interested";
+            return (
+              <Pressable
+                style={({ pressed }) => [
+                  s.card,
+                  pressed && s.cardPressed,
+                ]}
+              >
+                <View style={s.cardTop}>
+                  <View style={s.artistRow}>
+                    <View style={s.artistDot} />
+                    <Text style={s.artistName} numberOfLines={1}>
+                      {item.artist_name}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => handleInterest(item)}
+                    hitSlop={8}
+                    disabled={savingId === item.event_id}
+                  >
+                    <Feather
+                      name="heart"
+                      size={20}
+                      color={
+                        interested ? colors.primary : colors.mutedForeground
+                      }
+                    />
+                  </Pressable>
+                </View>
+
+                <Text style={s.eventTitle} numberOfLines={2}>
+                  {item.title}
                 </Text>
-              </View>
-              <Pressable onPress={() => toggleLike(item.id)} hitSlop={8}>
-                <Feather
-                  name="heart"
-                  size={20}
-                  color={item.liked ? colors.primary : colors.mutedForeground}
-                />
+                <Text style={s.venueName} numberOfLines={1}>
+                  {item.venue_name}
+                  {item.venue_city ? ` · ${item.venue_city}` : ""}
+                </Text>
+
+                <View style={s.cardBottom}>
+                  <View style={s.dateRow}>
+                    <Feather
+                      name="calendar"
+                      size={13}
+                      color={colors.mutedForeground}
+                    />
+                    <Text style={s.dateText}>
+                      {formatDate(item.event_date)}
+                    </Text>
+                  </View>
+                  {item.friends_going > 0 && (
+                    <View style={s.friendsRow}>
+                      <Feather name="users" size={13} color={colors.primary} />
+                      <Text style={s.friendsText}>
+                        {item.friends_going}{" "}
+                        {item.friends_going === 1 ? "going" : "going"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </Pressable>
-            </View>
-
-            <Text style={s.artistName}>{item.artist}</Text>
-            <Text style={s.venueName}>{item.venue}</Text>
-
-            <View style={s.cardBottom}>
-              <View style={s.dateRow}>
-                <Feather name="calendar" size={13} color={colors.mutedForeground} />
-                <Text style={s.dateText}>{item.date}</Text>
-              </View>
-              <View style={s.friendsRow}>
-                <Feather name="users" size={13} color={colors.primary} />
-                <Text style={s.friendsText}>{item.friendsGoing} going</Text>
-              </View>
-            </View>
-          </Pressable>
-        )}
-      />
+            );
+          }}
+        />
+      )}
     </View>
   );
 }
 
-import { Platform } from "react-native";
-
-const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>) =>
+const styles = (
+  colors: ReturnType<typeof import("@/hooks/useColors").useColors>
+) =>
   StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
+    root: { flex: 1, backgroundColor: colors.background },
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -156,6 +188,11 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       color: colors.text,
       letterSpacing: -0.5,
     },
+    loading: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     sectionTitle: {
       fontSize: 13,
       fontFamily: "Inter_500Medium",
@@ -164,11 +201,7 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       letterSpacing: 0.5,
       textTransform: "uppercase",
     },
-    list: {
-      paddingHorizontal: 20,
-      paddingBottom: 100,
-      gap: 12,
-    },
+    list: { paddingHorizontal: 20, paddingBottom: 100, gap: 12 },
     card: {
       backgroundColor: colors.card,
       borderRadius: 16,
@@ -177,26 +210,28 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       borderColor: colors.border,
       gap: 6,
     },
-    cardPressed: {
-      opacity: 0.8,
-    },
+    cardPressed: { opacity: 0.8 },
     cardTop: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: 4,
     },
-    genrePill: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 20,
-    },
-    genreText: {
-      fontSize: 12,
-      fontFamily: "Inter_500Medium",
+    artistRow: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+    artistDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
     },
     artistName: {
-      fontSize: 20,
+      fontSize: 13,
+      fontFamily: "Inter_500Medium",
+      color: colors.primary,
+      flex: 1,
+    },
+    eventTitle: {
+      fontSize: 19,
       fontFamily: "Inter_700Bold",
       color: colors.text,
     },
@@ -205,39 +240,29 @@ const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>
       fontFamily: "Inter_400Regular",
       color: colors.mutedForeground,
     },
-    cardBottom: {
-      flexDirection: "row",
-      gap: 16,
-      marginTop: 8,
-    },
-    dateRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
+    cardBottom: { flexDirection: "row", gap: 16, marginTop: 8 },
+    dateRow: { flexDirection: "row", alignItems: "center", gap: 4 },
     dateText: {
       fontSize: 13,
       fontFamily: "Inter_400Regular",
       color: colors.mutedForeground,
     },
-    friendsRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
+    friendsRow: { flexDirection: "row", alignItems: "center", gap: 4 },
     friendsText: {
       fontSize: 13,
       fontFamily: "Inter_500Medium",
       color: colors.primary,
     },
-    empty: {
-      alignItems: "center",
-      paddingTop: 80,
-      gap: 12,
-    },
-    emptyText: {
+    empty: { alignItems: "center", paddingTop: 80, gap: 12, paddingHorizontal: 40 },
+    emptyTitle: {
       fontSize: 16,
+      fontFamily: "Inter_500Medium",
+      color: colors.mutedForeground,
+    },
+    emptySubtext: {
+      fontSize: 13,
       fontFamily: "Inter_400Regular",
       color: colors.mutedForeground,
+      textAlign: "center",
     },
   });
