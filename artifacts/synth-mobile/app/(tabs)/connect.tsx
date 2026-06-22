@@ -1,237 +1,219 @@
+import { Feather } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
   FlatList,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
   Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Haptics from "expo-haptics";
-import { useQuery } from "@tanstack/react-query";
+
 import { useColors } from "@/hooks/useColors";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/context/AuthContext";
 
-interface Profile {
+interface Person {
   id: string;
-  full_name?: string;
-  username?: string;
-  avatar_url?: string;
-  favorite_genres?: string[];
-  bio?: string;
+  name: string;
+  mutualEvents: number;
+  sharedArtists: string[];
+  connected: boolean;
 }
 
-async function fetchSuggestedUsers(userId: string): Promise<Profile[]> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, username, avatar_url, bio")
-    .neq("id", userId)
-    .limit(20);
-  if (error) throw error;
-  return data ?? [];
-}
+const PEOPLE: Person[] = [
+  { id: "1", name: "Alex R.", mutualEvents: 3, sharedArtists: ["The Midnight", "Bonobo"], connected: false },
+  { id: "2", name: "Sam K.", mutualEvents: 5, sharedArtists: ["ODESZA", "Parcels", "FKA twigs"], connected: true },
+  { id: "3", name: "Jordan M.", mutualEvents: 2, sharedArtists: ["Beach House"], connected: false },
+  { id: "4", name: "Casey L.", mutualEvents: 7, sharedArtists: ["Phoebe Bridgers", "Cigarettes After Sex"], connected: false },
+  { id: "5", name: "Riley B.", mutualEvents: 4, sharedArtists: ["The Midnight", "Chrome Sparks"], connected: true },
+  { id: "6", name: "Morgan T.", mutualEvents: 1, sharedArtists: ["Bonobo"], connected: false },
+];
 
-function UserCard({ profile, colors }: { profile: Profile; colors: any }) {
-  const [connected, setConnected] = useState(false);
-
-  const handleConnect = () => {
-    setConnected(!connected);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const styles = StyleSheet.create({
-    card: {
-      backgroundColor: colors.card,
-      borderRadius: colors.radius + 2,
-      padding: 16,
-      marginBottom: 12,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
-      elevation: 2,
-    },
-    row: { flexDirection: "row", alignItems: "center", gap: 14 },
-    avatar: {
-      width: 52,
-      height: 52,
-      borderRadius: 26,
-      overflow: "hidden",
-      backgroundColor: colors.muted,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    avatarImg: { width: 52, height: 52 },
-    avatarGrad: { width: 52, height: 52, alignItems: "center", justifyContent: "center" },
-    avatarInitial: {
-      fontSize: 20,
-      fontFamily: "Inter_600SemiBold",
-      color: "#FFFFFF",
-    },
-    info: { flex: 1 },
-    name: { fontSize: 16, fontFamily: "Inter_600SemiBold", color: colors.foreground },
-    handle: { fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 1 },
-    connectBtn: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      overflow: "hidden",
-    },
-    connectBtnConnected: {
-      backgroundColor: colors.secondary,
-    },
-    connectBtnText: {
-      fontSize: 13,
-      fontFamily: "Inter_600SemiBold",
-      color: connected ? colors.primary : "#FFFFFF",
-    },
-    bio: {
-      fontSize: 13,
-      fontFamily: "Inter_400Regular",
-      color: colors.mutedForeground,
-      marginTop: 10,
-      lineHeight: 19,
-    },
-  });
-
-  const initials = (profile.full_name ?? "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        <View style={styles.avatar}>
-          {profile.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} resizeMode="cover" />
-          ) : (
-            <LinearGradient colors={["#CC2486", "#8D1FF4"]} style={styles.avatarGrad}>
-              <Text style={styles.avatarInitial}>{initials}</Text>
-            </LinearGradient>
-          )}
-        </View>
-        <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={1}>{profile.full_name ?? "Synth User"}</Text>
-          {profile.username ? (
-            <Text style={styles.handle}>@{profile.username}</Text>
-          ) : null}
-        </View>
-        <TouchableOpacity style={[styles.connectBtn, connected && styles.connectBtnConnected]} onPress={handleConnect}>
-          {connected ? (
-            <Text style={styles.connectBtnText}>Following</Text>
-          ) : (
-            <LinearGradient
-              colors={["#CC2486", "#8D1FF4"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 }}
-            >
-              <Text style={[styles.connectBtnText, { color: "#FFFFFF" }]}>Follow</Text>
-            </LinearGradient>
-          )}
-        </TouchableOpacity>
-      </View>
-      {profile.bio ? (
-        <Text style={styles.bio} numberOfLines={2}>{profile.bio}</Text>
-      ) : null}
-    </View>
-  );
-}
+const AVATAR_COLORS = ["#CC2486", "#8D1FF4", "#0EA5E9", "#22C55E", "#F59E0B", "#EF4444"];
 
 export default function ConnectScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const botPad = Platform.OS === "web" ? 34 : 0;
-  const { user } = useAuth();
 
-  const { data: profiles, isLoading, error, refetch } = useQuery({
-    queryKey: ["suggested-users", user?.id],
-    queryFn: () => (user ? fetchSuggestedUsers(user.id) : Promise.resolve([])),
-    enabled: !!user,
-  });
+  const [people, setPeople] = useState<Person[]>(PEOPLE);
 
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    header: {
-      paddingTop: topPad + 12,
-      paddingBottom: 12,
-      paddingHorizontal: 20,
-      backgroundColor: colors.background,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerTitle: { fontSize: 24, fontFamily: "Inter_700Bold", color: colors.foreground },
-    subtitle: { fontSize: 14, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 4 },
-    list: { paddingHorizontal: 16, paddingTop: 14 },
-    listFooter: { height: botPad + 100 },
-    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-    emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: colors.foreground },
-    emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", color: colors.mutedForeground, textAlign: "center" },
-    signInPrompt: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 14,
-      paddingHorizontal: 40,
-    },
-  });
-
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Connect</Text>
-        </View>
-        <View style={styles.signInPrompt}>
-          <Feather name="users" size={44} color={colors.mutedForeground} />
-          <Text style={styles.emptyTitle}>Find your people</Text>
-          <Text style={styles.emptyText}>Sign in to connect with others going to the same shows.</Text>
-        </View>
-      </View>
+  const toggleConnect = (id: string) => {
+    setPeople((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, connected: !p.connected } : p))
     );
-  }
+  };
+
+  const s = styles(colors);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Connect</Text>
-        <Text style={styles.subtitle}>People who share your taste</Text>
+    <View style={[s.root, { paddingTop: topPad }]}>
+      <View style={s.header}>
+        <Text style={s.title}>Connect</Text>
+        <Text style={s.subtitle}>People going to the same events</Text>
       </View>
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={profiles ?? []}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <UserCard profile={item} colors={colors} />}
-          contentContainerStyle={styles.list}
-          ListFooterComponent={<View style={styles.listFooter} />}
-          scrollEnabled={!!(profiles && profiles.length > 0)}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            error ? (
-              <View style={styles.center}>
-                <Feather name="wifi-off" size={36} color={colors.mutedForeground} />
-                <Text style={styles.emptyText}>Couldn't load suggestions</Text>
+      <FlatList
+        data={people}
+        keyExtractor={(p) => p.id}
+        contentContainerStyle={s.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={s.empty}>
+            <Feather name="users" size={40} color={colors.mutedForeground} />
+            <Text style={s.emptyText}>No one found nearby</Text>
+          </View>
+        }
+        renderItem={({ item, index }) => (
+          <View style={s.card}>
+            <View
+              style={[
+                s.avatar,
+                { backgroundColor: AVATAR_COLORS[index % AVATAR_COLORS.length] + "33" },
+              ]}
+            >
+              <Text
+                style={[
+                  s.avatarInitial,
+                  { color: AVATAR_COLORS[index % AVATAR_COLORS.length] },
+                ]}
+              >
+                {item.name[0]}
+              </Text>
+            </View>
+
+            <View style={s.info}>
+              <Text style={s.name}>{item.name}</Text>
+              <View style={s.statsRow}>
+                <View style={s.stat}>
+                  <Feather name="calendar" size={12} color={colors.primary} />
+                  <Text style={s.statText}>{item.mutualEvents} mutual events</Text>
+                </View>
               </View>
-            ) : (
-              <View style={styles.center}>
-                <Feather name="users" size={36} color={colors.mutedForeground} />
-                <Text style={styles.emptyTitle}>No suggestions yet</Text>
-                <Text style={styles.emptyText}>Check back once more users join</Text>
-              </View>
-            )
-          }
-        />
-      )}
+              <Text style={s.artists} numberOfLines={1}>
+                {item.sharedArtists.join(" · ")}
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={() => toggleConnect(item.id)}
+              style={({ pressed }) => [
+                s.connectBtn,
+                item.connected && s.connectedBtn,
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <Feather
+                name={item.connected ? "user-check" : "user-plus"}
+                size={16}
+                color={item.connected ? colors.mutedForeground : "#FFFFFF"}
+              />
+            </Pressable>
+          </View>
+        )}
+      />
     </View>
   );
 }
+
+const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 16,
+      gap: 4,
+    },
+    title: {
+      fontSize: 26,
+      fontFamily: "Inter_700Bold",
+      color: colors.text,
+      letterSpacing: -0.5,
+    },
+    subtitle: {
+      fontSize: 14,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
+    list: {
+      paddingHorizontal: 20,
+      paddingBottom: 100,
+      gap: 10,
+    },
+    card: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 12,
+    },
+    avatar: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarInitial: {
+      fontSize: 20,
+      fontFamily: "Inter_700Bold",
+    },
+    info: {
+      flex: 1,
+      gap: 3,
+    },
+    name: {
+      fontSize: 15,
+      fontFamily: "Inter_600SemiBold",
+      color: colors.text,
+    },
+    statsRow: {
+      flexDirection: "row",
+      gap: 12,
+    },
+    stat: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    statText: {
+      fontSize: 12,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
+    artists: {
+      fontSize: 12,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
+    connectBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    connectedBtn: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    empty: {
+      alignItems: "center",
+      paddingTop: 80,
+      gap: 12,
+    },
+    emptyText: {
+      fontSize: 16,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
+  });

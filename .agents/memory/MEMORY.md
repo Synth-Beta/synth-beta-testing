@@ -1,0 +1,2 @@
+- [Synth Mobile port fallback](synth-mobile-port.md) — Expo dev script needs `${PORT:-8081}` fallback; bare `$PORT` crashes with "option requires argument" when PORT is unset.
+- [Synth Mobile auth mode](synth-mobile-auth.md) — Mode B app: uses Supabase directly, no @workspace/api-client-react; env vars EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY.

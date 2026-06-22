@@ -1,295 +1,243 @@
-import React, { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  RefreshControl,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Platform,
-} from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import React, { useState } from "react";
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { useColors } from "@/hooks/useColors";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/context/AuthContext";
 
 interface Event {
   id: string;
-  title: string;
-  artist_name?: string;
-  venue_name?: string;
-  event_date?: string;
-  image_url?: string;
-  genre?: string;
-  going_count?: number;
+  artist: string;
+  venue: string;
+  date: string;
+  genre: string;
+  friendsGoing: number;
+  liked: boolean;
 }
 
-async function fetchFeed(): Promise<Event[]> {
-  const { data, error } = await supabase
-    .from("events")
-    .select("id, title, artist_name, venue_name, event_date, image_url, genre")
-    .order("event_date", { ascending: true })
-    .limit(40);
-  if (error) throw error;
-  return data ?? [];
-}
+const MOCK_FEED: Event[] = [
+  { id: "1", artist: "The Midnight", venue: "Brooklyn Steel", date: "Jul 12", genre: "Synth-pop", friendsGoing: 4, liked: false },
+  { id: "2", artist: "Parcels", venue: "Music Hall of Williamsburg", date: "Jul 18", genre: "Indie", friendsGoing: 2, liked: true },
+  { id: "3", artist: "Chrome Sparks", venue: "Elsewhere", date: "Jul 22", genre: "Electronic", friendsGoing: 6, liked: false },
+  { id: "4", artist: "Phoebe Bridgers", venue: "Forest Hills Stadium", date: "Aug 3", genre: "Indie Folk", friendsGoing: 9, liked: false },
+  { id: "5", artist: "ODESZA", venue: "Barclays Center", date: "Aug 10", genre: "Electronic", friendsGoing: 12, liked: true },
+];
 
-function EventCard({ event }: { event: Event }) {
-  const colors = useColors();
-  const [liked, setLiked] = useState(false);
-
-  const handleLike = () => {
-    setLiked(!liked);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const dateStr = event.event_date
-    ? new Date(event.event_date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
-
-  const styles = StyleSheet.create({
-    card: {
-      backgroundColor: colors.card,
-      borderRadius: colors.radius + 2,
-      marginBottom: 16,
-      overflow: "hidden",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    imageContainer: { width: "100%", height: 200, backgroundColor: colors.muted },
-    image: { width: "100%", height: "100%" },
-    imagePlaceholder: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    gradient: {
-      position: "absolute",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: 80,
-    },
-    dateBadge: {
-      position: "absolute",
-      top: 12,
-      left: 12,
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-    },
-    dateBadgeText: {
-      fontSize: 12,
-      fontFamily: "Inter_600SemiBold",
-      color: "#FFFFFF",
-    },
-    likeBtn: {
-      position: "absolute",
-      top: 12,
-      right: 12,
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: "rgba(0,0,0,0.4)",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    body: { padding: 14 },
-    title: {
-      fontSize: 17,
-      fontFamily: "Inter_600SemiBold",
-      color: colors.foreground,
-      marginBottom: 4,
-    },
-    meta: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    metaText: {
-      fontSize: 13,
-      fontFamily: "Inter_400Regular",
-      color: colors.mutedForeground,
-    },
-    genreChip: {
-      borderRadius: 20,
-      paddingHorizontal: 10,
-      paddingVertical: 3,
-      backgroundColor: colors.secondary,
-      marginLeft: "auto",
-    },
-    genreText: {
-      fontSize: 11,
-      fontFamily: "Inter_500Medium",
-      color: colors.primary,
-    },
-  });
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.imageContainer}>
-        {event.image_url ? (
-          <Image source={{ uri: event.image_url }} style={styles.image} resizeMode="cover" />
-        ) : (
-          <LinearGradient
-            colors={["#CC2486", "#8D1FF4"]}
-            style={[styles.image, styles.imagePlaceholder]}
-          >
-            <Feather name="music" size={40} color="rgba(255,255,255,0.6)" />
-          </LinearGradient>
-        )}
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.3)"]}
-          style={styles.gradient}
-        />
-        {dateStr && (
-          <View style={styles.dateBadge}>
-            <Text style={styles.dateBadgeText}>{dateStr}</Text>
-          </View>
-        )}
-        <TouchableOpacity style={styles.likeBtn} onPress={handleLike}>
-          <Feather name="heart" size={16} color={liked ? "#FF5B8D" : "#FFFFFF"} />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>{event.title}</Text>
-        <View style={styles.meta}>
-          {event.venue_name ? (
-            <>
-              <Feather name="map-pin" size={12} color={colors.mutedForeground} />
-              <Text style={styles.metaText} numberOfLines={1}>{event.venue_name}</Text>
-            </>
-          ) : null}
-          {event.genre ? (
-            <View style={styles.genreChip}>
-              <Text style={styles.genreText}>{event.genre}</Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
-    </View>
-  );
-}
+const GENRE_COLORS: Record<string, string> = {
+  "Synth-pop": "#CC2486",
+  "Indie": "#8D1FF4",
+  "Electronic": "#0EA5E9",
+  "Indie Folk": "#22C55E",
+  "default": "#666666",
+};
 
 export default function FeedScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const [events, setEvents] = useState<Event[]>(MOCK_FEED);
+  const [refreshing, setRefreshing] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const botPad = Platform.OS === "web" ? 34 : 0;
 
-  const { data: events, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["events-feed"],
-    queryFn: fetchFeed,
-  });
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await new Promise((r) => setTimeout(r, 800));
+    setRefreshing(false);
+  };
 
-  const onRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
-
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    header: {
-      paddingTop: topPad + 12,
-      paddingBottom: 12,
-      paddingHorizontal: 20,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: colors.background,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontFamily: "Inter_700Bold",
-      color: colors.foreground,
-    },
-    headerRight: { flexDirection: "row", gap: 12 },
-    list: { paddingHorizontal: 16, paddingTop: 16 },
-    listFooter: { height: botPad + 100 },
-    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-    emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: colors.foreground },
-    emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", color: colors.mutedForeground },
-    errorText: { fontSize: 14, fontFamily: "Inter_400Regular", color: colors.destructive },
-    retryBtn: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      backgroundColor: colors.primary,
-      borderRadius: colors.radius,
-    },
-    retryText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#FFFFFF" },
-  });
-
-  const renderEmpty = () => {
-    if (isLoading) return null;
-    if (error) {
-      return (
-        <View style={styles.center}>
-          <Feather name="wifi-off" size={36} color={colors.mutedForeground} />
-          <Text style={styles.errorText}>Couldn't load events</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    return (
-      <View style={styles.center}>
-        <Feather name="calendar" size={36} color={colors.mutedForeground} />
-        <Text style={styles.emptyTitle}>No events yet</Text>
-        <Text style={styles.emptyText}>Check back soon for concerts near you</Text>
-      </View>
+  const toggleLike = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEvents((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, liked: !e.liked } : e))
     );
   };
 
+  const genreColor = (genre: string) =>
+    GENRE_COLORS[genre] ?? GENRE_COLORS.default;
+
+  const s = styles(colors);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Synth</Text>
-        <View style={styles.headerRight}>
-          <Feather name="bell" size={22} color={colors.foreground} />
-        </View>
+    <View style={[s.root, { paddingTop: topPad }]}>
+      <View style={s.header}>
+        <Text style={s.wordmark}>Synth</Text>
+        <Pressable hitSlop={8}>
+          <Feather name="bell" size={22} color={colors.mutedForeground} />
+        </Pressable>
       </View>
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={events ?? []}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <EventCard event={item} />}
-          contentContainerStyle={styles.list}
-          ListFooterComponent={<View style={styles.listFooter} />}
-          ListEmptyComponent={renderEmpty()}
-          scrollEnabled={!!(events && events.length > 0)}
-          refreshControl={
-            <RefreshControl
-              refreshing={isFetching && !isLoading}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      <FlatList
+        data={events}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={s.list}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={!!events.length}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+        ListHeaderComponent={
+          <Text style={s.sectionTitle}>Upcoming near you</Text>
+        }
+        ListEmptyComponent={
+          <View style={s.empty}>
+            <Feather name="calendar" size={40} color={colors.mutedForeground} />
+            <Text style={s.emptyText}>No events yet</Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <Pressable
+            style={({ pressed }) => [s.card, pressed && s.cardPressed]}
+          >
+            <View style={s.cardTop}>
+              <View style={[s.genrePill, { backgroundColor: genreColor(item.genre) + "22" }]}>
+                <Text style={[s.genreText, { color: genreColor(item.genre) }]}>
+                  {item.genre}
+                </Text>
+              </View>
+              <Pressable onPress={() => toggleLike(item.id)} hitSlop={8}>
+                <Feather
+                  name="heart"
+                  size={20}
+                  color={item.liked ? colors.primary : colors.mutedForeground}
+                />
+              </Pressable>
+            </View>
+
+            <Text style={s.artistName}>{item.artist}</Text>
+            <Text style={s.venueName}>{item.venue}</Text>
+
+            <View style={s.cardBottom}>
+              <View style={s.dateRow}>
+                <Feather name="calendar" size={13} color={colors.mutedForeground} />
+                <Text style={s.dateText}>{item.date}</Text>
+              </View>
+              <View style={s.friendsRow}>
+                <Feather name="users" size={13} color={colors.primary} />
+                <Text style={s.friendsText}>{item.friendsGoing} going</Text>
+              </View>
+            </View>
+          </Pressable>
+        )}
+      />
     </View>
   );
 }
+
+import { Platform } from "react-native";
+
+const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    wordmark: {
+      fontSize: 26,
+      fontFamily: "Inter_700Bold",
+      color: colors.text,
+      letterSpacing: -0.5,
+    },
+    sectionTitle: {
+      fontSize: 13,
+      fontFamily: "Inter_500Medium",
+      color: colors.mutedForeground,
+      marginBottom: 12,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
+    },
+    list: {
+      paddingHorizontal: 20,
+      paddingBottom: 100,
+      gap: 12,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 6,
+    },
+    cardPressed: {
+      opacity: 0.8,
+    },
+    cardTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 4,
+    },
+    genrePill: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 20,
+    },
+    genreText: {
+      fontSize: 12,
+      fontFamily: "Inter_500Medium",
+    },
+    artistName: {
+      fontSize: 20,
+      fontFamily: "Inter_700Bold",
+      color: colors.text,
+    },
+    venueName: {
+      fontSize: 14,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
+    cardBottom: {
+      flexDirection: "row",
+      gap: 16,
+      marginTop: 8,
+    },
+    dateRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    dateText: {
+      fontSize: 13,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
+    friendsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    friendsText: {
+      fontSize: 13,
+      fontFamily: "Inter_500Medium",
+      color: colors.primary,
+    },
+    empty: {
+      alignItems: "center",
+      paddingTop: 80,
+      gap: 12,
+    },
+    emptyText: {
+      fontSize: 16,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
+  });

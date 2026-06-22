@@ -1,273 +1,273 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-  ActivityIndicator,
-  Platform,
-  Alert,
-} from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { useColors } from "@/hooks/useColors";
-import { supabase } from "@/lib/supabase";
+import React from "react";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { useAuth } from "@/context/AuthContext";
+import { useColors } from "@/hooks/useColors";
 
-interface Profile {
-  id: string;
-  full_name?: string;
-  username?: string;
-  avatar_url?: string;
-  bio?: string;
-  location?: string;
+interface StatItem {
+  label: string;
+  value: string;
 }
 
-async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, full_name, username, avatar_url, bio, location")
-    .eq("id", userId)
-    .single();
-  return data ?? null;
-}
+const STATS: StatItem[] = [
+  { label: "Events", value: "23" },
+  { label: "Friends", value: "48" },
+  { label: "Artists", value: "12" },
+];
 
-function StatBox({ label, value, colors }: { label: string; value: string; colors: any }) {
-  return (
-    <View style={{ alignItems: "center", flex: 1 }}>
-      <Text style={{ fontSize: 22, fontFamily: "Inter_700Bold", color: colors.foreground }}>{value}</Text>
-      <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginTop: 2 }}>{label}</Text>
-    </View>
-  );
+interface SettingRow {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  action?: () => void;
+  danger?: boolean;
 }
 
 export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const botPad = Platform.OS === "web" ? 34 : 0;
   const { user, signOut } = useAuth();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["my-profile", user?.id],
-    queryFn: () => (user ? fetchProfile(user.id) : Promise.resolve(null)),
-    enabled: !!user,
-  });
+  const displayName = user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "Synth User";
+  const email = user?.email ?? "";
 
-  const handleSignOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          await signOut();
-        },
-      },
-    ]);
+  const handleSignOut = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await signOut();
   };
 
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    header: {
-      paddingTop: topPad + 12,
-      paddingBottom: 12,
-      paddingHorizontal: 20,
+  const settings: SettingRow[] = [
+    { icon: "bell", label: "Notifications" },
+    { icon: "map-pin", label: "Location & Radius" },
+    { icon: "music", label: "Music Taste" },
+    { icon: "shield", label: "Privacy" },
+    { icon: "help-circle", label: "Help & Feedback" },
+    { icon: "log-out", label: "Sign Out", action: handleSignOut, danger: true },
+  ];
+
+  const s = styles(colors);
+
+  return (
+    <ScrollView
+      style={[s.root, { paddingTop: topPad }]}
+      contentContainerStyle={s.scroll}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={s.header}>
+        <Text style={s.title}>Profile</Text>
+      </View>
+
+      <View style={s.avatarSection}>
+        <View style={s.avatarLarge}>
+          <Text style={s.avatarLargeInitial}>
+            {displayName[0]?.toUpperCase() ?? "S"}
+          </Text>
+        </View>
+        <Text style={s.displayName}>{displayName}</Text>
+        {email ? <Text style={s.emailText}>{email}</Text> : null}
+        <Pressable style={s.editBtn}>
+          <Text style={s.editBtnText}>Edit Profile</Text>
+        </Pressable>
+      </View>
+
+      <View style={s.statsRow}>
+        {STATS.map((stat) => (
+          <View key={stat.label} style={s.statItem}>
+            <Text style={s.statValue}>{stat.value}</Text>
+            <Text style={s.statLabel}>{stat.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>Settings</Text>
+        <View style={s.settingsCard}>
+          {settings.map((row, i) => (
+            <React.Fragment key={row.label}>
+              <Pressable
+                onPress={row.action}
+                style={({ pressed }) => [s.settingRow, pressed && { opacity: 0.7 }]}
+              >
+                <View
+                  style={[
+                    s.settingIcon,
+                    row.danger && s.settingIconDanger,
+                  ]}
+                >
+                  <Feather
+                    name={row.icon}
+                    size={16}
+                    color={row.danger ? colors.destructive : colors.primary}
+                  />
+                </View>
+                <Text
+                  style={[s.settingLabel, row.danger && s.settingLabelDanger]}
+                >
+                  {row.label}
+                </Text>
+                {!row.danger && (
+                  <Feather
+                    name="chevron-right"
+                    size={16}
+                    color={colors.mutedForeground}
+                  />
+                )}
+              </Pressable>
+              {i < settings.length - 1 && <View style={s.divider} />}
+            </React.Fragment>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
       backgroundColor: colors.background,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      flexDirection: "row",
+    },
+    scroll: {
+      paddingBottom: 120,
+    },
+    header: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    title: {
+      fontSize: 26,
+      fontFamily: "Inter_700Bold",
+      color: colors.text,
+      letterSpacing: -0.5,
+    },
+    avatarSection: {
       alignItems: "center",
-      justifyContent: "space-between",
+      paddingVertical: 24,
+      gap: 8,
     },
-    headerTitle: { fontSize: 24, fontFamily: "Inter_700Bold", color: colors.foreground },
-    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
-    scroll: { flex: 1 },
-    heroGradient: {
-      height: 140,
-      width: "100%",
-    },
-    avatarContainer: {
+    avatarLarge: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      backgroundColor: colors.primary + "33",
       alignItems: "center",
-      marginTop: -40,
-      marginBottom: 12,
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: colors.primary,
     },
-    avatarRing: {
-      width: 84,
-      height: 84,
-      borderRadius: 42,
-      borderWidth: 3,
-      borderColor: colors.background,
-      overflow: "hidden",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 4,
+    avatarLargeInitial: {
+      fontSize: 36,
+      fontFamily: "Inter_700Bold",
+      color: colors.primary,
     },
-    avatarImg: { width: 80, height: 80 },
-    avatarGrad: { width: 80, height: 80, alignItems: "center", justifyContent: "center" },
-    avatarInitial: { fontSize: 32, fontFamily: "Inter_700Bold", color: "#FFFFFF" },
-    name: { fontSize: 22, fontFamily: "Inter_700Bold", color: colors.foreground, textAlign: "center" },
-    handle: { fontSize: 14, fontFamily: "Inter_400Regular", color: colors.mutedForeground, textAlign: "center", marginTop: 2 },
-    bio: {
-      fontSize: 14,
+    displayName: {
+      fontSize: 20,
+      fontFamily: "Inter_700Bold",
+      color: colors.text,
+      marginTop: 4,
+    },
+    emailText: {
+      fontSize: 13,
       fontFamily: "Inter_400Regular",
       color: colors.mutedForeground,
-      textAlign: "center",
-      paddingHorizontal: 32,
-      lineHeight: 20,
-      marginTop: 8,
+    },
+    editBtn: {
+      paddingHorizontal: 20,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginTop: 4,
+    },
+    editBtnText: {
+      fontSize: 13,
+      fontFamily: "Inter_500Medium",
+      color: colors.text,
     },
     statsRow: {
       flexDirection: "row",
-      backgroundColor: colors.card,
       marginHorizontal: 20,
-      borderRadius: colors.radius + 2,
-      paddingVertical: 16,
-      marginTop: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      elevation: 2,
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 16,
+      justifyContent: "space-around",
+      marginBottom: 24,
     },
-    divider: { width: 1, backgroundColor: colors.border },
-    section: { marginHorizontal: 20, marginTop: 24 },
+    statItem: {
+      alignItems: "center",
+      gap: 4,
+    },
+    statValue: {
+      fontSize: 22,
+      fontFamily: "Inter_700Bold",
+      color: colors.text,
+    },
+    statLabel: {
+      fontSize: 12,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
+    section: {
+      paddingHorizontal: 20,
+      gap: 12,
+    },
     sectionTitle: {
       fontSize: 13,
-      fontFamily: "Inter_600SemiBold",
+      fontFamily: "Inter_500Medium",
       color: colors.mutedForeground,
+      letterSpacing: 0.5,
       textTransform: "uppercase",
-      letterSpacing: 1,
-      marginBottom: 12,
     },
-    menuRow: {
+    settingsCard: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: "hidden",
+    },
+    settingRow: {
       flexDirection: "row",
       alignItems: "center",
+      paddingHorizontal: 16,
       paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
       gap: 14,
     },
-    menuLabel: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", color: colors.foreground },
-    signOutBtn: {
-      marginHorizontal: 20,
-      marginTop: 32,
-      marginBottom: botPad + 100,
-      borderWidth: 1,
-      borderColor: colors.destructive,
-      borderRadius: colors.radius,
-      paddingVertical: 14,
-      alignItems: "center",
-    },
-    signOutText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: colors.destructive },
-    signInPrompt: {
-      flex: 1,
+    settingIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: colors.primary + "22",
       alignItems: "center",
       justifyContent: "center",
-      gap: 14,
-      paddingHorizontal: 40,
     },
-    emptyTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", color: colors.foreground },
-    emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", color: colors.mutedForeground, textAlign: "center" },
+    settingIconDanger: {
+      backgroundColor: colors.destructive + "22",
+    },
+    settingLabel: {
+      flex: 1,
+      fontSize: 15,
+      fontFamily: "Inter_400Regular",
+      color: colors.text,
+    },
+    settingLabelDanger: {
+      color: colors.destructive,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginLeft: 62,
+    },
   });
-
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
-        <View style={styles.signInPrompt}>
-          <Feather name="user" size={44} color={colors.mutedForeground} />
-          <Text style={styles.emptyTitle}>Your profile</Text>
-          <Text style={styles.emptyText}>Sign in to see your concert history, friends, and more.</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </View>
-    );
-  }
-
-  const displayName = profile?.full_name ?? user.email ?? "Synth User";
-  const initials = displayName.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <Feather name="settings" size={22} color={colors.foreground} />
-      </View>
-
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <LinearGradient
-          colors={["#CC2486", "#8D1FF4"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroGradient}
-        />
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatarRing}>
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} resizeMode="cover" />
-            ) : (
-              <LinearGradient colors={["#CC2486", "#8D1FF4"]} style={styles.avatarGrad}>
-                <Text style={styles.avatarInitial}>{initials}</Text>
-              </LinearGradient>
-            )}
-          </View>
-        </View>
-
-        <Text style={styles.name}>{displayName}</Text>
-        {profile?.username ? <Text style={styles.handle}>@{profile.username}</Text> : null}
-        {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
-
-        <View style={styles.statsRow}>
-          <StatBox label="Events" value="0" colors={colors} />
-          <View style={styles.divider} />
-          <StatBox label="Friends" value="0" colors={colors} />
-          <View style={styles.divider} />
-          <StatBox label="Artists" value="0" colors={colors} />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          {[
-            { icon: "user" as const, label: "Edit Profile" },
-            { icon: "heart" as const, label: "Liked Events" },
-            { icon: "music" as const, label: "Followed Artists" },
-            { icon: "map-pin" as const, label: "Followed Venues" },
-          ].map((item) => (
-            <TouchableOpacity key={item.label} style={styles.menuRow} activeOpacity={0.7}>
-              <Feather name={item.icon} size={20} color={colors.foreground} />
-              <Text style={styles.menuLabel}>{item.label}</Text>
-              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
-  );
-}

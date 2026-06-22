@@ -1,100 +1,191 @@
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { supabase } from "@/lib/supabase";
+
+type Mode = "signin" | "signup";
 
 export default function AuthScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const { signIn, signUp } = useAuth();
+
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleAuth = async () => {
-    setError(null);
+  const handleSubmit = async () => {
     if (!email || !password) {
       setError("Please fill in all fields.");
       return;
     }
     setLoading(true);
-    try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) setError(error.message);
-      } else {
-        if (!name.trim()) {
-          setError("Please enter your name.");
-          setLoading(false);
-          return;
-        }
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: name } },
-        });
-        if (error) setError(error.message);
-        else Alert.alert("Check your email", "We sent a confirmation link to " + email);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+    setError(null);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Enter your email to reset your password.");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } =
+      mode === "signin"
+        ? await signIn(email.trim(), password)
+        : await signUp(email.trim(), password);
+
     setLoading(false);
-    if (error) setError(error.message);
-    else Alert.alert("Reset link sent", "Check your email for a password reset link.");
+    if (error) setError(error);
   };
 
-  const styles = StyleSheet.create({
-    container: { flex: 1 },
-    gradient: { flex: 1 },
-    scroll: { flexGrow: 1 },
+  const toggleMode = () => {
+    setMode((m) => (m === "signin" ? "signup" : "signin"));
+    setError(null);
+  };
+
+  const s = styles(colors);
+
+  return (
+    <KeyboardAvoidingView
+      style={[s.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <View style={s.inner}>
+        <View style={s.header}>
+          <View style={s.logoContainer}>
+            <Feather name="music" size={32} color={colors.primary} />
+          </View>
+          <Text style={s.wordmark}>Synth</Text>
+          <Text style={s.tagline}>Find friends at local events</Text>
+        </View>
+
+        <View style={s.form}>
+          <View style={s.inputGroup}>
+            <Text style={s.label}>Email</Text>
+            <View style={s.inputWrapper}>
+              <Feather
+                name="mail"
+                size={18}
+                color={colors.mutedForeground}
+                style={s.inputIcon}
+              />
+              <TextInput
+                style={s.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          </View>
+
+          <View style={s.inputGroup}>
+            <Text style={s.label}>Password</Text>
+            <View style={s.inputWrapper}>
+              <Feather
+                name="lock"
+                size={18}
+                color={colors.mutedForeground}
+                style={s.inputIcon}
+              />
+              <TextInput
+                style={[s.input, { flex: 1 }]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                placeholderTextColor={colors.mutedForeground}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <Pressable
+                onPress={() => setShowPassword((v) => !v)}
+                style={s.eyeButton}
+                hitSlop={8}
+              >
+                <Feather
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={18}
+                  color={colors.mutedForeground}
+                />
+              </Pressable>
+            </View>
+          </View>
+
+          {error ? <Text style={s.errorText}>{error}</Text> : null}
+
+          <Pressable
+            style={({ pressed }) => [s.submitBtn, pressed && s.submitPressed]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={s.submitText}>
+                {mode === "signin" ? "Sign In" : "Create Account"}
+              </Text>
+            )}
+          </Pressable>
+
+          <Pressable onPress={toggleMode} style={s.toggleBtn}>
+            <Text style={s.toggleText}>
+              {mode === "signin"
+                ? "New here? "
+                : "Already have an account? "}
+              <Text style={{ color: colors.primary }}>
+                {mode === "signin" ? "Create account" : "Sign in"}
+              </Text>
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = (colors: ReturnType<typeof import("@/hooks/useColors").useColors>) =>
+  StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
     inner: {
       flex: 1,
-      paddingHorizontal: 28,
-      paddingTop: insets.top + 60,
-      paddingBottom: insets.bottom + 40,
       justifyContent: "center",
+      paddingHorizontal: 28,
     },
-    logoRow: { alignItems: "center", marginBottom: 48 },
-    logoCircle: {
+    header: {
+      alignItems: "center",
+      marginBottom: 48,
+    },
+    logoContainer: {
       width: 72,
       height: 72,
       borderRadius: 20,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.surface,
       alignItems: "center",
       justifyContent: "center",
       marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
-    appName: {
-      fontSize: 34,
+    wordmark: {
+      fontSize: 36,
       fontFamily: "Inter_700Bold",
-      color: colors.foreground,
+      color: colors.text,
       letterSpacing: -1,
     },
     tagline: {
@@ -103,169 +194,70 @@ export default function AuthScreen() {
       color: colors.mutedForeground,
       marginTop: 6,
     },
-    tabRow: {
-      flexDirection: "row",
-      backgroundColor: colors.muted,
-      borderRadius: colors.radius,
-      padding: 4,
-      marginBottom: 28,
+    form: {
+      gap: 16,
     },
-    tab: {
-      flex: 1,
-      paddingVertical: 10,
-      alignItems: "center",
-      borderRadius: colors.radius - 2,
+    inputGroup: {
+      gap: 8,
     },
-    tabActive: { backgroundColor: colors.card },
-    tabText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.mutedForeground },
-    tabTextActive: { color: colors.foreground },
-    inputGroup: { gap: 12, marginBottom: 20 },
+    label: {
+      fontSize: 13,
+      fontFamily: "Inter_500Medium",
+      color: colors.mutedForeground,
+      letterSpacing: 0.3,
+    },
     inputWrapper: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.card,
-      borderRadius: colors.radius,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
-      paddingHorizontal: 16,
+      paddingHorizontal: 14,
+      height: 52,
+    },
+    inputIcon: {
+      marginRight: 10,
     },
     input: {
       flex: 1,
-      paddingVertical: 14,
       fontSize: 15,
       fontFamily: "Inter_400Regular",
-      color: colors.foreground,
+      color: colors.text,
     },
-    eyeBtn: { padding: 4 },
+    eyeButton: {
+      paddingLeft: 8,
+    },
     errorText: {
       fontSize: 13,
       fontFamily: "Inter_400Regular",
       color: colors.destructive,
-      marginBottom: 12,
       textAlign: "center",
     },
-    primaryBtn: {
-      borderRadius: colors.radius,
-      overflow: "hidden",
-      marginBottom: 16,
-    },
-    primaryBtnGradient: {
-      paddingVertical: 16,
+    submitBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      height: 52,
       alignItems: "center",
+      justifyContent: "center",
+      marginTop: 4,
     },
-    primaryBtnText: {
+    submitPressed: {
+      opacity: 0.85,
+    },
+    submitText: {
       fontSize: 16,
       fontFamily: "Inter_600SemiBold",
       color: "#FFFFFF",
+      letterSpacing: 0.2,
     },
-    forgotBtn: { alignItems: "center", marginTop: 4 },
-    forgotText: { fontSize: 14, fontFamily: "Inter_400Regular", color: colors.mutedForeground },
+    toggleBtn: {
+      alignItems: "center",
+      paddingVertical: 8,
+    },
+    toggleText: {
+      fontSize: 14,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
   });
-
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <LinearGradient
-        colors={["#1A0A14", "#0E0E0E"]}
-        style={styles.gradient}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.inner}>
-            <View style={styles.logoRow}>
-              <View style={styles.logoCircle}>
-                <Feather name="music" size={32} color="#FFFFFF" />
-              </View>
-              <Text style={styles.appName}>Synth</Text>
-              <Text style={styles.tagline}>Find friends for local events</Text>
-            </View>
-
-            <View style={styles.tabRow}>
-              <TouchableOpacity
-                style={[styles.tab, mode === "signin" && styles.tabActive]}
-                onPress={() => { setMode("signin"); setError(null); }}
-              >
-                <Text style={[styles.tabText, mode === "signin" && styles.tabTextActive]}>Sign In</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, mode === "signup" && styles.tabActive]}
-                onPress={() => { setMode("signup"); setError(null); }}
-              >
-                <Text style={[styles.tabText, mode === "signup" && styles.tabTextActive]}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputGroup}>
-              {mode === "signup" && (
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Your name"
-                    placeholderTextColor={colors.mutedForeground}
-                    value={name}
-                    onChangeText={setName}
-                    autoCapitalize="words"
-                  />
-                </View>
-              )}
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email address"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Password"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(!showPassword)}>
-                  <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleAuth} disabled={loading}>
-              <LinearGradient
-                colors={["#CC2486", "#8D1FF4"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.primaryBtnGradient}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.primaryBtnText}>
-                    {mode === "signin" ? "Sign In" : "Create Account"}
-                  </Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {mode === "signin" && (
-              <TouchableOpacity style={styles.forgotBtn} onPress={handleForgotPassword} disabled={loading}>
-                <Text style={styles.forgotText}>Forgot password?</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </ScrollView>
-      </LinearGradient>
-    </KeyboardAvoidingView>
-  );
-}

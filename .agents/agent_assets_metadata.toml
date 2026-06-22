@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "Mqa8iyaoVmGLu8ygEjqM0"
+uri = "file://artifacts/synth-mobile/assets/images/icon.png"
+type = "image"
+title = "synth app icon"
+
+[[generated]]
+id = "WMn4apEo9Xtqvf7rF3SB2"
+uri = "file://artifacts/synth-mobile/assets/images/splash-icon.png"
+type = "image"
+title = "synth splash"

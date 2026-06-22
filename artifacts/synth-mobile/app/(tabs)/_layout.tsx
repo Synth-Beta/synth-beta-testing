@@ -6,17 +6,17 @@ import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { useColors } from "@/hooks/useColors";
 
 function NativeTabLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "music.note.house", selected: "music.note.house.fill" }} />
+        <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Feed</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="discover" role="search">
+      <NativeTabs.Trigger name="discover">
         <Icon sf={{ default: "magnifyingglass", selected: "magnifyingglass" }} />
         <Label>Discover</Label>
       </NativeTabs.Trigger>
@@ -25,11 +25,11 @@ function NativeTabLayout() {
         <Label>Connect</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="chat">
-        <Icon sf={{ default: "bubble.left", selected: "bubble.left.fill" }} />
+        <Icon sf={{ default: "message", selected: "message.fill" }} />
         <Label>Chat</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person.crop.circle", selected: "person.crop.circle.fill" }} />
+        <Icon sf={{ default: "person.circle", selected: "person.circle.fill" }} />
         <Label>Profile</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
@@ -42,35 +42,40 @@ function ClassicTabLayout() {
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
-  const safeAreaInsets = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
+        headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: isWeb ? 1 : 0,
+          backgroundColor: isIOS ? "transparent" : colors.tabBar,
+          borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 0,
-          paddingBottom: safeAreaInsets.bottom,
           ...(isWeb ? { height: 84 } : {}),
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
+              intensity={90}
+              tint="dark"
               style={StyleSheet.absoluteFill}
             />
           ) : isWeb ? (
             <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]}
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: colors.tabBar },
+              ]}
             />
           ) : null,
+        tabBarLabelStyle: {
+          fontFamily: "Inter_500Medium",
+          fontSize: 10,
+        },
       }}
     >
       <Tabs.Screen
@@ -79,7 +84,7 @@ function ClassicTabLayout() {
           title: "Feed",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="music.note.house" tintColor={color} size={24} />
+              <SymbolView name="house" tintColor={color} size={24} />
             ) : (
               <Feather name="home" size={22} color={color} />
             ),
@@ -115,7 +120,7 @@ function ClassicTabLayout() {
           title: "Chat",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="bubble.left" tintColor={color} size={24} />
+              <SymbolView name="message" tintColor={color} size={24} />
             ) : (
               <Feather name="message-circle" size={22} color={color} />
             ),
@@ -127,7 +132,7 @@ function ClassicTabLayout() {
           title: "Profile",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person.crop.circle" tintColor={color} size={24} />
+              <SymbolView name="person.circle" tintColor={color} size={24} />
             ) : (
               <Feather name="user" size={22} color={color} />
             ),
