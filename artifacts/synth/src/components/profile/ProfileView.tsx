@@ -1702,11 +1702,7 @@ const { user, sessionExpired } = useAuth();
 
   // setViewReviewOpen is defined by useState earlier
   const handleHeaderBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      onBack();
-    }
+    onBack();
   };
 
   const profileHeader = !hideHeader && !webDesktopChrome ? (
