@@ -545,11 +545,9 @@ export function ReviewDetailView({
       <div 
         className="sticky top-0 z-10"
         style={{
-          background: 'rgba(252, 252, 252, 0.85)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          borderBottom: '1px solid rgba(0, 0, 0, 0.05)',
-          boxShadow: '0 4px 4px rgba(0, 0, 0, 0.25)',
+          backgroundColor: 'var(--neutral-50)',
+          borderBottom: 'var(--border-default)',
+          boxShadow: 'var(--shadow-default)',
           paddingTop: 'env(safe-area-inset-top)',
         }}
       >

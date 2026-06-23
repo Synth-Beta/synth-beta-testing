@@ -6,6 +6,9 @@ import React, { useEffect, useState } from 'react';
 import { MessageCircle, Users } from 'lucide-react';
 import { GenreChatService, type GenreChatInfo } from '@/services/genreChatService';
 
+const BRAND_PINK = 'var(--brand-pink-500, #e91e8c)';
+const BRAND_PINK_LIGHT = 'rgba(233, 30, 140, 0.1)';
+
 function formatCount(n: number): string {
     if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
     return String(n);
@@ -36,10 +39,10 @@ function GenreCard({
             style={{
                 background: 'var(--neutral-0)',
                 borderRadius: '18px',
-                borderTop: `3px solid ${genre.color}`,
-                border: `1px solid var(--neutral-150, #ebebeb)`,
-                borderTopWidth: '3px',
-                borderTopColor: genre.color,
+                borderLeft: '1px solid var(--neutral-150, #ebebeb)',
+                borderRight: '1px solid var(--neutral-150, #ebebeb)',
+                borderBottom: '1px solid var(--neutral-150, #ebebeb)',
+                borderTop: `3px solid ${BRAND_PINK}`,
                 padding: '16px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -93,13 +96,13 @@ function GenreCard({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
                     {/* Joined badge */}
                     <div style={{
-                        background: `${genre.color}18`,
+                        background: BRAND_PINK_LIGHT,
                         borderRadius: '8px',
                         padding: '6px 10px',
                         textAlign: 'center',
                         fontWeight: 700,
                         fontSize: '12px',
-                        color: genre.color,
+                        color: BRAND_PINK,
                     }}>
                         ✓ Joined
                     </div>
@@ -111,17 +114,17 @@ function GenreCard({
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '5px',
-                            border: `1.5px solid ${genre.color}`,
+                            border: `1.5px solid ${BRAND_PINK}`,
                             background: 'transparent',
                             borderRadius: '8px',
                             padding: '6px 10px',
                             cursor: 'pointer',
                             fontWeight: 700,
                             fontSize: '12px',
-                            color: genre.color,
+                            color: BRAND_PINK,
                             transition: 'background 0.15s',
                         }}
-                        onMouseEnter={e => (e.currentTarget.style.background = `${genre.color}10`)}
+                        onMouseEnter={e => (e.currentTarget.style.background = BRAND_PINK_LIGHT)}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                         <MessageCircle size={13} />
@@ -149,7 +152,7 @@ function GenreCard({
                     disabled={joining}
                     style={{
                         marginTop: '4px',
-                        background: joining ? 'var(--neutral-300)' : genre.color,
+                        background: joining ? 'var(--neutral-300)' : BRAND_PINK,
                         color: '#fff',
                         border: 'none',
                         borderRadius: '10px',
@@ -271,7 +274,6 @@ export function GenreChatsSection({ currentUserId, onNavigateToChat }: Props) {
                         paddingBottom: '12px',
                         scrollbarWidth: 'none',
                     }}
-                    // Hide scrollbar in webkit
                     className="hide-scrollbar"
                 >
                     {genres.map(info => (
