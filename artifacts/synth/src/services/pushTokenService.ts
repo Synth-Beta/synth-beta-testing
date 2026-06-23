@@ -119,17 +119,24 @@ export class PushTokenService {
         console.log('📱 Device token received:', token.value);
         this.storeToken(token.value);
         
+        const platform = (window as any).Capacitor?.getPlatform?.() ?? 'ios';
+        
         // Get app version if available
-        const appVersion = (window as any).Capacitor?.getPlatform() === 'ios' 
-          ? (await import('@capacitor/app')).App.getInfo().then(info => info.version)
-          : undefined;
+        let appVersion: string | undefined;
+        try {
+          const { App } = await import('@capacitor/app');
+          const info = await App.getInfo();
+          appVersion = info.version;
+        } catch {
+          appVersion = undefined;
+        }
         
         // Register token with backend
         await this.registerToken(
           token.value,
-          'ios',
-          undefined, // deviceId - could be retrieved from device info
-          await appVersion
+          platform === 'android' ? 'android' : 'ios',
+          undefined,
+          appVersion
         );
       });
 
@@ -138,12 +145,18 @@ export class PushTokenService {
         console.error('❌ Push notification registration error:', error);
       });
 
-      // Listen for push notifications received while app is open
+      // Listen for push notifications received while app is open (foreground)
       PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        console.log('📬 Push notification received:', notification);
+        console.log('📬 Push notification received (foreground):', notification);
         
-        // You can show an in-app notification here if needed
-        // or update UI based on notification data
+        // Dispatch in-app toast and badge refresh
+        window.dispatchEvent(new CustomEvent('synth-push-received', {
+          detail: {
+            title: notification.title,
+            body: notification.body,
+            data: notification.data,
+          }
+        }));
       });
 
       // Listen for notification action (when user taps notification)
@@ -204,29 +217,37 @@ export class PushTokenService {
   }
 
   /**
-   * Handle navigation when notification is tapped
+   * Handle navigation when notification is tapped.
+   * Dispatches custom events that MainApp listens to — never does window.location
+   * because that causes a full SPA reload and loses all React state.
    */
   private static async handleNotificationNavigation(data: any): Promise<void> {
     try {
       const { type, chat_id, event_id, sender_id } = data;
       
-      // Navigate based on notification type using window.location
-      // (useNavigate requires React context, so we use window.location instead)
       switch (type) {
         case 'friend_request':
-          // Navigate to friend requests or profile
           if (sender_id) {
-            window.location.href = `/profile/${sender_id}`;
+            window.dispatchEvent(new CustomEvent('open-user-profile', {
+              detail: { userId: sender_id }
+            }));
+          } else {
+            window.dispatchEvent(new CustomEvent('synth-navigate', {
+              detail: { view: 'notifications' }
+            }));
           }
           break;
           
         case 'message':
-        case 'chat_message':
-          // Navigate to chat
-          if (chat_id || data?.chat_id) {
-            window.location.href = `/chat/${chat_id || data.chat_id}`;
+        case 'chat_message': {
+          const resolvedChatId = chat_id || data?.chat_id;
+          if (resolvedChatId) {
+            window.dispatchEvent(new CustomEvent('synth-navigate', {
+              detail: { view: 'chat', chatId: resolvedChatId }
+            }));
           }
           break;
+        }
           
         case 'event_interest':
         case 'event_reminder_1_week':
@@ -237,18 +258,24 @@ export class PushTokenService {
         case 'venue_new_event':
         case 'follows_new_events_summary':
         case 'friends_event_interest_summary':
-        case 'bucket_list_new_events_summary':
-          // Navigate to event or feed
-          if (event_id || data?.event_id) {
-            window.location.href = `/event/${event_id || data.event_id}`;
+        case 'bucket_list_new_events_summary': {
+          const resolvedEventId = event_id || data?.event_id;
+          if (resolvedEventId) {
+            window.dispatchEvent(new CustomEvent('open-event-details', {
+              detail: { eventId: resolvedEventId }
+            }));
           } else {
-            window.location.href = '/discover';
+            window.dispatchEvent(new CustomEvent('synth-navigate', {
+              detail: { view: 'discover' }
+            }));
           }
           break;
+        }
           
         default:
-          // Navigate to notifications page
-          window.location.href = '/notifications';
+          window.dispatchEvent(new CustomEvent('synth-navigate', {
+            detail: { view: 'notifications' }
+          }));
       }
     } catch (error) {
       console.error('Error handling notification navigation:', error);

@@ -56,6 +56,7 @@ import { useFriendCelebration } from '@/hooks/useFriendCelebration';
 import { useShareDeepLink } from '@/hooks/useShareDeepLink';
 import { GlobalDetailModals } from './GlobalDetailModals';
 import { GlobalModals } from './GlobalModals';
+import { toast } from '@/hooks/use-toast';
 
 type ViewType =
   | 'feed'
@@ -402,13 +403,37 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       }
     };
     
+    // Listen for push notification navigation events (dispatched by pushTokenService)
+    const handleSynthNavigate = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { view?: string; chatId?: string };
+      if (!detail?.view) return;
+      switch (detail.view) {
+        case 'notifications':
+          setCurrentView('notifications');
+          break;
+        case 'discover':
+          setCurrentView('discover');
+          break;
+        case 'chat':
+          if (detail.chatId) {
+            setChatId(detail.chatId);
+          }
+          setCurrentView('chat');
+          break;
+        default:
+          setCurrentView('feed');
+      }
+    };
+
     window.addEventListener('open-user-profile', handleOpenUserProfile as EventListener);
     window.addEventListener('open-event-details', handleOpenEventDetails as EventListener);
+    window.addEventListener('synth-navigate', handleSynthNavigate as EventListener);
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('open-user-profile', handleOpenUserProfile as EventListener);
       window.removeEventListener('open-event-details', handleOpenEventDetails as EventListener);
+      window.removeEventListener('synth-navigate', handleSynthNavigate as EventListener);
     };
   }, []);
 
@@ -439,6 +464,21 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
     window.addEventListener('api-error', handleApiError as EventListener);
     return () => window.removeEventListener('api-error', handleApiError as EventListener);
+  }, []);
+
+  // Show in-app toast when a push notification arrives while the app is foregrounded
+  useEffect(() => {
+    const handlePushReceived = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { title?: string; body?: string; data?: any };
+      toast({
+        title: detail?.title ?? 'New notification',
+        description: detail?.body,
+        duration: 5000,
+      });
+    };
+
+    window.addEventListener('synth-push-received', handlePushReceived as EventListener);
+    return () => window.removeEventListener('synth-push-received', handlePushReceived as EventListener);
   }, []);
 
   const [showAuth, setShowAuth] = useState(false);

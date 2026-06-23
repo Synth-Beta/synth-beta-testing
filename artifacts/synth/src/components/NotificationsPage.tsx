@@ -231,16 +231,6 @@ export const NotificationsPage = ({
         return;
       }
 
-      setNotifications(prev =>
-        prev.filter(n => {
-          const notifRequestId = (n.data as any)?.request_id;
-          if (notifRequestId == null || requestId == null) {
-            return notifRequestId !== requestId;
-          }
-          return String(notifRequestId) !== String(requestId);
-        })
-      );
-
       try {
         await deleteFriendRequestNotification(requestId);
       } catch (deleteError) {
@@ -263,16 +253,6 @@ export const NotificationsPage = ({
         console.error('Error declining friend request:', result.error);
         return;
       }
-
-      setNotifications(prev =>
-        prev.filter(n => {
-          const notifRequestId = (n.data as any)?.request_id;
-          if (notifRequestId == null || requestId == null) {
-            return notifRequestId !== requestId;
-          }
-          return String(notifRequestId) !== String(requestId);
-        })
-      );
 
       try {
         await deleteFriendRequestNotification(requestId);
