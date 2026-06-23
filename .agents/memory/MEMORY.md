@@ -1,2 +1,0 @@
-- [Synth design system compliance](synth-design-system.md) — Key violations found in index.css audit; token fixes; glass/glassmorphism rules; --spacing-bottom-nav corrected to 112px.
-- [Synth env vars](synth-env-vars.md) — Which secrets are set (VITE_ for web), what's still missing (Spotify client ID). EXPO_PUBLIC_ vars set but not in use.

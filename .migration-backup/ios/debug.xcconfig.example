@@ -1,3 +1,0 @@
-CAPACITOR_DEBUG = true
-# Replace with your Supabase anon key from project settings
-SUPABASE_ANON_KEY = REPLACE_WITH_YOUR_ANON_KEY
