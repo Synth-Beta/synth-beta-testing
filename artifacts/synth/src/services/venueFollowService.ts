@@ -381,15 +381,15 @@ export class VenueFollowService {
           id: follow.id,
           user_id: follow.user_id,
           venue_id: follow.venue_id,
-          venue_name: venue?.name || null,
-          venue_city: null, // Venues table doesn't have city column
-          venue_state: venue?.state || null,
-          venue_address: venue?.street_address || null,
-          venue_image_url: venue?.image_url || null,
-          num_upcoming_events: null, // Could be calculated separately if needed
+          venue_name: venue?.name || '',
+          venue_city: undefined, // Venues table doesn't have city column
+          venue_state: venue?.state || undefined,
+          venue_address: venue?.street_address || undefined,
+          venue_image_url: venue?.image_url || undefined,
+          num_upcoming_events: undefined, // Could be calculated separately if needed
           created_at: follow.created_at,
-          user_name: userData?.name || null,
-          user_avatar_url: userData?.avatar_url || null
+          user_name: userData?.name || undefined,
+          user_avatar_url: userData?.avatar_url || undefined
         } as VenueFollowWithDetails;
       });
     } catch (error) {
@@ -494,14 +494,14 @@ export class VenueFollowService {
           id: follow.id,
           user_id: follow.user_id,
           venue_id: follow.venue_id,
-          venue_name: venue.name || null,
-          venue_city: venue.city || null,
-          venue_state: venue.state || null,
-          venue_image_url: venue.image_url || null,
-          num_upcoming_events: null,
+          venue_name: venue.name || '',
+          venue_city: venue.city || undefined,
+          venue_state: venue.state || undefined,
+          venue_image_url: venue.image_url || undefined,
+          num_upcoming_events: undefined,
           created_at: follow.created_at,
-          user_name: user.name || null,
-          user_avatar_url: user.avatar_url || null
+          user_name: user.name || undefined,
+          user_avatar_url: user.avatar_url || undefined
         } as VenueFollowWithDetails;
       });
     } catch (error) {
@@ -548,38 +548,35 @@ export class VenueFollowService {
           // which means onFollowChange will be called asynchronously after the callback returns.
           // This is the correct pattern for Supabase realtime, but means there may be a slight
           // delay between the database change and the UI update with complete venue details.
-          const fetchVenueDetails = () => {
-            supabase
-              .from('venues')
-              .select('name, address, city, state')
-              .eq('id', payload.new.venue_id)
-              .maybeSingle()
-              .then(({ data: venue }) => {
-                const follow: VenueFollow = {
-                  id: payload.new.id,
-                  user_id: payload.new.user_id,
-                  venue_name: venue?.name || null,
-                  venue_city: venue?.city || null,
-                  venue_state: venue?.state || null,
-                  created_at: payload.new.created_at,
-                  updated_at: payload.new.updated_at || payload.new.created_at
-                };
-                onFollowChange(follow, 'INSERT');
-              })
-              .catch((error) => {
-                console.error('Error fetching venue details in realtime callback:', error);
-                // Still create follow object with minimal data when venue fetch fails
-                const follow: VenueFollow = {
-                  id: payload.new.id,
-                  user_id: payload.new.user_id,
-                  venue_name: null,
-                  venue_city: null,
-                  venue_state: null,
-                  created_at: payload.new.created_at,
-                  updated_at: payload.new.updated_at || payload.new.created_at
-                };
-                onFollowChange(follow, 'INSERT');
-              });
+          const fetchVenueDetails = async () => {
+            try {
+              const { data: venue } = await supabase
+                .from('venues')
+                .select('name, address, city, state')
+                .eq('id', payload.new.venue_id)
+                .maybeSingle();
+              const follow: VenueFollow = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                venue_name: venue?.name || '',
+                venue_city: venue?.city || undefined,
+                venue_state: venue?.state || undefined,
+                created_at: payload.new.created_at,
+                updated_at: payload.new.updated_at || payload.new.created_at
+              };
+              onFollowChange(follow, 'INSERT');
+            } catch (error) {
+              console.error('Error fetching venue details in realtime callback:', error);
+              // Still create follow object with minimal data when venue fetch fails
+              const follow: VenueFollow = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                venue_name: '',
+                created_at: payload.new.created_at,
+                updated_at: payload.new.updated_at || payload.new.created_at
+              };
+              onFollowChange(follow, 'INSERT');
+            }
           };
           
           // Execute async operation (callback returns immediately)
@@ -599,9 +596,7 @@ export class VenueFollowService {
           const follow: VenueFollow = {
             id: payload.old.id,
             user_id: payload.old.user_id,
-            venue_name: null, // Can't fetch from deleted record
-            venue_city: null,
-            venue_state: null,
+            venue_name: '', // Can't fetch from deleted record
             created_at: payload.old.created_at,
             updated_at: payload.old.updated_at || payload.old.created_at
           };

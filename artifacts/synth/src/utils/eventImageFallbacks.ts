@@ -69,7 +69,7 @@ const EVENT_FALLBACK_IMAGES = [
   '/Generic Images/20.jpeg'
 ] as const;
 
-const fallbackImageCount = EVENT_FALLBACK_IMAGES.length;
+const fallbackImageCount = EVENT_FALLBACK_IMAGES.length as number;
 
 function hashString(input: string): number {
   let hash = 0;
