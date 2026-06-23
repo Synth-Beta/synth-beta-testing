@@ -1,0 +1,95 @@
+{
+  "expo": {
+    "name": "Synth",
+    "slug": "synth",
+    "version": "1.4.4",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "synth",
+    "linking": {
+      "prefixes": [
+        "https://join.getsynth.app",
+        "synth://"
+      ]
+    },
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FDF2F8"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tejpatel.synth",
+      "associatedDomains": [
+        "applinks:join.getsynth.app"
+      ],
+      "buildNumber": "298",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
+        "NSCameraUsageDescription": "Synth uses your camera to take photos for chat messages.",
+        "NSPhotoLibraryUsageDescription": "Synth uses photos you choose to send in chats and attach to concert reviews."
+      }
+    },
+    "android": {
+      "package": "com.tejpatel.synth",
+      "versionCode": 4,
+      "adaptiveIcon": {
+        "backgroundColor": "#CC2486",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png",
+      "themeColor": "#CC2486",
+      "backgroundColor": "#FCFCFC"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-system-ui",
+      "expo-image",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Synth uses photos you choose to send in chats and attach to concert reviews.",
+          "cameraPermission": "Synth uses your camera to take photos for chat messages."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
+          "locationAlwaysAndWhenInUsePermission": "Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar.",
+          "locationAlwaysPermission": "Synth uses your location only while you are using the app to show nearby concerts and events on your feed and calendar.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#CC2486",
+          "sounds": []
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3e937d91-e417-40f3-9491-802ec01052c2"
+      }
+    }
+  }
+}

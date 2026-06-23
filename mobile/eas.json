@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 14.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": { "simulator": true },
+      "android": { "buildType": "apk" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": { "resourceClass": "m-medium" },
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://glpiolbrafqikqhnseto.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_TsjAgYyPVN5S9hz3NT_05Q_c0oGx-2b",
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "$MAPBOX_ACCESS_TOKEN",
+        "EXPO_PUBLIC_SPOTIFY_CLIENT_ID": "$SPOTIFY_CLIENT_ID"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "ios": { "resourceClass": "m-medium" },
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://glpiolbrafqikqhnseto.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_TsjAgYyPVN5S9hz3NT_05Q_c0oGx-2b",
+        "EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN": "$MAPBOX_ACCESS_TOKEN",
+        "EXPO_PUBLIC_SPOTIFY_CLIENT_ID": "$SPOTIFY_CLIENT_ID"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6757408095"
+      }
+    }
+  }
+}
