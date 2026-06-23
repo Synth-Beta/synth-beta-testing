@@ -1,4 +1,2 @@
-- [Synth Mobile port fallback](synth-mobile-port.md) — Expo dev script needs `${PORT:-8081}` fallback; bare `$PORT` crashes with "option requires argument" when PORT is unset.
-- [Synth Mobile auth mode](synth-mobile-auth.md) — Mode B app: uses Supabase directly, no @workspace/api-client-react; env vars EXPO_PUBLIC_SUPABASE_URL + EXPO_PUBLIC_SUPABASE_ANON_KEY.
 - [Synth design system compliance](synth-design-system.md) — Key violations found in index.css audit; token fixes; glass/glassmorphism rules; --spacing-bottom-nav corrected to 112px.
-- [Synth env vars](synth-env-vars.md) — Which secrets are set (VITE_ for web, EXPO_PUBLIC_ for mobile), what's still missing (Mapbox, Spotify client ID).
+- [Synth env vars](synth-env-vars.md) — Which secrets are set (VITE_ for web), what's still missing (Spotify client ID). EXPO_PUBLIC_ vars set but not in use.

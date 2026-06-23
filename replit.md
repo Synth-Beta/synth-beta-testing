@@ -26,7 +26,7 @@ A social app for discovering local events (concerts, shows, activities) and find
 - `artifacts/synth/src/components/` — shared UI components
 - `artifacts/synth/src/integrations/supabase/` — Supabase client config
 - `artifacts/synth/src/services/` — business logic / API calls
-- `artifacts/synth/packages/synth-shared/` — shared utilities (also used by Expo mobile app)
+- `artifacts/synth/packages/synth-shared/` — shared utilities
 - `artifacts/api-server/` — Express backend API
 - `lib/db/` — Drizzle ORM schema (Replit Postgres)
 - `lib/api-spec/openapi.yaml` — OpenAPI spec
@@ -34,8 +34,8 @@ A social app for discovering local events (concerts, shows, activities) and find
 ## Architecture decisions
 
 - Uses Supabase for auth + real-time data; Replit Postgres via Drizzle for internal/backend data
-- `@synth/shared` package contains shared business logic used by both web and mobile (Expo)
-- Capacitor dependencies included for mobile compatibility layer (gracefully degrade on web)
+- `@synth/shared` package contains shared business logic
+- Capacitor dependencies included for native iOS/Android builds (the original mobile layer)
 - React Router DOM (not wouter) is used for routing — matches the original app
 
 ## Product
