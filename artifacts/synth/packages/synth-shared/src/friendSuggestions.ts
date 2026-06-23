@@ -25,6 +25,26 @@ function mapSimilarRpcRow(r: Record<string, unknown>): SharedFriendSuggestion {
   };
 }
 
+/** Fetch the set of user_ids to exclude (already friends or pending). */
+async function getExcludedUserIds(
+  client: SynthSupabaseClient,
+  userId: string
+): Promise<Set<string>> {
+  const { data } = await client
+    .from('user_relationships')
+    .select('user_id, related_user_id')
+    .eq('relationship_type', 'friend')
+    .in('status', ['pending', 'accepted'])
+    .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
+
+  const excluded = new Set<string>();
+  excluded.add(userId);
+  data?.forEach((rel: { user_id: string; related_user_id: string }) => {
+    excluded.add(rel.user_id === userId ? rel.related_user_id : rel.user_id);
+  });
+  return excluded;
+}
+
 /**
  * 2nd/3rd degree fallback when `get_similar_users_to_friend` is unavailable or empty.
  * Excludes users you already have a pending or accepted friend edge with (same as mobile).
@@ -34,18 +54,7 @@ export async function getRecommendedFriendsFallback(
   userId: string,
   limit: number
 ): Promise<SharedFriendSuggestion[]> {
-  const { data: existingRelationships } = await client
-    .from('user_relationships')
-    .select('user_id, related_user_id, status')
-    .eq('relationship_type', 'friend')
-    .in('status', ['pending', 'accepted'])
-    .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
-
-  const excludedUserIds = new Set<string>();
-  existingRelationships?.forEach((rel: { user_id: string; related_user_id: string }) => {
-    const other = rel.user_id === userId ? rel.related_user_id : rel.user_id;
-    excludedUserIds.add(other);
-  });
+  const excludedUserIds = await getExcludedUserIds(client, userId);
 
   const [secondDegreeResult, thirdDegreeResult] = await Promise.all([
     client.rpc('get_second_degree_connections', { target_user_id: userId }),
@@ -93,36 +102,106 @@ export async function getRecommendedFriendsFallback(
   return unique.slice(0, limit);
 }
 
-/** Primary pool: RPC, then {@link getRecommendedFriendsFallback}. */
+/**
+ * Broadest fallback: sample recently-active users who are not yet connected.
+ * Used when matching-signal and degree-based queries don't yield enough variety.
+ */
+async function getDiscoveryUsers(
+  client: SynthSupabaseClient,
+  userId: string,
+  excludedIds: Set<string>,
+  needed: number
+): Promise<SharedFriendSuggestion[]> {
+  const { data, error } = await client
+    .from('users')
+    .select('user_id, name, avatar_url')
+    .neq('user_id', userId)
+    .not('user_id', 'in', `(${Array.from(excludedIds).join(',')})`)
+    .order('created_at', { ascending: false })
+    .limit(needed * 3);
+
+  if (error || !data?.length) return [];
+
+  return data
+    .filter((u: { user_id: string; name: string; avatar_url: string | null }) =>
+      u.user_id && !excludedIds.has(u.user_id)
+    )
+    .map((u: { user_id: string; name: string; avatar_url: string | null }) => ({
+      user_id: u.user_id,
+      name: u.name || 'Unknown User',
+      avatar_url: u.avatar_url ?? null,
+      verified: false,
+      connection_depth: 4,
+      mutual_friends_count: 0,
+      shared_genres_count: 0,
+    }))
+    .slice(0, needed);
+}
+
+/** Primary pool: shared-signal RPC → 2nd/3rd degree → recent-users discovery.
+ *  All three are merged and deduplicated so the rail always has variety. */
 export async function getSimilarUsersToFriend(
   client: SynthSupabaseClient,
   userId: string,
   limit: number
 ): Promise<SharedFriendSuggestion[]> {
+  const seen = new Set<string>();
+  const combined: SharedFriendSuggestion[] = [];
+
+  const addUnique = (suggestions: SharedFriendSuggestion[]) => {
+    for (const s of suggestions) {
+      if (s.user_id && !seen.has(s.user_id)) {
+        seen.add(s.user_id);
+        combined.push(s);
+      }
+    }
+  };
+
+  // Layer 1: shared-signal RPC (best quality matches)
   try {
     const { data, error } = await client.rpc('get_similar_users_to_friend', {
       p_user_id: userId,
-      p_limit: limit * 4, // fetch a larger pool so dedup still leaves enough variety
+      p_limit: limit * 6,
     });
     if (!error && data?.length) {
-      const rows = (data as Record<string, unknown>[]).map(mapSimilarRpcRow).filter(s => s.user_id);
-      // RPC returns one row per match signal (shared artist/genre/venue), so the same person
-      // can appear many times. Deduplicate by user_id, keeping the first occurrence which
-      // has the highest match score.
-      const seen = new Set<string>();
-      const unique: SharedFriendSuggestion[] = [];
-      for (const row of rows) {
-        if (!seen.has(row.user_id)) {
-          seen.add(row.user_id);
-          unique.push(row);
-        }
-      }
-      if (unique.length >= 3) return unique.slice(0, limit);
+      const rows = (data as Record<string, unknown>[])
+        .map(mapSimilarRpcRow)
+        .filter(s => s.user_id);
+      addUnique(rows);
     }
   } catch {
     // fall through
   }
-  return getRecommendedFriendsFallback(client, userId, limit);
+
+  // Layer 2: 2nd/3rd degree connections (if still short)
+  if (combined.length < limit) {
+    try {
+      const fallback = await getRecommendedFriendsFallback(client, userId, limit * 2);
+      addUnique(fallback);
+    } catch {
+      // fall through
+    }
+  }
+
+  // Layer 3: broad discovery from recently-active users (fills the rail when signals are sparse)
+  if (combined.length < limit) {
+    try {
+      const excludedIds = await getExcludedUserIds(client, userId);
+      // also exclude anything already in the combined pool
+      combined.forEach(s => excludedIds.add(s.user_id));
+      const discovery = await getDiscoveryUsers(
+        client,
+        userId,
+        excludedIds,
+        limit - combined.length
+      );
+      addUnique(discovery);
+    } catch {
+      // fall through
+    }
+  }
+
+  return combined.slice(0, limit);
 }
 
 /**
