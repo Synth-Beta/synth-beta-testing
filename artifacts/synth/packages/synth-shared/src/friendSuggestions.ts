@@ -102,10 +102,22 @@ export async function getSimilarUsersToFriend(
   try {
     const { data, error } = await client.rpc('get_similar_users_to_friend', {
       p_user_id: userId,
-      p_limit: limit,
+      p_limit: limit * 4, // fetch a larger pool so dedup still leaves enough variety
     });
     if (!error && data?.length) {
-      return (data as Record<string, unknown>[]).map(mapSimilarRpcRow).filter(s => s.user_id);
+      const rows = (data as Record<string, unknown>[]).map(mapSimilarRpcRow).filter(s => s.user_id);
+      // RPC returns one row per match signal (shared artist/genre/venue), so the same person
+      // can appear many times. Deduplicate by user_id, keeping the first occurrence which
+      // has the highest match score.
+      const seen = new Set<string>();
+      const unique: SharedFriendSuggestion[] = [];
+      for (const row of rows) {
+        if (!seen.has(row.user_id)) {
+          seen.add(row.user_id);
+          unique.push(row);
+        }
+      }
+      if (unique.length >= 3) return unique.slice(0, limit);
     }
   } catch {
     // fall through

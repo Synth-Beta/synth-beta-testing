@@ -240,31 +240,12 @@ export class PersonalizationEngineV5 {
     logger.debug('🔍 [FeedV5] getUnifiedFeed RPC payload:', rpcPayload);
     
     try {
-      // Prefer cached wrapper when available; fall back to direct function if missing
       let data: any;
       let error: any;
 
-      try {
-        const cachedResult = await supabase.rpc('get_or_refresh_feed_v5_cached', {
-          ...rpcPayload,
-          // Cache TTL in seconds for feed V5 (10 minutes by default)
-          p_ttl_seconds: 600,
-        });
-        data = cachedResult.data;
-        error = cachedResult.error;
-      } catch (rpcErr: any) {
-        error = rpcErr;
-      }
-
-      if (feedRpcShouldFallback(error)) {
-        logger.warn(
-          '⚠️ get_or_refresh_feed_v5_cached failed, falling back to get_personalized_feed_v5',
-          error
-        );
-        const direct = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
-        data = direct.data;
-        error = direct.error;
-      }
+      const direct = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+      data = direct.data;
+      error = direct.error;
 
       if (error) {
         const isTimeout =
@@ -272,7 +253,6 @@ export class PersonalizationEngineV5 {
           /statement timeout|canceling statement/i.test(String((error as { message?: string })?.message || ''));
         if (isTimeout) {
           logger.warn('⚠️ Feed RPC timed out, retrying once…', error);
-          await new Promise((r) => setTimeout(r, 2000));
           const retry = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
           data = retry.data;
           error = retry.error;
@@ -301,17 +281,10 @@ export class PersonalizationEngineV5 {
         const fallbackPayload = { ...rpcPayload, p_city_lat: null, p_city_lng: null };
         let fallbackData: any;
         let fallbackError: any;
-        try {
-          const fallbackResult = await supabase.rpc('get_or_refresh_feed_v5_cached', {
-            ...fallbackPayload,
-            p_ttl_seconds: 600,
-          });
+        {
+          const fallbackResult = await supabase.rpc('get_personalized_feed_v5', fallbackPayload);
           fallbackData = fallbackResult.data;
           fallbackError = fallbackResult.error;
-        } catch (fallbackErr) {
-          const direct = await supabase.rpc('get_personalized_feed_v5', fallbackPayload);
-          fallbackData = direct.data;
-          fallbackError = direct.error;
         }
         const fallbackCount = Array.isArray(fallbackData) ? fallbackData.length : 0;
         if (fallbackError) {
