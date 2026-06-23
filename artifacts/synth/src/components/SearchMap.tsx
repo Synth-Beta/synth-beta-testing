@@ -278,9 +278,6 @@ export const SearchMap = ({ userId }: SearchMapProps) => {
       const [lat, lng] = mapCenter;
       console.log(`🔍 Searching for events at map center: (${lat}, ${lng}) with ${radiusMiles} mile radius...`);
       
-      // First, populate events from Ticketmaster API
-      try {
-      
       // Then fetch events from database near this location
       const events = await LocationService.searchEventsByLocation({
         latitude: lat,

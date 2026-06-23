@@ -153,8 +153,6 @@ export function ConcertSearchResults({ event, isNewEvent, source }: ConcertSearc
               </Button>
             );
           })()}
-            </div>
-          )}
 
           {event.price_range && (
             <div>

@@ -1192,13 +1192,13 @@ const { sessionExpired } = useAuth();
 
                             if (error) {
                               console.error('Error creating direct chat:', error);
-                              toturn;
+                              return;
                             }
 
                             setShowFriendsChatModal(false);
                             setShowChatView(true);
                             
-                            tocatch (error) {
+                            } catch (error) {
                             console.error('Error creating direct chat:', error);
                             }
                         }}

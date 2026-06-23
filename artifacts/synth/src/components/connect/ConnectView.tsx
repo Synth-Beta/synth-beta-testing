@@ -1111,13 +1111,14 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
               if (error) {
                 console.error('Error creating chat:', error);
-                teturn;
+                return;
               }
 
               onNavigateToChat(interest.userId);
               } catch (error) {
               console.error('Error starting chat:', error);
-              t          };
+              }
+          };
 
           return (
             <Card key={interest.id} className="hover:shadow-md transition-shadow">
@@ -1400,7 +1401,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                 
                 if (error) {
                   console.error('Error fetching chat participants:', error);
-                  teturn; // Early return is fine here - finally will still execute
+                  return; // Early return is fine here - finally will still execute
                 }
                 
                 const otherUserId = participants?.[0]?.user_id || null;
@@ -1408,7 +1409,8 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                   onNavigateToChat(otherUserId);
                 } else {
                   console.warn('No other participant found for direct chat:', chat.id);
-                  t              } finally {
+                }
+              } finally {
                 // Remove from set after operation completes (always executes, even on early returns)
                 openingChatsRef.current.delete(chat.id);
               }
@@ -1492,13 +1494,14 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
               if (error) {
                 console.error('Error creating chat:', error);
-                teturn;
+                return;
               }
 
               onNavigateToChat(friend.user_id);
               } catch (error) {
               console.error('Error starting chat:', error);
-              t          };
+              }
+          };
 
           return (
             <Card key={friend.user_id} className="border cursor-pointer hover:bg-muted/50 transition-colors">
