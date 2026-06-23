@@ -2963,7 +2963,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
             <div className="flex-1 flex overflow-hidden">
               {/* Left side - Hero Image */}
-              <div className="flex-1 bg-black flex items-center justify-center min-h-0 relative">
+              <div className="flex-1 flex items-center justify-center min-h-0 relative" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500) 0%, #9333EA 100%)' }}>
                 {(reviewDetailData?.photos && reviewDetailData.photos.length > 0) || (selectedReviewDetail.photos && selectedReviewDetail.photos.length > 0) ? (
                   <img 
                     src={reviewDetailData?.photos[0] || selectedReviewDetail.photos?.[0]} 
@@ -2971,12 +2971,25 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     className="max-w-full max-h-full object-contain"
                   />
                 ) : (
-                  <div className="text-center" style={{ color: 'var(--neutral-50)' }}>
-                    <div className="text-6xl font-bold mb-4">
-                      <span className="text-pink-500">S</span>ynth
+                  <div className="text-center px-8" style={{ color: 'var(--neutral-50)' }}>
+                    <div style={{ fontSize: 64, fontWeight: 800, lineHeight: 1, marginBottom: 16, letterSpacing: '-2px' }}>
+                      <span style={{ opacity: 0.6 }}>S</span>ynth
                     </div>
-                    <div className="w-32 h-0.5 bg-white mx-auto mb-4"></div>
-                    <div className="text-sm opacity-80">Concert Review</div>
+                    <div style={{ width: 48, height: 2, background: 'rgba(255,255,255,0.4)', margin: '0 auto 16px' }} />
+                    <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.8, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      {selectedReviewDetail.event_info?.artist_name || 'Concert Review'}
+                    </div>
+                    {selectedReviewDetail.event_info?.venue_name && (
+                      <div style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
+                        {selectedReviewDetail.event_info.venue_name}
+                      </div>
+                    )}
+                    {selectedReviewDetail.rating != null && (
+                      <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 40, fontWeight: 800 }}>{selectedReviewDetail.rating}</span>
+                        <span style={{ fontSize: 18, opacity: 0.6 }}>/5</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {reviewDetailData?.reactionEmoji && (
@@ -2987,12 +3000,12 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               </div>
               
               {/* Right side - Content */}
-              <div className="flex-1 flex flex-col bg-white overflow-y-auto">
+              <div className="flex-1 flex flex-col overflow-y-auto" style={{ backgroundColor: 'var(--neutral-50)' }}>
                 {loadingReviewDetails ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">Loading review details...</p>
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" style={{ color: 'var(--brand-pink-500)' }} />
+                      <p className="text-sm" style={{ color: 'var(--neutral-500)' }}>Loading review details...</p>
                     </div>
                   </div>
                 ) : (
@@ -3002,7 +3015,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       <h2 className="text-2xl font-bold mb-2">
                         {selectedReviewDetail.event_info?.event_name || selectedReviewDetail.title || 'Concert Review'}
                       </h2>
-                      <div className="flex flex-wrap items-center gap-2 text-sm var(--neutral-600) mb-3">
+                      <div className="flex flex-wrap items-center gap-2 mb-3" style={{ fontSize: 'var(--typography-meta-size)', color: 'var(--neutral-600)' }}>
                         {selectedReviewDetail.event_info?.artist_name && (
                           <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {selectedReviewDetail.event_info.artist_name}
@@ -3010,7 +3023,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                         )}
                       </div>
                       {selectedReviewDetail.event_info?.venue_name && (
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
+                        <div className="flex items-center gap-1 text-sm" style={{ color: 'var(--neutral-500)' }}>
                           <MapPin className="w-4 h-4" />
                           <span>{selectedReviewDetail.event_info.venue_name}</span>
                         </div>
@@ -3028,7 +3041,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                             const isHalf = !isFull && starValue - 0.5 <= rating;
                             return (
                               <div key={i} className="relative w-6 h-6">
-                                <Star className="w-6 h-6 text-gray-300" />
+                                <Star className="w-6 h-6" style={{ color: 'var(--neutral-300)' }} />
                                 {(isHalf || isFull) && (
                                   <div className={`absolute left-0 top-0 h-full overflow-hidden pointer-events-none ${isFull ? 'w-full' : 'w-1/2'}`}>
                                     <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
@@ -3044,21 +3057,21 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
                     {/* Review Text */}
                     {selectedReviewDetail.content && (
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
-                        <h3 className="font-semibold mb-2 text-gray-900">Review</h3>
-                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      <div className="p-4" style={{ backgroundColor: 'var(--neutral-0)', border: 'var(--border-default)', borderRadius: 'var(--radius-corner, 10px)' }}>
+                        <h3 className="font-semibold mb-2" style={{ color: 'var(--neutral-900)' }}>Review</h3>
+                        <p className="leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--neutral-700)' }}>
                           {selectedReviewDetail.content}
                         </p>
                       </div>
                     )}
 
                     {/* Actions */}
-                    <div className="flex items-center gap-6 pt-4 border-t border-gray-200">
-                      <div className="flex items-center gap-2 text-gray-700">
+                    <div className="flex items-center gap-6 pt-4" style={{ borderTop: 'var(--border-default)', color: 'var(--neutral-700)' }}>
+                      <div className="flex items-center gap-2">
                         <Heart className="w-5 h-5" />
                         <span className="font-medium">{selectedReviewDetail.likes_count || 0}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-700">
+                      <div className="flex items-center gap-2">
                         <MessageCircle className="w-5 h-5" />
                         <span className="font-medium">{selectedReviewDetail.comments_count || 0}</span>
                       </div>
