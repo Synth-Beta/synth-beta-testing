@@ -2392,7 +2392,7 @@ export function EventDetailsModal({
                             const setName = setSongs[0]?.setName || `Set ${setNum}`;
 
                             return (
-                              <div key={setNum} className="bg-white/70 rounded-lg p-4">
+                              <div key={setNum} className="p-4" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-100)', border: 'var(--border-default)' }}>
                                 <h4 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
                                   <Music size={16} />
                                   {setName}

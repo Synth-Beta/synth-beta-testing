@@ -714,7 +714,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
   const renderPeopleYouMightKnowCard = () => {
     return (
-      <Card className="shadow-md border border-white/60 bg-white/80">
+      <Card style={{ backgroundColor: 'var(--neutral-50)', border: 'var(--border-default)', boxShadow: 'var(--shadow-default)', borderRadius: 'var(--radius-corner, 10px)' }}>
         <CardHeader className="pb-3 px-4 pt-4">
           <CardTitle className="text-base font-bold text-foreground flex items-center gap-2 mb-1">
             <UserPlus className="w-4 h-4 text-green-500" />
@@ -1572,7 +1572,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
 
         {/* Connection discovery - only show when NOT searching */}
         {!isSearchActive && (
-          <section className="glass-card inner-glow rounded-3xl border border-white/60 bg-white/70 p-6 shadow-xl">
+          <section className="glass-card inner-glow p-6" style={{ boxShadow: 'var(--shadow-default)' }}>
             <div className="space-y-6">
               {connectionInterests.length > 0 && (
                 <div className="mb-2">
@@ -1716,7 +1716,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                   </div>
                 )}
                 {reviewDetailData?.reactionEmoji && (
-                  <div className="absolute top-4 right-4 text-4xl bg-white/20 backdrop-blur-sm rounded-full w-16 h-16 flex items-center justify-center">
+                  <div className="absolute top-4 right-4 text-4xl flex items-center justify-center" style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.3)' }}>
                     {reviewDetailData.reactionEmoji}
                   </div>
                 )}
@@ -1930,8 +1930,8 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                           <div key={`v-${idx}`} className="aspect-square rounded-lg overflow-hidden bg-black relative">
                             <video src={src} className="h-full w-full object-cover" muted playsInline />
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="bg-white/80 rounded-full p-2">
-                                <Play className="w-4 h-4 text-black" />
+                              <div style={{ backgroundColor: 'var(--neutral-50)', borderRadius: '50%', padding: 8 }}>
+                                <Play className="w-4 h-4" style={{ color: 'var(--neutral-900)' }} />
                               </div>
                             </div>
                           </div>

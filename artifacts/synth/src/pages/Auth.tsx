@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { handleAppleSignInFromNative, setupAppleSignInListeners } from '@/services/appleAuthService';
 import { Capacitor } from '@capacitor/core';
@@ -35,18 +33,15 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   };
 
   useEffect(() => {
-    // Check if iOS
     const checkIOS = () => {
       const userAgent = window.navigator.userAgent || window.navigator.vendor || (window as any).opera;
       const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
       
-      // Safely check for Capacitor
       const Capacitor = (window as any).Capacitor;
       if (Capacitor && typeof Capacitor.getPlatform === 'function') {
         try {
           setIsIOS(Capacitor.getPlatform() === 'ios' || isIOSDevice);
         } catch (error) {
-          // Fallback to user agent detection if Capacitor fails
           console.warn('Error checking Capacitor platform:', error);
           setIsIOS(isIOSDevice);
         }
@@ -56,13 +51,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     };
     
     checkIOS();
-    
-    // Set up Apple Sign In listeners only if iOS is detected
-    // We'll check isIOS state in a separate effect to avoid dependency issues
   }, []);
 
   useEffect(() => {
-    // Don't carry errors across tabs
     setEmailError(null);
     setSignupEmailAlreadyRegistered(false);
     setAuthError(null);
@@ -76,7 +67,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       cleanup = setupAppleSignInListeners();
     }
     
-    // Cleanup function: remove listeners when component unmounts or isIOS changes
     return () => {
       if (cleanup) {
         cleanup();
@@ -85,7 +75,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   }, [isIOS]);
 
   const getSiteOrigin = (): string => {
-    // Prefer an explicit deploy-time URL that is also allowlisted in Supabase Auth redirect URLs.
     const envUrlRaw = (import.meta.env.VITE_SITE_URL as string | undefined)?.trim();
     const envUrl = envUrlRaw
       ? /^https?:\/\//i.test(envUrlRaw)
@@ -94,24 +83,19 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       : null;
 
     const fallback = getCanonicalSiteUrl();
-
     const candidate = envUrl ?? fallback;
     try {
-      // Ensure we always return a clean origin (no path/query/hash).
       return new URL(candidate).origin;
     } catch {
       return fallback;
     }
   };
 
-  // Helper function to get redirect URLs for Supabase emails.
-  // IMPORTANT: Supabase rejects redirectTo/emailRedirectTo that isn't allowlisted.
   const getRedirectUrl = (path: string): string => {
     const origin = getSiteOrigin();
     try {
       return new URL(path, origin).toString();
     } catch {
-      // Last-resort fallback to just the origin.
       return origin;
     }
   };
@@ -151,7 +135,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
       if (error) throw error;
 
-      // Supabase may return success with empty identities when the email already exists.
       if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
         setSignupEmailAlreadyRegistered(true);
         setLoading(false);
@@ -162,7 +145,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         console.log("Sign-up success: user id:", data.user.id, "email confirmed:", !!data.user.email_confirmed_at);
       }
 
-      // Confirmations are OFF in this app: we must have a real session before proceeding.
       let session = data?.session ?? null;
       if (!session) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -181,7 +163,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     } catch (error: any) {
       logSupabaseAuthError('signUp', error);
 
-      // Inline error for "email already registered" (Supabase AuthApiError 422)
       const isUserAlreadyRegisteredError =
         error?.status === 422 &&
         typeof error?.message === 'string' &&
@@ -204,13 +185,11 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     setAuthError(null);
 
     try {
-      // Always log for debugging
       console.log('🔐 Attempting sign in...');
       console.log('Email:', email ? `${email.substring(0, 3)}***` : 'empty');
       console.log('Platform:', Capacitor.isNativePlatform() ? 'Mobile' : 'Web');
       console.log('Supabase client initialized:', !!supabase);
       
-      // Check if Supabase credentials are configured
       const supabaseUrl = (supabase as any).supabaseUrl;
       if (!supabaseUrl || supabaseUrl.includes('your-project.supabase.co')) {
         throw new Error('Supabase not configured. Environment variables missing at build time. Check build settings.');
@@ -222,19 +201,16 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       });
 
       if (error) {
-        // Always log errors in production for debugging
         logSupabaseAuthError('signInWithPassword', error);
         if (import.meta.env.DEV) {
           console.error('Full error object:', JSON.stringify(error, null, 2));
         }
         
-        // Provide more helpful error messages
         let userMessage =
           getSupabaseAuthErrorDescription(error) ||
           error.message ||
           'Sign in failed. Please try again.';
         
-        // Only show network error for actual network failures (no response from server)
         const isNetworkError = error.status === 0 && (
           error.message?.includes('Failed to fetch') || 
           error.message?.includes('NetworkError') ||
@@ -277,7 +253,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const handleForgotPassword = async () => {
     if (!email.trim()) {
       setEmailError('Please enter your email address.');
-      // Focus the email field for quick correction
       requestAnimationFrame(() => {
         signInEmailInputRef.current?.focus();
       });
@@ -295,7 +270,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       if (error) {
         logSupabaseAuthError('resetPasswordForEmail', error);
 
-        // Provide better error messages
         let errorMessage =
           getSupabaseAuthErrorDescription(error) ||
           error.message ||
@@ -347,265 +321,360 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     }
   };
 
+  const isAppleDisabled = !isIOS || appleSignInLoading || loading;
+
+  const inputStyle: React.CSSProperties = {
+    height: 'var(--size-input-height, 44px)',
+    paddingLeft: 'var(--spacing-small, 12px)',
+    paddingRight: 'var(--spacing-small, 12px)',
+    border: 'var(--border-default)',
+    borderRadius: 'var(--radius-corner, 10px)',
+    backgroundColor: 'var(--neutral-50)',
+    color: 'var(--neutral-900)',
+    fontFamily: 'var(--font-family)',
+    fontSize: 'var(--typography-meta-size, 16px)',
+    fontWeight: 'var(--typography-meta-weight, 500)',
+    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+    outline: 'none',
+    boxSizing: 'border-box',
+  };
+
+  const primaryButtonStyle = (disabled: boolean): React.CSSProperties => ({
+    width: '100%',
+    height: 'var(--size-button-height, 36px)',
+    backgroundColor: disabled ? 'var(--state-disabled-bg)' : 'var(--brand-pink-500)',
+    color: disabled ? 'var(--state-disabled-text)' : 'var(--neutral-50)',
+    border: 'none',
+    borderRadius: 'var(--radius-corner, 10px)',
+    boxShadow: disabled ? 'none' : 'var(--shadow-default)',
+    fontFamily: 'var(--font-family)',
+    fontSize: 'var(--typography-meta-size, 16px)',
+    fontWeight: 'var(--typography-meta-weight, 500)',
+    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  });
+
+  const metaTextStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-family)',
+    fontSize: 'var(--typography-meta-size, 16px)',
+    fontWeight: 'var(--typography-meta-weight, 500)',
+    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+    margin: 0,
+  };
+
   const AppleAuthButton = () => (
-    <Button
+    <button
+      type="button"
       onClick={handleAppleSignIn}
-      disabled={!isIOS || appleSignInLoading || loading}
-      className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+      disabled={isAppleDisabled}
+      style={{
+        ...primaryButtonStyle(isAppleDisabled),
+        backgroundColor: isAppleDisabled ? 'var(--state-disabled-bg)' : '#000000',
+        color: isAppleDisabled ? 'var(--state-disabled-text)' : '#ffffff',
+        gap: 'var(--spacing-inline, 6px)',
+      }}
     >
       {appleSignInLoading ? (
         'Signing in...'
       ) : (
         <>
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <svg style={{ width: '20px', height: '20px', flexShrink: 0 }} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
           </svg>
           Continue with Apple
         </>
       )}
-    </Button>
+    </button>
+  );
+
+  const Divider = () => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-small, 12px)' }}>
+      <div style={{ height: '1px', flex: 1, backgroundColor: 'var(--neutral-200)' }} />
+      <span style={{ ...metaTextStyle, color: 'var(--neutral-600)' }}>or</span>
+      <div style={{ height: '1px', flex: 1, backgroundColor: 'var(--neutral-200)' }} />
+    </div>
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{
-      background: 'linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, #fce7f3 50%, var(--neutral-0) 75%, #fdf2f8 100%)',
-      backgroundSize: '400% 400%',
-      animation: 'elegant-shift 20s ease infinite'
-    }}>
-      <Card className="w-full max-w-md bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl border-0">
-        <CardHeader className="text-center pb-8">
-          <div className="flex justify-center mb-6">
-            <img 
-              src="/Logos/Main logo black background.png" 
-              alt="Synth Logo" 
-              className="w-20 h-20 rounded-2xl"
-            />
-          </div>
-          <CardTitle className="text-[35px] font-bold leading-[1.2] text-black mb-2" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+    <div
+      style={{
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'var(--spacing-screen-margin-x, 20px)',
+        backgroundColor: 'var(--neutral-50)',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          backgroundColor: 'var(--neutral-50)',
+          border: 'var(--border-default)',
+          borderRadius: 'var(--radius-corner, 10px)',
+          boxShadow: 'var(--shadow-modal)',
+          padding: 'var(--spacing-grouped, 24px)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-grouped, 24px)' }}>
+          <img
+            src="/Logos/Main logo black background.png"
+            alt="Synth Logo"
+            style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: 'var(--radius-corner, 10px)',
+              display: 'block',
+              margin: '0 auto',
+              marginBottom: 'var(--spacing-small, 12px)',
+            }}
+          />
+          <h1
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h1-size, 35px)',
+              fontWeight: 'var(--typography-h1-weight, 700)',
+              lineHeight: 'var(--typography-h1-line-height, 1.2)',
+              color: 'var(--neutral-900)',
+              margin: '0 0 var(--spacing-inline, 6px)',
+            }}
+          >
             Synth
-          </CardTitle>
-          <CardDescription className="text-[#666666] text-[20px] font-medium leading-[1.5]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+          </h1>
+          <p
+            style={{
+              ...metaTextStyle,
+              fontSize: 'var(--typography-body-size, 20px)',
+              fontWeight: 'var(--typography-body-weight, 500)',
+              lineHeight: 'var(--typography-body-line-height, 1.5)',
+              color: 'var(--neutral-600)',
+            }}
+          >
             Connect with people at events you love
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-10 pb-10">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'signin' | 'signup')}>
-            <TabsList className="grid w-full grid-cols-2 bg-[#F5F5DC] rounded-xl p-1">
-              <TabsTrigger 
-                value="signin" 
-                className="data-[state=active]:bg-white data-[state=active]:text-black text-[#666666] font-medium rounded-lg transition-all"
-                style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-              >
-                Sign In
-              </TabsTrigger>
-              <TabsTrigger 
-                value="signup" 
-                className="data-[state=active]:bg-white data-[state=active]:text-black text-[#666666] font-medium rounded-lg transition-all"
-                style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-              >
-                Sign Up
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="signin" className="mt-6">
-              <div className="space-y-4">
-                <AppleAuthButton />
-                {!isIOS && (
-                  <p className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    Apple Sign In is available on iOS devices.
-                  </p>
-                )}
-              </div>
+          </p>
+        </div>
 
-              <div className="py-4">
-                <div className="flex items-center gap-3 pb-4">
-                  <div className="h-px flex-1 bg-gray-200" />
-                  <span className="text-[16px] font-medium leading-[1.5] text-[#666666]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    or
-                  </span>
-                  <div className="h-px flex-1 bg-gray-200" />
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'signin' | 'signup')}>
+          <TabsList
+            className="grid w-full grid-cols-2"
+            style={{
+              backgroundColor: 'var(--neutral-100)',
+              borderRadius: 'var(--radius-corner, 10px)',
+              padding: '4px',
+              height: 'auto',
+              border: 'none',
+            }}
+          >
+            <TabsTrigger
+              value="signin"
+              style={{ fontFamily: 'var(--font-family)', borderRadius: 'var(--radius-corner, 10px)' }}
+              className="data-[state=active]:bg-[var(--neutral-50)] data-[state=active]:text-[var(--neutral-900)] data-[state=active]:shadow-none text-[var(--neutral-600)] transition-all"
+            >
+              Sign In
+            </TabsTrigger>
+            <TabsTrigger
+              value="signup"
+              style={{ fontFamily: 'var(--font-family)', borderRadius: 'var(--radius-corner, 10px)' }}
+              className="data-[state=active]:bg-[var(--neutral-50)] data-[state=active]:text-[var(--neutral-900)] data-[state=active]:shadow-none text-[var(--neutral-600)] transition-all"
+            >
+              Sign Up
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Sign In Tab */}
+          <TabsContent value="signin" style={{ marginTop: 'var(--spacing-grouped, 24px)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small, 12px)' }}>
+              <AppleAuthButton />
+              {!isIOS && (
+                <p style={{ ...metaTextStyle, color: 'var(--neutral-600)', textAlign: 'center' }}>
+                  Apple Sign In is available on iOS devices.
+                </p>
+              )}
+              <Divider />
+              <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small, 12px)' }}>
+                <div>
+                  <Input
+                    ref={signInEmailInputRef}
+                    id="signin-email"
+                    name="signinEmail"
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => handleEmailChange(e.target.value)}
+                    required
+                    aria-invalid={!!emailError}
+                    aria-describedby={emailError ? 'signin-email-error' : undefined}
+                    className="w-full"
+                    style={{
+                      ...inputStyle,
+                      border: emailError ? '1px solid var(--status-error-500)' : 'var(--border-default)',
+                    }}
+                  />
+                  {emailError && (
+                    <p
+                      id="signin-email-error"
+                      style={{ ...metaTextStyle, marginTop: 'var(--spacing-inline, 6px)', color: 'var(--status-error-500)' }}
+                    >
+                      {emailError}
+                    </p>
+                  )}
                 </div>
-                <form onSubmit={handleSignIn} className="space-y-6">
-                  <div>
-                    <Input
-                      ref={signInEmailInputRef}
-                      id="signin-email"
-                      name="signinEmail"
-                      type="email"
-                      placeholder="Email"
-                      value={email}
-                      onChange={(e) => handleEmailChange(e.target.value)}
-                      required
-                      aria-invalid={!!emailError}
-                      aria-describedby={emailError ? 'signin-email-error' : undefined}
-                      className={`w-full px-4 py-3 border rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all ${
-                        emailError ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    />
-                    {emailError && (
-                      <p
-                        id="signin-email-error"
-                        className="mt-2 text-[16px] font-medium leading-[1.5] text-red-600"
-                        style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                      >
-                        {emailError}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Input
-                      id="signin-password"
-                      name="signinPassword"
-                      type="password"
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      disabled={isResettingPassword}
-                      className="text-[16px] font-medium leading-[1.5] text-[#FF3399] hover:text-[#E6007A] transition-colors disabled:opacity-50"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    >
-                      {isResettingPassword ? 'Sending...' : 'Forgot password?'}
-                    </button>
-                  </div>
-                  {authError && (
-                    <p
-                      className="text-[15px] font-medium leading-[1.5] text-red-600 text-center bg-red-50 rounded-lg px-3 py-2"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    >
-                      {authError}
-                    </p>
-                  )}
-                  {resetPasswordSent && (
-                    <p
-                      className="text-[15px] font-medium leading-[1.5] text-green-700 text-center bg-green-50 rounded-lg px-3 py-2"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    >
-                      Password reset email sent. Check your inbox.
-                    </p>
-                  )}
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+
+                <Input
+                  id="signin-password"
+                  name="signinPassword"
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full"
+                  style={inputStyle}
+                />
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={isResettingPassword}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: isResettingPassword ? 'not-allowed' : 'pointer',
+                      ...metaTextStyle,
+                      color: 'var(--brand-pink-500)',
+                      opacity: isResettingPassword ? 0.5 : 1,
+                    }}
                   >
-                    {loading ? 'Signing in...' : 'Sign In'}
-                  </Button>
+                    {isResettingPassword ? 'Sending...' : 'Forgot password?'}
+                  </button>
+                </div>
+
+                {authError && (
                   <p
-                    className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                    style={{
+                      ...metaTextStyle,
+                      color: 'var(--status-error-500)',
+                      textAlign: 'center',
+                      backgroundColor: 'var(--status-error-050)',
+                      borderRadius: 'var(--radius-corner, 10px)',
+                      padding: 'var(--spacing-small, 12px)',
+                    }}
                   >
-                    Trouble signing in? Double-check your email and password, or use "Forgot password".
-                  </p>
-                </form>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="signup" className="mt-6">
-              <div className="space-y-4">
-                <AppleAuthButton />
-                {!isIOS && (
-                  <p className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    Apple Sign In is available on iOS devices.
+                    {authError}
                   </p>
                 )}
-              </div>
 
-              <div className="py-4">
-                <div className="flex items-center gap-3 pb-4">
-                  <div className="h-px flex-1 bg-gray-200" />
-                  <span className="text-[16px] font-medium leading-[1.5] text-[#666666]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    or
-                  </span>
-                  <div className="h-px flex-1 bg-gray-200" />
-                </div>
-                <form onSubmit={handleSignUp} className="space-y-6">
-                  {signupEmailAlreadyRegistered && (
-                    <p
-                      style={{
-                        color: 'var(--status-error-500)',
-                        fontSize: 'var(--typography-meta-size, 16px)',
-                        fontWeight: 'var(--typography-meta-weight, 500)',
-                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        fontFamily: 'var(--font-family)',
-                      }}
-                    >
-                      Email already associated with an account
-                    </p>
-                  )}
-                  <div>
-                    <Input
-                      id="signup-name"
-                      name="signupName"
-                      type="text"
-                      placeholder="Your name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      id="signup-email"
-                      name="signupEmail"
-                      type="email"
-                      placeholder="Email"
-                      value={email}
-                      onChange={(e) => handleEmailChange(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      id="signup-password"
-                      name="signupPassword"
-                      type="password"
-                      placeholder="Password (min 6 characters)"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-[#FF3399] focus:ring-2 focus:ring-[#FF3399]/20 transition-all"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    />
-                  </div>
-                  {authError && (
-                    <p
-                      className="text-[15px] font-medium leading-[1.5] text-red-600 text-center bg-red-50 rounded-lg px-3 py-2"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                    >
-                      {authError}
-                    </p>
-                  )}
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
+                {resetPasswordSent && (
+                  <p
+                    style={{
+                      ...metaTextStyle,
+                      color: 'var(--status-success-500)',
+                      textAlign: 'center',
+                      backgroundColor: 'var(--status-success-050)',
+                      borderRadius: 'var(--radius-corner, 10px)',
+                      padding: 'var(--spacing-small, 12px)',
+                    }}
                   >
-                    {loading ? 'Creating account...' : 'Sign Up'}
-                  </Button>
-                </form>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+                    Password reset email sent. Check your inbox.
+                  </p>
+                )}
+
+                <button type="submit" disabled={loading} style={primaryButtonStyle(loading)}>
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </button>
+
+                <p style={{ ...metaTextStyle, color: 'var(--neutral-600)', textAlign: 'center' }}>
+                  Trouble signing in? Double-check your email and password, or use "Forgot password".
+                </p>
+              </form>
+            </div>
+          </TabsContent>
+
+          {/* Sign Up Tab */}
+          <TabsContent value="signup" style={{ marginTop: 'var(--spacing-grouped, 24px)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small, 12px)' }}>
+              <AppleAuthButton />
+              {!isIOS && (
+                <p style={{ ...metaTextStyle, color: 'var(--neutral-600)', textAlign: 'center' }}>
+                  Apple Sign In is available on iOS devices.
+                </p>
+              )}
+              <Divider />
+              <form onSubmit={handleSignUp} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small, 12px)' }}>
+                {signupEmailAlreadyRegistered && (
+                  <p style={{ ...metaTextStyle, color: 'var(--status-error-500)' }}>
+                    Email already associated with an account
+                  </p>
+                )}
+
+                <Input
+                  id="signup-name"
+                  name="signupName"
+                  type="text"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="w-full"
+                  style={inputStyle}
+                />
+
+                <Input
+                  id="signup-email"
+                  name="signupEmail"
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => handleEmailChange(e.target.value)}
+                  required
+                  className="w-full"
+                  style={inputStyle}
+                />
+
+                <Input
+                  id="signup-password"
+                  name="signupPassword"
+                  type="password"
+                  placeholder="Password (min 6 characters)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full"
+                  style={inputStyle}
+                />
+
+                {authError && (
+                  <p
+                    style={{
+                      ...metaTextStyle,
+                      color: 'var(--status-error-500)',
+                      textAlign: 'center',
+                      backgroundColor: 'var(--status-error-050)',
+                      borderRadius: 'var(--radius-corner, 10px)',
+                      padding: 'var(--spacing-small, 12px)',
+                    }}
+                  >
+                    {authError}
+                  </p>
+                )}
+
+                <button type="submit" disabled={loading} style={primaryButtonStyle(loading)}>
+                  {loading ? 'Creating account...' : 'Sign Up'}
+                </button>
+              </form>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

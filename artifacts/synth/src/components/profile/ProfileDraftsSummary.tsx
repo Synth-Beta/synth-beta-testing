@@ -39,7 +39,7 @@ export function ProfileDraftsSummary({ draftCount, onClick }: ProfileDraftsSumma
           <span className="px-2 py-1 rounded-full bg-pink-500/30 border border-pink-300/40">
             Keep the streak
           </span>
-          <span className="px-2 py-1 rounded-full bg-white/10 border border-white/20">
+          <span className="px-2 py-1" style={{ borderRadius: '999px', backgroundColor: 'var(--neutral-700)', border: 'var(--border-default)' }}>
             Autosave on
           </span>
         </div>

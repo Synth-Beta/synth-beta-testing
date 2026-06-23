@@ -877,7 +877,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           transform: `translateY(${Math.min(pullDistance - 60, 0)}px)`,
         }}
       >
-        <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
+        <div className="flex items-center gap-2 px-4 py-2" style={{ borderRadius: '999px', backgroundColor: 'var(--neutral-50)', border: 'var(--border-default)', boxShadow: 'var(--shadow-default)' }}>
           {isRefreshing ? (
             <>
               <SynthLoader variant="spinner" size="sm" />

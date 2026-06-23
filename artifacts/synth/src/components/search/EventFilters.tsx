@@ -516,11 +516,11 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/20 overflow-x-auto">
+      <div className="flex items-center gap-2 p-4 overflow-x-auto" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', border: 'var(--border-default)' }}>
         {/* Genres pill */}
         <Popover open={genresOpen} onOpenChange={(o) => { setGenresOpen(o); updateOverlayState({ genres: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0">
+            <Button variant="outline" size="sm" className="flex-shrink-0" style={{ borderRadius: '999px', backgroundColor: 'var(--neutral-50)', borderColor: 'var(--brand-pink-200)' }}>
               <Music className="h-4 w-4 mr-1" />
               Genres
               {filters.genres.length > 0 && (
@@ -548,7 +548,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl">
+          <PopoverContent className="w-80 z-[60] border-none shadow-none">
             <div className="space-y-4 p-2">
               <div className="flex flex-wrap gap-2">
                 {availableGenres.map((genre) => (
@@ -606,7 +606,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
         {/* Locations pill */}
         <Popover open={locationsOpen} onOpenChange={(o) => { setLocationsOpen(o); updateOverlayState({ locations: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0">
+            <Button variant="outline" size="sm" className="flex-shrink-0">
               <MapPin className="h-4 w-4 mr-1" />
               Locations
               {(filters.selectedCities?.length || 0) > 0 && (
@@ -634,7 +634,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-96 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl">
+          <PopoverContent className="w-96 z-[60] border-none shadow-none">
             <div className="space-y-4 p-2">
               {/* Search Input */}
               <div className="flex items-center gap-2">
@@ -780,7 +780,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
         {/* Days of Week button */}
         <Popover open={daysOfWeekOpen} onOpenChange={(o) => { setDaysOfWeekOpen(o); updateOverlayState({ daysOfWeek: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0">
+            <Button variant="outline" size="sm" className="flex-shrink-0">
               <CalendarIcon className="h-4 w-4 mr-1" />
               Days
               {filters.daysOfWeek.length > 0 && (
@@ -808,7 +808,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl">
+          <PopoverContent className="w-80 z-[60] border-none shadow-none">
             <div className="space-y-4 p-2">
               {/* Quick Select Buttons */}
               <div className="flex gap-2">
@@ -820,7 +820,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                     "flex-1 text-xs",
                     [0, 1, 2, 3, 4].every(d => filters.daysOfWeek.includes(d))
                       ? "bg-synth-pink text-white hover:bg-synth-pink-dark"
-                      : "bg-white/80 border-synth-pink/20 hover:border-synth-pink/40"
+                      : "border-synth-pink/20"
                   )}
                 >
                   Weekdays
@@ -833,7 +833,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                     "flex-1 text-xs",
                     [5, 6].every(d => filters.daysOfWeek.includes(d))
                       ? "bg-synth-pink text-white hover:bg-synth-pink-dark"
-                      : "bg-white/80 border-synth-pink/20 hover:border-synth-pink/40"
+                      : "border-synth-pink/20"
                   )}
                 >
                   Weekend
@@ -860,7 +860,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                       "h-10 p-0 text-xs font-medium",
                       filters.daysOfWeek.includes(day.value)
                         ? "bg-synth-pink text-white hover:bg-synth-pink-dark border-synth-pink"
-                        : "bg-white/80 border-gray-300 hover:border-synth-pink/40 hover:bg-synth-pink/10"
+                        : "border-gray-300 hover:bg-synth-pink/10"
                     )}
                   >
                     {day.label}
@@ -874,7 +874,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                   variant="outline" 
                   size="sm" 
                   onClick={() => onFiltersChange({ ...filters, daysOfWeek: [] })}
-                  className="w-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40"
+                  className="w-full border-synth-pink/20"
                 >
                   <X className="h-4 w-4 mr-1" />
                   Clear Days
@@ -887,7 +887,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
         {/* Calendar button with time range options */}
         <Popover open={showDatePicker} onOpenChange={(o) => { setShowDatePicker(o); updateOverlayState({ date: o }); }}>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-full bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0 max-w-[180px]">
+            <Button variant="outline" size="sm" className="flex-shrink-0 max-w-[180px]">
               <CalendarIcon className="h-4 w-4 mr-1 flex-shrink-0" />
               <span className="truncate">
                 {getActiveTimeRange()
@@ -920,7 +920,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-4 z-[60] bg-white/95 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-xl" align="start">
+          <PopoverContent className="w-auto p-4 z-[60] border-none shadow-none" align="start">
             <div className="flex flex-col gap-4">
               {/* Quick Time Range Options */}
               <div className="flex flex-wrap gap-2">
@@ -932,7 +932,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                       variant={isActive ? "default" : "outline"}
                       size="sm"
                       onClick={() => handleTimeRangeSelect(option.value)}
-                      className={`text-xs ${isActive ? 'bg-synth-pink text-white hover:bg-synth-pink-dark' : 'bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40'}`}
+                      className={`text-xs ${isActive ? 'bg-synth-pink text-white hover:bg-synth-pink-dark' : 'border-synth-pink/20'}`}
                     >
                       <Clock className="h-3 w-3 mr-1" />
                       {option.label}
@@ -992,7 +992,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
                 }}
               />
               {(filters.dateRange.from || filters.dateRange.to) && (
-                <Button variant="outline" size="sm" onClick={handleDateRangeClear} className="bg-white/80 backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40">
+                <Button variant="outline" size="sm" onClick={handleDateRangeClear} className="border-synth-pink/20">
                   <X className="h-4 w-4 mr-1" />
                   Clear Date
                 </Button>
@@ -1009,10 +1009,10 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             ...filters,
             filterByFollowing: filters.filterByFollowing === 'following' ? 'all' : 'following'
           })}
-          className={`rounded-full backdrop-blur-sm border-synth-pink/20 hover:border-synth-pink/40 flex-shrink-0 ${
+          className={`rounded-full flex-shrink-0 ${
             filters.filterByFollowing === 'following' 
               ? 'bg-synth-pink text-white' 
-              : 'bg-white/80'
+              : ''
           }`}
         >
           <Users className="h-4 w-4 mr-1" />
@@ -1025,7 +1025,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
             variant="ghost"
             size="sm"
             onClick={handleClearAllFilters}
-            className="text-muted-foreground hover:text-foreground bg-white/60 backdrop-blur-sm border border-white/20 hover:bg-white/80 flex-shrink-0"
+            className="text-muted-foreground hover:text-foreground flex-shrink-0"
           >
             <X className="h-4 w-4 mr-1" />
             Clear all
@@ -1035,7 +1035,7 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
 
       {/* Active Filters Summary as chips */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2 bg-white/40 backdrop-blur-sm rounded-2xl p-3 border border-white/20">
+        <div className="flex flex-wrap gap-2 p-3" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-100)', border: 'var(--border-default)' }}>
           {filters.genres.map((genre) => (
             <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
               <Music className="h-3 w-3" />

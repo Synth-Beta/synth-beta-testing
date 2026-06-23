@@ -1,0 +1,218 @@
+You are performing a complete design overhaul and technical audit of a bifurcated application: one web app and one mobile app (iOS + Android, likely React Native or Flutter). The goals are:
+
+1. Full design overhaul on both apps using their respective style guides (provided below or attached)
+2. Zero loss of existing functionality
+3. Supabase edge function and database call validation
+4. Third Normal Form (3NF) compliance audit of all database schemas
+5. SEO, GEO, and AIO implementation across all applicable web surfaces
+
+Work through this in strict phases. Do not proceed to a new phase until the current one is complete. After each phase, output a written summary of what was changed, what was skipped, and what requires human review.
+
+---
+
+## PHASE 1 — CODEBASE AUDIT (do this before touching anything)
+
+Before making any changes, perform a complete inventory of the entire codebase.
+
+### Web app inventory
+- List every route/page (file path + URL pattern)
+- List every major UI component (name + file path)
+- List every API call, Supabase client call, and fetch/axios request (file + line + purpose)
+- List every auth-gated route and its guard logic
+- List every form and its submit handler
+- List every dynamic data source (tables queried, edge functions called)
+- Flag any dead code, unused components, or deprecated imports
+
+### Mobile app inventory
+- List every screen (file path + navigator route name)
+- List every navigation stack and tab structure
+- List every API call, Supabase call, and async data fetch (file + line + purpose)
+- List every platform-specific branch (iOS vs Android conditional)
+- List every form, modal, and bottom sheet
+- Flag any dead code, unused screens, or platform-specific hacks
+
+Output this as a structured manifest. Do not proceed to Phase 2 until the manifest is complete.
+
+---
+
+## PHASE 2 — SUPABASE VALIDATION
+
+Work through every Supabase interaction identified in Phase 1.
+
+### Edge function testing
+For each edge function:
+- Identify its trigger (HTTP endpoint, database webhook, scheduled cron)
+- Test it with representative inputs covering happy path, edge cases, and expected error states
+- Verify it returns the correct status codes and response shapes
+- Verify error handling does not leak sensitive information
+- Check for missing or misconfigured CORS headers
+- Check for hardcoded secrets or environment variable misuse
+- Flag any function that is never called by the app (dead function)
+
+### Database call validation
+For each Supabase client query (.select, .insert, .update, .delete, .rpc):
+- Confirm the query targets the correct table and columns
+- Confirm filters (.eq, .match, .in) are applied before returning data, not after
+- Confirm RLS (Row Level Security) policies are in place for every table touched by the app
+- Confirm no query fetches unbounded data without a .limit()
+- Confirm auth context is passed correctly (using supabase.auth.getSession() or equivalent)
+
+### 3NF compliance audit
+For every table in the schema:
+- Confirm each table has a single-column primary key (or a well-justified composite key)
+- Confirm no column is functionally dependent on a non-key column (no transitive dependencies)
+- Confirm no repeating groups or multi-value columns
+- Confirm foreign key relationships are explicit and enforced
+- Flag any table that stores denormalized data for performance reasons — note the tradeoff explicitly
+
+Output a pass/fail/warning for every edge function and every table. List all changes made and any recommended refactors that require human review.
+
+---
+
+## PHASE 3 — WEB APP DESIGN OVERHAUL
+
+Using the attached web style guide, redesign every page and component identified in Phase 1. Do not redesign anything not in the manifest.
+
+### Rules
+- Implement the style guide exactly as specified (typography scale, color tokens, spacing system, component patterns)
+- Do not change any functional logic, routing, state management, or data fetching
+- Do not rename or move files unless the style guide requires a structural change
+- Do not remove any feature, button, form field, or interaction
+- Preserve all existing ARIA labels, keyboard navigation, and focus management
+- If a style guide directive conflicts with an accessibility requirement, follow the accessibility requirement and flag the conflict
+
+### Process
+Work through the manifest page by page, component by component, in this order:
+1. Global tokens and theme (CSS variables, design tokens, Tailwind config, or equivalent)
+2. Layout components (header, footer, sidebar, navigation)
+3. Shared UI components (buttons, inputs, cards, modals, tables, badges)
+4. Page-level layouts (apply updated components, fix spacing, update typography)
+5. Empty states, error states, and loading states
+
+For each page, confirm:
+- All interactive elements are still functional after restyling
+- No visual regression on viewport widths: 320px, 768px, 1024px, 1440px
+- Color contrast meets WCAG AA minimum (4.5:1 for text, 3:1 for UI elements)
+
+---
+
+## PHASE 4 — MOBILE APP DESIGN OVERHAUL (iOS + Android)
+
+Using the attached mobile style guide, redesign every screen identified in Phase 1.
+
+### Rules
+- The same no-functionality-loss rules from Phase 3 apply
+- Respect iOS and Android platform conventions where the style guide does not override them:
+  - iOS: safe area insets, SF Symbols if used, native gesture recognizers
+  - Android: material ripple on touch, back gesture handling, status bar styling
+- Do not remove haptic feedback, push notification handlers, or deep link handlers
+- Do not change navigation structure unless explicitly required by the style guide
+
+### Process
+Work through the manifest screen by screen in this order:
+1. Design tokens / theme provider (colors, typography, spacing, shadows)
+2. Shared components (buttons, inputs, list items, cards, bottom sheets, modals)
+3. Navigation components (tab bar, stack headers, drawer)
+4. Individual screens — work through each navigator stack in order
+5. Platform-specific screens (onboarding, permissions, notification opt-in)
+
+For each screen, confirm:
+- Scroll behavior is correct (no content hidden behind nav bars or home indicator)
+- All gestures (swipe, long press, pull-to-refresh) still work
+- Keyboard avoidance is correct on both platforms
+- Dark mode renders correctly if supported
+
+---
+
+## PHASE 5 — SEO, GEO, AND AIO IMPLEMENTATION
+
+Apply only to the web app. Mobile apps are not in scope for this phase.
+
+### SEO (Search Engine Optimization)
+For every public-facing web page:
+- Add a unique, keyword-relevant <title> tag (50–60 characters)
+- Add a unique <meta name="description"> (120–160 characters)
+- Add canonical <link rel="canonical"> tags
+- Ensure heading hierarchy is correct (one H1 per page, logical H2/H3 nesting)
+- Add alt text to every image that is not purely decorative
+- Confirm all internal links use descriptive anchor text (not "click here")
+- Add Open Graph tags (og:title, og:description, og:image, og:url) to every shareable page
+- Add Twitter Card meta tags
+- Generate or update sitemap.xml to include all public routes
+- Generate or update robots.txt
+
+### GEO (Generative Engine Optimization)
+GEO makes content legible and citable by AI-powered search engines (Perplexity, ChatGPT search, Google SGE, Bing Copilot). For every content-heavy page:
+- Use clear, declarative sentences that state facts directly (avoid marketing hedges like "leading" or "best-in-class")
+- Add FAQ sections using <details>/<summary> or structured Q&A markup where appropriate
+- Use semantic HTML5 elements (<article>, <section>, <aside>, <nav>, <main>, <header>, <footer>)
+- Where the page defines a concept or process, wrap it in a concise definition block (first paragraph should be a self-contained summary)
+- Avoid burying key facts in images or JavaScript-rendered content that crawlers may not index
+
+### AIO (AI Overview Optimization)
+AIO specifically targets Google's AI Overviews and similar featured answer formats:
+- For any page that answers a specific question, add JSON-LD FAQ schema
+- Add JSON-LD Organization schema to the root layout
+- Add JSON-LD BreadcrumbList schema to nested pages
+- Add JSON-LD Article or WebPage schema to blog/content pages where applicable
+- For product or service pages, add JSON-LD Product or Service schema
+- Use HowTo schema for any page that describes a process
+- Validate all JSON-LD with Google's Rich Results Test syntax before committing
+
+---
+
+## PHASE 6 — END-TO-END QA AND REGRESSION TESTING
+
+After all changes are complete, run a full regression pass using the Phase 1 manifest as the test checklist.
+
+### Web app
+- Verify every route loads without console errors
+- Verify every form submits correctly and handles validation errors
+- Verify every auth-gated route correctly blocks unauthenticated users
+- Verify every Supabase call returns expected data
+- Verify all edge functions are reachable from the app
+- Verify all Open Graph and JSON-LD tags are present and valid
+- Run Lighthouse on the three most important public pages — flag any score below 85 on Performance, Accessibility, Best Practices, or SEO
+
+### Mobile app
+- Verify every screen renders without runtime errors
+- Verify every navigation flow works (forward, back, deep link)
+- Verify every API call returns expected data
+- Verify keyboard avoidance on every form screen (iOS + Android)
+- Verify dark mode on every screen if supported
+- Verify push notification handling still works if applicable
+
+### Final output
+Produce a completion report with the following sections:
+1. Pages/screens changed (with before/after description)
+2. Components created or refactored
+3. Supabase changes made (edge functions patched, queries fixed, RLS added)
+4. 3NF issues found and how each was resolved (or why it was deferred)
+5. SEO/GEO/AIO additions made (page-by-page)
+6. Outstanding items requiring human review (conflicts, ambiguities, out-of-scope decisions)
+
+---
+
+## CONSTRAINTS — READ BEFORE STARTING
+
+- Never delete a feature, route, screen, or data field without explicit human approval
+- Never change environment variable names without explicit human approval
+- Never change the Supabase project URL or anon key
+- If the style guide is ambiguous, implement the most common reasonable interpretation and flag it in the completion report
+- If a style guide directive would break a Supabase call or functional behavior, preserve the functional behavior and flag the conflict
+- Do not introduce new dependencies without flagging them first
+- Commit after each phase completes — do not batch all phases into one commit
+
+---
+
+## INPUTS NEEDED BEFORE STARTING
+
+Provide the following before the agent begins:
+
+[ ] Web style guide (PDF, Figma link, or markdown file)
+[ ] Mobile style guide (PDF, Figma link, or markdown file)  
+[ ] Supabase project URL and service role key (for edge function testing — use environment variables, never hardcode)
+[ ] Confirmation of mobile framework (React Native / Expo / Flutter / other)
+[ ] Confirmation of web framework (Next.js / Remix / Vite+React / other)
+[ ] List of any pages or screens that are explicitly out of scope
+[ ] List of any Supabase tables that are read-only or externally managed

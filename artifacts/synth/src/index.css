@@ -320,17 +320,7 @@ body,
   }
 
   .inner-glow {
-    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 100%);
     position: relative;
-  }
-
-  .inner-glow::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 50% 0%, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
-    border-radius: inherit;
-    pointer-events: none;
   }
 
   

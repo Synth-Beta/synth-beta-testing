@@ -2980,7 +2980,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   </div>
                 )}
                 {reviewDetailData?.reactionEmoji && (
-                  <div className="absolute top-4 right-4 text-4xl bg-white/20 backdrop-blur-sm rounded-full w-16 h-16 flex items-center justify-center">
+                  <div className="absolute top-4 right-4 text-4xl flex items-center justify-center" style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.3)' }}>
                     {reviewDetailData.reactionEmoji}
                   </div>
                 )}

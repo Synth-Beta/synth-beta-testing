@@ -525,8 +525,10 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
   const statsHeader = (
     <div
-      className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-100 px-4 pb-3 flex items-center justify-between"
+      className="sticky top-0 z-10 px-4 pb-3 flex items-center justify-between"
       style={{
+        backgroundColor: 'var(--neutral-50)',
+        borderBottom: 'var(--border-default)',
         top: 'env(safe-area-inset-top, 0)',
         paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
       }}

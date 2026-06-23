@@ -135,7 +135,7 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
           <CardContent className="pt-0">
             <div className="space-y-2">
               {songs.map((song, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 bg-white/60 rounded border border-purple-100">
+                <div key={index} className="flex items-start gap-3 p-3" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-100)', border: 'var(--border-default)' }}>
                   <span className="text-sm font-medium text-purple-500 w-8 text-right flex-shrink-0">
                     {song.position}.
                   </span>
@@ -335,7 +335,7 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
                 
                 <div className="space-y-1">
                   {songs.map((song, songIndex) => (
-                    <div key={songIndex} className="flex items-center gap-3 p-2 bg-white/60 rounded border border-purple-100">
+                    <div key={songIndex} className="flex items-center gap-3 p-2" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-100)', border: 'var(--border-default)' }}>
                       <span className="text-sm font-medium text-purple-500 w-8 text-right">
                         {song.position}.
                       </span>

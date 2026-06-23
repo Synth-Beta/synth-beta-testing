@@ -726,7 +726,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin" style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid var(--neutral-200)', borderBottomColor: 'var(--brand-pink-500)', margin: '0 auto var(--spacing-small, 12px)' }}></div>
           <p>Loading chats...</p>
         </div>
       </div>
@@ -739,7 +739,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
         {/* Sidebar - Chat List */}
         <div className="w-1/3 flex flex-col" style={{ backgroundColor: 'var(--neutral-50)', borderRight: '1px solid var(--neutral-200)' }}>
           {/* Header */}
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4" style={{ borderBottom: 'var(--border-default)' }}>
             <div className="flex items-center justify-between mb-4">
               <Button 
                 variant="outline" 
@@ -766,7 +766,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                 placeholder="Search chats..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-gray-200 focus:border-pink-400 hover:border-pink-300"
+                style={{ height: 'var(--size-input-height, 44px)', border: 'var(--border-default)', borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', paddingLeft: '2.5rem' }}
               />
             </div>
           </div>
@@ -777,7 +777,7 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
               <div className="p-4 text-center">
                 <MessageCircle className="w-12 h-12 mx-auto mb-3 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                 <h3 className="font-semibold gradient-text mb-1">No Chats Yet</h3>
-                <p className="text-sm var(--neutral-600)">Start a conversation with your friends!</p>
+                <p style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', color: 'var(--neutral-600)' }}>Start a conversation with your friends!</p>
               </div>
             ) : (
               <div className="space-y-1 p-2">
@@ -785,40 +785,41 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                   <div
                     key={chat.id}
                     onClick={() => setSelectedChat(chat)}
-                    className={`p-3 rounded-lg cursor-pointer hover-card ${
-                      selectedChat?.id === chat.id 
-                        ? 'bg-gradient-to-r from-pink-50 to-white border border-pink-200' 
-                        : ''
-                    }`}
+                    className="p-3 cursor-pointer"
+                    style={{
+                      borderRadius: 'var(--radius-corner, 10px)',
+                      backgroundColor: selectedChat?.id === chat.id ? 'var(--brand-pink-050)' : 'transparent',
+                      border: selectedChat?.id === chat.id ? 'var(--border-brand)' : '1px solid transparent',
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       {chat.type === 'group' ? (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-100 to-white flex items-center justify-center">
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: 'var(--brand-pink-050)', border: 'var(--border-brand)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <Users className="w-5 h-5 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
                         </div>
                       ) : (
                         <Avatar className="w-10 h-10">
                           <AvatarImage src={chat.participants[0]?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs bg-gradient-to-r from-pink-100 to-white">
+                          <AvatarFallback style={{ fontSize: 'var(--typography-meta-size, 16px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-700)' }}>
                             {chat.participants[0]?.name?.split(' ').map(n => n[0]).join('') || 'U'}
                           </AvatarFallback>
                         </Avatar>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                        <h3 className="font-semibold gradient-text truncate">
+                        <h3 className="truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 700, lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--brand-pink-500)', margin: 0 }}>
                           {getChatDisplayName(chat)}
                         </h3>
                           {mutedChats.has(chat.id) && (
-                            <BellOff className="w-4 h-4 text-gray-400" />
+                            <BellOff className="w-4 h-4" style={{ color: 'var(--neutral-400)' }} />
                           )}
                         </div>
                         {chat.last_message && (
-                          <p className="text-sm var(--neutral-600) truncate">
+                          <p className="truncate" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)', margin: 0 }}>
                             {chat.last_message.sender.name}: {chat.last_message.message}
                           </p>
                         )}
-                        <p className="text-xs text-gray-500">
+                        <p style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-500)', margin: 0 }}>
                           {chat.last_message ? format(parseISO(chat.last_message.created_at), 'MMM d, h:mm a') : 'No messages'}
                         </p>
                       </div>
@@ -840,10 +841,10 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
           {selectedChat ? (
             <>
               {/* Chat Header */}
-              <div className="p-4 border-b border-gray-200 bg-white">
+              <div className="p-4" style={{ borderBottom: 'var(--border-default)', backgroundColor: 'var(--neutral-50)' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: 'var(--neutral-100)', border: 'var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       {selectedChat.type === 'group' ? (
                         <Users className="w-5 h-5 var(--neutral-600)" />
                       ) : (
@@ -851,10 +852,10 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                       )}
                     </div>
                     <div>
-                      <h2 className="font-semibold text-gray-900">
+                      <h2 style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 700, lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)', margin: 0 }}>
                         {getChatDisplayName(selectedChat)}
                       </h2>
-                      <p className="text-sm var(--neutral-600)">
+                      <p style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)', margin: 0 }}>
                         {selectedChat.type === 'group' 
                           ? (linkedEvent?.description || 'Group chat')
                           : 'Direct message'
@@ -862,7 +863,8 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                       </p>
                       {linkedEvent && linkedEvent.event && (
                         <p 
-                          className="text-xs text-blue-600 mt-1 cursor-pointer hover:text-blue-800 hover:underline"
+                          className="cursor-pointer"
+                          style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--brand-pink-500)', margin: 'var(--spacing-inline, 6px) 0 0', textDecoration: 'underline' }}
                           onClick={() => {
                             // Navigate to event details
                             const event = new CustomEvent('open-event-details', {
@@ -974,16 +976,31 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                         </Avatar>
                       )}
                       <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.sender_id === currentUserId
-                            ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg'
-                            : 'bg-white/70 backdrop-blur-sm text-gray-900 border border-white/50 shadow-lg'
-                        }`}
+                        style={{
+                          maxWidth: '20rem',
+                          padding: 'var(--spacing-inline, 6px) var(--spacing-small, 12px)',
+                          borderRadius: 'var(--radius-corner, 10px)',
+                          boxShadow: 'var(--shadow-default)',
+                          backgroundColor: message.sender_id === currentUserId ? 'var(--brand-pink-500)' : 'var(--neutral-100)',
+                          border: message.sender_id === currentUserId ? 'none' : 'var(--border-default)',
+                        }}
                       >
-                        <p className="text-sm">{message.message}</p>
-                        <p className={`text-xs mt-1 ${
-                          message.sender_id === currentUserId ? 'text-pink-100' : 'text-gray-500'
-                        }`}>
+                        <p style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          color: message.sender_id === currentUserId ? 'var(--neutral-50)' : 'var(--neutral-900)',
+                          margin: 0,
+                        }}>{message.message}</p>
+                        <p style={{
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          color: message.sender_id === currentUserId ? 'var(--brand-pink-050)' : 'var(--neutral-600)',
+                          margin: 'var(--spacing-inline, 6px) 0 0',
+                        }}>
                           {format(parseISO(message.created_at), 'h:mm a')}
                         </p>
                       </div>
@@ -1038,25 +1055,61 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
       {/* Create Group Modal */}
       {showCreateGroup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="glass-card inner-glow floating-shadow w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="gradient-text">Create Group Chat</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div style={{
+            width: '100%',
+            maxWidth: '28rem',
+            backgroundColor: 'var(--neutral-50)',
+            border: 'var(--border-default)',
+            borderRadius: 'var(--radius-corner, 10px)',
+            boxShadow: 'var(--shadow-modal)',
+            padding: 'var(--spacing-grouped, 24px)',
+          }}>
+            <h2 style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
+              color: 'var(--neutral-900)',
+              margin: '0 0 var(--spacing-grouped, 24px)',
+            }}>Create Group Chat</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small, 12px)' }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label style={{
+                  display: 'block',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 700,
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: 'var(--neutral-900)',
+                  marginBottom: 'var(--spacing-inline, 6px)',
+                }}>
                   Group Name
                 </label>
                 <Input
                   placeholder="Enter group name..."
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  className="border-gray-200 focus:border-pink-400 hover:border-pink-300"
+                  style={{
+                    height: 'var(--size-input-height, 44px)',
+                    border: 'var(--border-default)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    backgroundColor: 'var(--neutral-50)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                  }}
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label style={{
+                  display: 'block',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 700,
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: 'var(--neutral-900)',
+                  marginBottom: 'var(--spacing-inline, 6px)',
+                }}>
                   Select Friends ({selectedFriends.length} selected)
                 </label>
                 <div className="max-h-48 overflow-y-auto space-y-2">
@@ -1064,27 +1117,28 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                     <div
                       key={friend.id}
                       onClick={() => toggleFriendSelection(friend.id)}
-                      className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover-card ${
-                        selectedFriends.includes(friend.id)
-                          ? 'bg-gradient-to-r from-pink-50 to-white border border-pink-200'
-                          : 'border border-transparent'
-                      }`}
+                      className="flex items-center gap-3 p-2 cursor-pointer"
+                      style={{
+                        borderRadius: 'var(--radius-corner, 10px)',
+                        backgroundColor: selectedFriends.includes(friend.id) ? 'var(--brand-pink-050)' : 'transparent',
+                        border: selectedFriends.includes(friend.id) ? 'var(--border-brand)' : '1px solid transparent',
+                      }}
                     >
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={friend.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
+                        <AvatarFallback style={{ fontSize: 'var(--typography-meta-size, 16px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-700)' }}>
                           {friend.name.split(' ').map(n => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{friend.name}</h4>
+                        <h4 style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 700, lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-900)', margin: 0 }}>{friend.name}</h4>
                         {friend.bio && (
-                          <p className="text-sm var(--neutral-600) line-clamp-1">{friend.bio}</p>
+                          <p className="line-clamp-1" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)', margin: 0 }}>{friend.bio}</p>
                         )}
                       </div>
                       {selectedFriends.includes(friend.id) && (
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 flex items-center justify-center">
-                          <span className="text-white text-xs">✓</span>
+                        <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'var(--brand-pink-500)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ color: 'var(--neutral-50)', fontSize: 12 }}>✓</span>
                         </div>
                       )}
                     </div>
@@ -1092,24 +1146,46 @@ export const ChatView = ({ currentUserId, chatUserId, chatId, onBack, onNavigate
                 </div>
               </div>
               
-              <div className="flex gap-2 pt-4">
-                <Button
+              <div className="flex" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-small, 12px)' }}>
+                <button
                   onClick={() => setShowCreateGroup(false)}
-                  variant="outline"
-                  className="hover-button flex-1 border-gray-200 hover:border-gray-400 hover:text-gray-700"
+                  style={{
+                    flex: 1,
+                    height: 'var(--size-button-height, 36px)',
+                    backgroundColor: 'var(--neutral-50)',
+                    color: 'var(--neutral-900)',
+                    border: 'var(--border-default)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    cursor: 'pointer',
+                  }}
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
                   onClick={createGroupChat}
                   disabled={!groupName.trim() || selectedFriends.length === 0}
-                  className="hover-button gradient-button flex-1"
+                  style={{
+                    flex: 1,
+                    height: 'var(--size-button-height, 36px)',
+                    backgroundColor: !groupName.trim() || selectedFriends.length === 0 ? 'var(--state-disabled-bg)' : 'var(--brand-pink-500)',
+                    color: !groupName.trim() || selectedFriends.length === 0 ? 'var(--state-disabled-text)' : 'var(--neutral-50)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    boxShadow: !groupName.trim() || selectedFriends.length === 0 ? 'none' : 'var(--shadow-default)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    cursor: !groupName.trim() || selectedFriends.length === 0 ? 'not-allowed' : 'pointer',
+                  }}
                 >
                   Create Group
-                </Button>
+                </button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
 

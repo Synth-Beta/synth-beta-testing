@@ -29,12 +29,6 @@ import { useViewTracking } from '@/hooks/useViewTracking';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import PageShell from '@/components/layout/PageShell';
-import { 
-  glassCard,
-  glassCardLight,
-  textStyles,
-  animations
-} from '@/styles/glassmorphism';
 
 
 interface NotificationsPageProps {
@@ -490,10 +484,12 @@ export const NotificationsPage = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <h1
           style={{
-            ...textStyles.title1,
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-h1-size, 35px)',
+            fontWeight: 'var(--typography-h1-weight, 700)',
+            lineHeight: 'var(--typography-h1-line-height, 1.2)',
             color: 'var(--neutral-900)',
             margin: 0,
-            fontWeight: 600,
           }}
         >
           {headerTitle}
@@ -542,9 +538,11 @@ export const NotificationsPage = ({
         {/* Actions */}
         {notifications.length > 0 && unreadCount > 0 && (
           <div style={{
-            ...glassCardLight,
-            padding: '12px 16px',
-            marginBottom: 16,
+            backgroundColor: 'var(--neutral-100)',
+            border: 'var(--border-default)',
+            borderRadius: 'var(--radius-corner, 10px)',
+            padding: 'var(--spacing-small, 12px)',
+            marginBottom: 'var(--spacing-small, 12px)',
           }}>
             <button
               onClick={markAllAsRead}
@@ -553,25 +551,23 @@ export const NotificationsPage = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
-                padding: '10px 16px',
-                background: 'rgba(255, 255, 255, 0.8)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(204, 36, 134, 0.2)',
-                borderRadius: 12,
+                gap: 'var(--spacing-inline, 6px)',
+                height: 'var(--size-button-height, 36px)',
+                backgroundColor: 'var(--neutral-50)',
+                border: 'var(--border-brand)',
+                borderRadius: 'var(--radius-corner, 10px)',
                 color: 'var(--brand-pink-500)',
                 fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-body-size, 16px)',
-                fontWeight: 500,
+                fontSize: 'var(--typography-meta-size, 16px)',
+                fontWeight: 'var(--typography-meta-weight, 500)',
                 cursor: 'pointer',
-                transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+                transition: 'background-color 0.2s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(204, 36, 134, 0.1)';
+                e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)';
+                e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
               }}
             >
               <Check size={18} style={{ color: 'var(--brand-pink-500)' }} />
@@ -583,8 +579,11 @@ export const NotificationsPage = ({
         {/* Notifications List */}
         {notifications.length === 0 ? (
           <div style={{
-            ...glassCard,
-            padding: '48px 24px',
+            backgroundColor: 'var(--neutral-50)',
+            border: 'var(--border-default)',
+            borderRadius: 'var(--radius-corner, 10px)',
+            boxShadow: 'var(--shadow-default)',
+            padding: 'var(--spacing-big-section, 60px) var(--spacing-grouped, 24px)',
             textAlign: 'center',
           }}>
             {filter === 'friends_only' ? (
@@ -593,15 +592,22 @@ export const NotificationsPage = ({
               <Bell size={48} style={{ color: 'var(--brand-pink-500)', margin: '0 auto 16px' }} />
             )}
             <h3 style={{
-              ...textStyles.title2,
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h2-size, 24px)',
+              fontWeight: 'var(--typography-h2-weight, 700)',
+              lineHeight: 'var(--typography-h2-line-height, 1.3)',
               color: 'var(--neutral-900)',
-              marginBottom: 8,
+              margin: '0 0 var(--spacing-inline, 6px)',
             }}>
               {filter === 'friends_only' ? 'No friend activity' : 'No notifications yet'}
             </h3>
             <p style={{
-              ...textStyles.body,
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+              lineHeight: 'var(--typography-meta-line-height, 1.5)',
               color: 'var(--neutral-600)',
+              margin: 0,
             }}>
               {filter === 'friends_only' 
                 ? "Friend requests and new friendships will appear here."
@@ -616,23 +622,19 @@ export const NotificationsPage = ({
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
                 style={{
-                  ...glassCard,
-                  padding: 16,
+                  backgroundColor: 'var(--neutral-50)',
+                  border: !notification.is_read ? 'var(--border-brand)' : 'var(--border-default)',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  boxShadow: 'var(--shadow-default)',
+                  padding: 'var(--spacing-small, 12px)',
                   cursor: 'pointer',
-                  border: !notification.is_read ? '1px solid rgba(204, 36, 134, 0.3)' : '1px solid rgba(255, 255, 255, 0.3)',
-                  transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+                  transition: 'box-shadow 0.2s ease',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 12px 40px 0 rgba(0, 0, 0, 0.15)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-modal)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = `
-                    0 8px 32px 0 rgba(0, 0, 0, 0.1),
-                    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
-                    inset 0 -1px 0 0 rgba(0, 0, 0, 0.05)
-                  `.trim();
+                  e.currentTarget.style.boxShadow = 'var(--shadow-default)';
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -642,8 +644,8 @@ export const NotificationsPage = ({
                     justifyContent: 'center',
                     width: 40,
                     height: 40,
-                    background: 'rgba(204, 36, 134, 0.1)',
-                    borderRadius: 10,
+                    backgroundColor: 'var(--brand-pink-050)',
+                    borderRadius: 'var(--radius-corner, 10px)',
                     flexShrink: 0,
                   }}>
                     {React.cloneElement(getNotificationIcon(notification.type), {
@@ -654,7 +656,10 @@ export const NotificationsPage = ({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                       <h4 style={{
-                        ...textStyles.title3,
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 700,
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
                         color: 'var(--neutral-900)',
                         margin: 0,
                         overflow: 'hidden',
@@ -669,30 +674,32 @@ export const NotificationsPage = ({
                             width: 8,
                             height: 8,
                             borderRadius: '50%',
-                            backgroundColor: '#EF4444',
+                            backgroundColor: 'var(--status-error-500)',
                             flexShrink: 0,
                             marginLeft: 8,
-                            boxShadow: '0 2px 4px rgba(239, 68, 68, 0.4)',
                           }}
                         />
                       )}
                     </div>
                     
                     <p style={{
-                      ...textStyles.body,
+                      fontFamily: 'var(--font-family)',
+                      fontSize: 'var(--typography-meta-size, 16px)',
+                      fontWeight: 'var(--typography-meta-weight, 500)',
+                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
                       color: 'var(--neutral-600)',
-                      marginBottom: 8,
+                      margin: '0 0 var(--spacing-inline, 6px)',
                     }}>
                       {notification.message}
                     </p>
                     
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{
-                        ...textStyles.footnote,
-                        color: 'var(--neutral-500)',
-                        background: 'rgba(255, 255, 255, 0.6)',
-                        padding: '4px 8px',
-                        borderRadius: 6,
+                        fontFamily: 'var(--font-family)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        color: 'var(--neutral-600)',
                       }}>
                         {formatTimeAgo(notification.created_at)}
                       </span>
@@ -708,15 +715,16 @@ export const NotificationsPage = ({
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 4,
-                              padding: '6px 12px',
-                              background: 'var(--brand-pink-500)',
-                              color: '#fff',
-                              borderRadius: 8,
+                              gap: 'var(--spacing-inline, 6px)',
+                              height: 'var(--size-button-height, 36px)',
+                              padding: '0 var(--spacing-small, 12px)',
+                              backgroundColor: 'var(--brand-pink-500)',
+                              color: 'var(--neutral-50)',
+                              borderRadius: 'var(--radius-corner, 10px)',
                               border: 'none',
                               fontFamily: 'var(--font-family)',
-                              fontSize: 12,
-                              fontWeight: 500,
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
                               cursor: 'pointer',
                             }}
                           >
@@ -732,15 +740,16 @@ export const NotificationsPage = ({
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 4,
-                              padding: '6px 12px',
-                              background: 'rgba(255, 255, 255, 0.8)',
-                              color: 'var(--neutral-700)',
-                              borderRadius: 8,
-                              border: '1px solid rgba(0, 0, 0, 0.1)',
+                              gap: 'var(--spacing-inline, 6px)',
+                              height: 'var(--size-button-height, 36px)',
+                              padding: '0 var(--spacing-small, 12px)',
+                              backgroundColor: 'var(--neutral-50)',
+                              color: 'var(--neutral-900)',
+                              borderRadius: 'var(--radius-corner, 10px)',
+                              border: 'var(--border-default)',
                               fontFamily: 'var(--font-family)',
-                              fontSize: 12,
-                              fontWeight: 500,
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
                               cursor: 'pointer',
                             }}
                           >
@@ -767,15 +776,16 @@ export const NotificationsPage = ({
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 4,
-                              padding: '6px 12px',
-                              background: 'var(--brand-pink-500)',
-                              color: '#fff',
-                              borderRadius: 8,
+                              gap: 'var(--spacing-inline, 6px)',
+                              height: 'var(--size-button-height, 36px)',
+                              padding: '0 var(--spacing-small, 12px)',
+                              backgroundColor: 'var(--brand-pink-500)',
+                              color: 'var(--neutral-50)',
+                              borderRadius: 'var(--radius-corner, 10px)',
                               border: 'none',
                               fontFamily: 'var(--font-family)',
-                              fontSize: 12,
-                              fontWeight: 500,
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
                               cursor: 'pointer',
                             }}
                           >
@@ -795,15 +805,16 @@ export const NotificationsPage = ({
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 4,
-                              padding: '6px 12px',
-                              background: 'rgba(255, 255, 255, 0.8)',
-                              color: 'var(--neutral-700)',
-                              borderRadius: 8,
-                              border: '1px solid rgba(0, 0, 0, 0.1)',
+                              gap: 'var(--spacing-inline, 6px)',
+                              height: 'var(--size-button-height, 36px)',
+                              padding: '0 var(--spacing-small, 12px)',
+                              backgroundColor: 'var(--neutral-50)',
+                              color: 'var(--neutral-900)',
+                              borderRadius: 'var(--radius-corner, 10px)',
+                              border: 'var(--border-default)',
                               fontFamily: 'var(--font-family)',
-                              fontSize: 12,
-                              fontWeight: 500,
+                              fontSize: 'var(--typography-meta-size, 16px)',
+                              fontWeight: 'var(--typography-meta-weight, 500)',
                               cursor: 'pointer',
                             }}
                           >

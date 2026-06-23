@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { Search, Filter, MapPin, Calendar, Heart } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { Event } from '@/components/EventCard';
 import { SynthSLogo } from '@/components/SynthSLogo';
 
@@ -14,7 +12,6 @@ interface EventListProps {
 export const EventList = ({ events, onEventLike }: EventListProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const categories = ['all', 'music', 'food', 'arts', 'sports', 'social'];
 
@@ -25,123 +22,285 @@ export const EventList = ({ events, onEventLike }: EventListProps) => {
     return matchesSearch && matchesCategory;
   });
 
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      music: 'category-music',
-      food: 'category-food', 
-      arts: 'category-arts',
-      sports: 'category-sports',
-      social: 'category-social'
-    };
-    return colors[category as keyof typeof colors] || 'category-social';
+  const metaStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-family)',
+    fontSize: 'var(--typography-meta-size, 16px)',
+    fontWeight: 'var(--typography-meta-weight, 500)',
+    lineHeight: 'var(--typography-meta-line-height, 1.5)',
   };
 
   return (
-    <div className="min-h-screen pb-20 px-4 pt-6">
+    <div
+      style={{
+        minHeight: '100dvh',
+        paddingBottom: 'var(--spacing-bottom-nav, 112px)',
+        paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
+        paddingRight: 'var(--spacing-screen-margin-x, 20px)',
+        paddingTop: 'var(--spacing-grouped, 24px)',
+        backgroundColor: 'var(--neutral-50)',
+      }}
+    >
       {/* Header */}
-      <div className="glass-card inner-glow text-center space-y-3 p-4 mb-6 floating-shadow">
-        <div className="flex items-center justify-center gap-3">
-          <SynthSLogo size="sm" className="hover-icon" />
-          <h1 className="gradient-text text-2xl font-bold">Discover Events</h1>
+      <div
+        style={{
+          backgroundColor: 'var(--neutral-50)',
+          border: 'var(--border-default)',
+          borderRadius: 'var(--radius-corner, 10px)',
+          padding: 'var(--spacing-grouped, 24px)',
+          marginBottom: 'var(--spacing-grouped, 24px)',
+          textAlign: 'center',
+        }}
+      >
+        <div className="flex items-center justify-center" style={{ gap: 'var(--spacing-small, 12px)', marginBottom: 'var(--spacing-inline, 6px)' }}>
+          <SynthSLogo size="sm" />
+          <h1
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-h1-size, 35px)',
+              fontWeight: 'var(--typography-h1-weight, 700)',
+              lineHeight: 'var(--typography-h1-line-height, 1.2)',
+              color: 'var(--neutral-900)',
+              margin: 0,
+            }}
+          >
+            Discover Events
+          </h1>
         </div>
-        <p className="var(--neutral-600) text-sm">Find concerts, festivals, and amazing events near you</p>
+        <p style={{ ...metaStyle, color: 'var(--neutral-600)', margin: 0 }}>
+          Find concerts, festivals, and amazing events near you
+        </p>
       </div>
 
-      {/* Search & Filter Controls */}
-      <div className="glass-card inner-glow p-4 mb-6 floating-shadow">
+      {/* Search & Filter */}
+      <div
+        style={{
+          backgroundColor: 'var(--neutral-50)',
+          border: 'var(--border-default)',
+          borderRadius: 'var(--radius-corner, 10px)',
+          padding: 'var(--spacing-grouped, 24px)',
+          marginBottom: 'var(--spacing-grouped, 24px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--spacing-small, 12px)',
+        }}
+      >
         {/* Search */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 hover-icon" />
+        <div className="relative">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ width: '20px', height: '20px', color: 'var(--neutral-600)' }}
+            aria-hidden="true"
+          />
           <Input
             id="event-list-search"
             name="eventListSearch"
             placeholder="Search events or venues..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 h-12 border-2 border-gray-200 hover:border-pink-300 focus:border-pink-400 rounded-xl transition-all duration-200"
+            className="w-full"
+            style={{
+              paddingLeft: '44px',
+              height: 'var(--size-input-height, 44px)',
+              border: 'var(--border-default)',
+              borderRadius: 'var(--radius-corner, 10px)',
+              backgroundColor: 'var(--neutral-50)',
+              color: 'var(--neutral-900)',
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-meta-size, 16px)',
+              fontWeight: 'var(--typography-meta-weight, 500)',
+            }}
           />
         </div>
 
         {/* Category Filter */}
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory(category)}
-              className={`whitespace-nowrap hover-button ${
-                selectedCategory === category 
-                  ? "gradient-button" 
-                  : "border-gray-300 hover:border-pink-400 hover:text-pink-500"
-              }`}
-            >
-              {category.charAt(0).toUpperCase() + category.slice(1)}
-            </Button>
-          ))}
+        <div className="flex overflow-x-auto" style={{ gap: 'var(--spacing-inline, 6px)', paddingBottom: 'var(--spacing-inline, 6px)' }}>
+          {categories.map((category) => {
+            const isActive = selectedCategory === category;
+            return (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  height: '25px',
+                  padding: '0 var(--spacing-small, 12px)',
+                  backgroundColor: isActive ? 'var(--brand-pink-050)' : 'var(--neutral-50)',
+                  color: 'var(--brand-pink-500)',
+                  border: isActive ? '2px solid var(--brand-pink-500)' : 'var(--border-default)',
+                  borderRadius: '999px',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {category.charAt(0).toUpperCase() + category.slice(1)}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Events Grid */}
-      <div className={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 'var(--spacing-small, 12px)' }}>
         {filteredEvents.map((event) => (
-          <Card key={event.id} className="glass-card inner-glow overflow-hidden floating-shadow hover-card">
-            <div className="relative h-48 overflow-hidden rounded-t-2xl">
-              <img 
-                src={event.image} 
+          <div
+            key={event.id}
+            style={{
+              backgroundColor: 'var(--neutral-50)',
+              border: 'var(--border-default)',
+              borderRadius: 'var(--radius-corner, 10px)',
+              overflow: 'hidden',
+            }}
+          >
+            <div className="relative overflow-hidden" style={{ height: '192px' }}>
+              <img
+                src={event.image}
                 alt={event.title}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute top-3 left-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm hover-icon ${getCategoryColor(event.category)}`}>
+              <div className="absolute" style={{ top: 'var(--spacing-small, 12px)', left: 'var(--spacing-small, 12px)' }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '2px var(--spacing-small, 12px)',
+                    backgroundColor: 'var(--brand-pink-050)',
+                    color: 'var(--brand-pink-500)',
+                    border: '1px solid var(--brand-pink-500)',
+                    borderRadius: '999px',
+                    ...metaStyle,
+                  }}
+                >
                   {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
                 </span>
               </div>
               {event.price && (
-                <div className="absolute top-3 right-3 gradient-badge rounded-full text-xs font-bold shadow-lg">
-                  {event.price}
+                <div className="absolute" style={{ top: 'var(--spacing-small, 12px)', right: 'var(--spacing-small, 12px)' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '2px var(--spacing-small, 12px)',
+                      backgroundColor: 'var(--brand-pink-500)',
+                      color: 'var(--neutral-50)',
+                      borderRadius: '999px',
+                      ...metaStyle,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {event.price}
+                  </span>
                 </div>
               )}
             </div>
-            
-            <div className="p-4">
-              <h3 className="font-semibold text-card-foreground mb-2 gradient-text">{event.title}</h3>
-              <p className="text-sm var(--neutral-600) mb-3 line-clamp-2">{event.description}</p>
-              
-              <div className="space-y-1 mb-4">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Calendar className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                  <span>{event.date} at {event.time}</span>
+
+            <div style={{ padding: 'var(--spacing-small, 12px)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-small, 12px)' }}>
+              <h3
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-h2-size, 24px)',
+                  fontWeight: 'var(--typography-h2-weight, 700)',
+                  lineHeight: 'var(--typography-h2-line-height, 1.3)',
+                  color: 'var(--neutral-900)',
+                  margin: 0,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {event.title}
+              </h3>
+              <p
+                style={{
+                  ...metaStyle,
+                  color: 'var(--neutral-600)',
+                  margin: 0,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {event.description}
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-inline, 6px)' }}>
+                <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                  <Calendar style={{ width: '20px', height: '20px', color: 'var(--brand-pink-500)', flexShrink: 0 }} aria-hidden="true" />
+                  <span style={{ ...metaStyle, color: 'var(--neutral-600)' }}>{event.date} at {event.time}</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <MapPin className="w-4 h-4 hover-icon" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
-                  <span>{event.venue}</span>
+                <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                  <MapPin style={{ width: '20px', height: '20px', color: 'var(--brand-pink-500)', flexShrink: 0 }} aria-hidden="true" />
+                  <span style={{ ...metaStyle, color: 'var(--neutral-600)' }}>{event.venue}</span>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">{event.attendeeCount} interested</span>
-                <Button
-                  size="sm"
+                <span style={{ ...metaStyle, color: 'var(--neutral-600)' }}>{event.attendeeCount} interested</span>
+                <button
                   onClick={() => onEventLike(event.id)}
-                  className="hover-button gradient-button"
+                  aria-label={`Mark interested in ${event.title}`}
+                  style={{
+                    height: 'var(--size-button-height, 36px)',
+                    padding: '0 var(--spacing-small, 12px)',
+                    backgroundColor: 'var(--brand-pink-500)',
+                    color: 'var(--neutral-50)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    boxShadow: 'var(--shadow-default)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-inline, 6px)',
+                    ...metaStyle,
+                  }}
                 >
-                  <Heart className="w-4 h-4 mr-2 hover-heart" aria-hidden="true" />
+                  <Heart style={{ width: '24px', height: '24px' }} aria-hidden="true" />
                   I'm In!
-                </Button>
+                </button>
               </div>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
 
+      {/* Empty State */}
       {filteredEvents.length === 0 && (
-        <div className="glass-card inner-glow text-center py-12 px-6 rounded-2xl floating-shadow">
-          <div className="text-gray-400 mb-4">
-            <Search className="w-12 h-12 mx-auto hover-icon" />
-          </div>
-          <p className="var(--neutral-600) text-lg font-medium mb-2">No events found</p>
-          <p className="text-gray-500 text-sm">Try adjusting your search or filter criteria</p>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 'var(--spacing-inline, 6px)',
+            padding: 'var(--spacing-big-section, 60px) var(--spacing-grouped, 24px)',
+            backgroundColor: 'var(--neutral-50)',
+            border: 'var(--border-default)',
+            borderRadius: 'var(--radius-corner, 10px)',
+            marginTop: 'var(--spacing-grouped, 24px)',
+          }}
+        >
+          <Search style={{ width: '60px', height: '60px', color: 'var(--neutral-600)' }} aria-hidden="true" />
+          <p
+            style={{
+              fontFamily: 'var(--font-family)',
+              fontSize: 'var(--typography-body-size, 20px)',
+              fontWeight: 'var(--typography-body-weight, 500)',
+              lineHeight: 'var(--typography-body-line-height, 1.5)',
+              color: 'var(--neutral-900)',
+              margin: 0,
+              textAlign: 'center',
+            }}
+          >
+            No events found
+          </p>
+          <p style={{ ...metaStyle, color: 'var(--neutral-600)', margin: 0, textAlign: 'center' }}>
+            Try adjusting your search or filter criteria
+          </p>
         </div>
       )}
     </div>

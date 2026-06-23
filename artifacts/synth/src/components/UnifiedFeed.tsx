@@ -1915,7 +1915,7 @@ export const UnifiedFeed = ({
 
   const renderEventFiltersBlock = () => (
     <div className={`${isEmbedded ? 'mb-2' : 'mb-[var(--spacing-small,12px)]'} lg:sticky lg:top-6 lg:z-20`}>
-      <div className="rounded-2xl border border-white/60 bg-white/90 shadow-sm backdrop-blur">
+      <div style={{ borderRadius: 'var(--radius-corner, 10px)', border: 'var(--border-default)', backgroundColor: 'var(--neutral-50)', boxShadow: 'var(--shadow-default)' }}>
         <div className="flex flex-col gap-3 p-3 md:flex-row md:items-center md:justify-between">
           <div className="md:flex-1">
             <EventFilters
@@ -2448,7 +2448,7 @@ export const UnifiedFeed = ({
         {/* Feed type tabs */}
         <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as FeedSectionKey)}>
           {showSectionTabs !== false && (
-            <TabsList className={`grid w-full ${isEmbedded ? 'mb-1 mt-0' : 'mb-[var(--spacing-small,12px)]'} bg-white/60 backdrop-blur-sm border border-white/20 rounded-2xl p-1 ${sectionGridClass}`}>
+            <TabsList className={`grid w-full ${isEmbedded ? 'mb-1 mt-0' : 'mb-[var(--spacing-small,12px)]'} p-1 ${sectionGridClass}`} style={{ backgroundColor: 'var(--neutral-100)', border: 'var(--border-default)', borderRadius: 'var(--radius-corner, 10px)' }}>
               {resolvedSections.map((section) => {
                 const { label, icon: Icon } = SECTION_META[section];
                 return (

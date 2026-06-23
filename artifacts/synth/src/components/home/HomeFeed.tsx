@@ -2310,8 +2310,8 @@ interface FriendEventInterest {
                   return (
                     <div
                       key={chat.id}
-                      className="flex items-center gap-3 p-4 hover:shadow-md transition-all"
-                      style={{ borderRadius: '12px', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}
+                      className="flex items-center gap-3 p-4"
+                      style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', border: 'var(--border-default)', boxShadow: 'var(--shadow-default)' }}
                     >
                       <MessageSquare className="shrink-0 w-8 h-8" style={{ color: 'var(--brand-pink-500)' }} />
                       <div className="flex-1 min-w-0">
