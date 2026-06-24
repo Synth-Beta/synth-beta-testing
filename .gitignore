@@ -53,3 +53,7 @@ Thumbs.db
 .env.local
 .env.*.local
 *.env
+
+# Apple Push Notification key — NEVER commit (private key)
+*.p8
+backend/secure/
