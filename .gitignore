@@ -56,9 +56,12 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.vercel
+.env.vercel.*
 *.env
 
 # Apple Push Notification key — NEVER commit (private key)
 *.p8
 backend/secure/
 scripts/sync-checkpoint.json
+.vercel
