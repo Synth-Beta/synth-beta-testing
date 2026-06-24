@@ -63,6 +63,9 @@ async function sendExpoPushNotification(params: {
         body: params.body,
         data: params.data ?? {},
         sound: 'default',
+        priority: 'high',
+        badge: 1,
+        channelId: 'default',
       }),
     });
 

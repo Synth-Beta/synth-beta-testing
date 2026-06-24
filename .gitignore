@@ -20,12 +20,16 @@ node_modules
 .settings/
 *.sublime-workspace
 
-# IDE - VSCode
+# IDE - VSCode / Cursor
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+.cursor/
+
+# Legacy Capacitor iOS project (app uses Expo mobile/ now)
+ios/
 
 # misc
 /.sass-cache
