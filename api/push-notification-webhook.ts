@@ -1,17 +1,22 @@
 /**
  * Push Notification Webhook
  * Triggered by Supabase Database Webhook when a row is inserted into notifications.
- * Sends push notifications to APNs - no worker required.
+ * Sends push via Expo Push API (ExponentPushToken) or raw APNs tokens.
  *
- * Configure in Supabase Dashboard: Database > Webhooks
- * - Table: notifications
- * - Events: INSERT
- * - URL: https://YOUR_VERCEL_URL/api/push-notification-webhook
- * - HTTP Header: x-webhook-secret = PUSH_WEBHOOK_SECRET (must match Vercel env)
+ * Setup: npm run push:setup-webhook
+ * Test:  npm run push:test-webhook (after Vercel env + redeploy)
+ *
+ * Vercel env (Production):
+ *   PUSH_WEBHOOK_SECRET, EXPO_ACCESS_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ *
+ * Supabase Dashboard → Database → Webhooks:
+ *   Table notifications, INSERT → POST https://join.getsynth.app/api/push-notification-webhook
+ *   Header x-webhook-secret = same PUSH_WEBHOOK_SECRET as Vercel
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getPushWebhookSecret, getSupabaseServerConfig } from './lib/serverEnv';
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
@@ -45,8 +50,17 @@ async function sendExpoPushNotification(params: {
   title: string;
   body: string;
   data?: Record<string, unknown>;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<{ ok: true } | { ok: false; error: string; deactivate?: boolean }> {
   const accessToken = process.env.EXPO_ACCESS_TOKEN?.trim();
+
+  const isPermanentExpoError = (message: string): boolean => {
+    const m = message.toLowerCase();
+    return (
+      m.includes('devicenotregistered') ||
+      m.includes('invalidcredentials') ||
+      m.includes('messagetoobig')
+    );
+  };
 
   try {
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
@@ -71,7 +85,8 @@ async function sendExpoPushNotification(params: {
 
     const json = (await res.json().catch(() => ({}))) as any;
     if (!res.ok) {
-      return { ok: false, error: json?.errors?.[0]?.message || res.statusText };
+      const message = json?.errors?.[0]?.message || res.statusText;
+      return { ok: false, error: message, deactivate: isPermanentExpoError(message) };
     }
 
     // Expo may return `data` as an object or array of tickets depending on batching.
@@ -79,7 +94,8 @@ async function sendExpoPushNotification(params: {
     const status = Array.isArray(ticket) ? ticket[0]?.status : ticket?.status;
     if (status === 'error') {
       const message = Array.isArray(ticket) ? ticket[0]?.message : ticket?.message;
-      return { ok: false, error: message || 'Expo push error' };
+      const errText = message || 'Expo push error';
+      return { ok: false, error: errText, deactivate: isPermanentExpoError(errText) };
     }
 
     return { ok: true };
@@ -87,6 +103,30 @@ async function sendExpoPushNotification(params: {
     const message = e instanceof Error ? e.message : String(e);
     return { ok: false, error: message };
   }
+}
+
+async function deactivateDeviceToken(
+  supabase: SupabaseClient,
+  deviceToken: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('device_tokens')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('device_token', deviceToken);
+  if (error) {
+    console.warn('[push-webhook] failed to deactivate token:', error.message);
+  }
+}
+
+function isPermanentApnsFailure(reason: string | undefined, status: string | number | undefined): boolean {
+  const r = (reason ?? '').toLowerCase();
+  return (
+    status === '410' ||
+    status === 410 ||
+    r === 'baddevicetoken' ||
+    r === 'unregistered' ||
+    r === 'devicetokennotfortopic'
+  );
 }
 
 async function getApnProvider(): Promise<{ provider: InstanceType<typeof import('apn').Provider>; Notification: typeof import('apn').Notification } | null> {
@@ -154,15 +194,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Security: Verify shared secret if configured. If PUSH_WEBHOOK_SECRET is set,
-  // the request must include a matching x-webhook-secret header.
-  const webhookSecret = process.env.PUSH_WEBHOOK_SECRET?.trim();
-  if (webhookSecret) {
-    const headerSecret = req.headers['x-webhook-secret'];
-    if (typeof headerSecret !== 'string' || headerSecret !== webhookSecret) {
-      console.warn('[push-webhook] Unauthorized webhook attempt');
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+  const webhookSecret = getPushWebhookSecret();
+  if (!webhookSecret) {
+    console.error('[push-webhook] PUSH_WEBHOOK_SECRET not configured on Vercel');
+    return res.status(500).json({ error: 'Webhook not configured' });
+  }
+  const headerSecret = req.headers['x-webhook-secret'];
+  const authHeader = req.headers.authorization;
+  const bearerSecret =
+    typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : null;
+  const providedSecret =
+    typeof headerSecret === 'string' && headerSecret.length > 0 ? headerSecret : bearerSecret;
+  if (!providedSecret || providedSecret !== webhookSecret) {
+    console.warn('[push-webhook] Unauthorized webhook attempt');
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const payload = req.body as WebhookPayload;
@@ -192,14 +239,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, skipped: reason });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('[push-webhook] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set');
+  const supabaseConfig = getSupabaseServerConfig();
+  if (!supabaseConfig) {
+    console.error(
+      '[push-webhook] Missing Supabase server config (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY)',
+    );
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(supabaseConfig.url, supabaseConfig.serviceRoleKey);
 
   // Check user push preference
   const { data: prefs } = await supabase
@@ -274,6 +322,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         expoSent++;
       } else {
         errors.push(`expo:${expoRes.error}`);
+        if (expoRes.deactivate) {
+          await deactivateDeviceToken(supabase, deviceToken);
+        }
       }
       continue;
     }
@@ -307,7 +358,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (result.sent?.length) apnsSent++;
       if (result.failed?.length) {
         const err = result.failed[0];
-        errors.push(`apns:${err.response?.reason || err.error || 'unknown'}`);
+        const reason = err.response?.reason || String(err.error || 'unknown');
+        errors.push(`apns:${reason}`);
+        if (isPermanentApnsFailure(err.response?.reason, err.status)) {
+          await deactivateDeviceToken(supabase, deviceToken);
+        }
       }
     } catch (err) {
       errors.push(`apns:${err instanceof Error ? err.message : String(err)}`);
