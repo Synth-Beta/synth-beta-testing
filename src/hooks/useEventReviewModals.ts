@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { NotificationService } from '@/services/notificationService';
+import { supabase } from '@/integrations/supabase/client';
 import type { PrefillEvent } from '@/components/reviews/FriendTaggedReviewInviteModal';
 
 export function useEventReviewModals(userId: string | undefined, loading: boolean) {
@@ -67,6 +68,41 @@ export function useEventReviewModals(userId: string | undefined, loading: boolea
     window.addEventListener('open-review-modal', handler);
     return () => window.removeEventListener('open-review-modal', handler);
   }, []);
+
+  // Listen for synth-open-review-edit (from HomeFeed review detail)
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const reviewId = (e as CustomEvent).detail?.reviewId as string | undefined;
+      if (!reviewId || !userId) return;
+      try {
+        const { data: reviewData, error } = await supabase
+          .from('reviews')
+          .select('*, events(*)')
+          .eq('id', reviewId)
+          .single();
+        if (error || !reviewData?.events) return;
+        const event = reviewData.events as Record<string, unknown>;
+        const review = reviewData;
+        setEventReviewPrefill({
+          id: String(event.id),
+          jambase_event_id: (event as any).jambase_event_id,
+          title: (event.title as string) || 'Concert Review',
+          artist_name: event.artist_name,
+          artist_id: event.artist_id,
+          venue_name: event.venue_name,
+          venue_id: event.venue_id,
+          event_date: event.event_date,
+          existing_review_id: review.id,
+          existing_review: review,
+        } as PrefillEvent);
+        setShowEventReviewModal(true);
+      } catch (err) {
+        console.error('Failed to open review edit:', err);
+      }
+    };
+    window.addEventListener('synth-open-review-edit', handler);
+    return () => window.removeEventListener('synth-open-review-edit', handler);
+  }, [userId]);
 
   return {
     showEventReviewModal,

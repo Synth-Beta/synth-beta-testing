@@ -34,7 +34,7 @@ import {
   updateCurrentUserSettingsPreferences,
 } from '../src/services/userSettingsPreferencesService';
 import { SettingsScreenSkeleton } from '../src/components/skeletons/SettingsScreenSkeleton';
-import { unregisterExpoPushToken } from '../lib/pushTokenSync';
+import { unregisterExpoPushToken, syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -162,6 +162,11 @@ export default function SettingsScreen() {
       const updated = await updateCurrentUserSettingsPreferences({ enable_push_notifications: checked });
       if (updated) {
         setEnablePush(checked);
+        if (checked) {
+          await syncExpoPushTokenWithBackend();
+        } else {
+          await unregisterExpoPushToken();
+        }
       } else {
         setEnablePush(previous);
         Alert.alert('Could not save', 'Push notification preference was not updated. Please try again.');

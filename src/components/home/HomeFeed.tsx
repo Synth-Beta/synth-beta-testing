@@ -54,6 +54,7 @@ const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '@/services/notificationService';
+import { ReviewService } from '@/services/reviewService';
 
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
@@ -1667,7 +1668,7 @@ interface FriendEventInterest {
         shares_count: reviewData.shares_count || 0,
         relevance_score: item.score / 100,
         created_at: reviewData.review_created_at || item.created_at,
-        is_liked: false, // TODO: Check if user liked this
+        is_liked: Boolean(reviewData.is_liked_by_user ?? reviewData.is_liked ?? false),
       };
     } else if (item.type === 'friend_suggestion') {
       // Return special marker for friend suggestions rail
@@ -2514,10 +2515,16 @@ interface FriendEventInterest {
               currentUserId={currentUserId}
               onBack={() => setReviewDetailOpen(false)}
               onEdit={() => {
-                // TODO: Implement edit functionality
+                setReviewDetailOpen(false);
+                window.dispatchEvent(
+                  new CustomEvent('synth-open-review-edit', {
+                    detail: { reviewId: selectedReview.review_id || selectedReview.id },
+                  }),
+                );
               }}
-              onDelete={() => {
-                // TODO: Implement delete functionality
+              onDelete={async () => {
+                setReviewDetailOpen(false);
+                await loadReviews();
               }}
               onOpenProfile={(userId) => {
                 if (onNavigateToProfile) {

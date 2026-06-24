@@ -1,0 +1,17 @@
+{
+  "_comment": "Copy your Firebase google-services.json here as google-services.json (gitignored). Required for Android FCM push via Expo.",
+  "project_info": {
+    "project_number": "YOUR_PROJECT_NUMBER",
+    "project_id": "YOUR_FIREBASE_PROJECT_ID"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "YOUR_MOBILESDK_APP_ID",
+        "android_client_info": {
+          "package_name": "com.tejpatel.synth"
+        }
+      }
+    }
+  ]
+}

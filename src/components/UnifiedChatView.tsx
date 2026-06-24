@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { FriendsService } from '@/services/friendsService';
+import { ContentModerationService } from '@/services/contentModerationService';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { SynthButton } from '@/components/Button/SynthButton';
@@ -1706,9 +1707,18 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     window.dispatchEvent(event);
   };
 
-  const handleBlockUser = (userId: string) => {
-    // TODO: Implement block user
-    };
+  const handleBlockUser = async (userId: string) => {
+    if (!currentUserId || !userId) return;
+    try {
+      await ContentModerationService.blockUser({
+        blocked_user_id: userId,
+        block_reason: 'Blocked from chat',
+      });
+      setSelectedChat(null);
+    } catch (error) {
+      console.error('Error blocking user:', error);
+    }
+  };
 
   const handleMuteNotifications = () => {
     setIsMuted(!isMuted);

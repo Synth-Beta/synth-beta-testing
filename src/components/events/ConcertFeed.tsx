@@ -87,6 +87,26 @@ const { sessionExpired } = useAuth();
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<any>(null);
 
+  const startDirectChatWithFriend = async (friendId: string) => {
+    try {
+      const { error } = await supabase.rpc('create_direct_chat', {
+        user1_id: currentUserId,
+        user2_id: friendId,
+      });
+      if (error) {
+        console.error('Error creating direct chat:', error);
+        return;
+      }
+      setShowChatModal(false);
+      setShowFriendsChatModal(false);
+      setShowProfileCard(false);
+      setShowUnifiedChat(true);
+      onNavigateToChat?.();
+    } catch (error) {
+      console.error('Error creating direct chat:', error);
+    }
+  };
+
   useEffect(() => {
     // Don't fetch data if session is expired
     if (sessionExpired) {
@@ -948,11 +968,7 @@ const { sessionExpired } = useAuth();
                         
                         <Button
                           className="w-full bg-blue-500 hover:bg-blue-600 text-white"
-                          onClick={() => {
-                            console.log('Start chat with:', friend.name);
-                            // TODO: Implement actual chat functionality
-                            setShowChatModal(false);
-                          }}
+                          onClick={() => startDirectChatWithFriend(friend.id)}
                         >
                           <MessageCircle className="w-4 h-4 mr-2" />
                           Start Chat
@@ -1181,27 +1197,7 @@ const { sessionExpired } = useAuth();
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        onClick={async () => {
-                          // Start direct chat with this friend
-                          console.log('Starting direct chat with:', friend.name);
-                          try {
-                            const { data: chatId, error } = await supabase.rpc('create_direct_chat', {
-                              user1_id: currentUserId,
-                              user2_id: friend.id
-                            });
-
-                            if (error) {
-                              console.error('Error creating direct chat:', error);
-                              return;
-                            }
-
-                            setShowFriendsChatModal(false);
-                            setShowChatView(true);
-                            
-                            } catch (error) {
-                            console.error('Error creating direct chat:', error);
-                            }
-                        }}
+                        onClick={() => startDirectChatWithFriend(friend.id)}
                         className="bg-blue-500 hover:bg-blue-600 text-white"
                       >
                         <MessageCircle className="w-4 h-4 mr-1" />
@@ -1211,11 +1207,9 @@ const { sessionExpired } = useAuth();
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          // Add to group selection
-                          console.log('Adding to group selection:', friend.name);
                           setShowFriendsChatModal(false);
-                          setShowChatView(true);
-                          // TODO: Open group creation with this friend pre-selected
+                          setShowUnifiedChat(true);
+                          onNavigateToChat?.();
                         }}
                         className="border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
@@ -1276,8 +1270,7 @@ const { sessionExpired } = useAuth();
             setSelectedFriend(null);
           }}
           onStartChat={(friendId) => {
-            console.log('Start chat with friend:', friendId);
-            // TODO: Implement chat functionality
+            void startDirectChatWithFriend(friendId);
           }}
         />
       )}

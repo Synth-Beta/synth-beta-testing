@@ -13,11 +13,10 @@ The root **`ios/`** and **`android/`** folders (at repo root, next to `mobile/`)
 
 ## Environment
 
-1. Copy env template:
+1. Copy env from the **repo root** template (there is no separate `mobile/.env.example`):
 
    ```bash
-   cd mobile
-   cp .env.example .env
+   cp ../.env.example ../.env.local
    ```
 
 2. Set **the same Supabase project** as web (`VITE_*` in root → `EXPO_PUBLIC_*` here):

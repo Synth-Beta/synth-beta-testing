@@ -15,6 +15,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseServerConfig } from './lib/serverEnv';
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -420,10 +421,8 @@ async function fetchVenue(supabase: SB, id: string): Promise<VenueRow | null> {
 // ─── Handler ────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
+  const supabaseConfig = getSupabaseServerConfig();
+  if (!supabaseConfig) {
     return res.status(500).send('Server configuration error');
   }
 
@@ -464,7 +463,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createClient(supabaseConfig.url, supabaseConfig.serviceRoleKey);
 
   // Cache 5 min, stale up to 1 hour — safe since content rarely changes
   res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');

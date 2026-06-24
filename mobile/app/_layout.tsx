@@ -162,7 +162,9 @@ export default function RootLayout() {
     if (!session?.user) return;
     const userId = session.user.id;
 
-    syncExpoPushTokenWithBackend().catch(() => {});
+    syncExpoPushTokenWithBackend().catch((err) => {
+      console.warn('[push] token sync failed on sign-in', err);
+    });
 
     // Sync the system badge with DB unread counts on login/boot.
     // This prevents the icon from getting stuck at an old value.

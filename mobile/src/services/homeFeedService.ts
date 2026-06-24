@@ -354,10 +354,13 @@ export class HomeFeedService {
 
         if (error) {
             console.error('[homeFeed] fallback events', error);
-            return [];
+            return await this.getFallbackFromEventsView(limit);
         }
 
         const rows = data || [];
+        if (rows.length === 0) {
+            return await this.getFallbackFromEventsView(limit);
+        }
 
         // Batch-resolve artist and venue names
         const artistIds = [...new Set(rows.map((e: any) => e.artist_id).filter(Boolean))] as string[];
@@ -401,6 +404,44 @@ export class HomeFeedService {
                 ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
             } satisfies UnifiedPersonalizedEvent;
         });
+    }
+
+    /** Secondary fallback when normalized `events` table returns no rows. */
+    private static async getFallbackFromEventsView(limit: number): Promise<UnifiedPersonalizedEvent[]> {
+        const today = todayLocalYmd();
+        const { data, error } = await supabase
+            .from('events_with_artist_venue')
+            .select('id, title, artist_name, venue_name, venue_city, event_date, images, ticket_urls, artist_id, venue_id')
+            .gte('event_date', today)
+            .order('event_date', { ascending: true })
+            .limit(limit);
+
+        if (error || !data?.length) {
+            if (error) console.warn('[homeFeed] events_with_artist_venue fallback', error.message);
+            return [];
+        }
+
+        return data
+            .filter((event: any) => isEventUpcomingForFeed(event.event_date))
+            .map((event: any) => {
+                const rawImg = pickFeedImageUrlFromPayload(event);
+                const image_url = resolveFeedImageUri(rawImg ?? event.images?.[0]?.url) ?? undefined;
+                return {
+                    id: event.id,
+                    title: event.title || 'Event',
+                    artist_name: event.artist_name || '',
+                    venue_name: event.venue_name || '',
+                    venue_city: event.venue_city || undefined,
+                    event_date: event.event_date || '',
+                    image_url,
+                    feedLabel: undefined,
+                    artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
+                    venue_id: event.venue_id != null ? String(event.venue_id) : undefined,
+                    interested_count: 0,
+                    user_is_interested: false,
+                    ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
+                } satisfies UnifiedPersonalizedEvent;
+            });
     }
 
     /**

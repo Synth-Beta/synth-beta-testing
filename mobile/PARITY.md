@@ -28,7 +28,7 @@ Ship-gate tracker for strict visual + behavior parity. A screen is only consider
 | `streaming-stats` | [StreamingStatsPage](../src/pages/StreamingStatsPage.tsx) | `stats` | In progress | Uses `@synth/shared` `fetchUserStreamingStatsSnapshot` (same read path as intended for web). |
 | `events` | [MyEventsManagementPanel](../src/components/events/MyEventsManagementPanel.tsx) | `my-events`, `interested-events` | In progress | Reviews / rankings / unreviewed + interested list. |
 | `analytics` | Creator / Business / Admin dashboards | `analytics` | Documented | **Product default:** full dashboards are web-first; Expo shows account-aware message and defers to web for heavy analytics UI. Change to “in scope” if native dashboards are required. |
-| `post` / create | Nav + modals | `(tabs)/post`, `review-compose` | In progress | Multi-step review flow + `EventReviewSubmitService`; drafts via AsyncStorage; remaining web gaps: Setlist.fm UI, video, attendee picker, post-submit ranking modal. |
+| `post` / create | Nav + modals | `(tabs)/post`, `review-compose` | In progress | Multi-step review flow; Setlist.fm UI still missing in compose. Attendee picker + ranking modal implemented. |
 
 ---
 
@@ -73,6 +73,8 @@ Do not ship until every **in-scope** row in section A is marked complete against
 ## Manual QA checklist (iOS + Android)
 
 Automated: from `mobile/`, `npx tsc --noEmit`.
+
+**Infra (2026-06-24):** Push webhook hardened on Vercel path; re-sync token on settings toggle; artist/venue UUID filter for external IDs; home feed secondary fallback via `events_with_artist_venue`.
 
 1. Cold start → onboarding vs tabs.
 2. Auth flows (email, Apple, Google on supported builds).
