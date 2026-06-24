@@ -1208,9 +1208,34 @@ class IncrementalSync3NF {
     }
     console.log('');
 
+    // Checkpoint: save/restore last completed page so restarts resume instead of restart from 1
+    const checkpointFile = path.join(__dirname, 'sync-checkpoint.json');
+    const useCheckpoint = upcomingCatalog && !process.env.JAMBASE_START_PAGE?.trim();
+    let checkpointData = null;
+    if (useCheckpoint) {
+      try {
+        checkpointData = JSON.parse(fs.readFileSync(checkpointFile, 'utf8'));
+        if (checkpointData.date !== eventDateFrom) {
+          checkpointData = null; // stale checkpoint from a different day — start fresh
+        }
+      } catch { /* no checkpoint yet */ }
+    }
+    const saveCheckpoint = (page) => {
+      if (!useCheckpoint) return;
+      try { fs.writeFileSync(checkpointFile, JSON.stringify({ date: eventDateFrom, page })); } catch { /* best-effort */ }
+    };
+    const clearCheckpoint = () => {
+      if (!useCheckpoint) return;
+      try { fs.unlinkSync(checkpointFile); } catch { /* best-effort */ }
+    };
+
     // Fetch events modified since last sync, or full upcoming catalog when JAMBASE_UPCOMING_CATALOG=1
     const startPageRaw = process.env.JAMBASE_START_PAGE?.trim();
-    const startPage = startPageRaw ? Math.max(1, parseInt(startPageRaw, 10) || 1) : 1;
+    const resumePage = checkpointData ? checkpointData.page + 1 : 1;
+    const startPage = startPageRaw ? Math.max(1, parseInt(startPageRaw, 10) || 1) : resumePage;
+    if (checkpointData && !startPageRaw) {
+      console.log(`📌 Resuming from checkpoint: page ${startPage} (last completed: ${checkpointData.page})\n`);
+    }
     let currentPage = startPage;
     // Seed totalPages with startPage so the first iteration runs; the real page
     // count is learned from the first fetched page below.
@@ -1295,11 +1320,14 @@ class IncrementalSync3NF {
       console.log(`✅ Processed page ${currentPage}/${totalPages} (${pageLabel})`);
 
       totalPages = pageData.totalPages || 1;
+      saveCheckpoint(currentPage);
       currentPage++;
 
       // Small delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 150));
     }
+
+    clearCheckpoint();
 
     // Print statistics
     console.log(

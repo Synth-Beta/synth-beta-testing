@@ -61,3 +61,4 @@ Thumbs.db
 # Apple Push Notification key — NEVER commit (private key)
 *.p8
 backend/secure/
+scripts/sync-checkpoint.json
