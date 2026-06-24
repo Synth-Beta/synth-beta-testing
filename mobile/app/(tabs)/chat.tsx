@@ -17,7 +17,7 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Menu, Trash2 } from 'lucide-react-native';
-import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
+import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -165,7 +165,7 @@ export default function ChatListScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={[
           styles.listContent,
-          { paddingBottom: tabBarBottomContentPadding(insets.bottom) },
+          { paddingBottom: bottomSafeContentPadding(insets.bottom) },
         ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PINK} />

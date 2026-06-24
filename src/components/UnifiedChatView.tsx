@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { CSSProperties, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { SkeletonChatMessage } from '@/components/skeleton/SkeletonChatMessage';
 import { SkeletonNotificationCard } from '@/components/skeleton/SkeletonNotificationCard';
@@ -2180,23 +2180,21 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     );
   }
 
+  const pageContentStyle: CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    paddingBottom: 0,
+    overflowY: 'hidden',
+  };
+
   return (
     <PageShell
       header={chatHeader}
       includeBottomNavPadding={false}
       contentHorizontalPadding={false}
       contentPaddingTop={selectedChat ? '0px' : undefined}
-      contentStyle={
-        selectedChat
-          ? {
-              display: 'flex',
-              flexDirection: 'column',
-              height: '100%',
-              paddingBottom: 0,
-              overflowY: 'hidden',
-            }
-          : undefined
-      }
+      contentStyle={pageContentStyle}
     >
       <div
         className="flex w-full flex-1 min-h-0"

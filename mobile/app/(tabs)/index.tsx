@@ -21,7 +21,7 @@ import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 import { getCurrentLatLng } from '../../src/services/locationService';
 import { EventService } from '../../src/services/eventService';
-import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
+import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { useInterested } from '../../src/contexts/InterestedContext';
 import { resolveFeedImageUri } from '../../src/utils/eventImages';
 import { isEventUpcomingForFeed } from '../../src/utils/localYmd';
@@ -270,7 +270,7 @@ export default function FeedScreen() {
           ListHeaderComponent={listHeader}
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: tabBarBottomContentPadding(insets.bottom) },
+            { paddingBottom: bottomSafeContentPadding(insets.bottom) },
           ]}
           refreshControl={
             <RefreshControl

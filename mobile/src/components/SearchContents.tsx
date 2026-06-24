@@ -31,7 +31,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SearchResultsSkeleton } from './skeletons/SearchResultsSkeleton';
 import { EventService } from '../services/eventService';
-import { tabBarBottomContentPadding } from './navigation/SynthTabBar';
+import { bottomSafeContentPadding } from './navigation/SynthTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -373,7 +373,7 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={[
                     styles.allContent,
-                    { paddingBottom: tabBarBottomContentPadding(insets.bottom) },
+                    { paddingBottom: bottomSafeContentPadding(insets.bottom) },
                 ]}
             >
                 {/* Events section */}
@@ -563,7 +563,7 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
                     }
                     contentContainerStyle={[
                         styles.listContent,
-                        { paddingBottom: tabBarBottomContentPadding(insets.bottom) },
+                        { paddingBottom: bottomSafeContentPadding(insets.bottom) },
                     ]}
                     onScrollBeginDrag={Keyboard.dismiss}
                     ListEmptyComponent={

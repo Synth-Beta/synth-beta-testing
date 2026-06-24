@@ -44,3 +44,27 @@ export async function getCurrentLatLng(): Promise<LatLng | null> {
   }
 }
 
+export async function reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
+  try {
+    const addresses = await Location.reverseGeocodeAsync({ latitude, longitude });
+    const first = addresses?.[0];
+    if (!first) {
+      return null;
+    }
+    const city = first.city || first.subregion || first.region || first.name;
+    if (!city) {
+      return null;
+    }
+    const trimmedCity = city.trim();
+    if (!trimmedCity) {
+      return null;
+    }
+    const region = first.region?.trim();
+    const formatted = region ? `${trimmedCity}, ${region}` : trimmedCity;
+    return formatted;
+  } catch (error) {
+    console.error('[LocationService] reverseGeocode error', error);
+    return null;
+  }
+}
+
