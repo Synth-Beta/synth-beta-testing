@@ -78,8 +78,17 @@ async function getAllTopItems(
   let url: string | null = `/me/top/${entity}?time_range=${timeRange}&limit=${limit}&offset=0`;
   while (url) {
     const data = await spotifyApi(accessToken, url);
-    items.push(...(data.items || []));
-    url = data.next ? new URL(data.next).pathname + new URL(data.next).search : null;
+    const pageItems = data.items;
+    if (Array.isArray(pageItems)) {
+      items.push(...pageItems);
+    }
+    const next = data.next;
+    if (typeof next === 'string' && next) {
+      const nextUrl = new URL(next);
+      url = nextUrl.pathname + nextUrl.search;
+    } else {
+      url = null;
+    }
   }
   return items;
 }
@@ -219,7 +228,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Failed to save streaming profile' });
     }
 
-    const spotifyUrl = me?.external_urls?.spotify;
+    const externalUrls = me?.external_urls;
+    const spotifyUrl =
+      externalUrls && typeof externalUrls === 'object' && externalUrls !== null
+        ? (externalUrls as { spotify?: string }).spotify
+        : undefined;
     if (spotifyUrl) {
       await supabase
         .from('users')

@@ -334,8 +334,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (expoRes.ok) {
         expoSent++;
       } else {
-        errors.push(`expo:${expoRes.error}`);
-        if (expoRes.deactivate) {
+        const failed = expoRes;
+        errors.push(`expo:${failed.error}`);
+        if (failed.deactivate) {
           await deactivateDeviceToken(supabase, deviceToken);
         }
       }

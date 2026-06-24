@@ -406,7 +406,7 @@ async function fetchReview(supabase: SB, id: string): Promise<ReviewRow | null> 
     `)
     .eq('id', id)
     .maybeSingle();
-  return data as ReviewRow | null;
+  return data as unknown as ReviewRow | null;
 }
 
 async function fetchArtist(supabase: SB, id: string): Promise<ArtistRow | null> {
