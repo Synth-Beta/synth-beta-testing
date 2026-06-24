@@ -16,7 +16,20 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { getPushWebhookSecret, getSupabaseServerConfig } from './serverEnv';
+
+function getSupabaseServerConfig(): { url: string; serviceRoleKey: string } | null {
+  const url =
+    process.env.SUPABASE_URL?.trim() ||
+    process.env.VITE_SUPABASE_URL?.trim() ||
+    process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !serviceRoleKey) return null;
+  return { url, serviceRoleKey };
+}
+
+function getPushWebhookSecret(): string | null {
+  return process.env.PUSH_WEBHOOK_SECRET?.trim() || null;
+}
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
