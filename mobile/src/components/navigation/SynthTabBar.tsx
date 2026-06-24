@@ -18,15 +18,14 @@ const INACTIVE_ICON_OPACITY = 0.5;
 /** Tab routes that exist in the navigator but should not show a bar item (e.g. stack-like screens under Tabs). */
 const TAB_BAR_HIDDEN_ROUTE_NAMES = new Set(['search']);
 
-/** Icon row + top padding (matches `minHeight: 44` + `paddingTop: 12`). */
-export const TAB_BAR_CORE_HEIGHT = 56;
+export const TAB_BAR_HEIGHT = 80;
 
 /**
  * Extra bottom padding for scrollable tab content so it clears this bar + home indicator.
  * Cards use `elevation` on Android; this bar must sit above them in z-order too.
  */
-export function tabBarBottomContentPadding(safeAreaBottom: number, extra = 8): number {
-  return TAB_BAR_CORE_HEIGHT + SynthTokens.spacing.bottomNav + safeAreaBottom + extra;
+export function bottomSafeContentPadding(safeAreaBottom: number, extraGap = 32): number {
+  return safeAreaBottom + TAB_BAR_HEIGHT + extraGap;
 }
 
 export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
@@ -44,7 +43,7 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
   }, []);
 
   const unreadMessages = useUnreadMessageCount(uid);
-  const TAB_BAR_HEIGHT = 56 + insets.bottom;
+  const tabBarTotalHeight = TAB_BAR_HEIGHT + insets.bottom;
 
   const onTabPress = (route: (typeof state.routes)[0], isFocused: boolean) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -64,7 +63,7 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
   const activeRouteName = state.routes[state.index]?.name;
 
   return (
-    <View style={[styles.container, { minHeight: TAB_BAR_HEIGHT, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { minHeight: tabBarTotalHeight, paddingBottom: insets.bottom }]}>
       <View style={styles.content}>
         {visibleRoutes.map(route => {
           const isFocused = activeRouteName === route.name;

@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { supabase } from '../../integrations/supabase/client';
+import { bottomSafeContentPadding } from '../navigation/SynthTabBar';
 import {
     useReviewForm,
     REVIEW_FORM_INITIAL_DATA,
@@ -164,7 +165,8 @@ interface EventReviewFlowProps {
 
 export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted }: EventReviewFlowProps) {
     const insets = useSafeAreaInsets();
-    const scrollPaddingBottom = SynthTokens.spacing.bottomNav + insets.bottom + 96;
+    const bottomSpacing = bottomSafeContentPadding(insets.bottom);
+    const scrollPaddingBottom = bottomSpacing;
     const {
         formData,
         errors,
@@ -1329,7 +1331,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             >
                 {stepContent}
             </ScrollView>
-            <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={[styles.footer, { paddingBottom: bottomSpacing }]}>
                 {showContinue ? (
                     <Pressable style={styles.primaryBtn} onPress={() => nextStep()}>
                         <SynthText variant="body" style={styles.primaryBtnText}>

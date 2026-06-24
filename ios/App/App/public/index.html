@@ -35,18 +35,48 @@
         padding: 0;
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-BipSC9p2.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-react-CgDKu_Q2.js">
+    <script type="module" crossorigin src="/assets/index-D2YgO6Kb.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-CLndc7cT.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-supabase-DRxYDjjs.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-CIFzM2X6.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-misc-sZ7919nh.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-maps-DWtPbocE.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-charts-Bz62UIAo.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-MCpXaCj1.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-misc-z0ITiCCX.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-maps-CFOsx4rO.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-charts-MhLCeOa2.js">
     <link rel="stylesheet" crossorigin href="/assets/vendor-maps-Dgihpmma.css">
-    <link rel="stylesheet" crossorigin href="/assets/index-BRRGnEHu.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-oim-RpRl.css">
   </head>
 
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        try {
+          var u = new URL(window.location.href);
+          var eventId = u.searchParams.get('event');
+          var reviewId = u.searchParams.get('review');
+          var artistId = u.searchParams.get('artist');
+          var venueId = u.searchParams.get('venue');
+          var ref = u.searchParams.get('ref');
+          var onSharePath = u.pathname === '/share' || u.pathname === '/share/';
+
+          if (!eventId && !reviewId && !artistId && !venueId && !onSharePath) return;
+
+          var type = eventId ? 'event' : reviewId ? 'review' : artistId ? 'artist' : venueId ? 'venue' : null;
+          var id = eventId || reviewId || artistId || venueId;
+          if (!id && onSharePath) return;
+
+          var pending = { type: type, id: id, referrerId: ref };
+          sessionStorage.setItem('synth_pending_share_link', JSON.stringify(pending));
+
+          if (onSharePath && type && id) {
+            var q = type + '=' + encodeURIComponent(id);
+            if (ref) q += '&ref=' + encodeURIComponent(ref);
+            window.location.replace('/?' + q);
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      })();
+    </script>
   </body>
 </html>

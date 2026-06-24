@@ -29,7 +29,7 @@ import {
   ProfileMyEventsPanel,
   type ProfileMyEventsPanelHandle,
 } from '../../src/components/profile/ProfileMyEventsPanel';
-import { tabBarBottomContentPadding } from '../../src/components/navigation/SynthTabBar';
+import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 import {
   getStreamingLinkStatus,
   type StreamingLinkStatus,
@@ -374,7 +374,7 @@ export default function ProfileScreen() {
           refreshControl={
             <RefreshControl refreshing={listRefreshing} onRefresh={onEventsRefresh} tintColor={PINK} />
           }
-          contentContainerStyle={{ paddingBottom: tabBarBottomContentPadding(insets.bottom) }}
+          contentContainerStyle={{ paddingBottom: bottomSafeContentPadding(insets.bottom) }}
         />
       </View>
     );
@@ -384,7 +384,7 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: tabBarBottomContentPadding(insets.bottom) }}
+        contentContainerStyle={{ paddingBottom: bottomSafeContentPadding(insets.bottom) }}
       >
         {listHeaderAboveTabs}
 
