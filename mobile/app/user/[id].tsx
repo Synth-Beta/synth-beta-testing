@@ -12,7 +12,7 @@ import { EventCard } from '../../src/components/Feed/EventCard';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
 import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
 import type { MyReviewListItem } from '../../src/services/myEventsService';
-import { PassportService, type ProfileTimelineItem } from '../../src/services/passportService';
+import { PassportService, type ProfileTimelineItem, type ProfileStats } from '../../src/services/passportService';
 import { EventService } from '../../src/services/eventService';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
 import { SafeImage } from '../../src/components/SafeImage';
@@ -38,6 +38,7 @@ export default function PublicUserProfileScreen() {
   const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
   const [interestedEvents, setInterestedEvents] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
+  const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
   const [friendStatus, setFriendStatus] = useState<FriendStatus>('none');
   const [friendLoading, setFriendLoading] = useState(false);
 
@@ -45,6 +46,8 @@ export default function PublicUserProfileScreen() {
     if (!id) return;
     setLoading(true);
     try {
+      setProfileStats(null);
+      setFriendStatus('none');
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -91,7 +94,7 @@ export default function PublicUserProfileScreen() {
         )
         .eq('user_id', id)
         .or('is_draft.eq.false,is_draft.is.null')
-        .eq('is_public', true)
+        .neq('is_public', false)
         .order('created_at', { ascending: false })
         .limit(80);
 
@@ -168,18 +171,31 @@ export default function PublicUserProfileScreen() {
       const t = await PassportService.getTimeline(id);
       setTimeline(t);
 
+      try {
+        const stats = await PassportService.getProfileStats(id);
+        setProfileStats(stats);
+      } catch (statsError: any) {
+        console.warn('[publicProfile] stats', statsError?.message || statsError);
+        setProfileStats(null);
+      }
+
       // Friendship status (only relevant when viewing someone else's profile)
       if (user?.id && user.id !== id) {
         const { data: relRows } = await supabase
           .from('user_relationships')
-          .select('requester_id, status')
-          .or(`and(requester_id.eq.${user.id},addressee_id.eq.${id}),and(requester_id.eq.${id},addressee_id.eq.${user.id})`);
+          .select('id, user_id, related_user_id, status')
+          .in('status', ['pending', 'accepted'])
+          .eq('relationship_type', 'friend')
+          .or(
+            `and(user_id.eq.${user.id},related_user_id.eq.${id}),and(user_id.eq.${id},related_user_id.eq.${user.id})`
+          )
+          .limit(1);
         if (relRows && relRows.length > 0) {
-          const rel = relRows[0] as { requester_id: string; status: string };
+          const rel = relRows[0] as { user_id: string; related_user_id: string; status: string };
           if (rel.status === 'accepted') {
             setFriendStatus('friends');
           } else if (rel.status === 'pending') {
-            setFriendStatus(rel.requester_id === user.id ? 'pending_sent' : 'pending_received');
+            setFriendStatus(rel.user_id === user.id ? 'pending_sent' : 'pending_received');
           } else {
             setFriendStatus('none');
           }
@@ -214,19 +230,28 @@ export default function PublicUserProfileScreen() {
     if (friendStatus === 'friends' || friendStatus === 'pending_sent') return;
     setFriendLoading(true);
     try {
-      if (friendStatus === 'pending_received') {
-        // Accept the incoming request
-        const { error } = await supabase
-          .from('user_relationships')
-          .update({ status: 'accepted' })
-          .eq('requester_id', id)
-          .eq('addressee_id', selfId);
-        if (!error) setFriendStatus('friends');
-      } else {
-        // Send a new friend request
-        const result = await createFriendRequest(supabase as any, id);
-        if (result.ok) setFriendStatus('pending_sent');
+    if (friendStatus === 'pending_received') {
+      // Accept the incoming request (match uses user_id/related_user_id)
+      const { error } = await supabase
+        .from('user_relationships')
+        .update({ status: 'accepted' })
+        .eq('user_id', id)
+        .eq('related_user_id', selfId)
+        .eq('relationship_type', 'friend');
+      if (!error) {
+        setFriendStatus('friends');
+        try {
+          const updatedStats = await PassportService.getProfileStats(id);
+          setProfileStats(updatedStats);
+        } catch {
+          // ignore secondary error
+        }
       }
+    } else {
+      // Send a new friend request
+      const result = await createFriendRequest(supabase as any, id);
+      if (result.ok) setFriendStatus('pending_sent');
+    }
     } catch (e) {
       console.warn('[publicProfile] friend action', e);
     } finally {
@@ -303,6 +328,34 @@ export default function PublicUserProfileScreen() {
                       {profile.bio}
                     </SynthText>
                   ) : null}
+              {profileStats ? (
+                <View style={styles.statsRow}>
+                  <View style={styles.statCol}>
+                    <SynthText variant="h2" style={styles.statNum}>
+                      {profileStats.friend_count}
+                    </SynthText>
+                    <SynthText variant="meta" style={styles.statLabel}>
+                      Friends
+                    </SynthText>
+                  </View>
+                  <View style={styles.statCol}>
+                    <SynthText variant="h2" style={styles.statNum}>
+                      {profileStats.following_count}
+                    </SynthText>
+                    <SynthText variant="meta" style={styles.statLabel}>
+                      Following
+                    </SynthText>
+                  </View>
+                  <View style={styles.statCol}>
+                    <SynthText variant="h2" style={styles.statNum}>
+                      {profileStats.reviewed_events_count}
+                    </SynthText>
+                    <SynthText variant="meta" style={styles.statLabel}>
+                      Events
+                    </SynthText>
+                  </View>
+                </View>
+              ) : null}
                 </View>
               </View>
               {id && selfId && id !== selfId ? (
@@ -511,6 +564,26 @@ const styles = StyleSheet.create({
   tabOn: { backgroundColor: SynthTokens.colors.neutral0, borderWidth: 1, borderColor: SynthTokens.colors.neutral200 },
   tabTxt: { fontWeight: '700', color: SynthTokens.colors.neutral600, fontSize: 13 },
   tabTxtOn: { color: SynthTokens.colors.neutral900 },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: SynthTokens.spacing.md,
+  },
+  statCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNum: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: SynthTokens.colors.neutral900,
+  },
+  statLabel: {
+    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '600',
+    color: SynthTokens.colors.neutral600,
+  },
   panel: { gap: 10 },
   segment: { flexDirection: 'row', backgroundColor: SynthTokens.colors.neutral100, borderRadius: 12, padding: 4, gap: 4 },
   segBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },

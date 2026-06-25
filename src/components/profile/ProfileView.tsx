@@ -2053,54 +2053,27 @@ const { user, sessionExpired } = useAuth();
                       </Button>
                     )}
                     {friendStatus === 'friends' && (
-                      <>
-                        <Button 
-                          onClick={() => {
-                            const name = profile?.display_name || profile?.username || 'Friend';
-                            window.dispatchEvent(new CustomEvent('open-friend-match', {
-                              detail: { friendId: targetUserId, friendName: name },
-                            }));
-                          }}
-                          variant="default"
-                          size="sm"
-                          style={{ 
-                            height: 'var(--size-button-height, 36px)',
-                            paddingLeft: 'var(--spacing-small, 12px)',
-                            paddingRight: 'var(--spacing-small, 12px)',
-                            fontFamily: 'var(--font-family)',
-                            fontSize: 'var(--typography-meta-size, 16px)',
-                            fontWeight: 'var(--typography-meta-weight, 500)',
-                            lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                            boxShadow: '0 4px 4px 0 var(--shadow-color)',
-                            flex: 1,
-                            minWidth: 0,
-                          }}
-                          aria-label="View friend match"
-                        >
-                          View Match
-                        </Button>
-                        <Button 
-                          onClick={() => unfriendUser(targetUserId)} 
-                          variant="secondary" 
-                          size="sm"
-                          style={{ 
-                            height: 'var(--size-button-height, 36px)',
-                            paddingLeft: 'var(--spacing-small, 12px)',
-                            paddingRight: 'var(--spacing-small, 12px)',
-                            fontFamily: 'var(--font-family)',
-                            fontSize: 'var(--typography-meta-size, 16px)',
-                            fontWeight: 'var(--typography-meta-weight, 500)',
-                            lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                            borderColor: 'var(--neutral-200)',
-                            borderWidth: '1px',
-                            flex: 1,
-                            minWidth: 0,
-                          }}
-                          aria-label="Unfriend user"
-                        >
-                          Unfriend
-                        </Button>
-                      </>
+                      <Button 
+                        onClick={() => unfriendUser(targetUserId)} 
+                        variant="secondary" 
+                        size="sm"
+                        style={{ 
+                          height: 'var(--size-button-height, 36px)',
+                          paddingLeft: 'var(--spacing-small, 12px)',
+                          paddingRight: 'var(--spacing-small, 12px)',
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 'var(--typography-meta-size, 16px)',
+                          fontWeight: 'var(--typography-meta-weight, 500)',
+                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                          borderColor: 'var(--neutral-200)',
+                          borderWidth: '1px',
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                        aria-label="Unfriend user"
+                      >
+                        Unfriend
+                      </Button>
                     )}
                     {(friendStatus === 'none' || friendStatus === 'friends') && (
                       <Button
