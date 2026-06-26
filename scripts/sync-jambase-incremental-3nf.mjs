@@ -396,24 +396,24 @@ class IncrementalSync3NF {
         }
       }
       
-      // Link Jambase IDs to existing artists (with collision protection)
-      for (const { uuid, data } of artistsToLink) {
-        const result = await this.linkJambaseIdToArtist(uuid, data.jambase_artist_id, data.name);
+      // Link Jambase IDs to existing artists in parallel (with collision protection)
+      const linkResults = await Promise.all(
+        artistsToLink.map(({ uuid, data }) =>
+          this.linkJambaseIdToArtist(uuid, data.jambase_artist_id, data.name)
+            .then(result => ({ result, uuid, data }))
+        )
+      );
+      for (const { result, data } of linkResults) {
         if (result.success && !result.skipped) {
           this.stats.artistsUpdated++;
         } else if (result.skipped && result.reason === 'different_id_exists') {
-          // Name collision detected - this artist needs to be created as new instead
-          // Remove the incorrect mapping we set earlier
           artistUuidMap.delete(data.jambase_artist_id);
           trulyNewArtists.push(data);
         } else if (!result.success && !result.skipped) {
-          // Error case - linking failed due to database error
-          // Remove the stale mapping and try to create as new artist
           console.warn(`  ⚠️ Linking failed for "${data.name}", will create as new artist`);
           artistUuidMap.delete(data.jambase_artist_id);
           trulyNewArtists.push(data);
         }
-        // If already_linked, the mapping is still correct, just skip silently
       }
     }
 
@@ -476,112 +476,87 @@ class IncrementalSync3NF {
       }
 
       if (inserted) {
+        const postInsertWork = [];
         for (const artist of inserted) {
-          // Extract Jambase ID from identifier (format: "jambase:3953048")
           const jambaseId = artist.identifier?.replace(/^jambase:/, '');
           if (jambaseId) {
             artistUuidMap.set(jambaseId, artist.id);
             this.stats.artistsNew++;
-
-            // Create external_entity_ids entry
-            await this.upsertExternalId(artist.id, 'jambase', 'artist', jambaseId);
-            
-            // Sync normalized genres for this artist
             const originalArtist = trulyNewArtists.find(a => a.jambase_artist_id === jambaseId);
-            if (originalArtist?.genres) {
-              await this.syncArtistNormalizedGenres(artist.id, originalArtist.genres);
-            }
+            postInsertWork.push(
+              this.upsertExternalId(artist.id, 'jambase', 'artist', jambaseId),
+              originalArtist?.genres
+                ? this.syncArtistNormalizedGenres(artist.id, originalArtist.genres)
+                : Promise.resolve()
+            );
           }
         }
+        await Promise.all(postInsertWork);
       }
     }
 
-    // Update existing artists
-    for (const { uuid, data } of updateArtists) {
-      // Remove jambase_artist_id and artist_data_source from data (they're not columns)
-      const { jambase_artist_id, artist_data_source, genres: newGenres, ...artistData } = data;
-      
-      // ALWAYS fetch existing genres to preserve them
-      const { data: existingArtist, error: fetchError } = await this.syncService.supabase
-        .from('artists')
-        .select('genres')
-        .eq('id', uuid)
-        .single();
+    // In catalog sync mode, skip updating existing artists — we only need their UUIDs
+    // to link events. Full artist data updates happen in the daily incremental sync.
+    if (process.env.JAMBASE_UPCOMING_CATALOG !== '1') {
+      for (const { uuid, data } of updateArtists) {
+        const { jambase_artist_id, artist_data_source, genres: newGenres, ...artistData } = data;
 
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
-      }
+        const { data: existingArtist, error: fetchError } = await this.syncService.supabase
+          .from('artists')
+          .select('genres')
+          .eq('id', uuid)
+          .single();
 
-      // Start with existing genres
-      const existingGenres = existingArtist?.genres || [];
-      const existingArray = Array.isArray(existingGenres) 
-        ? existingGenres 
-        : (existingGenres ? [existingGenres] : []);
-      
-      // Only merge if newGenres is provided AND not empty
-      let mergedGenres = [...existingArray];
-      
-      // Check if newGenres is valid (not null, not undefined, not empty array)
-      const hasValidNewGenres = newGenres && 
-        Array.isArray(newGenres) && 
-        newGenres.length > 0 && 
-        !isEmptyGenres(newGenres);
-      
-      if (hasValidNewGenres) {
-        // Deduplicate (case-insensitive)
-        const genreMap = new Map();
-        
-        // Add existing genres first (preserve them)
-        for (const genre of existingArray) {
-          if (genre) {
-            const key = String(genre).toLowerCase().trim();
-            if (!genreMap.has(key)) {
-              genreMap.set(key, String(genre).trim());
-            }
-          }
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          throw fetchError;
         }
-        
-        // Add new genres
-        for (const genre of newGenres) {
-          if (genre) {
-            const key = String(genre).toLowerCase().trim();
-            genreMap.set(key, String(genre).trim());
+
+        const existingGenres = existingArtist?.genres || [];
+        const existingArray = Array.isArray(existingGenres)
+          ? existingGenres
+          : (existingGenres ? [existingGenres] : []);
+
+        let mergedGenres = [...existingArray];
+
+        const hasValidNewGenres = newGenres &&
+          Array.isArray(newGenres) &&
+          newGenres.length > 0 &&
+          !isEmptyGenres(newGenres);
+
+        if (hasValidNewGenres) {
+          const genreMap = new Map();
+          for (const genre of existingArray) {
+            if (genre) genreMap.set(String(genre).toLowerCase().trim(), String(genre).trim());
           }
+          for (const genre of newGenres) {
+            if (genre) genreMap.set(String(genre).toLowerCase().trim(), String(genre).trim());
+          }
+          mergedGenres = Array.from(genreMap.values());
         }
-        
-        mergedGenres = Array.from(genreMap.values());
-      }
-      
-      // Only update genres if we have valid merged genres OR if existing genres are empty
-      // Never overwrite existing genres with empty array
-      const shouldUpdateGenres = mergedGenres.length > 0 || existingArray.length === 0;
-      
-      const updateData = {
-        ...artistData,
-        updated_at: new Date().toISOString(),
-        last_synced_at: new Date().toISOString()
-      };
-      
-      // Only include genres in update if we should update them
-      if (shouldUpdateGenres) {
-        updateData.genres = mergedGenres.length > 0 ? mergedGenres : existingArray;
-      }
-      
-      const { error } = await this.syncService.supabase
-        .from('artists')
-        .update(updateData)
-        .eq('id', uuid);
 
-      if (error) {
-        throw error;
-      }
+        const shouldUpdateGenres = mergedGenres.length > 0 || existingArray.length === 0;
+        const updateData = {
+          ...artistData,
+          updated_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString()
+        };
+        if (shouldUpdateGenres) {
+          updateData.genres = mergedGenres.length > 0 ? mergedGenres : existingArray;
+        }
 
-      this.stats.artistsUpdated++;
-      
-      // Sync normalized genres for this artist
-      const finalGenres = updateData.genres || mergedGenres;
-      if (finalGenres && finalGenres.length > 0) {
-        await this.syncArtistNormalizedGenres(uuid, finalGenres);
+        const { error } = await this.syncService.supabase
+          .from('artists')
+          .update(updateData)
+          .eq('id', uuid);
+
+        if (error) throw error;
+
+        this.stats.artistsUpdated++;
+
+        const finalGenres = updateData.genres || mergedGenres;
+        if (finalGenres && finalGenres.length > 0) {
+          await this.syncArtistNormalizedGenres(uuid, finalGenres);
+        }
       }
     }
 
@@ -698,9 +673,10 @@ class IncrementalSync3NF {
             }
           }
           
+          const externalIdPromises = [];
           for (const insertedVenue of inserted) {
             // Match by identifier (most reliable)
-            const originalVenue = insertedVenue.identifier 
+            const originalVenue = insertedVenue.identifier
               ? originalVenuesByIdentifier.get(insertedVenue.identifier)
               : null;
             
@@ -717,43 +693,43 @@ class IncrementalSync3NF {
             }
             
             if (jambaseVenueId) {
-              // Add to map using the jambase_venue_id
               venueUuidMap.set(jambaseVenueId, insertedVenue.id);
               this.stats.venuesNew++;
-
-              // Create external_entity_ids entry
-              await this.upsertExternalId(insertedVenue.id, 'jambase', 'venue', jambaseVenueId);
+              externalIdPromises.push(this.upsertExternalId(insertedVenue.id, 'jambase', 'venue', jambaseVenueId));
             } else {
               const venueName = originalVenue?.name || insertedVenue.identifier || 'unknown';
               console.warn(`  ⚠️  Venue inserted but no JamBase ID found: ${insertedVenue.id} (${venueName})`);
             }
           }
+          await Promise.all(externalIdPromises);
         }
       }
 
-      // Update existing venues
-      for (const { uuid, data } of updateVenues) {
-        // Remove jambase_venue_id from data (it's not a column)
-        const { jambase_venue_id, ...venueData } = data;
-        
-        const { error } = await this.syncService.supabase
-          .from('venues')
-          .update({
-            ...venueData,
-            updated_at: new Date().toISOString(),
-            last_synced_at: new Date().toISOString()
-          })
-          .eq('id', uuid);
+      // In catalog sync mode, skip updating existing venues — we only need their UUIDs.
+      if (process.env.JAMBASE_UPCOMING_CATALOG !== '1') {
+        for (const { uuid, data } of updateVenues) {
+          const { jambase_venue_id, ...venueData } = data;
 
-        if (error) {
-          throw error;
+          const { error } = await this.syncService.supabase
+            .from('venues')
+            .update({
+              ...venueData,
+              updated_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString()
+            })
+            .eq('id', uuid);
+
+          if (error) throw error;
+          this.stats.venuesUpdated++;
         }
-
-        this.stats.venuesUpdated++;
       }
     }
 
     // Handle venues without Jambase IDs (location-based matching)
+    // In catalog sync mode, skip the expensive per-venue coordinate lookups for venues
+    // without Jambase IDs — the backfill script already linked them.
+    if (process.env.JAMBASE_UPCOMING_CATALOG === '1') return venueUuidMap;
+
     for (const venueData of venuesWithoutId) {
       // Remove jambase_venue_id from data (it's not a column)
       const { jambase_venue_id, ...venueDataClean } = venueData;
