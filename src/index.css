@@ -126,12 +126,67 @@ body,
   }
   }
 
-  /* Card styles — design system compliant */
-  .glass-card {
-    background-color: var(--neutral-50);
-    border: var(--border-default);
-    border-radius: var(--radius-corner);
+  /* Enhanced animated gradient background for entire app */
+  body {
+    background: linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, #fce7f3 50%, var(--neutral-0) 75%, #fdf2f8 100%);
+    background-size: 400% 400%;
+    animation: elegant-shift 20s ease infinite;
+    min-height: 100vh;
     position: relative;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+  @keyframes elegant-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    25% {
+      background-position: 100% 50%;
+    }
+    50% {
+      background-position: 100% 100%;
+    }
+    75% {
+      background-position: 0% 100%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  }
+
+  /* Overlay pattern for subtle texture */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Enhanced glassmorphism card styles */
+  .glass-card {
+    @apply bg-white/75 backdrop-blur-lg;
+    @apply border border-white/50;
+    @apply shadow-xl shadow-pink-500/15;
+    @apply rounded-2xl;
+    position: relative;
+  }
+
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(236,72,153,0.05) 100%);
+    border-radius: inherit;
+    pointer-events: none;
   }
 
   /* Enhanced universal hover animations for cards */
@@ -141,8 +196,8 @@ body,
   }
 
   .hover-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-default);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 30px 60px -12px rgba(236, 72, 153, 0.4), 0 0 0 1px rgba(236, 72, 153, 0.1);
   }
 
   /* Enhanced universal button animations */
@@ -166,8 +221,8 @@ body,
   }
 
   .hover-icon:hover {
-    transform: scale(1.15);
-    filter: drop-shadow(0 4px 8px color-mix(in srgb, var(--brand-pink-500) 30%, transparent));
+    transform: scale(1.25) rotate(6deg);
+    filter: drop-shadow(0 4px 8px rgba(236, 72, 153, 0.3));
   }
 
   /* Special micro-interactions */
@@ -177,7 +232,7 @@ body,
 
   .hover-heart:hover {
     transform: scale(1.3);
-    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--brand-pink-500) 60%, transparent));
+    filter: drop-shadow(0 0 8px rgba(236, 72, 153, 0.6));
   }
 
   .hover-social {
@@ -206,20 +261,16 @@ body,
   }
   }
 
-  /* Gradient text utility */
+  /* Enhanced gradient text utility */
   .gradient-text {
-    background: var(--gradient-brand);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @apply bg-gradient-to-r from-pink-600 via-pink-500 to-pink-400;
+    @apply bg-clip-text text-transparent;
+    animation: gradient-text-shift 3s ease-in-out infinite;
   }
 
   .gradient-text-bold {
-    background: var(--gradient-brand);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 700;
+    @apply bg-gradient-to-r from-pink-700 via-pink-600 to-pink-500;
+    @apply bg-clip-text text-transparent font-semibold;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -320,17 +371,26 @@ body,
   }
 
   .inner-glow {
+    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 100%);
     position: relative;
   }
 
-  
+  .inner-glow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
 
-  /* Bottom navigation — design system compliant */
+
+
+  /* Glassmorphism navigation */
   .glass-nav {
-    background-color: var(--brand-pink-050);
-    border-top: 2px solid var(--neutral-200);
-    border-top-left-radius: var(--radius-corner);
-    border-top-right-radius: var(--radius-corner);
+    @apply bg-white/80 backdrop-blur-lg;
+    @apply border-t border-pink-200/50;
+    @apply shadow-md shadow-pink-500/10;
   }
 
   /* Enhanced tab animations */
@@ -364,6 +424,25 @@ body,
     transform: translateY(-1px);
   }
 
+  /* Enhanced glassmorphism navigation */
+  .glass-nav {
+    @apply bg-white/85 backdrop-blur-xl;
+    @apply border-t border-pink-200/50;
+    @apply shadow-lg shadow-pink-500/20;
+    position: relative;
+  }
+
+  .glass-nav::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(236,72,153,0.05) 100%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
 
   .nav-button {
     @apply transition-all duration-300;
@@ -400,13 +479,24 @@ body,
     @apply var(--neutral-600) hover:text-pink-500 hover:scale-110;
   }
 
-  /* Header — design system compliant */
+  /* Enhanced header styles */
   .glass-header {
-    background-color: var(--neutral-50);
-    position: sticky;
+    @apply bg-white/80 backdrop-blur-lg;
+    @apply sticky top-0 z-50;
+    @apply shadow-md shadow-pink-500/10;
+    position: relative;
+  }
+
+  .glass-header::before {
+    content: '';
+    position: absolute;
     top: 0;
-    z-index: var(--z-index-nav);
-    box-shadow: var(--shadow-default);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(236,72,153,0.05) 100%);
+    pointer-events: none;
+    border-radius: inherit;
   }
 
   /* Keep all headers pinned so iOS webview sections stay visible while scrolling */
@@ -472,17 +562,17 @@ body,
     --border: 0 0% 90%;
     --input: 0 0% 95%;
     --ring: 320 100% 60%;
-    
+
     --success: 140 65% 55%;
     --warning: 35 85% 60%;
-    
+
     /* Event category colors - Synth themed */
     --music: 320 100% 60%;
     --food: 25 85% 60%;
     --arts: 280 85% 65%;
     --sports: 120 85% 55%;
     --social: 45 85% 65%;
-    
+
     /* Synth Gradients */
     --gradient-brand: linear-gradient(135deg, #FF3399, #FF66B3);
     --gradient-card: linear-gradient(145deg, var(--neutral-0), #F5F5DC);
@@ -494,18 +584,18 @@ body,
       rgba(255, 255, 255, 0.9) 40%,
       rgba(255, 51, 153, 0.04) 100%
     );
-    
+
     /* Synth Shadows */
     --shadow-soft: 0 4px 20px -2px rgba(255, 51, 153, 0.1);
     --shadow-card: 0 8px 30px -4px rgba(0, 0, 0, 0.1);
     --shadow-hover: 0 12px 40px -6px rgba(255, 51, 153, 0.2);
     --shadow-glow: 0 0 20px rgba(255, 51, 153, 0.3);
-    
+
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     --transition-glow: all 0.3s ease-in-out;
-    
+
     --radius: 10px;
 
     --sidebar-background: 0 0% 98%;
@@ -679,71 +769,79 @@ body,
     color: var(--neutral-900);
     letter-spacing: -0.02em;
   }
-  
+
   .synth-text {
     font-family: var(--font-family);
     color: var(--neutral-900);
   }
-  
+
   /* Synth Logo Styles */
   .synth-logo {
-    font-family: var(--font-family);
-    font-size: var(--typography-h1-size);
-    font-weight: var(--typography-h1-weight);
-    line-height: var(--typography-h1-line-height);
+    @apply font-bold text-4xl;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     letter-spacing: -0.05em;
   }
-  
+
   .synth-logo-s {
     @apply text-synth-pink;
   }
-  
+
   .synth-logo-text {
     @apply text-synth-beige;
   }
-  
+
   /* Event category badges - Synth themed */
-  .category-music { 
-    @apply bg-synth-pink/10 text-synth-pink border border-synth-pink/20; 
+  .category-music {
+    @apply bg-synth-pink/10 text-synth-pink border border-synth-pink/20;
   }
-  .category-food { 
-    @apply bg-orange-100 text-orange-700 border border-orange-200; 
+  .category-food {
+    @apply bg-orange-100 text-orange-700 border border-orange-200;
   }
-  .category-arts { 
-    @apply bg-purple-100 text-purple-700 border border-purple-200; 
+  .category-arts {
+    @apply bg-purple-100 text-purple-700 border border-purple-200;
   }
-  .category-sports { 
-    @apply bg-green-100 text-green-700 border border-green-200; 
+  .category-sports {
+    @apply bg-green-100 text-green-700 border border-green-200;
   }
-  .category-social { 
-    @apply bg-synth-beige text-synth-black border border-synth-beige-dark; 
+  .category-social {
+    @apply bg-synth-beige text-synth-black border border-synth-beige-dark;
   }
-  
-  /* Card styles — design system compliant */
+
+  /* Enhanced Synth Card Styles */
   .synth-card {
-    background-color: var(--neutral-50);
-    border: var(--border-default);
-    border-radius: var(--radius-corner);
-    transition: box-shadow 0.2s ease;
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl shadow-lg;
+    transition: var(--transition-smooth);
     position: relative;
     overflow: hidden;
   }
-  
+
+  .synth-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 51, 153, 0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
   .synth-card:hover {
     box-shadow: var(--shadow-hover);
     transform: translateY(-4px);
     border-color: rgba(255, 51, 153, 0.2);
   }
-  
+
   .synth-card:hover::before {
     opacity: 1;
   }
-  
+
   .synth-card-glow {
     @apply synth-card;
     box-shadow: var(--shadow-glow);
   }
-  
+
   /* Enhanced Synth Button Variants - Using Design System Tokens */
   .btn-synth-primary {
     /* Primary button: Brand Pink background, Neutral-50 text/icons */
@@ -762,16 +860,16 @@ body,
     transition: all 0.2s ease;
     cursor: pointer;
   }
-  
+
   .btn-synth-primary:hover:not(:disabled) {
     background-color: var(--brand-pink-600);
   }
-  
+
   .btn-synth-primary:active:not(:disabled) {
     background-color: var(--brand-pink-700);
     transform: scale(0.98);
   }
-  
+
   .btn-synth-primary:disabled {
     background-color: var(--state-disabled-bg);
     color: var(--neutral-600) !important;
@@ -779,7 +877,7 @@ body,
     opacity: 1;
     pointer-events: none;
   }
-  
+
   .btn-synth-secondary {
     /* Secondary button: Neutral-50 background, Brand Pink text/icons/border */
     background-color: var(--neutral-50);
@@ -797,26 +895,26 @@ body,
     transition: all 0.2s ease;
     cursor: pointer;
   }
-  
+
   .btn-synth-secondary:hover:not(:disabled) {
     background-color: var(--brand-pink-050);
     border-color: var(--brand-pink-600);
   }
-  
+
   .btn-synth-secondary:active:not(:disabled) {
     background-color: var(--brand-pink-050);
     border-color: var(--brand-pink-700);
     transform: scale(0.98);
   }
-  
+
   .event-interested-button.btn-synth-secondary {
     color: var(--neutral-0) !important;
   }
-  
+
   .event-interested-button.btn-synth-secondary svg {
     color: var(--neutral-0) !important;
   }
-  
+
   .btn-synth-secondary:disabled {
     background-color: var(--neutral-50);
     border-color: var(--state-disabled-bg);
@@ -825,7 +923,7 @@ body,
     opacity: 1;
     pointer-events: none;
   }
-  
+
   /* Secondary button variant 2: Neutral-50 background, Neutral-600 text/icons/border */
   .btn-synth-secondary-neutral {
     background-color: var(--neutral-50);
@@ -843,18 +941,18 @@ body,
     transition: all 0.2s ease;
     cursor: pointer;
   }
-  
+
   .btn-synth-secondary-neutral:hover:not(:disabled) {
     background-color: var(--neutral-100);
     border-color: var(--neutral-600);
   }
-  
+
   .btn-synth-secondary-neutral:active:not(:disabled) {
     background-color: var(--neutral-100);
     border-color: var(--neutral-600);
     transform: scale(0.98);
   }
-  
+
   .btn-synth-secondary-neutral:disabled {
     background-color: var(--neutral-50);
     border-color: var(--state-disabled-bg);
@@ -863,12 +961,12 @@ body,
     opacity: 1;
     pointer-events: none;
   }
-  
+
   .btn-synth-secondary-neutral svg,
   .btn-synth-secondary-neutral .synth-icon {
     color: var(--neutral-600) !important;
   }
-  
+
   /* Ghost button variant - transparent with hover state */
   .btn-ghost {
     background-color: transparent;
@@ -886,46 +984,46 @@ body,
     cursor: pointer;
     box-shadow: none;
   }
-  
+
   .btn-ghost:hover:not(:disabled) {
     background-color: var(--brand-pink-050);
     color: var(--brand-pink-500) !important;
   }
-  
+
   .btn-ghost:active:not(:disabled) {
     background-color: var(--brand-pink-050);
     transform: scale(0.98);
   }
-  
+
   .btn-ghost:disabled {
     color: var(--neutral-400) !important;
     cursor: not-allowed;
     opacity: 1;
     pointer-events: none;
   }
-  
+
   .btn-swipe-like {
     @apply btn-synth-primary;
     transition: var(--transition-bounce);
   }
-  
+
   .btn-swipe-pass {
     @apply bg-muted text-muted-foreground hover:bg-muted/80;
     transition: var(--transition-bounce);
   }
-  
+
   /* Enhanced Synth Navigation */
   .synth-nav {
     @apply bg-card/95 backdrop-blur-md border-t border-border/50;
     box-shadow: 0 -4px 20px -2px rgba(0, 0, 0, 0.1);
   }
-  
+
   .synth-nav-item {
     @apply flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-300;
     position: relative;
     overflow: hidden;
   }
-  
+
   .synth-nav-item::before {
     content: '';
     position: absolute;
@@ -937,26 +1035,26 @@ body,
     opacity: 0;
     transition: opacity 0.3s ease;
   }
-  
+
   .synth-nav-item.active {
     @apply bg-synth-pink text-white;
     box-shadow: 0 4px 12px rgba(255, 51, 153, 0.3);
   }
-  
+
   .synth-nav-item:not(.active) {
     @apply text-muted-foreground hover:text-foreground hover:bg-muted/50;
   }
-  
+
   .synth-nav-item:not(.active):hover::before {
     opacity: 1;
   }
-  
+
   /* Enhanced Synth Gradients */
   .synth-gradient-brand {
     background: var(--gradient-brand);
     position: relative;
   }
-  
+
   .synth-gradient-brand::before {
     content: '';
     position: absolute;
@@ -967,12 +1065,12 @@ body,
     background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), transparent);
     pointer-events: none;
   }
-  
+
   .synth-gradient-card {
     background: var(--gradient-card);
     position: relative;
   }
-  
+
   .synth-gradient-card::before {
     content: '';
     position: absolute;
@@ -983,65 +1081,48 @@ body,
     background: linear-gradient(135deg, rgba(255, 51, 153, 0.02), rgba(245, 245, 220, 0.02));
     pointer-events: none;
   }
-  
+
   .synth-gradient-dark {
     background: var(--gradient-dark);
   }
-  
+
   /* Enhanced Synth Glow Effects */
   .synth-glow-hover:hover {
     box-shadow: var(--shadow-glow);
   }
-  
-  /* Subtle glass surface */
+
+  /* Modern Glass Effect */
   .glass-effect {
-    background-color: color-mix(in srgb, var(--neutral-0) 10%, transparent);
-    backdrop-filter: blur(12px);
-    border: var(--border-default);
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
   }
-  
-  /* Input styles — design system compliant */
+
+  /* Enhanced Input Styles */
   .synth-input {
-    background-color: var(--neutral-50);
-    border: var(--border-default);
-    border-radius: var(--radius-corner);
-    padding: var(--spacing-small) var(--spacing-small);
-    height: var(--size-input-height);
-    font-family: var(--font-family);
-    font-size: var(--typography-body-size);
-    font-weight: var(--typography-body-weight);
-    color: var(--neutral-900);
-    transition: border-color 0.2s ease;
-    box-sizing: border-box;
+    @apply bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-4 py-3;
+    transition: var(--transition-smooth);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
-  
+
   .synth-input:focus {
-    outline: 2px solid var(--brand-pink-500);
-    outline-offset: -2px;
-    border-color: var(--brand-pink-500);
+    @apply border-synth-pink/50 shadow-lg shadow-synth-pink/10;
+    outline: none;
   }
-  
-  /* Badge/chip styles — design system compliant */
+
+  /* Enhanced Badge Styles */
   .synth-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0 var(--spacing-small);
-    height: 25px;
-    border-radius: 999px;
-    background-color: var(--brand-pink-050);
-    border: var(--border-brand);
-    color: var(--brand-pink-500);
-    font-family: var(--font-family);
-    font-size: var(--typography-meta-size);
-    font-weight: var(--typography-meta-weight);
-    transition: background-color 0.2s ease;
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+    background: linear-gradient(135deg, rgba(255, 51, 153, 0.1), rgba(255, 102, 179, 0.1));
+    border: 1px solid rgba(255, 51, 153, 0.2);
+    color: rgb(255, 51, 153);
+    transition: var(--transition-smooth);
   }
-  
+
   .synth-badge:hover {
-    background-color: var(--brand-pink-050);
-    border-color: var(--brand-pink-600);
+    background: linear-gradient(135deg, rgba(255, 51, 153, 0.2), rgba(255, 102, 179, 0.2));
+    transform: translateY(-1px);
   }
-  
+
   /* Enhanced Loading States */
   .synth-loading {
     @apply animate-pulse;
@@ -1049,53 +1130,53 @@ body,
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
   }
-  
+
   @media (prefers-reduced-motion: no-preference) {
   @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
   }
-  
+
   /* Search Page Layout Fixes */
   #search-layout-root.filters-open {
     position: relative;
     z-index: 1;
   }
-  
+
   #search-layout-root.filters-open .relative.z-10 {
     z-index: 0;
   }
-  
+
   #search-layout-root.filters-open .relative.z-0 {
     z-index: -1;
   }
-  
+
   /* Ensure filter popovers appear above everything */
   [data-radix-popover-content] {
     z-index: 60 !important;
   }
-  
+
   [data-radix-popover-overlay] {
     z-index: 59 !important;
   }
-  
+
   /* Fix for search page grid layout */
   .search-grid-fix {
     position: relative;
     z-index: 1;
   }
-  
+
   .search-grid-fix .lg\\:col-span-1 {
     position: relative;
     z-index: 10;
   }
-  
+
   .search-grid-fix .lg\\:col-span-2 {
     position: relative;
     z-index: 10;
   }
-  
+
   /* Search suggestions dropdown - highest priority */
   .search-suggestions-dropdown {
     z-index: 9999 !important;
@@ -1105,7 +1186,7 @@ body,
     backdrop-filter: blur(16px) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
   }
-  
+
   /* Search container - ensure proper stacking context */
   .search-container {
     position: relative;
@@ -1130,32 +1211,32 @@ body,
   .synth-hover-lift {
     transition: var(--transition-smooth);
   }
-  
+
   .synth-hover-lift:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
   }
-  
+
   /* Enhanced Focus States */
   .synth-focus {
     @apply focus:outline-none focus:ring-2 focus:ring-synth-pink/50 focus:ring-offset-2;
   }
-  
+
   /* Enhanced Scrollbar */
   .synth-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   .synth-scrollbar::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.1);
     border-radius: 3px;
   }
-  
+
   .synth-scrollbar::-webkit-scrollbar-thumb {
     background: linear-gradient(135deg, rgba(255, 51, 153, 0.5), rgba(255, 102, 179, 0.5));
     border-radius: 3px;
   }
-  
+
   .synth-scrollbar::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, rgba(255, 51, 153, 0.7), rgba(255, 102, 179, 0.7));
   }
@@ -1165,7 +1246,7 @@ body,
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;  /* Chrome, Safari and Opera */
   }
@@ -1198,7 +1279,7 @@ body,
       0 0 20px 0 color-mix(in srgb, var(--brand-pink-500) 8%, transparent);
     position: relative;
   }
-  
+
 
   .swift-ui-card::before {
     content: '';
@@ -1586,31 +1667,31 @@ body,
   .leaflet-popup-content {
     @apply m-0;
   }
-  
+
   .leaflet-popup-content-wrapper {
     @apply rounded-lg shadow-lg;
   }
-  
+
   .event-popup .leaflet-popup-content {
     @apply p-0;
   }
-  
+
   /* Discover tab selected state styling */
   .discover-tab-trigger[data-state="active"] {
     background-color: var(--brand-pink-050) !important;
     color: var(--brand-pink-500) !important;
   }
-  
+
   .discover-tab-trigger[data-state="active"] svg,
   .discover-tab-trigger[data-state="active"] .synth-icon {
     color: var(--brand-pink-500) !important;
   }
-  
+
   .discover-tab-trigger[data-state="inactive"] {
     background-color: transparent;
     color: var(--neutral-600);
   }
-  
+
   .discover-tab-trigger[data-state="inactive"] svg,
   .discover-tab-trigger[data-state="inactive"] .synth-icon {
     color: var(--neutral-600);

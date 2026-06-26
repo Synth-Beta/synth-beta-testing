@@ -28,49 +28,84 @@ export const iosDimensions = {
 // GLASSMORPHISM BASE STYLES
 // ============================================
 
-/** Base card style — token-compliant */
+/** Base glassmorphism card style */
 export const glassCard: CSSProperties = {
-  background: 'var(--neutral-50)',
-  border: 'var(--border-default)',
-  boxShadow: 'var(--shadow-default)',
-  borderRadius: 'var(--radius-corner, 10px)' as unknown as number,
+  background: 'rgba(255, 255, 255, 0.7)',
+  backdropFilter: 'blur(40px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+  border: '1px solid rgba(255, 255, 255, 0.3)',
+  boxShadow: `
+    0 8px 32px 0 rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.05)
+  `.trim(),
+  borderRadius: 16,
 };
 
-/** Light card style — token-compliant */
+/** Light glassmorphism for subtle elements */
 export const glassCardLight: CSSProperties = {
-  background: 'var(--neutral-100)',
-  border: 'var(--border-default)',
-  boxShadow: 'var(--shadow-default)',
-  borderRadius: 'var(--radius-corner, 10px)' as unknown as number,
+  background: 'rgba(255, 255, 255, 0.5)',
+  backdropFilter: 'blur(20px) saturate(150%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+  border: '1px solid rgba(255, 255, 255, 0.2)',
+  boxShadow: `
+    0 4px 16px 0 rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4)
+  `.trim(),
+  borderRadius: 12,
 };
 
-/** Dark card style — token-compliant */
+/** Darker glassmorphism for contrast */
 export const glassCardDark: CSSProperties = {
-  background: 'var(--neutral-900)',
-  border: '1px solid var(--neutral-700)',
-  boxShadow: 'var(--shadow-default)',
-  borderRadius: 'var(--radius-corner, 10px)' as unknown as number,
+  background: 'rgba(0, 0, 0, 0.3)',
+  backdropFilter: 'blur(40px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  boxShadow: `
+    0 8px 32px 0 rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1)
+  `.trim(),
+  borderRadius: 16,
 };
 
 // ============================================
 // LIQUID GLASS EFFECTS
 // ============================================
 
-/** Card with subtle brand tint — token-compliant */
+/** Liquid glass gradient background */
 export const liquidGlass: CSSProperties = {
-  background: 'var(--neutral-50)',
-  border: 'var(--border-default)',
-  boxShadow: 'var(--shadow-default)',
-  borderRadius: 'var(--radius-corner, 10px)' as unknown as number,
+  background: `linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.4) 100%
+  )`,
+  backdropFilter: 'blur(40px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+  border: '1px solid rgba(255, 255, 255, 0.4)',
+  boxShadow: `
+    0 8px 32px 0 rgba(0, 0, 0, 0.1),
+    inset 0 2px 4px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px 0 rgba(0, 0, 0, 0.05)
+  `.trim(),
+  borderRadius: 20,
 };
 
-/** Button base style — token-compliant */
+/** Liquid glass button style */
 export const liquidGlassButton: CSSProperties = {
-  background: 'var(--neutral-50)',
-  border: 'var(--border-default)',
-  boxShadow: 'var(--shadow-default)',
-  borderRadius: 'var(--radius-corner, 10px)' as unknown as number,
-  cursor: 'pointer',
+  background: `linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.7) 100%
+  )`,
+  backdropFilter: 'blur(20px) saturate(150%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+  border: '1px solid rgba(255, 255, 255, 0.5)',
+  boxShadow: `
+    0 4px 12px 0 rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8)
+  `.trim(),
+  borderRadius: 12,
 };
 
 // ============================================
@@ -98,18 +133,20 @@ export const iosModal: CSSProperties = {
   zIndex: 30,
 };
 
-/** Modal backdrop */
+/** iOS modal backdrop */
 export const iosModalBackdrop: CSSProperties = {
   position: 'fixed',
   top: 0,
   left: 0,
   right: 0,
   bottom: 0,
-  background: 'rgba(0, 0, 0, 0.5)',
+  background: 'rgba(0, 0, 0, 0.4)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
   zIndex: 999,
 };
 
-/** Sticky navigation header — token-compliant */
+/** iOS-style navigation header */
 export const iosHeader: CSSProperties = {
   position: 'sticky',
   top: 0,
@@ -120,12 +157,15 @@ export const iosHeader: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '0 16px',
-  background: 'var(--neutral-50)',
-  borderBottom: 'var(--border-default)',
+  background: 'rgba(255, 255, 255, 0.85)',
+  backdropFilter: 'blur(20px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+  borderBottom: '0.5px solid rgba(0, 0, 0, 0.1)',
+  // Keep above all modal content (avoid sticky header being under buttons/sections).
   zIndex: 200,
 };
 
-/** Bottom action bar — token-compliant */
+/** iOS-style bottom action bar */
 export const iosBottomBar: CSSProperties = {
   position: 'fixed',
   bottom: 0,
@@ -135,8 +175,10 @@ export const iosBottomBar: CSSProperties = {
   margin: '0 auto',
   padding: '12px 20px',
   paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 34px))',
-  background: 'var(--neutral-50)',
-  borderTop: 'var(--border-default)',
+  background: 'rgba(255, 255, 255, 0.9)',
+  backdropFilter: 'blur(20px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+  borderTop: '0.5px solid rgba(0, 0, 0, 0.1)',
   zIndex: 10,
 };
 
@@ -162,7 +204,7 @@ export const iosPrimaryButton: CSSProperties = {
   transition: 'all 0.2s ease',
 };
 
-/** Secondary action button — token-compliant */
+/** Secondary action button */
 export const iosSecondaryButton: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -170,26 +212,30 @@ export const iosSecondaryButton: CSSProperties = {
   height: 50,
   minWidth: 44,
   padding: '0 24px',
-  background: 'var(--neutral-50)',
+  background: 'rgba(255, 255, 255, 0.8)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
   color: 'var(--brand-pink-500)',
   fontSize: 17,
   fontWeight: 600,
-  borderRadius: 'var(--radius-corner, 10px)' as unknown as number,
-  border: 'var(--border-brand)',
+  borderRadius: 12,
+  border: '1px solid rgba(204, 36, 134, 0.3)',
   cursor: 'pointer',
   transition: 'all 0.2s ease',
 };
 
-/** Icon button (circular) — token-compliant */
+/** Icon button (circular) */
 export const iosIconButton: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   width: 44,
   height: 44,
-  background: 'var(--neutral-100)',
+  background: 'rgba(255, 255, 255, 0.6)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
   borderRadius: '50%',
-  border: 'var(--border-default)',
+  border: '1px solid rgba(255, 255, 255, 0.3)',
   cursor: 'pointer',
   transition: 'all 0.2s ease',
 };

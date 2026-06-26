@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react"
 import { Heart, X, Calendar, MapPin, Users, Star, Music } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { ProgressiveImage } from "@/components/ui/ProgressiveImage"
+import { Card } from "@/components/ui/card"
 import { isEventPast, getEventStatus } from "@/utils/eventStatusUtils"
 import { useSetlist } from "@/hooks/useSetlist"
 import { getFallbackEventImage, replaceJambasePlaceholder } from "@/utils/eventImageFallbacks"
@@ -13,7 +15,7 @@ export interface Event {
   venue: string
   date: string
   time: string
-  event_date?: string
+  event_date?: string // Add event_date for status checking
   category: "music" | "food" | "arts" | "sports" | "social"
   description: string
   image: string
@@ -31,10 +33,12 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
   const [isAnimating, setIsAnimating] = useState(false)
   const [swipeDirection, setSwipeDirection] = useState<"like" | "pass" | null>(null)
 
+  // Determine if this is a past event
   const eventDate = event.event_date || event.date
   const isPast = isEventPast(eventDate)
   const eventStatus = getEventStatus(eventDate)
 
+  // Fetch setlist data for past events
   const { setlist, loading: setlistLoading, hasSetlist, songCount } = useSetlist(event.id)
 
   const fallbackImage = useMemo(
@@ -46,6 +50,7 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
   const handleSwipe = (direction: "like" | "pass") => {
     setSwipeDirection(direction)
     setIsAnimating(true)
+
     setTimeout(() => {
       onSwipe(event.id, direction)
       setIsAnimating(false)
@@ -54,51 +59,34 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
   }
 
   const handleWriteReview = () => {
+    // TODO: Implement review functionality for past events
     console.log('Write review for past event:', event.id)
   }
 
-  const metaStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-family)',
-    fontSize: 'var(--typography-meta-size, 16px)',
-    fontWeight: 'var(--typography-meta-weight, 500)',
-    lineHeight: 'var(--typography-meta-line-height, 1.5)',
-  }
-
-  const actionButtonBase: React.CSSProperties = {
-    flex: 1,
-    height: 'var(--size-button-height, 36px)',
-    border: 'none',
-    borderRadius: 'var(--radius-corner, 10px)',
-    boxShadow: 'var(--shadow-default)',
-    fontFamily: 'var(--font-family)',
-    fontSize: 'var(--typography-meta-size, 16px)',
-    fontWeight: 'var(--typography-meta-weight, 500)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 'var(--spacing-inline, 6px)',
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      music: "category-music",
+      food: "category-food",
+      arts: "category-arts",
+      sports: "category-sports",
+      social: "category-social",
+    }
+    return colors[category as keyof typeof colors] || "category-social"
   }
 
   return (
-    <div
-      className={`
-        relative w-full max-w-sm mx-auto overflow-hidden
-        ${isAnimating && swipeDirection === "like" ? "animate-swipe-like" : ""}
-        ${isAnimating && swipeDirection === "pass" ? "animate-swipe-pass" : ""}
-        ${className}
-      `}
-      style={{
-        backgroundColor: 'var(--neutral-50)',
-        border: 'var(--border-default)',
-        borderRadius: 'var(--radius-corner, 10px)',
-        boxShadow: 'var(--shadow-modal)',
-      }}
-      role="article"
-      aria-label={`Event: ${event.title}`}
-    >
-      {/* Event Image */}
-      <div className="relative overflow-hidden" style={{ height: '288px', backgroundColor: '#000000' }}>
+        <Card
+          className={`
+            glass-card hover-card depth-card relative w-full max-w-sm mx-auto overflow-hidden floating-shadow
+            ${isAnimating && swipeDirection === "like" ? "animate-swipe-like" : ""}
+            ${isAnimating && swipeDirection === "pass" ? "animate-swipe-pass" : ""}
+            ${className}
+          `}
+          role="article"
+          aria-label={`Event: ${event.title}`}
+        >
+      {/* Event Image - contain so full photo is visible (no crop) */}
+      <div className="relative h-72 overflow-hidden bg-black flex items-center justify-center">
         <ProgressiveImage
           src={eventImage}
           alt={`${event.title} event image`}
@@ -107,213 +95,130 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
-        {/* Category pill */}
-        {!isPast && (
-          <div className="absolute" style={{ top: 'var(--spacing-small, 12px)', left: 'var(--spacing-small, 12px)' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '4px var(--spacing-small, 12px)',
-                backgroundColor: 'var(--brand-pink-050)',
-                color: 'var(--brand-pink-500)',
-                border: '1px solid var(--brand-pink-500)',
-                borderRadius: '999px',
-                ...metaStyle,
-              }}
-            >
-              {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
-            </span>
-          </div>
-        )}
-
-        {/* Past event badge */}
-        {isPast && (
-          <div className="absolute" style={{ top: 'var(--spacing-small, 12px)', left: 'var(--spacing-small, 12px)' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '4px var(--spacing-small, 12px)',
-                backgroundColor: 'var(--status-success-050)',
-                color: 'var(--status-success-500)',
-                border: '1px solid var(--status-success-500)',
-                borderRadius: '999px',
-                ...metaStyle,
-              }}
-            >
-              Past Event
-            </span>
-          </div>
-        )}
-
-        {/* Price badge */}
+        <div className="absolute top-4 left-4">
+          <span
+            className={`px-4 py-2 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm hover-icon ${getCategoryColor(event.category)}`}
+          >
+            {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
+          </span>
+        </div>
         {event.price && (
-          <div className="absolute" style={{ top: 'var(--spacing-small, 12px)', right: 'var(--spacing-small, 12px)' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                padding: '4px var(--spacing-small, 12px)',
-                backgroundColor: 'var(--brand-pink-500)',
-                color: 'var(--neutral-50)',
-                borderRadius: '999px',
-                ...metaStyle,
-                fontWeight: 700,
-              }}
-            >
-              {event.price}
-            </span>
+          <div className="absolute top-4 right-4 gradient-badge rounded-full text-sm font-bold shadow-lg">
+            {event.price}
+          </div>
+        )}
+        {/* Event Status Badge */}
+        {isPast && (
+          <div className="absolute top-4 left-4 bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium shadow-lg">
+            Past Event
           </div>
         )}
       </div>
 
-      {/* Card Content */}
-      <div style={{ padding: 'var(--spacing-grouped, 24px)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
-        {/* Title + Description */}
+     <div className="p-6 space-y-5">
         <div>
-          <h3
-            style={{
-              fontFamily: 'var(--font-family)',
-              fontSize: 'var(--typography-h2-size, 24px)',
-              fontWeight: 'var(--typography-h2-weight, 700)',
-              lineHeight: 'var(--typography-h2-line-height, 1.3)',
-              color: 'var(--neutral-900)',
-              marginBottom: 'var(--spacing-small, 12px)',
-            }}
-          >
-            {event.title}
-          </h3>
-          <p
-            style={{
-              ...metaStyle,
-              color: 'var(--neutral-600)',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {event.description}
-          </p>
+          <h3 className="synth-heading text-2xl mb-3 leading-tight">{event.title}</h3>
+          <p className="synth-text text-muted-foreground text-sm leading-relaxed line-clamp-2">{event.description}</p>
         </div>
 
-        {/* Event Details */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--spacing-small, 12px)',
-            backgroundColor: 'var(--neutral-100)',
-            borderRadius: 'var(--radius-corner, 10px)',
-            padding: 'var(--spacing-small, 12px)',
-          }}
-        >
-          <div className="flex items-center" style={{ gap: 'var(--spacing-small, 12px)' }}>
-            <Calendar style={{ width: '20px', height: '20px', color: 'var(--brand-pink-500)', flexShrink: 0 }} aria-hidden="true" />
-            <span style={{ ...metaStyle, color: 'var(--neutral-900)' }}>{event.date} at {event.time}</span>
+        <div className="space-y-3 bg-muted/30 rounded-xl p-4">
+          <div className="flex items-center gap-3 text-sm text-foreground">
+            <Calendar className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <span className="font-medium">
+              {event.date} at {event.time}
+            </span>
           </div>
-          <div className="flex items-center" style={{ gap: 'var(--spacing-small, 12px)' }}>
-            <MapPin style={{ width: '20px', height: '20px', color: 'var(--brand-pink-500)', flexShrink: 0 }} aria-hidden="true" />
-            <span style={{ ...metaStyle, color: 'var(--neutral-900)' }}>{event.venue}</span>
+          <div className="flex items-center gap-3 text-sm text-foreground">
+            <MapPin className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <span className="font-medium">{event.venue}</span>
           </div>
-          <div className="flex items-center" style={{ gap: 'var(--spacing-small, 12px)' }}>
-            <Users style={{ width: '20px', height: '20px', color: 'var(--brand-pink-500)', flexShrink: 0 }} aria-hidden="true" />
-            <span style={{ ...metaStyle, color: 'var(--neutral-900)' }}>{event.attendeeCount} interested</span>
+          <div className="flex items-center gap-3 text-sm text-foreground">
+            <Users className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+            <span className="font-medium">{event.attendeeCount} interested</span>
           </div>
+          {/* Setlist information for past events */}
           {isPast && (
-            <div className="flex items-center" style={{ gap: 'var(--spacing-small, 12px)' }}>
-              <Music style={{ width: '20px', height: '20px', color: 'var(--brand-pink-500)', flexShrink: 0 }} aria-hidden="true" />
-              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+            <div className="flex items-center gap-3 text-sm text-foreground">
+              <Music className="w-5 h-5 hover-icon flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500), #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} aria-hidden="true" />
+              <div className="flex items-center gap-2">
                 {setlistLoading ? (
-                  <span style={{ ...metaStyle, color: 'var(--neutral-600)' }}>Loading setlist...</span>
+                  <span className="text-muted-foreground">Loading setlist...</span>
                 ) : hasSetlist ? (
                   <>
-                    <span style={{ ...metaStyle, color: 'var(--neutral-900)' }}>Setlist available</span>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        height: '25px',
-                        padding: '0 var(--spacing-small, 12px)',
-                        backgroundColor: 'var(--brand-pink-050)',
-                        color: 'var(--brand-pink-500)',
-                        border: '2px solid var(--brand-pink-500)',
-                        borderRadius: '999px',
-                        ...metaStyle,
-                      }}
-                    >
+                    <span className="font-medium">Setlist available</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                       {songCount} songs
                     </span>
                   </>
                 ) : (
-                  <span style={{ ...metaStyle, color: 'var(--neutral-600)' }}>No setlist available</span>
+                  <span className="text-muted-foreground">No setlist available</span>
                 )}
               </div>
             </div>
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex" style={{ gap: 'var(--spacing-small, 12px)' }}>
+        {/* Action Buttons - Different for past vs upcoming events */}
+        <div className="flex gap-4 pt-2">
           {isPast ? (
+            // Past event actions
             <>
-              <button
+              <Button
                 onClick={handleWriteReview}
+                size="lg"
+                className="hover-button gradient-button flex-1 h-14 text-base font-semibold"
                 aria-label="Write a review for this past event"
-                style={{ ...actionButtonBase, backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
               >
-                <Star style={{ width: '24px', height: '24px' }} aria-hidden="true" />
+                <Star className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
                 Write Review
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="hover-button flex-1 border-2 border-gray-300 hover:border-gray-400 hover:var(--neutral-600) h-14 text-base font-semibold transition-all duration-200"
                 aria-label="View event details and setlist"
-                style={{ ...actionButtonBase, backgroundColor: 'var(--neutral-50)', color: 'var(--brand-pink-500)', border: 'var(--border-brand)' }}
               >
                 {hasSetlist ? (
-                  <><Music style={{ width: '24px', height: '24px' }} aria-hidden="true" /> View Setlist</>
+                  <>
+                    <Music className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
+                    View Setlist
+                  </>
                 ) : (
-                  <><Calendar style={{ width: '24px', height: '24px' }} aria-hidden="true" /> View Details</>
+                  <>
+                    <Calendar className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
+                    View Details
+                  </>
                 )}
-              </button>
+              </Button>
             </>
           ) : (
+            // Upcoming event actions
             <>
-              <button
+              <Button
                 onClick={() => handleSwipe("pass")}
+                variant="outline"
+                size="lg"
+                className="hover-button flex-1 border-2 border-gray-300 hover:border-red-400 hover:text-red-500 btn-swipe-pass h-14 text-base font-semibold transition-all duration-200"
                 disabled={isAnimating}
                 aria-label="Pass on this event"
-                style={{
-                  ...actionButtonBase,
-                  backgroundColor: 'var(--neutral-50)',
-                  color: 'var(--neutral-600)',
-                  border: 'var(--border-default)',
-                  opacity: isAnimating ? 0.5 : 1,
-                  cursor: isAnimating ? 'not-allowed' : 'pointer',
-                }}
               >
-                <X style={{ width: '24px', height: '24px' }} aria-hidden="true" />
+                <X className="w-6 h-6 mr-2 hover-icon" aria-hidden="true" />
                 Pass
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => handleSwipe("like")}
+                size="lg"
+                className="hover-button gradient-button flex-1 h-14 text-base font-semibold"
                 disabled={isAnimating}
                 aria-label="Like this event"
-                style={{
-                  ...actionButtonBase,
-                  backgroundColor: isAnimating ? 'var(--state-disabled-bg)' : 'var(--brand-pink-500)',
-                  color: isAnimating ? 'var(--state-disabled-text)' : 'var(--neutral-50)',
-                  boxShadow: isAnimating ? 'none' : 'var(--shadow-default)',
-                  cursor: isAnimating ? 'not-allowed' : 'pointer',
-                }}
               >
-                <Heart style={{ width: '24px', height: '24px' }} aria-hidden="true" />
+                <Heart className="w-6 h-6 mr-2 hover-heart" aria-hidden="true" />
                 Interested
-              </button>
+              </Button>
             </>
           )}
         </div>
       </div>
-    </div>
+    </Card>
   )
 }

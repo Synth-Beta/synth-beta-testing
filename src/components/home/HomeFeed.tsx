@@ -54,7 +54,6 @@ const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '@/services/notificationService';
-import { ReviewService } from '@/services/reviewService';
 
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
@@ -2311,8 +2310,8 @@ interface FriendEventInterest {
                   return (
                     <div
                       key={chat.id}
-                      className="flex items-center gap-3 p-4"
-                      style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', border: 'var(--border-default)', boxShadow: 'var(--shadow-default)' }}
+                      className="flex items-center gap-3 p-4 hover:shadow-md transition-all"
+                      style={{ borderRadius: '12px', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}
                     >
                       <MessageSquare className="shrink-0 w-8 h-8" style={{ color: 'var(--brand-pink-500)' }} />
                       <div className="flex-1 min-w-0">

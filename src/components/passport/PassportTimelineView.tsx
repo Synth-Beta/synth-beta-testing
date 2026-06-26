@@ -39,6 +39,29 @@ interface PassportTimelineViewProps {
   canEdit?: boolean;
 }
 
+const timelineAccentStyles = {
+  synth: {
+    color: 'var(--brand-pink-500)',
+    backgroundColor: 'var(--brand-pink-050)',
+  },
+  gold: {
+    color: 'var(--status-warning-500)',
+    backgroundColor: 'var(--status-warning-050)',
+  },
+  blue: {
+    color: 'var(--info-blue-500)',
+    backgroundColor: 'var(--info-blue-050)',
+  },
+  purple: {
+    color: 'var(--brand-pink-600)',
+    backgroundColor: 'var(--brand-pink-050)',
+  },
+  indigo: {
+    color: 'var(--brand-pink-700)',
+    backgroundColor: 'var(--brand-pink-050)',
+  },
+} as const;
+
 export const PassportTimelineView: React.FC<PassportTimelineViewProps> = ({ userId, canEdit = true }) => {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,29 +114,29 @@ useEffect(() => {
   // Get icon and styling based on significance text
   const getMilestoneInfo = (entry: TimelineEntry) => {
     if (!entry.significance) {
-      return { icon: Sparkles, color: 'text-synth-pink', bg: 'bg-synth-pink/10' };
+      return { icon: Sparkles, ...timelineAccentStyles.synth };
     }
     
     const sig = entry.significance.toLowerCase();
     
     // Firsts
     if (sig.includes('first review')) {
-      return { icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-100' };
+      return { icon: Zap, ...timelineAccentStyles.gold };
     }
     if (sig.includes('first time seeing')) {
-      return { icon: Music, color: 'text-blue-600', bg: 'bg-blue-100' };
+      return { icon: Music, ...timelineAccentStyles.blue };
     }
     if (sig.includes('first time at')) {
-      return { icon: MapPin, color: 'text-purple-600', bg: 'bg-purple-100' };
+      return { icon: MapPin, ...timelineAccentStyles.purple };
     }
     
     // Best setlist
     if (sig.includes('best setlist')) {
-      return { icon: FileText, color: 'text-indigo-600', bg: 'bg-indigo-100' };
+      return { icon: FileText, ...timelineAccentStyles.indigo };
     }
     
     // Special show / custom
-    return { icon: Star, color: 'text-pink-600', bg: 'bg-pink-100' };
+    return { icon: Star, ...timelineAccentStyles.synth };
   };
 
   // Sort timeline - must be called before early returns (hooks rule)
@@ -224,7 +247,12 @@ useEffect(() => {
         )}
 
         {/* Timeline line - positioned to align with center of nodes */}
-        <div className="absolute left-7 sm:left-9 top-0 bottom-0 w-0.5 bg-gradient-to-b from-synth-pink/30 via-synth-pink/40 to-synth-pink/20" />
+        <div
+          className="absolute left-7 sm:left-9 top-0 bottom-0 w-0.5"
+          style={{
+            background: 'linear-gradient(180deg, color-mix(in srgb, var(--brand-pink-500) 30%, transparent), color-mix(in srgb, var(--brand-pink-500) 40%, transparent), color-mix(in srgb, var(--brand-pink-500) 20%, transparent))',
+          }}
+        />
       
       <div className="space-y-8">
         {sortedTimeline.map((entry, index) => {
@@ -238,12 +266,13 @@ useEffect(() => {
               {/* Timeline node with date - positioned to the left */}
               <div className="absolute left-0 top-0 flex flex-col items-end pr-2 w-14 sm:w-16">
                 {/* Date badge above icon - compact format */}
-                <div className={cn(
-                  "mb-2 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-semibold whitespace-nowrap shadow-sm text-center w-full",
-                  entry.is_pinned 
-                    ? "bg-synth-pink text-white" 
-                    : "bg-gray-100 text-gray-700"
-                )}>
+                <div
+                  className="mb-2 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-semibold whitespace-nowrap shadow-sm text-center w-full"
+                  style={{
+                    backgroundColor: entry.is_pinned ? 'var(--brand-pink-500)' : 'var(--neutral-100)',
+                    color: entry.is_pinned ? 'var(--neutral-0)' : 'var(--neutral-600)',
+                  }}
+                >
                   <div className="leading-tight">
                     {format(eventDate, 'MMM')}
                   </div>
@@ -256,35 +285,50 @@ useEffect(() => {
                 </div>
                 
                 {/* Icon circle */}
-                <div className={cn(
-                  "w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white shadow-lg flex items-center justify-center z-10 transition-all duration-300 mx-auto",
-                  entry.is_pinned 
-                    ? "bg-synth-pink ring-4 ring-synth-pink/30 scale-110 shadow-xl shadow-synth-pink/40" 
-                    : `${milestoneInfo.bg} ring-2 ring-white/80`
-                )}>
-                  <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5", entry.is_pinned ? "text-white" : milestoneInfo.color)} />
+                <div
+                  className={cn(
+                    "w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 shadow-lg flex items-center justify-center z-10 transition-all duration-300 mx-auto",
+                    entry.is_pinned ? "ring-4 scale-110 shadow-xl" : "ring-2"
+                  )}
+                  style={{
+                    backgroundColor: entry.is_pinned ? 'var(--brand-pink-500)' : milestoneInfo.backgroundColor,
+                    borderColor: 'var(--neutral-0)',
+                    color: entry.is_pinned ? 'var(--neutral-0)' : milestoneInfo.color,
+                    boxShadow: entry.is_pinned
+                      ? '0 16px 30px color-mix(in srgb, var(--brand-pink-500) 40%, transparent)'
+                      : undefined,
+                    ['--tw-ring-color' as string]: entry.is_pinned
+                      ? 'color-mix(in srgb, var(--brand-pink-500) 30%, transparent)'
+                      : 'color-mix(in srgb, var(--neutral-0) 80%, transparent)',
+                  }}
+                >
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
               
               {/* Card */}
-              <Card className={cn(
-                "relative overflow-hidden transition-all duration-300 hover:shadow-xl w-full max-w-full",
-                entry.is_pinned 
-                  ? "border-2 border-synth-pink shadow-lg shadow-synth-pink/20 bg-gradient-to-br from-white to-synth-pink/5" 
-                  : "border border-gray-200 bg-white hover:border-synth-pink/30"
-              )}>
+              <Card
+                className="relative overflow-hidden transition-all duration-300 hover:shadow-xl w-full max-w-full"
+                style={{
+                  border: entry.is_pinned ? '2px solid var(--brand-pink-500)' : '1px solid var(--neutral-200)',
+                  background: entry.is_pinned ? 'var(--gradient-soft)' : 'var(--neutral-0)',
+                  boxShadow: entry.is_pinned ? '0 10px 20px color-mix(in srgb, var(--brand-pink-500) 20%, transparent)' : undefined,
+                }}
+              >
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex items-start justify-between gap-3 sm:gap-4">
                     <div className="flex-1 min-w-0 overflow-x-hidden">
                       {/* Significance/Milestone Text - PROMINENT! */}
                       {entry.significance && (
                         <div className="mb-3 sm:mb-4">
-                          <div className={cn(
-                            "inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-sm sm:text-base mb-2 sm:mb-3 break-words",
-                            entry.is_pinned 
-                              ? "bg-synth-pink/10 text-synth-pink border-2 border-synth-pink/30"
-                              : `${milestoneInfo.bg} ${milestoneInfo.color} border-2 border-current/20`
-                          )}>
+                          <div
+                            className="inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-sm sm:text-base mb-2 sm:mb-3 break-words"
+                            style={{
+                              backgroundColor: entry.is_pinned ? 'var(--brand-pink-050)' : milestoneInfo.backgroundColor,
+                              color: entry.is_pinned ? 'var(--brand-pink-500)' : milestoneInfo.color,
+                              border: `2px solid ${entry.is_pinned ? 'color-mix(in srgb, var(--brand-pink-500) 30%, transparent)' : 'currentColor'}`,
+                            }}
+                          >
                             <Icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                             <span className="break-words">{entry.significance}</span>
                           </div>
@@ -293,7 +337,7 @@ useEffect(() => {
                       
                       {/* Event Name */}
                       {entry.Event_name && (
-                        <h4 className="font-bold text-base sm:text-lg text-gray-900 mb-2 sm:mb-3 break-words">
+                        <h4 className="font-bold text-base sm:text-lg mb-2 sm:mb-3 break-words" style={{ color: 'var(--neutral-900)' }}>
                           {entry.Event_name}
                         </h4>
                       )}
@@ -304,15 +348,13 @@ useEffect(() => {
                           {[...Array(5)].map((_, i) => (
                             <Star
                               key={i}
-                              className={cn(
-                                "w-4 h-4 sm:w-5 sm:h-5 transition-colors flex-shrink-0",
-                                i < Math.round(entry.review!.rating!)
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "fill-gray-200 text-gray-200"
-                              )}
+                              className="w-4 h-4 sm:w-5 sm:h-5 transition-colors flex-shrink-0"
+                              style={i < Math.round(entry.review!.rating!)
+                                ? { fill: 'var(--rating-star)', color: 'var(--rating-star)' }
+                                : { fill: 'var(--neutral-200)', color: 'var(--neutral-200)' }}
                             />
                           ))}
-                          <span className="text-xs sm:text-sm font-semibold text-gray-700 ml-1 flex-shrink-0">
+                          <span className="text-xs sm:text-sm font-semibold ml-1 flex-shrink-0" style={{ color: 'var(--neutral-600)' }}>
                             {entry.review.rating.toFixed(1)}
                           </span>
                         </div>
@@ -320,7 +362,7 @@ useEffect(() => {
                       
                       {/* Review Text */}
                       {entry.review?.review_text && (
-                        <p className="text-xs sm:text-sm text-gray-700 leading-relaxed line-clamp-3 break-words">
+                        <p className="text-xs sm:text-sm leading-relaxed line-clamp-3 break-words" style={{ color: 'var(--neutral-600)' }}>
                           {entry.review.review_text}
                         </p>
                       )}
@@ -341,7 +383,8 @@ useEffect(() => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5"
+                              className="h-8 w-8 p-0 rounded-full"
+                              style={{ color: 'var(--neutral-400)' }}
                               onClick={() => handleEditMilestone(entry)}
                               title="Edit milestone"
                             >
@@ -351,7 +394,8 @@ useEffect(() => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 rounded-full text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5"
+                              className="h-8 w-8 p-0 rounded-full"
+                              style={{ color: 'var(--neutral-400)' }}
                               onClick={() => handleEditMilestone(entry)}
                               title="Add milestone"
                             >
@@ -361,12 +405,8 @@ useEffect(() => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className={cn(
-                              'h-8 w-8 p-0 rounded-full transition-all',
-                              entry.is_pinned
-                                ? 'text-synth-pink hover:bg-synth-pink/10'
-                                : 'text-gray-400 hover:text-synth-pink hover:bg-synth-pink/5',
-                            )}
+                            className="h-8 w-8 p-0 rounded-full transition-all"
+                            style={{ color: entry.is_pinned ? 'var(--brand-pink-500)' : 'var(--neutral-400)' }}
                             onClick={() => handlePinToggle(entry.id, entry.is_pinned)}
                             disabled={!entry.is_pinned && pinnedCount >= 5}
                             title={entry.is_pinned ? 'Unpin' : 'Pin to timeline'}
@@ -385,7 +425,7 @@ useEffect(() => {
                 
                 {/* Decorative gradient line for pinned items */}
                 {entry.is_pinned && (
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-synth-pink via-synth-pink-light to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, var(--brand-pink-500), var(--brand-pink-050), transparent)' }} />
                 )}
               </Card>
             </div>

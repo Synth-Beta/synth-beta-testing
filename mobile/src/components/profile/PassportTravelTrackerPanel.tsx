@@ -67,6 +67,8 @@ export function PassportTravelTrackerPanel({ userId }: { userId: string }) {
         );
     }
 
+    const showLabel = `${pins.length} ${pins.length === 1 ? 'show' : 'shows'}`;
+
     return (
         <View style={styles.section}>
             <View style={styles.titleRow}>
@@ -75,8 +77,15 @@ export function PassportTravelTrackerPanel({ userId }: { userId: string }) {
                     Travel tracker
                 </SynthText>
             </View>
+            <View style={styles.showsRow}>
+                <View style={styles.showsPill}>
+                    <SynthText variant="meta" style={styles.showsPillText}>
+                        {showLabel}
+                    </SynthText>
+                </View>
+            </View>
             <SynthText variant="meta" color="secondary" style={styles.sub}>
-                {pins.length} {pins.length === 1 ? 'show' : 'shows'} on the map — tap a pin to open maps or view the event.
+                Shows on the map — tap a pin to open maps or view the event.
             </SynthText>
             {pins.map(pin => (
                 <View key={pin.id} style={styles.card}>
@@ -131,6 +140,17 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 18, fontWeight: '800' },
     sub: { marginBottom: 12, lineHeight: 20 },
     empty: { lineHeight: 22, marginTop: 4 },
+    showsRow: { marginBottom: 6 },
+    showsPill: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        backgroundColor: SynthTokens.colors.neutral50,
+    },
+    showsPillText: { fontWeight: '700' },
     card: {
         borderRadius: 14,
         borderWidth: 1,

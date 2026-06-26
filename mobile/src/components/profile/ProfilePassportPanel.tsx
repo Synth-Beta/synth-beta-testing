@@ -33,7 +33,7 @@ const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'stamps', label: 'Stamps' },
   { key: 'achievements', label: 'Achievements' },
   { key: 'timeline', label: 'Timeline' },
-  { key: 'bucket', label: 'Bucket' },
+  { key: 'bucket', label: 'Bucket List' },
 ];
 
 type StampTypeFilter = 'all' | 'city' | 'venue' | 'artist' | 'scene' | 'completed_achievements';

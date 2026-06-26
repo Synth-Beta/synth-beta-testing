@@ -2276,7 +2276,7 @@ const { user, sessionExpired } = useAuth();
           }
           setActiveTab(tab);
         }} className="w-full">
-          <TabsList className={`grid w-full max-w-full mb-4 p-1 box-border ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`} style={{ backgroundColor: 'var(--neutral-100)', border: 'var(--border-default)', borderRadius: 'var(--radius-corner, 10px)', boxShadow: 'var(--shadow-default)' }}>
+          <TabsList className={`glass-card inner-glow grid w-full max-w-full mb-4 p-1 floating-shadow box-border ${canViewInterested ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <TabsTrigger
               value="my-events"
               className="flex items-center gap-2 data-[state=active]:text-[var(--brand-pink-500)] data-[state=active]:bg-[var(--brand-pink-050)]"
@@ -3105,7 +3105,10 @@ const { user, sessionExpired } = useAuth();
                         }}
                       >
                         <div className="h-full flex flex-col">
-                          <div className="h-2/3 w-full relative overflow-hidden bg-gradient-to-br from-pink-400 to-pink-600 rounded-t-xl">
+                          <div
+                            className="h-2/3 w-full relative overflow-hidden rounded-t-xl"
+                            style={{ background: 'var(--gradient-brand)' }}
+                          >
                             {/* Event image - use same resolution logic as home feed (PreferencesV4FeedSection) */}
                             {(() => {
                               // Resolve image URL with same priority as PreferencesV4FeedSection
@@ -3145,7 +3148,7 @@ const { user, sessionExpired } = useAuth();
                               // Fallback to gradient with heart icon if no image
                               return (
                                 <div className="w-full h-full flex items-center justify-center">
-                                  <Heart className="w-1/3 h-1/3 text-white" />
+                                  <Heart className="w-1/3 h-1/3" style={{ color: 'var(--neutral-0)' }} />
                                 </div>
                               );
                             })()}

@@ -70,7 +70,7 @@
   --shadow-color: rgba(0, 0, 0, 0.25);
   --shadow-default: 0 4px 4px 0 rgba(0, 0, 0, 0.25);
   --shadow-modal: 0 4px 12px 0 rgba(0, 0, 0, 0.25);
-  
+
   /* ============================================
      BORDERS
      ============================================ */
@@ -115,7 +115,7 @@
   --typography-steps-size: 16px;
   --typography-steps-weight: 500; /* medium */
   --typography-steps-line-height: 1.5;
-  --typography-steps-letter-spacing: 0.2em;
+  --typography-steps-letter-spacing: 0.2em; /* 20% of 16px = 3.2px, using em for relative scaling */
   
   /* Meta Text (captions, labels) */
   --typography-meta-size: 16px;
@@ -126,12 +126,10 @@
      Z-INDEX
      ============================================ */
   
-  /* Style guide canonical names */
   --z-index-nav: 80;
   --z-index-overlay: 90;
   --z-index-modal: 100;
 
-  /* Legacy aliases — kept for backward compatibility */
   --z-nav: 80;
   --z-overlay: 90;
   --z-modal: 100;
@@ -146,15 +144,13 @@
   --spacing-big-section: 60px;
   --spacing-screen-margin-x: 20px;
   --spacing-menu-item-row-height: 48px;
-
-  /* Bottom navigation spacing:
-     Total reserved space = 80px nav height + 32px breathing room = 112px */
   --spacing-bottom-nav: 112px;
-  /* Gap between end of content and top edge of bottom nav */
   --spacing-bottom-nav-gap: 32px;
   
   /* Pop-up/Layout Sizing */
+  /* Pop-up width: device width minus 40px (20px margins on each side) */
   --size-popup-width: calc(100vw - calc(var(--spacing-screen-margin-x, 20px) * 2));
+  /* Content within pop-ups: pop-up width minus 40px (20px margins inside pop-up) */
   --size-popup-content-width: calc(var(--size-popup-width) - calc(var(--spacing-screen-margin-x, 20px) * 2));
   
   /* ============================================

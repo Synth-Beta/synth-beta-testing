@@ -38,7 +38,7 @@ export interface SideMenuProps {
    * Navigation callbacks
    */
   onNavigateToNotifications?: (filter?: 'friends_only' | 'exclude_friends') => void;
-  onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested') => void;
+  onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested' | 'passport') => void;
   onNavigateToSettings?: () => void;
   onNavigateToVerification?: () => void;
   onNavigateToStreamingStats?: () => void;
