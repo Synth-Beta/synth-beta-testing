@@ -2,7 +2,7 @@
   "expo": {
     "name": "Synth",
     "slug": "synth",
-    "version": "1.4.4",
+    "version": "1.4.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "synth",
@@ -24,7 +24,7 @@
       "associatedDomains": [
         "applinks:join.getsynth.app"
       ],
-      "buildNumber": "298",
+      "buildNumber": "299",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.tejpatel.synth",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#CC2486",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
