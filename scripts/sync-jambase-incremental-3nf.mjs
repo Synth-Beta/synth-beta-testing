@@ -1174,9 +1174,13 @@ class IncrementalSync3NF {
 
     // Upcoming only: new listings + updates to future shows (skips past-event metadata noise).
     const includePast = process.env.JAMBASE_INCLUDE_PAST === '1';
-    const eventDateFrom = includePast
+    const fixedEventDateFrom = process.env.JAMBASE_EVENT_DATE_FROM?.trim() || null;
+    // In catalog mode, recalculate today's date on every page so a multi-day run
+    // never sends a stale eventDateFrom that Jambase rejects.
+    const getEventDateFrom = () => includePast
       ? null
-      : (process.env.JAMBASE_EVENT_DATE_FROM?.trim() || new Date().toISOString().slice(0, 10));
+      : (fixedEventDateFrom || new Date().toISOString().slice(0, 10));
+    const eventDateFrom = getEventDateFrom();
     if (eventDateFrom) {
       console.log(`📅 eventDateFrom (upcoming only): ${eventDateFrom}`);
     } else {
@@ -1191,8 +1195,15 @@ class IncrementalSync3NF {
     if (useCheckpoint) {
       try {
         checkpointData = JSON.parse(fs.readFileSync(checkpointFile, 'utf8'));
-        if (checkpointData.date !== eventDateFrom) {
-          checkpointData = null; // stale checkpoint from a different day — start fresh
+        // Checkpoint is keyed to calendar date; allow any recent date (within 7 days)
+        // since the sync now updates eventDateFrom daily and we want to resume progress.
+        const checkpointAge = Math.abs(
+          new Date(eventDateFrom).getTime() - new Date(checkpointData.date).getTime()
+        ) / 86400000;
+        if (checkpointAge > 7) {
+          checkpointData = null; // truly stale — start fresh
+        } else if (checkpointData.date !== eventDateFrom) {
+          console.log(`📌 Checkpoint from ${checkpointData.date} — resuming with updated date ${eventDateFrom}`);
         }
       } catch { /* no checkpoint yet */ }
     }
@@ -1242,7 +1253,7 @@ class IncrementalSync3NF {
             currentPage,
             perPage,
             dateModifiedFrom,
-            eventDateFrom
+            getEventDateFrom()
           );
           break; // success
         } catch (err) {
