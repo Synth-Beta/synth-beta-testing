@@ -88,8 +88,8 @@ if [[ ! -d "${IOS_DIR}/Pods" ]]; then
   (cd "${IOS_DIR}" && pod install)
 fi
 
-if [[ ! -d "${REPO}/artifacts/synth/packages/synth-shared/src" ]]; then
-  echo "ci_pre_xcodebuild: packages/synth-shared missing (monorepo file: dep)" >&2
+if [[ ! -d "${REPO}/packages/synth-shared/src" ]]; then
+  echo "ci_pre_xcodebuild: packages/synth-shared missing (expected at packages/synth-shared/src)" >&2
   exit 1
 fi
 
