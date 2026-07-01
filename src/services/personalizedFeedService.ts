@@ -243,9 +243,23 @@ export class PersonalizationEngineV5 {
       let data: any;
       let error: any;
 
-      const direct = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
-      data = direct.data;
-      error = direct.error;
+      // Try the server-side cached wrapper first (10-min cache per user/location in DB).
+      // If it doesn't exist (e.g. not yet deployed), fall back to the direct function.
+      const cached = await supabase.rpc('get_or_refresh_feed_v5_cached', rpcPayload);
+      const cacheWrapperMissing =
+        cached.error &&
+        ((cached.error as any).code === '42883' ||   // function does not exist
+          (cached.error as any).code === 'PGRST116' || // wrong signature
+          (cached.error as any).code === 'PGRST204' || // not in schema cache
+          /could not find the function/i.test(String((cached.error as any).message || '')));
+      if (cacheWrapperMissing) {
+        const direct = await supabase.rpc('get_personalized_feed_v5', rpcPayload);
+        data = direct.data;
+        error = direct.error;
+      } else {
+        data = cached.data;
+        error = cached.error;
+      }
 
       if (error) {
         const isTimeout =

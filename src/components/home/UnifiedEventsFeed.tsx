@@ -46,7 +46,7 @@ interface UnifiedEventsFeedProps {
 }
 
 const PAGE_SIZE = 20;
-const INITIAL_FEED_SIZE = 40; // First load: fewer events for faster first paint
+const INITIAL_FEED_SIZE = 20; // First load: fewer events for faster first paint
 const BATCH_SIZE = 100; // Load-more batches
 const PREFETCH_THRESHOLD = 60; // Start prefetching when 60 events are displayed (3rd load more)
 const LOCATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -242,7 +242,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       };
     },
     enabled: !!currentUserId,
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,  // treat feed as fresh for 5 min — RPC is expensive
+    gcTime: 15 * 60 * 1000,    // keep in memory for 15 min so back-nav is instant
   });
 
   useEffect(() => {
