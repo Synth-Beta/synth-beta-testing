@@ -1263,7 +1263,7 @@ class IncrementalSync3NF {
             console.log(`⏭️  Skipping page ${currentPage} and continuing...`);
             break;
           }
-          const delay = Math.pow(2, pageAttempt) * 2000;
+          const delay = Math.pow(2, pageAttempt) * 500;
           console.log(`⚠️  Page ${currentPage} error (attempt ${pageAttempt}/${maxPageAttempts}), retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }

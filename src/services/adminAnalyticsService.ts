@@ -297,8 +297,10 @@ export class AdminAnalyticsService {
         ? ((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth) * 100 
         : 0;
 
-      // Calculate average session duration (placeholder - would need session tracking)
-      const averageSessionDuration = 0; // TODO: Implement session tracking
+      // Session duration is already computed for real from interaction session_ids
+      // in getSessionAnalytics() below — reuse it instead of a hardcoded placeholder.
+      const { avg_session_duration_minutes: averageSessionDuration } =
+        await this.getSessionAnalytics();
 
       return {
         total_users: totalUsers || 0,
@@ -429,11 +431,12 @@ export class AdminAnalyticsService {
       const uniqueUsers = new Set(interactions?.map((i: any) => i.user_id) || []);
       const totalSessions = uniqueUsers.size;
 
-      // Calculate average session duration (placeholder)
-      const averageSessionDuration = 0; // TODO: Implement session tracking
-
-      // Calculate bounce rate (placeholder)
-      const bounceRate = 0; // TODO: Implement bounce rate calculation
+      // Session duration and bounce rate are already computed for real from
+      // interaction session_ids in getSessionAnalytics() — reuse it instead of
+      // hardcoded placeholders.
+      const sessionAnalytics = await this.getSessionAnalytics();
+      const averageSessionDuration = sessionAnalytics.avg_session_duration_minutes;
+      const bounceRate = sessionAnalytics.bounce_rate;
 
       return {
         total_page_views: pageViews,

@@ -11,6 +11,8 @@ import { resolveEventCardImageUrl } from '@/utils/eventImageFallbacks';
 import type { PersonalizedFeedFilters } from '@/services/personalizedFeedService';
 import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
+import { VerifiedChatService } from '@/services/verifiedChatService';
+import { toast } from '@/hooks/use-toast';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
 import { LocationService } from '@/services/locationService';
 import { getLastKnownLocation, saveLastKnownLocation } from '@/services/locationCacheService';
@@ -29,6 +31,7 @@ interface UnifiedEventItem {
   event_media_url?: string;
   reason: EventReason;
   interested_count?: number;
+  friends_interested_count?: number;
   user_is_interested?: boolean;
 }
 
@@ -120,6 +123,7 @@ function personalEventToItem(event: PersonalizedEvent, eventType?: string): Unif
     event_media_url: event.event_media_url ?? event.poster_image_url ?? undefined,
     reason,
     interested_count: event.interested_count ?? 0,
+    friends_interested_count: event.friends_interested_count ?? 0,
     user_is_interested: event.user_is_interested ?? false,
   };
 }
@@ -839,6 +843,28 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     }
   };
 
+  const handleJoinEventChat = async (eventId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    hapticLight();
+    const event = findEvent(eventId);
+    const eventUuid = event ? getEventUuid(event) : null;
+    if (!eventUuid) {
+      toast({ title: "Can't open chat", description: 'This event is missing an ID.', duration: 4000 });
+      return;
+    }
+    try {
+      await VerifiedChatService.joinOrOpenVerifiedChat('event', eventUuid, event?.title || 'Event', currentUserId);
+      toast({
+        title: 'Joined event chat',
+        description: 'Find it in your Chats tab to coordinate with others going.',
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error('Error joining event chat:', error);
+      toast({ title: "Couldn't join chat", description: 'Please try again.', duration: 4000 });
+    }
+  };
+
   const getImageUrl = (event: UnifiedEventItem): string =>
     resolveEventCardImageUrl({
       id: event.event_id,
@@ -921,6 +947,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
               const imageUrl = getImageUrl(event);
               const isInterested = interestedEvents.has(event.event_id) || event.user_is_interested || false;
               const interestedCount = event.interested_count || 0;
+              const friendsInterestedCount = event.friends_interested_count || 0;
               const topAlign = opts?.topAlign === true;
               return (
                 <div
@@ -955,9 +982,11 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                     }}
                     reason={event.reason}
                     interestedCount={interestedCount}
+                    friendsInterestedCount={friendsInterestedCount}
                     isInterested={isInterested}
                     onInterestClick={(e) => handleInterestToggle(event.event_id, e)}
                     onShareClick={(e) => onShareClick?.(event, e)}
+                    onJoinChatClick={(e) => handleJoinEventChat(event.event_id, e)}
                     onClick={() => onEventClick?.(event.event_id)}
                   />
                 </div>

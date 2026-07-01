@@ -565,7 +565,7 @@ export class PersonalizationEngineV5 {
       relevance_score: typeof row.score === 'number' ? row.score : 0,
       user_is_interested: ctx.user_is_interested ?? false,
       interested_count: ctx.total_interest_count ?? 0,
-      friends_interested_count: null,
+      friends_interested_count: ctx.friend_interest_count ?? p.friend_interest_count ?? null,
       poster_image_url: p.poster_image_url ?? null,
       event_media_url: p.event_media_url ?? (p.media_urls?.[0]) ?? null,
       images: p.images ?? null,

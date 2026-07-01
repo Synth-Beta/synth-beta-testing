@@ -2,7 +2,6 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { fileURLToPath } from "url";
-// import { preserveErrorLogs } from "./vite-plugin-preserve-error-logs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -48,9 +47,6 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      // SECURITY: Remove console logs in production while preserving console.error
-      // This allows production error logging while removing debug logs
-      // ...(isProduction ? [preserveErrorLogs()] : []),
     ],
     resolve: {
       alias: {
@@ -66,10 +62,13 @@ export default defineConfig(({ mode }) => {
       // SECURITY: Source maps disabled to prevent users from reading original source code
       sourcemap: false,
       minify: 'esbuild',
-      // SECURITY: Remove debugger statements in production
-      // Console logs are removed via preserveErrorLogs plugin (preserves console.error)
+      // SECURITY: Remove debugger statements in production.
+      // console.log/debug/info/trace are marked "pure" so esbuild's minifier drops them
+      // (their return value is always unused) — console.error/warn are left untouched
+      // so production error logging keeps working.
       esbuild: {
         drop: isProduction ? ['debugger'] : [],
+        pure: isProduction ? ['console.log', 'console.debug', 'console.info', 'console.trace'] : [],
       },
       rollupOptions: {
         output: {

@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { FlagContentModal } from '@/components/moderation/FlagContentModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
+import { getLastKnownLocation } from '@/services/locationCacheService';
 import { getFallbackEventImage, replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import {
   DropdownMenu,
@@ -128,15 +129,24 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [dateWindow, setDateWindow] = useState<DateWindow>('next_30_days');
   const [cityCoordinates, setCityCoordinates] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Filter state for all sections
-  const [filters, setFilters] = useState<FilterState>({
-    genres: [],
-    selectedCities: [],
-    dateRange: {},
-    showFilters: false,
-    radiusMiles: 50,
-    filterByFollowing: 'all',
-    daysOfWeek: [],
+  // Filter state for all sections.
+  // Seed lat/lng from the cached last-known location (if any) so the very first feed
+  // fetch already has coordinates instead of firing once with none, then firing again
+  // once live geolocation resolves seconds later — that double round-trip to the feed
+  // RPC is what made the home feed feel like it "reloads" after first paint.
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const cached = getLastKnownLocation(24 * 60 * 60 * 1000);
+    return {
+      genres: [],
+      selectedCities: [],
+      dateRange: {},
+      showFilters: false,
+      radiusMiles: 50,
+      latitude: cached?.lat,
+      longitude: cached?.lng,
+      filterByFollowing: 'all',
+      daysOfWeek: [],
+    };
   });
 
   // Refs for filter management
@@ -866,14 +876,28 @@ interface FriendEventInterest {
           specifiedLongitude: specifiedLng,
         });
 
-        // ALWAYS use lat/long + radius for filtering, NEVER city names
-        setFilters(prev => ({
-          ...prev,
-          latitude: filterLat,
-          longitude: filterLng,
-          radiusMiles: prev.radiusMiles || 50,
-          selectedCities: [], // Clear city names - we use coordinates
-        }));
+        // ALWAYS use lat/long + radius for filtering, NEVER city names.
+        // Skip the update if this is within a few miles of what's already active (e.g. the
+        // seeded cache value) — filters feeding UnifiedEventsFeed's query key, so changing
+        // lat/lng even slightly triggers a full re-fetch of the feed RPC. Without this guard,
+        // returning users get the feed fetched once from cache, then fetched AGAIN moments
+        // later once live GPS resolves to a near-identical location.
+        const priorLat = filters.latitude;
+        const priorLng = filters.longitude;
+        const isNegligibleMove =
+          priorLat != null &&
+          priorLng != null &&
+          LocationService.calculateDistance(priorLat, priorLng, filterLat, filterLng) < 10;
+
+        if (!isNegligibleMove) {
+          setFilters(prev => ({
+            ...prev,
+            latitude: filterLat,
+            longitude: filterLng,
+            radiusMiles: prev.radiusMiles || 50,
+            selectedCities: [], // Clear city names - we use coordinates
+          }));
+        }
       } else if (currentLocation) {
         // Fallback to current location only
         setFeedLocation({

@@ -100,13 +100,23 @@ export async function autoFriendReferrer(
       metadata:         { source: 'share_link' }
     });
 
-    // 4. Insert a notification for the referrer
+    // 4. Name the new signup so the referrer sees their invite actually converted,
+    // instead of a generic "Someone joined" — this is the reinforcement moment that
+    // makes people want to share again.
+    const { data: newUserProfile } = await supabase
+      .from('users')
+      .select('display_name, username')
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+    const newUserName =
+      newUserProfile?.display_name || newUserProfile?.username || 'Someone';
+
     await supabase.from('notifications').insert({
       user_id: referrerId,
       type:    'friend_request',
-      title:   'New friend request',
-      message: 'Someone joined Synth from your share link and sent you a friend request!',
-      metadata: { source: 'share_link', from_user_id: currentUserId }
+      title:   'Your invite worked! 🎉',
+      message: `${newUserName} joined Synth from your share and sent you a friend request!`,
+      data: { source: 'share_link', from_user_id: currentUserId }
     });
 
     return profile ?? null;

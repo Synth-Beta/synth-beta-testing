@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Send, Check, Heart } from 'lucide-react';
+import { Calendar, MapPin, Send, Check, Heart, Users, MessageCircle } from 'lucide-react';
 import { replaceJambasePlaceholder, getFallbackEventImage, getSynthPlaceholderImage } from '@/utils/eventImageFallbacks';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
@@ -23,11 +23,13 @@ interface CompactEventCardProps {
     poster_image_url?: string;
   };
   interestedCount?: number;
+  friendsInterestedCount?: number;
   isInterested?: boolean;
   isCommunityPhoto?: boolean;
   reason?: EventReason;
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
+  onJoinChatClick?: (e: React.MouseEvent) => void;
   onClick?: () => void;
   className?: string;
 }
@@ -35,11 +37,13 @@ interface CompactEventCardProps {
 export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   event,
   interestedCount = 0,
+  friendsInterestedCount = 0,
   isInterested = false,
   isCommunityPhoto = false,
   reason,
   onInterestClick,
   onShareClick,
+  onJoinChatClick,
   onClick,
   className,
 }) => {
@@ -164,6 +168,24 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         console.error('Error tracking share click:', error);
       }
       onShareClick(e);
+    }
+  };
+
+  const handleJoinChatClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onJoinChatClick) {
+      try {
+        const eventUuid = getEventUuid(event);
+        trackInteraction.click(
+          'event',
+          event.id,
+          { source: 'event_card', action: 'join_chat', reason: reason || 'unknown' },
+          eventUuid || undefined
+        );
+      } catch (error) {
+        console.error('Error tracking join chat click:', error);
+      }
+      onJoinChatClick(e);
     }
   };
 
@@ -297,16 +319,36 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
             )}
         </div>
 
+          {friendsInterestedCount > 0 && (
+            <div
+              className="flex items-center"
+              style={{ gap: 'var(--spacing-inline, 6px)' }}
+            >
+              <Users size={16} style={{ color: 'var(--brand-pink-500)', flexShrink: 0 }} />
+              <span
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 'var(--typography-meta-size, 16px)',
+                  fontWeight: 600,
+                  lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                  color: 'var(--brand-pink-500)',
+                }}
+              >
+                {friendsInterestedCount} {friendsInterestedCount === 1 ? 'friend' : 'friends'} interested
+              </span>
+            </div>
+          )}
+
           {interestedCount > 0 && (
-        <div
-          style={{
+            <div
+              style={{
                 fontFamily: 'var(--font-family)',
                 fontSize: 'var(--typography-meta-size, 16px)',
                 fontWeight: 'var(--typography-meta-weight, 500)',
                 lineHeight: 'var(--typography-meta-line-height, 1.5)',
                 color: 'var(--neutral-600)',
-          }}
-        >
+              }}
+            >
               {interestedCount} {interestedCount === 1 ? 'person' : 'people'} interested
             </div>
           )}
@@ -340,6 +382,20 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
             >
               <Send size={24} strokeWidth={2.5} />
             </button>
+
+            {/* Join event chat button — opt-in only, shown once interested */}
+            {isInterested && onJoinChatClick && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleJoinChatClick(e);
+                }}
+                className="swift-ui-button swift-ui-button-secondary w-11 h-11"
+                aria-label="Join event chat"
+              >
+                <MessageCircle size={24} strokeWidth={2.5} style={{ color: 'var(--brand-pink-500)' }} />
+              </button>
+            )}
 
             {/* Ticket Link */}
             {(() => {

@@ -49,6 +49,11 @@ const VALID_ENTITY_TYPES = [
   'ticket_link', 'song', 'album', 'playlist', 'genre', 'scene', 'search'
 ] as const;
 
+// Standard analytics convention: treat a return from background after this long
+// as a new session, so session-duration/bounce-rate metrics reflect real visits
+// instead of one session_id living for as long as the app process stays alive.
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
 class InteractionTrackingService {
   private sessionId: string;
   private eventQueue: BatchedInteractionEvent[] = [];
@@ -58,10 +63,46 @@ class InteractionTrackingService {
   private sessionStartTime: Date;
   private sessionInteractions: number = 0;
   private sessionPageViews: number = 0;
+  private backgroundedAt: number | null = null;
 
   constructor() {
     this.sessionId = this.generateSessionId();
     this.sessionStartTime = new Date();
+    this.setupSessionBoundaryListeners();
+  }
+
+  /**
+   * startNewSession() previously existed but was never called from anywhere,
+   * so every user got exactly one session_id for the entire lifetime of the app
+   * process — making session-duration/bounce-rate analytics meaningless on mobile,
+   * where backgrounding doesn't reload the JS context. This ties session
+   * boundaries to real app foreground/background transitions (web + Capacitor).
+   */
+  private setupSessionBoundaryListeners(): void {
+    if (typeof document === 'undefined') return;
+
+    const onBackground = () => {
+      this.backgroundedAt = Date.now();
+    };
+    const onForeground = () => {
+      if (this.backgroundedAt !== null && Date.now() - this.backgroundedAt > SESSION_TIMEOUT_MS) {
+        this.startNewSession();
+      }
+      this.backgroundedAt = null;
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) onBackground();
+      else onForeground();
+    });
+
+    const capacitorApp = (window as any)?.Capacitor?.Plugins?.App;
+    if (capacitorApp?.addListener) {
+      capacitorApp.addListener('appStateChange', (state: { isActive: boolean }) => {
+        if (state.isActive) onForeground();
+        else onBackground();
+      });
+    }
   }
 
   private generateSessionId(): string {

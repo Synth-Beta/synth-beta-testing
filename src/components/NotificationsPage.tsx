@@ -95,9 +95,13 @@ export const NotificationsPage = ({
             (existingRequests || []).filter(r => r.status === 'pending').map(r => r.id)
           );
 
+          // Only delete when we can positively confirm the request is resolved — a missing
+          // request_id (e.g. share-link referral notifications, which aren't tied to a formal
+          // friend_requests row) must NOT be treated as stale, or it gets deleted before the
+          // user ever sees it.
           const staleNotifs = friendRequestNotifs.filter(n => {
             const reqId = (n.data as any)?.request_id;
-            return !reqId || !pendingIds.has(reqId);
+            return !!reqId && !pendingIds.has(reqId);
           });
 
           if (staleNotifs.length > 0) {

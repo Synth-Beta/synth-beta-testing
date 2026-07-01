@@ -835,6 +835,12 @@ export class NotificationService {
       }
       const { BadgeService } = await import('./badgeService');
       await BadgeService.updateBadgeCount();
+      // useMenuNotificationBadgeCount only updates via Supabase Realtime, which isn't
+      // reliably firing for this — broadcast directly so the menu badge clears immediately
+      // instead of staying stale until a full page reload.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('synth-notifications-read'));
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
       throw new Error(`Failed to mark notification as read: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -872,6 +878,9 @@ export class NotificationService {
       }
       const { BadgeService } = await import('./badgeService');
       await BadgeService.updateBadgeCount();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('synth-notifications-read'));
+      }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       throw new Error(`Failed to mark all notifications as read: ${error instanceof Error ? error.message : 'Unknown error'}`);

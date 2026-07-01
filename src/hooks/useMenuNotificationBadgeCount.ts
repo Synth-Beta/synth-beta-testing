@@ -51,8 +51,13 @@ export function useMenuNotificationBadgeCount(userId: string | undefined) {
       )
       .subscribe();
 
+    // Realtime doesn't reliably fire for these writes — mark-as-read actions also
+    // dispatch this directly so the badge clears immediately, not just on reload.
+    window.addEventListener('synth-notifications-read', fetchCounts);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('synth-notifications-read', fetchCounts);
     };
   }, [userId]);
 
