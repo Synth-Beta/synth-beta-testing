@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Icon } from '@/components/Icon/Icon';
@@ -865,9 +866,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         isMobile={isMobile}
       />
 
-      {/* Artist/Venue detail overlays (single Discover header drives navigation) */}
-      <Suspense fallback={null}>
-        {detailView?.type === 'artist' && (
+      {/* Artist/Venue detail overlays (single Discover header drives navigation).
+          Rendered via portal to escape the CSS transform containing block created by the
+          view-enter-right/-left/-up animation on the parent view wrapper (see MainApp.tsx /
+          index.css .view-enter-* classes) — without this, these fixed-position modals get
+          clipped to the animated wrapper's box instead of filling the viewport. */}
+      {detailView?.type === 'artist' && createPortal(
+        <Suspense fallback={null}>
           <ArtistDetailModal
             isOpen={true}
             onClose={handleCloseDetail}
@@ -879,8 +884,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               handleEventClickFromVenue(eventId);
             }}
           />
-        )}
-        {detailView?.type === 'venue' && (
+        </Suspense>,
+        document.body
+      )}
+      {detailView?.type === 'venue' && createPortal(
+        <Suspense fallback={null}>
           <VenueDetailModal
             isOpen={true}
             onClose={handleCloseDetail}
@@ -892,11 +900,12 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               handleEventClickFromVenue(eventId);
             }}
           />
-        )}
-      </Suspense>
+        </Suspense>,
+        document.body
+      )}
 
-      {/* Event Details Modal (opened from venue event cards) */}
-      {eventDetailsOpen && selectedEvent && (
+      {/* Event Details Modal (opened from venue event cards) — same portal escape as above */}
+      {eventDetailsOpen && selectedEvent && createPortal(
         <EventDetailsModal
           isOpen={eventDetailsOpen}
           onClose={() => {
@@ -929,7 +938,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           }}
           onNavigateToProfile={onNavigateToProfile}
           onNavigateToChat={onNavigateToChat}
-            />
+        />,
+        document.body
       )}
 
       {shareModalOpen && shareDetail && (

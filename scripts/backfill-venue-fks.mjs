@@ -19,14 +19,30 @@ const COORD_TOLERANCE = 0.001; // ~100m
 async function run() {
   console.log('🔧 Starting venue_id backfill for broken Jambase events...\n');
 
-  // 1. Load all venues that have coordinates (once — small table)
-  const { data: venues, error: vErr } = await supabase
-    .from('venues')
-    .select('id, latitude, longitude')
-    .not('latitude', 'is', null)
-    .not('longitude', 'is', null);
+  // 1. Load all venues that have coordinates (once). Supabase caps a single request at
+  // 1000 rows, and this table has 500k+ venues. OFFSET-based .range() paging gets slower
+  // the deeper it goes (Postgres has to scan past every prior row each time) and eventually
+  // hits a statement timeout — use keyset pagination (cursor on id) instead, which stays
+  // fast regardless of how far in we are.
+  const venues = [];
+  const PAGE_SIZE = 1000;
+  let lastId = '00000000-0000-0000-0000-000000000000';
+  for (;;) {
+    const { data: page, error: vErr } = await supabase
+      .from('venues')
+      .select('id, latitude, longitude')
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null)
+      .gt('id', lastId)
+      .order('id', { ascending: true })
+      .limit(PAGE_SIZE);
 
-  if (vErr) throw vErr;
+    if (vErr) throw vErr;
+    if (!page || page.length === 0) break;
+    venues.push(...page);
+    lastId = page[page.length - 1].id;
+    if (page.length < PAGE_SIZE) break;
+  }
   console.log(`  Loaded ${venues.length} venues with coordinates`);
 
   // Pre-build Set of Jambase-linked venue IDs for tie-breaking

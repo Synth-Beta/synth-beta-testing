@@ -12,6 +12,7 @@ import type { PersonalizedFeedFilters } from '@/services/personalizedFeedService
 import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { VerifiedChatService } from '@/services/verifiedChatService';
+import { getUserArtistAffinity, boostEventsByArtistAffinity } from '@/services/artistAffinityService';
 import { toast } from '@/hooks/use-toast';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
 import { LocationService } from '@/services/locationService';
@@ -77,10 +78,13 @@ async function fetchFeedForLocations(
     locs.push(userLoc);
   }
 
+  const affinity = await getUserArtistAffinity(userId);
+
   if (locs.length === 0) {
     const result = await PersonalizationEngineV5.getUnifiedFeed(userId, limit, 0, baseFilters);
+    const boosted = boostEventsByArtistAffinity(result.events, affinity);
     return {
-      events: filterUpcomingFeedItems(result.events.map((e) => personalEventToItem(e, (e as any).event_type))),
+      events: filterUpcomingFeedItems(boosted.map((e) => personalEventToItem(e, (e as any).event_type))),
       hasMore: result.hasMore,
     };
   }
@@ -92,15 +96,17 @@ async function fetchFeedForLocations(
   );
 
   const seen = new Set<string>();
-  const merged: UnifiedEventItem[] = [];
+  const mergedEvents: typeof results[number]['events'] = [];
   for (const r of results) {
-    for (const e of r.events.map(ev => personalEventToItem(ev, (ev as any).event_type))) {
-      if (!seen.has(e.event_id)) {
-        seen.add(e.event_id);
-        merged.push(e);
+    for (const e of r.events) {
+      if (!seen.has(e.id || '')) {
+        seen.add(e.id || '');
+        mergedEvents.push(e);
       }
     }
   }
+  const boostedMerged = boostEventsByArtistAffinity(mergedEvents, affinity);
+  const merged = boostedMerged.map(e => personalEventToItem(e, (e as any).event_type));
   const hasMore = results.some(r => r.hasMore) || merged.length >= limit;
   return { events: filterUpcomingFeedItems(merged), hasMore };
 }

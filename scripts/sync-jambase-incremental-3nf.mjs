@@ -947,13 +947,12 @@ class IncrementalSync3NF {
         const jambaseEventId = eventData.jambase_event_id;
         if (!jambaseEventId) return null;
 
-        const artistUuid = eventData.artist_jambase_id_text
-          ? artistUuidMap.get(eventData.artist_jambase_id_text)
-          : null;
-        const venueUuid = eventData.venue_jambase_id_text
-          ? venueUuidMap.get(eventData.venue_jambase_id_text)
-          : null;
-
+        // artist_id/venue_id are already correctly resolved on eventData (set in
+        // processPage3NF via extractEventData, which includes venue's location-based
+        // fallback matching for venues without a JamBase venue id) — do NOT re-derive them
+        // here from artist_jambase_id_text/venue_jambase_id_text via a jambase-id-only
+        // lookup. That re-lookup has no fallback, so it silently nulled out venue_id for
+        // every event whose venue had to be matched by location instead of JamBase id.
         const {
           jambase_event_id,
           artist_jambase_id,
@@ -970,8 +969,6 @@ class IncrementalSync3NF {
         const row = {
           ...eventDataClean,
           jambase_id: jambaseEventId,
-          artist_id: artistUuid,
-          venue_id: venueUuid,
           updated_at: nowIso,
           // Only write genres when present (never clobber with empty)
           ...(isEmptyGenres(eventGenres) ? {} : { genres: eventGenres }),
@@ -989,8 +986,8 @@ class IncrementalSync3NF {
         // miss, missing JamBase id, etc.), leave the existing FK untouched instead of
         // clobbering it with null. Nulling these breaks artist/venue profile listings
         // and the artist-derived event images.
-        if (!artistUuid) delete row.artist_id;
-        if (!venueUuid) delete row.venue_id;
+        if (!row.artist_id) delete row.artist_id;
+        if (!row.venue_id) delete row.venue_id;
 
         return row;
       })
