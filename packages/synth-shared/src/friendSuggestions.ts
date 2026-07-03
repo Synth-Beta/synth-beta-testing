@@ -13,18 +13,6 @@ export type SharedFriendSuggestion = {
   shared_genres_count?: number;
 };
 
-function mapSimilarRpcRow(r: Record<string, unknown>): SharedFriendSuggestion {
-  return {
-    user_id: String(r.recommended_user_id ?? ''),
-    name: (r.name as string) || 'Unknown User',
-    avatar_url: (r.avatar_url as string | null) ?? null,
-    verified: true,
-    connection_depth: (r.connection_degree as number) ?? 3,
-    mutual_friends_count: (r.mutual_friends_count as number) ?? 0,
-    shared_genres_count: (r.shared_genres_count as number) ?? 0,
-  };
-}
-
 /** Fetch the set of user_ids to exclude (already friends or pending). */
 async function getExcludedUserIds(
   client: SynthSupabaseClient,
@@ -138,8 +126,13 @@ async function getDiscoveryUsers(
     .slice(0, needed);
 }
 
-/** Primary pool: shared-signal RPC → 2nd/3rd degree → recent-users discovery.
- *  All three are merged and deduplicated so the rail always has variety. */
+/** Primary pool: 2nd/3rd degree connections → recent-users discovery.
+ *  Both are merged and deduplicated so the rail always has variety.
+ *
+ * Note: this previously tried a `get_similar_users_to_friend` RPC first, but that
+ * function was never defined in this project's migrations — every call was a
+ * guaranteed round-trip failure before falling through to the layers below. Removed
+ * rather than reinstated since nothing here depended on its (never-working) output. */
 export async function getSimilarUsersToFriend(
   client: SynthSupabaseClient,
   userId: string,
@@ -157,23 +150,7 @@ export async function getSimilarUsersToFriend(
     }
   };
 
-  // Layer 1: shared-signal RPC (best quality matches)
-  try {
-    const { data, error } = await client.rpc('get_similar_users_to_friend', {
-      p_user_id: userId,
-      p_limit: limit * 6,
-    });
-    if (!error && data?.length) {
-      const rows = (data as Record<string, unknown>[])
-        .map(mapSimilarRpcRow)
-        .filter(s => s.user_id);
-      addUnique(rows);
-    }
-  } catch {
-    // fall through
-  }
-
-  // Layer 2: 2nd/3rd degree connections (if still short)
+  // Layer 1: 2nd/3rd degree connections
   if (combined.length < limit) {
     try {
       const fallback = await getRecommendedFriendsFallback(client, userId, limit * 2);
@@ -183,7 +160,7 @@ export async function getSimilarUsersToFriend(
     }
   }
 
-  // Layer 3: broad discovery from recently-active users (fills the rail when signals are sparse)
+  // Layer 2: broad discovery from recently-active users (fills the rail when signals are sparse)
   if (combined.length < limit) {
     try {
       const excludedIds = await getExcludedUserIds(client, userId);

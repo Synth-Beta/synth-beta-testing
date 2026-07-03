@@ -75,7 +75,7 @@ import {
   animations
 } from '@/styles/glassmorphism';
 import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
-import { useWebLayoutMode } from '@/hooks/useWebLayoutMode';
+import { useDetailModalLayout, EVENT_MODAL_Z } from '@/hooks/useDetailModalLayout';
 
 interface EventDetailsModalProps {
   event: JamBaseEvent | null;
@@ -92,8 +92,6 @@ interface EventDetailsModalProps {
   /** Called when user selects a different event from venue/artist modal so parent can sync state */
   onEventChange?: (event: JamBaseEvent, isInterested?: boolean) => void;
 }
-
-const DESKTOP_RAIL_WIDTH = 220;
 
 export function EventDetailsModal({
   event,
@@ -203,11 +201,10 @@ export function EventDetailsModal({
     actualEvent?.title ?? ''
   );
   const { isCreator, isAdmin, isBusiness } = useAccountType();
-  const layoutMode = useWebLayoutMode();
-  const isWebDesktop = layoutMode === 'web-desktop';
+  const { isWebDesktop, railWidth: DESKTOP_RAIL_WIDTH } = useDetailModalLayout();
   const modalContainerStyle: React.CSSProperties = {
     ...iosModal,
-    zIndex: 60,
+    zIndex: EVENT_MODAL_Z.container,
     background: 'var(--neutral-50, var(--neutral-50))',
     pointerEvents: 'auto',
     overflowY: 'hidden',
@@ -1304,7 +1301,7 @@ export function EventDetailsModal({
     <div
       style={{
         ...iosModalBackdrop,
-        zIndex: 55,
+        zIndex: EVENT_MODAL_Z.backdrop,
         ...(isWebDesktop
           ? {
               left: `${DESKTOP_RAIL_WIDTH}px`,
@@ -1325,7 +1322,7 @@ export function EventDetailsModal({
           position: 'sticky',
           top: 0,
           paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-          zIndex: 5000,
+          zIndex: EVENT_MODAL_Z.header,
           flexShrink: 0,
           display: 'flex',
           alignItems: 'center',

@@ -37,19 +37,6 @@ export function TimeSelectionStep({ reviewDuration, onSelectDuration }: TimeSele
   return (
     <div className="space-y-8">
       <header className="text-center space-y-2">
-        <p
-          style={{
-            fontFamily: 'var(--font-family)',
-            fontSize: 'var(--typography-meta-size, 16px)',
-            fontWeight: 'var(--typography-meta-weight, 500)',
-            lineHeight: 'var(--typography-meta-line-height, 1.5)',
-            color: 'var(--brand-pink-500)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.3em'
-          }}
-        >
-          Get Started
-        </p>
         <h2
           style={{
             fontFamily: 'var(--font-family)',

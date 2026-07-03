@@ -389,7 +389,11 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     );
   }
 
-  const discoverHeader = !hideHeader
+  // On web-desktop, detail views (artist/venue) render their own internal header
+  // (see ArtistDetailModal/VenueDetailModal isWebDesktop handling) instead of this
+  // mobile-style header, so it doesn't double up with — or get hidden behind — the
+  // portaled detail modal.
+  const discoverHeader = !hideHeader && !webDesktopChrome
     ? detailView
       ? (
         <MobileHeader
@@ -421,8 +425,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           </h1>
         </MobileHeader>
       )
-      : webDesktopChrome
-      ? undefined
       : (
         <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
           <div style={{

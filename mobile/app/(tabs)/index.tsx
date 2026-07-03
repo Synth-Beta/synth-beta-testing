@@ -52,13 +52,15 @@ export default function FeedScreen() {
 
   const fetchFeed = useCallback(async () => {
     try {
-      const loc = await getCurrentLatLng();
+      // Location doesn't need the session, so fetch both in parallel instead of
+      // waiting on GPS before even checking who's logged in.
       // Use getSession() (local storage, no network) so the feed loads even on
       // spotty first-launch connectivity. getUser() validates the JWT remotely
       // and returns null on any hiccup, causing an empty feed that refresh can't fix.
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const [loc, { data: { session } }] = await Promise.all([
+        getCurrentLatLng(),
+        supabase.auth.getSession(),
+      ]);
       const user = session?.user ?? null;
       if (!user) {
         setReferralCode(null);
@@ -69,25 +71,39 @@ export default function FeedScreen() {
         return;
       }
       setViewerUserId(user.id);
-      const { data: me } = await supabase
-        .from('users')
-        .select('referral_code')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setReferralCode((me as any)?.referral_code ?? null);
-      const unread = await NotificationService.getUnreadCount(user.id);
-      setNotificationCount(unread);
 
-      const suggestions = await HomeFeedService.getFriendSuggestionsForRail(user.id, 5);
-      setFriendSuggestions(suggestions);
+      // Referral code / unread count / friend suggestions rail / main feed content are all
+      // independent of each other — run them together instead of one after another so the
+      // load time is the slowest of these, not the sum of all of them. The referral lookup
+      // is wrapped so a failure there can't wipe out an otherwise-successful feed fetch.
+      const referralCodePromise = (async (): Promise<string | null> => {
+        try {
+          const { data } = await supabase
+            .from('users')
+            .select('referral_code')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          return (data as any)?.referral_code ?? null;
+        } catch {
+          return null;
+        }
+      })();
+      const unreadPromise = NotificationService.getUnreadCount(user.id);
+      const suggestionsPromise = HomeFeedService.getFriendSuggestionsForRail(user.id, 5);
 
       if (feedDisplayMode === 'events') {
-        const [unified, friendEvents] = await Promise.all([
+        const [referralCode, unread, suggestions, unified, friendEvents] = await Promise.all([
+          referralCodePromise,
+          unreadPromise,
+          suggestionsPromise,
           HomeFeedService.getUnifiedPersonalizedEvents(
             user.id, 50, loc?.latitude ?? null, loc?.longitude ?? null, 50
           ),
           HomeFeedService.getNetworkEvents(user.id, 20),
         ]);
+        setReferralCode(referralCode);
+        setNotificationCount(unread);
+        setFriendSuggestions(suggestions);
 
         // Convert friend network events → UnifiedPersonalizedEvent with FRIENDS label
         const friendEventIds = new Set(unified.map(e => e.id));
@@ -127,7 +143,15 @@ export default function FeedScreen() {
         setEvents(upcomingOnly);
         seedFromFeed(upcomingOnly);
       } else {
-        const networkReviews = await HomeFeedService.getNetworkReviews(user.id, 20);
+        const [referralCode, unread, suggestions, networkReviews] = await Promise.all([
+          referralCodePromise,
+          unreadPromise,
+          suggestionsPromise,
+          HomeFeedService.getNetworkReviews(user.id, 20),
+        ]);
+        setReferralCode(referralCode);
+        setNotificationCount(unread);
+        setFriendSuggestions(suggestions);
         setReviews(networkReviews);
       }
     } catch (error) {

@@ -11,6 +11,7 @@ import { ShareService } from '@/services/shareService';
 import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
+import { useDetailModalLayout, DETAIL_MODAL_Z } from '@/hooks/useDetailModalLayout';
 import {
   iosModalBackdrop,
   iosHeader,
@@ -84,7 +85,10 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
     return () => window.clearTimeout(t);
   }, [isOpen]);
 
-  const useInternalHeader = isOpen && !hasOuterMobileHeader;
+  const { isWebDesktop, railWidth: DESKTOP_RAIL_WIDTH } = useDetailModalLayout();
+  // On web-desktop there's no MobileHeader to inherit (the app chrome is the left rail),
+  // so this modal always owns its header there — same rule EventDetailsModal follows.
+  const useInternalHeader = isOpen && (isWebDesktop || !hasOuterMobileHeader);
   const {
     titleRef: artistTitleRef,
     variant: artistTitleVariant,
@@ -329,15 +333,18 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
         style={{
           ...iosModalBackdrop,
           // Keep app chrome (header + bottom nav) above the overlay.
-          zIndex: useInternalHeader ? 6000 : 25,
-          top: useInternalHeader
-            ? 'var(--onboarding-banner-height, 0px)'
-            : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          zIndex: useInternalHeader ? DETAIL_MODAL_Z.backdropOwnHeader : DETAIL_MODAL_Z.backdropNested,
+          left: isWebDesktop ? DESKTOP_RAIL_WIDTH : 0,
+          top: isWebDesktop
+            ? 0
+            : useInternalHeader
+              ? 'var(--onboarding-banner-height, 0px)'
+              : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          bottom: isWebDesktop ? 0 : 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
         }}
         onClick={onClose}
       />
-      
+
       {/* Detail overlay (scrolls between header and bottom nav) */}
       <div
         ref={modalRef}
@@ -346,17 +353,19 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
         aria-label={`Artist details: ${artistName}`}
         style={{
           position: 'fixed',
-          left: 0,
+          left: isWebDesktop ? DESKTOP_RAIL_WIDTH : 0,
           right: 0,
-          top: useInternalHeader
-            ? 'var(--onboarding-banner-height, 0px)'
-            : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
+          top: isWebDesktop
+            ? 0
+            : useInternalHeader
+              ? 'var(--onboarding-banner-height, 0px)'
+              : 'calc(var(--onboarding-banner-height, 0px) + var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)) + 68px)',
+          bottom: isWebDesktop ? 0 : 'calc(env(safe-area-inset-bottom, 0px) + 80px)',
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
           background: 'var(--neutral-50, var(--neutral-50))',
-          zIndex: useInternalHeader ? 6001 : 26,
+          zIndex: useInternalHeader ? DETAIL_MODAL_Z.contentOwnHeader : DETAIL_MODAL_Z.contentNested,
         }}
       >
         {useInternalHeader && (
@@ -366,7 +375,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
               position: 'sticky',
               top: 0,
               paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-              zIndex: 7000,
+              zIndex: DETAIL_MODAL_Z.internalHeader,
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
