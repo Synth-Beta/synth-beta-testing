@@ -39,10 +39,11 @@ export default function FeedScreen() {
   const [notificationCount, setNotificationCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
-  const autoRetryFiredRef = useRef(false);
+  const retryAttemptRef = useRef(0);
   const { seedFromFeed } = useInterested();
 
   const listData: ListItem[] =
@@ -154,13 +155,17 @@ export default function FeedScreen() {
         setFriendSuggestions(suggestions);
         setReviews(networkReviews);
       }
+      setFeedError(false);
+      retryAttemptRef.current = 0;
     } catch (error) {
+      // Deliberately NOT clearing events/reviews/referralCode/viewerUserId here:
+      // a transient backend failure (e.g. an RPC timeout) must never present as
+      // "no events" by wiping out whatever was last successfully loaded. Only
+      // the "no session" branch above clears those, since that's a real reason
+      // to show nothing. See the feed_v5 RPC-500 hotfix history for why this
+      // distinction matters.
       console.error('Error fetching feed:', error);
-      setReferralCode(null);
-      setViewerUserId(null);
-      if (feedDisplayMode === 'events') setEvents([]);
-      else setReviews([]);
-      setFriendSuggestions([]);
+      setFeedError(true);
     } finally {
       setRefreshing(false);
       setFeedLoading(false);
@@ -195,22 +200,27 @@ export default function FeedScreen() {
     }, [refreshNotificationBadge])
   );
 
-  // Auto-retry: if events come back empty after the initial load, retry once
-  // after 4 seconds. This handles GPS cold-start and RPC warm-up delays where
-  // the first call succeeds but returns 0 results.
+  // Auto-retry with backoff while we still have nothing to show. Covers two
+  // cases: (1) GPS cold-start / RPC warm-up where the first call succeeds but
+  // returns 0 results, and (2) a real backend failure (feedError) — in both
+  // cases we keep trying quietly rather than ever settling on a dead-end empty
+  // state after a single attempt. Capped at 6 attempts (~65s total) so a
+  // genuinely persistent outage doesn't retry forever in the background.
   useEffect(() => {
     if (feedLoading || refreshing) return; // still loading or user-triggered refresh in progress
     const isEmpty =
       feedDisplayMode === 'events' ? events.length === 0 : reviews.length === 0;
     if (!isEmpty) {
-      autoRetryFiredRef.current = false; // reset when we have data
+      retryAttemptRef.current = 0; // reset once we have data
       return;
     }
-    if (autoRetryFiredRef.current) return; // only retry once per empty state
-    autoRetryFiredRef.current = true;
+    if (retryAttemptRef.current >= 6) return; // give up retrying automatically; pull-to-refresh still works
+    const attempt = retryAttemptRef.current;
+    const delayMs = Math.min(4000 * Math.pow(1.6, attempt), 20000);
     const t = setTimeout(() => {
+      retryAttemptRef.current += 1;
       void fetchFeed();
-    }, 4000);
+    }, delayMs);
     return () => clearTimeout(t);
   }, [feedLoading, refreshing, feedDisplayMode, events.length, reviews.length, fetchFeed]);
 
@@ -256,8 +266,14 @@ export default function FeedScreen() {
     );
   };
 
-  const emptyMessage =
-    feedDisplayMode === 'events' ? 'No events yet. Pull to refresh.' : 'No reviews yet. Pull to refresh.';
+  // Only claim "no events/reviews" when the last fetch actually succeeded with
+  // zero results. If it failed, say so and keep retrying instead — a backend
+  // hiccup must never present as "there's nothing here".
+  const emptyMessage = feedError
+    ? 'Having trouble loading. Retrying…'
+    : feedDisplayMode === 'events'
+      ? 'No events yet. Pull to refresh.'
+      : 'No reviews yet. Pull to refresh.';
 
   const listHeader = useMemo(
     () => (

@@ -212,7 +212,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   const hadGenresForReloadRef = useRef(false);
   const lastReloadLocationRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  const { data: cachedFeed, isLoading: queryLoading } = useQuery({
+  const { data: cachedFeed, isLoading: queryLoading, isError: feedIsError, refetch: refetchFeed } = useQuery({
     queryKey: ['feed', 'home', currentUserId, filterSignature],
     queryFn: async () => {
       const f = filters as any;
@@ -294,6 +294,19 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   useEffect(() => {
     allFetchedEventsRef.current = allFetchedEvents;
   }, [allFetchedEvents]);
+
+  // Keep retrying quietly in the background while the initial load has failed and we
+  // still have nothing to show — react-query's built-in retries (3 attempts, backoff)
+  // cover the first few seconds, but a sustained backend issue (e.g. an RPC timeout)
+  // can outlast those. Never give up and show "no events": a real backend failure
+  // must never be presented as "there's nothing here" — see feed_v5 hotfix history.
+  useEffect(() => {
+    if (!feedIsError || displayedEvents.length > 0) return;
+    const interval = setInterval(() => {
+      void refetchFeed();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [feedIsError, displayedEvents.length, refetchFeed]);
 
   const attachObserver = useIntersectionTrackingList(
     'event',
@@ -883,7 +896,20 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   if (loading && displayedEvents.length === 0) {
     return (
       <div className="swift-ui-feed-container">
-        <SynthLoadingInline text="Loading events..." size="md" />
+        <SynthLoadingInline
+          text={feedIsError ? 'Having trouble loading — retrying…' : 'Loading events...'}
+          size="md"
+        />
+      </div>
+    );
+  }
+
+  // Never render the "no events" state off the back of a failed fetch — only a
+  // genuinely successful, empty response should ever say there's nothing here.
+  if (feedIsError && displayedEvents.length === 0) {
+    return (
+      <div className="swift-ui-feed-container">
+        <SynthLoadingInline text="Having trouble loading — retrying…" size="md" />
       </div>
     );
   }

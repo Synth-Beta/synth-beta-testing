@@ -282,7 +282,13 @@ export class PersonalizationEngineV5 {
         } else {
           logger.error('❌ get_personalized_feed_v5 error:', error);
         }
-        return { events: [], hasMore: false };
+        // Throw instead of returning an empty result: a real backend failure must
+        // surface as an error, not as "0 events found". Swallowing it here made
+        // react-query treat an RPC 500 as a successful empty fetch, overwriting
+        // any previously-loaded feed with nothing and showing users a dead-end
+        // "no events" message instead of retrying. Let react-query's built-in
+        // retry/backoff and cached-data-on-error behavior handle this instead.
+        throw error;
       }
       
       let rows = (data ?? []) as FeedV5Row[];
@@ -332,7 +338,9 @@ export class PersonalizationEngineV5 {
       };
     } catch (err) {
       logger.error('❌ get_personalized_feed_v5 exception:', err);
-      return { events: [], hasMore: false };
+      // Rethrow (see the error branch above for why this must not resolve to
+      // an empty feed) so the caller/react-query sees a real failure.
+      throw err;
     }
   }
 

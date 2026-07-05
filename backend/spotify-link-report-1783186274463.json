@@ -1,0 +1,1196 @@
+{
+  "limit": 200,
+  "write": false,
+  "tally": {
+    "tier_c_no_exact_match": 29,
+    "skipped_tribute_pattern": 6,
+    "tier_a_auto_link": 14,
+    "tier_b_ambiguous_exact_matches": 9,
+    "no_results": 1
+  },
+  "results": [
+    {
+      "artist_id": "4d9da452-05a9-4859-9a95-10fd53ae4516",
+      "name": "Sinatra Live!",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "1Mxqyy3pSjf8kZZL4QVxS0",
+          "name": "Frank Sinatra"
+        },
+        {
+          "id": "3IZrrNonYELubLPJmqOci2",
+          "name": "Nancy Sinatra"
+        },
+        {
+          "id": "19eLuQmk9aCobbVDHc6eek",
+          "name": "Louis Armstrong"
+        }
+      ]
+    },
+    {
+      "artist_id": "a5d3c00f-3268-424d-b9de-918610abe6ab",
+      "name": "MJ LIVE – Michael Jackson Tribute",
+      "tier": "skipped_tribute_pattern"
+    },
+    {
+      "artist_id": "f22040fe-4b8a-4d52-88a9-039a9eb167ea",
+      "name": "ABBA Voyage",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "0LcJLqbBmaGUft1e9Mm8HV",
+          "name": "ABBA"
+        },
+        {
+          "id": "6aAXBSjwLUEukyVDhOuKNO",
+          "name": "Voyage"
+        },
+        {
+          "id": "41NuWJyfCgHmFIPjgbd2L4",
+          "name": "Voyage"
+        }
+      ]
+    },
+    {
+      "artist_id": "63671a63-8edc-4526-9af6-449e422dbc75",
+      "name": "Grand Ole Opry",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "0hyJLnnmiy5ZAW0fYKOYjN",
+      "matched_spotify_name": "Grand Ole Opry",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "0hyJLnnmiy5ZAW0fYKOYjN",
+          "name": "Grand Ole Opry"
+        },
+        {
+          "id": "33remxHsDeTIlswIIkNIxx",
+          "name": "Grand Ole Opry Stars"
+        },
+        {
+          "id": "1S2jnvMmM5zUeHht6yp1lR",
+          "name": "Billy Bob Thornton"
+        }
+      ]
+    },
+    {
+      "artist_id": "a1b5a9c5-667f-4491-b8c4-13cc39bcafbb",
+      "name": "Purple Reign",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "4lA1JuEKfSnKaQhekAr1An",
+          "name": "Purple Reign"
+        },
+        {
+          "id": "1RyvyyTE3xzB2ZywiAwp0i",
+          "name": "Future"
+        },
+        {
+          "id": "0TRSxJtLAxr3Q7y21hoT2l",
+          "name": "Purple Reign"
+        }
+      ]
+    },
+    {
+      "artist_id": "26a9e2a5-c444-47bb-aae1-8ed1c16dbf9e",
+      "name": "Noah Peterson",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "7BvH3Rd2qYaClO8QKUdMT2",
+          "name": "Noah Peterson"
+        },
+        {
+          "id": "6YSSJdRfFx4ZtTNSvrFa8K",
+          "name": "Noah Peterson"
+        },
+        {
+          "id": "57obJWaVprToiOyXMOGKlq",
+          "name": "The Noah Peterson Quartet"
+        }
+      ]
+    },
+    {
+      "artist_id": "1164271c-05d4-4947-8212-b419c132653a",
+      "name": "Olivia Rodrigo",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "1McMsnEElThX1knmY4oliG",
+          "name": "Olivia Rodrigo"
+        },
+        {
+          "id": "00x1fYSGhdqScXBRpSj3DW",
+          "name": "Olivia Dean"
+        },
+        {
+          "id": "06HL4z0CvFAxyc27GXpf02",
+          "name": "Taylor Swift"
+        }
+      ]
+    },
+    {
+      "artist_id": "9275b3ed-ab0a-4603-9cfb-8876cee1a624",
+      "name": "The Bootleg Beatles",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "3WrFJ7ztbogyGnTHbHJFl2",
+          "name": "The Beatles"
+        },
+        {
+          "id": "4Fgf6RvuWpiwDXSE7Vammx",
+          "name": "George Martin"
+        },
+        {
+          "id": "6GI3CJjT2bOnMfprCpjT1d",
+          "name": "Bootie Brown"
+        }
+      ]
+    },
+    {
+      "artist_id": "de6b1c1b-738a-40a0-a564-e98ad9d5a803",
+      "name": "What’s Love Got to do with it – Tina Turner Tribute",
+      "tier": "skipped_tribute_pattern"
+    },
+    {
+      "artist_id": "de882963-11f1-4b4c-8e6f-a113f44f84fc",
+      "name": "Kings Of Floyd",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "03PCdNvkF81s7xHmtkNcoz",
+          "name": "King Floyd"
+        },
+        {
+          "id": "6D6tMkFvkzIeTILbxsBv97",
+          "name": "Floyd"
+        },
+        {
+          "id": "10Tpr9ilHCDi18P0qma6dF",
+          "name": "The Kings Of Nuthin'"
+        }
+      ]
+    },
+    {
+      "artist_id": "7ab2ae3c-921b-4297-8cb7-7d5ec5fbd7d8",
+      "name": "Goldmen",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "1iTlOqIrZy8DlvCPJY2sjS",
+          "name": "Golden Earring"
+        },
+        {
+          "id": "2jmo1S0qDb6WzvNfTf6PUr",
+          "name": "Golden Cats"
+        },
+        {
+          "id": "1xV9fJcdAGxj3yg6CzR3N6",
+          "name": "Goldman"
+        }
+      ]
+    },
+    {
+      "artist_id": "ea8e1ab6-d802-4b40-b2bc-a914d6d6071e",
+      "name": "Dublin’s Irish Tenors",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "2QehFI9eDvwgtDxEharMPu",
+          "name": "The Irish Tenors"
+        },
+        {
+          "id": "4nq2xZXIeDcRdpBVzMICpc",
+          "name": "Ronan Tynan"
+        },
+        {
+          "id": "1m9DY3etkf2OgLfWTXJPqf",
+          "name": "Paul Byrom"
+        }
+      ]
+    },
+    {
+      "artist_id": "1eb56851-6178-43b1-ad08-afa760bbf4c0",
+      "name": "One Night of Dire Straits",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "0WwSkZ7LtFUFjGjMZBMt6T",
+          "name": "Dire Straits"
+        },
+        {
+          "id": "0ECwFtbIWEVNwjlrfc6xoL",
+          "name": "Eagles"
+        },
+        {
+          "id": "4salDzkGmfycRqNUbyBphh",
+          "name": "Styx"
+        }
+      ]
+    },
+    {
+      "artist_id": "3665f611-34cf-4523-9a92-59fbae11c980",
+      "name": "Bryson Tiller",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "2EMAnMvWE2eb56ToJVfCWs",
+          "name": "Bryson Tiller"
+        },
+        {
+          "id": "3tlXnStJ1fFhdScmQeLpuG",
+          "name": "Brent Faiyaz"
+        },
+        {
+          "id": "2HPaUgqeutzr3jx5a9WyDV",
+          "name": "PARTYNEXTDOOR"
+        }
+      ]
+    },
+    {
+      "artist_id": "239855fb-b41a-4fd6-b2aa-d0d3f8533460",
+      "name": "One Night of Queen",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "5FFi8EAAkpDqzQ5IZNkibz",
+          "name": "Queen Butterfly"
+        },
+        {
+          "id": "479Yp6DvyXoIaCssAxB4QR",
+          "name": "Murray Head"
+        },
+        {
+          "id": "29RLU1J5xEEEAVS72QAKqA",
+          "name": "Chill Queen"
+        }
+      ]
+    },
+    {
+      "artist_id": "c493d243-f6da-4cba-8bc6-7fb52d5e6d0a",
+      "name": "The World of Hans Zimmer",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "0YC192cP3KPCRWx8zr8MfZ",
+          "name": "Hans Zimmer"
+        },
+        {
+          "id": "03GruNQP8X25PCoWzdvIGZ",
+          "name": "Klaus Badelt"
+        },
+        {
+          "id": "5qBZETtyzfYnXOobDXbmcD",
+          "name": "Danny Elfman"
+        }
+      ]
+    },
+    {
+      "artist_id": "8f3e7388-3030-43b1-8f4e-3af15c48aaa4",
+      "name": "Brit Floyd",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "0k17h0D3J5VfsdmQ1iZtE9",
+          "name": "Pink Floyd"
+        },
+        {
+          "id": "34fdnsoGj7eABFaRjr1WVc",
+          "name": "Brett Floyd"
+        },
+        {
+          "id": "3KCDjhsDSiD1qqlHh5pOp0",
+          "name": "FLOYD"
+        }
+      ]
+    },
+    {
+      "artist_id": "118a1a19-a56d-45f4-80cc-2202917737c9",
+      "name": "Gracie Abrams",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "4tuJ0bMpJh08umKkEXKUI5",
+      "matched_spotify_name": "Gracie Abrams",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "4tuJ0bMpJh08umKkEXKUI5",
+          "name": "Gracie Abrams"
+        },
+        {
+          "id": "1McMsnEElThX1knmY4oliG",
+          "name": "Olivia Rodrigo"
+        },
+        {
+          "id": "45dkTj5sMRSjrmBSBeiHym",
+          "name": "Tate McRae"
+        }
+      ]
+    },
+    {
+      "artist_id": "0f2d7c1e-af42-4916-8d2f-1f8089a4a7e9",
+      "name": "Niall Horan",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "1Hsdzj7Dlq2I7tHP7501T4",
+      "matched_spotify_name": "Niall Horan",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "1Hsdzj7Dlq2I7tHP7501T4",
+          "name": "Niall Horan"
+        },
+        {
+          "id": "5pUo3fmmHT8bhCyHE52hA6",
+          "name": "Liam Payne"
+        },
+        {
+          "id": "57WHJIHrjOE3iAxpihhMnp",
+          "name": "Louis Tomlinson"
+        }
+      ]
+    },
+    {
+      "artist_id": "23459f8c-b4b0-489b-b46b-f6f9ee77863f",
+      "name": "Catch Your Breath",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "2fqPOGxG12nEERj8YG7p22",
+      "matched_spotify_name": "Catch Your Breath",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "2fqPOGxG12nEERj8YG7p22",
+          "name": "Catch Your Breath"
+        },
+        {
+          "id": "1KVSyARbnZN9IGoISqxSDX",
+          "name": "Arankai"
+        },
+        {
+          "id": "5mlbvTfWUOfDrUIK6dkNzv",
+          "name": "Poppy"
+        }
+      ]
+    },
+    {
+      "artist_id": "59e3130d-9ee2-4183-a7a6-e344f55667aa",
+      "name": "Get The Led Out",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "36QJpDe2go2KgaRleHCDTp",
+          "name": "Led Zeppelin"
+        },
+        {
+          "id": "5r9uIJCoquVtEkCkvcn8Ez",
+          "name": "Get Scared"
+        },
+        {
+          "id": "6Lp7r0Yq75Dezm5YQp262z",
+          "name": "The Left Rights"
+        }
+      ]
+    },
+    {
+      "artist_id": "90d6986c-9c16-4f3e-9f15-9ee9b80ce550",
+      "name": "Jungle",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "59oA5WbbQvomJz2BuRG071",
+      "matched_spotify_name": "Jungle",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "59oA5WbbQvomJz2BuRG071",
+          "name": "Jungle"
+        },
+        {
+          "id": "6atGQM99IrRfUefJFore1B",
+          "name": "Junglepussy"
+        },
+        {
+          "id": "2iclO3rlyF0YVNE46ctYRj",
+          "name": "Jungle Brothers"
+        }
+      ]
+    },
+    {
+      "artist_id": "67e4acb4-7aac-4764-af14-9cf6fc41dc35",
+      "name": "Dean Z – The Ultimate Elvis",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "1nifM0ldo2KfNtSvybQ96M",
+          "name": "Sammy Davis Jr. | Dean Martin"
+        },
+        {
+          "id": "55IyYO6fmYpYw6Nd4YF7bw",
+          "name": "Zager & Evans"
+        },
+        {
+          "id": "5IMltI7AzMZmM9TdapGK8w",
+          "name": "Dean Gillard"
+        }
+      ]
+    },
+    {
+      "artist_id": "f0dedfc4-ffc1-4202-9fc1-165b5e1bae8d",
+      "name": "The Fab Four",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "0hKKZ3XZ2uQD5j1EIrFFf7",
+      "matched_spotify_name": "The Fab Four",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "0hKKZ3XZ2uQD5j1EIrFFf7",
+          "name": "The Fab Four"
+        },
+        {
+          "id": "3WrFJ7ztbogyGnTHbHJFl2",
+          "name": "The Beatles"
+        },
+        {
+          "id": "6HrVpNWQq0HUOclRlKKAEo",
+          "name": "The Fabus Four"
+        }
+      ]
+    },
+    {
+      "artist_id": "91a31c75-d031-4077-9358-6f3312d9a1aa",
+      "name": "The Magical Music of Harry Potter – Live in Concert",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "3dRfiJ2650SZu6GbydcHNb",
+          "name": "John Williams"
+        },
+        {
+          "id": "0MvSBMGRQJY3mRwIbJsqF1",
+          "name": "Royal Philharmonic Orchestra"
+        },
+        {
+          "id": "6uRJnvQ3f8whVnmeoecv5Z",
+          "name": "Berliner Philharmoniker"
+        }
+      ]
+    },
+    {
+      "artist_id": "d14b2b46-f885-4834-b1f1-276119d6033d",
+      "name": "Polyphia",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "4vGrte8FDu062Ntj0RsPiZ",
+          "name": "Polyphia"
+        },
+        {
+          "id": "2cMK99GYN2qw5buZecbKH4",
+          "name": "Tim Henson"
+        },
+        {
+          "id": "2JFljHPanIjYy2QqfNYvC0",
+          "name": "Chon"
+        }
+      ]
+    },
+    {
+      "artist_id": "c681dd10-6b57-4e96-ac12-a697c8e0e689",
+      "name": "Sin City Stones",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "5gaRf6chAeB9pMMtUg4WH6",
+          "name": "Sin City Saints"
+        },
+        {
+          "id": "1DdcruIENf0TEADHPRLevp",
+          "name": "Sun City"
+        },
+        {
+          "id": "3e1VHG5NGA9ILTKDCfTFL3",
+          "name": "SinCity"
+        }
+      ]
+    },
+    {
+      "artist_id": "adcf6f8d-ec51-474b-a436-908fc3d181b6",
+      "name": "MANIA: The ABBA Tribute",
+      "tier": "skipped_tribute_pattern"
+    },
+    {
+      "artist_id": "94e52d71-45eb-4cef-9724-fa04124c1fb7",
+      "name": "New York Gospel Stars",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "07uxy0OgbWhfCJyvCBaq16",
+          "name": "The New York All-Stars"
+        },
+        {
+          "id": "38Co6nKtMRhkUfJ6vlsXBS",
+          "name": "The Gospel All Stars"
+        },
+        {
+          "id": "35se3k8HlA6vUQ4UE6lU0q",
+          "name": "The New York Fellowship Mass Choir II"
+        }
+      ]
+    },
+    {
+      "artist_id": "66394507-36a9-4426-ab6c-84022091a823",
+      "name": "Dax",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "5icKdCmMhNMYoAzVBAWt39",
+      "matched_spotify_name": "Dax",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "5icKdCmMhNMYoAzVBAWt39",
+          "name": "Dax"
+        },
+        {
+          "id": "6DvlemMOlMH6VD9tB7BPRf",
+          "name": "Tom MacDonald"
+        },
+        {
+          "id": "62cbRT8HTVpFfiA7e2jJO0",
+          "name": "Dax Riggs"
+        }
+      ]
+    },
+    {
+      "artist_id": "39b67780-0b00-4958-a5d6-da9204cb9a19",
+      "name": "So Floyd",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "6DQ6mdEhxCgHPqfX1niZZK",
+          "name": "Floyd Cramer"
+        },
+        {
+          "id": "38lPGMksbTsJy9RCOGOe4h",
+          "name": "Floyd Taylor"
+        },
+        {
+          "id": "0glUNuyGWUn70JhLMARseD",
+          "name": "Floyd Fuji"
+        }
+      ]
+    },
+    {
+      "artist_id": "2bb1acd5-7e6b-4d1d-926a-657a453cd80d",
+      "name": "Field Commander C.",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "4TUeSXaTyrKCPiQ2X9mekU",
+          "name": "Field Commander Ali"
+        },
+        {
+          "id": "4Zmee1YWmGEFv54HkFbx6C",
+          "name": "The Mc Bat Commander"
+        },
+        {
+          "id": "3xUZZvik6VW0qpX4gMPsJW",
+          "name": "US Army Field Band"
+        }
+      ]
+    },
+    {
+      "artist_id": "06be06c6-7e4d-4509-b34d-25afa2b12078",
+      "name": "Phoebe Bridgers",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "1r1uxoy19fzMxunt3ONAkG",
+          "name": "Phoebe Bridgers"
+        },
+        {
+          "id": "1hLiboQ98IQWhpKeP9vRFw",
+          "name": "boygenius"
+        },
+        {
+          "id": "4tuJ0bMpJh08umKkEXKUI5",
+          "name": "Gracie Abrams"
+        }
+      ]
+    },
+    {
+      "artist_id": "bd924eff-1b8f-4303-b164-e6ed6713266f",
+      "name": "6LACK",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "4IVAbR2w4JJNJDDRFP3E83",
+      "matched_spotify_name": "6LACK",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "4IVAbR2w4JJNJDDRFP3E83",
+          "name": "6LACK"
+        },
+        {
+          "id": "1z7b1Pr1rSlvWRzsW3HOrS",
+          "name": "Russ"
+        },
+        {
+          "id": "3KedxarmBCyFBevnqQHy3P",
+          "name": "Jessie Reyez"
+        }
+      ]
+    },
+    {
+      "artist_id": "8a7cc902-8259-46c3-a943-d249253fb2ce",
+      "name": "Ultimate Coldplay",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "4ohqj0RvkvIAJbid6IX2HV",
+          "name": "Ultimate"
+        },
+        {
+          "id": "7tudVlhAn4tRAnqPS7qQnd",
+          "name": "Ultimate Dance Hits"
+        },
+        {
+          "id": "6q5YSTTvSa4T4WxoOpMs0v",
+          "name": "Ultimate Spa Music"
+        }
+      ]
+    },
+    {
+      "artist_id": "9cb7c304-5f70-486e-87b7-7a431ac08d52",
+      "name": "The Smyths (Tribute to The Smiths)",
+      "tier": "skipped_tribute_pattern"
+    },
+    {
+      "artist_id": "49a91b37-b450-45a3-8e5f-077bbe1bf636",
+      "name": "Imminence",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "7rqJQQxuUOCk052MK5kLsH",
+          "name": "Imminence"
+        },
+        {
+          "id": "4igS2MSwOIf3F9YeL929IO",
+          "name": "Dying Wish"
+        },
+        {
+          "id": "3Ri4H12KFyu98LMjSoij5V",
+          "name": "Bad Omens"
+        }
+      ]
+    },
+    {
+      "artist_id": "61c93f4b-2245-4cab-8299-4b52b30020c3",
+      "name": "Björn Again",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "7j89AKT2Le2f2Rji7Eb5JR",
+          "name": "Björn Again"
+        },
+        {
+          "id": "60L89ATHaz5NDS5cMXDosp",
+          "name": "Bjorn Again"
+        },
+        {
+          "id": "02r4AIHYKRCtqFOGNxJEzM",
+          "name": "BJORN AGAIN BAND"
+        }
+      ]
+    },
+    {
+      "artist_id": "4e3151be-b449-4d5a-9b20-4d597943d269",
+      "name": "Nej’",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "3BQ9mWlgFRfMr5EdNfc10a",
+      "matched_spotify_name": "Nej",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "3BQ9mWlgFRfMr5EdNfc10a",
+          "name": "Nej"
+        },
+        {
+          "id": "2OHKEe204spO7G7NcbeO2o",
+          "name": "Ñejo"
+        },
+        {
+          "id": "1ykothWH0xl8drRyJWuw7I",
+          "name": "Ñejo & Dalmata"
+        }
+      ]
+    },
+    {
+      "artist_id": "0f493b59-8541-415a-a7ba-283cfd6aa15a",
+      "name": "Marine",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "5IcaqAG12inAfarGuGqpW1",
+      "matched_spotify_name": "Marine",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "5XaBNKQo65yYcjNA8wQPOk",
+          "name": "宝鐘マリン"
+        },
+        {
+          "id": "5IcaqAG12inAfarGuGqpW1",
+          "name": "Marine"
+        },
+        {
+          "id": "3HedFe4b2Nqeg1CEzmt6ZI",
+          "name": "Marino"
+        }
+      ]
+    },
+    {
+      "artist_id": "f4b8ea3a-5ca3-4b0e-80e3-82c00d8259bc",
+      "name": "Fleetwood Bac",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "08GQAI4eElDnROBrJRGE0X",
+          "name": "Fleetwood Mac"
+        },
+        {
+          "id": "0IpX8k4fWrIkZLFz33Zy5w",
+          "name": "Fleetwood Mad"
+        },
+        {
+          "id": "3GrqVz7V3Hd8gvfvUcR9wk",
+          "name": "Jeremy Spencer"
+        }
+      ]
+    },
+    {
+      "artist_id": "c90a0d6f-ba4a-443b-b8d5-8ceb9e9b2153",
+      "name": "SiM",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "7CdGfkCRgPhElnqy3HPJ4a",
+          "name": "Super Simple Songs"
+        },
+        {
+          "id": "70cRZdQywnSFp9pnc2WTCE",
+          "name": "Simon & Garfunkel"
+        },
+        {
+          "id": "2p4FqHnazRucYQHyDCdBrJ",
+          "name": "Simple Plan"
+        }
+      ]
+    },
+    {
+      "artist_id": "3936bdd5-1493-4d76-9645-dab5e41dd18b",
+      "name": "Masego",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "3ycxRkcZ67ALN3GQJ57Vig",
+      "matched_spotify_name": "Masego",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "3ycxRkcZ67ALN3GQJ57Vig",
+          "name": "Masego"
+        },
+        {
+          "id": "3Y7RZ31TRPVadSFVy1o8os",
+          "name": "H.E.R."
+        },
+        {
+          "id": "2FwDTncULUnmANIh7qKa5z",
+          "name": "FKJ"
+        }
+      ]
+    },
+    {
+      "artist_id": "2d87b662-18af-442e-b177-fe1e95380a2c",
+      "name": "Black Jacket Symphony",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "2gCUFF0baOera4uAj6JT16",
+          "name": "Blackjack Symphony"
+        },
+        {
+          "id": "1gkSl4XpHIHI4I1WQbfXOE",
+          "name": "Peaches"
+        },
+        {
+          "id": "6dBBpd1zW3iywDqNt0UVOk",
+          "name": "Czech Symphony Orchestra"
+        }
+      ]
+    },
+    {
+      "artist_id": "07b402e4-6a2b-47b6-b17b-69798fb5e3d0",
+      "name": "My’tallica",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "2ye2Wgw4gimLv2eAKyk1NB",
+          "name": "Metallica"
+        },
+        {
+          "id": "711MCceyCBcFnzjGY4Q7Un",
+          "name": "AC/DC"
+        },
+        {
+          "id": "3qm84nBOXUEQ2vnTfUTTFC",
+          "name": "Guns N' Roses"
+        }
+      ]
+    },
+    {
+      "artist_id": "c055eb7d-d4b5-45b6-ac9a-12724d37be54",
+      "name": "Four Imaginary Boys",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "7fIvjotigTGWqjIz6EP1i4",
+          "name": "Four Tops"
+        },
+        {
+          "id": "3PcMolaGsh2nryvBR2sQOS",
+          "name": "Fourplay"
+        },
+        {
+          "id": "5v8bwWRbu7AI3YFhzoM6Ha",
+          "name": "The Mills Brothers"
+        }
+      ]
+    },
+    {
+      "artist_id": "ec560bcd-76a7-449f-bd87-66b2739d37ad",
+      "name": "The Concert: A Tribute to ABBA",
+      "tier": "skipped_tribute_pattern"
+    },
+    {
+      "artist_id": "d49efea9-382d-4568-a29b-cbeee396dc5d",
+      "name": "L1NKN P4RK",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "700c9Qz2z6HZKTumeliKAw",
+          "name": "LONOWN"
+        },
+        {
+          "id": "5IpS1TN1Crp8Ym4zjiIrtK",
+          "name": "LXNGVX"
+        },
+        {
+          "id": "4xWa4k84QliHnu6XzdJeSN",
+          "name": "Lurk"
+        }
+      ]
+    },
+    {
+      "artist_id": "2f9bcb67-7169-4228-a400-17c2453f7c1f",
+      "name": "Livewire AC/DC",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "711MCceyCBcFnzjGY4Q7Un",
+          "name": "AC/DC"
+        },
+        {
+          "id": "0QjGjnaDAmzmq3yWym1LtG",
+          "name": "LiveWire"
+        },
+        {
+          "id": "0dqg2JR9xozg2ziZTpbMN2",
+          "name": "Livewire"
+        }
+      ]
+    },
+    {
+      "artist_id": "43791366-2e36-4485-b3bf-cc624f22b05d",
+      "name": "Kacey Musgraves",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "70kkdajctXSbqSMJbQO424",
+      "matched_spotify_name": "Kacey Musgraves",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "70kkdajctXSbqSMJbQO424",
+          "name": "Kacey Musgraves"
+        },
+        {
+          "id": "6BRxQ8cD3eqnrVj6WKDok8",
+          "name": "Ella Langley"
+        },
+        {
+          "id": "1McMsnEElThX1knmY4oliG",
+          "name": "Olivia Rodrigo"
+        }
+      ]
+    },
+    {
+      "artist_id": "952918bf-1389-4150-acab-2b4595a4ed6a",
+      "name": "The Simon & Garfunkel Story",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "70cRZdQywnSFp9pnc2WTCE",
+          "name": "Simon & Garfunkel"
+        },
+        {
+          "id": "6kEsKkXuE4olX7m3mNLZkS",
+          "name": "Art Garfunkel"
+        },
+        {
+          "id": "5YZoTXZDSbPLlyhz93pPlf",
+          "name": "Simon & Garfunkel Experience"
+        }
+      ]
+    },
+    {
+      "artist_id": "8713196d-e76e-4edd-83d0-9e6f2bea8056",
+      "name": "The Specials Ltd",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "6xnvNmSzmeOE1bLKnYXKW3",
+          "name": "The Specials"
+        },
+        {
+          "id": "3zXw2Eh96iTT51pytzHdZi",
+          "name": "38 Special"
+        },
+        {
+          "id": "3XjmkjnCN0dr3JW0nUCH4K",
+          "name": "The Specials and Fun Boy Three"
+        }
+      ]
+    },
+    {
+      "artist_id": "dbea1516-4d8f-4027-8220-0be29776ceb6",
+      "name": "Patrick Snow",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "6dH5I8Q7HhXu74cBXkP0LD",
+          "name": "Patrick Swayze"
+        },
+        {
+          "id": "1pggi3bfbAPkwrylE63MEO",
+          "name": "Patrick Cowley"
+        },
+        {
+          "id": "35mDUnsSVfkJpgjIXHsPC5",
+          "name": "Patrick Sweany"
+        }
+      ]
+    },
+    {
+      "artist_id": "e03f7e91-277a-4007-a1c3-140b3f7ac507",
+      "name": "ROLE MODEL",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "1dy5WNgIKQU6ezkpZs4y8z",
+      "matched_spotify_name": "ROLE MODEL",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "1dy5WNgIKQU6ezkpZs4y8z",
+          "name": "ROLE MODEL"
+        },
+        {
+          "id": "4G9NDjRyZFDlJKMRL8hx3S",
+          "name": "sombr"
+        },
+        {
+          "id": "3tlXnStJ1fFhdScmQeLpuG",
+          "name": "Brent Faiyaz"
+        }
+      ]
+    },
+    {
+      "artist_id": "d33ac336-bab8-4b4d-ac76-35b86d82ae69",
+      "name": "Robert Arkins Commitments",
+      "tier": "no_results",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": []
+    },
+    {
+      "artist_id": "ac20380b-fc9e-4842-b793-de0bcad431d2",
+      "name": "The Dire Straits Experience",
+      "tier": "tier_c_no_exact_match",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "0WwSkZ7LtFUFjGjMZBMt6T",
+          "name": "Dire Straits"
+        },
+        {
+          "id": "0ECwFtbIWEVNwjlrfc6xoL",
+          "name": "Eagles"
+        },
+        {
+          "id": "4salDzkGmfycRqNUbyBphh",
+          "name": "Styx"
+        }
+      ]
+    },
+    {
+      "artist_id": "21a5caab-6f21-4ba6-9132-50ff25156631",
+      "name": "$uicideboy$",
+      "tier": "tier_b_ambiguous_exact_matches",
+      "matched_spotify_id": null,
+      "matched_spotify_name": null,
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "1VPmR4DJC1PlOtd0IADAO0",
+          "name": "$uicideboy$"
+        },
+        {
+          "id": "3uL4UpqShC4p2x1dJutoRW",
+          "name": "Ghostemane"
+        },
+        {
+          "id": "5VKvqCyBxqbaXUp8eK0aUy",
+          "name": "Scrim"
+        }
+      ]
+    },
+    {
+      "artist_id": "c8a02577-f63c-49b2-b230-7d1fb930ed84",
+      "name": "Hulvey",
+      "tier": "tier_a_auto_link",
+      "matched_spotify_id": "3zSrc5vUlUxyDdS0KrxFJO",
+      "matched_spotify_name": "Hulvey",
+      "matched_popularity": null,
+      "top_candidates": [
+        {
+          "id": "3zSrc5vUlUxyDdS0KrxFJO",
+          "name": "Hulvey"
+        },
+        {
+          "id": "1scVfBymTr3CeZ4imMj1QJ",
+          "name": "Forrest Frank"
+        },
+        {
+          "id": "1CFCsEqKrCyvAFKOATQHiW",
+          "name": "Lecrae"
+        }
+      ]
+    },
+    {
+      "artist_id": "48b0427c-da43-48a4-8358-b8051fa62a1a",
+      "name": "Bounce (Bon Jovi Tribute)",
+      "tier": "skipped_tribute_pattern"
+    }
+  ]
+}
