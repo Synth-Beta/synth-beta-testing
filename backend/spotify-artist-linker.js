@@ -167,9 +167,18 @@ async function fetchCandidates(limit) {
   // entry happens in JS since PostgREST can't express the
   // jsonb_array_elements EXISTS check as a simple column filter. PostgREST
   // caps rows per request (project default ~1000) regardless of .limit(), so
-  // a single oversized .limit() call silently truncates -- page through with
-  // .range() instead until enough unlinked candidates are collected or the
-  // table is exhausted.
+  // a single oversized .limit() call silently truncates -- page through
+  // instead until enough unlinked candidates are collected or the table is
+  // exhausted.
+  //
+  // Pagination is ordered by id (primary key, cheap/indexed), NOT
+  // num_upcoming_events -- there's no index on that column, so ordering
+  // pagination by it forces Postgres to re-sort the whole 46k-row table on
+  // every single page, getting slower as the offset grows. This hit a real
+  // Postgres statement_timeout (57014) around offset 10000-11000 on a live
+  // run. Fetching in primary-key order and doing the num_upcoming_events
+  // priority sort once in memory, over the small collected candidate set,
+  // gets the same prioritization with none of the per-page cost.
   const PAGE_SIZE = 1000;
   const withoutSpotify = [];
   let offset = 0;
@@ -180,7 +189,7 @@ async function fetchCandidates(limit) {
       supabase
         .from('artists')
         .select('id, name, external_identifiers, num_upcoming_events')
-        .order('num_upcoming_events', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1),
       20000,
       `fetchCandidates page at offset ${offset}`
@@ -199,6 +208,7 @@ async function fetchCandidates(limit) {
     offset += PAGE_SIZE;
   }
 
+  withoutSpotify.sort((a, b) => (b.num_upcoming_events ?? 0) - (a.num_upcoming_events ?? 0));
   return withoutSpotify.slice(0, limit);
 }
 
