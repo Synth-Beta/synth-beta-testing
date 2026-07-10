@@ -11,6 +11,7 @@ export interface TravelReviewPin {
     venue_name: string | null;
     latitude: number;
     longitude: number;
+    venue_city: string | null;
     venue_state: string | null;
 }
 
@@ -32,6 +33,7 @@ export class TravelTrackerService {
             name,
             latitude,
             longitude,
+            city,
             state
           )
         `
@@ -80,6 +82,7 @@ export class TravelTrackerService {
                 venue_name: v.name != null ? String(v.name) : null,
                 latitude,
                 longitude,
+                venue_city: v.city != null ? String(v.city) : null,
                 venue_state: v.state != null ? String(v.state) : null,
             });
         }
