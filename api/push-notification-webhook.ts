@@ -15,7 +15,15 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { timingSafeEqual } from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+// Constant-time comparison so response timing can't leak secret prefixes
+function secureEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 function getSupabaseServerConfig(): { url: string; serviceRoleKey: string } | null {
   const url =
@@ -220,7 +228,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : null;
   const providedSecret =
     typeof headerSecret === 'string' && headerSecret.length > 0 ? headerSecret : bearerSecret;
-  if (!providedSecret || providedSecret !== webhookSecret) {
+  if (!providedSecret || !secureEquals(providedSecret, webhookSecret)) {
     console.warn('[push-webhook] Unauthorized webhook attempt');
     return res.status(401).json({ error: 'Unauthorized' });
   }

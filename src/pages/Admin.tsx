@@ -3,6 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAccountType } from '@/hooks/useAccountType';
 import { AdminService } from '@/services/adminService';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeOrFilterTerm } from '@/utils/postgrestSanitize';
 import { Shield, Users, Search, Download, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import Auth from './Auth';
 
@@ -89,8 +90,9 @@ export default function Admin() {
       }
 
       // Apply search filter if search term exists
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,username.ilike.%${searchTerm}%,instagram_handle.ilike.%${searchTerm}%`);
+      const safeSearchTerm = sanitizeOrFilterTerm(searchTerm || '');
+      if (safeSearchTerm) {
+        query = query.or(`name.ilike.%${safeSearchTerm}%,username.ilike.%${safeSearchTerm}%,instagram_handle.ilike.%${safeSearchTerm}%`);
       }
 
       const { data, error: fetchError, count } = await query;
@@ -127,8 +129,9 @@ export default function Admin() {
         }
 
         // Apply search filter if search term exists
-        if (searchTerm) {
-          query = query.or(`name.ilike.%${searchTerm}%,username.ilike.%${searchTerm}%,instagram_handle.ilike.%${searchTerm}%`);
+        const safeSearch = sanitizeOrFilterTerm(searchTerm || '');
+        if (safeSearch) {
+          query = query.or(`name.ilike.%${safeSearch}%,username.ilike.%${safeSearch}%,instagram_handle.ilike.%${safeSearch}%`);
         }
 
         const { data, error: fetchError, count } = await query;

@@ -6,6 +6,7 @@ import {
 } from '../utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
+import { sanitizeOrFilterTerm } from '../utils/postgrestSanitize';
 
 export interface SearchResult {
     id: string;
@@ -62,12 +63,13 @@ export interface UserSearchRow {
 export class SearchService {
     static async searchEvents(keyword: string): Promise<SearchResult[]> {
         try {
-            if (!keyword) return [];
+            const term = sanitizeOrFilterTerm(keyword || '');
+            if (!term) return [];
 
             const { data, error } = await supabase
                 .from('events')
                 .select('*')
-                .or(`artist_name.ilike.%${keyword}%,title.ilike.%${keyword}%,venue_name.ilike.%${keyword}%`)
+                .or(`artist_name.ilike.%${term}%,title.ilike.%${term}%,venue_name.ilike.%${term}%`)
                 .order('event_date', { ascending: false })
                 .limit(40);
 
@@ -255,9 +257,9 @@ export class SearchService {
     }
 
     static async searchUsers(keyword: string, limit = 20): Promise<UserSearchRow[]> {
-        if (!keyword.trim()) return [];
+        const q = sanitizeOrFilterTerm(keyword || '');
+        if (!q) return [];
         try {
-            const q = keyword.trim();
             const { data, error } = await supabase
                 .from('users')
                 .select('user_id, name, username, avatar_url')

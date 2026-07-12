@@ -13,12 +13,20 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import {
   generateDailyBotMessage,
   randomInt,
   shuffle,
 } from '../../scripts/lib/bot-seed-shared.mjs';
+
+// Constant-time comparison so response timing can't leak secret prefixes
+function secureEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET' && req.method !== 'POST') {
@@ -32,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const authHeader = (req.headers.authorization as string) ?? '';
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (!secureEquals(authHeader, `Bearer ${cronSecret}`)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

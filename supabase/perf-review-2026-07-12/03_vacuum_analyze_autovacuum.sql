@@ -1,0 +1,14 @@
+-- =============================================================================
+-- 03 — SPLIT into two files (VACUUM can't run in the editor's transaction wrapper)
+-- =============================================================================
+-- Do NOT run this file. Use these instead:
+--
+--   03a_analyze_and_autovacuum.sql  -> the durable fix. Paste the WHOLE file,
+--                                      run once. Transaction-safe. START HERE.
+--
+--   03b_vacuum_reclaim.sql          -> OPTIONAL one-time reclaim. Run each line
+--                                      BY ITSELF (VACUUM can't be batched).
+--                                      Skippable — 03a's autovacuum handles it.
+--
+-- Neither deletes any live data (see the headers in each file).
+-- =============================================================================

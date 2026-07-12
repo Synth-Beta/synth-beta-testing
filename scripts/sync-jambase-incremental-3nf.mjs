@@ -611,30 +611,39 @@ class IncrementalSync3NF {
 
       // Insert new venues
       if (newVenues.length > 0) {
-        // The venues table has NO unique constraint on `identifier`, so we cannot
-        // onConflict-upsert. To avoid creating duplicate venue rows, first match
-        // these "new" venues against existing rows by identifier; map + backfill the
-        // external mapping for matches, and only insert the genuinely-new remainder.
-        const newIdentifiers = newVenues.map((v) => v.identifier).filter(Boolean);
-        const existingByIdentifier = new Map();
+        // Match candidates against existing rows by a NORMALIZED LOCATION KEY
+        // (identifier|city|state), NOT identifier alone. Chain slugs like
+        // "house_of_blues" are shared across every location, so identifier-only
+        // matching both mis-collapsed distinct venues and failed to catch real
+        // per-location duplicates — the bug that produced ~500k duplicate venue
+        // rows. This composite key is exactly what the venues_location_key_uidx
+        // unique index enforces at the DB level.
+        const locKey = (v) => (v && v.identifier)
+          ? `${String(v.identifier).toLowerCase()}|${String(v.city || '').toLowerCase()}|${String(v.state || '').toLowerCase()}`
+          : null;
+        const newIdentifiers = [...new Set(newVenues.map((v) => v.identifier).filter(Boolean))];
+        const existingByLocKey = new Map();
         const LOOKUP_CHUNK = 100;
         for (let i = 0; i < newIdentifiers.length; i += LOOKUP_CHUNK) {
           const slice = newIdentifiers.slice(i, i + LOOKUP_CHUNK);
           const { data: rows, error: lookupErr } = await this.syncService.supabase
             .from('venues')
-            .select('id, identifier')
+            .select('id, identifier, city, state')
             .in('identifier', slice);
           if (lookupErr) throw lookupErr;
           for (const r of rows || []) {
-            if (r?.identifier && r?.id && !existingByIdentifier.has(r.identifier)) {
-              existingByIdentifier.set(r.identifier, r.id);
+            const k = locKey(r);
+            if (k && r?.id && !existingByLocKey.has(k)) {
+              existingByLocKey.set(k, r.id);
             }
           }
         }
 
         const venuesToInsert = [];
+        const insertKeys = new Set();      // also dedup this batch by location key
         for (const venue of newVenues) {
-          const existingId = venue.identifier ? existingByIdentifier.get(venue.identifier) : null;
+          const key = locKey(venue);
+          const existingId = key ? existingByLocKey.get(key) : null;
           if (existingId) {
             // Already exists — reuse it (no duplicate) and backfill the mapping.
             if (venue.jambase_venue_id) {
@@ -643,6 +652,12 @@ class IncrementalSync3NF {
             }
             continue;
           }
+          if (key && insertKeys.has(key)) {
+            // Same physical location already queued for insert in this batch —
+            // don't queue a second copy (it would hit the unique index).
+            continue;
+          }
+          if (key) insertKeys.add(key);
           const { jambase_venue_id, ...venueData } = venue;
           venuesToInsert.push({
             ...venueData,
@@ -656,7 +671,7 @@ class IncrementalSync3NF {
           ? await this.syncService.supabase
               .from('venues')
               .insert(venuesToInsert)
-              .select('id, identifier')
+              .select('id, identifier, city, state')
           : { data: [], error: null };
 
         if (error) {
@@ -664,21 +679,20 @@ class IncrementalSync3NF {
         }
 
         if (inserted) {
-          // Match inserted venues back to original venue data by identifier
-          // This is safer than assuming insertion order is preserved
-          const originalVenuesByIdentifier = new Map();
+          // Match inserted venues back to their original data by location key
+          // (identifier|city|state) — identifier alone is ambiguous for chains.
+          const originalVenuesByLocKey = new Map();
           for (const venue of newVenues) {
-            if (venue.identifier) {
-              originalVenuesByIdentifier.set(venue.identifier, venue);
+            const k = locKey(venue);
+            if (k && !originalVenuesByLocKey.has(k)) {
+              originalVenuesByLocKey.set(k, venue);
             }
           }
-          
+
           const externalIdPromises = [];
           for (const insertedVenue of inserted) {
-            // Match by identifier (most reliable)
-            const originalVenue = insertedVenue.identifier
-              ? originalVenuesByIdentifier.get(insertedVenue.identifier)
-              : null;
+            // Match by the same normalized location key used above.
+            const originalVenue = originalVenuesByLocKey.get(locKey(insertedVenue));
             
             // Fallback: if no identifier match, try to extract jambase ID from identifier
             let jambaseVenueId = null;

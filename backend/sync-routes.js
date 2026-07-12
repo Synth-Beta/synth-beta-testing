@@ -10,7 +10,15 @@
 const express = require('express');
 const { spawn } = require('child_process');
 const path = require('path');
+const { timingSafeEqual } = require('crypto');
 const { createRateLimiter } = require('./middleware/rateLimiter');
+
+// Constant-time comparison so response timing can't leak secret prefixes
+function secureEquals(a, b) {
+  const ab = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 const router = express.Router();
 
@@ -27,7 +35,7 @@ router.post('/internal/sync-events', createRateLimiter('moderate'), (req, res) =
   const authHeader = req.headers.authorization ?? '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
 
-  if (token !== cronSecret) {
+  if (!secureEquals(token, cronSecret)) {
     console.warn('[sync-route] Unauthorized sync attempt');
     return res.status(401).json({ ok: false, error: 'Unauthorized' });
   }

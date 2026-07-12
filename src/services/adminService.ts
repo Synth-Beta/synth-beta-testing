@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeOrFilterTerm } from '@/utils/postgrestSanitize';
 
 export interface PendingTask {
   task_type: string;
@@ -461,10 +462,12 @@ export class AdminService {
    */
   static async searchUsers(searchTerm: string): Promise<any[]> {
     try {
+      const term = sanitizeOrFilterTerm(searchTerm);
+      if (!term) return [];
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .or(`name.ilike.%${searchTerm}%,bio.ilike.%${searchTerm}%`)
+        .or(`name.ilike.%${term}%,bio.ilike.%${term}%`)
         .limit(20);
 
       if (error) throw error;

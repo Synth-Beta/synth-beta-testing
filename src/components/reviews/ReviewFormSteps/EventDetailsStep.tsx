@@ -9,6 +9,7 @@ import type { Artist } from '@/types/concertSearch';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeOrFilterTerm } from '@/utils/postgrestSanitize';
 import { isEventPast, getEventStatus } from '@/utils/eventStatusUtils';
 
 interface EventDetailsStepProps {
@@ -27,7 +28,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
 
   React.useEffect(() => {
     const handler = setTimeout(async () => {
-      const q = eventQuery.trim();
+      const q = sanitizeOrFilterTerm(eventQuery);
       if (q.length < 2) { setEventResults([]); return; }
       try {
         setEventLoading(true);

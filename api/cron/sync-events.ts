@@ -14,6 +14,14 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { timingSafeEqual } from 'crypto';
+
+// Constant-time comparison so response timing can't leak secret prefixes
+function secureEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow GET (Vercel cron uses GET) and POST (manual trigger)
@@ -30,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Vercel passes Authorization: Bearer <CRON_SECRET> automatically for cron jobs.
   // For manual POST triggers, callers must supply the same header.
   const authHeader = (req.headers.authorization as string) ?? '';
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (!secureEquals(authHeader, `Bearer ${cronSecret}`)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

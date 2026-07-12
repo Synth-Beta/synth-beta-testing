@@ -34,6 +34,7 @@ import { MobileImageCropper, type CropResult } from './MobileImageCropper';
 import { Image } from 'expo-image';
 import { EventService } from '../../services/eventService';
 import { isEventPast } from '../../utils/eventStatusUtils';
+import { sanitizeOrFilterTerm } from '../../utils/postgrestSanitize';
 import { submitEventReviewFromForm } from '../../review/submitEventReviewFromForm';
 import { uploadReviewPhotoFromUri } from '../../services/reviewPhotoUpload';
 import type { UserReview } from '../../services/eventReviewSubmitService';
@@ -359,7 +360,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
 
     useEffect(() => {
         const t = setTimeout(async () => {
-            const q = eventQuery.trim();
+            const q = sanitizeOrFilterTerm(eventQuery);
             if (q.length < 2) {
                 setEventRows([]);
                 return;

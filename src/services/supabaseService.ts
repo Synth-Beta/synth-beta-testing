@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeOrFilterTerm } from '@/utils/postgrestSanitize';
 // Note: Types will need to be regenerated after migration
 // Using any for now until types.ts is regenerated from Supabase
 type Tables<T extends string> = any;
@@ -102,10 +103,12 @@ export class SupabaseService {
   }
 
   static async searchEvents(query: string, limit = 20) {
+    const term = sanitizeOrFilterTerm(query);
+    if (!term) return [];
     const { data, error } = await supabase
       .from('events')
       .select('*')
-      .or(`title.ilike.%${query}%,artist_name.ilike.%${query}%,venue_name.ilike.%${query}%`)
+      .or(`title.ilike.%${term}%,artist_name.ilike.%${term}%,venue_name.ilike.%${term}%`)
       .order('event_date', { ascending: true })
       .limit(limit);
 

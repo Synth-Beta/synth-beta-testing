@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { sanitizeOrFilterTerm } from '../utils/postgrestSanitize';
 import { getCanonicalSiteUrl } from '../utils/canonicalSiteUrl';
 import { ArtistProfile, JamBaseArtistResponse, transformJamBaseArtistToProfile } from '../types/artistProfile';
 
@@ -777,10 +778,12 @@ export class UnifiedArtistSearchService {
     try {
       console.log(`🎵 Searching events for: "${query}" with limit: ${limit}`);
       
+      const eventTerm = sanitizeOrFilterTerm(query);
+      if (!eventTerm) return [];
       const { data: events, error } = await (supabase as any)
         .from('events')
         .select('*')
-        .or(`artist_name.ilike.%${query}%,venue_name.ilike.%${query}%,title.ilike.%${query}%`)
+        .or(`artist_name.ilike.%${eventTerm}%,venue_name.ilike.%${eventTerm}%,title.ilike.%${eventTerm}%`)
         .order('event_date', { ascending: true })
         .limit(limit);
 
@@ -804,10 +807,12 @@ export class UnifiedArtistSearchService {
     try {
       console.log(`👤 Searching users for: "${query}" with limit: ${limit}`);
       
+      const userTerm = sanitizeOrFilterTerm(query);
+      if (!userTerm) return [];
       const { data: users, error } = await supabase
         .from('users')
         .select('user_id, name, bio, avatar_url, instagram_handle')
-        .or(`name.ilike.%${query}%,bio.ilike.%${query}%,instagram_handle.ilike.%${query}%`)
+        .or(`name.ilike.%${userTerm}%,bio.ilike.%${userTerm}%,instagram_handle.ilike.%${userTerm}%`)
         .order('created_at', { ascending: false })
         .limit(limit);
 

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeOrFilterTerm } from '@/utils/postgrestSanitize';
 import type { Event, EventSearchParams } from '@/types/concertSearch';
 
 export interface SearchSuggestion {
@@ -59,10 +60,12 @@ class HybridSearchService {
   // Search Supabase for existing events
   private async searchSupabaseEvents(query: string, date?: string): Promise<Event[]> {
     try {
+      const term = sanitizeOrFilterTerm(query);
+      if (!term) return [];
       let supabaseQuery = supabase
         .from('events')
         .select('*')
-        .or(`title.ilike.%${query}%,artist_name.ilike.%${query}%,venue_name.ilike.%${query}%`);
+        .or(`title.ilike.%${term}%,artist_name.ilike.%${term}%,venue_name.ilike.%${term}%`);
 
       if (date) {
         supabaseQuery = supabaseQuery.eq('event_date', date);
