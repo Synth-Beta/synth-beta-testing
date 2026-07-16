@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { AnalyticsDataService } from './analyticsDataService';
-import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@/constants/acquisitionSources';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@synth/shared';
 
 export interface PlatformStats {
   total_users: number;
