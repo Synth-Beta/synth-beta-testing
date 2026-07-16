@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { PreferenceSignalsService } from '@/services/preferenceSignalsService';
+import { ensurePublicUserProfile } from '@/services/publicUserRecoveryService';
 import { Capacitor } from '@capacitor/core';
 
 export function useAuth() {
@@ -126,6 +127,30 @@ export function useAuth() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const recoverProfile = async () => {
+      const result = await ensurePublicUserProfile();
+      if (cancelled) {
+        return;
+      }
+      if (!result.success) {
+        console.error('[useAuth] Failed to ensure public.users row:', result.error);
+      }
+    };
+
+    void recoverProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
 
   const signOut = async () => {
     try {

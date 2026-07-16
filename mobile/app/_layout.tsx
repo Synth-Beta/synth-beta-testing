@@ -19,6 +19,7 @@ import { useShareDeepLink } from '../lib/useShareDeepLink';
 import { loadPendingShareLink } from '../lib/shareDeepLinkStorage';
 import { InterestedProvider } from '../src/contexts/InterestedContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
+import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryService';
 
 // Hide the native splash as soon as JS is running so the skeleton takes over immediately.
 void SplashScreen.hideAsync().catch(() => {});
@@ -88,6 +89,28 @@ export default function RootLayout() {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const recoverProfileRow = async () => {
+      const result = await ensurePublicUserProfile();
+      if (cancelled) return;
+      if (!result.success) {
+        console.error('[root] Failed to ensure public.users row:', result.error);
+      }
+    };
+
+    void recoverProfileRow();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (session === undefined) return;

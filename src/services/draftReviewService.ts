@@ -28,6 +28,7 @@ export interface DraftReviewData {
   selectedArtist?: any;
   selectedVenue?: any;
   eventDate?: string;
+  selectedOpeners?: any[];
   performanceRating?: number;
   venueRating?: number;
   overallExperienceRating?: number;

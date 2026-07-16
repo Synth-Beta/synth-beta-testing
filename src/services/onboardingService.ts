@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { ensurePublicUserProfile } from '@/services/publicUserRecoveryService';
 
 export interface OnboardingStatus {
   onboarding_completed: boolean;
@@ -14,6 +15,8 @@ export interface ProfileSetupData {
   gender?: string;
   bio?: string;
   avatar_url?: string;
+  acquisition_source?: string | null;
+  other_acquisition_source?: string | null;
 }
 
 export class OnboardingService {
@@ -122,6 +125,12 @@ export class OnboardingService {
       if (data.location_city !== undefined) {
         updateData.location_city = data.location_city;
       }
+      if (data.acquisition_source !== undefined) {
+        updateData.acquisition_source = data.acquisition_source;
+      }
+      if (data.other_acquisition_source !== undefined) {
+        updateData.other_acquisition_source = data.other_acquisition_source;
+      }
 
       const { error } = await supabase
         .from('users')
@@ -132,7 +141,11 @@ export class OnboardingService {
         if (error.code === 'PGRST204' || error.message?.includes('does not exist')) {
           console.warn('Some columns not found, trying without them:', error.message);
           // Remove potentially missing columns and retry
-          const { username, location_city, ...updateWithoutOptional } = updateData;
+          const updateWithoutOptional = { ...updateData };
+          delete updateWithoutOptional.username;
+          delete updateWithoutOptional.location_city;
+          delete updateWithoutOptional.acquisition_source;
+          delete updateWithoutOptional.other_acquisition_source;
           const { error: retryError } = await supabase
             .from('users')
             .upsert(updateWithoutOptional, { onConflict: 'user_id' });
@@ -347,71 +360,29 @@ export class OnboardingService {
    */
   static async ensureUserExists(userId: string): Promise<boolean> {
     try {
-      // Fetch user first and return early if it exists.
-      // IMPORTANT: Never modify username for existing users.
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('id, username')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (existingUser) {
-        return true;
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError) {
+        throw authError;
       }
-
-      // If we got some error (RLS/network/etc), don't attempt username generation/insert here.
-      if (checkError) {
-        console.warn('Error checking user existence:', checkError);
-        throw checkError;
-      }
-
-      // Don't call /auth/v1/user unless a session exists (prevents 403 noise).
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!sessionData?.session) {
-        throw new Error('No session available');
-      }
-
-      // Get auth user info to create public.users row
-      const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
-        throw new Error('No authenticated user found');
+        throw new Error('Authenticated user not found');
+      }
+      if (authUser.id !== userId) {
+        throw new Error('Authenticated user does not match requested user_id');
       }
 
-      // Create user row in public.users
-      const userName =
-        authUser.user_metadata?.name ||
-        authUser.user_metadata?.full_name ||
-        authUser.email?.split('@')[0] ||
-        'User';
-      
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({
-          user_id: userId,
-          name: userName,
-          username: userName.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.random().toString(36).substring(2, 8),
-          bio: 'Music lover looking to connect at events!',
-          is_public_profile: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        // If it's a conflict, user might have been created between check and insert
-        if (insertError.code === '23505') {
-          console.log('User was created by another process, continuing...');
-          return true;
-        }
-        throw insertError;
+      const result = await ensurePublicUserProfile();
+      if (!result.success) {
+        throw new Error(result.error || 'Could not ensure public.users row exists');
       }
 
       return true;
     } catch (error: any) {
       console.error('Error ensuring user exists:', error);
-      throw new Error(`Failed to create user record: ${error.message}`);
+      throw new Error(`Failed to ensure user record: ${error?.message ?? 'unknown error'}`);
     }
   }
 

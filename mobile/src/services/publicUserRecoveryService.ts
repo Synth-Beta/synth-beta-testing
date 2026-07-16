@@ -1,0 +1,55 @@
+import { supabase } from '../integrations/supabase/client';
+
+export interface PublicUserRecoveryResult {
+  success: boolean;
+  inserted: boolean;
+  userId: string | null;
+  error: string | null;
+}
+
+const RPC_NAME = 'ensure_public_user';
+
+export async function ensurePublicUserProfile(): Promise<PublicUserRecoveryResult> {
+  try {
+    const { data, error } = await supabase.rpc(RPC_NAME);
+
+    if (error) {
+      console.error('[publicUserRecovery.mobile] RPC failed:', error);
+      return {
+        success: false,
+        inserted: false,
+        userId: null,
+        error: error.message ?? 'RPC execution failed',
+      };
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    const reportedError = (row as any)?.error ?? null;
+
+    if (reportedError) {
+      console.warn('[publicUserRecovery.mobile] Server reported an error while ensuring profile:', reportedError);
+    }
+
+    const userId = (row as any)?.user_id ?? null;
+    const inserted = Boolean((row as any)?.inserted);
+
+    console.log(
+      `[publicUserRecovery.mobile] ensured public.users row for ${userId ?? 'unknown'} (inserted=${inserted}, rpcError=${reportedError ?? 'none'})`
+    );
+
+    return {
+      success: !reportedError,
+      inserted,
+      userId,
+      error: reportedError,
+    };
+  } catch (err: any) {
+    console.error('[publicUserRecovery.mobile] Unexpected error:', err);
+    return {
+      success: false,
+      inserted: false,
+      userId: null,
+      error: err?.message ?? 'Unexpected error ensuring public user row',
+    };
+  }
+}
