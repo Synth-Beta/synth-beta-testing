@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import type { AcquisitionSource } from '@synth/shared';
 
 export interface OnboardingData {
     genres: string[];
@@ -96,6 +97,8 @@ export class OnboardingService {
         location_city?: string;
         gender?: string;
         bio?: string;
+        acquisition_source?: AcquisitionSource | null;
+        other_acquisition_source?: string | null;
     }): Promise<void> {
         try {
             // Ensure the public.users row exists (fallback if handle_new_user trigger missed it)
@@ -125,6 +128,8 @@ export class OnboardingService {
             if (data.location_city !== undefined) update.location_city = data.location_city;
             if (data.gender !== undefined) update.gender = data.gender;
             if (data.bio !== undefined) update.bio = data.bio;
+            if (data.acquisition_source !== undefined) update.acquisition_source = data.acquisition_source;
+            if (data.other_acquisition_source !== undefined) update.other_acquisition_source = data.other_acquisition_source;
 
             const { error } = await supabase
                 .from('users')

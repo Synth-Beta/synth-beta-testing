@@ -79,3 +79,8 @@ export { getOrCreateGenreChat } from './genreChat';
 export function mobileReviewDraftStorageKey(userId: string): string {
   return `synth.reviewDraft.v1.${userId}`;
 }
+
+export {
+  ACQUISITION_SOURCE_CANONICAL_ORDER,
+  type AcquisitionSource,
+} from './acquisitionSources';

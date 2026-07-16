@@ -22,10 +22,7 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
-import {
-  ACQUISITION_SOURCE_CANONICAL_ORDER,
-  type AcquisitionSource,
-} from '@/constants/acquisitionSources';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource } from '@synth/shared';
 
 interface OnboardingFlowProps {
   onComplete: () => void;

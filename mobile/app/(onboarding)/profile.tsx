@@ -20,6 +20,7 @@ import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource } from '@synth/shared';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -64,6 +65,9 @@ export default function ProfileSetupScreen() {
     const [gender, setGender] = useState('');
     const [bio, setBio] = useState('');
     const [saving, setSaving] = useState(false);
+    const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSource | ''>('');
+    const [acquisitionSourceOther, setAcquisitionSourceOther] = useState('');
+    const [acquisitionSourceError, setAcquisitionSourceError] = useState('');
 
     const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -108,6 +112,14 @@ export default function ProfileSetupScreen() {
         }, 600);
     }, [checkUsernameAvailability]);
 
+    const selectAcquisitionSource = useCallback((source: AcquisitionSource) => {
+        setAcquisitionSourceError('');
+        setAcquisitionSource(source);
+        if (source !== 'Other') {
+            setAcquisitionSourceOther('');
+        }
+    }, []);
+
     const handleUsernameChange = (text: string) => {
         const sanitized = sanitizeUsername(text);
         setUsername(sanitized);
@@ -150,6 +162,12 @@ export default function ProfileSetupScreen() {
             }
         }
 
+        const trimmedOtherSource = acquisitionSourceOther.trim();
+        if (acquisitionSource === 'Other' && !trimmedOtherSource) {
+            setAcquisitionSourceError('Please describe where you heard about Synth');
+            return;
+        }
+
         setSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -161,6 +179,9 @@ export default function ProfileSetupScreen() {
                     location_city: city.trim() || undefined,
                     gender: gender || undefined,
                     bio: bio.trim() || undefined,
+                    acquisition_source: acquisitionSource || undefined,
+                    other_acquisition_source:
+                        acquisitionSource === 'Other' ? trimmedOtherSource : null,
                 });
             }
         } catch (e) {
@@ -281,6 +302,51 @@ export default function ProfileSetupScreen() {
                         <Text style={styles.hint}>Used for local event discovery</Text>
                     </View>
 
+                    {/* Acquisition source */}
+                    <View style={styles.fieldBlock}>
+                        <Text style={styles.label}>How did you hear about Synth?</Text>
+                        <View style={styles.optionsRow}>
+                            {ACQUISITION_SOURCE_CANONICAL_ORDER.map(source => {
+                                const selected = acquisitionSource === source;
+                                return (
+                                    <Pressable
+                                        key={source}
+                                        onPress={() => selectAcquisitionSource(source)}
+                                        style={styles.optionWrapper}
+                                    >
+                                        <View style={[styles.optionChip, selected && styles.optionChipSelected]}>
+                                            <Text style={[styles.optionText, selected && styles.optionTextSelected]}>
+                                                {source}
+                                            </Text>
+                                        </View>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+                        <Text style={styles.hint}>This helps us understand which communities find Synth most often.</Text>
+                    </View>
+                    {acquisitionSource === 'Other' && (
+                        <View style={styles.fieldBlock}>
+                            <Text style={styles.label}>Share a bit more</Text>
+                            <TextInput
+                                style={[styles.input, styles.otherInput, acquisitionSourceError ? styles.inputError : null]}
+                                value={acquisitionSourceOther}
+                                onChangeText={text => {
+                                    setAcquisitionSourceOther(text);
+                                    if (acquisitionSourceError) setAcquisitionSourceError('');
+                                }}
+                                placeholder="e.g., referred by DJ Alex / saw Synth at Embarcadero Festival"
+                                placeholderTextColor={SynthTokens.colors.neutral400}
+                                multiline
+                            />
+                            {acquisitionSourceError ? (
+                                <Text style={[styles.hint, { color: '#dc2626' }]}>{acquisitionSourceError}</Text>
+                            ) : (
+                                <Text style={styles.hint}>Share any detail that helps us attribute this referral.</Text>
+                            )}
+                        </View>
+                    )}
+
                     {/* Gender */}
                     <View style={styles.fieldBlock}>
                         <Text style={styles.label}>Gender (optional)</Text>
@@ -386,8 +452,40 @@ const styles = StyleSheet.create({
     inputError: {
         borderColor: '#dc2626',
     },
+    optionsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    optionWrapper: {
+        marginRight: 8,
+        marginBottom: 8,
+    },
+    optionChip: {
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        borderRadius: SynthTokens.radius.full,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        backgroundColor: SynthTokens.colors.neutral0,
+    },
+    optionChipSelected: {
+        borderColor: PINK,
+        backgroundColor: 'rgba(204,36,134,0.08)',
+    },
+    optionText: {
+        color: SynthTokens.colors.neutral900,
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    optionTextSelected: {
+        color: PINK,
+    },
     bioInput: {
         minHeight: 88,
+        paddingTop: 12,
+    },
+    otherInput: {
+        minHeight: 64,
         paddingTop: 12,
     },
     hint: {

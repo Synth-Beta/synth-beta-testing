@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { 
+import {
   AdminAnalyticsService, 
   PlatformStats, 
   UserGrowth, 
@@ -22,7 +22,7 @@ import {
   AcquisitionWeeklyBreakdownPoint,
   AcquisitionOtherResponse,
 } from '../../services/adminAnalyticsService';
-import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@/constants/acquisitionSources';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@synth/shared';
 import { MetricCard } from '../../components/analytics/shared/MetricCard';
 import { TopListCard } from '../../components/analytics/shared/TopListCard';
 import { AchievementCard } from '../../components/analytics/shared/AchievementCard';
