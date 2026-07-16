@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { AnalyticsDataService } from './analyticsDataService';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@/constants/acquisitionSources';
 
 export interface PlatformStats {
   total_users: number;
@@ -145,19 +146,6 @@ export interface GeographicDistribution {
   revenue: number;
   growth_rate: number;
 }
-
-export const ACQUISITION_SOURCE_CANONICAL_ORDER = [
-  'Friends or Family',
-  'Instagram',
-  'TikTok',
-  'Reddit',
-  'LinkedIn',
-  'Facebook',
-  'App Store',
-  'Artist',
-  'Venue',
-  'Other',
-] as const;
 
 const normalizeAcquisitionSource = (value?: string | null): string | null => {
   if (!value) return null;

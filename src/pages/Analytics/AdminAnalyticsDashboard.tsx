@@ -21,8 +21,8 @@ import {
   AcquisitionSourceCount,
   AcquisitionWeeklyBreakdownPoint,
   AcquisitionOtherResponse,
-  ACQUISITION_SOURCE_CANONICAL_ORDER,
 } from '../../services/adminAnalyticsService';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@/constants/acquisitionSources';
 import { MetricCard } from '../../components/analytics/shared/MetricCard';
 import { TopListCard } from '../../components/analytics/shared/TopListCard';
 import { AchievementCard } from '../../components/analytics/shared/AchievementCard';

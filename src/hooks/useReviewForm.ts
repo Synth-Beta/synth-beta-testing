@@ -51,6 +51,7 @@ export interface ReviewFormData {
   selectedSetlist: any | null; // SetlistData from setlistService (API verified)
   // Multiple user-created custom setlists for this review
   customSetlists: ReviewCustomSetlist[];
+  selectedOpeners: Artist[];
   
   // Category steps: five independent rating sections
   artistPerformanceRating: number; // Artist performance quality (0.5-5.0)
@@ -119,6 +120,7 @@ const initialFormData: ReviewFormData = {
   eventDate: '',
   selectedSetlist: null,
   customSetlists: [],
+  selectedOpeners: [],
   artistPerformanceRating: 0,
   productionRating: 0,
   venueRating: 0,

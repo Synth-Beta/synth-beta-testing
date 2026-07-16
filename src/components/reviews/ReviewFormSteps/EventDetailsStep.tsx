@@ -25,6 +25,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
   const [eventResults, setEventResults] = React.useState<Array<any>>([]);
   const [eventLoading, setEventLoading] = React.useState(false);
   const [showEventResults, setShowEventResults] = React.useState(false);
+  const [openerSearchKey, setOpenerSearchKey] = React.useState(0);
 
   React.useEffect(() => {
     const handler = setTimeout(async () => {
@@ -157,6 +158,32 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
     setVenueLocked(true);
   };
 
+  const getOpenerIdentifier = (artist: Artist) => artist.id || artist.name || '';
+
+  const handleOpenerSelect = (artist: Artist) => {
+    const identifier = getOpenerIdentifier(artist);
+    if (!identifier) {
+      return;
+    }
+    const currentOpeners = formData.selectedOpeners || [];
+    if (currentOpeners.some((opener) => getOpenerIdentifier(opener) === identifier)) {
+      setOpenerSearchKey((prev) => prev + 1);
+      return;
+    }
+    onUpdateFormData({
+      selectedOpeners: [...currentOpeners, artist],
+    });
+    setOpenerSearchKey((prev) => prev + 1);
+  };
+
+  const handleOpenerRemove = (artist: Artist) => {
+    const identifier = getOpenerIdentifier(artist);
+    const currentOpeners = formData.selectedOpeners || [];
+    onUpdateFormData({
+      selectedOpeners: currentOpeners.filter((opener) => getOpenerIdentifier(opener) !== identifier),
+    });
+  };
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdateFormData({ eventDate: e.target.value });
   };
@@ -188,6 +215,10 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
       setVenueLocked(false);
     }
   }, [formData.selectedVenue]);
+
+  const currentOpeners = formData.selectedOpeners || [];
+  const currentOpenerNames = currentOpeners.map((opener) => opener.name).filter(Boolean);
+  const openerSummary = currentOpenerNames.join(', ');
 
   return (
     <div className="space-y-6">
@@ -278,6 +309,38 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
           {errors.selectedArtist && (
             <p className="text-sm text-red-600">{errors.selectedArtist}</p>
           )}
+          <div className="space-y-2 mt-3">
+            <Label className="text-sm font-medium">Opener/s (optional)</Label>
+            <ArtistSearchBox
+              key={`opener-search-${openerSearchKey}`}
+              onArtistSelect={handleOpenerSelect}
+              placeholder="Search for openers..."
+              className="w-full"
+            />
+            <p className="text-xs text-gray-500">
+              Openers are for context only — they won't impact ratings or show up as reviews on their artist pages.
+            </p>
+            {currentOpeners.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {currentOpeners.map((opener, index) => (
+                  <span
+                    key={`${opener.id || opener.name || 'opener'}-${index}`}
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
+                  >
+                    <span className="max-w-[180px] truncate">{opener.name}</span>
+                    <button
+                      type="button"
+                      className="text-xs text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-pink-500"
+                      aria-label={`Remove opener ${opener.name}`}
+                      onClick={() => handleOpenerRemove(opener)}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -438,6 +501,11 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
               day: 'numeric',
               year: 'numeric'
             })}</p>
+            {openerSummary && (
+              <p className="mt-2 text-sm text-blue-800">
+                Openers: {openerSummary}
+              </p>
+            )}
           </div>
         </div>
       )}

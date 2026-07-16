@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ProfileSetupStep, type ProfileSetupStepRef } from './ProfileSetupStep';
 import { MusicTagsStep } from './MusicTagsStep';
 import { FollowArtistsModal, type FollowArtistOption } from './FollowArtistsModal';
@@ -13,6 +22,10 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import {
+  ACQUISITION_SOURCE_CANONICAL_ORDER,
+  type AcquisitionSource,
+} from '@/constants/acquisitionSources';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -76,6 +89,9 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const finishOnboardingRef = useRef(false);
 
   const [profileData, setProfileData] = useState<ProfileSetupData>({});
+  const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSource | null>(null);
+  const [acquisitionSourceOther, setAcquisitionSourceOther] = useState('');
+  const [acquisitionSourceError, setAcquisitionSourceError] = useState<string | null>(null);
   const [prefillLoading, setPrefillLoading] = useState(true);
   const [completionError, setCompletionError] = useState<string | null>(null);
   const completeButtonRef = useRef<HTMLDivElement>(null);
@@ -176,7 +192,9 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('username, location_city, birthday, gender, bio, avatar_url')
+          .select(
+            'username, location_city, birthday, gender, bio, avatar_url, acquisition_source, other_acquisition_source'
+          )
           .eq('user_id', session.user.id)
           .maybeSingle();
 
@@ -196,6 +214,8 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
             bio: (data as any).bio ?? undefined,
             avatar_url: (data as any).avatar_url ?? undefined,
           });
+          setAcquisitionSource((data as any).acquisition_source ?? null);
+          setAcquisitionSourceOther((data as any).other_acquisition_source ?? '');
         }
       } finally {
         if (!cancelled) {
@@ -268,6 +288,14 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       return;
     }
 
+    const trimmedOtherSource = acquisitionSourceOther.trim();
+    setAcquisitionSourceError(null);
+    if (acquisitionSource === 'Other' && !trimmedOtherSource) {
+      setAcquisitionSourceError('Please describe where you heard about Synth');
+      completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+
     setLoading(true);
     try {
       // Save profile
@@ -280,6 +308,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         bio: profileResult.data.bio || undefined,
         avatar_url: profileResult.data.avatar_url || undefined,
       };
+      if (acquisitionSource !== null) {
+        profilePayload.acquisition_source = acquisitionSource;
+        profilePayload.other_acquisition_source =
+          acquisitionSource === 'Other' ? trimmedOtherSource : null;
+      }
       let profileSuccess = false;
       try {
         profileSuccess = await OnboardingService.saveProfileSetup(user.id, profilePayload);
@@ -433,6 +466,75 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                   initialData={profileData}
                   onChange={handleProfileDraftChange}
                 />
+              </section>
+
+              <section>
+                <h2 className="text-xl font-semibold mb-4">How did you hear about Synth?</h2>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="acquisition_source_select">Acquisition source</Label>
+                    <Select
+                      value={acquisitionSource ?? ''}
+                      onValueChange={(value) => {
+                        if (!value) {
+                          setAcquisitionSource(null);
+                          setAcquisitionSourceOther('');
+                          return;
+                        }
+
+                        const selectedSource = value as AcquisitionSource;
+                        setAcquisitionSource(selectedSource);
+                        setAcquisitionSourceError(null);
+                        if (selectedSource !== 'Other') {
+                          setAcquisitionSourceOther('');
+                        }
+                      }}
+                    >
+                      <SelectTrigger
+                        id="acquisition_source_select"
+                        className="bg-white w-full"
+                      >
+                        <SelectValue placeholder="Select a source" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => (
+                          <SelectItem key={source} value={source}>
+                            {source}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[15px] font-medium leading-[1.5] text-muted-foreground">
+                      This helps us understand which communities find Synth most often.
+                    </p>
+                  </div>
+                  {acquisitionSource === 'Other' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="acquisition_source_other">Tell us more</Label>
+                      <Input
+                        id="acquisition_source_other"
+                        value={acquisitionSourceOther}
+                        onChange={(event) => {
+                          setAcquisitionSourceOther(event.target.value);
+                          if (acquisitionSourceError) {
+                            setAcquisitionSourceError(null);
+                          }
+                        }}
+                        placeholder="e.g., referred by DJ Alex / saw Synth at Embarcadero Festival"
+                        className={`bg-white ${acquisitionSourceError ? 'border-destructive' : ''}`}
+                      />
+                      {acquisitionSourceError ? (
+                        <p className="text-[15px] font-medium leading-[1.5] text-destructive">
+                          {acquisitionSourceError}
+                        </p>
+                      ) : (
+                        <p className="text-[15px] font-medium leading-[1.5] text-muted-foreground">
+                          Share any detail that helps us attribute this referral.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </section>
 
               <section>
