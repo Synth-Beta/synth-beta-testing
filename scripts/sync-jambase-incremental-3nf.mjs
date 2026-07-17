@@ -162,6 +162,16 @@ class IncrementalSync3NF {
       });
 
     if (error) {
+      // After venue dedup, one canonical venue can legitimately be referenced by
+      // MORE THAN ONE JamBase venue id (JamBase re-lists the same physical venue
+      // under multiple ids). The legacy UNIQUE(entity_uuid, source, entity_type)
+      // constraint predates dedup and rejects that second mapping. It's non-fatal:
+      // the entity is already resolved (venueUuidMap set via the primary mapping or
+      // location-key reuse), so skip it rather than fail the whole page. Dropping
+      // that constraint lets the extra mapping persist — see the perf-review SQL.
+      if (error.code === '23505') {
+        return;
+      }
       throw error;
     }
   }
@@ -618,23 +628,40 @@ class IncrementalSync3NF {
         // per-location duplicates — the bug that produced ~500k duplicate venue
         // rows. This composite key is exactly what the venues_location_key_uidx
         // unique index enforces at the DB level.
-        const locKey = (v) => (v && v.identifier)
-          ? `${String(v.identifier).toLowerCase()}|${String(v.city || '').toLowerCase()}|${String(v.state || '').toLowerCase()}`
-          : null;
-        const newIdentifiers = [...new Set(newVenues.map((v) => v.identifier).filter(Boolean))];
+        // Replicate the DB's venue_location_key EXACTLY. The standardize_venue_name
+        // trigger rewrites the stored identifier on insert as
+        //   identifier := lower(replace(replace(normalize_venue_name(name),' ','_'),'''',''))
+        // where normalize_venue_name = trim(collapse-whitespace). venue_location_key
+        // (the generated column the unique index enforces) is then
+        //   identifier | lower(city) | lower(state).
+        // So we must derive the key from the NAME, not the raw API identifier — the
+        // API identifier is discarded by the trigger. Matching this exactly is what
+        // makes the reuse lookup catch what venues_location_key_uidx would reject.
+        const locKey = (v) => {
+          if (!v || !v.name) return null;
+          const norm = String(v.name).replace(/\s+/g, ' ').trim();       // normalize_venue_name
+          if (!norm) return null;
+          const ident = norm.replace(/ /g, '_').replace(/'/g, '').toLowerCase();  // trigger identifier
+          return `${ident}|${String(v.city || '').toLowerCase()}|${String(v.state || '').toLowerCase()}`;
+        };
+        // Look up existing venues by the SAME normalized key the DB's unique index
+        // enforces (venue_location_key = lower(identifier)|lower(city)|lower(state)),
+        // NOT the raw identifier. A case-variant identifier would slip past a raw
+        // match and then collide on venues_location_key_uidx at insert time, failing
+        // the whole page. Matching on the generated column closes that gap.
+        const newKeys = [...new Set(newVenues.map((v) => locKey(v)).filter(Boolean))];
         const existingByLocKey = new Map();
         const LOOKUP_CHUNK = 100;
-        for (let i = 0; i < newIdentifiers.length; i += LOOKUP_CHUNK) {
-          const slice = newIdentifiers.slice(i, i + LOOKUP_CHUNK);
+        for (let i = 0; i < newKeys.length; i += LOOKUP_CHUNK) {
+          const slice = newKeys.slice(i, i + LOOKUP_CHUNK);
           const { data: rows, error: lookupErr } = await this.syncService.supabase
             .from('venues')
-            .select('id, identifier, city, state')
-            .in('identifier', slice);
+            .select('id, venue_location_key')
+            .in('venue_location_key', slice);
           if (lookupErr) throw lookupErr;
           for (const r of rows || []) {
-            const k = locKey(r);
-            if (k && r?.id && !existingByLocKey.has(k)) {
-              existingByLocKey.set(k, r.id);
+            if (r?.venue_location_key && r?.id && !existingByLocKey.has(r.venue_location_key)) {
+              existingByLocKey.set(r.venue_location_key, r.id);
             }
           }
         }
@@ -667,15 +694,45 @@ class IncrementalSync3NF {
           });
         }
 
-        const { data: inserted, error } = venuesToInsert.length
-          ? await this.syncService.supabase
-              .from('venues')
-              .insert(venuesToInsert)
-              .select('id, identifier, city, state')
-          : { data: [], error: null };
-
-        if (error) {
-          throw error;
+        // Insert new venues. The DB's venue_location_key is computed by the
+        // standardize_venue_name trigger, which we replicate in locKey() — but rare
+        // Unicode/whitespace names can still normalize slightly differently in JS vs
+        // Postgres and collide on venues_location_key_uidx. So on a unique-key error,
+        // fall back to inserting one at a time and reusing the existing row for any
+        // that collide — one odd venue can never fail the whole page or drop events.
+        let inserted = [];
+        if (venuesToInsert.length) {
+          const res = await this.syncService.supabase
+            .from('venues')
+            .insert(venuesToInsert)
+            .select('id, name, city, state');
+          if (!res.error) {
+            inserted = res.data || [];
+          } else if (res.error.code === '23505') {
+            for (const v of venuesToInsert) {
+              const one = await this.syncService.supabase
+                .from('venues')
+                .insert([v])
+                .select('id, name, city, state');
+              if (!one.error) {
+                inserted.push(...(one.data || []));
+              } else if (one.error.code === '23505') {
+                // Already exists under the trigger-normalized key — find and reuse it.
+                const normName = String(v.name || '').replace(/\s+/g, ' ').trim();
+                let q = this.syncService.supabase
+                  .from('venues').select('id, name, city, state').eq('name', normName);
+                q = (v.city == null) ? q.is('city', null) : q.eq('city', v.city);
+                q = (v.state == null) ? q.is('state', null) : q.eq('state', v.state);
+                const { data: found } = await q.limit(1);
+                if (found && found[0]) inserted.push(found[0]);
+                else console.warn(`  ⚠️  Venue skipped (key collision, not found): ${v.name}`);
+              } else {
+                throw one.error;
+              }
+            }
+          } else {
+            throw res.error;
+          }
         }
 
         if (inserted) {
@@ -733,7 +790,18 @@ class IncrementalSync3NF {
             })
             .eq('id', uuid);
 
-          if (error) throw error;
+          if (error) {
+            // The standardize_venue_name trigger recomputes venue_location_key on
+            // UPDATE, so a JamBase name change can push this venue onto another
+            // venue's key and violate venues_location_key_uidx. Non-fatal: skip this
+            // venue's metadata refresh (it keeps its current row and events still
+            // link to it) instead of failing the whole page and its events.
+            if (error.code === '23505') {
+              console.warn(`  ⚠️  Venue update skipped (key collision): ${uuid}`);
+              continue;
+            }
+            throw error;
+          }
           this.stats.venuesUpdated++;
         }
       }
