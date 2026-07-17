@@ -1032,6 +1032,28 @@ class IncrementalSync3NF {
         await this.syncEventNormalizedGenres(id, g);
       }
     }
+
+    // Prevent the legacy "null-jambase_id twin" duplicate pattern from re-forming.
+    // The sync already skips events without a jambase_id and upserts on jambase_id,
+    // so it never creates NEW null-id rows or JamBase duplicates. The one remaining
+    // vector is an existing legacy NULL-id event getting a JamBase twin at the same
+    // (artist, venue, event_date) slot. After upserting these JamBase events, merge
+    // any such twin into the canonical row (repoints its interests/reviews/media,
+    // then removes it). Non-fatal: a failure here must never break the sync.
+    const upsertedIds = (upserted || []).map(r => r?.id).filter(Boolean);
+    if (upsertedIds.length > 0) {
+      try {
+        const { data: merged, error: mergeErr } = await this.syncService.supabase
+          .rpc('merge_null_id_event_duplicates', { p_canonical_ids: upsertedIds });
+        if (mergeErr) {
+          console.warn(`  ⚠️  merge_null_id_event_duplicates failed (non-fatal): ${mergeErr.message}`);
+        } else if (merged && merged > 0) {
+          console.log(`  🔀 Merged ${merged} legacy null-id duplicate event(s) into canonical rows`);
+        }
+      } catch (e) {
+        console.warn(`  ⚠️  merge_null_id_event_duplicates threw (non-fatal): ${e.message}`);
+      }
+    }
   }
 
   /**
