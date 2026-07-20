@@ -13,26 +13,45 @@ import Constants from 'expo-constants';
  * The process running `push-notification-worker.js` must have `EXPO_ACCESS_TOKEN` (from expo.dev).
  */
 export async function syncExpoPushTokenWithBackend(): Promise<void> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.user) return;
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
+      console.log('[push] token sync skipped: no active session yet');
+      return;
+    }
 
-  const token = await registerForPushNotificationsAsync();
-  if (!token) return;
+    const token = await registerForPushNotificationsAsync();
+    if (!token) {
+      // registerForPushNotificationsAsync already logged the specific reason
+      // (no device / permission denied / no projectId / Expo token error).
+      console.warn('[push] token sync: no Expo push token obtained — user will not receive push');
+      return;
+    }
 
-  const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-  const appVersion = Application.nativeApplicationVersion ?? undefined;
+    const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+    const appVersion = Application.nativeApplicationVersion ?? undefined;
 
-  const { error } = await supabase.rpc('register_device_token', {
-    p_device_token: token,
-    p_platform: platform,
-    p_device_id: null,
-    p_app_version: appVersion ?? null,
-  });
+    const { error } = await supabase.rpc('register_device_token', {
+      p_device_token: token,
+      p_platform: platform,
+      p_device_id: null,
+      p_app_version: appVersion ?? null,
+    });
 
-  if (error) {
-    console.warn('[push] register_device_token failed:', error.message);
+    if (error) {
+      console.warn('[push] register_device_token RPC failed:', error.message);
+      return;
+    }
+
+    console.log('[push] device token registered', {
+      platform,
+      tokenTail: token.slice(-12),
+    });
+  } catch (e) {
+    // Never let push registration crash app startup.
+    console.error('[push] token sync threw:', e instanceof Error ? e.message : e);
   }
 }
 

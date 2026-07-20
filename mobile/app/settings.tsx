@@ -7,6 +7,7 @@ import {
   Text,
   Switch,
   Alert,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -35,6 +36,7 @@ import {
 } from '../src/services/userSettingsPreferencesService';
 import { SettingsScreenSkeleton } from '../src/components/skeletons/SettingsScreenSkeleton';
 import { unregisterExpoPushToken, syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
+import { getNotificationPermissionStatus } from '../lib/registerPushNotifications';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -164,6 +166,21 @@ export default function SettingsScreen() {
         setEnablePush(checked);
         if (checked) {
           await syncExpoPushTokenWithBackend();
+          // If the OS permission is denied, the preference is on but no push can
+          // ever arrive. iOS won't re-prompt after a denial, so guide the user to
+          // Settings — this is the natural moment to recover the ~majority of
+          // users who have no deliverable token.
+          const permission = await getNotificationPermissionStatus();
+          if (permission !== 'granted') {
+            Alert.alert(
+              'Turn on notifications',
+              'Notifications are turned off for Synth in your device settings, so you won’t receive push alerts. Open Settings to enable them.',
+              [
+                { text: 'Not now', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => { void Linking.openSettings(); } },
+              ],
+            );
+          }
         } else {
           await unregisterExpoPushToken();
         }

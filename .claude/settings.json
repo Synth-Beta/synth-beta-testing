@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ps -W)",
+      "Bash(pkill -f 'sync-jambase-incremental')",
+      "mcp__supabase__execute_sql",
+      "PowerShell(& C:\\\\Python313\\\\python.exe -m graphify query \"How does the push notification system work end to end: device token registration, APNs and Expo push tokens, the notifications table database webhook, push-notification-webhook, push-notification-worker, and how iOS receives out-of-app lock screen notifications? What determines whether a notification is delivered?\")",
+      "Bash(grep -A1 'aps-environment' Synth/Synth.entitlements)",
+      "Bash(grep -A1 'aps-environment' Synth/Synth.release.entitlements)",
+      "Bash(ls Synth/*.entitlements)",
+      "Bash(npx tsc *)",
+      "Bash(timeout 90 graphify query \"How are notifications created and inserted into the notifications table, and what triggers push delivery?\" --budget 1200)"
+    ]
+  }
+}

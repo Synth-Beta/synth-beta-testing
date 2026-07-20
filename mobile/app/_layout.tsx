@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
@@ -199,6 +200,28 @@ export default function RootLayout() {
         /* best-effort */
       }
     })();
+  }, [session]);
+
+  // Re-register the push token whenever the app returns to the foreground. This is
+  // the main lever for token COVERAGE: it catches users who enabled notifications
+  // in iOS Settings after a denial, whose Expo token rotated, or whose first
+  // registration failed silently — without it, a user who fixes their permission
+  // never gets a token until the next cold launch. Throttled so a quick
+  // background/foreground bounce doesn't spam the RPC.
+  const lastPushSyncRef = useRef(0);
+  useEffect(() => {
+    const maybeSync = (state: AppStateStatus) => {
+      if (state !== 'active') return;
+      if (!session?.user) return;
+      const now = Date.now();
+      if (now - lastPushSyncRef.current < 60_000) return; // at most once/min
+      lastPushSyncRef.current = now;
+      syncExpoPushTokenWithBackend().catch((err) => {
+        console.warn('[push] token re-sync on foreground failed', err);
+      });
+    };
+    const sub = AppState.addEventListener('change', maybeSync);
+    return () => sub.remove();
   }, [session]);
 
   useShareDeepLink(Boolean(session?.user && isOnboardingComplete));

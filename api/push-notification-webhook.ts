@@ -139,6 +139,41 @@ async function deactivateDeviceToken(
   }
 }
 
+// One row per delivery attempt, persisted to push_delivery_log for observability.
+interface DeliveryLogRow {
+  notification_id: string | null;
+  user_id: string;
+  channel: 'expo' | 'apns' | null;
+  platform: string | null;
+  device_token_tail: string | null;
+  status: 'sent' | 'failed' | 'skipped';
+  error: string | null;
+  deactivated: boolean;
+}
+
+// Store only the token's last 12 chars — never the full push token.
+function tokenTail(deviceToken: unknown): string | null {
+  if (typeof deviceToken !== 'string' || !deviceToken.length) return null;
+  return deviceToken.slice(-12);
+}
+
+// Best-effort batch write of delivery telemetry. Never throws — logging must not
+// break delivery. Silently no-ops if the push_delivery_log table doesn't exist yet.
+async function writeDeliveryLog(
+  supabase: SupabaseClient,
+  rows: DeliveryLogRow[],
+): Promise<void> {
+  if (!rows.length) return;
+  try {
+    const { error } = await supabase.from('push_delivery_log').insert(rows);
+    if (error) {
+      console.warn('[push-webhook] delivery-log insert failed:', error.message);
+    }
+  } catch (e) {
+    console.warn('[push-webhook] delivery-log insert threw:', e instanceof Error ? e.message : e);
+  }
+}
+
 function isPermanentApnsFailure(reason: string | undefined, status: string | number | undefined): boolean {
   const r = (reason ?? '').toLowerCase();
   return (
@@ -300,6 +335,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!devices?.length) {
     const reason = 'no active device tokens';
     console.log(`[push-webhook] skipped: ${reason}`, { user_id: record.user_id });
+    // Record the gap so we can see, over time, which users can't receive push at all.
+    await writeDeliveryLog(supabase, [
+      {
+        notification_id: record.id ?? null,
+        user_id: record.user_id,
+        channel: null,
+        platform: null,
+        device_token_tail: null,
+        status: 'skipped',
+        error: 'no-active-device-tokens',
+        deactivated: false,
+      },
+    ]);
     return res.status(200).json({
       ok: true,
       skipped: reason,
@@ -327,10 +375,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let apnsSent = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const deliveries: DeliveryLogRow[] = [];
 
   for (const row of devices) {
     const deviceToken = typeof row.device_token === 'string' ? row.device_token.trim() : row.device_token;
     const platform = row.platform;
+    const tail = tokenTail(deviceToken);
 
     if (isExpoPushToken(deviceToken)) {
       const expoRes = await sendExpoPushNotification({
@@ -341,12 +391,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       if (expoRes.ok) {
         expoSent++;
+        deliveries.push({
+          notification_id: record.id ?? null, user_id: record.user_id,
+          channel: 'expo', platform, device_token_tail: tail,
+          status: 'sent', error: null, deactivated: false,
+        });
       } else {
         const failed = expoRes;
         errors.push(`expo:${failed.error}`);
+        let deactivated = false;
         if (failed.deactivate) {
           await deactivateDeviceToken(supabase, deviceToken);
+          deactivated = true;
         }
+        deliveries.push({
+          notification_id: record.id ?? null, user_id: record.user_id,
+          channel: 'expo', platform, device_token_tail: tail,
+          status: 'failed', error: failed.error, deactivated,
+        });
       }
       continue;
     }
@@ -355,6 +417,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (platform !== 'ios') {
       skipped++;
       errors.push('android:non-expo-token-unsupported');
+      deliveries.push({
+        notification_id: record.id ?? null, user_id: record.user_id,
+        channel: null, platform, device_token_tail: tail,
+        status: 'skipped', error: 'android:non-expo-token-unsupported', deactivated: false,
+      });
       continue;
     }
 
@@ -362,6 +429,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Treat missing APNs credentials as "skipped" (nothing was attempted for this device).
       skipped++;
       errors.push('apns:not-configured');
+      deliveries.push({
+        notification_id: record.id ?? null, user_id: record.user_id,
+        channel: 'apns', platform, device_token_tail: tail,
+        status: 'skipped', error: 'apns:not-configured', deactivated: false,
+      });
       continue;
     }
 
@@ -377,19 +449,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       apnNotification.priority = 10;
 
       const result = await apnProvider.send(apnNotification, deviceToken);
-      if (result.sent?.length) apnsSent++;
+      if (result.sent?.length) {
+        apnsSent++;
+        deliveries.push({
+          notification_id: record.id ?? null, user_id: record.user_id,
+          channel: 'apns', platform, device_token_tail: tail,
+          status: 'sent', error: null, deactivated: false,
+        });
+      }
       if (result.failed?.length) {
         const err = result.failed[0];
         const reason = err.response?.reason || String(err.error || 'unknown');
         errors.push(`apns:${reason}`);
+        let deactivated = false;
         if (isPermanentApnsFailure(err.response?.reason, err.status)) {
           await deactivateDeviceToken(supabase, deviceToken);
+          deactivated = true;
         }
+        deliveries.push({
+          notification_id: record.id ?? null, user_id: record.user_id,
+          channel: 'apns', platform, device_token_tail: tail,
+          status: 'failed', error: `apns:${reason}`, deactivated,
+        });
       }
     } catch (err) {
-      errors.push(`apns:${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`apns:${message}`);
+      deliveries.push({
+        notification_id: record.id ?? null, user_id: record.user_id,
+        channel: 'apns', platform, device_token_tail: tail,
+        status: 'failed', error: `apns:${message}`, deactivated: false,
+      });
     }
   }
+
+  // Persist per-attempt telemetry (best-effort; never blocks the response on failure).
+  await writeDeliveryLog(supabase, deliveries);
 
   if (apnProvider) {
     apnProvider.shutdown();
