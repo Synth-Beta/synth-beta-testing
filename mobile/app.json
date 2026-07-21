@@ -2,7 +2,7 @@
   "expo": {
     "name": "Synth",
     "slug": "synth",
-    "version": "1.4.6",
+    "version": "1.4.7",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "synth",
@@ -24,7 +24,7 @@
       "associatedDomains": [
         "applinks:join.getsynth.app"
       ],
-      "buildNumber": "300",
+      "buildNumber": "301",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.",
