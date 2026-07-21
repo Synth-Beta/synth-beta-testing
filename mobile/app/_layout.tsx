@@ -25,7 +25,8 @@ import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryServi
 // Hide the native splash as soon as JS is running so the skeleton takes over immediately.
 void SplashScreen.hideAsync().catch(() => {});
 
-const ONBOARDING_STORAGE_KEY = 'HAS_COMPLETED_ONBOARDING';
+const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
+const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
 /** First wizard step — skip marketing welcome, go straight to profile setup */
 const ONBOARDING_FLOW_ENTRY = '/(onboarding)/profile';
 /** If `useFonts` never resolves (no error), do not block app boot forever. */
@@ -48,16 +49,37 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    async function loadOnboardingStatus() {
-      try {
-        const value = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
-        setStorageOnboardingComplete(value === 'true');
-      } catch {
-        setStorageOnboardingComplete(false);
+    if (session === undefined) return;
+
+    let cancelled = false;
+    setStorageOnboardingComplete(null);
+
+    const loadOnboardingStatus = async () => {
+      // Scope onboarding completion to the authenticated user so one user's
+      // completion state never causes another user to skip onboarding.
+      if (!session?.user?.id) {
+        if (!cancelled) setStorageOnboardingComplete(false);
+        return;
       }
-    }
+
+      try {
+        const value = await AsyncStorage.getItem(getOnboardingStorageKey(session.user.id));
+        if (!cancelled) {
+          setStorageOnboardingComplete(value === 'true');
+        }
+      } catch {
+        if (!cancelled) {
+          setStorageOnboardingComplete(false);
+        }
+      }
+    };
+
     void loadOnboardingStatus();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,7 +155,7 @@ export default function RootLayout() {
         setIsOnboardingComplete(effective);
         if (fromServer) {
           try {
-            await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+            await AsyncStorage.setItem(getOnboardingStorageKey(session.user.id), 'true');
           } catch {
             /* ignore */
           }

@@ -16,6 +16,9 @@ import { getExpoSiteUrl } from '../../src/utils/siteUrl';
 import { authenticateSpotifyInApp } from '../../src/services/spotifyAuthService';
 import { syncStreamingProfile } from '../../src/services/streamingSyncActions';
 
+const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
+const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
+
 export default function ConnectScreen() {
     const router = useRouter();
     const [isLinked, setIsLinked] = useState(false);
@@ -85,9 +88,9 @@ export default function ConnectScreen() {
 
     const handleFinish = async () => {
         try {
-            await AsyncStorage.setItem('HAS_COMPLETED_ONBOARDING', 'true');
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
+                await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
                 await OnboardingService.completeOnboarding(user.id);
             }
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
