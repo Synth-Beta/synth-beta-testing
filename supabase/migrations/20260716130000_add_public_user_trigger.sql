@@ -4,6 +4,11 @@
 
 BEGIN;
 
+DROP TRIGGER IF EXISTS trigger_ensure_public_user ON auth.users;
+DROP FUNCTION IF EXISTS public.trigger_ensure_public_user();
+DROP FUNCTION IF EXISTS public.ensure_public_user();
+DROP FUNCTION IF EXISTS public.ensure_public_user_for_user(uuid);
+
 CREATE OR REPLACE FUNCTION public.ensure_public_user_for_user(p_user_id uuid)
 RETURNS TABLE (
     user_id uuid,
@@ -96,22 +101,63 @@ BEGIN
 
     BEGIN
       IF has_email_column THEN
-        INSERT INTO public.users (user_id, name, username, email, created_at, updated_at)
+        INSERT INTO public.users (
+          user_id,
+          name,
+          username,
+          email,
+          account_type,
+          is_public_profile,
+          similar_users_notifications,
+          moderation_status,
+          warning_count,
+          last_active_at,
+          permissions_metadata,
+          created_at,
+          updated_at
+        )
         VALUES (
           p_user_id,
           sanitized_name,
           final_username,
           target.email,
+          'user',
+          true,
+          true,
+          'good_standing',
+          0,
+          COALESCE(target.created_at, now()),
+          '{}'::jsonb,
           COALESCE(target.created_at, now()),
           COALESCE(target.updated_at, now())
         )
         ON CONFLICT (user_id) DO NOTHING;
       ELSE
-        INSERT INTO public.users (user_id, name, username, created_at, updated_at)
+        INSERT INTO public.users (
+          user_id,
+          name,
+          username,
+          account_type,
+          is_public_profile,
+          similar_users_notifications,
+          moderation_status,
+          warning_count,
+          last_active_at,
+          permissions_metadata,
+          created_at,
+          updated_at
+        )
         VALUES (
           p_user_id,
           sanitized_name,
           final_username,
+          'user',
+          true,
+          true,
+          'good_standing',
+          0,
+          COALESCE(target.created_at, now()),
+          '{}'::jsonb,
           COALESCE(target.created_at, now()),
           COALESCE(target.updated_at, now())
         )
