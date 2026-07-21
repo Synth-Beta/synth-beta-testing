@@ -54,7 +54,10 @@ export default function ParentalControlsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      // getSession() reads the local session (no network round-trip) — getUser() can
+      // return null on a transient network hiccup and blank the screen.
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) return;
       setUserId(user.id);
       const { data } = await supabase

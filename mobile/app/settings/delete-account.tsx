@@ -43,8 +43,17 @@ export default function DeleteAccountScreen() {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
       if (!rsp.ok) {
-        const t = await rsp.text();
-        throw new Error(t || `Request failed (${rsp.status})`);
+        // Parse a friendly message from the JSON body (matches web); fall back to raw
+        // text, never surface a raw HTML error page.
+        const bodyText = await rsp.text();
+        let msg = `Request failed (${rsp.status})`;
+        try {
+          const parsed = JSON.parse(bodyText) as { message?: string; error?: string };
+          msg = parsed?.message || parsed?.error || bodyText || msg;
+        } catch {
+          if (bodyText) msg = bodyText;
+        }
+        throw new Error(msg);
       }
       await supabase.auth.signOut();
     } catch (e: unknown) {

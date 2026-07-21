@@ -9,7 +9,13 @@
       "Bash(grep -A1 'aps-environment' Synth/Synth.release.entitlements)",
       "Bash(ls Synth/*.entitlements)",
       "Bash(npx tsc *)",
-      "Bash(timeout 90 graphify query \"How are notifications created and inserted into the notifications table, and what triggers push delivery?\" --budget 1200)"
+      "Bash(timeout 90 graphify query \"How are notifications created and inserted into the notifications table, and what triggers push delivery?\" --budget 1200)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "mcp__supabase__list_edge_functions",
+      "Bash(rm -f src/components/PushNotificationsSettings.tsx src/components/EmailPreferencesSettings.tsx mobile/app/settings/privacy.tsx)",
+      "Bash(ls src/components/PushNotificationsSettings.tsx)",
+      "Bash(grep -iE \"StreamingAccountSettings|app/settings|app\\\\\\\\\\\\\\\\settings\")"
     ]
   }
 }

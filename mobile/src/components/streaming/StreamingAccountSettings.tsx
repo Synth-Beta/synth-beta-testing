@@ -132,7 +132,7 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
         'Apple Music resync opens in your browser once to refresh your stats.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Open web', onPress: () => openConnectStreaming('apple-music') },
+          { text: 'Open web', onPress: () => openConnectAppleMusic() },
         ]
       );
       return;

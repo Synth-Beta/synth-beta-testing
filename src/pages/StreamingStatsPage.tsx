@@ -70,7 +70,30 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     if (connect !== 'spotify') return;
     if (!needsConnection && params.get('action') !== 'resync' && params.get('reconnect') !== '1') return;
 
+    // GUARD AGAINST THE INFINITE OAUTH LOOP: the Spotify OAuth round-trip reloads
+    // this page with the SAME ?connect/?reconnect params, and the in-memory ref
+    // above resets on every reload — so without a persistent guard we re-trigger
+    // OAuth forever. Persist a per-session flag AND strip the trigger params from
+    // the URL so a reload / back-nav can't re-fire it.
+    const guardKey = 'spotify_autoconnect_attempted';
+    try {
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(guardKey)) return;
+      if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(guardKey, '1');
+    } catch {
+      /* sessionStorage unavailable (private mode) — fall back to the in-memory ref */
+    }
+
     connectFromExpoAttempted.current = true;
+
+    // Strip only the OAuth-trigger params. Keep `action=resync` — a separate effect
+    // uses it for a redirect-free server sync, which can't loop.
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      const cleaned = new URL(window.location.href);
+      cleaned.searchParams.delete('connect');
+      cleaned.searchParams.delete('reconnect');
+      window.history.replaceState({}, '', cleaned.toString());
+    }
+
     localStorage.setItem(
       'spotify_connect_source',
       params.get('source') === 'expo' ? 'expo' : 'streaming_stats'

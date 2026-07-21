@@ -29,8 +29,10 @@ export default function SettingsSecurityScreen() {
   const [resettingPassword, setResettingPassword] = useState(false);
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      setEmail(user?.email ?? null);
+    // getSession() reads the local session (no network round-trip) — getUser() can
+    // return null on a transient network hiccup and blank the screen.
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      setEmail(session?.user?.email ?? null);
     });
   }, []);
 

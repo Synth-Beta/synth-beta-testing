@@ -27,6 +27,11 @@ import { Capacitor } from '@capacitor/core';
 import { getApiBaseUrl } from '@/utils/apiBaseUrl';
 import { toast } from '@/hooks/use-toast';
 
+// Email notifications are disabled app-wide until a real email pipeline exists
+// (no `send-email` edge function is deployed and nothing honors `enable_emails`).
+// Set to true once emails actually send AND respect the preference.
+const EMAIL_NOTIFICATIONS_ENABLED = false;
+
 export type SettingsModalView =
   | 'menu'
   | 'onboarding-preferences'
@@ -400,18 +405,25 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                   onCheckedChange={handleTogglePushNotifications}
                   disabled={isLoadingPreferences}
                 />
-                <RowDivider />
-                {/* Email Notifications */}
-                <ToggleRow
-                  icon={Mail}
-                  iconBg="bg-blue-100"
-                  iconColor="text-blue-500"
-                  label="Email Notifications"
-                  description={enableEmails ? 'Enabled' : 'Disabled'}
-                  checked={enableEmails}
-                  onCheckedChange={handleToggleEmails}
-                  disabled={isLoadingPreferences}
-                />
+                {/* Email Notifications — hidden until a real email pipeline exists.
+                    The `send-email` edge function isn't deployed and nothing reads
+                    `enable_emails`, so this toggle controlled nothing. Flip the flag
+                    once emails actually send and honor the preference. */}
+                {EMAIL_NOTIFICATIONS_ENABLED && (
+                  <>
+                    <RowDivider />
+                    <ToggleRow
+                      icon={Mail}
+                      iconBg="bg-blue-100"
+                      iconColor="text-blue-500"
+                      label="Email Notifications"
+                      description={enableEmails ? 'Enabled' : 'Disabled'}
+                      checked={enableEmails}
+                      onCheckedChange={handleToggleEmails}
+                      disabled={isLoadingPreferences}
+                    />
+                  </>
+                )}
               </SettingsSection>
 
               {/* ── Account group ────────────────────────────────────────── */}

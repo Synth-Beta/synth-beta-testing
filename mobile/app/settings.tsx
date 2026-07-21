@@ -40,6 +40,11 @@ import { getNotificationPermissionStatus } from '../lib/registerPushNotification
 
 const PINK = SynthTokens.colors.brandPink500;
 
+// Email notifications are hidden until a real email pipeline exists (no `send-email`
+// edge function is deployed and nothing honors `enable_emails`). Flip to true once
+// emails actually send AND respect the preference. Mirrors web SettingsModal.
+const EMAIL_NOTIFICATIONS_ENABLED = false;
+
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -317,15 +322,19 @@ export default function SettingsScreen() {
             onValueChange={onTogglePush}
             disabled={loadingPreferences}
           />
-          <RowDivider />
-          <ToggleRow
-            icon={Mail}
-            label="Email Notifications"
-            description={enableEmails ? 'Enabled' : 'Disabled'}
-            value={enableEmails}
-            onValueChange={onToggleEmails}
-            disabled={loadingPreferences}
-          />
+          {EMAIL_NOTIFICATIONS_ENABLED ? (
+            <>
+              <RowDivider />
+              <ToggleRow
+                icon={Mail}
+                label="Email Notifications"
+                description={enableEmails ? 'Enabled' : 'Disabled'}
+                value={enableEmails}
+                onValueChange={onToggleEmails}
+                disabled={loadingPreferences}
+              />
+            </>
+          ) : null}
         </View>
 
         <SettingsSection title="Account" />
