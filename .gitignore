@@ -30,6 +30,8 @@ node_modules
 
 # Legacy Capacitor iOS project (app uses Expo mobile/ now)
 ios/
+capacitor.config.json
+synth-native-ios/.swiftpm/
 
 # misc
 /.sass-cache
