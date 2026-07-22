@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -56,6 +56,21 @@ export default function RootLayout() {
   // primitives means the gates only re-evaluate on a real login/logout/user change.
   const sessionResolved = session !== undefined;
   const sessionUserId = session?.user?.id ?? null;
+
+  const refreshOnboardingFromStorage = useCallback(async (userId: string): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(getOnboardingStorageKey(userId));
+      if (value === 'true') {
+        setStorageOnboardingComplete(true);
+        setIsOnboardingComplete(true);
+        setOnboardingEffectiveReady(true);
+        return true;
+      }
+    } catch {
+      // ignore local storage read failures and fall through to normal routing.
+    }
+    return false;
+  }, []);
 
   useEffect(() => {
     if (!sessionResolved) return;
@@ -314,7 +329,12 @@ export default function RootLayout() {
     }
 
     if (!isOnboardingComplete && needsAuth && session) {
-      router.replace(ONBOARDING_FLOW_ENTRY);
+      void (async () => {
+        const reconciled = sessionUserId ? await refreshOnboardingFromStorage(sessionUserId) : false;
+        if (!reconciled) {
+          router.replace(ONBOARDING_FLOW_ENTRY);
+        }
+      })();
       return;
     }
 
@@ -334,12 +354,17 @@ export default function RootLayout() {
 
     if (!isOnboardingComplete && !inOnboarding && !inAuth) {
       if (session) {
-        router.replace(ONBOARDING_FLOW_ENTRY);
+        void (async () => {
+          const reconciled = sessionUserId ? await refreshOnboardingFromStorage(sessionUserId) : false;
+          if (!reconciled) {
+            router.replace(ONBOARDING_FLOW_ENTRY);
+          }
+        })();
       } else {
         router.replace('/(auth)/sign-in');
       }
     }
-  }, [routingReady, isOnboardingComplete, session, segments, router]);
+  }, [routingReady, isOnboardingComplete, session, segments, router, sessionUserId, refreshOnboardingFromStorage]);
 
   if (!routingReady) {
     return <AppLoadingSkeleton />;

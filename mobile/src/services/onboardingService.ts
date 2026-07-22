@@ -8,6 +8,34 @@ export interface OnboardingData {
 }
 
 export class OnboardingService {
+    private static async ensureUserExists(userId: string): Promise<void> {
+        const {
+            data: { user: authUser },
+            error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError) {
+            throw authError;
+        }
+        if (!authUser) {
+            throw new Error('Authenticated user not found');
+        }
+        if (authUser.id !== userId) {
+            throw new Error('Authenticated user does not match onboarding user');
+        }
+
+        const { data, error } = await supabase.rpc('ensure_public_user');
+        if (error) {
+            throw error;
+        }
+
+        const row = Array.isArray(data) ? data[0] : data;
+        const reportedError = (row as { error?: string | null } | null)?.error;
+        if (reportedError) {
+            throw new Error(reportedError);
+        }
+    }
+
     /**
      * Read onboarding flag from `users` (auth `user_id`). Used on cold start when
      * AsyncStorage was cleared but Supabase session remains (e.g. reinstall).
@@ -27,18 +55,28 @@ export class OnboardingService {
      * Mark onboarding as complete in Supabase and AsyncStorage
      */
     static async completeOnboarding(userId: string): Promise<void> {
-        try {
-            const { error } = await supabase
-                .from('users')
-                .update({
-                    onboarding_completed: true,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('user_id', userId);
+        await OnboardingService.ensureUserExists(userId);
 
-            if (error) console.warn('Failed to update onboarding_completed in Supabase:', error);
-        } catch (error) {
-            console.error('Error completing onboarding:', error);
+        const now = new Date().toISOString();
+        const { data, error } = await supabase
+            .from('users')
+            .upsert(
+                {
+                    user_id: userId,
+                    onboarding_completed: true,
+                    onboarding_skipped: false,
+                    updated_at: now,
+                },
+                { onConflict: 'user_id' }
+            )
+            .select('onboarding_completed')
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+        if (!data || data.onboarding_completed !== true) {
+            throw new Error('Failed to persist onboarding completion');
         }
     }
 
@@ -100,45 +138,42 @@ export class OnboardingService {
         acquisition_source?: AcquisitionSource | null;
         other_acquisition_source?: string | null;
     }): Promise<void> {
-        try {
-            // Ensure the public.users row exists (fallback if handle_new_user trigger missed it)
-            await supabase.rpc('ensure_public_user');
+        await OnboardingService.ensureUserExists(userId);
 
-            let isMinor = false;
-            if (data.birthday) {
-                const birthDate = new Date(data.birthday);
-                const today = new Date();
-                let age = today.getFullYear() - birthDate.getFullYear();
-                const m = today.getMonth() - birthDate.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-                isMinor = age < 18;
-            }
+        let isMinor = false;
+        if (data.birthday) {
+            const birthDate = new Date(data.birthday);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+            isMinor = age < 18;
+        }
 
-            const update: Record<string, unknown> = {
-                updated_at: new Date().toISOString(),
-            };
-            if (data.name !== undefined) update.name = data.name;
-            if (data.username !== undefined) update.username = data.username;
-            if (data.birthday !== undefined) {
-                update.birthday = data.birthday;
-                update.age_verified = false;
-                update.is_minor = isMinor;
-                update.parental_controls_enabled = isMinor;
-            }
-            if (data.location_city !== undefined) update.location_city = data.location_city;
-            if (data.gender !== undefined) update.gender = data.gender;
-            if (data.bio !== undefined) update.bio = data.bio;
-            if (data.acquisition_source !== undefined) update.acquisition_source = data.acquisition_source;
-            if (data.other_acquisition_source !== undefined) update.other_acquisition_source = data.other_acquisition_source;
+        const update: Record<string, unknown> = {
+            user_id: userId,
+            updated_at: new Date().toISOString(),
+        };
+        if (data.name !== undefined) update.name = data.name;
+        if (data.username !== undefined) update.username = data.username;
+        if (data.birthday !== undefined) {
+            update.birthday = data.birthday;
+            update.age_verified = false;
+            update.is_minor = isMinor;
+            update.parental_controls_enabled = isMinor;
+        }
+        if (data.location_city !== undefined) update.location_city = data.location_city;
+        if (data.gender !== undefined) update.gender = data.gender;
+        if (data.bio !== undefined) update.bio = data.bio;
+        if (data.acquisition_source !== undefined) update.acquisition_source = data.acquisition_source;
+        if (data.other_acquisition_source !== undefined) update.other_acquisition_source = data.other_acquisition_source;
 
-            const { error } = await supabase
-                .from('users')
-                .update(update)
-                .eq('user_id', userId);
+        const { error } = await supabase
+            .from('users')
+            .upsert(update, { onConflict: 'user_id' });
 
-            if (error) console.warn('[OnboardingService] saveProfileSetup error:', error.message);
-        } catch (e) {
-            console.warn('[OnboardingService] saveProfileSetup failed:', e);
+        if (error) {
+            throw error;
         }
     }
 
