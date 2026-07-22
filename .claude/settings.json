@@ -16,7 +16,11 @@
       "Bash(rm -f src/components/PushNotificationsSettings.tsx src/components/EmailPreferencesSettings.tsx mobile/app/settings/privacy.tsx)",
       "Bash(ls src/components/PushNotificationsSettings.tsx)",
       "Bash(grep -iE \"StreamingAccountSettings|app/settings|app\\\\\\\\\\\\\\\\settings\")",
-      "mcp__supabase__get_logs"
+      "mcp__supabase__get_logs",
+      "Bash(grep -niE \"dev.?launcher|dev.?client|dev.?menu\" ios/Podfile)",
+      "Bash(grep -nE \"dev-client|expo-dev|updates\" app.json app.config.js)",
+      "Bash(npm install *)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }
