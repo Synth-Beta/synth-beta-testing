@@ -48,38 +48,44 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
 
+  // Stable primitives derived from `session`. Supabase emits a NEW session object on
+  // every auth event (INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED / USER_UPDATED),
+  // so keying the boot-gate effects on the raw `session` object made them re-run and
+  // reset routingReady on every event — which left the app stuck on the loading logo
+  // (worst for new users, whose signup fires several events in a row). Keying on these
+  // primitives means the gates only re-evaluate on a real login/logout/user change.
+  const sessionResolved = session !== undefined;
+  const sessionUserId = session?.user?.id ?? null;
+
   useEffect(() => {
-    if (session === undefined) return;
+    if (!sessionResolved) return;
 
     let cancelled = false;
-    setStorageOnboardingComplete(null);
 
     const loadOnboardingStatus = async () => {
       // Scope onboarding completion to the authenticated user so one user's
       // completion state never causes another user to skip onboarding.
-      if (!session?.user?.id) {
+      if (!sessionUserId) {
         if (!cancelled) setStorageOnboardingComplete(false);
         return;
       }
 
       try {
-        const value = await AsyncStorage.getItem(getOnboardingStorageKey(session.user.id));
-        if (!cancelled) {
-          setStorageOnboardingComplete(value === 'true');
-        }
+        const value = await AsyncStorage.getItem(getOnboardingStorageKey(sessionUserId));
+        if (!cancelled) setStorageOnboardingComplete(value === 'true');
       } catch {
-        if (!cancelled) {
-          setStorageOnboardingComplete(false);
-        }
+        if (!cancelled) setStorageOnboardingComplete(false);
       }
     };
 
+    // Intentionally do NOT reset storageOnboardingComplete to null first — that would
+    // drop the boot gate to null on every token refresh. We just (re)load and set.
     void loadOnboardingStatus();
 
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [sessionResolved, sessionUserId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,26 +142,34 @@ export default function RootLayout() {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    if (session === undefined) return;
+    if (!sessionResolved) return;
     if (storageOnboardingComplete === null) return;
 
-    if (!session?.user) {
+    if (!sessionUserId) {
       setIsOnboardingComplete(storageOnboardingComplete);
       setOnboardingEffectiveReady(true);
       return;
     }
 
     let cancelled = false;
-    setOnboardingEffectiveReady(false);
+    // Intentionally do NOT reset onboardingEffectiveReady to false on re-run — that
+    // would drop the boot gate on every token refresh and hang the loading logo.
     void (async () => {
       try {
-        const fromServer = await OnboardingService.isOnboardingCompletedInProfile(session.user.id);
+        // Never let a slow/hanging profile fetch block boot: fall back to the local
+        // per-user flag after 4s so routingReady always resolves.
+        const fromServer = await Promise.race([
+          OnboardingService.isOnboardingCompletedInProfile(sessionUserId),
+          new Promise<boolean>((resolve) =>
+            setTimeout(() => resolve(storageOnboardingComplete === true), 4000)
+          ),
+        ]);
         if (cancelled) return;
         const effective = storageOnboardingComplete || fromServer;
         setIsOnboardingComplete(effective);
         if (fromServer) {
           try {
-            await AsyncStorage.setItem(getOnboardingStorageKey(session.user.id), 'true');
+            await AsyncStorage.setItem(getOnboardingStorageKey(sessionUserId), 'true');
           } catch {
             /* ignore */
           }
@@ -172,7 +186,7 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
     };
-  }, [session, storageOnboardingComplete]);
+  }, [sessionResolved, sessionUserId, storageOnboardingComplete]);
 
   useEffect(() => {
     ensureExpoPushNotificationHandler();
