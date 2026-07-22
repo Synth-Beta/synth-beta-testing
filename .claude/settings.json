@@ -20,7 +20,8 @@
       "Bash(grep -niE \"dev.?launcher|dev.?client|dev.?menu\" ios/Podfile)",
       "Bash(grep -nE \"dev-client|expo-dev|updates\" app.json app.config.js)",
       "Bash(npm install *)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(echo \"npm exit=$?\")"
     ]
   }
 }
