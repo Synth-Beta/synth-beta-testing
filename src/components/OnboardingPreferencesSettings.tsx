@@ -441,9 +441,12 @@ export const OnboardingPreferencesSettings = ({ onClose }: OnboardingPreferences
                 <SelectValue placeholder="Select your gender (optional)" />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                <SelectItem value="male">Male</SelectItem>
                 <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="male">Male</SelectItem>
                 <SelectItem value="non-binary">Non-binary</SelectItem>
+                <SelectItem value="transgender">Transgender</SelectItem>
+                <SelectItem value="genderqueer">Genderqueer</SelectItem>
+                <SelectItem value="agender">Agender</SelectItem>
                 <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>

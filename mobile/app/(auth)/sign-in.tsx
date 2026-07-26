@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getAuthRedirectOrigin } from '@synth/shared';
 import { isSupabaseConfigured, supabase } from '../../src/integrations/supabase/client';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
-import { getAppleSignInCredential } from '../../lib/appleAuth';
+import { getAppleSignInCredential, persistAppleDisplayName } from '../../lib/appleAuth';
 import { AppleLogoGlyph } from '../../src/components/auth/AppleLogoGlyph';
 import {
   AndroidGoogleSignInPlaceholder,
@@ -101,7 +101,7 @@ export default function SignInScreen() {
     try {
       const origin = getAuthRedirectOrigin({
         siteUrlEnv: process.env.EXPO_PUBLIC_SITE_URL,
-        fallback: 'https://synth-beta-testing.vercel.app',
+        fallback: 'https://join.getsynth.app',
       });
       const { error: e } = await supabase.auth.signUp({
         email: email.trim(),
@@ -152,7 +152,7 @@ export default function SignInScreen() {
     try {
       const origin = getAuthRedirectOrigin({
         siteUrlEnv: process.env.EXPO_PUBLIC_SITE_URL,
-        fallback: 'https://synth-beta-testing.vercel.app',
+        fallback: 'https://join.getsynth.app',
       });
       const { error: e } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${origin.replace(/\/$/, '')}/reset-password`,
@@ -182,6 +182,10 @@ export default function SignInScreen() {
         token: cred.identityToken,
       });
       if (e) throw e;
+
+      // Apple only sends the user's name on the FIRST sign-in — capture it now so
+      // onboarding prefills it and the profile isn't stuck as "Synth User".
+      await persistAppleDisplayName(cred);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
       // ERR_REQUEST_CANCELED = user tapped Cancel — show nothing

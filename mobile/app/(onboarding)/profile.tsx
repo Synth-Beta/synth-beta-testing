@@ -25,8 +25,18 @@ import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource } from '@syn
 const PINK = SynthTokens.colors.brandPink500;
 
 const USERNAME_RE = /^[a-z0-9_.]{3,30}$/;
-const GENDERS = ['Male', 'Female', 'Non-binary', 'Prefer not to say', 'Other'] as const;
-const BIO_MAX = 120;
+// Inclusive gender options. `value` is what's stored (lowercase, matches web + existing
+// data); `label` is what's shown. Keep this list in sync with web + profile-edit.
+const GENDER_OPTIONS = [
+    { value: 'female', label: 'Female' },
+    { value: 'male', label: 'Male' },
+    { value: 'non-binary', label: 'Non-binary' },
+    { value: 'transgender', label: 'Transgender' },
+    { value: 'genderqueer', label: 'Genderqueer' },
+    { value: 'agender', label: 'Agender' },
+    { value: 'prefer-not-to-say', label: 'Prefer not to say' },
+    { value: 'other', label: 'Other' },
+] as const;
 
 function calcAge(birthday: string): number | null {
     const d = new Date(birthday);
@@ -63,7 +73,6 @@ export default function ProfileSetupScreen() {
     const [birthdayError, setBirthdayError] = useState('');
     const [city, setCity] = useState('');
     const [gender, setGender] = useState('');
-    const [bio, setBio] = useState('');
     const [saving, setSaving] = useState(false);
     const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSource | ''>('');
     const [acquisitionSourceOther, setAcquisitionSourceOther] = useState('');
@@ -178,7 +187,6 @@ export default function ProfileSetupScreen() {
                     birthday: birthday.trim() || undefined,
                     location_city: city.trim() || undefined,
                     gender: gender || undefined,
-                    bio: bio.trim() || undefined,
                     acquisition_source: acquisitionSource || undefined,
                     other_acquisition_source:
                         acquisitionSource === 'Other' ? trimmedOtherSource : null,
@@ -193,11 +201,11 @@ export default function ProfileSetupScreen() {
             setSaving(false);
         }
 
-        router.push('/(onboarding)/scene');
+        router.push('/(onboarding)/connect');
     };
 
     const handleSkip = () => {
-        router.push('/(onboarding)/scene');
+        router.push('/(onboarding)/connect');
     };
 
     const usernameHint = (() => {
@@ -216,7 +224,7 @@ export default function ProfileSetupScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={6} currentStep={2} />
+                <OnboardingProgress totalSteps={5} currentStep={2} />
                 <Pressable onPress={handleSkip} style={styles.skipButton}>
                     <SynthText variant="meta" color="secondary">Skip</SynthText>
                 </Pressable>
@@ -351,37 +359,18 @@ export default function ProfileSetupScreen() {
                     <View style={styles.fieldBlock}>
                         <Text style={styles.label}>Gender (optional)</Text>
                         <View style={styles.genderRow}>
-                            {GENDERS.map(g => (
+                            {GENDER_OPTIONS.map(g => (
                                 <Pressable
-                                    key={g}
-                                    onPress={() => setGender(gender === g ? '' : g)}
-                                    style={[styles.genderChip, gender === g && styles.genderChipSelected]}
+                                    key={g.value}
+                                    onPress={() => setGender(gender === g.value ? '' : g.value)}
+                                    style={[styles.genderChip, gender === g.value && styles.genderChipSelected]}
                                 >
-                                    <Text style={[styles.genderChipTxt, gender === g && styles.genderChipTxtSelected]}>
-                                        {g}
+                                    <Text style={[styles.genderChipTxt, gender === g.value && styles.genderChipTxtSelected]}>
+                                        {g.label}
                                     </Text>
                                 </Pressable>
                             ))}
                         </View>
-                    </View>
-
-                    {/* Bio */}
-                    <View style={styles.fieldBlock}>
-                        <View style={styles.labelRow}>
-                            <Text style={styles.label}>Bio (optional)</Text>
-                            <Text style={[styles.hint, { marginTop: 0 }]}>{bio.length}/{BIO_MAX}</Text>
-                        </View>
-                        <TextInput
-                            style={[styles.input, styles.bioInput]}
-                            value={bio}
-                            onChangeText={t => setBio(t.slice(0, BIO_MAX))}
-                            placeholder="Tell people about your music taste"
-                            placeholderTextColor={SynthTokens.colors.neutral400}
-                            multiline
-                            numberOfLines={3}
-                            textAlignVertical="top"
-                            maxLength={BIO_MAX}
-                        />
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>

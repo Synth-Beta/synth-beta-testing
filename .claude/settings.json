@@ -21,7 +21,10 @@
       "Bash(grep -nE \"dev-client|expo-dev|updates\" app.json app.config.js)",
       "Bash(npm install *)",
       "Bash(echo \"EXIT=$?\")",
-      "Bash(echo \"npm exit=$?\")"
+      "Bash(echo \"npm exit=$?\")",
+      "Bash(git checkout *)",
+      "Bash(timeout 90 graphify query \"iOS Apple Sign In signup flow: native apple auth, signInWithIdToken, auth.users to public.users creation, onboarding routing, failure points\" --budget 1200)",
+      "Read(//c/Users/Owner/Downloads/**)"
     ]
   }
 }

@@ -52,10 +52,9 @@ export default function SceneScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={6} currentStep={3} />
-                <Pressable onPress={handleContinue} style={styles.skipButton}>
-                    <SynthText variant="meta" color="secondary">Skip</SynthText>
-                </Pressable>
+                <OnboardingProgress totalSteps={5} currentStep={4} />
+                {/* Genres are required — no skip. */}
+                <View style={styles.skipButton} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>

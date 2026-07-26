@@ -3,21 +3,16 @@ import { StyleSheet, View, Pressable, SafeAreaView, Text, Alert } from 'react-na
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChevronLeft, CheckCircle2, RefreshCw } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthButton } from '../../src/components/SynthButton';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
-import { OnboardingService } from '../../src/services/onboardingService';
 import { getStreamingLinkStatus } from '../../src/services/streamingConnectionService';
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
 import { authenticateSpotifyInApp } from '../../src/services/spotifyAuthService';
 import { syncStreamingProfile } from '../../src/services/streamingSyncActions';
-
-const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
-const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
 
 export default function ConnectScreen() {
     const router = useRouter();
@@ -86,19 +81,11 @@ export default function ConnectScreen() {
         }
     }, []);
 
-    const handleFinish = async () => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
-                await OnboardingService.completeOnboarding(user.id);
-            }
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            router.replace('/(tabs)');
-        } catch (e) {
-            console.error('Failed to save onboarding status', e);
-            router.replace('/(tabs)');
-        }
+    // Connecting music is OPTIONAL — continue to the mandatory genres + artists step.
+    // (When Spotify/Apple Music sync works, that step auto-fills from the library.)
+    const handleContinue = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push('/(onboarding)/scene');
     };
 
     return (
@@ -107,8 +94,8 @@ export default function ConnectScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={6} currentStep={6} />
-                <Pressable onPress={handleFinish} style={styles.skipButton}>
+                <OnboardingProgress totalSteps={5} currentStep={3} />
+                <Pressable onPress={handleContinue} style={styles.skipButton}>
                     <SynthText variant="meta" color="secondary">Skip</SynthText>
                 </Pressable>
             </View>
@@ -147,8 +134,8 @@ export default function ConnectScreen() {
 
             <View style={styles.footer}>
                 <SynthButton
-                    title={isLinked ? 'Finish' : 'Skip for now'}
-                    onPress={handleFinish}
+                    title={isLinked ? 'Continue' : 'Skip for now'}
+                    onPress={handleContinue}
                     variant={isLinked ? 'primary' : 'secondary'}
                 />
             </View>

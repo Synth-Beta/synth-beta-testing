@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Pressable, SafeAreaView, TextInput, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChevronLeft, Search, Check } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthButton } from '../../src/components/SynthButton';
@@ -10,6 +11,9 @@ import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { ArtistService, Artist } from '../../src/services/artistService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
+
+const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
+const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
 
 export default function ArtistsScreen() {
     const router = useRouter();
@@ -48,18 +52,26 @@ export default function ArtistsScreen() {
         );
     };
 
+    const MIN_ARTISTS = 3;
+    const enoughArtists = selectedArtistIds.length >= MIN_ARTISTS;
+
     const handleContinue = async () => {
-        // Silent background write
+        // Require a minimum so the personalized feed has real signal to work with.
+        if (!enoughArtists) return;
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                OnboardingService.followArtists(user.id, selectedArtistIds);
+                await OnboardingService.followArtists(user.id, selectedArtistIds);
+                // Final onboarding step — mark complete (local per-user flag + server).
+                await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
+                await OnboardingService.completeOnboarding(user.id);
             }
         } catch (error) {
-            console.warn('Artist follow write failed:', error);
+            console.warn('Artist follow / onboarding-complete write failed:', error);
         }
 
-        router.push('/(onboarding)/venues');
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        router.replace('/(tabs)');
     };
 
     return (
@@ -68,10 +80,9 @@ export default function ArtistsScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={6} currentStep={4} />
-                <Pressable onPress={handleContinue} style={styles.skipButton}>
-                    <SynthText variant="meta" color="secondary">Skip</SynthText>
-                </Pressable>
+                <OnboardingProgress totalSteps={5} currentStep={5} />
+                {/* No skip — at least 3 artists is required so the feed has real signal. */}
+                <View style={styles.skipButton} />
             </View>
 
             <View style={styles.searchContainer}>
@@ -100,7 +111,7 @@ export default function ArtistsScreen() {
                     <View style={styles.textContent}>
                         <SynthText variant="h1" style={styles.title}>Follow your favorites</SynthText>
                         <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                            We'll notify you when they play nearby
+                            Pick at least 3 — this powers your personalized feed
                         </SynthText>
                     </View>
                 }
@@ -108,8 +119,9 @@ export default function ArtistsScreen() {
 
             <View style={styles.footer}>
                 <SynthButton
-                    title={selectedArtistIds.length > 0 ? `Follow ${selectedArtistIds.length} Artists` : "Continue"}
+                    title={enoughArtists ? `Follow ${selectedArtistIds.length} Artists` : `Pick at least 3 (${selectedArtistIds.length}/3)`}
                     onPress={handleContinue}
+                    disabled={!enoughArtists}
                 />
             </View>
         </SafeAreaView>
