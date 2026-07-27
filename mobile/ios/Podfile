@@ -84,11 +84,15 @@ target 'Synth' do
           cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
         end
 
-        # Newer Xcode/clang rejects fmt's consteval format-string checks (bundled in
-        # RCT-Folly): "call to consteval function ... is not a constant expression".
-        # Neutralize FMT_CONSTEVAL so those compile as ordinary (non-consteval) calls.
+        # Newer Xcode/clang rejects fmt's consteval format-string checks (fmt is
+        # vendored in RN 0.83's Folly/React-Core): "call to consteval function ... is
+        # not a constant expression". fmt 11 gates this behind FMT_USE_CONSTEVAL, so
+        # set it to 0 (basic_format_string becomes constexpr, not consteval). Keep the
+        # legacy FMT_CONSTEVAL= too for any older fmt. Applied to all targets since fmt
+        # isn't a discrete pod here.
         defs = cfg.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
         defs = [defs] unless defs.is_a?(Array)
+        defs << 'FMT_USE_CONSTEVAL=0' unless defs.include?('FMT_USE_CONSTEVAL=0')
         defs << 'FMT_CONSTEVAL=' unless defs.include?('FMT_CONSTEVAL=')
         cfg.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
       end
