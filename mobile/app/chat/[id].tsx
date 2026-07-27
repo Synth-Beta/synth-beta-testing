@@ -135,7 +135,19 @@ export default function ChatThreadScreen() {
         useCallback(() => {
             void loadMessages();
             if (id) {
-                void supabase.rpc('mark_chat_as_read', { p_chat_id: id });
+                supabase
+                    .rpc('mark_chat_as_read', { p_chat_id: id })
+                    .then(({ error }) => {
+                        if (error) {
+                            console.error('[chat] mark_chat_as_read failed:', id, error.message, error.details, error.hint, error.code);
+                            void supabase.from('client_error_log').insert({
+                                context: 'mark_chat_as_read',
+                                error_message: error.message,
+                                error_details: { chat_id: id, code: error.code, details: error.details, hint: error.hint },
+                                platform: Platform.OS,
+                            });
+                        }
+                    });
             }
         }, [loadMessages, id])
     );
