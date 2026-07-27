@@ -472,8 +472,14 @@ class IncrementalSync3NF {
         };
       });
 
-      // Use upsert with onConflict to handle duplicate identifiers gracefully
-      const { data: inserted, error } = await this.syncService.supabase
+      // Use upsert with onConflict to handle duplicate identifiers gracefully.
+      // This still throws if two rows in the SAME batch share an `identifier`
+      // (Postgres can't resolve ON CONFLICT against the same target twice in
+      // one statement) — that used to abort the entire page. Same failure
+      // shape as the venue dedup bug fixed 2026-07-17: fall back to per-row
+      // upserts so one colliding artist can't take down ~100 events with it.
+      let inserted;
+      const { data: batchInserted, error: batchError } = await this.syncService.supabase
         .from('artists')
         .upsert(artistsToInsert, {
           onConflict: 'identifier',
@@ -481,8 +487,38 @@ class IncrementalSync3NF {
         })
         .select('id, identifier');
 
-      if (error) {
-        throw error;
+      if (batchError) {
+        console.warn(`  ⚠️  Batch artist upsert failed (${batchError.message}) — retrying row-by-row`);
+        inserted = [];
+        for (const row of artistsToInsert) {
+          const { data: rowInserted, error: rowError } = await this.syncService.supabase
+            .from('artists')
+            .upsert(row, { onConflict: 'identifier', ignoreDuplicates: false })
+            .select('id, identifier')
+            .maybeSingle();
+
+          if (rowInserted) {
+            inserted.push(rowInserted);
+            continue;
+          }
+
+          // Row-level upsert still failed (e.g. two artists in this page share
+          // an identifier) — reuse whichever row already holds that identifier
+          // instead of dropping the artist (and its events) entirely.
+          console.warn(`  ⚠️  Row upsert failed for artist "${row.name}" (${row.identifier}): ${rowError?.message} — reusing existing row by identifier`);
+          const { data: existingRow } = await this.syncService.supabase
+            .from('artists')
+            .select('id, identifier')
+            .eq('identifier', row.identifier)
+            .maybeSingle();
+          if (existingRow) {
+            inserted.push(existingRow);
+          } else {
+            console.error(`  ❌ Could not insert or find artist "${row.name}" (${row.identifier}) — skipping this artist only`);
+          }
+        }
+      } else {
+        inserted = batchInserted;
       }
 
       if (inserted) {
@@ -509,7 +545,11 @@ class IncrementalSync3NF {
     // to link events. Full artist data updates happen in the daily incremental sync.
     if (process.env.JAMBASE_UPCOMING_CATALOG !== '1') {
       for (const { uuid, data } of updateArtists) {
-        const { jambase_artist_id, artist_data_source, genres: newGenres, ...artistData } = data;
+        // `identifier` (jambase:<id>) is set once at insert and used to look up
+        // `uuid` above — it never needs to change on update. Excluding it here
+        // avoids a spurious `artists_new_identifier_key` violation if legacy
+        // data drift left another row already holding this same identifier.
+        const { jambase_artist_id, artist_data_source, identifier, genres: newGenres, ...artistData } = data;
 
         const { data: existingArtist, error: fetchError } = await this.syncService.supabase
           .from('artists')
@@ -559,7 +599,13 @@ class IncrementalSync3NF {
           .update(updateData)
           .eq('id', uuid);
 
-        if (error) throw error;
+        if (error) {
+          // Don't let one artist's update failure abort the whole page (~100
+          // events depend on this loop finishing) — same non-fatal pattern
+          // already used for venue update collisions.
+          console.warn(`  ⚠️  Artist update skipped for ${uuid} (${error.message})`);
+          continue;
+        }
 
         this.stats.artistsUpdated++;
 
@@ -1343,6 +1389,16 @@ class IncrementalSync3NF {
       console.log(`🧪 JAMBASE_MAX_PAGES enabled: will process pages ${startPage}–${endPage} (${maxPages} page(s))\n`);
     }
 
+    // dateModifiedFrom is fixed for the whole run (computed once from DB's
+    // current MAX(last_modified_at) above). If a page fails outright and we
+    // just move on, tomorrow's run recomputes that same watermark from the
+    // OTHER (successfully-synced, later/higher-dateModified) pages and it
+    // ends up past this page's events — they'd never be fetched again. So
+    // failed pages get one more retry pass at the end of THIS run, once
+    // whatever caused the failure (timeouts, transient conflicts) may have
+    // cleared, instead of being silently lost.
+    const failedPageNumbers = [];
+
     while (currentPage <= totalPages && currentPage <= endPage) {
       let pageData = null;
       let pageAttempt = 0;
@@ -1361,7 +1417,8 @@ class IncrementalSync3NF {
           pageAttempt++;
           if (pageAttempt >= maxPageAttempts) {
             console.error(`❌ Page ${currentPage} failed after ${maxPageAttempts} attempts: ${err.message}`);
-            console.log(`⏭️  Skipping page ${currentPage} and continuing...`);
+            console.log(`⏭️  Skipping page ${currentPage} for now (will retry at end of run)...`);
+            failedPageNumbers.push(currentPage);
             break;
           }
           const delay = Math.pow(2, pageAttempt) * 500;
@@ -1384,14 +1441,17 @@ class IncrementalSync3NF {
       // Retry processPage3NF on network errors (Supabase fetch can drop mid-page)
       let processAttempt = 0;
       const maxProcessAttempts = 3;
+      let processSucceeded = false;
       while (processAttempt < maxProcessAttempts) {
         try {
           await this.processPage3NF(pageData.events);
+          processSucceeded = true;
           break;
         } catch (err) {
           processAttempt++;
           if (processAttempt >= maxProcessAttempts) {
-            console.error(`❌ Page ${currentPage} DB write failed after ${maxProcessAttempts} attempts: ${err.message} — skipping`);
+            console.error(`❌ Page ${currentPage} DB write failed after ${maxProcessAttempts} attempts: ${err.message} — will retry at end of run`);
+            failedPageNumbers.push(currentPage);
             break;
           }
           const delay = Math.pow(2, processAttempt) * 2000;
@@ -1405,7 +1465,7 @@ class IncrementalSync3NF {
       const pageLabel = includePast
         ? `${pageData.events.length} events`
         : `${upcomingOnPage}/${pageData.events.length} upcoming`;
-      console.log(`✅ Processed page ${currentPage}/${totalPages} (${pageLabel})`);
+      console.log(`${processSucceeded ? '✅ Processed' : '⚠️  Skipped'} page ${currentPage}/${totalPages} (${pageLabel})`);
 
       totalPages = pageData.totalPages || 1;
       saveCheckpoint(currentPage);
@@ -1413,6 +1473,40 @@ class IncrementalSync3NF {
 
       // Small delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 150));
+    }
+
+    // Second-chance pass: re-fetch and re-process any page that failed above.
+    // Transient causes (DB contention from other jobs, momentary timeouts)
+    // often clear within a few minutes, and this is the last opportunity to
+    // catch those events before tomorrow's watermark moves past them.
+    if (failedPageNumbers.length > 0) {
+      console.log(`\n🔁 Retrying ${failedPageNumbers.length} failed page(s) at end of run: ${failedPageNumbers.join(', ')}`);
+      const stillFailed = [];
+      for (const pageNum of failedPageNumbers) {
+        try {
+          const retryPageData = await this.syncService.fetchEventsPage(
+            pageNum,
+            perPage,
+            dateModifiedFrom,
+            getEventDateFrom()
+          );
+          if (!retryPageData?.events?.length) {
+            console.log(`  ✅ Page ${pageNum}: no events to reprocess`);
+            continue;
+          }
+          await this.processPage3NF(retryPageData.events);
+          console.log(`  ✅ Page ${pageNum}: recovered on retry`);
+        } catch (err) {
+          console.error(`  ❌ Page ${pageNum}: still failing (${err.message}) — events on this page are not synced this run`);
+          stillFailed.push(pageNum);
+        }
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      if (stillFailed.length > 0) {
+        console.error(`\n❌ ${stillFailed.length} page(s) could not be synced after retry: ${stillFailed.join(', ')} — investigate before relying on this run being complete.`);
+      } else {
+        console.log('\n✅ All previously-failed pages recovered on retry.');
+      }
     }
 
     clearCheckpoint();

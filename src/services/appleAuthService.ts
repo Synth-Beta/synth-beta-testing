@@ -124,7 +124,6 @@ async function ensurePublicUsersRowAfterAppleAuth(params: {
     name: displayName,
     username,
     bio: 'Music lover looking to connect at events!',
-    moderation_status: 'good_standing',
     is_public_profile: true,
     created_at: now,
     updated_at: now,

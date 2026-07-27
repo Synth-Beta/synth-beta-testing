@@ -204,10 +204,6 @@ export default function ProfileSetupScreen() {
         router.push('/(onboarding)/connect');
     };
 
-    const handleSkip = () => {
-        router.push('/(onboarding)/connect');
-    };
-
     const usernameHint = (() => {
         switch (usernameStatus) {
             case 'checking': return { text: 'Checking…', color: SynthTokens.colors.neutral600 };
@@ -225,9 +221,7 @@ export default function ProfileSetupScreen() {
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
                 <OnboardingProgress totalSteps={5} currentStep={2} />
-                <Pressable onPress={handleSkip} style={styles.skipButton}>
-                    <SynthText variant="meta" color="secondary">Skip</SynthText>
-                </Pressable>
+                <View style={styles.skipButton} />
             </View>
 
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
