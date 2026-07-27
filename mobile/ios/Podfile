@@ -77,6 +77,20 @@ target 'Synth' do
         cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
         cfg.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
         cfg.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+
+        # Some transitive pods still declare IPHONEOS_DEPLOYMENT_TARGET 9.0, which
+        # newer Xcode rejects — floor everything at the app's 15.1.
+        if (cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] || '0').to_f < 15.1
+          cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        end
+
+        # Newer Xcode/clang rejects fmt's consteval format-string checks (bundled in
+        # RCT-Folly): "call to consteval function ... is not a constant expression".
+        # Neutralize FMT_CONSTEVAL so those compile as ordinary (non-consteval) calls.
+        defs = cfg.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+        defs = [defs] unless defs.is_a?(Array)
+        defs << 'FMT_CONSTEVAL=' unless defs.include?('FMT_CONSTEVAL=')
+        cfg.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
       end
     end
     installer.pods_project.build_configurations.each do |cfg|
