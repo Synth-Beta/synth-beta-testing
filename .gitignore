@@ -67,5 +67,12 @@ apps/admin/.env.local
 *.p8
 backend/secure/
 scripts/sync-checkpoint.json
+
+# AI agent skill source (installed via `npx skills add`). .claude/skills/ is
+# the committed copy this repo actually uses; .agents/ is just the local
+# symlink source for other tools and duplicates the same content on Windows
+# (core.symlinks=false flattens symlinks into real file copies, so keeping
+# both tracked would duplicate every file).
+.agents/
 .vercel
 deep-research-skills/
