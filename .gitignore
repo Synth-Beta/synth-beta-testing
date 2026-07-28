@@ -76,3 +76,11 @@ scripts/sync-checkpoint.json
 .agents/
 .vercel
 deep-research-skills/
+
+# graphify build cache — pure derived/regeneratable AST extraction cache,
+# not a shareable deliverable (unlike graph.json/GRAPH_REPORT.md). Churns on
+# every rebuild if tracked, adding noise to unrelated commits.
+graphify-out/cache/
+# graphify's own dated auto-backup ("backed up curated graph -> YYYY-MM-DD/")
+# taken before each hook-triggered rebuild — git history already covers this.
+graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/

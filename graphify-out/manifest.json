@@ -7930,7 +7930,7 @@
     "semantic_hash": ""
   },
   "skills-lock.json": {
-    "mtime": 1785275111.828151,
+    "mtime": 1785277459.930231,
     "ast_hash": "4a14c8e3a0282a2525a02d6d07df3fb6",
     "semantic_hash": ""
   },
@@ -8145,202 +8145,202 @@
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/CHANGELOG.md": {
-    "mtime": 1785275110.760345,
+    "mtime": 1785277458.8037717,
     "ast_hash": "38dde63a2039f448d90c48b3b5d5d2eb",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/SKILL.md": {
-    "mtime": 1785275110.760345,
+    "mtime": 1785277458.8037717,
     "ast_hash": "76523dd6bc0fb5d7893efa728a8707a6",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/_contributing.md": {
-    "mtime": 1785275110.760345,
+    "mtime": 1785277458.8037717,
     "ast_hash": "32c800fa6621705288dc651da22c9366",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/_sections.md": {
-    "mtime": 1785275110.760345,
+    "mtime": 1785277458.8037717,
     "ast_hash": "8547fba7fd9fae3b6be916c6f55b0f62",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/_template.md": {
-    "mtime": 1785275110.760345,
+    "mtime": 1785277458.8037717,
     "ast_hash": "74ec7e2bdd6c8ddbb354fcceec038bc2",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/advanced-full-text-search.md": {
-    "mtime": 1785275110.760345,
+    "mtime": 1785277458.8037717,
     "ast_hash": "327f8367de51b0982b963f2928184c35",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/advanced-jsonb-indexing.md": {
-    "mtime": 1785275110.760345,
+    "mtime": 1785277458.8037717,
     "ast_hash": "413ba907ff4408d6fd3545f839101ebf",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/conn-idle-timeout.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "8bbe8b609d5241351672cefc19036db6",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/conn-limits.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "661b3efcf0e35136352b3923ff265d5c",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/conn-pooling.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "c90dab7d0ab47443b41f17d5bc9f04b3",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/conn-prepared-statements.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "b53eb9dea11d6da338a8b6f9e67a3622",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/data-batch-inserts.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "6801a3a2d414dfd6a4c79970a37e795d",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/data-n-plus-one.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "c3ed0702a116d654602120bd5cd7713e",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/data-pagination.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "59be210a420d34780949ce16d5b4a8d5",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/data-upsert.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "3ae132bce8b5368e1e4a426d55ca4567",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/lock-advisory.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "ff943eb307d8b6e12cc6ab2bcb6e2d18",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/lock-deadlock-prevention.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "685b04bcae3a0720e84f1507d243e959",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/lock-short-transactions.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "3c947d59e0359f3b236bf2ad1da52c61",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/lock-skip-locked.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "098d38542f44b656aa55923f06db74c1",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/monitor-explain-analyze.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8037717,
     "ast_hash": "1fd19c373a0ff272129edd215a96e3a1",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/monitor-pg-stat-statements.md": {
-    "mtime": 1785275110.7673638,
+    "mtime": 1785277458.8194003,
     "ast_hash": "2f0cab7f72ad9dfe2cba469aaaacc733",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/monitor-vacuum-analyze.md": {
-    "mtime": 1785275110.7763858,
+    "mtime": 1785277458.8203983,
     "ast_hash": "25e738451079707ac54d21364b5538e1",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/query-composite-indexes.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8207507,
     "ast_hash": "5017f09940ed04b5b3ad836e426d9084",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/query-covering-indexes.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8217554,
     "ast_hash": "fd05c38771229d97f2d4065d0af0df70",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/query-index-types.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8227546,
     "ast_hash": "e2395c6ef69ea2f147c9ab1d18c7f879",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/query-missing-indexes.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8227546,
     "ast_hash": "786767ec677862bad060fc1b4ae0a94f",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/query-partial-indexes.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8237524,
     "ast_hash": "249d8fccca68c332e946b499531f21d8",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/schema-constraints.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.824752,
     "ast_hash": "476ca283cfda6c5517d94c25c41de775",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/schema-data-types.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.825754,
     "ast_hash": "cd65e34969ebce0bce84f622f5072477",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/schema-foreign-key-indexes.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8267517,
     "ast_hash": "8b99b21a07cadd2d85c6c16f416b5464",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/schema-lowercase-identifiers.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8272579,
     "ast_hash": "632ea53a0da6fe7651e354f3744d998e",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/schema-partitioning.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.827424,
     "ast_hash": "0f2fe9016bf9aa79dd30d7d6a4a03358",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/schema-primary-keys.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8285346,
     "ast_hash": "a732b1a95b6c231d47af14b715c6b9b0",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/security-privileges.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8285346,
     "ast_hash": "e6fbc325f8f3af1cab3e1cb99d9f146a",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/security-rls-basics.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8296776,
     "ast_hash": "82ee8b214f39f78c9e88061b6f890508",
     "semantic_hash": ""
   },
   ".claude/skills/supabase-postgres-best-practices/references/security-rls-performance.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8303556,
     "ast_hash": "ad2ccf01dfd325527b18256c3e25b842",
     "semantic_hash": ""
   },
   ".claude/skills/supabase/CHANGELOG.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8314366,
     "ast_hash": "f45d7e2b43b67f5086c4b6146bc4ed46",
     "semantic_hash": ""
   },
   ".claude/skills/supabase/SKILL.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8321207,
     "ast_hash": "4d6d9d40097033a3cbb80a9cfa08bd1c",
     "semantic_hash": ""
   },
   ".claude/skills/supabase/assets/feedback-issue-template.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.8333466,
     "ast_hash": "e2c8b4f1a20e46315dd7609540d9b8d4",
     "semantic_hash": ""
   },
   ".claude/skills/supabase/references/skill-feedback.md": {
-    "mtime": 1785275110.7768538,
+    "mtime": 1785277458.833491,
     "ast_hash": "c9fa098e2ec8bdce9d6a0f8a64d2c6c0",
     "semantic_hash": ""
   },
