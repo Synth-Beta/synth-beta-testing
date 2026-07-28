@@ -1,8 +1,34 @@
-# Deployment Guide — Synth (join.getsynth.app)
+# Deployment Guide — Synth
+
+| App | Path in repo | Domain | Vercel |
+|-----|--------------|--------|--------|
+| Consumer web + APIs | repo root | https://join.getsynth.app | `synth-beta-testing` |
+| Admin + marketing | `apps/admin/` | https://getsynth.app | `plusone-event-crew` (Root Directory = `apps/admin`) |
+| Styleguide | `styleguide/` | https://styleguide.getsynth.app | `synth-styleguide` |
+| Mobile | `mobile/` | App Store / EAS | — |
+
+`/admin` on getsynth.app is the ops portal from `apps/admin` — same app as before; it was moved into this repo for a single codebase. Do not change admin UX unless intentional.
+
+## Vercel — join.getsynth.app (repo root)
 
 Production deploys from **[Synth-Beta/synth-beta-testing](https://github.com/Synth-Beta/synth-beta-testing)** `main` via Vercel. Mobile store builds use **EAS** from `mobile/`.
 
-## Vercel (web + API routes)
+## Vercel — getsynth.app (`apps/admin`)
+
+1. Project **plusone-event-crew** → Settings → General → **Root Directory** = `apps/admin`
+2. Connect Git to `Synth-Beta/synth-beta-testing` (same repo as beta)
+3. Keep existing Production env vars on that project (do not point join env at admin)
+4. Optional Ignored Build Step so admin only rebuilds when `apps/admin/**` changes:
+   ```bash
+   git diff --quiet HEAD^ HEAD -- ./apps/admin
+   ```
+
+Local admin:
+```bash
+npm run admin:install && npm run admin:dev
+```
+
+## Vercel (web + API routes — join)
 
 1. Link the Vercel project to `Synth-Beta/synth-beta-testing` (Git integration on `main`).
 2. Set **Production** environment variables:

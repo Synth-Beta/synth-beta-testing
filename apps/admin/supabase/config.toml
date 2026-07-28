@@ -1,0 +1,13 @@
+project_id = "glpiolbrafqikqhnseto"
+
+[functions.instagram-analytics]
+verify_jwt = false
+
+[functions.editorial-research]
+verify_jwt = false
+
+[functions.editorial-generate]
+verify_jwt = false
+
+[functions.content-calendar-publish]
+verify_jwt = false

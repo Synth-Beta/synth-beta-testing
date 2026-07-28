@@ -37,6 +37,23 @@ See [docs/SECURITY.md](docs/SECURITY.md) for detailed security policies and conf
 
 ## Quick Start
 
+### Monorepo layout
+
+| Path | App |
+|------|-----|
+| repo root | Consumer web (`join.getsynth.app`) |
+| `apps/admin/` | Admin + marketing (`getsynth.app`, `/admin` unchanged) |
+| `mobile/` | Expo app |
+| `styleguide/` | Style guide site |
+
+```bash
+# Consumer app
+npm install && npm run dev
+
+# Admin portal (getsynth.app)
+npm run admin:install && npm run admin:dev
+```
+
 ### Prerequisites
 
 - Node.js (v18 or higher)

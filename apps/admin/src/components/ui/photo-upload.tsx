@@ -1,0 +1,390 @@
+import React, { useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Camera, X, Loader2, Image as ImageIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { storageService, type BucketName } from '@/services/storageService';
+import { useToast } from '@/hooks/use-toast';
+
+export interface PhotoUploadProps {
+  value: string[];
+  onChange: (urls: string[]) => void;
+  userId: string;
+  bucket: BucketName;
+  maxPhotos?: number;
+  maxSizeMB?: number;
+  label?: string;
+  helperText?: string;
+  className?: string;
+  disabled?: boolean;
+}
+
+export function PhotoUpload({
+  value = [],
+  onChange,
+  userId,
+  bucket,
+  maxPhotos = 5,
+  maxSizeMB = 5,
+  label = 'Photos',
+  helperText,
+  className,
+  disabled = false,
+}: PhotoUploadProps) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Check if adding these files would exceed max
+    if (value.length + files.length > maxPhotos) {
+      toast({
+        title: 'Too many photos',
+        description: `You can only upload up to ${maxPhotos} photos`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate each file
+    for (const file of files) {
+      const validation = storageService.validateImage(file, { maxSizeMB });
+      if (!validation.valid) {
+        toast({
+          title: 'Invalid file',
+          description: validation.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Upload files one by one with progress
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const result = await storageService.uploadPhoto(files[i], bucket, userId, {
+          maxSizeMB,
+        });
+        uploadedUrls.push(result.url);
+        setUploadProgress(((i + 1) / files.length) * 100);
+      }
+
+      onChange([...value, ...uploadedUrls]);
+      
+      toast({
+        title: 'Upload successful',
+        description: `${files.length} photo${files.length > 1 ? 's' : ''} uploaded`,
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Failed to upload photos',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemove = async (url: string, index: number) => {
+    try {
+      // Extract path and delete from storage
+      const path = storageService.getPathFromUrl(url, bucket);
+      if (path) {
+        await storageService.deletePhoto(bucket, path);
+      }
+
+      // Update state
+      const newValue = value.filter((_, i) => i !== index);
+      onChange(newValue);
+
+      toast({
+        title: 'Photo removed',
+        description: 'Photo deleted successfully',
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: 'Delete failed',
+        description: 'Failed to delete photo',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className={cn('space-y-3', className)}>
+      {label && (
+        <div>
+          <label className="text-sm font-medium">{label}</label>
+          {helperText && <p className="text-xs text-muted-foreground mt-1">{helperText}</p>}
+        </div>
+      )}
+
+      {/* Photo Grid */}
+      <div className="grid grid-cols-3 gap-3">
+        {value.map((url, index) => (
+          <div
+            key={url}
+            className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group"
+          >
+            <img
+              src={url}
+              alt={`Photo ${index + 1}`}
+              className="w-full h-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => handleRemove(url, index)}
+              disabled={disabled || uploading}
+              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+
+        {/* Upload Button */}
+        {value.length < maxPhotos && (
+          <button
+            type="button"
+            onClick={openFilePicker}
+            disabled={disabled || uploading}
+            className={cn(
+              'aspect-square rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400',
+              'flex flex-col items-center justify-center gap-2 transition-colors',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+              uploading && 'border-primary'
+            )}
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground">{uploadProgress.toFixed(0)}%</span>
+              </>
+            ) : (
+              <>
+                <Camera className="w-6 h-6 text-gray-400" />
+                <span className="text-xs text-muted-foreground">Add Photo</span>
+              </>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={disabled || uploading}
+      />
+
+      {/* Info Text */}
+      <p className="text-xs text-muted-foreground">
+        {value.length} / {maxPhotos} photos • Max {maxSizeMB}MB per photo
+      </p>
+    </div>
+  );
+}
+
+/* Single Photo Upload Component (for avatars) */
+export interface SinglePhotoUploadProps {
+  value: string | null;
+  onChange: (url: string | null) => void;
+  userId: string;
+  bucket: BucketName;
+  maxSizeMB?: number;
+  label?: string;
+  helperText?: string;
+  className?: string;
+  disabled?: boolean;
+  aspectRatio?: 'square' | 'circle';
+}
+
+export function SinglePhotoUpload({
+  value,
+  onChange,
+  userId,
+  bucket,
+  maxSizeMB = 2,
+  label = 'Photo',
+  helperText,
+  className,
+  disabled = false,
+  aspectRatio = 'square',
+}: SinglePhotoUploadProps) {
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    const validation = storageService.validateImage(file, { maxSizeMB });
+    if (!validation.valid) {
+      toast({
+        title: 'Invalid file',
+        description: validation.error,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Delete old photo if exists
+      if (value) {
+        const oldPath = storageService.getPathFromUrl(value, bucket);
+        if (oldPath) {
+          await storageService.deletePhoto(bucket, oldPath).catch(console.error);
+        }
+      }
+
+      // Upload new photo
+      const result = await storageService.uploadPhoto(file, bucket, userId, { maxSizeMB });
+      onChange(result.url);
+
+      toast({
+        title: 'Upload successful',
+        description: 'Photo uploaded successfully',
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Failed to upload photo',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!value) return;
+
+    try {
+      const path = storageService.getPathFromUrl(value, bucket);
+      if (path) {
+        await storageService.deletePhoto(bucket, path);
+      }
+      onChange(null);
+
+      toast({
+        title: 'Photo removed',
+        description: 'Photo deleted successfully',
+      });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: 'Delete failed',
+        description: 'Failed to delete photo',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className={cn('space-y-3', className)}>
+      {label && (
+        <div>
+          <label className="text-sm font-medium">{label}</label>
+          {helperText && <p className="text-xs text-muted-foreground mt-1">{helperText}</p>}
+        </div>
+      )}
+
+      <div className="flex items-center gap-4">
+        {/* Photo Preview */}
+        <div
+          className={cn(
+            'relative w-24 h-24 bg-gray-100 overflow-hidden group',
+            aspectRatio === 'circle' ? 'rounded-full' : 'rounded-lg'
+          )}
+        >
+          {value ? (
+            <>
+              <img src={value} alt="Upload" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={handleRemove}
+                disabled={disabled || uploading}
+                className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+              >
+                <X className="w-6 h-6 text-white" />
+              </button>
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageIcon className="w-8 h-8 text-gray-400" />
+            </div>
+          )}
+        </div>
+
+        {/* Upload Button */}
+        <div className="flex-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={openFilePicker}
+            disabled={disabled || uploading}
+            className="w-full"
+          >
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4 mr-2" />
+                {value ? 'Change Photo' : 'Upload Photo'}
+              </>
+            )}
+          </Button>
+          {helperText && <p className="text-xs text-muted-foreground mt-2">{helperText}</p>}
+        </div>
+      </div>
+
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={disabled || uploading}
+      />
+    </div>
+  );
+}
+

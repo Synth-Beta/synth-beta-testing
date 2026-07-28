@@ -1,0 +1,337 @@
+import React, { useState } from 'react';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Check, Calendar, Music } from 'lucide-react';
+import { ArtistSearchBox } from '@/components/ArtistSearchBox';
+import { VenueSearchBox } from '@/components/VenueSearchBox';
+import { SetlistModal } from '@/components/reviews/SetlistModal';
+import type { Artist } from '@/types/concertSearch';
+import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
+import type { ReviewFormData } from '@/hooks/useReviewForm';
+import { supabase } from '@/integrations/supabase/client';
+import { isEventPast, getEventStatus } from '@/utils/eventStatusUtils';
+
+interface EventDetailsStepProps {
+  formData: ReviewFormData;
+  errors: Record<string, string>;
+  onUpdateFormData: (updates: Partial<ReviewFormData>) => void;
+}
+
+export function EventDetailsStep({ formData, errors, onUpdateFormData }: EventDetailsStepProps) {
+  // Quick event search (Supabase backed)
+  const [eventQuery, setEventQuery] = React.useState('');
+  const [eventResults, setEventResults] = React.useState<Array<any>>([]);
+  const [eventLoading, setEventLoading] = React.useState(false);
+  const [showEventResults, setShowEventResults] = React.useState(false);
+  
+  // Setlist modal state
+  const [showSetlistModal, setShowSetlistModal] = React.useState(false);
+  
+  const handleSetlistSelect = (setlist: any) => {
+    console.log('🎵 EventDetailsStep: Setlist selected:', setlist);
+    onUpdateFormData({ selectedSetlist: setlist });
+  };
+
+  React.useEffect(() => {
+    const handler = setTimeout(async () => {
+      const q = eventQuery.trim();
+      if (q.length < 2) { setEventResults([]); return; }
+      try {
+        setEventLoading(true);
+        // Search by artist, title, or venue with OR conditions
+        // Prioritize past events for reviews by ordering past events first
+        const { data, error } = await supabase
+          .from('jambase_events')
+          .select('id, title, artist_name, venue_name, event_date, artist_id, venue_id')
+          .or(`artist_name.ilike.%${q}%,title.ilike.%${q}%,venue_name.ilike.%${q}%`)
+          .order('event_date', { ascending: false })
+          .limit(50); // Increased limit to get more results
+        
+        if (!error && data) {
+          // Filter to ONLY show past events for reviews
+          const pastEventsOnly = data.filter(event => isEventPast(event.event_date));
+          
+          // Sort past events by date (most recent first)
+          const sortedResults = pastEventsOnly.sort((a, b) => 
+            new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
+          );
+          
+          setEventResults(sortedResults);
+          setShowEventResults(true);
+        } else {
+          setEventResults([]);
+          setShowEventResults(false);
+        }
+      } finally {
+        setEventLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [eventQuery]);
+
+  const applyEventSelection = (ev: any) => {
+    const eventDate = ev?.event_date ? String(ev.event_date).split('T')[0] : '';
+    const selectedArtist = ev?.artist_name ? ({ id: ev.artist_id || `manual-${ev.artist_name}`, name: ev.artist_name, is_from_database: !!ev.artist_id } as any) : null;
+    const selectedVenue = ev?.venue_name ? ({ id: ev.venue_id || `manual-${ev.venue_name}`, name: ev.venue_name, is_from_database: !!ev.venue_id } as any) : null;
+    const updates: Partial<ReviewFormData> = { reviewType: 'event' } as any;
+    if (selectedArtist) (updates as any).selectedArtist = selectedArtist;
+    if (selectedVenue) (updates as any).selectedVenue = selectedVenue;
+    if (eventDate) (updates as any).eventDate = eventDate;
+    onUpdateFormData(updates);
+    setShowEventResults(false);
+  };
+
+  const handleArtistSelect = (artist: Artist) => {
+    console.log('🎵 Artist selected in EventDetailsStep:', {
+      name: artist.name,
+      id: artist.id,
+    });
+    onUpdateFormData({ selectedArtist: artist });
+    // Lock immediately to prevent race condition
+    setArtistLocked(true);
+  };
+
+  const handleVenueSelect = (venue: VenueSearchResult) => {
+    console.log('🎯 Venue selected in EventDetailsStep:', {
+      name: venue.name,
+      id: venue.id,
+      is_from_database: venue.is_from_database,
+      identifier: venue.identifier,
+    });
+    console.log('🎯 Before update - formData.selectedVenue:', formData.selectedVenue);
+    console.log('🎯 Before update - venueLocked:', venueLocked);
+    
+    onUpdateFormData({ selectedVenue: venue });
+    
+    console.log('🎯 After update - setting venueLocked to true');
+    // Lock immediately to prevent race condition
+    setVenueLocked(true);
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onUpdateFormData({ eventDate: e.target.value });
+  };
+
+  const [artistLocked, setArtistLocked] = React.useState(!!formData.selectedArtist);
+  const [venueLocked, setVenueLocked] = React.useState(!!formData.selectedVenue);
+
+  React.useEffect(() => {
+    // Only unlock if artist is cleared, don't auto-lock
+    if (!formData.selectedArtist) {
+      setArtistLocked(false);
+    }
+  }, [formData.selectedArtist]);
+
+  React.useEffect(() => {
+    // Only unlock if venue is cleared, don't auto-lock
+    if (!formData.selectedVenue) {
+      setVenueLocked(false);
+    }
+  }, [formData.selectedVenue]);
+
+  return (
+    <div className="space-y-6">
+      {/* Quick Event Search */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Quick search existing event (optional)</Label>
+        <div className="relative">
+          <Input
+            placeholder="Search by artist, event title, or venue..."
+            value={eventQuery}
+            onChange={(e) => setEventQuery(e.target.value)}
+            onFocus={() => { if (eventResults.length > 0) setShowEventResults(true); }}
+          />
+          {showEventResults && (eventResults.length > 0 || eventLoading) && (
+            <div className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded-md border bg-white shadow">
+              {eventLoading && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
+              )}
+              {!eventLoading && eventResults.map(ev => {
+                const eventStatus = getEventStatus(ev.event_date);
+                const isPast = isEventPast(ev.event_date);
+                
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-l-4 border-l-green-500 bg-green-50/30"
+                    onClick={() => applyEventSelection(ev)}
+                  >
+                    <div className="font-medium text-gray-900">{ev.title || `${ev.artist_name} @ ${ev.venue_name}`}</div>
+                    <div className="text-xs text-gray-500 flex items-center justify-between">
+                      <span>{ev.artist_name} • {ev.venue_name} • {new Date(ev.event_date).toLocaleDateString()}</span>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Past Event
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+              {!eventLoading && eventResults.length === 0 && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">No past events found</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="text-center mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Event Details</h2>
+        <p className="text-sm text-gray-600">Tell us about the concert you attended</p>
+      </div>
+      {/* Horizontal row: Artist, Venue, Date */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+        <div className="space-y-2">
+          <Label htmlFor="artist" className="text-sm font-medium">Artist or Band *</Label>
+          {!formData.selectedArtist || !artistLocked ? (
+            <ArtistSearchBox
+              onArtistSelect={handleArtistSelect}
+              placeholder="Search for an artist or band..."
+              className="w-full"
+              hideClearButton={!!formData.selectedArtist}
+            />
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                <div>
+                  <p className="text-sm font-medium text-green-800">{formData.selectedArtist.name}</p>
+                </div>
+                <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedArtist: null }); setArtistLocked(false); }}>×</button>
+              </div>
+              <Button
+                type="button"
+                variant={formData.selectedSetlist ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowSetlistModal(true)}
+                className="w-full text-xs"
+              >
+                <Music className="w-3 h-3 mr-1" />
+                {formData.selectedSetlist ? 'Setlist Selected' : 'View Setlist'}
+              </Button>
+            </div>
+          )}
+          {errors.selectedArtist && (
+            <p className="text-sm text-red-600">{errors.selectedArtist}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="venue" className="text-sm font-medium">Venue *</Label>
+          {(() => {
+            console.log('🎯 Venue render check:', {
+              hasSelectedVenue: !!formData.selectedVenue,
+              venueLocked,
+              selectedVenueName: formData.selectedVenue?.name,
+              shouldShowSearch: !formData.selectedVenue || !venueLocked
+            });
+            return null;
+          })()}
+          {!formData.selectedVenue || !venueLocked ? (
+            <VenueSearchBox
+              onVenueSelect={handleVenueSelect}
+              placeholder="Search for a venue..."
+              className="w-full"
+              hideClearButton={!!formData.selectedVenue}
+            />
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+              <div>
+                <p className="text-sm font-medium text-green-800">{formData.selectedVenue.name}</p>
+                {formData.selectedVenue.address && (
+                  <p className="text-xs text-green-700">{[formData.selectedVenue.address.addressLocality, formData.selectedVenue.address.addressRegion].filter(Boolean).join(', ')}</p>
+                )}
+              </div>
+              <button className="text-xs text-red-600" onClick={()=>{ onUpdateFormData({ selectedVenue: null }); setVenueLocked(false); }}>×</button>
+            </div>
+          )}
+          {errors.selectedVenue && (
+            <p className="text-sm text-red-600">{errors.selectedVenue}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="eventDate" className="text-sm font-medium flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Date *
+          </Label>
+          <Input
+            id="eventDate"
+            type="date"
+            value={formData.eventDate}
+            onChange={handleDateChange}
+            className="w-full"
+            max={new Date().toISOString().split('T')[0]}
+          />
+          {errors.eventDate && (
+            <p className="text-sm text-red-600">{errors.eventDate}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Summary */}
+      {formData.selectedArtist && formData.selectedVenue && formData.eventDate && (
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="text-sm font-medium text-blue-900 mb-2">Event Summary</h3>
+          <div className="text-sm text-blue-800">
+            <p>
+              <button
+                className="font-bold hover:text-blue-600 hover:underline cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const ev = new CustomEvent('open-artist-card', { 
+                    detail: { 
+                      artistId: formData.selectedArtist?.id, 
+                      artistName: formData.selectedArtist?.name 
+                    } 
+                  });
+                  document.dispatchEvent(ev);
+                }}
+                aria-label={`View artist ${formData.selectedArtist.name}`}
+              >
+                {formData.selectedArtist.name}
+              </button>
+            </p>
+            <p>
+              at{' '}
+              <button
+                className="font-bold hover:text-blue-600 hover:underline cursor-pointer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const ev = new CustomEvent('open-venue-card', { 
+                    detail: { 
+                      venueId: formData.selectedVenue?.id, 
+                      venueName: formData.selectedVenue?.name 
+                    } 
+                  });
+                  document.dispatchEvent(ev);
+                }}
+                aria-label={`View venue ${formData.selectedVenue.name}`}
+              >
+                {formData.selectedVenue.name}
+              </button>
+            </p>
+            <p>on {new Date(formData.eventDate).toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            })}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Setlist Modal */}
+      <SetlistModal
+        isOpen={showSetlistModal}
+        onClose={() => setShowSetlistModal(false)}
+        artistName={formData.selectedArtist?.name || ''}
+        venueName={formData.selectedVenue?.name}
+        eventDate={formData.eventDate}
+        onSetlistSelect={handleSetlistSelect}
+      />
+    </div>
+  );
+}
