@@ -13,13 +13,13 @@ import {
     Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthButton } from '../../src/components/SynthButton';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
+import { getCurrentLatLng, reverseGeocode } from '../../src/services/locationService';
 import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource } from '@synth/shared';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -72,6 +72,8 @@ export default function ProfileSetupScreen() {
     const [birthday, setBirthday] = useState('');
     const [birthdayError, setBirthdayError] = useState('');
     const [city, setCity] = useState('');
+    const [locatingCity, setLocatingCity] = useState(false);
+    const [locateCityError, setLocateCityError] = useState('');
     const [gender, setGender] = useState('');
     const [saving, setSaving] = useState(false);
     const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSource | ''>('');
@@ -120,6 +122,26 @@ export default function ProfileSetupScreen() {
             void checkUsernameAvailability(uname);
         }, 600);
     }, [checkUsernameAvailability]);
+
+    const handleUseCurrentLocation = useCallback(async () => {
+        setLocateCityError('');
+        setLocatingCity(true);
+        try {
+            const coords = await getCurrentLatLng();
+            if (!coords) {
+                setLocateCityError("Couldn't get your location — enter it manually below");
+                return;
+            }
+            const formatted = await reverseGeocode(coords.latitude, coords.longitude);
+            if (!formatted) {
+                setLocateCityError("Couldn't determine your city — enter it manually below");
+                return;
+            }
+            setCity(formatted);
+        } finally {
+            setLocatingCity(false);
+        }
+    }, []);
 
     const selectAcquisitionSource = useCallback((source: AcquisitionSource) => {
         setAcquisitionSourceError('');
@@ -217,9 +239,11 @@ export default function ProfileSetupScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Pressable onPress={() => router.back()} style={styles.backButton}>
-                    <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
-                </Pressable>
+                {/* No back button — this is the real entry point post-signup. The
+                    root layout enters onboarding via router.replace(), which wipes
+                    the sign-up screen from history, so router.back() here had
+                    nothing to pop to and silently did nothing. */}
+                <View style={styles.backButton} />
                 <OnboardingProgress totalSteps={5} currentStep={2} />
                 <View style={styles.skipButton} />
             </View>
@@ -293,15 +317,28 @@ export default function ProfileSetupScreen() {
 
                     {/* City */}
                     <View style={styles.fieldBlock}>
-                        <Text style={styles.label}>City</Text>
+                        <View style={styles.cityLabelRow}>
+                            <Text style={styles.label}>City</Text>
+                            <Pressable onPress={handleUseCurrentLocation} disabled={locatingCity} hitSlop={8}>
+                                {locatingCity ? (
+                                    <ActivityIndicator size="small" color={PINK} />
+                                ) : (
+                                    <Text style={styles.useLocationLink}>Use my current location</Text>
+                                )}
+                            </Pressable>
+                        </View>
                         <TextInput
                             style={styles.input}
                             value={city}
-                            onChangeText={setCity}
+                            onChangeText={text => { setCity(text); setLocateCityError(''); }}
                             placeholder="Los Angeles, CA"
                             placeholderTextColor={SynthTokens.colors.neutral400}
                         />
-                        <Text style={styles.hint}>Used for local event discovery</Text>
+                        {locateCityError ? (
+                            <Text style={[styles.hint, { color: '#dc2626' }]}>{locateCityError}</Text>
+                        ) : (
+                            <Text style={styles.hint}>Used for local event discovery</Text>
+                        )}
                     </View>
 
                     {/* Acquisition source */}
@@ -475,6 +512,16 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: SynthTokens.colors.neutral600,
         marginTop: 5,
+    },
+    cityLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    useLocationLink: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: PINK,
     },
     genderRow: {
         flexDirection: 'row',

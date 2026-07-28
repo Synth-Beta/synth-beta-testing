@@ -12,7 +12,12 @@ export class ArtistService {
         const { data, error } = await supabase
             .from('artists')
             .select('id, name, image_url, genres')
-            .order('popularity', { ascending: false })
+            // `artists` has no `popularity` column — ordering by it made every
+            // call here fail silently (caught below, returns []), which is why
+            // onboarding's artist search showed no results for anything.
+            // num_upcoming_events is the closest real signal for "worth
+            // suggesting" in a concert app.
+            .order('num_upcoming_events', { ascending: false, nullsFirst: false })
             .limit(limit);
 
         if (error) {
@@ -28,7 +33,12 @@ export class ArtistService {
             .from('artists')
             .select('id, name, image_url, genres')
             .ilike('name', `%${query}%`)
-            .order('popularity', { ascending: false })
+            // `artists` has no `popularity` column — ordering by it made every
+            // call here fail silently (caught below, returns []), which is why
+            // onboarding's artist search showed no results for anything.
+            // num_upcoming_events is the closest real signal for "worth
+            // suggesting" in a concert app.
+            .order('num_upcoming_events', { ascending: false, nullsFirst: false })
             .limit(limit);
 
         if (error) {

@@ -1,0 +1,65 @@
+-- =============================================================================
+-- 01 — Drop confirmed duplicate indexes (reduces write I/O on hot tables)
+-- =============================================================================
+-- Written during the 2026-07-27 Disk IO Budget incident. Supabase's own
+-- assistant flagged overlapping indexes on events (geo) and external_entity_ids
+-- as write-amplification suspects. Verified against LIVE pg_stat_user_indexes
+-- before including anything here — both drops below are unambiguous:
+--
+--   idx_events_lat_lng                (btree lat,lng, no WHERE)      6,137 scans, 13MB
+--   idx_events_latitude_longitude     (btree lat,lng, WHERE NOT NULL) 26,856 scans, 13MB
+--     -> partial index gets 4.4x more use and covers every row that
+--        matters for geo search (you can't radius-search a NULL
+--        coordinate). Full index is a strict subset of its coverage
+--        for real query patterns. Safe to drop the full one.
+--
+--   external_entity_ids_lookup_idx                    (plain, source+type+external_id) 1,000,008 scans, 17MB
+--   external_entity_ids_source_type_external_id_uniq  (UNIQUE, same 3 cols, same order)   640,081 scans, 17MB
+--     -> identical columns, identical order. The plain index cannot do
+--        anything the UNIQUE index can't already do (a unique index
+--        serves regular lookups too) — this is a pure duplicate paying
+--        full write-maintenance cost for zero extra capability. Matches
+--        the exact pattern already flagged+fixed for 6 other tables in
+--        the 2026-07-17 DB deep scan (see project memory) — this one
+--        (external_entity_ids_lookup_idx) was noted then but not yet
+--        dropped.
+--
+-- NOT included: external_entity_ids_entity_type_source_external_id_key
+-- (150,591 scans with a DIFFERENT column order — entity_type-first vs
+-- source-first). Both this and the _uniq index enforce the same
+-- underlying 3-column uniqueness, so keeping both does cost extra writes,
+-- but this one is genuinely serving read queries with entity_type as the
+-- leading filter. Consolidating it needs a check of which code paths
+-- filter by entity_type vs source first — not done here, see 02 for that
+-- investigation. Dropping it now, sight-unseen, risks trading a write-I/O
+-- win for a new slow-query regression during an incident. Not worth it.
+--
+-- SAFETY: originally written with DROP INDEX CONCURRENTLY, but the
+-- Supabase dashboard SQL editor runs every statement inside a transaction
+-- wrapper, and CONCURRENTLY operations flatly refuse to run inside ANY
+-- transaction block (25001) — this is a hard Postgres restriction, not
+-- something fixable by how the SQL is pasted. Switched to a plain DROP
+-- INDEX below: both indexes are small (13MB, 17MB), so the brief ACCESS
+-- EXCLUSIVE lock a non-concurrent drop takes lasts milliseconds, not
+-- something that will cause a noticeable stall.
+-- ROLLBACK: re-run the CREATE INDEX statements shown in the "restore"
+-- block at the bottom if either drop turns out to regress a query path.
+-- =============================================================================
+
+DROP INDEX IF EXISTS public.idx_events_lat_lng;
+
+DROP INDEX IF EXISTS public.external_entity_ids_lookup_idx;
+
+-- ---- VERIFY -----------------------------------------------------------------
+-- Confirm both are gone and the remaining indexes still exist:
+--   SELECT indexname FROM pg_indexes
+--   WHERE tablename IN ('events','external_entity_ids')
+--     AND indexname IN ('idx_events_lat_lng','idx_events_latitude_longitude',
+--                        'external_entity_ids_lookup_idx',
+--                        'external_entity_ids_source_type_external_id_uniq');
+
+-- ---- ROLLBACK (only if needed) ----------------------------------------------
+-- CREATE INDEX CONCURRENTLY idx_events_lat_lng
+--   ON public.events USING btree (latitude, longitude);
+-- CREATE INDEX CONCURRENTLY external_entity_ids_lookup_idx
+--   ON public.external_entity_ids USING btree (source, entity_type, external_id);
