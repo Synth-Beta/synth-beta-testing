@@ -1,20 +1,23 @@
 #!/usr/bin/env node
 /**
- * Admin portal lives in-repo at apps/admin (getsynth.app).
- * This script no longer copies across repos — it prints the layout.
+ * Admin portal is in-repo at apps/admin (getsynth.app).
+ * Legacy samandtej-plusone/plusone-event-crew has been deleted.
  */
 console.log(`
-Synth admin portal is vendored at:
+Synth admin portal:
 
-  apps/admin/     →  https://getsynth.app  (/admin unchanged)
+  apps/admin/     →  https://getsynth.app  (/admin)
+
+Canonical repo: Synth-Beta/synth-beta-testing
 
 From repo root:
   npm run admin:install
   npm run admin:dev
   npm run admin:build
 
-Vercel (plusone-event-crew / getsynth.app):
+Vercel (getsynth.app project, historically named plusone-event-crew):
+  Git = Synth-Beta/synth-beta-testing
   Root Directory = apps/admin
 
-Consumer app stays at repo root → https://join.getsynth.app
+Consumer app (repo root) → https://join.getsynth.app
 `);

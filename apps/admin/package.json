@@ -2,7 +2,7 @@
   "name": "@synth/admin-portal",
   "private": true,
   "version": "1.0.0",
-  "description": "getsynth.app — marketing + /admin portal (unchanged from plusone-event-crew)",
+  "description": "getsynth.app — marketing + /admin portal (canonical path: apps/admin in synth-beta-testing)",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,6 +1,7 @@
 # Provenance
 
-Imported from https://github.com/samandtej-plusone/plusone-event-crew (`main`)
-into `apps/admin` so Synth beta and getsynth.app admin live in one repo.
+Originally imported from `samandtej-plusone/plusone-event-crew` into `apps/admin`.
 
-Admin `/admin` UX and routes are intentionally unchanged from that source.
+**That legacy GitHub repo has been deleted.** This monorepo (`Synth-Beta/synth-beta-testing`) is the only source of truth for getsynth.app `/admin`.
+
+Admin `/admin` UX and routes are intentionally preserved from the original portal.

@@ -1,8 +1,11 @@
 # Synth Admin Portal (`getsynth.app`)
 
-This is the **getsynth.app** app — marketing site + `/admin` — vendored into the beta monorepo from [samandtej-plusone/plusone-event-crew](https://github.com/samandtej-plusone/plusone-event-crew).
+Marketing site + `/admin` ops portal. Lives in this monorepo at `apps/admin/`.
 
-**Do not change `/admin` behavior here unless you intend to change production admin.** This folder exists so you can edit admin and the consumer app in one repo.
+**Canonical repo:** [Synth-Beta/synth-beta-testing](https://github.com/Synth-Beta/synth-beta-testing)  
+**Legacy:** `samandtej-plusone/plusone-event-crew` has been deleted — do not clone or deploy from it.
+
+**Do not change `/admin` behavior here unless you intend to change production admin.**
 
 | | |
 |---|---|
@@ -24,14 +27,19 @@ Or:
 cd apps/admin && npm install && npm run dev
 ```
 
-Copy env from the getsynth.app Vercel project (or existing plusone `.env`) into `apps/admin/.env.local`. Never commit it.
+Copy env from the getsynth.app Vercel project into `apps/admin/.env.local`. Never commit it.
 
 ## Deploy
 
 Vercel project for getsynth.app must use:
 
+- **Git repo:** `Synth-Beta/synth-beta-testing`
 - **Root Directory:** `apps/admin`
 - **Build:** `npm run build`
 - **Output:** `dist`
 
-After linking Git to `Synth-Beta/synth-beta-testing`, only changes under `apps/admin/**` should trigger that project (configure Ignored Build Step if needed).
+Optional Ignored Build Step (only rebuild when admin changes):
+
+```bash
+git diff --quiet HEAD^ HEAD -- ./apps/admin
+```
