@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/ops-alert.js": { "maxDuration": 15 }
+  },
+  "rewrites": [
+    { "source": "/auth/spotify/callback", "destination": "/" },
+    { "source": "/((?!api/).*)", "destination": "/" }
+  ]
+}
+

@@ -1,0 +1,1009 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  /* Fixed z-index hierarchy to prevent navigation covering modals */
+  .synth-nav {
+    @apply bg-card/95 backdrop-blur-md border-t border-border/50;
+    box-shadow: 0 -4px 20px -2px rgba(0, 0, 0, 0.1);
+    z-index: 40; /* Reduced from potential higher value */
+  }
+
+  /* Ensure modals and dialogs appear above navigation and maps */
+  [role="dialog"],
+  [data-radix-dialog-content],
+  .dialog-overlay {
+    z-index: 10000 !important;
+  }
+
+  [data-radix-dialog-overlay] {
+    z-index: 9999 !important;
+  }
+
+  /* Enhanced skeleton loading animations */
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: .5;
+    }
+  }
+
+  /* Shimmer effect for skeleton cards */
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Subtle floating animation for Synth logo in skeleton */
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  /* Enhanced pulse for skeleton elements */
+  .animate-breathe {
+    animation: breathe 2.5s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  /* Clean white with subtle pink marble hints */
+  body {
+    background: 
+      radial-gradient(ellipse 80% 60% at 20% 30%, rgba(255, 51, 153, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse 70% 50% at 80% 70%, rgba(236, 72, 153, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 70% at 50% 50%, rgba(255, 102, 179, 0.03) 0%, transparent 50%),
+      #ffffff;
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+  }
+
+
+  /* Very subtle flowing marble hints */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      radial-gradient(ellipse 100% 40% at 25% 20%, rgba(255, 51, 153, 0.06) 0%, transparent 40%),
+      radial-gradient(ellipse 90% 50% at 75% 60%, rgba(236, 72, 153, 0.05) 0%, transparent 45%),
+      radial-gradient(ellipse 80% 45% at 60% 80%, rgba(255, 102, 179, 0.04) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.6;
+    animation: subtle-marble-shift 30s ease-in-out infinite;
+  }
+
+  @keyframes subtle-marble-shift {
+    0%, 100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+
+  /* Modern clean glass cards with subtle pink highlights */
+  .glass-card {
+    @apply bg-white/95 backdrop-blur-2xl;
+    @apply border border-pink-100/50;
+    @apply shadow-xl;
+    @apply rounded-2xl;
+    position: relative;
+    backdrop-filter: blur(24px) saturate(160%);
+    box-shadow: 
+      0 8px 32px rgba(236, 72, 153, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.8),
+      inset 0 0 0 1px rgba(255, 51, 153, 0.05);
+  }
+
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, transparent 60%, rgba(255, 51, 153, 0.05) 100%),
+      radial-gradient(circle at 10% 10%, rgba(255, 51, 153, 0.05) 0%, transparent 30%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  /* Enhanced universal hover animations for cards */
+  .hover-card {
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    cursor: pointer;
+  }
+
+  .hover-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 30px 60px -12px rgba(236, 72, 153, 0.4), 0 0 0 1px rgba(236, 72, 153, 0.1);
+  }
+
+  /* Enhanced universal button animations */
+  .hover-button {
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .hover-button:hover {
+    transform: scale(1.05);
+    filter: brightness(1.1) saturate(1.2);
+  }
+
+  .hover-button:active {
+    transform: scale(0.95);
+    transition: all 0.1s ease;
+  }
+
+  /* Enhanced universal icon animations */
+  .hover-icon {
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .hover-icon:hover {
+    transform: scale(1.25) rotate(6deg);
+    filter: drop-shadow(0 4px 8px rgba(236, 72, 153, 0.3));
+  }
+
+  /* Special micro-interactions */
+  .hover-heart {
+    transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .hover-heart:hover {
+    transform: scale(1.3);
+    filter: drop-shadow(0 0 8px rgba(236, 72, 153, 0.6));
+  }
+
+  .hover-social {
+    transition: opacity 0.2s ease-in-out;
+  }
+
+  .hover-social:hover {
+    opacity: 0.8;
+  }
+
+  .hover-shake {
+    transition: all 0.2s ease-in-out;
+  }
+
+  .hover-shake:hover {
+    animation: gentle-shake 0.5s ease-in-out;
+  }
+
+  @keyframes gentle-shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    50% { transform: translateX(2px); }
+    75% { transform: translateX(-1px); }
+    100% { transform: translateX(0); }
+  }
+
+  /* Enhanced gradient text utility */
+  .gradient-text {
+    @apply bg-gradient-to-r from-pink-600 via-pink-500 to-pink-400;
+    @apply bg-clip-text text-transparent;
+    animation: gradient-text-shift 3s ease-in-out infinite;
+  }
+
+  .gradient-text-bold {
+    @apply bg-gradient-to-r from-pink-700 via-pink-600 to-pink-500;
+    @apply bg-clip-text text-transparent font-semibold;
+  }
+
+  @keyframes gradient-text-shift {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  /* Gradient accents throughout */
+  .gradient-badge {
+    background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+    @apply text-white px-3 py-1 rounded-full text-xs font-medium;
+    animation: pulse-glow 2s ease-in-out infinite;
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+  }
+
+  .gradient-button {
+    background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+    @apply text-white px-6 py-3 rounded-full font-medium transition-all duration-200;
+    box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+  }
+
+  .gradient-button:hover {
+    background: linear-gradient(135deg, #db2777 0%, #ec4899 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(236, 72, 153, 0.5);
+  }
+
+  .gradient-button:active {
+    transform: translateY(0px);
+    transition: all 0.1s ease;
+  }
+
+  .gradient-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(236, 72, 153, 0.3) 50%, transparent 100%);
+    margin: 2rem 0;
+  }
+
+  /* Visual depth enhancements */
+  .depth-card {
+    position: relative;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(236, 72, 153, 0.1);
+  }
+
+  .depth-card::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    background: linear-gradient(135deg, #ec4899, #f472b6, #ec4899);
+    border-radius: inherit;
+    opacity: 0.1;
+    z-index: -1;
+  }
+
+  .profile-ring {
+    @apply ring-4 ring-pink-200/50 ring-offset-4;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8), 0 8px 25px rgba(236, 72, 153, 0.3);
+  }
+
+  .floating-shadow {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 25px 50px -5px rgba(236, 72, 153, 0.25);
+  }
+
+  .floating-shadow:hover {
+    box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.15), 0 35px 70px -5px rgba(236, 72, 153, 0.35);
+  }
+
+  .inner-glow {
+    background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, transparent 100%);
+    position: relative;
+  }
+
+  .inner-glow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);
+    }
+    50% {
+      box-shadow: 0 6px 25px rgba(236, 72, 153, 0.6);
+    }
+  }
+
+  /* Glassmorphism navigation with marble effect */
+  .glass-nav {
+    @apply bg-white/90 backdrop-blur-xl;
+    @apply border-t border-pink-200/60;
+    @apply shadow-lg shadow-pink-500/15;
+    backdrop-filter: blur(20px) saturate(180%);
+    position: relative;
+  }
+
+  .glass-nav::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, rgba(236, 72, 153, 0.3) 50%, transparent 100%);
+    pointer-events: none;
+  }
+
+  /* Enhanced tab animations */
+  .tab-container {
+    position: relative;
+    display: flex;
+    gap: 0;
+  }
+
+  .tab-indicator {
+    height: 3px;
+    background: linear-gradient(90deg, #ec4899 0%, #f472b6 100%);
+    border-radius: 2px;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: absolute;
+    bottom: -1px;
+    box-shadow: 0 0 8px rgba(236, 72, 153, 0.4);
+  }
+
+  .tab-button {
+    @apply px-6 py-3 text-sm font-medium transition-all duration-200;
+    @apply text-gray-600 hover:text-pink-500 relative z-10;
+    cursor: pointer;
+  }
+
+  .tab-button.active {
+    @apply text-pink-600 font-semibold;
+  }
+
+  .tab-button:hover {
+    transform: translateY(-1px);
+  }
+
+  /* Enhanced glassmorphism navigation with marble shimmer */
+  .glass-nav-enhanced {
+    @apply bg-white/90 backdrop-blur-xl;
+    @apply border-t border-pink-200/60;
+    @apply shadow-2xl shadow-pink-500/20;
+    position: relative;
+    backdrop-filter: blur(24px) saturate(180%);
+  }
+
+  .glass-nav-enhanced::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(236,72,153,0.08) 100%),
+      radial-gradient(circle at 50% 0%, rgba(255, 51, 153, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .nav-button {
+    @apply transition-all duration-300;
+    position: relative;
+  }
+
+  .nav-button.active {
+    background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+    @apply text-white rounded-full px-4 py-2 shadow-lg;
+    box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
+  }
+
+  .nav-button.active::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+    border-radius: inherit;
+    opacity: 0.3;
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+  }
+
+  .nav-button:not(.active) {
+    @apply text-gray-600 hover:text-pink-500 hover:scale-110;
+  }
+
+  /* Enhanced header styles with marble glass */
+  .glass-header {
+    @apply bg-white/90 backdrop-blur-xl;
+    @apply sticky top-0 z-50;
+    @apply shadow-lg shadow-pink-500/15;
+    position: relative;
+    backdrop-filter: blur(24px) saturate(180%);
+    border-bottom: 1px solid rgba(236, 72, 153, 0.1);
+  }
+
+  .glass-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(236,72,153,0.08) 100%),
+      radial-gradient(ellipse at 30% 50%, rgba(255, 51, 153, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+}
+
+/* Synth Design System - Bold, modern, music-focused */
+
+@layer base {
+  :root {
+    /* Synth Light Mode - White Background */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+
+    --primary: 320 100% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 60 56% 91%;
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 60 20% 95%;
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 320 100% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 95%;
+    --ring: 320 100% 60%;
+    
+    --success: 140 65% 55%;
+    --warning: 35 85% 60%;
+    
+    /* Event category colors - Synth themed */
+    --music: 320 100% 60%;
+    --food: 25 85% 60%;
+    --arts: 280 85% 65%;
+    --sports: 120 85% 55%;
+    --social: 45 85% 65%;
+    
+    /* Synth Gradients */
+    --gradient-brand: linear-gradient(135deg, #FF3399, #FF66B3);
+    --gradient-card: linear-gradient(145deg, #FFFFFF, #F5F5DC);
+    --gradient-accent: linear-gradient(135deg, #F5F5DC, #FAFAF5);
+    --gradient-dark: linear-gradient(135deg, #000000, #1A1A1A);
+    
+    /* Synth Shadows */
+    --shadow-soft: 0 4px 20px -2px rgba(255, 51, 153, 0.1);
+    --shadow-card: 0 8px 30px -4px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 12px 40px -6px rgba(255, 51, 153, 0.2);
+    --shadow-glow: 0 0 20px rgba(255, 51, 153, 0.3);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-glow: all 0.3s ease-in-out;
+    
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Light mode variant - if needed */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    --primary: 320 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 60 56% 91%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 60 20% 95%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 320 100% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 95%;
+    --ring: 320 100% 60%;
+    --gradient-card: linear-gradient(145deg, #FFFFFF, #F5F5DC);
+    --gradient-accent: linear-gradient(135deg, #F5F5DC, #FAFAF5);
+    --shadow-soft: 0 4px 20px -2px rgba(255, 51, 153, 0.1);
+    --shadow-card: 0 8px 30px -4px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 12px 40px -6px rgba(255, 51, 153, 0.2);
+    --shadow-glow: 0 0 20px rgba(255, 51, 153, 0.3);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    background: var(--gradient-card);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply synth-heading;
+  }
+
+  p, span, div, a, button, input, textarea, label {
+    @apply synth-text;
+  }
+}
+
+@layer components {
+  /* Synth Typography */
+  .synth-heading {
+    @apply font-bold text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.02em;
+  }
+  
+  .synth-text {
+    @apply text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  
+  /* Synth Logo Styles */
+  .synth-logo {
+    @apply font-bold text-4xl;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.05em;
+  }
+  
+  .synth-logo-s {
+    @apply text-synth-pink;
+  }
+  
+  .synth-logo-text {
+    @apply text-synth-beige;
+  }
+  
+  /* Event category badges - Synth themed */
+  .category-music { 
+    @apply bg-synth-pink/10 text-synth-pink border border-synth-pink/20; 
+  }
+  .category-food { 
+    @apply bg-orange-100 text-orange-700 border border-orange-200; 
+  }
+  .category-arts { 
+    @apply bg-purple-100 text-purple-700 border border-purple-200; 
+  }
+  .category-sports { 
+    @apply bg-green-100 text-green-700 border border-green-200; 
+  }
+  .category-social { 
+    @apply bg-synth-beige text-synth-black border border-synth-beige-dark; 
+  }
+  
+  /* Enhanced Synth Card Styles - Modern Clean */
+  .synth-card {
+    @apply bg-white/95 backdrop-blur-2xl border border-pink-100/50 rounded-2xl;
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(24px) saturate(160%);
+    box-shadow: 
+      0 8px 32px rgba(236, 72, 153, 0.08),
+      0 0 0 1px rgba(255, 255, 255, 0.8),
+      inset 0 0 0 1px rgba(255, 51, 153, 0.05);
+  }
+  
+  .synth-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: 
+      linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, transparent 60%, rgba(255, 51, 153, 0.05) 100%),
+      radial-gradient(circle at 10% 10%, rgba(255, 51, 153, 0.05) 0%, transparent 30%);
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  
+  .synth-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 
+      0 12px 48px rgba(236, 72, 153, 0.15),
+      0 0 0 1px rgba(255, 51, 153, 0.2),
+      inset 0 0 0 1px rgba(255, 51, 153, 0.08);
+    border-color: rgba(236, 72, 153, 0.2);
+  }
+  
+  .synth-card:hover::before {
+    opacity: 1;
+  }
+  
+  .synth-card-glow {
+    @apply synth-card;
+    box-shadow: 
+      0 12px 48px rgba(236, 72, 153, 0.2),
+      0 0 0 1px rgba(255, 51, 153, 0.25),
+      inset 0 0 0 1px rgba(255, 51, 153, 0.1);
+  }
+  
+  /* Enhanced Synth Button Variants */
+  .btn-synth-primary {
+    @apply bg-synth-pink text-white hover:bg-synth-pink-dark relative overflow-hidden;
+    transition: var(--transition-smooth);
+    box-shadow: 0 4px 14px 0 rgba(255, 51, 153, 0.3);
+    border: 1px solid transparent;
+  }
+  
+  .btn-synth-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  .btn-synth-primary:hover::before {
+    left: 100%;
+  }
+  
+  .btn-synth-primary:hover {
+    box-shadow: 0 6px 20px 0 rgba(255, 51, 153, 0.4);
+    transform: translateY(-2px);
+  }
+  
+  .btn-synth-secondary {
+    @apply bg-synth-beige text-synth-black hover:bg-synth-beige-dark border border-synth-beige-dark;
+    transition: var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .btn-synth-secondary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.1), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  .btn-synth-secondary:hover::before {
+    left: 100%;
+  }
+  
+  .btn-swipe-like {
+    @apply btn-synth-primary;
+    transition: var(--transition-bounce);
+  }
+  
+  .btn-swipe-pass {
+    @apply bg-muted text-muted-foreground hover:bg-muted/80;
+    transition: var(--transition-bounce);
+  }
+  
+  /* Enhanced Synth Navigation with Glassy Marble */
+  .synth-nav {
+    @apply bg-white/95 backdrop-blur-xl border-t border-pink-200/60;
+    backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: 0 -4px 20px rgba(236, 72, 153, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.5);
+    position: relative;
+  }
+
+  .synth-nav::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, rgba(236, 72, 153, 0.4) 50%, transparent 100%);
+    pointer-events: none;
+  }
+  
+  .synth-nav-item {
+    @apply flex flex-col items-center gap-1 p-3 rounded-xl transition-all duration-300;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .synth-nav-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      linear-gradient(135deg, rgba(255, 51, 153, 0.12), rgba(255, 102, 179, 0.1)),
+      radial-gradient(circle at center, rgba(236, 72, 153, 0.08) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .synth-nav-item.active {
+    @apply bg-synth-pink text-white;
+    box-shadow: 0 4px 16px rgba(255, 51, 153, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.2);
+  }
+  
+  .synth-nav-item:not(.active) {
+    @apply text-muted-foreground hover:text-foreground;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(8px);
+  }
+  
+  .synth-nav-item:not(.active):hover {
+    background: rgba(255, 255, 255, 0.8);
+  }
+  
+  .synth-nav-item:not(.active):hover::before {
+    opacity: 1;
+  }
+  
+  /* Enhanced Synth Gradients */
+  .synth-gradient-brand {
+    background: var(--gradient-brand);
+    position: relative;
+  }
+  
+  .synth-gradient-brand::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), transparent);
+    pointer-events: none;
+  }
+  
+  .synth-gradient-card {
+    background: var(--gradient-card);
+    position: relative;
+  }
+  
+  .synth-gradient-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 51, 153, 0.02), rgba(245, 245, 220, 0.02));
+    pointer-events: none;
+  }
+  
+  .synth-gradient-dark {
+    background: var(--gradient-dark);
+  }
+  
+  /* Enhanced Synth Glow Effects */
+  .synth-glow-hover:hover {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  /* Modern Glass Effect with Pink Marble */
+  .glass-effect {
+    @apply bg-white/85 backdrop-blur-xl border border-white/60;
+    backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 8px 32px rgba(236, 72, 153, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.5);
+    position: relative;
+  }
+
+  .glass-effect::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+      radial-gradient(circle at 20% 30%, rgba(255, 51, 153, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(236, 72, 153, 0.06) 0%, transparent 35%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  
+  /* Enhanced Input Styles */
+  .synth-input {
+    @apply bg-white/80 backdrop-blur-sm border border-border/50 rounded-xl px-4 py-3;
+    transition: var(--transition-smooth);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+  
+  .synth-input:focus {
+    @apply border-synth-pink/50 shadow-lg shadow-synth-pink/10;
+    outline: none;
+  }
+  
+  /* Enhanced Badge Styles */
+  .synth-badge {
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+    background: linear-gradient(135deg, rgba(255, 51, 153, 0.1), rgba(255, 102, 179, 0.1));
+    border: 1px solid rgba(255, 51, 153, 0.2);
+    color: rgb(255, 51, 153);
+    transition: var(--transition-smooth);
+  }
+  
+  .synth-badge:hover {
+    background: linear-gradient(135deg, rgba(255, 51, 153, 0.2), rgba(255, 102, 179, 0.2));
+    transform: translateY(-1px);
+  }
+  
+  /* Enhanced Loading States */
+  .synth-loading {
+    @apply animate-pulse;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  /* Search Page Layout Fixes */
+  #search-layout-root.filters-open {
+    position: relative;
+    z-index: 1;
+  }
+  
+  #search-layout-root.filters-open .relative.z-10 {
+    z-index: 0;
+  }
+  
+  #search-layout-root.filters-open .relative.z-0 {
+    z-index: -1;
+  }
+  
+  /* Ensure filter popovers appear above everything */
+  [data-radix-popover-content] {
+    z-index: 60 !important;
+  }
+  
+  [data-radix-popover-overlay] {
+    z-index: 59 !important;
+  }
+  
+  /* Fix for search page grid layout */
+  .search-grid-fix {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .search-grid-fix .lg\\:col-span-1 {
+    position: relative;
+    z-index: 10;
+  }
+  
+  .search-grid-fix .lg\\:col-span-2 {
+    position: relative;
+    z-index: 10;
+  }
+  
+  /* Search suggestions dropdown - highest priority */
+  .search-suggestions-dropdown {
+    z-index: 9999 !important;
+    position: relative !important;
+    margin-bottom: 2rem !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* Search container - ensure proper stacking context */
+  .search-container {
+    position: relative;
+    z-index: 100;
+  }
+
+  /* When search suggestions are open, push content down */
+  .search-suggestions-dropdown:not(:empty) {
+    margin-bottom: 3rem;
+  }
+
+  /* Ensure search results have proper spacing and visibility */
+  .search-suggestions-dropdown .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+
+  .search-suggestions-dropdown .mb-6 {
+    margin-bottom: 1.5rem;
+  }
+
+  /* Enhanced Hover Effects */
+  .synth-hover-lift {
+    transition: var(--transition-smooth);
+  }
+  
+  .synth-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Enhanced Focus States */
+  .synth-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-synth-pink/50 focus:ring-offset-2;
+  }
+  
+  /* Enhanced Scrollbar */
+  .synth-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .synth-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+  }
+  
+  .synth-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, rgba(255, 51, 153, 0.5), rgba(255, 102, 179, 0.5));
+    border-radius: 3px;
+  }
+  
+  .synth-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, rgba(255, 51, 153, 0.7), rgba(255, 102, 179, 0.7));
+  }
+
+  /* Leaflet map styles */
+  .leaflet-popup-content {
+    @apply m-0;
+  }
+  
+  .leaflet-popup-content-wrapper {
+    @apply rounded-lg shadow-lg;
+  }
+  
+  .event-popup .leaflet-popup-content {
+    @apply p-0;
+  }
+}

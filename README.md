@@ -1,24 +1,27 @@
-# PlusOne - Find Friends for Local Events
+# Synth (beta monorepo)
 
-Never go to shows, concerts, or activities alone again! PlusOne helps you discover local events and find others to attend with.
+Consumer app, admin portal, mobile, and styleguide in one repo: [Synth-Beta/synth-beta-testing](https://github.com/Synth-Beta/synth-beta-testing).
+
+The legacy `plusone-event-crew` GitHub repo has been **deleted**. Use paths below instead.
 
 ## Features
 
-- 🎵 Discover local events and concerts
-- 👥 Find like-minded people to attend events with
-- 💬 Chat with potential event buddies
-- ⭐ Rate and review concerts and venues
-- 🎧 Connect your music streaming services
-- 📱 Mobile-friendly interface
+- Discover local events and concerts
+- Find like-minded people to attend events with
+- Chat with potential event buddies
+- Rate and review concerts and venues
+- Connect your music streaming services
+- Mobile app (Expo) + admin ops portal
 
 ## Tech Stack
 
 - **Frontend**: React 18 + TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui
-- **Backend**: Express.js + Node.js
+- **Backend**: Express.js + Node.js + Vercel API routes
 - **Database**: Supabase (PostgreSQL)
 - **Build Tool**: Vite
 - **Routing**: React Router
+- **Mobile**: Expo (`mobile/`)
 - **APIs**: JamBase, Spotify, Apple Music, Setlist.fm
 
 ## Security
@@ -36,6 +39,23 @@ This application implements comprehensive security measures following OWASP best
 See [docs/SECURITY.md](docs/SECURITY.md) for detailed security policies and configuration.
 
 ## Quick Start
+
+### Monorepo layout
+
+| Path | App |
+|------|-----|
+| repo root | Consumer web (`join.getsynth.app`) |
+| `apps/admin/` | Admin + marketing (`getsynth.app`, `/admin`) |
+| `mobile/` | Expo app |
+| `styleguide/` | Style guide site |
+
+```bash
+# Consumer app
+npm install && npm run dev
+
+# Admin portal (getsynth.app)
+npm run admin:install && npm run admin:dev
+```
 
 ### Prerequisites
 
