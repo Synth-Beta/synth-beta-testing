@@ -45,9 +45,11 @@ import {
   Plus,
   BookOpen,
   CalendarDays,
+  Instagram,
+  ExternalLink,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfDay, subDays, addDays, eachDayOfInterval } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays, addDays, eachDayOfInterval, isWithinInterval } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -77,11 +79,25 @@ interface User {
   last_active_at?: string;
   account_type?: string;
   name?: string;
+  username?: string;
   avatar_url?: string;
+}
+
+interface DaySignupUser {
+  id: string;
+  name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+  account_type?: string | null;
+  created_at: string;
+  instagram_handle?: string | null;
+  snapchat_handle?: string | null;
+  music_streaming_profile?: string | null;
 }
 
 interface ChartDataPoint {
   date: string;
+  dateKey?: string;
   users: number;
   mau?: number;
 }
@@ -208,6 +224,11 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [dailyUsersData, setDailyUsersData] = useState<ChartDataPoint[]>([]);
   const [mauData, setMauData] = useState<ChartDataPoint[]>([]);
+  const [dayUsersDialogOpen, setDayUsersDialogOpen] = useState(false);
+  const [selectedDayLabel, setSelectedDayLabel] = useState('');
+  const [selectedDayKey, setSelectedDayKey] = useState('');
+  const [daySignupUsers, setDaySignupUsers] = useState<DaySignupUser[]>([]);
+  const [dayUsersLoading, setDayUsersLoading] = useState(false);
   
   // Event Analytics state
   const [totalArtists, setTotalArtists] = useState(0);
@@ -390,6 +411,7 @@ export default function Admin() {
         last_active_at: userRecord.last_active_at || undefined,
         account_type: userRecord.account_type,
         name: userRecord.name || undefined,
+        username: userRecord.username || undefined,
         avatar_url: userRecord.avatar_url || undefined,
       }));
 
@@ -452,11 +474,84 @@ export default function Admin() {
       const dateKey = format(startOfDay(date), 'yyyy-MM-dd');
       return {
         date: format(date, 'MMM dd'),
+        dateKey,
         users: dailyCounts[dateKey] || 0,
       };
     });
 
     setDailyUsersData(chartData);
+  };
+
+  const openDailyUsersForDay = async (dateKey: string, dateLabel: string) => {
+    if (!dateKey) return;
+    setSelectedDayKey(dateKey);
+    setSelectedDayLabel(dateLabel);
+    setDayUsersDialogOpen(true);
+    setDayUsersLoading(true);
+    setDaySignupUsers([]);
+
+    try {
+      const dayStart = startOfDay(new Date(`${dateKey}T12:00:00`));
+      const dayEnd = endOfDay(dayStart);
+      const matched = users.filter((u) => {
+        const created = new Date(u.created_at);
+        return isWithinInterval(created, { start: dayStart, end: dayEnd });
+      });
+
+      if (!matched.length) {
+        setDaySignupUsers([]);
+        return;
+      }
+
+      const ids = matched.map((u) => u.id);
+      const { data: profiles, error: profilesError } = await db
+        .from('profiles')
+        .select('user_id, name, avatar_url, instagram_handle, snapchat_handle, music_streaming_profile')
+        .in('user_id', ids);
+
+      if (profilesError) {
+        console.warn('profiles fetch for day signups:', profilesError);
+      }
+
+      const byId = new Map(
+        (profiles || []).map((p: {
+          user_id: string;
+          name?: string | null;
+          avatar_url?: string | null;
+          instagram_handle?: string | null;
+          snapchat_handle?: string | null;
+          music_streaming_profile?: string | null;
+        }) => [p.user_id, p]),
+      );
+
+      setDaySignupUsers(
+        matched
+          .map((u) => {
+            const p = byId.get(u.id);
+            return {
+              id: u.id,
+              name: p?.name || u.name || null,
+              username: u.username || null,
+              avatar_url: p?.avatar_url || u.avatar_url || null,
+              account_type: u.account_type || null,
+              created_at: u.created_at,
+              instagram_handle: p?.instagram_handle || null,
+              snapchat_handle: p?.snapchat_handle || null,
+              music_streaming_profile: p?.music_streaming_profile || null,
+            };
+          })
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+      );
+    } catch (err) {
+      console.error('Error loading day signups', err);
+      toast({
+        title: 'Could not load users for that day',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setDayUsersLoading(false);
+    }
   };
 
   const calculateMAU = (usersList: User[]) => {
@@ -2225,7 +2320,7 @@ export default function Admin() {
                 <Card className="shadow-sm">
                   <CardHeader className="py-3 px-4">
                     <CardTitle className="text-sm">Daily Users Added</CardTitle>
-                    <CardDescription className="text-xs">Last 30 days</CardDescription>
+                    <CardDescription className="text-xs">Last 30 days · click a bar for signups + socials</CardDescription>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
                     {loading ? (
@@ -2238,9 +2333,19 @@ export default function Admin() {
                         <BarChart data={dailyUsersData} margin={{ top: 5, right: 8, left: 0, bottom: 50 }}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
-                          <YAxis tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                           <ChartTooltip content={<ChartTooltipContent />} />
-                          <Bar dataKey="users" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                          <Bar
+                            dataKey="users"
+                            fill="hsl(var(--chart-1))"
+                            radius={[4, 4, 0, 0]}
+                            cursor="pointer"
+                            onClick={(data) => {
+                              const payload = (data as { payload?: ChartDataPoint })?.payload;
+                              if (!payload?.dateKey) return;
+                              void openDailyUsersForDay(payload.dateKey, payload.date);
+                            }}
+                          />
                         </BarChart>
                       </ChartContainer>
                     )}
@@ -3843,6 +3948,117 @@ export default function Admin() {
             <AdminStyleGuidePanel />
           </TabsContent>
         </Tabs>
+
+        {/* Daily signups detail (from Daily Users Added chart) */}
+        <Dialog open={dayUsersDialogOpen} onOpenChange={setDayUsersDialogOpen}>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 sm:p-0">
+            <div className="shrink-0 border-b px-4 pt-4 pb-3 sm:px-6 sm:pt-6">
+              <DialogHeader>
+                <DialogTitle>New users · {selectedDayLabel || selectedDayKey}</DialogTitle>
+                <DialogDescription>
+                  Signups for this day with profile socials when available.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-6 space-y-3">
+              {dayUsersLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : daySignupUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">No signups on this day.</p>
+              ) : (
+                daySignupUsers.map((u) => {
+                  const ig = u.instagram_handle?.replace(/^@/, '').trim() || '';
+                  const snap = u.snapchat_handle?.replace(/^@/, '').trim() || '';
+                  const streaming = u.music_streaming_profile?.trim() || '';
+                  const streamingUrl = streaming
+                    ? /^https?:\/\//i.test(streaming)
+                      ? streaming
+                      : `https://${streaming}`
+                    : '';
+                  return (
+                    <div key={u.id} className="rounded-md border p-3 flex gap-3">
+                      {u.avatar_url ? (
+                        <img
+                          src={u.avatar_url}
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover shrink-0 bg-muted"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm truncate">
+                            {u.name || u.username || u.id.slice(0, 8)}
+                          </span>
+                          {u.account_type ? (
+                            <Badge variant="secondary" className="text-[10px]">
+                              {u.account_type}
+                            </Badge>
+                          ) : null}
+                        </div>
+                        {u.username ? (
+                          <p className="text-xs text-muted-foreground truncate">@{u.username}</p>
+                        ) : null}
+                        <p className="text-[11px] text-muted-foreground">
+                          Joined {format(new Date(u.created_at), 'MMM d, yyyy h:mm a')}
+                        </p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {ig ? (
+                            <a
+                              href={`https://instagram.com/${ig}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-pink-600 hover:underline"
+                            >
+                              <Instagram className="h-3.5 w-3.5" />
+                              @{ig}
+                            </a>
+                          ) : null}
+                          {snap ? (
+                            <a
+                              href={`https://snapchat.com/add/${snap}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-yellow-700 hover:underline"
+                            >
+                              <span className="font-semibold">SC</span>
+                              @{snap}
+                            </a>
+                          ) : null}
+                          {streamingUrl ? (
+                            <a
+                              href={streamingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-green-700 hover:underline"
+                            >
+                              <Music className="h-3.5 w-3.5" />
+                              Streaming
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : null}
+                          {!ig && !snap && !streamingUrl ? (
+                            <span className="text-xs text-muted-foreground">No socials on profile</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <DialogFooter className="shrink-0 border-t px-4 py-3 sm:px-6">
+              <Button type="button" variant="outline" onClick={() => setDayUsersDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Moderation Review Dialog */}
         <Dialog open={moderationDialogOpen} onOpenChange={setModerationDialogOpen}>
