@@ -34,9 +34,17 @@ const TIER_MAP: Record<string, 1 | 2 | 3 | 4 | 5 | 6> = {
   washingtonian: 3,
   axios_dc: 3,
   wtop: 3,
+  dcist: 3,
+  city_paper: 3,
+  brightest_young_things: 4,
+  google_news: 4,
+  local_news: 4,
+  news_api: 4,
   reddit: 5,
   bluesky: 5,
   google_places: 5,
+  yelp: 5,
+  tripadvisor_mentions: 5,
   setlistfm: 4,
   musicbrainz: 4,
 };
@@ -127,7 +135,20 @@ export function buildClaimLedger(opts: {
       claim_type === 'sentiment_theme' ||
       source === 'reddit' ||
       source === 'bluesky' ||
-      source === 'google_places';
+      source === 'google_places' ||
+      source === 'yelp';
+
+    // Aggregate/community sentiment needs a complete method. Individual Google/Yelp
+    // review quotes and place ratings do not.
+    const needsSentimentMethod =
+      source === 'reddit' ||
+      source === 'bluesky' ||
+      (isSentiment &&
+        source !== 'google_places' &&
+        source !== 'yelp' &&
+        /\b\d+\s*%|\b\d+\s+positive\s+signals?\b|\bsentiment analysis\b/i.test(
+          `${claim} ${excerpt}`,
+        ));
 
     let public_use = true;
     let public_use_reason: string | undefined;
@@ -141,7 +162,7 @@ export function buildClaimLedger(opts: {
     } else if (!excerpt || excerpt.length < 12) {
       public_use = false;
       public_use_reason = 'Excerpt too thin to support a public claim';
-    } else if (isSentiment && !(method && method.complete)) {
+    } else if (needsSentimentMethod && !(method && method.complete)) {
       public_use = false;
       public_use_reason =
         'Sentiment/community theme lacks complete method (window, denominator, sources, limitations)';

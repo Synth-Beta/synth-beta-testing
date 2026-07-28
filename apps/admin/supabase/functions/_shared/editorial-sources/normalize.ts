@@ -39,9 +39,16 @@ export async function contentHash(parts: Array<string | null | undefined>): Prom
 
 export function guessSentiment(text: string): Sentiment {
   const t = text.toLowerCase();
-  const pos = (t.match(/\b(love|great|amazing|excellent|fantastic|sold.?out|must.?see|favorite)\b/g) || [])
-    .length;
-  const neg = (t.match(/\b(hate|awful|terrible|cancel|cancelled|boring|worst|avoid)\b/g) || []).length;
+  const pos = (
+    t.match(
+      /\b(love|loved|great|amazing|excellent|fantastic|incredible|sold.?out|must.?see|favorite|favourite|worth it|killer|fire|underrated|intimate|perfect|nails it|blew me away)\b/g,
+    ) || []
+  ).length;
+  const neg = (
+    t.match(
+      /\b(hate|hated|awful|terrible|cancel|cancelled|boring|worst|avoid|overrated|mid|meh|too loud|bad sound|long line|rip.?off|skip)\b/g,
+    ) || []
+  ).length;
   if (pos && neg) return 'mixed';
   if (pos > neg) return 'positive';
   if (neg > pos) return 'negative';

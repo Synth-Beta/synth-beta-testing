@@ -29,29 +29,42 @@ const METADATA_LEAK_PATTERNS: Array<{ re: RegExp; label: string }> = [
   { re: /```/, label: 'Contains code fence artifact' },
 ];
 
-const GENERIC_FILLER: Array<{ re: RegExp; label: string }> = [
-  { re: /\biconic venue\b/i, label: 'Generic filler: iconic venue' },
-  { re: /\bvibrant ecosystem\b/i, label: 'Generic filler: vibrant ecosystem' },
-  { re: /\bcornerstone of the scene\b/i, label: 'Generic filler: cornerstone of the scene' },
-  { re: /\bkey player\b/i, label: 'Generic filler: key player' },
-  { re: /\bvital hub\b/i, label: 'Generic filler: vital hub' },
-  { re: /\bartists and fans alike\b/i, label: 'Generic filler: artists and fans alike' },
-  { re: /\bstrong community engagement\b/i, label: 'Generic filler: strong community engagement' },
-  { re: /\benduring appeal\b/i, label: 'Generic filler: enduring appeal' },
-  { re: /\bmusic lovers\b/i, label: 'Generic filler: music lovers' },
-  { re: /\bshare your thoughts\b/i, label: 'Generic filler: share your thoughts' },
-  { re: /\bstay tuned\b/i, label: 'Generic filler: stay tuned' },
-  { re: /\bin today's evolving\b/i, label: 'Weak opening: evolving landscape' },
-  { re: /\bstands as\b/i, label: 'Weak pattern: stands as' },
-  { re: /\brecent research indicates\b/i, label: 'Weak pattern: recent research indicates' },
-  { re: /\bmusic has always brought people together\b/i, label: 'Weak pattern: music brings people together' },
-  { re: /\bkey destination for live music enthusiasts\b/i, label: 'Generic filler: key destination for enthusiasts' },
-  { re: /\bnot just a venue but a space where memories are created\b/i, label: 'Generic filler: memories are created' },
-  { re: /\bas venues evolve, they play a crucial role\b/i, label: 'Generic filler: venues evolve / crucial role' },
-  { re: /\bshaping cultural experiences\b/i, label: 'Generic filler: shaping cultural experiences' },
+const GENERIC_FILLER: Array<{ re: RegExp; label: string; replaceWith?: string }> = [
+  { re: /\biconic venue\b/gi, label: 'Generic filler: iconic venue', replaceWith: 'venue' },
+  { re: /\bvibrant ecosystem\b/gi, label: 'Generic filler: vibrant ecosystem', replaceWith: 'local scene' },
+  { re: /\bcornerstone of the scene\b/gi, label: 'Generic filler: cornerstone of the scene', replaceWith: 'fixture in the scene' },
+  { re: /\bkey player\b/gi, label: 'Generic filler: key player', replaceWith: 'part of' },
+  { re: /\bvital hub\b/gi, label: 'Generic filler: vital hub', replaceWith: 'busy room' },
+  { re: /\bartists and fans alike\b/gi, label: 'Generic filler: artists and fans alike', replaceWith: 'the crowd' },
+  { re: /\bstrong community engagement\b/gi, label: 'Generic filler: strong community engagement', replaceWith: 'a loyal crowd' },
+  { re: /\benduring appeal\b/gi, label: 'Generic filler: enduring appeal', replaceWith: 'staying power' },
+  { re: /\bmusic lovers\b/gi, label: 'Generic filler: music lovers', replaceWith: 'fans' },
+  { re: /\bshare your thoughts\b/gi, label: 'Generic filler: share your thoughts', replaceWith: 'tell us' },
+  { re: /\bstay tuned\b/gi, label: 'Generic filler: stay tuned', replaceWith: 'check back' },
+  { re: /\bin today's evolving\b/gi, label: 'Weak opening: evolving landscape', replaceWith: 'in' },
+  { re: /\bstands as\b/gi, label: 'Weak pattern: stands as', replaceWith: 'is' },
+  { re: /\brecent research indicates\b/gi, label: 'Weak pattern: recent research indicates', replaceWith: 'coverage notes' },
+  { re: /\bmusic has always brought people together\b/gi, label: 'Weak pattern: music brings people together', replaceWith: '' },
+  { re: /\bkey destination for live music enthusiasts\b/gi, label: 'Generic filler: key destination for enthusiasts', replaceWith: 'live music stop' },
+  { re: /\bnot just a venue but a space where memories are created\b/gi, label: 'Generic filler: memories are created', replaceWith: 'a room people remember' },
+  { re: /\bas venues evolve, they play a crucial role\b/gi, label: 'Generic filler: venues evolve / crucial role', replaceWith: '' },
+  { re: /\bshaping cultural experiences\b/gi, label: 'Generic filler: shaping cultural experiences', replaceWith: '' },
 ];
 
 const DASH_RE = /[\u2014\u2013—–]/;
+
+/** Surgical rewrite of known marketing cliches. Does not touch metadata leaks. */
+export function scrubBannedFillers(body: string): { body: string; scrubbed: string[] } {
+  let next = String(body || '');
+  const scrubbed: string[] = [];
+  for (const { re, label, replaceWith } of GENERIC_FILLER) {
+    if (!re.test(next)) continue;
+    scrubbed.push(label);
+    next = next.replace(re, replaceWith ?? '');
+  }
+  next = next.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return { body: next, scrubbed };
+}
 
 export function validatePublicationBody(
   body: string,
@@ -73,7 +86,9 @@ export function validatePublicationBody(
     if (re.test(text) || re.test(title)) failures.push(label);
   }
   for (const { re, label } of GENERIC_FILLER) {
-    if (re.test(text)) failures.push(label);
+    // Avoid /g lastIndex bugs with RegExp.test
+    const checker = new RegExp(re.source, re.flags.replace('g', ''));
+    if (checker.test(text)) failures.push(label);
   }
   if (DASH_RE.test(text) || DASH_RE.test(title)) {
     failures.push('Contains em dash or en dash');

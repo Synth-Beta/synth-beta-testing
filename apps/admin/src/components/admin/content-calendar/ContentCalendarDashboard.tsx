@@ -1165,17 +1165,19 @@ export default function ContentCalendarDashboard() {
       </Dialog>
 
       <Dialog open={briefOpen} onOpenChange={setBriefOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Research brief · {research?.name}</DialogTitle>
-            <DialogDescription>
-              Review highlights and topics, then tell Synth what to emphasize before drafting.
-              Posts stay in pending_review until you approve.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0 sm:p-0">
+          <div className="shrink-0 border-b px-4 pt-4 pb-3 sm:px-6 sm:pt-6">
+            <DialogHeader>
+              <DialogTitle>Research brief · {research?.name}</DialogTitle>
+              <DialogDescription>
+                Review highlights and topics, then tell Synth what to emphasize before drafting.
+                Posts stay in pending_review until you approve.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
 
           {brief && (
-            <div className="space-y-4 text-sm">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-4 text-sm">
               <div>
                 <p className="font-medium mb-1">Summary</p>
                 <p className="text-muted-foreground whitespace-pre-wrap">{brief.summary}</p>
@@ -1276,7 +1278,7 @@ export default function ContentCalendarDashboard() {
             </div>
           )}
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="shrink-0 gap-2 border-t bg-background px-4 py-3 sm:px-6">
             <Button type="button" variant="outline" onClick={() => setBriefOpen(false)}>
               Close
             </Button>

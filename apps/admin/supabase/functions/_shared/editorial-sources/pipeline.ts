@@ -16,7 +16,7 @@ export const DISCOVERY_VENUE_CAP = 5;
 export const ENRICH_SUBJECT_CAP = 5;
 
 /** Full batch runs can afford longer waits; single-subject UI cannot (Vercel 504). */
-const ADAPTER_TIMEOUT_FULL_MS = 8_000;
+const ADAPTER_TIMEOUT_FULL_MS = 12_000;
 const ADAPTER_TIMEOUT_FAST_MS = 3_500;
 
 /** High-signal adapters for click-to-research (skip slow/unrelated HTML crawls). */
@@ -69,7 +69,8 @@ async function runAdapter(
 
   if (
     (adapter.id === 'ticketmaster' && !ctx.getEnv('TICKETMASTER_API_KEY')) ||
-    (adapter.id === 'google_places' && !ctx.getEnv('GOOGLE_PLACES_API_KEY'))
+    (adapter.id === 'google_places' && !ctx.getEnv('GOOGLE_PLACES_API_KEY')) ||
+    (adapter.id === 'yelp' && !ctx.getEnv('YELP_API_KEY'))
   ) {
     return {
       signals: [],
@@ -150,7 +151,8 @@ function mergeStatus(source_status: SourceStatus[], next: SourceStatus) {
 }
 
 export async function runEditorialSourcePipeline(input: PipelineInput): Promise<PipelineResult> {
-  const mode = input.mode || (input.subjects.length <= 1 ? 'fast' : 'full');
+  // Default full research — fast mode only when callers opt in explicitly.
+  const mode = input.mode || 'full';
   const timeoutMs = mode === 'fast' ? ADAPTER_TIMEOUT_FAST_MS : ADAPTER_TIMEOUT_FULL_MS;
   const fetchTimeout = mode === 'fast' ? 3500 : 7000;
 

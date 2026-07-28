@@ -495,6 +495,12 @@ async function notifyEditorialFailure(opts: {
   error: string;
   subjectId?: string;
 }): Promise<void> {
+  // Local Vite has no /api/ops-alert — only getsynth.app / Vercel does.
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return;
+  }
+
   const isTimeout = opts.status === 504 || /timeout|timed out|deadline/i.test(opts.error);
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;

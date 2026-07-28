@@ -10,7 +10,7 @@ import {
   REDDIT_AFFILIATION_PREFIX,
 } from './lint';
 import { platformSystemPrompt, platformUserPrompt } from './prompts';
-import { validatePublicationBody } from './publicationSanitizer';
+import { validatePublicationBody, scrubBannedFillers } from './publicationSanitizer';
 import {
   parseRevisionRoundResponse,
   REVISION_ROUNDS,
@@ -50,6 +50,16 @@ export interface GenerateWritingInput {
   platforms?: Platform[];
   editorGuidance?: string | null;
   selectedTopics?: string[];
+  /** Absolute epoch ms; stop before Vercel kills the invocation (prefer ~270s). */
+  deadlineMs?: number;
+}
+
+function assertWithinDeadline(input: GenerateWritingInput, step: string): void {
+  if (!input.deadlineMs) return;
+  const remaining = input.deadlineMs - Date.now();
+  if (remaining <= 0) {
+    throw new Error(`Generate deadline exceeded at ${step}`);
+  }
 }
 
 function stripDashes(text: string): string {
@@ -157,11 +167,16 @@ async function runFiveRevisionRounds(opts: {
   const priorNotes: string[] = [];
 
   for (const round of REVISION_ROUNDS) {
+    assertWithinDeadline(opts.input, `revision:${opts.platform}:${round.id}`);
     opts.input.log?.('revision round', { platform: opts.platform, round: round.id });
     let result: RevisionRoundResult | null = null;
     let attempt = 0;
     while (attempt < 2) {
       attempt += 1;
+      // Skip retry when the wall clock is nearly exhausted.
+      if (attempt > 1 && opts.input.deadlineMs && opts.input.deadlineMs - Date.now() < 45_000) {
+        break;
+      }
       const raw = await opts.input.callOpenAI(
         revisionSystemPrompt(opts.platform),
         revisionUserPrompt({
@@ -186,6 +201,12 @@ async function runFiveRevisionRounds(opts: {
         result.revised_body = stripDashes(result.revised_body);
       }
       if (result.revised_title) result.revised_title = stripDashes(result.revised_title);
+
+      const scrubbed = scrubBannedFillers(result.revised_body);
+      if (scrubbed.scrubbed.length) {
+        result.revised_body = scrubbed.body;
+        result.editor_notes.push(`Scrubbed filler: ${scrubbed.scrubbed.join('; ')}`);
+      }
 
       const pub = validatePublicationBody(result.revised_body, {
         title: result.revised_title,
@@ -316,6 +337,7 @@ async function generateOne(
     researchBrief: input.subject.sentiment_json?.research_brief || null,
   });
 
+  assertWithinDeadline(input, `draft:${platform}`);
   let draft = attachSourcesFromClaims(
     parseDraft(platform, await input.callOpenAI(system, user, maxTokensFor(platform, usableCount))),
     ledger,
@@ -341,6 +363,18 @@ async function generateOne(
     title: revised.title ?? draft.title,
     editor_notes: revised.notes.slice(0, 40),
   };
+
+  const finalScrub = scrubBannedFillers(draft.body);
+  if (finalScrub.scrubbed.length) {
+    draft = {
+      ...draft,
+      body: finalScrub.body,
+      editor_notes: [
+        ...draft.editor_notes,
+        `Final filler scrub: ${finalScrub.scrubbed.join('; ')}`,
+      ].slice(0, 40),
+    };
+  }
 
   const pub = validatePublicationBody(draft.body, {
     title: draft.title,
@@ -458,6 +492,10 @@ export async function runEditorialWritingPipeline(input: GenerateWritingInput): 
       warnings.push(`Skipped ${platform}: insufficient public claims`);
       continue;
     }
+    if (input.deadlineMs && input.deadlineMs - Date.now() < 40_000) {
+      warnings.push(`Skipped ${platform}: generate deadline nearly exhausted`);
+      continue;
+    }
     try {
       const result = await generateOne(
         input,
@@ -489,5 +527,5 @@ export async function runEditorialWritingPipeline(input: GenerateWritingInput): 
   };
 }
 
-export { validatePublicationBody, bodyLooksContaminated } from './publicationSanitizer';
+export { validatePublicationBody, bodyLooksContaminated, scrubBannedFillers } from './publicationSanitizer';
 export { REVISION_ROUNDS } from './revisionRounds';

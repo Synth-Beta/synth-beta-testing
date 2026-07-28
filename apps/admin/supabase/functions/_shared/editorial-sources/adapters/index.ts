@@ -7,52 +7,12 @@ function envOrSkip(adapter: SourceAdapter, getEnv: (k: string) => string | undef
   return missing;
 }
 
-export const redditAdapter: SourceAdapter = {
-  id: 'reddit',
-  name: 'Reddit',
-  kind: 'api',
-  async enrich(ctx) {
-    const q = encodeURIComponent(
-      [ctx.subject.artist_name, ctx.subject.venue_name, ctx.subject.name]
-        .filter(Boolean)
-        .slice(0, 2)
-        .join(' '),
-    );
-    // Prefer old.reddit (less aggressive bot blocks) then www
-    const urls = [
-      `https://old.reddit.com/search.json?q=${q}&sort=relevance&t=year&limit=8`,
-      `https://www.reddit.com/search.json?q=${q}&sort=relevance&t=year&limit=8`,
-    ];
-    let json: { data?: { children?: Array<{ data?: Record<string, unknown> }> } } | null = null;
-    for (const url of urls) {
-      try {
-        json = await ctx.fetchJson(url);
-        if (json?.data?.children?.length) break;
-      } catch {
-        /* try next */
-      }
-    }
-    const children = json?.data?.children || [];
-    return Promise.all(
-      children.map((c) => {
-        const d = c.data || {};
-        const title = String(d.title || '');
-        const selftext = String(d.selftext || '');
-        const permalink = d.permalink ? `https://www.reddit.com${d.permalink}` : null;
-        return normalizeSignal({
-          source: 'reddit',
-          url: permalink,
-          title,
-          excerpt: [title, selftext].filter(Boolean).join('. '),
-          subject: ctx.subject.name,
-          signal_type: 'social',
-          confidence: 0.6,
-          raw: { subreddit: d.subreddit, score: d.score },
-        });
-      }),
-    );
-  },
-};
+export {
+  redditAdapter,
+  buildRedditEnrichQueries,
+  buildRedditDiscoverQueries,
+  venueSearchAliases,
+} from './reddit';
 
 export const blueskyAdapter: SourceAdapter = {
   id: 'bluesky',
@@ -296,61 +256,14 @@ export const musicbrainzAdapter: SourceAdapter = {
   },
 };
 
-export const googlePlacesAdapter: SourceAdapter = {
-  id: 'google_places',
-  name: 'Google Places',
-  kind: 'api',
-  requiresEnv: ['GOOGLE_PLACES_API_KEY'],
-  async enrich(ctx) {
-    const key = ctx.getEnv('GOOGLE_PLACES_API_KEY');
-    if (!key || !ctx.subject.venue_name) return [];
-    const q = encodeURIComponent(`${ctx.subject.venue_name} ${ctx.subject.city || 'Washington DC'}`);
-    try {
-      const find = await ctx.fetchJson<{
-        candidates?: Array<{ place_id?: string; name?: string; formatted_address?: string }>;
-      }>(
-        `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${q}&inputtype=textquery&fields=place_id,name,formatted_address&key=${key}`,
-      );
-      const placeId = find.candidates?.[0]?.place_id;
-      if (!placeId) return [];
-      const details = await ctx.fetchJson<{
-        result?: { name?: string; website?: string; rating?: number; reviews?: Array<{ text?: string; time?: number }> };
-      }>(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,website,rating,reviews&key=${key}`,
-      );
-      const r = details.result || {};
-      const signals: NormalizedSignal[] = [
-        await normalizeSignal({
-          source: 'google_places',
-          url: r.website || null,
-          title: r.name || ctx.subject.venue_name,
-          excerpt: `Google rating ${r.rating ?? 'n/a'}. ${r.website || ''}`.trim(),
-          subject: ctx.subject.name,
-          signal_type: 'place',
-          confidence: 0.7,
-          raw: { place_id: placeId, rating: r.rating },
-        }),
-      ];
-      for (const review of (r.reviews || []).slice(0, 3)) {
-        signals.push(
-          await normalizeSignal({
-            source: 'google_places',
-            url: r.website || null,
-            title: `${r.name || ctx.subject.venue_name} review`,
-            excerpt: review.text || '',
-            published_at: review.time ? new Date(review.time * 1000).toISOString() : null,
-            subject: ctx.subject.name,
-            signal_type: 'review',
-            confidence: 0.55,
-          }),
-        );
-      }
-      return signals;
-    } catch {
-      return [];
-    }
-  },
-};
+export {
+  googlePlacesAdapter,
+  yelpAdapter,
+  localNewsAdapter,
+  tripadvisorMentionsAdapter,
+  buildAudienceSearchTerms,
+  AUDIENCE_SENTIMENT_ADAPTERS,
+} from './audience-sentiment';
 
 export function makeVenueSiteAdapter(id: string, name: string, pageUrl: string): SourceAdapter {
   return {

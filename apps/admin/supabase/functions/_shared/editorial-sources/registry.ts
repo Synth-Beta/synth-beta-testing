@@ -9,17 +9,20 @@ import {
   googlePlacesAdapter,
   impAdapter,
   jambaseAdapter,
+  localNewsAdapter,
   musicbrainzAdapter,
   redditAdapter,
   setlistFmAdapter,
   songbyrdAdapter,
   theWharfAdapter,
   ticketmasterAdapter,
+  tripadvisorMentionsAdapter,
   unionStageAdapter,
   venueWebsiteDiscoveryAdapter,
   washingtonOrgAdapter,
   washingtonianAdapter,
   wtopAdapter,
+  yelpAdapter,
 } from './adapters/index';
 import type { SourceAdapter } from './types';
 
@@ -38,7 +41,11 @@ export const SOURCE_REGISTRY: SourceAdapter[] = [
   washingtonOrgAdapter,
   redditAdapter,
   blueskyAdapter,
+  // Audience sentiment pack (reviews + local/news)
   googlePlacesAdapter,
+  yelpAdapter,
+  localNewsAdapter,
+  tripadvisorMentionsAdapter,
   setlistFmAdapter,
   musicbrainzAdapter,
   washingtonianAdapter,
