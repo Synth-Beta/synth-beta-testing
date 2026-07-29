@@ -544,6 +544,53 @@ router.get('/api/concerts/stats',
   }
 });
 
+// Health check endpoint
+// NOTE: must be registered before '/api/concerts/:id' - Express matches
+// routes in registration order, and ':id' would otherwise swallow this
+// path (with id="health") and return a 404 "Concert not found" instead.
+router.get('/api/concerts/health',
+  createRateLimiter('lenient'),
+  async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({
+        success: false,
+        error: 'Database service unavailable',
+        message: 'Supabase not configured'
+      });
+    }
+
+    try {
+      // Test database connection
+      const { data, error } = await supabase
+      .from('jambase_events')
+      .select('count')
+      .limit(1);
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection failed',
+        details: clientErrorDetails(error)
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Concert API is healthy',
+      timestamp: new Date().toISOString(),
+      database: 'connected'
+    });
+
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Health check failed',
+      details: clientErrorDetails(error)
+    });
+  }
+});
+
 // Get concert by ID
 router.get('/api/concerts/:id',
   sanitize,
@@ -608,50 +655,6 @@ router.get('/api/concerts/:id',
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      details: clientErrorDetails(error)
-    });
-  }
-});
-
-// Health check endpoint
-router.get('/api/concerts/health',
-  createRateLimiter('lenient'),
-  async (req, res) => {
-    if (!supabase) {
-      return res.status(503).json({
-        success: false,
-        error: 'Database service unavailable',
-        message: 'Supabase not configured'
-      });
-    }
-
-    try {
-      // Test database connection
-      const { data, error } = await supabase
-      .from('jambase_events')
-      .select('count')
-      .limit(1);
-
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: 'Database connection failed',
-        details: clientErrorDetails(error)
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Concert API is healthy',
-      timestamp: new Date().toISOString(),
-      database: 'connected'
-    });
-
-  } catch (error) {
-    console.error('Health check error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Health check failed',
       details: clientErrorDetails(error)
     });
   }

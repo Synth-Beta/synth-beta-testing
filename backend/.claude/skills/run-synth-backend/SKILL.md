@@ -96,13 +96,11 @@ above as the verification step for backend changes.
 
 ## Gotchas
 
-- **`/api/concerts/health` is dead code.** `backend/search-routes.js`
-  registers `router.get('/api/concerts/:id', ...)` *before*
-  `router.get('/api/concerts/health', ...)`. Express matches routes in
-  registration order, so any request to `/api/concerts/health` is captured
-  by the `:id` route (with `id="health"`) and returns
-  `{"success":false,"error":"Concert not found"}` instead of a health
-  payload. The smoke script deliberately does not check this route.
+- **`/api/concerts/health` route order — fixed.** `backend/search-routes.js`
+  used to register `router.get('/api/concerts/:id', ...)` before
+  `router.get('/api/concerts/health', ...)`, so `:id` swallowed the health
+  path. `health` is now registered first. The smoke script still doesn't
+  check this route - worth adding.
 - **`/api/concerts/search` takes `query`, not `q`.** Passing `?q=...` fails
   Joi validation with `"q" is not allowed`. Use `?query=...`.
 - **`backend/node_modules` can silently go stale relative to git.** Since

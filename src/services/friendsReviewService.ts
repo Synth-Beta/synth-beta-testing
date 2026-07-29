@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { UnifiedFeedItem } from './unifiedFeedService';
+import type { UnifiedFeedItem } from './unifiedFeedService';
 import { cacheService, CacheKeys, CacheTTL } from './cacheService';
 
 export class FriendsReviewService {

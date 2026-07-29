@@ -1,3 +1,6 @@
+// Must load before any other module so Sentry's auto-instrumentation can attach.
+const Sentry = require('./instrument');
+
 // Load environment variables: .env then .env.local (root directory; .env.local overrides)
 const path = require('path');
 const root = path.resolve(__dirname, '..');
@@ -195,6 +198,10 @@ app.get('/health', createRateLimiter('lenient'), (req, res) => {
     port: PORT
   });
 });
+
+// Sentry must be registered after all routes but before any other error-handling
+// middleware, or it never sees the error before errorHandler formats/swallows it.
+Sentry.setupExpressErrorHandler(app);
 
 // Error handling middleware — Security: generic client message in production
 app.use(errorHandler);

@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -47,7 +48,17 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-    ],
+      // Only upload source maps in production builds where an auth token is present
+      // (keeps local/dev builds token-free and avoids failing CI builds without one).
+      isProduction && env.SENTRY_AUTH_TOKEN && sentryVitePlugin({
+        org: "synth-vc",
+        project: "synth-web",
+        authToken: env.SENTRY_AUTH_TOKEN,
+        sourcemaps: {
+          filesToDeleteAfterUpload: ['**/*.map'],
+        },
+      }),
+    ].filter(Boolean),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -59,8 +70,10 @@ export default defineConfig(({ mode }) => {
       // Optimize for mobile
       target: 'es2015',
       cssCodeSplit: true,
-      // SECURITY: Source maps disabled to prevent users from reading original source code
-      sourcemap: false,
+      // SECURITY: 'hidden' generates maps for Sentry to upload/deobfuscate stack traces,
+      // but the bundle never references them and they're deleted from dist/ after upload
+      // (see sentryVitePlugin below) — so users still can't read original source code.
+      sourcemap: 'hidden',
       minify: 'esbuild',
       // SECURITY: Remove debugger statements in production.
       // console.log/debug/info/trace are marked "pure" so esbuild's minifier drops them
