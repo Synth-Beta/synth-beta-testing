@@ -115,14 +115,14 @@
     "semantic_hash": "3298bcaba584f84aa6b77fac50824b4b"
   },
   "backend/search-routes.js": {
-    "mtime": 1782243768.3246481,
-    "ast_hash": "faa9723f4dc9f06a8ff6687c1c4c2394",
-    "semantic_hash": "faa9723f4dc9f06a8ff6687c1c4c2394"
+    "mtime": 1785353225.268845,
+    "ast_hash": "c4ebdebcb537cf47cfcb618d7fabdae9",
+    "semantic_hash": ""
   },
   "backend/server.js": {
-    "mtime": 1782243768.361649,
-    "ast_hash": "5326cf8f1ba9e8cba8205b7a9b5cdd9c",
-    "semantic_hash": "5326cf8f1ba9e8cba8205b7a9b5cdd9c"
+    "mtime": 1785351799.0215578,
+    "ast_hash": "32dde073fd16083d5dcbe7e558fb5a5f",
+    "semantic_hash": ""
   },
   "backend/services/authService.js": {
     "mtime": 1782243768.6254675,
@@ -1125,8 +1125,8 @@
     "semantic_hash": "3988a71d847cbf056630ddf30f2e998d"
   },
   "package.json": {
-    "mtime": 1785263788.3187509,
-    "ast_hash": "6c9d183ca5b1d12108f8314db0fcb363",
+    "mtime": 1785350324.3283074,
+    "ast_hash": "160284f23879fa73dd533dd084fee545",
     "semantic_hash": ""
   },
   "packages/synth-shared/package.json": {
@@ -3155,9 +3155,9 @@
     "semantic_hash": "1d7e56e3c5f6ea8dac3c6178b0a05758"
   },
   "src/main.tsx": {
-    "mtime": 1782243119.4420052,
-    "ast_hash": "a168c6d176d715580d3a4aacfaa3296a",
-    "semantic_hash": "a168c6d176d715580d3a4aacfaa3296a"
+    "mtime": 1785349760.7089095,
+    "ast_hash": "01bceaf5029fb40e67eba2ce66e5ba74",
+    "semantic_hash": ""
   },
   "src/pages/Admin.tsx": {
     "mtime": 1783705125.918906,
@@ -3430,9 +3430,9 @@
     "semantic_hash": "32c97c2034bfe1fd773db6a16a0d85ef"
   },
   "src/services/friendsReviewService.ts": {
-    "mtime": 1782243119.494056,
-    "ast_hash": "e6491163f9137b2d0457c273574b7450",
-    "semantic_hash": "e6491163f9137b2d0457c273574b7450"
+    "mtime": 1785353534.8083673,
+    "ast_hash": "52c8bed04d12bdd1652c0f1d7eb6bda9",
+    "semantic_hash": ""
   },
   "src/services/friendsService.ts": {
     "mtime": 1782243119.4947653,
@@ -4010,9 +4010,9 @@
     "semantic_hash": "94ba58f239c6ee0fed4c49464ddaf9ec"
   },
   "vite.config.ts": {
-    "mtime": 1782936074.2745464,
-    "ast_hash": "40f65abc36e64ccd45b2f4890bfe6d01",
-    "semantic_hash": "40f65abc36e64ccd45b2f4890bfe6d01"
+    "mtime": 1785350458.427936,
+    "ast_hash": "5abc4b7115ee7324ce227efe9a75c43c",
+    "semantic_hash": ""
   },
   ".github/workflows/eas-mobile-build.yml": {
     "mtime": 1782506215.8466883,
@@ -4065,9 +4065,9 @@
     "semantic_hash": "4ec444c75953451f779ab5d427de2bcb"
   },
   "backend/package.json": {
-    "mtime": 1785171895.9478943,
-    "ast_hash": "a666de4e71ff35c06d303b8a11c133d0",
-    "semantic_hash": "a666de4e71ff35c06d303b8a11c133d0"
+    "mtime": 1785351814.0873423,
+    "ast_hash": "976a9743e6177e426b191c2afd4b0e1e",
+    "semantic_hash": ""
   },
   "backend/spotify-artist-linker.js": {
     "mtime": 1783281535.4678903,
@@ -4400,9 +4400,9 @@
     "semantic_hash": "cfedd32b741c582e4114f9e6e015acc6"
   },
   "backend/.claude/skills/run-synth-backend/SKILL.md": {
-    "mtime": 1785173334.724679,
-    "ast_hash": "f6bcff5e661ea4a5b38ba2f6afaee08d",
-    "semantic_hash": "f6bcff5e661ea4a5b38ba2f6afaee08d"
+    "mtime": 1785353266.2353644,
+    "ast_hash": "fb20543cf6e84e06564f8e83d5cd829b",
+    "semantic_hash": ""
   },
   "supabase/event-dedup-2026-07-17/README.md": {
     "mtime": 1784299953.8302197,
@@ -8557,6 +8557,16 @@
   "apps/admin/src/assets/hero-events.jpg": {
     "mtime": 1785263787.9387128,
     "ast_hash": "b51efa9b360f3996216ab8ebaab41aaf",
+    "semantic_hash": ""
+  },
+  "backend/instrument.js": {
+    "mtime": 1785353014.405096,
+    "ast_hash": "22eb2ee27e6110b5741aabf3c99d8312",
+    "semantic_hash": ""
+  },
+  "src/instrument.ts": {
+    "mtime": 1785353010.830889,
+    "ast_hash": "9ca3396caf429ea35fd1e9ac90fdf382",
     "semantic_hash": ""
   }
 }
