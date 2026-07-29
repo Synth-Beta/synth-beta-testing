@@ -75,8 +75,10 @@ import type {
   ContentCalendarPost,
   EditorialSnippet,
 } from '@/services/contentCalendar/types';
+import ContentIdeaReservoir from '@/components/admin/content-calendar/ContentIdeaReservoir';
 
 type StreamKind = 'events' | 'venues';
+type CalendarView = 'calendar' | 'ideas';
 const DRAFT_PLATFORMS = ['instagram', 'linkedin', 'substack', 'reddit'] as const;
 
 function statusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {
@@ -119,6 +121,7 @@ export default function ContentCalendarDashboard() {
   const [addDay, setAddDay] = useState<Date | null>(null);
   const [addPlatform, setAddPlatform] = useState<CalendarPlatform>('instagram');
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [calendarView, setCalendarView] = useState<CalendarView>('calendar');
 
   const weekDays = useMemo(
     () => eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) }),
@@ -539,21 +542,47 @@ export default function ContentCalendarDashboard() {
             Content Calendar
           </h2>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Browse DC venues and upcoming shows within 50 miles of downtown (lat/long). Pick one,
-            research with venue/event/artist context, review the AI brief, then draft.
-            then draft copy for review before anything publishes.
+            {calendarView === 'ideas'
+              ? 'Plan from the three-level idea reservoir, then switch to Calendar to research DC subjects and schedule drafts.'
+              : 'Browse DC venues and upcoming shows within 50 miles of downtown (lat/long). Pick one, research with venue/event/artist context, review the AI brief, then draft copy for review before anything publishes.'}
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => void dispatchDuePosts()}
-          disabled={!!busy}
-        >
-          <Send className="h-4 w-4 mr-2" />
-          Publish due IG
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <div className="inline-flex rounded-lg border bg-white p-1 shadow-sm">
+            <Button
+              type="button"
+              size="sm"
+              variant={calendarView === 'calendar' ? 'default' : 'ghost'}
+              onClick={() => setCalendarView('calendar')}
+            >
+              Calendar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={calendarView === 'ideas' ? 'default' : 'ghost'}
+              onClick={() => setCalendarView('ideas')}
+            >
+              Idea reservoir
+            </Button>
+          </div>
+          {calendarView === 'calendar' && (
+            <Button
+              variant="outline"
+              onClick={() => void dispatchDuePosts()}
+              disabled={!!busy}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Publish due IG
+            </Button>
+          )}
+        </div>
       </div>
 
+      {calendarView === 'ideas' ? (
+        <ContentIdeaReservoir />
+      ) : (
+      <>
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         <Card className="xl:col-span-5 shadow-sm">
           <CardHeader className="pb-3">
@@ -922,6 +951,8 @@ export default function ContentCalendarDashboard() {
           </Card>
         ))}
       </div>
+      </>
+      )}
 
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

@@ -106,30 +106,46 @@ export type DcStreamVenue = {
 
 export async function listDcUpcomingEvents(limit = 250): Promise<DcStreamEvent[]> {
   const nowIso = new Date().toISOString();
+  // Filter on events lat/lng (denormalized from venues). Avoids PostgREST
+  // `venues!inner` + `venues.latitude` filters, which intermittently 500.
   const { data, error } = await db
     .from('events')
     .select(
-      'id,title,event_date,venue_city,venue_state,latitude,longitude,event_media_url,artist_id,venue_id,artists(id,name,image_url),venues!inner(id,name,city,state,latitude,longitude,image_url)',
+      'id,title,event_date,venue_city,venue_state,latitude,longitude,event_media_url,artist_id,venue_id,artists(id,name,image_url),venues(id,name,city,state,latitude,longitude,image_url)',
     )
     .gte('event_date', nowIso)
-    .gte('venues.latitude', DC_BBOX.latMin)
-    .lte('venues.latitude', DC_BBOX.latMax)
-    .gte('venues.longitude', DC_BBOX.lngMin)
-    .lte('venues.longitude', DC_BBOX.lngMax)
+    .gte('latitude', DC_BBOX.latMin)
+    .lte('latitude', DC_BBOX.latMax)
+    .gte('longitude', DC_BBOX.lngMin)
+    .lte('longitude', DC_BBOX.lngMax)
     .order('event_date', { ascending: true })
     .limit(Math.max(limit * 3, 500));
 
   if (error) {
-    const fallback = await db
+    // Fallback: venue bbox → event ids (still no embed column filters).
+    const { data: metroVenues, error: venueErr } = await db
+      .from('venues')
+      .select('id')
+      .gte('latitude', DC_BBOX.latMin)
+      .lte('latitude', DC_BBOX.latMax)
+      .gte('longitude', DC_BBOX.lngMin)
+      .lte('longitude', DC_BBOX.lngMax)
+      .limit(1000);
+    if (venueErr) throw new Error(venueErr.message);
+    const venueIds = ((metroVenues ?? []) as { id: string }[]).map((v) => v.id);
+    if (venueIds.length === 0) return [];
+
+    const { data: byVenue, error: byVenueErr } = await db
       .from('events')
       .select(
         'id,title,event_date,venue_city,venue_state,latitude,longitude,event_media_url,artist_id,venue_id,artists(id,name,image_url),venues(id,name,city,state,latitude,longitude,image_url)',
       )
       .gte('event_date', nowIso)
+      .in('venue_id', venueIds)
       .order('event_date', { ascending: true })
-      .limit(1500);
-    if (fallback.error) throw new Error(fallback.error.message);
-    return ((fallback.data ?? []) as DcStreamEvent[])
+      .limit(Math.max(limit * 3, 500));
+    if (byVenueErr) throw new Error(byVenueErr.message);
+    return ((byVenue ?? []) as DcStreamEvent[])
       .filter((e) =>
         isInDcMetro({
           venue_city: e.venue_city || e.venues?.city,
