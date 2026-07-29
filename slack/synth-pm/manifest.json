@@ -1,0 +1,56 @@
+{
+  "display_information": {
+    "name": "Synth PM",
+    "description": "Org-wide tasks, projects, and meeting-notes intake for Synth",
+    "background_color": "#111111"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Synth PM",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/task",
+        "url": "https://join.getsynth.app/api/slack-pm/commands",
+        "description": "Assign, list, and update org tasks",
+        "usage_hint": "assign @person \"Title\" | status T-XXXX active | mine | org | help",
+        "should_escape": false
+      },
+      {
+        "command": "/notes",
+        "url": "https://join.getsynth.app/api/slack-pm/commands",
+        "description": "Turn meeting notes or a PDF/DOCX into tasks",
+        "usage_hint": "upload file then /notes | /notes paste text | /notes modal",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "commands",
+        "im:write",
+        "users:read",
+        "users:read.email",
+        "files:read",
+        "channels:history",
+        "channels:read",
+        "groups:history",
+        "groups:read",
+        "im:history",
+        "mpim:history"
+      ]
+    }
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://join.getsynth.app/api/slack-pm/interactions"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
