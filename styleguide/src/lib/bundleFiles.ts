@@ -1,15 +1,16 @@
-import brandSkill from './content/synth-brand/SKILL.md?raw';
-import brandTokens from './content/synth-brand/reference/brand-tokens.css?raw';
-import brandTailwind from './content/synth-brand/reference/tailwind-brand.js?raw';
-import brandFonts from './content/synth-brand/reference/google-fonts.html?raw';
-import writingGuide from './content/synth-brand/reference/writing-style-guide.md?raw';
-import productSkill from './content/synth-product/SKILL.md?raw';
-import productSources from './content/synth-product/reference/sources.md?raw';
-import nicheAndDistribution from './content/synth-product/reference/niche-and-distribution.md?raw';
-import aiSkill from './content/synth-ai-dev-guide/SKILL.md?raw';
-import aiWritingGuide from './content/synth-ai-dev-guide/reference/writing-style-guide.md?raw';
-import bundleReadme from './content/README.md?raw';
+import brandSkill from '../../bundle/synth-brand/SKILL.md?raw';
+import brandTokens from '../../bundle/synth-brand/reference/brand-tokens.css?raw';
+import brandTailwind from '../../bundle/synth-brand/reference/tailwind-brand.js?raw';
+import brandFonts from '../../bundle/synth-brand/reference/google-fonts.html?raw';
+import writingGuide from '../../bundle/synth-brand/reference/writing-style-guide.md?raw';
+import productSkill from '../../bundle/synth-product/SKILL.md?raw';
+import productSources from '../../bundle/synth-product/reference/sources.md?raw';
+import nicheAndDistribution from '../../bundle/synth-product/reference/niche-and-distribution.md?raw';
+import aiSkill from '../../bundle/synth-ai-dev-guide/SKILL.md?raw';
+import aiWritingGuide from '../../bundle/synth-ai-dev-guide/reference/writing-style-guide.md?raw';
+import bundleReadme from '../../bundle/README.md?raw';
 
+/** Text files packaged into the downloadable skills bundle. */
 export const TEXT_BUNDLE_FILES: Record<string, string> = {
   'README.md': bundleReadme,
   'synth-brand/SKILL.md': brandSkill,
@@ -24,16 +25,11 @@ export const TEXT_BUNDLE_FILES: Record<string, string> = {
   'synth-ai-dev-guide/reference/writing-style-guide.md': aiWritingGuide,
 };
 
-export const NICHE_AND_DISTRIBUTION = nicheAndDistribution;
-
-export const WRITING_STYLE_GUIDE = writingGuide;
-
-/** Logos live under public/Logos in the main app. */
 export const LOGO_PUBLIC_PATHS = [
-  'Logos/Main logo black background.png',
-  'Logos/Main Lolo White background.png',
-  'Logos/Backup Logo - with crowd (BLACK BACKGROUND).png',
-  'Logos/Backup vector. with crowd.png',
+  'Main logo black background.png',
+  'Main Lolo White background.png',
+  'Backup Logo - with crowd (BLACK BACKGROUND).png',
+  'Backup vector. with crowd.png',
 ] as const;
 
 export function buildLlmsShort(): string {
@@ -45,7 +41,7 @@ export function buildLlmsShort(): string {
     'Mobile primary: Expo mobile/. Capacitor legacy.',
     'Admin gate: Supabase users.account_type = admin.',
     'Voice: synth-brand/reference/writing-style-guide.md (apply exactly).',
-    'Full context: llms-full.txt + synth-skills-bundle.zip',
+    'Full context: llms-full.txt + synth-skills-bundle.zip from styleguide.getsynth.app',
     '',
   ].join('\n');
 }
@@ -54,7 +50,7 @@ export function buildLlmsFull(): string {
   const parts = [
     '# Synth Skills Bundle (llms-full)',
     '',
-    'Internal. Available from the admin Style Guide tab.',
+    'Internal. Download from styleguide.getsynth.app with an admin account.',
     'Install skill folders under .cursor/skills/ or .agents/skills/.',
     '',
   ];

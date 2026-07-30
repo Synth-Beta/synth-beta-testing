@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { BookOpen, Download, Palette, Users } from 'lucide-react';
+import { BookOpen, Download, Map, Palette, Users } from 'lucide-react';
 import { WRITING_STYLE_GUIDE } from './style-guide/bundleFiles';
 import { downloadStyleGuideArtifact, type StyleGuideDownloadKind } from './style-guide/downloadStyleGuide';
+import nicheAndDistribution from './style-guide/content/synth-product/reference/niche-and-distribution.md?raw';
 
 const COLORS = [
   { name: 'Brand Pink 500', hex: '#CC2486', token: '--brand-pink-500', role: 'Primary brand' },
@@ -18,6 +19,8 @@ const COLORS = [
   { name: 'Info', hex: '#1F66EA', token: '--info-blue-500', role: 'Info' },
 ];
 
+type StyleSection = 'overview' | 'niche' | 'brand' | 'voice' | 'product';
+
 /**
  * Style guide panel for the admin analytics portal.
  * Relies on the parent portal auth gate; no second login.
@@ -25,7 +28,7 @@ const COLORS = [
 export function AdminStyleGuidePanel() {
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<StyleGuideDownloadKind | null>(null);
-  const [section, setSection] = useState<'overview' | 'brand' | 'voice' | 'product'>('overview');
+  const [section, setSection] = useState<StyleSection>('overview');
 
   async function onDownload(kind: StyleGuideDownloadKind) {
     setDownloadError(null);
@@ -49,8 +52,8 @@ export function AdminStyleGuidePanel() {
               <h2 className="text-2xl font-bold">Synth Style Guide</h2>
             </div>
             <p className="max-w-2xl text-pink-50">
-              Brand tokens, product context, team, and the writing style guide. Download the skills
-              bundle for Cursor or any AI tool.
+              Brand tokens, niche &amp; distribution, product context, team, and the writing style
+              guide. Download the skills bundle for Cursor or any AI tool.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -80,6 +83,7 @@ export function AdminStyleGuidePanel() {
         {(
           [
             ['overview', 'Company'],
+            ['niche', 'Niche & channels'],
             ['brand', 'Brand'],
             ['voice', 'Voice'],
             ['product', 'Product'],
@@ -112,7 +116,9 @@ export function AdminStyleGuidePanel() {
             <h3 className="mb-3 mt-6 text-lg font-semibold text-gray-900">Positioning</h3>
             <p className="text-sm leading-relaxed text-gray-600">
               Live music discovery and community. Discover, Connect, Share. Public framing: the
-              Letterboxd for live music.
+              Letterboxd for live music. Category: live music social discovery — not ticketing, not
+              streaming, not generic listings. Deep niche, acquisition, and partner distribution
+              live under <strong>Niche &amp; channels</strong>.
             </p>
           </div>
           <div className="rounded-xl bg-white p-6 shadow-sm">
@@ -134,6 +140,88 @@ export function AdminStyleGuidePanel() {
                 <strong className="text-gray-900">Theo Kagan</strong> · Operations
               </li>
             </ul>
+          </div>
+        </div>
+      )}
+
+      {section === 'niche' && (
+        <div className="space-y-6">
+          <div className="rounded-xl bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Map className="h-5 w-5 text-pink-600" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Niche, acquisition &amp; distribution
+              </h3>
+            </div>
+            <p className="mb-4 text-sm text-gray-600">
+              Authoritative brief for GTM, partnerships, and content routing. Use with the Content
+              Calendar idea reservoir (angles → channel buckets → specific copy).
+            </p>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 mb-6">
+              {[
+                {
+                  title: 'Category',
+                  body: 'Live music social discovery: identity, companionship, and archive around nights — not tickets or streams.',
+                },
+                {
+                  title: 'Wedge',
+                  body: 'DC / DMV first. Prove venue + review + graph density, then clone metro playbooks.',
+                },
+                {
+                  title: 'Dual growth',
+                  body: 'Consumer channels (IG, TikTok, Substack, Reddit, campus) + partner pipes (venues, writers, orgs).',
+                },
+              ].map((card) => (
+                <div key={card.title} className="rounded-lg border border-gray-200 p-4">
+                  <h4 className="text-sm font-semibold text-gray-900">{card.title}</h4>
+                  <p className="mt-2 text-sm text-gray-600">{card.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <h4 className="mb-2 text-sm font-semibold text-gray-900">Channel jobs (content system)</h4>
+            <div className="overflow-x-auto mb-6">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-gray-500">
+                    <th className="py-2 pr-4 font-medium">Bucket</th>
+                    <th className="py-2 pr-4 font-medium">Platforms</th>
+                    <th className="py-2 font-medium">Job</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-700">
+                  {[
+                    [
+                      'B2B / operator',
+                      'LinkedIn',
+                      'Teach a market or product lesson; open partnership conversation',
+                    ],
+                    [
+                      'Consumer short-form',
+                      'Instagram, TikTok / Reels',
+                      'Recognition, feeling, or saveable tip in one scroll',
+                    ],
+                    [
+                      'Consumer long-form',
+                      'Substack',
+                      'Argue a thesis with sources about a room, night, or metro',
+                    ],
+                  ].map(([bucket, platforms, job]) => (
+                    <tr key={bucket} className="border-b border-gray-100">
+                      <td className="py-3 pr-4 font-medium text-gray-900">{bucket}</td>
+                      <td className="py-3 pr-4">{platforms}</td>
+                      <td className="py-3">{job}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <h4 className="mb-2 text-sm font-semibold text-gray-900">Full brief</h4>
+            <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-800">
+              {nicheAndDistribution}
+            </pre>
           </div>
         </div>
       )}
