@@ -1125,8 +1125,8 @@
     "semantic_hash": "3988a71d847cbf056630ddf30f2e998d"
   },
   "package.json": {
-    "mtime": 1785350324.3283074,
-    "ast_hash": "160284f23879fa73dd533dd084fee545",
+    "mtime": 1785354658.1992307,
+    "ast_hash": "d95b514575b92ac54413f85f749056e3",
     "semantic_hash": ""
   },
   "packages/synth-shared/package.json": {
@@ -4005,9 +4005,9 @@
     "semantic_hash": "cf7feb35b2e4e574bac7c2554db599d6"
   },
   "vercel.json": {
-    "mtime": 1782506215.8729837,
-    "ast_hash": "94ba58f239c6ee0fed4c49464ddaf9ec",
-    "semantic_hash": "94ba58f239c6ee0fed4c49464ddaf9ec"
+    "mtime": 1785354658.2146993,
+    "ast_hash": "7ab62cc88250de4078d4717bf0a66b61",
+    "semantic_hash": ""
   },
   "vite.config.ts": {
     "mtime": 1785350458.427936,
@@ -6110,13 +6110,13 @@
     "semantic_hash": ""
   },
   "apps/admin/src/components/admin/AdminStyleGuidePanel.tsx": {
-    "mtime": 1785263787.9913788,
-    "ast_hash": "b9c5a149f2e8c770bfd1b36d81693522",
+    "mtime": 1785354658.184695,
+    "ast_hash": "b059a796c6545c4958736deb571b1f2d",
     "semantic_hash": ""
   },
   "apps/admin/src/components/admin/content-calendar/ContentCalendarDashboard.tsx": {
-    "mtime": 1785263787.9928453,
-    "ast_hash": "092828b3a3b1bca73825dc549fd4f4a8",
+    "mtime": 1785354658.1859808,
+    "ast_hash": "027a643582d0e28b8bbdee9bc3e9ddff",
     "semantic_hash": ""
   },
   "apps/admin/src/components/admin/social-media/MetricCard.tsx": {
@@ -6150,8 +6150,8 @@
     "semantic_hash": ""
   },
   "apps/admin/src/components/admin/style-guide/bundleFiles.ts": {
-    "mtime": 1785263787.9928453,
-    "ast_hash": "bdbe67d1b4632bf29967fcff46d8eb48",
+    "mtime": 1785354658.189721,
+    "ast_hash": "efde0544145b87d91e1208b19529b318",
     "semantic_hash": ""
   },
   "apps/admin/src/components/admin/style-guide/content/synth-brand/reference/tailwind-brand.js": {
@@ -7020,8 +7020,8 @@
     "semantic_hash": ""
   },
   "apps/admin/src/services/contentCalendar/contentCalendarService.ts": {
-    "mtime": 1785263788.1544204,
-    "ast_hash": "3986bf21709c3f30725c46ccd842315a",
+    "mtime": 1785354658.195093,
+    "ast_hash": "f28cf90d694f38d59fb40fffab7c3853",
     "semantic_hash": ""
   },
   "apps/admin/src/services/contentCalendar/types.ts": {
@@ -8475,13 +8475,13 @@
     "semantic_hash": ""
   },
   "apps/admin/src/components/admin/style-guide/content/synth-product/SKILL.md": {
-    "mtime": 1785263788.0068884,
-    "ast_hash": "b48d80605ec2415c6291ed17930edb9a",
+    "mtime": 1785354658.192102,
+    "ast_hash": "8e2e5d6d9eded061b712fabbb53498b4",
     "semantic_hash": ""
   },
   "apps/admin/src/components/admin/style-guide/content/synth-product/reference/sources.md": {
-    "mtime": 1785263788.0075293,
-    "ast_hash": "617b1aea67427288a77f3f466116c934",
+    "mtime": 1785354658.1940947,
+    "ast_hash": "9acddd86c54308787d93fbe212965d31",
     "semantic_hash": ""
   },
   "apps/admin/public/Logos/Backup Logo - with crowd (BLACK BACKGROUND).png": {
@@ -8567,6 +8567,116 @@
   "src/instrument.ts": {
     "mtime": 1785353010.830889,
     "ast_hash": "9ca3396caf429ea35fd1e9ac90fdf382",
+    "semantic_hash": ""
+  },
+  "api/_lib/slackPm/blocks.ts": {
+    "mtime": 1785354658.1701703,
+    "ast_hash": "be695114072168eb117dd2019bd65d79",
+    "semantic_hash": ""
+  },
+  "api/_lib/slackPm/client.ts": {
+    "mtime": 1785354658.1706693,
+    "ast_hash": "018ddf22ab824e5b5a111ff94aa9d479",
+    "semantic_hash": ""
+  },
+  "api/_lib/slackPm/extractNotes.ts": {
+    "mtime": 1785354658.1718483,
+    "ast_hash": "e559d90e1811ac292c78e10f948c9d5a",
+    "semantic_hash": ""
+  },
+  "api/_lib/slackPm/notesIntake.ts": {
+    "mtime": 1785354658.1729221,
+    "ast_hash": "26ff271e12d05a4b566af88f44d1eab4",
+    "semantic_hash": ""
+  },
+  "api/_lib/slackPm/parse.ts": {
+    "mtime": 1785354658.1749482,
+    "ast_hash": "32dd63b31c8ee5c928a32a3038f8b411",
+    "semantic_hash": ""
+  },
+  "api/_lib/slackPm/processNotes.ts": {
+    "mtime": 1785354658.1759555,
+    "ast_hash": "74b0f87fd15b872fbcc55e8ffd825592",
+    "semantic_hash": ""
+  },
+  "api/_lib/slackPm/tasks.ts": {
+    "mtime": 1785354658.176947,
+    "ast_hash": "ece916c9f6763f4f4988ef4db45e01ce",
+    "semantic_hash": ""
+  },
+  "api/_lib/slackPm/verify.ts": {
+    "mtime": 1785354658.177949,
+    "ast_hash": "c0af61edb6baa84e09684b3c3059f706",
+    "semantic_hash": ""
+  },
+  "api/slack-pm/commands.ts": {
+    "mtime": 1785354658.180115,
+    "ast_hash": "a9f23c22c52e1ee50aab7d69d6ce53fd",
+    "semantic_hash": ""
+  },
+  "api/slack-pm/interactions.ts": {
+    "mtime": 1785354658.1814015,
+    "ast_hash": "586da65311060e8999f517e23196fa32",
+    "semantic_hash": ""
+  },
+  "apps/admin/src/components/admin/content-calendar/ContentIdeaReservoir.tsx": {
+    "mtime": 1785354658.1872668,
+    "ast_hash": "d0faed264c2ec20758d5eee8d835a816",
+    "semantic_hash": ""
+  },
+  "apps/admin/src/components/admin/content-calendar/ideaReservoirData.ts": {
+    "mtime": 1785354658.189404,
+    "ast_hash": "0f62bdc558ec17ddc9bcbd8bf1973c41",
+    "semantic_hash": ""
+  },
+  "scripts/setup-slack-pm.mjs": {
+    "mtime": 1785354658.2014353,
+    "ast_hash": "2f224711d2222371c7a0c7dc966af32f",
+    "semantic_hash": ""
+  },
+  "slack/synth-pm/manifest.json": {
+    "mtime": 1785354658.2042732,
+    "ast_hash": "b4e3e3642b656f897176e7ba9431a4d3",
+    "semantic_hash": ""
+  },
+  "styleguide/src/components/Guide.tsx": {
+    "mtime": 1785354658.211381,
+    "ast_hash": "f745fb073b6d67a723b19dbdf97e0148",
+    "semantic_hash": ""
+  },
+  "styleguide/src/lib/bundleFiles.ts": {
+    "mtime": 1785354658.2126207,
+    "ast_hash": "5401407be89e5d270546cc145dbb8d62",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260729120000_slack_pm.sql": {
+    "mtime": 1785354658.21362,
+    "ast_hash": "51f07807e199742903f63f21265057be",
+    "semantic_hash": ""
+  },
+  "apps/admin/src/components/admin/style-guide/content/synth-product/reference/niche-and-distribution.md": {
+    "mtime": 1785354658.193104,
+    "ast_hash": "7f4285907d0dcae134ca42c51278503c",
+    "semantic_hash": ""
+  },
+  "slack/synth-pm/README.md": {
+    "mtime": 1785354658.2029667,
+    "ast_hash": "916ce411bbab8dc0a0e2c7d7118e8c1f",
+    "semantic_hash": ""
+  },
+  "styleguide/bundle/synth-product/SKILL.md": {
+    "mtime": 1785354658.2062252,
+    "ast_hash": "8e2e5d6d9eded061b712fabbb53498b4",
+    "semantic_hash": ""
+  },
+  "styleguide/bundle/synth-product/reference/niche-and-distribution.md": {
+    "mtime": 1785354658.208225,
+    "ast_hash": "7f4285907d0dcae134ca42c51278503c",
+    "semantic_hash": ""
+  },
+  "styleguide/bundle/synth-product/reference/sources.md": {
+    "mtime": 1785354658.209225,
+    "ast_hash": "9acddd86c54308787d93fbe212965d31",
     "semantic_hash": ""
   }
 }

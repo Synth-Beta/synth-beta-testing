@@ -1,0 +1,14 @@
+# Synth
+
+> Synth is a social app for discovering concerts, shows, and local events, then finding others going to the same ones.
+
+Synth combines event discovery with a social layer: users see who else is interested in or going to an event, connect with people who share their taste in music, and build a history of the shows they've attended. It integrates with Spotify and Apple Music listening history to personalize event recommendations.
+
+## Product
+
+- [Synth](https://synthapp.io/): Web app — discover concerts and local events, and find people to go with.
+- [Synth on the App Store](https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095): iOS app.
+
+## Optional
+
+- [Shared event/review previews](https://synthapp.io/share): Public preview pages for events, reviews, artists, and venues shared by Synth users.
