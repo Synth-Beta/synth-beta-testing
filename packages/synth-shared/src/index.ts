@@ -74,6 +74,13 @@ export {
 } from './notificationNavigation';
 export { getOrCreateDirectChat } from './directChat';
 export { getOrCreateGenreChat } from './genreChat';
+export {
+  type InAppBrowserHost,
+  isIOS,
+  isAndroid,
+  detectInAppBrowser,
+  escapeInAppBrowser,
+} from './inAppBrowserEscape';
 
 /** AsyncStorage / SecureStore key for mobile review wizard drafts (parity with web local draft concept). */
 export function mobileReviewDraftStorageKey(userId: string): string {

@@ -23,7 +23,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@synth/shared": ["../../packages/synth-shared/src/index.ts"]
     }
   },
   "include": ["src"]

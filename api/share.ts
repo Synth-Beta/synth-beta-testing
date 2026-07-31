@@ -316,6 +316,19 @@ function renderPage(opts: {
       -webkit-tap-highlight-color:transparent}
 
     .foot{text-align:center;font-size:11px;color:rgba(255,255,255,.2);margin-top:28px}
+
+    /* In-app browser (Instagram/Facebook) App Store fallback ------------- */
+    .iab-fallback{display:none;position:fixed;inset:0;z-index:50;
+      align-items:center;justify-content:center;background:rgba(0,0,0,.6);padding:20px}
+    .iab-fallback.show{display:flex}
+    .iab-fallback-card{max-width:340px;width:100%;background:#151515;
+      border-radius:16px;padding:22px}
+    .iab-fallback-card h3{font-size:17px;font-weight:700;margin-bottom:8px}
+    .iab-fallback-card p{font-size:13px;line-height:1.5;color:rgba(255,255,255,.6);margin-bottom:6px}
+    .iab-fallback-card .cta{margin-top:14px}
+    .iab-dismiss{display:block;width:100%;text-align:center;margin-top:10px;
+      background:none;border:none;color:rgba(255,255,255,.4);font-size:13px;
+      -webkit-tap-highlight-color:transparent}
   </style>
 </head>
 <body>
@@ -366,12 +379,87 @@ function renderPage(opts: {
 
     <div class="cta">
       <a href="${esc(spaUrl)}" class="btn-primary">Open in Synth</a>
-      <a href="${appStoreLink}" class="btn-ghost">Get the app on the App Store</a>
+      <a href="${appStoreLink}" id="app-store-cta" class="btn-ghost">Get the app on the App Store</a>
     </div>
 
     <div class="foot">Synth · Discover live music with friends</div>
   </div>
 </div>
+
+<!-- Instagram/Facebook in-app browsers block apps.apple.com links outright.
+     This detects that case and hands off to the real browser; see
+     packages/synth-shared/src/inAppBrowserEscape.ts for the React-app
+     equivalent (this inline script is a hand-mirrored copy - keep in sync). -->
+<div class="iab-fallback" id="iab-fallback">
+  <div class="iab-fallback-card">
+    <h3>Almost there</h3>
+    <p>Instagram/Facebook's in-app browser is blocking the App Store link.</p>
+    <p>Tap <strong>⋯</strong> in the top right and choose <strong>"Open in Browser,"</strong> then try again.</p>
+    <div class="cta">
+      <a href="${appStoreLink}" class="btn-primary" id="iab-retry">Try again</a>
+    </div>
+    <button class="iab-dismiss" id="iab-dismiss" type="button">Dismiss</button>
+  </div>
+</div>
+<script>
+(function () {
+  var ua = navigator.userAgent || '';
+  var isAndroid = /Android/i.test(ua);
+  var host = null;
+  if (/Instagram/i.test(ua)) host = isAndroid ? 'android-webview' : 'instagram';
+  else if (/FBAN|FBAV|FB_IAB|Messenger/i.test(ua)) host = isAndroid ? 'android-webview' : 'facebook';
+  if (!host) return; // normal browser: the real <a href> works as-is
+
+  var cta = document.getElementById('app-store-cta');
+  var fallback = document.getElementById('iab-fallback');
+  var dismiss = document.getElementById('iab-dismiss');
+  var retry = document.getElementById('iab-retry');
+  var timer = null;
+
+  function escapeToRealBrowser(url) {
+    if (host === 'instagram') {
+      location.href = 'instagram://extbrowser?url=' + encodeURIComponent(url);
+    } else if (host === 'facebook') {
+      window.open('x-safari-' + url, '_blank');
+    } else {
+      window.location.href = 'intent://' + url.replace(/^https?:\\/\\//, '') + '#Intent;scheme=https;end';
+    }
+  }
+
+  function onEscapeDetected() { cleanup(); }
+  function cleanup() {
+    document.removeEventListener('visibilitychange', onEscapeDetected);
+    window.removeEventListener('pagehide', onEscapeDetected);
+    window.removeEventListener('blur', onEscapeDetected);
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+
+  function attemptEscape(url) {
+    cleanup();
+    document.addEventListener('visibilitychange', onEscapeDetected);
+    window.addEventListener('pagehide', onEscapeDetected);
+    window.addEventListener('blur', onEscapeDetected);
+    timer = setTimeout(function () {
+      cleanup();
+      fallback.classList.add('show');
+    }, 1500);
+    escapeToRealBrowser(url);
+  }
+
+  cta.addEventListener('click', function (e) {
+    e.preventDefault();
+    attemptEscape(cta.getAttribute('href'));
+  });
+  retry.addEventListener('click', function (e) {
+    e.preventDefault();
+    fallback.classList.remove('show');
+    attemptEscape(cta.getAttribute('href'));
+  });
+  dismiss.addEventListener('click', function () {
+    fallback.classList.remove('show');
+  });
+})();
+</script>
 </body>
 </html>`;
 }

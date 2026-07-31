@@ -12,6 +12,8 @@ import {
 import { EmailGateService } from '@/services/emailGateService';
 import { useToast } from '@/hooks/use-toast';
 import { JuicerEmbed } from '@/components/JuicerEmbed';
+import { useInAppBrowserEscape } from '@/hooks/useInAppBrowserEscape';
+import { InAppBrowserFallbackModal } from '@/components/InAppBrowserFallbackModal';
 
 const APP_STORE_URL = 'https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095';
 const SYNTH_WEB_BETA_URL = 'https://join.getsynth.app';
@@ -29,9 +31,22 @@ export const ModernLandingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { toast } = useToast();
+  const { tryEscape, showFallback, dismissFallback } = useInAppBrowserEscape();
 
+  // Meta's Instagram/Facebook in-app browser blocks App Store links outright
+  // (see: apps/admin/src/hooks/useInAppBrowserEscape.ts). tryEscape() detects
+  // that case and hands off to the real browser; in a normal browser it's a
+  // no-op and this falls through to the plain window.open.
   const openAppStore = () => {
+    if (tryEscape(APP_STORE_URL)) return;
     window.open(APP_STORE_URL, '_blank', 'noopener,noreferrer');
+  };
+
+  // For real <a href={APP_STORE_URL}> elements: only intercept (preventDefault)
+  // when we're actually inside an in-app browser, so the normal-browser case
+  // stays a plain link click (right-click/copy-link/etc. keep working).
+  const handleAppStoreAnchorClick = (e: React.MouseEvent) => {
+    if (tryEscape(APP_STORE_URL)) e.preventDefault();
   };
 
   const openWebBeta = () => {
@@ -495,6 +510,7 @@ export const ModernLandingPage = () => {
               href={APP_STORE_URL}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handleAppStoreAnchorClick}
               className="inline-flex items-center text-pink-600 hover:text-pink-700 font-medium"
             >
               Download on the App Store
@@ -522,6 +538,7 @@ export const ModernLandingPage = () => {
             href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleAppStoreAnchorClick}
             className="block w-full bg-white/15 text-white border border-white/40 hover:bg-white/25 font-semibold px-6 py-3 rounded-md text-center"
           >
             Download on the App Store
@@ -529,6 +546,15 @@ export const ModernLandingPage = () => {
         </div>
       </div>
       </main>
+      <InAppBrowserFallbackModal
+        open={showFallback}
+        url={APP_STORE_URL}
+        onRetry={() => {
+          dismissFallback();
+          openAppStore();
+        }}
+        onClose={dismissFallback}
+      />
     </div>
   );
 };

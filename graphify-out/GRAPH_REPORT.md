@@ -1,16 +1,16 @@
-# Graph Report - synth-beta-testing-1  (2026-07-29)
+# Graph Report - synth-beta-testing-1  (2026-07-30)
 
 ## Corpus Check
-- 1447 files · ~2,080,366 words
+- 1447 files · ~2,080,487 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5844 nodes · 13315 edges · 309 communities (212 shown, 97 thin omitted)
+- 5843 nodes · 13315 edges · 308 communities (212 shown, 96 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 81 edges (avg confidence: 0.67)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bc106f59`
+- Built from commit: `f6e9d428`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -250,7 +250,6 @@
 - [[_COMMUNITY_EmptyState.tsx|EmptyState.tsx]]
 - [[_COMMUNITY_Vite Config|Vite Config]]
 - [[_COMMUNITY_Scripts Post Merge Sh|Scripts Post Merge Sh]]
-- [[_COMMUNITY_Public Robots Txt PublicRobots Txt — Crawler Allow Rules|Public Robots Txt: Public/Robots Txt — Crawler Allow Rules]]
 - [[_COMMUNITY_advanced-full-text-search|advanced-full-text-search.md]]
 - [[_COMMUNITY_advanced-jsonb-indexing|advanced-jsonb-indexing.md]]
 - [[_COMMUNITY_conn-idle-timeout|conn-idle-timeout.md]]
@@ -346,7 +345,7 @@
 - **Production-only required backend environment variables** — env_supabase_service_role_key, env_cron_secret, env_jwt_secret [EXTRACTED 1.00]
 - **Synth SEO & structured-data bundle in index.html (meta tags + Organization JSON-LD + WebApplication JSON-LD)** — index_seo_meta, index_jsonld_organization, index_jsonld_webapplication [EXTRACTED 1.00]
 
-## Communities (309 total, 97 thin omitted)
+## Communities (308 total, 96 thin omitted)
 
 ### Community 0 - "Admin & Moderation Panels"
 Cohesion: 0.04
@@ -1121,9 +1120,9 @@ Cohesion: 0.53
 Nodes (5): Joi, validateBody(), validateInput(), validateParams(), validateQuery()
 
 ## Knowledge Gaps
-- **1726 isolated node(s):** `ExtractedActionItem`, `SlackFile`, `SUPPORTED_EXT`, `ParsedAssign`, `ParsedCommand` (+1721 more)
+- **1725 isolated node(s):** `ExtractedActionItem`, `SlackFile`, `SUPPORTED_EXT`, `ParsedAssign`, `ParsedCommand` (+1720 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **97 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **96 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -1135,7 +1134,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `StreamingStatsPage()` connect `Src Services: Concert Api` to `Mobile Readme: Migration 20260624140000 Disable Push Queue T`, `Web/Mobile Parity & Deep Link Routing`, `Concert Event Components`?**
   _High betweenness centrality (0.056) - this node is a cross-community bridge._
 - **What connects `ExtractedActionItem`, `SlackFile`, `SUPPORTED_EXT` to the rest of the system?**
-  _1726 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1725 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Admin & Moderation Panels` be split into smaller, more focused modules?**
   _Cohesion score 0.04140949388396364 - nodes in this community are weakly interconnected._
 - **Should `Concert Event Components` be split into smaller, more focused modules?**
