@@ -30,9 +30,9 @@
     "semantic_hash": "732016262fe3dd87472550b4e9b882ea"
   },
   "api/share.ts": {
-    "mtime": 1782506215.8466883,
-    "ast_hash": "5a25b1abed0d45485f4f8dc940208a12",
-    "semantic_hash": "5a25b1abed0d45485f4f8dc940208a12"
+    "mtime": 1785529850.7496727,
+    "ast_hash": "c17a95e7d77eee088a8a4d80dfc6db47",
+    "semantic_hash": ""
   },
   "api/spotify/sync-profile.ts": {
     "mtime": 1782907321.7060513,
@@ -1160,9 +1160,9 @@
     "semantic_hash": "7f7e112bf630810fe28444b82fd0fb6c"
   },
   "packages/synth-shared/src/index.ts": {
-    "mtime": 1784291827.8409314,
-    "ast_hash": "081c73666834f38726bfc75bfcc92644",
-    "semantic_hash": "081c73666834f38726bfc75bfcc92644"
+    "mtime": 1785529727.3701527,
+    "ast_hash": "836a68b1c595c43e2122cfb412a51fba",
+    "semantic_hash": ""
   },
   "packages/synth-shared/src/notificationNavigation.ts": {
     "mtime": 1782307083.4892187,
@@ -5960,8 +5960,8 @@
     "semantic_hash": ""
   },
   "apps/admin/src/components/ModernLandingPage.tsx": {
-    "mtime": 1785263787.96611,
-    "ast_hash": "827ae589127263af8d138a58687abd32",
+    "mtime": 1785529816.0131702,
+    "ast_hash": "bd218f49604311b77af0ff4c48703d57",
     "semantic_hash": ""
   },
   "apps/admin/src/components/Navigation.tsx": {
@@ -7895,8 +7895,8 @@
     "semantic_hash": ""
   },
   "apps/admin/tsconfig.app.json": {
-    "mtime": 1785263788.3150625,
-    "ast_hash": "ffe0e5efeba4bb692e7cf562160c6c5e",
+    "mtime": 1785529739.7468312,
+    "ast_hash": "5f6ba9a20ebb82a78a715db82ab03eb7",
     "semantic_hash": ""
   },
   "apps/admin/tsconfig.json": {
@@ -7920,8 +7920,8 @@
     "semantic_hash": ""
   },
   "apps/admin/vite.config.ts": {
-    "mtime": 1785263788.3187509,
-    "ast_hash": "8bd2818fc668c00bd786c1396026c4b7",
+    "mtime": 1785529734.8624167,
+    "ast_hash": "9186905c80ae27ad63ee688a4e2cd97b",
     "semantic_hash": ""
   },
   "scripts/sync-admin-to-getsynth.mjs": {
@@ -8682,6 +8682,21 @@
   "public/llms.txt": {
     "mtime": 1785443842.7645602,
     "ast_hash": "7a73113eeceaf447ecef34fcb9ff2f9d",
+    "semantic_hash": ""
+  },
+  "apps/admin/src/components/InAppBrowserFallbackModal.tsx": {
+    "mtime": 1785529764.6486673,
+    "ast_hash": "7552297325c80d149e168bcf53652b08",
+    "semantic_hash": ""
+  },
+  "apps/admin/src/hooks/useInAppBrowserEscape.ts": {
+    "mtime": 1785529749.46734,
+    "ast_hash": "eaf162f9feed9e7e392f0644f367adeb",
+    "semantic_hash": ""
+  },
+  "packages/synth-shared/src/inAppBrowserEscape.ts": {
+    "mtime": 1785529715.2441945,
+    "ast_hash": "75b49d3ef78a1e9e20b62c056ab5faac",
     "semantic_hash": ""
   }
 }

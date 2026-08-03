@@ -1272,9 +1272,157 @@ class IncrementalSync3NF {
   }
 
   /**
+   * Persist a page that's still failing after all inline + second-chance
+   * retries, so a future run's drainFailedPageRetries() can replay it with
+   * these exact params. run_key sidesteps SQL's NULL-distinct-from-NULL
+   * uniqueness trap for catalog-mode rows (date_modified_from always null there).
+   */
+  async recordFailedPage({ page, perPage, dateModifiedFrom, eventDateFrom, upcomingCatalog, error }) {
+    const runKey = `${page}:${upcomingCatalog}:${dateModifiedFrom ?? 'catalog'}:${eventDateFrom ?? 'nopast'}`;
+    try {
+      const { data: existing } = await this.syncService.supabase
+        .from('jambase_sync_failed_pages')
+        .select('id, attempt_count')
+        .eq('run_key', runKey)
+        .maybeSingle();
+
+      if (existing) {
+        await this.syncService.supabase
+          .from('jambase_sync_failed_pages')
+          .update({
+            attempt_count: existing.attempt_count + 1,
+            last_attempted_at: new Date().toISOString(),
+            last_error: error,
+          })
+          .eq('id', existing.id);
+      } else {
+        await this.syncService.supabase.from('jambase_sync_failed_pages').insert({
+          run_key: runKey,
+          page,
+          per_page: perPage,
+          date_modified_from: dateModifiedFrom,
+          event_date_from: eventDateFrom,
+          upcoming_catalog: upcomingCatalog,
+          last_error: error,
+        });
+      }
+    } catch (err) {
+      console.warn(`⚠️  Could not persist failed-page record (non-fatal): ${err.message}`);
+    }
+  }
+
+  /**
+   * One-time Slack alert when a page has failed 5 auto-retry attempts across
+   * runs. Reuses the same #alerts webhook as the existing ops-alert system.
+   */
+  async alertStuckPage(row, attemptCount, errorMessage) {
+    const webhook = process.env.SLACK_ALERTS_WEBHOOK_URL?.trim();
+    if (!webhook) {
+      console.warn('⚠️  SLACK_ALERTS_WEBHOOK_URL not configured — cannot alert on stuck sync page.');
+      return;
+    }
+    try {
+      await fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `*Synth ops warning*\n*Area:* \`jambase-sync\`\n*Fail log:* Page ${row.page} (dateModifiedFrom=${row.date_modified_from || 'catalog'}) has failed ${attemptCount} times: ${errorMessage}\n*Next step:* Investigate manually; auto-retry has stopped for this page.`,
+        }),
+      });
+      await this.syncService.supabase
+        .from('jambase_sync_failed_pages')
+        .update({ alerted: true })
+        .eq('id', row.id);
+    } catch (err) {
+      console.warn(`⚠️  Failed to post Slack alert for stuck page (non-fatal): ${err.message}`);
+    }
+  }
+
+  /**
+   * Retry any page that failed on a previous run, using its exact saved
+   * query params (a page number only means something relative to the
+   * dateModifiedFrom/eventDateFrom it was originally fetched with).
+   */
+  async drainFailedPageRetries() {
+    const { data: pending, error } = await this.syncService.supabase
+      .from('jambase_sync_failed_pages')
+      .select('*')
+      .is('resolved_at', null)
+      .lt('attempt_count', 5)
+      .order('first_failed_at', { ascending: true });
+
+    if (error) {
+      console.warn(`⚠️  Could not load failed-page retry queue (non-fatal): ${error.message}`);
+      return;
+    }
+    if (!pending || pending.length === 0) return;
+
+    console.log(`\n🔁 Draining ${pending.length} previously-failed page(s) from earlier runs...`);
+    for (const row of pending) {
+      try {
+        const pageData = await this.syncService.fetchEventsPage(
+          row.page,
+          row.per_page,
+          row.date_modified_from,
+          row.event_date_from
+        );
+        if (pageData?.events?.length) {
+          await this.processPage3NF(pageData.events);
+        }
+        await this.syncService.supabase
+          .from('jambase_sync_failed_pages')
+          .update({ resolved_at: new Date().toISOString() })
+          .eq('id', row.id);
+        console.log(`  ✅ Page ${row.page} (dateModifiedFrom=${row.date_modified_from || 'catalog'}): recovered`);
+      } catch (err) {
+        const newAttemptCount = row.attempt_count + 1;
+        await this.syncService.supabase
+          .from('jambase_sync_failed_pages')
+          .update({
+            attempt_count: newAttemptCount,
+            last_attempted_at: new Date().toISOString(),
+            last_error: err.message,
+          })
+          .eq('id', row.id);
+        console.error(`  ❌ Page ${row.page}: still failing (attempt ${newAttemptCount}/5): ${err.message}`);
+        if (newAttemptCount >= 5 && !row.alerted) {
+          await this.alertStuckPage(row, newAttemptCount, err.message);
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+  }
+
+  /**
    * Run incremental sync
    */
   async run() {
+    // supabase-js resolves { data, error } rather than throwing on a DB/permission
+    // error — check explicitly, or a failed disable would silently fall through
+    // into the sync with triggers still enabled, defeating the whole point.
+    const { error: disableError } = await this.syncService.supabase.rpc(
+      'set_new_event_notification_triggers', { p_enabled: false }
+    );
+    if (disableError) {
+      console.error(`❌ Failed to disable new-event notification triggers, aborting before processing any pages: ${disableError.message}`);
+      throw disableError;
+    }
+    try {
+      await this._runInner();
+    } finally {
+      const { error: enableError } = await this.syncService.supabase.rpc(
+        'set_new_event_notification_triggers', { p_enabled: true }
+      );
+      if (enableError) {
+        console.error(`🚨 CRITICAL: failed to re-enable new-event notification triggers: ${enableError.message}`);
+        console.error('🚨 Manual fix: SELECT public.set_new_event_notification_triggers(true);');
+      }
+    }
+  }
+
+  async _runInner() {
+    await this.drainFailedPageRetries();
+
     const upcomingCatalog = process.env.JAMBASE_UPCOMING_CATALOG === '1';
     console.log(
       upcomingCatalog
@@ -1499,6 +1647,14 @@ class IncrementalSync3NF {
         } catch (err) {
           console.error(`  ❌ Page ${pageNum}: still failing (${err.message}) — events on this page are not synced this run`);
           stillFailed.push(pageNum);
+          await this.recordFailedPage({
+            page: pageNum,
+            perPage,
+            dateModifiedFrom,
+            eventDateFrom: getEventDateFrom(),
+            upcomingCatalog,
+            error: err.message,
+          });
         }
         await new Promise(resolve => setTimeout(resolve, 150));
       }
@@ -1573,6 +1729,29 @@ async function main() {
 
   const syncService = new JambaseSyncService();
   const incrementalSync = new IncrementalSync3NF(syncService);
+
+  let reenabling = false;
+  const reenableTriggersAndExit = async (signal) => {
+    if (reenabling) return;
+    reenabling = true;
+    console.error(`\n🚨 Received ${signal} — re-enabling new-event notification triggers before exit...`);
+    try {
+      const { error } = await syncService.supabase.rpc('set_new_event_notification_triggers', { p_enabled: true });
+      if (error) {
+        console.error(`🚨 CRITICAL: failed to re-enable triggers after ${signal}: ${error.message}`);
+        console.error('🚨 Manual fix: SELECT public.set_new_event_notification_triggers(true);');
+      } else {
+        console.error('✅ Triggers re-enabled.');
+      }
+    } catch (err) {
+      console.error(`🚨 CRITICAL: failed to re-enable triggers after ${signal}: ${err.message}`);
+      console.error('🚨 Manual fix: SELECT public.set_new_event_notification_triggers(true);');
+    }
+    process.exit(1);
+  };
+  process.on('SIGINT', () => reenableTriggersAndExit('SIGINT'));
+  process.on('SIGTERM', () => reenableTriggersAndExit('SIGTERM'));
+
   await incrementalSync.run();
 
   console.log(`✅ Sync completed at: ${new Date().toISOString()}`);

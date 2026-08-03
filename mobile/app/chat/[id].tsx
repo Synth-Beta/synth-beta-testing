@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard, InteractionManager } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard, InteractionManager, DeviceEventEmitter } from 'react-native';
+import { CHAT_READ_EVENT } from '../../src/hooks/useUnreadMessageCount';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -146,6 +147,12 @@ export default function ChatThreadScreen() {
                                 error_details: { chat_id: id, code: error.code, details: error.details, hint: error.hint },
                                 platform: Platform.OS,
                             });
+                        } else {
+                            // Tell the tab bar's unread badge to recompute now, rather than
+                            // waiting on a realtime round-trip that can silently miss events
+                            // (e.g. switching tabs doesn't background the app, so the
+                            // AppState foreground safety net never fires for this case).
+                            DeviceEventEmitter.emit(CHAT_READ_EVENT);
                         }
                     });
             }

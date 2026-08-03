@@ -26,31 +26,19 @@ import { EventCard } from '../../src/components/Feed/EventCard';
 import { SearchService, type SearchResult } from '../../src/services/searchService';
 import { MobileTourTracker } from '../../src/components/discover/MobileTourTracker';
 import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/DiscoverCalEventsSkeleton';
-import {
-  getCurrentLatLng,
-  reverseGeocode,
-  type LatLng,
-} from '../../src/services/locationService';
+import { type LatLng } from '../../src/services/locationService';
 import { toLocalYmd } from '../../src/utils/localYmd';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { GenreChatsSection } from '../../src/components/discover/GenreChatsSection';
 import { supabase } from '../../src/integrations/supabase/client';
 import { VibeSelectorSheet, type VibeType } from '../../src/components/discover/VibeSelectorSheet';
 import { LocationSheet } from '../../src/components/discover/LocationSheet';
+import { useBrowseLocation } from '../../src/contexts/BrowseLocationContext';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-const formatCityStateLabel = (city?: string | null, state?: string | null): string | null => {
-  const trimmedCity = city?.trim();
-  if (!trimmedCity) {
-    return null;
-  }
-  const trimmedState = state?.trim();
-  return trimmedState ? `${trimmedCity}, ${trimmedState}` : trimmedCity;
-};
 
 /** Which calendar month/day is selected (full Y/M/D so day "15" in April does not highlight May 15). */
 type CalDaySelection = { year: number; month: number; day: number };
@@ -239,12 +227,17 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [searchQ, setSearchQ] = useState('');
-  const [locationLabel, setLocationLabel] = useState('Your Location');
-  const [hasLocationLabel, setHasLocationLabel] = useState(false);
+  const {
+    coords,
+    label: locationLabel,
+    radiusMiles: discoverRadius,
+    isManual,
+    setManualLocation,
+    resetToCurrentLocation,
+  } = useBrowseLocation();
   const [showLocationPill, setShowLocationPill] = useState(true);
   const [tab, setTab] = useState<'calendar' | 'tour'>('calendar');
   const [userId, setUserId] = useState<string | null>(null);
-  const [discoverRadius, setDiscoverRadius] = useState(30);
   const [isVibeSheetOpen, setIsVibeSheetOpen] = useState(false);
   const [isLocationSheetOpen, setIsLocationSheetOpen] = useState(false);
 
@@ -254,39 +247,13 @@ export default function DiscoverScreen() {
     }).catch(() => {});
   }, []);
 
+  // Pill only shows for an active manual override - clearing/resetting hides it,
+  // while the small X on the pill lets the user dismiss it without resetting the
+  // underlying browse location (see styles.locClear below).
   useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
+    setShowLocationPill(isManual);
+  }, [isManual]);
 
-    (async () => {
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('location_city, location_state')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-        if (cancelled) return;
-        if (error) {
-          console.error('Error loading discover location label:', error);
-          return;
-        }
-
-        const label = formatCityStateLabel(data?.location_city, data?.location_state);
-        if (label) {
-          setLocationLabel(label);
-          setHasLocationLabel(true);
-        }
-      } catch (err) {
-        console.error('Error loading discover location label:', err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
-  const [coords, setCoords] = useState<LatLng | null>(null);
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -294,32 +261,6 @@ export default function DiscoverScreen() {
   const [calendarByDate, setCalendarByDate] = useState<Record<string, SearchResult[]>>({});
   const [calLoading, setCalLoading] = useState(false);
   const [calLoadError, setCalLoadError] = useState<string | null>(null);
-  useEffect(() => {
-    void (async () => {
-      const loc = await getCurrentLatLng();
-      setCoords(loc);
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!coords || hasLocationLabel) return;
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const label = await reverseGeocode(coords.latitude, coords.longitude);
-        if (cancelled || !label) return;
-        setLocationLabel(label);
-        setHasLocationLabel(true);
-      } catch (err) {
-        console.error('Error reverse geocoding discover location:', err);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [coords, hasLocationLabel]);
 
   useEffect(() => {
     setCalDaySelection(null);
@@ -387,16 +328,10 @@ export default function DiscoverScreen() {
   };
 
   const handleLocationApply = (newCoords: LatLng | null, label: string | null, radiusMiles: number) => {
-    setDiscoverRadius(radiusMiles);
-    setCoords(newCoords);
-    if (label && label !== 'Your Location') {
-      setLocationLabel(label);
-      setHasLocationLabel(true);
-      setShowLocationPill(true);
+    if (newCoords) {
+      setManualLocation(newCoords, label ?? 'Custom location', radiusMiles);
     } else {
-      setLocationLabel('Your Location');
-      setHasLocationLabel(false);
-      setShowLocationPill(false);
+      resetToCurrentLocation();
     }
     setIsLocationSheetOpen(false);
   };

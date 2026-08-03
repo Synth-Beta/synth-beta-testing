@@ -19,10 +19,10 @@ import {
 import { NotificationService } from '../../src/services/notificationService';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
-import { getCurrentLatLng } from '../../src/services/locationService';
 import { EventService } from '../../src/services/eventService';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { useInterested } from '../../src/contexts/InterestedContext';
+import { useBrowseLocation } from '../../src/contexts/BrowseLocationContext';
 import { resolveFeedImageUri } from '../../src/utils/eventImages';
 import { isEventUpcomingForFeed } from '../../src/utils/localYmd';
 
@@ -45,6 +45,7 @@ export default function FeedScreen() {
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const retryAttemptRef = useRef(0);
   const { seedFromFeed } = useInterested();
+  const { coords: browseCoords } = useBrowseLocation();
 
   const listData: ListItem[] =
     feedDisplayMode === 'events'
@@ -53,15 +54,14 @@ export default function FeedScreen() {
 
   const fetchFeed = useCallback(async () => {
     try {
-      // Location doesn't need the session, so fetch both in parallel instead of
-      // waiting on GPS before even checking who's logged in.
       // Use getSession() (local storage, no network) so the feed loads even on
       // spotty first-launch connectivity. getUser() validates the JWT remotely
       // and returns null on any hiccup, causing an empty feed that refresh can't fix.
-      const [loc, { data: { session } }] = await Promise.all([
-        getCurrentLatLng(),
-        supabase.auth.getSession(),
-      ]);
+      // Location comes from the shared BrowseLocationContext (GPS by default,
+      // or whatever the user picked in Discover) rather than a fresh GPS call
+      // here, so Home and Discover always agree on "where am I browsing".
+      const { data: { session } } = await supabase.auth.getSession();
+      const loc = browseCoords;
       const user = session?.user ?? null;
       if (!user) {
         setReferralCode(null);
@@ -170,7 +170,10 @@ export default function FeedScreen() {
       setRefreshing(false);
       setFeedLoading(false);
     }
-  }, [feedDisplayMode]);
+    // browseCoords in deps: refetch whenever the active browse location
+    // changes (picked in Discover, or reset back to live GPS) - this is
+    // what makes Home actually reflect a manually chosen location.
+  }, [feedDisplayMode, browseCoords?.latitude, browseCoords?.longitude]);
 
   const handleFeedDisplayModeChange = useCallback((mode: FeedDisplayMode) => {
     setFeedDisplayMode(mode);

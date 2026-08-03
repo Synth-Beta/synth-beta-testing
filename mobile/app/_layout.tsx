@@ -19,6 +19,7 @@ import { NotificationService } from '../src/services/notificationService';
 import { useShareDeepLink } from '../lib/useShareDeepLink';
 import { loadPendingShareLink } from '../lib/shareDeepLinkStorage';
 import { InterestedProvider } from '../src/contexts/InterestedContext';
+import { BrowseLocationProvider } from '../src/contexts/BrowseLocationContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryService';
 
@@ -372,6 +373,7 @@ export default function RootLayout() {
 
   return (
     <InterestedProvider>
+    <BrowseLocationProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(onboarding)" options={{ headerShown: false, animation: 'fade' }} />
@@ -381,6 +383,7 @@ export default function RootLayout() {
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="app-menu" options={{ headerShown: false, animation: 'slide_from_right' }} />
     </Stack>
+    </BrowseLocationProvider>
     </InterestedProvider>
   );
 }

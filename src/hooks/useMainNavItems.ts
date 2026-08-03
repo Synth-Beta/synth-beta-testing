@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -52,48 +52,61 @@ export function useMainNavItems({
   const { user } = useAuth();
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
-  useEffect(() => {
-    const fetchUnreadMessages = async () => {
-      if (!user) {
+  // useAuth() calls setUser(session.user) with a *new* object on every
+  // TOKEN_REFRESHED event (roughly hourly), even though the logical user
+  // hasn't changed. Reading the live user through a ref (rather than via a
+  // `[user]` effect dependency) keeps fetchUnreadMessages callable without
+  // forcing the realtime subscription below to tear down and resubscribe
+  // on every token refresh - any message/read event landing in that
+  // resubscribe gap was previously silently dropped, with nothing to
+  // trigger a re-check, so the badge could get stuck until the next refresh.
+  const userRef = useRef(user);
+  userRef.current = user;
+
+  const fetchUnreadMessages = useCallback(async () => {
+    const currentUser = userRef.current;
+    if (!currentUser) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+
+    try {
+      const { data: participantData } = await supabase
+        .from('chat_participants')
+        .select('chat_id, last_read_at')
+        .eq('user_id', currentUser.id);
+
+      if (!participantData || participantData.length === 0) {
         setUnreadMessagesCount(0);
         return;
       }
 
-      try {
-        const { data: participantData } = await supabase
-          .from('chat_participants')
-          .select('chat_id, last_read_at')
-          .eq('user_id', user.id);
+      let totalUnreadMessages = 0;
+      for (const participant of participantData) {
+        const lastRead = participant.last_read_at || '1970-01-01';
+        const { count, error } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('chat_id', participant.chat_id)
+          .neq('sender_id', currentUser.id)
+          .gt('created_at', lastRead);
 
-        if (!participantData || participantData.length === 0) {
-          setUnreadMessagesCount(0);
-          return;
+        if (!error && typeof count === 'number') {
+          totalUnreadMessages += count;
         }
-
-        let totalUnreadMessages = 0;
-        for (const participant of participantData) {
-          const lastRead = participant.last_read_at || '1970-01-01';
-          const { count, error } = await supabase
-            .from('messages')
-            .select('id', { count: 'exact', head: true })
-            .eq('chat_id', participant.chat_id)
-            .neq('sender_id', user.id)
-            .gt('created_at', lastRead);
-
-          if (!error && typeof count === 'number') {
-            totalUnreadMessages += count;
-          }
-        }
-
-        setUnreadMessagesCount(totalUnreadMessages);
-      } catch (error) {
-        console.error('Error fetching unread messages:', error);
       }
-    };
 
+      setUnreadMessagesCount(totalUnreadMessages);
+    } catch (error) {
+      console.error('Error fetching unread messages:', error);
+    }
+  }, []);
+
+  useEffect(() => {
     fetchUnreadMessages();
 
-    if (!user) return;
+    if (!user?.id) return;
+    const userId = user.id;
 
     const refreshUnreadAndAppBadge = async () => {
       await fetchUnreadMessages();
@@ -109,7 +122,7 @@ export function useMainNavItems({
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, refreshUnreadAndAppBadge)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${user.id}` },
+        { event: 'UPDATE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${userId}` },
         refreshUnreadAndAppBadge
       )
       .subscribe();
@@ -117,7 +130,34 @@ export function useMainNavItems({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+    // Depend on user.id (stable primitive), not `user` (new object identity
+    // every token refresh) - see comment on userRef above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, fetchUnreadMessages]);
+
+  // Safety net: realtime is not guaranteed to deliver every event (network
+  // blips, reconnects, tab throttling). Recompute from the DB directly
+  // whenever the tab becomes visible again and whenever the user leaves the
+  // chat view, rather than trusting the badge stays in sync purely from
+  // postgres_changes callbacks.
+  const prevViewRef = useRef(currentView);
+  useEffect(() => {
+    if (prevViewRef.current === 'chat' && currentView !== 'chat') {
+      fetchUnreadMessages();
+    }
+    prevViewRef.current = currentView;
+  }, [currentView, fetchUnreadMessages]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnreadMessages();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [user?.id, fetchUnreadMessages]);
 
   const items: MainNavItem[] = useMemo(() => {
     const isHome = currentView === 'feed';

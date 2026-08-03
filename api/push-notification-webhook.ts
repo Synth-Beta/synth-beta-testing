@@ -319,9 +319,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Fetch active device tokens (Expo tokens can represent iOS or Android).
-  const { data: devices, error: devicesError } = await supabase
+  const { data: devicesRaw, error: devicesError } = await supabase
     .from('device_tokens')
-    .select('device_token, platform')
+    .select('device_token, platform, updated_at')
     .eq('user_id', record.user_id)
     .eq('is_active', true)
     .in('platform', ['ios', 'android']);
@@ -332,7 +332,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, skipped: reason, sent: 0 });
   }
 
-  if (!devices?.length) {
+  if (!devicesRaw?.length) {
     const reason = 'no active device tokens';
     console.log(`[push-webhook] skipped: ${reason}`, { user_id: record.user_id });
     // Record the gap so we can see, over time, which users can't receive push at all.
@@ -355,6 +355,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  const deliveries: DeliveryLogRow[] = [];
+
+  // Defensive dedupe backstop: device_tokens can still carry more than one
+  // simultaneously-active row per (user, platform) — a token that hasn't
+  // re-registered since the register_device_token() fix went live, or a race
+  // between two near-simultaneous registrations. Without this, the same physical
+  // device gets one duplicate push per leftover row (this is exactly what produced
+  // the duplicate "New event at Union Stage!" banners on 2026-08-02). Keep only the
+  // most-recently-updated token per platform; log the rest as skipped for telemetry.
+  const newestPerPlatform = new Map<string, { device_token: string; platform: string; updated_at: string }>();
+  for (const row of devicesRaw as { device_token: string; platform: string; updated_at: string }[]) {
+    const current = newestPerPlatform.get(row.platform);
+    if (!current) {
+      newestPerPlatform.set(row.platform, row);
+      continue;
+    }
+    const winner = row.updated_at > current.updated_at ? row : current;
+    const loser = winner === row ? current : row;
+    newestPerPlatform.set(row.platform, winner);
+    deliveries.push({
+      notification_id: record.id ?? null,
+      user_id: record.user_id,
+      channel: isExpoPushToken(loser.device_token) ? 'expo' : 'apns',
+      platform: loser.platform,
+      device_token_tail: tokenTail(loser.device_token),
+      status: 'skipped',
+      error: 'deduped-superseded-token',
+      deactivated: false,
+    });
+  }
+  const devices = Array.from(newestPerPlatform.values());
+
   const dataPayload = { ...(record.data || {}), type: record.type } as Record<string, unknown>;
 
   // Initialize APNs once before the loop (only if raw iOS tokens exist).
@@ -375,7 +407,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let apnsSent = 0;
   let skipped = 0;
   const errors: string[] = [];
-  const deliveries: DeliveryLogRow[] = [];
 
   for (const row of devices) {
     const deviceToken = typeof row.device_token === 'string' ? row.device_token.trim() : row.device_token;
