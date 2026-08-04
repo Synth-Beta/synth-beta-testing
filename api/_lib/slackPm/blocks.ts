@@ -2,19 +2,14 @@ import type { NotesExtraction } from './extractNotes.js';
 import type { PmTask } from './tasks.js';
 import { formatTaskLine } from './tasks.js';
 
+/** Proposal with a people-picker per task so the team can assign before Create. */
 export function notesProposalBlocks(params: {
   meetingNoteId: string;
   extraction: NotesExtraction;
-  previewLines: string[];
 }) {
   const title = params.extraction.meeting_title || 'Meeting notes';
-  const items = params.extraction.action_items || [];
-  const listText =
-    params.previewLines.length > 0
-      ? params.previewLines.join('\n')
-      : '_No action items found._';
-
-  return [
+  const items = (params.extraction.action_items || []).slice(0, 12);
+  const blocks: Record<string, unknown>[] = [
     {
       type: 'header',
       text: { type: 'plain_text', text: `Proposed tasks: ${title}`.slice(0, 150), emoji: true },
@@ -23,34 +18,89 @@ export function notesProposalBlocks(params: {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `Found *${items.length}* action item(s). Confirm to create them in the org todo repo.`,
+        text:
+          `Found *${(params.extraction.action_items || []).length}* action item(s). ` +
+          `Assignees are auto-matched from the notes when possible — adjust if needed, then *Create tasks*.`,
       },
     },
-    {
+  ];
+
+  items.forEach((item, index) => {
+    const assignee =
+      item.assignee_slack_user_id ||
+      (item.assignee_hint && /^[UW][A-Z0-9]+$/i.test(item.assignee_hint)
+        ? item.assignee_hint.toUpperCase()
+        : null);
+    const who = assignee
+      ? ` · <@${assignee}>`
+      : item.assignee_hint
+        ? ` · _suggested: ${item.assignee_hint}_`
+        : ' · _unassigned_';
+    const project = item.project_hint ? ` · #${item.project_hint}` : '';
+    const due = item.due_hint ? ` · due ${item.due_hint}` : '';
+
+    const accessory: Record<string, unknown> = {
+      type: 'users_select',
+      action_id: 'pm_notes_assign',
+      placeholder: { type: 'plain_text', text: 'Assign to…' },
+    };
+    if (assignee) accessory.initial_user = assignee;
+
+    blocks.push({
       type: 'section',
-      text: { type: 'mrkdwn', text: listText.slice(0, 2900) },
-    },
-    {
-      type: 'actions',
-      block_id: `notes_${params.meetingNoteId}`,
+      block_id: `asg_${params.meetingNoteId}_${index}`,
+      text: {
+        type: 'mrkdwn',
+        text: `*${index + 1}.* ${item.title}${who}${project}${due}`.slice(0, 2900),
+      },
+      accessory,
+    });
+  });
+
+  if ((params.extraction.action_items || []).length > items.length) {
+    blocks.push({
+      type: 'context',
       elements: [
         {
-          type: 'button',
-          action_id: 'pm_notes_confirm',
-          text: { type: 'plain_text', text: 'Create tasks', emoji: true },
-          style: 'primary',
-          value: params.meetingNoteId,
-        },
-        {
-          type: 'button',
-          action_id: 'pm_notes_discard',
-          text: { type: 'plain_text', text: 'Discard', emoji: true },
-          style: 'danger',
-          value: params.meetingNoteId,
+          type: 'mrkdwn',
+          text: `_Showing first ${items.length} — remaining will be created unassigned (edit with \`/task assign\`)._`,
         },
       ],
-    },
-  ];
+    });
+  }
+
+  blocks.push({
+    type: 'actions',
+    block_id: `notes_actions_${params.meetingNoteId}`,
+    elements: [
+      {
+        type: 'button',
+        action_id: 'pm_notes_confirm',
+        text: { type: 'plain_text', text: 'Create tasks', emoji: true },
+        style: 'primary',
+        value: params.meetingNoteId,
+      },
+      {
+        type: 'button',
+        action_id: 'pm_notes_discard',
+        text: { type: 'plain_text', text: 'Discard', emoji: true },
+        style: 'danger',
+        value: params.meetingNoteId,
+      },
+    ],
+  });
+
+  blocks.push({
+    type: 'context',
+    elements: [
+      {
+        type: 'mrkdwn',
+        text: 'After create, reassign anytime: `/task assign @person T-XXXX` or `/task assign @person "Title"`',
+      },
+    ],
+  });
+
+  return blocks;
 }
 
 export function notesModalView(privateMetadata: string) {

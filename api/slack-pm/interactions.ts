@@ -172,7 +172,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await upsertMember(supabase, workspace.id, payload.user.id);
 
     if (payload.type === 'block_actions' && payload.actions?.[0]) {
-      const action = payload.actions[0];
+      const action = payload.actions[0] as {
+        action_id: string;
+        value?: string;
+        selected_user?: string;
+        block_id?: string;
+      };
+
+      // People picker on a proposed task
+      if (action.action_id === 'pm_notes_assign') {
+        const blockId = action.block_id || '';
+        const m = blockId.match(/^asg_([0-9a-f-]{36})_(\d+)$/i);
+        const selected = action.selected_user;
+        if (m && selected) {
+          const noteId = m[1];
+          const index = Number(m[2]);
+          waitUntil(
+            (async () => {
+              const { data: note } = await supabase
+                .from('pm_meeting_notes')
+                .select('id, extraction, status')
+                .eq('id', noteId)
+                .eq('workspace_id', workspace.id)
+                .maybeSingle();
+              if (!note || note.status !== 'proposed') return;
+              const extraction = (note.extraction || {
+                meeting_title: null,
+                action_items: [],
+              }) as NotesExtraction;
+              if (!extraction.action_items?.[index]) return;
+              extraction.action_items[index].assignee_slack_user_id = selected;
+              extraction.action_items[index].assignee_hint = selected;
+              await upsertMember(supabase, workspace.id, selected);
+              await supabase
+                .from('pm_meeting_notes')
+                .update({ extraction })
+                .eq('id', noteId);
+            })().catch((err) => console.error('[slack-pm/interactions] assign', err)),
+          );
+        }
+        return sendText(res, 200, '');
+      }
+
       const noteId = action.value;
       if (!noteId) return sendText(res, 200, '');
 
@@ -225,7 +266,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               .eq('workspace_id', workspace.id);
 
             const createdLines: string[] = [];
+            const skipped: string[] = [];
+
             for (const item of extraction.action_items || []) {
+              // Skip duplicates of existing open tasks with the same title
+              const { data: dup } = await supabase
+                .from('pm_tasks')
+                .select('id, short_code')
+                .eq('workspace_id', workspace.id)
+                .ilike('title', item.title.trim())
+                .neq('status', 'complete')
+                .limit(1)
+                .maybeSingle();
+              if (dup) {
+                skipped.push(`\`${dup.short_code}\` ${item.title} (already open)`);
+                continue;
+              }
+
               let projectId: string | null = null;
               if (item.project_hint) {
                 let project = await findProject(supabase, workspace.id, item.project_hint);
@@ -239,7 +296,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 projectId = project.id;
               }
 
-              const assigneeId = resolveAssigneeHint(item.assignee_hint, members || []);
+              const assigneeId =
+                item.assignee_slack_user_id ||
+                resolveAssigneeHint(item.assignee_hint, members || []);
               if (assigneeId) await upsertMember(supabase, workspace.id, assigneeId);
 
               const task = await createTask(supabase, {
@@ -275,17 +334,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               .update({ status: 'confirmed' })
               .eq('id', note.id);
 
-            const msg =
-              createdLines.length > 0
-                ? `*Created ${createdLines.length} task(s) from meeting notes*\n${createdLines.join('\n')}`
-                : 'No tasks created.';
+            const parts: string[] = [];
+            if (createdLines.length > 0) {
+              parts.push(
+                `*Created ${createdLines.length} task(s) from meeting notes*\n${createdLines.join('\n')}`,
+              );
+            }
+            if (skipped.length > 0) {
+              parts.push(`*Skipped duplicates*\n${skipped.join('\n')}`);
+            }
+            if (!parts.length) parts.push('No tasks created.');
+            parts.push('_Reassign:_ `/task assign @person T-XXXX`');
 
             const channelId = payload.channel?.id || payload.container?.channel_id;
-
             if (channelId) {
               await slackApi('chat.postMessage', {
                 channel: channelId,
-                text: msg,
+                text: parts.join('\n\n'),
               });
             }
 
@@ -293,9 +358,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               await fetch(responseUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  delete_original: true,
-                }),
+                body: JSON.stringify({ delete_original: true }),
               }).catch(() => undefined);
             }
           })().catch((err) => console.error('[slack-pm/interactions] confirm', err)),

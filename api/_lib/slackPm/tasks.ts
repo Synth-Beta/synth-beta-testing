@@ -15,7 +15,9 @@ export type PmTask = {
   due_at: string | null;
   source: string;
   meeting_note_id: string | null;
+  completed_at: string | null;
   created_at: string;
+  updated_at?: string;
 };
 
 export type PmProject = {
@@ -222,4 +224,138 @@ export function formatTaskLine(task: PmTask, opts?: { mention?: boolean }): stri
   const due = task.due_at ? ` · due ${task.due_at.slice(0, 10)}` : '';
   const parent = task.parent_task_id ? '↳ ' : '';
   return `${parent}\`${task.short_code}\` *${task.status}* — ${task.title} (${who})${due}`;
+}
+
+function titleKey(title: string, parentTaskId: string | null): string {
+  return `${(parentTaskId || 'root').toLowerCase()}::${title.trim().toLowerCase()}`;
+}
+
+/** Prefer assigned + earliest-created as the survivor when deduping. */
+function pickKeeper(group: PmTask[]): PmTask {
+  return [...group].sort((a, b) => {
+    const aAssigned = a.assignee_slack_user_id ? 0 : 1;
+    const bAssigned = b.assignee_slack_user_id ? 0 : 1;
+    if (aAssigned !== bAssigned) return aAssigned - bAssigned;
+    return a.created_at.localeCompare(b.created_at);
+  })[0];
+}
+
+export type CleanupDupPreview = {
+  title: string;
+  keep: PmTask;
+  drop: PmTask[];
+};
+
+/**
+ * Find open tasks with the same title (case-insensitive) under the same parent.
+ * Does not mutate unless `apply` is true (then duplicates are marked complete).
+ */
+export async function cleanupDuplicateOpenTasks(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  opts?: { apply?: boolean },
+): Promise<{ groups: CleanupDupPreview[]; completedCodes: string[] }> {
+  const { data, error } = await supabase
+    .from('pm_tasks')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .neq('status', 'complete')
+    .order('created_at', { ascending: true })
+    .limit(500);
+  if (error) throw error;
+
+  const byKey = new Map<string, PmTask[]>();
+  for (const row of (data || []) as PmTask[]) {
+    const key = titleKey(row.title, row.parent_task_id);
+    const list = byKey.get(key) || [];
+    list.push(row);
+    byKey.set(key, list);
+  }
+
+  const groups: CleanupDupPreview[] = [];
+  for (const list of byKey.values()) {
+    if (list.length < 2) continue;
+    const keep = pickKeeper(list);
+    const drop = list.filter((t) => t.id !== keep.id);
+    groups.push({ title: keep.title, keep, drop });
+  }
+
+  const completedCodes: string[] = [];
+  if (opts?.apply && groups.length) {
+    const now = new Date().toISOString();
+    for (const g of groups) {
+      // If keeper is unassigned, inherit an assignee from a duplicate when possible
+      if (!g.keep.assignee_slack_user_id) {
+        const donor = g.drop.find((t) => t.assignee_slack_user_id);
+        if (donor?.assignee_slack_user_id) {
+          await supabase
+            .from('pm_tasks')
+            .update({ assignee_slack_user_id: donor.assignee_slack_user_id })
+            .eq('id', g.keep.id);
+          g.keep = { ...g.keep, assignee_slack_user_id: donor.assignee_slack_user_id };
+        }
+      }
+      for (const d of g.drop) {
+        const { error: upErr } = await supabase
+          .from('pm_tasks')
+          .update({
+            status: 'complete',
+            completed_at: now,
+            last_status_at: now,
+            description: [d.description, `[cleanup] duplicate of ${g.keep.short_code}`]
+              .filter(Boolean)
+              .join('\n'),
+          })
+          .eq('id', d.id);
+        if (upErr) throw upErr;
+        completedCodes.push(d.short_code);
+      }
+    }
+  }
+
+  return { groups, completedCodes };
+}
+
+/** Mark every open task complete. Preview when apply is false. */
+export async function clearAllOpenTasks(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  opts?: { apply?: boolean },
+): Promise<{ openCount: number; completedCodes: string[]; sample: PmTask[] }> {
+  const { data, error } = await supabase
+    .from('pm_tasks')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .neq('status', 'complete')
+    .order('created_at', { ascending: true })
+    .limit(500);
+  if (error) throw error;
+
+  const open = (data || []) as PmTask[];
+  const completedCodes: string[] = [];
+
+  if (opts?.apply && open.length) {
+    const now = new Date().toISOString();
+    const ids = open.map((t) => t.id);
+    // Batch update in chunks
+    for (let i = 0; i < ids.length; i += 100) {
+      const chunk = ids.slice(i, i + 100);
+      const { error: upErr } = await supabase
+        .from('pm_tasks')
+        .update({
+          status: 'complete',
+          completed_at: now,
+          last_status_at: now,
+        })
+        .in('id', chunk);
+      if (upErr) throw upErr;
+    }
+    completedCodes.push(...open.map((t) => t.short_code));
+  }
+
+  return {
+    openCount: open.length,
+    completedCodes,
+    sample: open.slice(0, 20),
+  };
 }

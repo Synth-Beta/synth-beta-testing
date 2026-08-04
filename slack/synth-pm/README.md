@@ -15,15 +15,30 @@ Vercel routes talk to Supabase (`pm_*` tables). Slash commands + interactivity c
 | `/task list [@person\|#project]` | Filtered list |
 | `/task sub T-XXXX "Sub-task"` | Sub-task |
 | `/task project create\|list` | Projects |
-| `/notes` | Modal or paste → LLM proposes tasks → Confirm |
+| `/task digest here\|status\|on\|off\|now` | Daily digest channel (9am / 1pm / 5pm ET) |
+| `/task cleanup` · `/task clear all` | Dedupe / clear open tasks |
+| `/notes` | Modal or paste → LLM proposes tasks (auto-assigns) → Confirm |
+
+## Digests
+
+After `/task digest here` in your team channel:
+
+| When (ET) | Message |
+|---|---|
+| 9:00am | Daily to-do by person + DM each assignee |
+| 1:00pm | Midday in-progress / blocked check-in |
+| 5:00pm | EOD done / still open / blocked |
+
+Each message prompts `/task status T-XXXX active|in_progress|blocked|complete`.
 
 ## Setup
 
 ### 1. Apply SQL
 
-Run in Supabase SQL editor:
+Run in Supabase SQL editor (both):
 
-`supabase/migrations/20260729120000_slack_pm.sql`
+`supabase/migrations/20260729120000_slack_pm.sql`  
+`supabase/migrations/20260730140000_slack_pm_digest.sql`
 
 ### 2. Create classic Slack app
 
@@ -66,6 +81,9 @@ In Slack:
 | `SUPABASE_SERVICE_ROLE_KEY` | yes (already on Vercel) |
 | `OPENAI_API_KEY` | recommended for `/notes` |
 | `OPENAI_PM_MODEL` | optional (default `gpt-4o-mini`) |
+| `CRON_SECRET` | yes (Vercel cron auth; already used by other crons) |
+| `SLACK_PM_DIGEST_CHANNEL` | optional fallback if DB channel unset |
+| `SLACK_PM_TZ` | optional (default `America/New_York`) |
 
 ## Why not Incoming Webhooks only?
 

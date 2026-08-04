@@ -3,7 +3,10 @@ import { PM_STATUSES, type PmTaskStatus } from './client.js';
 export type ParsedAssign = {
   kind: 'assign';
   assigneeId: string | null;
+  /** Plain @name / name when Slack did not send a <@U…> mention token */
+  assigneeHint: string | null;
   title: string;
+  taskCode: string | null;
   projectRef: string | null;
   due: string | null;
 };
@@ -18,13 +21,16 @@ export type ParsedCommand =
   | { kind: 'sub'; parentCode: string; title: string }
   | { kind: 'project_create'; name: string }
   | { kind: 'project_list' }
+  | { kind: 'cleanup'; apply: boolean }
+  | { kind: 'clear'; apply: boolean }
+  | { kind: 'digest'; action: 'here' | 'status' | 'on' | 'off' | 'now'; slot?: 'morning' | 'midday' | 'eod' }
   | { kind: 'unknown'; message: string };
 
-const MENTION_RE = /^<@([A-Z0-9]+)(?:\|[^>]+)?>$/i;
+const MENTION_RE = /<@([UW][A-Z0-9]+)(?:\|[^>]+)?>/i;
 
 function extractMention(token: string): string | null {
   const m = token.match(MENTION_RE);
-  return m ? m[1] : null;
+  return m ? m[1].toUpperCase() : null;
 }
 
 function parseDue(token: string): string | null {
@@ -63,14 +69,21 @@ export function parseTaskCommand(text: string): ParsedCommand {
   if (head === 'assign') {
     const rest = parts.slice(1);
     let assigneeId: string | null = null;
+    let assigneeHint: string | null = null;
     let projectRef: string | null = null;
     let due: string | null = null;
+    let taskCode: string | null = null;
     const titleParts: string[] = [];
 
     for (const p of rest) {
       const mention = extractMention(p);
       if (mention && !assigneeId) {
         assigneeId = mention;
+        continue;
+      }
+      // Slack sometimes leaves a plain @Name in slash-command text
+      if (!assigneeId && !assigneeHint && (/^@[\w.-]+$/i.test(p) || /^me$/i.test(p))) {
+        assigneeHint = p.replace(/^@/, '');
         continue;
       }
       const dueVal = parseDue(p);
@@ -82,14 +95,22 @@ export function parseTaskCommand(text: string): ParsedCommand {
         projectRef = p.slice(1);
         continue;
       }
+      if (/^T-[A-Z0-9]+$/i.test(p) && !taskCode) {
+        taskCode = p.toUpperCase();
+        continue;
+      }
       titleParts.push(p);
     }
 
     const title = stripQuotes(titleParts.join(' ').trim());
-    if (!title) {
-      return { kind: 'unknown', message: 'Usage: /task assign @person "Title" [#project] [due:YYYY-MM-DD]' };
+    if (!taskCode && !title) {
+      return {
+        kind: 'unknown',
+        message:
+          'Usage: `/task assign @person "Title"` or `/task assign @person T-XXXX` [#project] [due:YYYY-MM-DD]',
+      };
     }
-    return { kind: 'assign', assigneeId, title, projectRef, due };
+    return { kind: 'assign', assigneeId, assigneeHint, title, taskCode, projectRef, due };
   }
 
   if (head === 'status') {
@@ -130,10 +151,72 @@ export function parseTaskCommand(text: string): ParsedCommand {
     return { kind: 'unknown', message: 'Usage: /task project create|list …' };
   }
 
+  if (head === 'cleanup' || head === 'dedupe') {
+    const sub = (parts[1] || '').toLowerCase();
+    const apply = ['confirm', 'apply', 'go', 'yes', 'run'].includes(sub);
+    if (sub && !apply && !['preview', 'dry-run', 'dryrun', 'duplicates', 'dupes'].includes(sub)) {
+      return {
+        kind: 'unknown',
+        message:
+          'Usage: `/task cleanup` (preview) or `/task cleanup confirm` (mark duplicate open titles complete)',
+      };
+    }
+    return { kind: 'cleanup', apply };
+  }
+
+  if (head === 'clear') {
+    const rest = parts.slice(1).map((p) => p.toLowerCase());
+    const apply = rest.some((p) => ['confirm', 'apply', 'go', 'yes', 'run'].includes(p));
+    const okTokens = new Set([
+      '',
+      'all',
+      'tasks',
+      'preview',
+      'dry-run',
+      'dryrun',
+      'confirm',
+      'apply',
+      'go',
+      'yes',
+      'run',
+    ]);
+    if (rest.some((p) => !okTokens.has(p))) {
+      return {
+        kind: 'unknown',
+        message:
+          'Usage: `/task clear` or `/task clear all` (preview), then `/task clear all confirm` to mark every open task complete',
+      };
+    }
+    return { kind: 'clear', apply };
+  }
+
+  if (head === 'digest') {
+    const sub = (parts[1] || 'status').toLowerCase();
+    if (sub === 'here' || sub === 'set') return { kind: 'digest', action: 'here' };
+    if (sub === 'on' || sub === 'enable') return { kind: 'digest', action: 'on' };
+    if (sub === 'off' || sub === 'disable') return { kind: 'digest', action: 'off' };
+    if (sub === 'status' || sub === 'info') return { kind: 'digest', action: 'status' };
+    if (sub === 'now' || sub === 'test') {
+      const slotRaw = (parts[2] || 'morning').toLowerCase();
+      const slot =
+        slotRaw === 'midday' || slotRaw === 'noon'
+          ? 'midday'
+          : slotRaw === 'eod' || slotRaw === 'evening'
+            ? 'eod'
+            : 'morning';
+      return { kind: 'digest', action: 'now', slot };
+    }
+    return {
+      kind: 'unknown',
+      message:
+        'Usage: `/task digest here` · `status` · `on` · `off` · `now [morning|midday|eod]`',
+    };
+  }
+
   return {
     kind: 'unknown',
     message:
-      'Unknown command. Try `/task help` — assign, status, mine, list, sub, project create|list.',
+      'Unknown command. Try `/task help` — assign, status, mine, list, cleanup, clear, digest, sub, project.',
   };
 }
 
@@ -157,15 +240,19 @@ function tokenize(input: string): string[] {
 
 export const HELP_TEXT = `*Synth PM commands*
 
-\`/task assign @person "Title" [#project] [due:YYYY-MM-DD]\`
-\`/task status T-XXXX <todo|active|in_progress|blocked|stalled|complete>\`
-\`/task mine\` — your open tasks
-\`/task org\` — full org open todo list
-\`/task list [@person|#project]\`
+*Visible to the channel*
+\`/task assign @person "Title"\` · \`/task assign @person T-XXXX\`
+\`/task status T-XXXX <status>\`
 \`/task sub T-XXXX "Sub-task title"\`
 \`/task project create "Name"\`
-\`/task project list\`
+\`/notes\` proposals + created tasks
 
-\`/notes\` — upload PDF/DOCX/TXT then \`/notes\` · or paste \`/notes …text…\` · or \`/notes modal\`
+*Only you see*
+\`/task mine\` · \`/task org\` · \`/task list [@person|#project]\`
+\`/task project list\` · \`/task help\`
+\`/task cleanup\` · \`/task clear all\` (+ confirm)
+\`/task digest here|status|on|off|now\`
+\`/notes help\` · \`/notes modal\` · progress / errors
 
-*Statuses:* \`todo\` · \`active\` (working now) · \`in_progress\` · \`blocked\` · \`stalled\` · \`complete\``;
+*Auto digests (channel):* 9am daily to-do · 1pm midday · 5pm EOD (ET)
+*Statuses:* \`todo\` · \`active\` · \`in_progress\` · \`blocked\` · \`stalled\` · \`complete\``;
