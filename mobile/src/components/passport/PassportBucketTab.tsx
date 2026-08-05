@@ -2,19 +2,16 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Building2, Music, Plus, Search, X } from 'lucide-react-native';
+import { Building2, ChevronDown, ChevronUp, Music, Plus, Search, X } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { BucketListService, type BucketListItem } from '../../services/bucketListService';
-import { SearchService, type ArtistSearchRow, type VenueSearchRow } from '../../services/searchService';
+import { SearchService, type ArtistSearchRow } from '../../services/searchService';
 import { EmptyState, SectionError, TabSkeleton } from './PassportPrimitives';
 
 const PINK = SynthTokens.colors.brandPink500;
 
-type SearchMode = 'artist' | 'venue';
-type SearchHit =
-    | { kind: 'artist'; id: string; name: string; imageUrl?: string; detail?: string }
-    | { kind: 'venue'; id: string; name: string; imageUrl?: string; detail?: string };
+type SearchHit = { kind: 'artist'; id: string; name: string; imageUrl?: string; detail?: string };
 
 export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit: boolean }) {
     const router = useRouter();
@@ -22,11 +19,11 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [mode, setMode] = useState<SearchMode>('artist');
     const [query, setQuery] = useState('');
     const [hits, setHits] = useState<SearchHit[]>([]);
     const [searching, setSearching] = useState(false);
     const [addingId, setAddingId] = useState<string | null>(null);
+    const [reordering, setReordering] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const load = useCallback(async () => {
@@ -45,7 +42,7 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
         void load();
     }, [load]);
 
-    // Debounced search against the same artist/venue tables the web search boxes use.
+    // Debounced search against the same artist table the web search box uses.
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         const q = query.trim();
@@ -58,13 +55,8 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
         debounceRef.current = setTimeout(() => {
             void (async () => {
                 try {
-                    if (mode === 'artist') {
-                        const rows: ArtistSearchRow[] = await SearchService.searchArtists(q, 8);
-                        setHits(rows.map(r => ({ kind: 'artist' as const, id: r.id, name: r.name, imageUrl: r.image_url })));
-                    } else {
-                        const rows: VenueSearchRow[] = await SearchService.searchVenues(q, 8);
-                        setHits(rows.map(r => ({ kind: 'venue' as const, id: r.id, name: r.name, detail: r.city ?? undefined })));
-                    }
+                    const rows: ArtistSearchRow[] = await SearchService.searchArtists(q, 8);
+                    setHits(rows.map(r => ({ kind: 'artist' as const, id: r.id, name: r.name, imageUrl: r.image_url })));
                 } finally {
                     setSearching(false);
                 }
@@ -73,7 +65,7 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current);
         };
-    }, [query, mode, canEdit]);
+    }, [query, canEdit]);
 
     const inList = useMemo(() => {
         const set = new Set<string>();
@@ -88,10 +80,7 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
             void (async () => {
                 setAddingId(hit.id);
                 try {
-                    const ok =
-                        hit.kind === 'artist'
-                            ? await BucketListService.addArtist(userId, hit.id, hit.name)
-                            : await BucketListService.addVenue(userId, hit.id, hit.name);
+                    const ok = await BucketListService.addArtist(userId, hit.id, hit.name);
                     if (ok) {
                         setQuery('');
                         setHits([]);
@@ -125,6 +114,31 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
         [userId]
     );
 
+    const handleReorder = useCallback(
+        (index: number, dir: 'up' | 'down') => {
+            if (!canEdit || reordering) return;
+            const newIndex = dir === 'up' ? index - 1 : index + 1;
+            if (newIndex < 0 || newIndex >= items.length) return;
+
+            const reordered = items.slice();
+            [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
+            setItems(reordered);
+
+            void (async () => {
+                setReordering(true);
+                try {
+                    await BucketListService.reorderBucketList(userId, reordered.map(i => i.id));
+                } catch (e) {
+                    console.error('Error reordering bucket list:', e);
+                    await load();
+                } finally {
+                    setReordering(false);
+                }
+            })();
+        },
+        [canEdit, reordering, items, userId, load]
+    );
+
     const openItem = useCallback(
         (item: BucketListItem) => {
             const uuid = item.artist?.id || item.venue?.id || item.entity_id;
@@ -141,16 +155,11 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
         <View>
             {canEdit ? (
                 <View style={styles.addBox}>
-                    <View style={styles.modeRow}>
-                        <ModeChip label="Artists" icon={<Music size={13} color={mode === 'artist' ? PINK : SynthTokens.colors.neutral600} />} active={mode === 'artist'} onPress={() => setMode('artist')} />
-                        <ModeChip label="Venues" icon={<Building2 size={13} color={mode === 'venue' ? PINK : SynthTokens.colors.neutral600} />} active={mode === 'venue'} onPress={() => setMode('venue')} />
-                    </View>
-
                     <View style={styles.searchRow}>
                         <Search size={16} color={SynthTokens.colors.neutral400} />
                         <TextInput
                             style={styles.searchInput}
-                            placeholder={mode === 'artist' ? 'Search artists to add…' : 'Search venues to add…'}
+                            placeholder="Search artists to add…"
                             placeholderTextColor={SynthTokens.colors.neutral400}
                             value={query}
                             onChangeText={setQuery}
@@ -213,7 +222,7 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
                         </View>
                     ) : query.trim().length >= 2 ? (
                         <SynthText variant="meta" color="secondary" style={styles.noHits}>
-                            No {mode === 'artist' ? 'artists' : 'venues'} found for “{query.trim()}”.
+                            No artists found for “{query.trim()}”.
                         </SynthText>
                     ) : null}
                 </View>
@@ -222,11 +231,38 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
             {items.length === 0 ? (
                 <EmptyState
                     title="Bucket list is empty"
-                    hint={canEdit ? 'Search above to add artists you need to see and venues you need to visit.' : 'Nothing on the list yet.'}
+                    hint={canEdit ? 'Search above to add artists you need to see.' : 'Nothing on the list yet.'}
                 />
             ) : (
-                items.map(item => (
+                items.map((item, index) => (
                     <View key={item.id} style={styles.itemRow}>
+                        {canEdit ? (
+                            <View style={styles.rankArrows}>
+                                <Pressable
+                                    style={styles.rankArrowBtn}
+                                    disabled={index === 0 || reordering}
+                                    onPress={() => handleReorder(index, 'up')}
+                                    hitSlop={4}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Move up"
+                                >
+                                    <ChevronUp size={16} color={index === 0 ? SynthTokens.colors.neutral400 : SynthTokens.colors.neutral600} />
+                                </Pressable>
+                                <Pressable
+                                    style={styles.rankArrowBtn}
+                                    disabled={index === items.length - 1 || reordering}
+                                    onPress={() => handleReorder(index, 'down')}
+                                    hitSlop={4}
+                                    accessibilityRole="button"
+                                    accessibilityLabel="Move down"
+                                >
+                                    <ChevronDown size={16} color={index === items.length - 1 ? SynthTokens.colors.neutral400 : SynthTokens.colors.neutral600} />
+                                </Pressable>
+                            </View>
+                        ) : null}
+                        <View style={styles.rankBadge}>
+                            <SynthText variant="meta" style={styles.rankBadgeTxt}>{index + 1}</SynthText>
+                        </View>
                         <Pressable style={styles.itemMain} onPress={() => openItem(item)} accessibilityRole="button">
                             <ItemAvatar item={item} />
                             <View style={{ flex: 1 }}>
@@ -256,24 +292,13 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
     );
 }
 
-function ModeChip({ label, icon, active, onPress }: { label: string; icon: React.ReactNode; active: boolean; onPress: () => void }) {
-    return (
-        <Pressable style={[styles.modeChip, active && styles.modeChipOn]} onPress={onPress} accessibilityRole="button">
-            {icon}
-            <SynthText variant="meta" style={[styles.modeChipTxt, active && styles.modeChipTxtOn]}>
-                {label}
-            </SynthText>
-        </Pressable>
-    );
-}
-
 function HitAvatar({ hit }: { hit: SearchHit }) {
     if (hit.imageUrl) {
         return <Image source={{ uri: hit.imageUrl }} style={styles.avatar} />;
     }
     return (
         <View style={[styles.avatar, styles.avatarFallback]}>
-            {hit.kind === 'venue' ? <Building2 size={14} color={PINK} /> : <Music size={14} color={PINK} />}
+            <Music size={14} color={PINK} />
         </View>
     );
 }
@@ -299,21 +324,6 @@ const styles = StyleSheet.create({
         padding: 12,
         marginBottom: 14,
     },
-    modeRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-    modeChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 7,
-        borderRadius: 999,
-        backgroundColor: SynthTokens.colors.neutral100,
-        borderWidth: 1,
-        borderColor: SynthTokens.colors.neutral200,
-    },
-    modeChipOn: { backgroundColor: SynthTokens.colors.brandPink050, borderColor: PINK },
-    modeChipTxt: { fontSize: 13, fontWeight: '600', color: SynthTokens.colors.neutral600 },
-    modeChipTxtOn: { color: PINK },
     searchRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -370,6 +380,19 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     itemMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    rankArrows: { marginRight: 6 },
+    rankArrowBtn: { paddingVertical: 1, paddingHorizontal: 2 },
+    rankBadge: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
+    },
+    rankBadgeTxt: { fontSize: 11, fontWeight: '700', color: SynthTokens.colors.neutral600 },
     itemName: { fontWeight: '700' },
     itemType: { fontSize: 12.5 },
     removeBtn: {

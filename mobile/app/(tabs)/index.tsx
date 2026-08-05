@@ -8,9 +8,11 @@ import { EventCard } from '../../src/components/Feed/EventCard';
 import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import { SynthText } from '../../src/components/SynthText';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
+import { BucketListRail } from '../../src/components/Feed/BucketListRail';
 import { FeedListSkeleton } from '../../src/components/skeletons/FeedListSkeleton';
 import { ShareWithFriendsBanner } from '../../src/components/share/ShareWithFriendsBanner';
 import {
+  BucketListFeedItem,
   FriendSuggestion,
   HomeFeedService,
   NetworkReview,
@@ -41,6 +43,7 @@ export default function FeedScreen() {
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
+  const [bucketListEvents, setBucketListEvents] = useState<BucketListFeedItem[]>([]);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const retryAttemptRef = useRef(0);
@@ -69,6 +72,7 @@ export default function FeedScreen() {
         setEvents([]);
         setReviews([]);
         setFriendSuggestions([]);
+        setBucketListEvents([]);
         return;
       }
       setViewerUserId(user.id);
@@ -91,12 +95,14 @@ export default function FeedScreen() {
       })();
       const unreadPromise = NotificationService.getUnreadCount(user.id);
       const suggestionsPromise = HomeFeedService.getFriendSuggestionsForRail(user.id, 5);
+      const bucketListEventsPromise = HomeFeedService.getBucketListEvents(user.id, 10);
 
       if (feedDisplayMode === 'events') {
-        const [referralCode, unread, suggestions, unified, friendEvents] = await Promise.all([
+        const [referralCode, unread, suggestions, bucketEvents, unified, friendEvents] = await Promise.all([
           referralCodePromise,
           unreadPromise,
           suggestionsPromise,
+          bucketListEventsPromise,
           HomeFeedService.getUnifiedPersonalizedEvents(
             user.id, 50, loc?.latitude ?? null, loc?.longitude ?? null, 50
           ),
@@ -105,6 +111,7 @@ export default function FeedScreen() {
         setReferralCode(referralCode);
         setNotificationCount(unread);
         setFriendSuggestions(suggestions);
+        setBucketListEvents(bucketEvents);
 
         // Convert friend network events → UnifiedPersonalizedEvent with FRIENDS label
         const friendEventIds = new Set(unified.map(e => e.id));
@@ -144,15 +151,17 @@ export default function FeedScreen() {
         setEvents(upcomingOnly);
         seedFromFeed(upcomingOnly);
       } else {
-        const [referralCode, unread, suggestions, networkReviews] = await Promise.all([
+        const [referralCode, unread, suggestions, bucketEvents, networkReviews] = await Promise.all([
           referralCodePromise,
           unreadPromise,
           suggestionsPromise,
+          bucketListEventsPromise,
           HomeFeedService.getNetworkReviews(user.id, 20),
         ]);
         setReferralCode(referralCode);
         setNotificationCount(unread);
         setFriendSuggestions(suggestions);
+        setBucketListEvents(bucketEvents);
         setReviews(networkReviews);
       }
       setFeedError(false);
@@ -282,12 +291,13 @@ export default function FeedScreen() {
     () => (
       <>
         <ShareWithFriendsBanner referralCode={referralCode} source="home_feed" />
+        <BucketListRail events={bucketListEvents} />
         {friendSuggestions.length > 0 ? (
           <FriendSuggestionsRail suggestions={friendSuggestions} />
         ) : null}
       </>
     ),
-    [referralCode, friendSuggestions]
+    [referralCode, bucketListEvents, friendSuggestions]
   );
 
   return (

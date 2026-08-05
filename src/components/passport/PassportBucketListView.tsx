@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Music, Building2, X, Plus } from 'lucide-react';
+import { Loader2, Music, Building2, X, Plus, ChevronUp, ChevronDown } from 'lucide-react';
 import { BucketListService, type BucketListItem } from '@/services/bucketListService';
 import { ArtistSearchBox } from '@/components/ArtistSearchBox';
-import { VenueSearchBox } from '@/components/VenueSearchBox';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { Artist } from '@/types/concertSearch';
-import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 
 interface PassportBucketListViewProps {
   userId: string;
@@ -24,9 +22,9 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
   const [bucketList, setBucketList] = useState<BucketListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddArtist, setShowAddArtist] = useState(false);
-  const [showAddVenue, setShowAddVenue] = useState(false);
   const [adding, setAdding] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
     loadBucketList();
@@ -60,22 +58,6 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
     }
   };
 
-  const handleVenueSelect = async (venue: VenueSearchResult) => {
-    if (!canEdit) return;
-    setAdding(true);
-    try {
-      const success = await BucketListService.addVenue(userId, venue.id, venue.name);
-      if (success) {
-        setShowAddVenue(false);
-        await loadBucketList();
-      }
-    } catch (error) {
-      console.error('Error adding venue:', error);
-    } finally {
-      setAdding(false);
-    }
-  };
-
   const handleRemove = async (itemId: string) => {
     if (!canEdit) return;
     try {
@@ -85,6 +67,26 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
       }
     } catch (error) {
       console.error('Error removing item:', error);
+    }
+  };
+
+  const handleReorder = async (index: number, direction: 'up' | 'down') => {
+    if (!canEdit || reordering) return;
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= bucketList.length) return;
+
+    const reordered = bucketList.slice();
+    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
+    setBucketList(reordered);
+
+    setReordering(true);
+    try {
+      await BucketListService.reorderBucketList(userId, reordered.map((i) => i.id));
+    } catch (error) {
+      console.error('Error reordering bucket list:', error);
+      await loadBucketList();
+    } finally {
+      setReordering(false);
     }
   };
 
@@ -136,32 +138,19 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
     <div className="space-y-4 overflow-visible">
       {/* Add Items Section - only for own profile */}
       {canEdit && (
-        <Card className={isSearching ? "mb-4" : ""} style={{ overflow: 'visible' }}>
+        <Card style={{ overflow: 'visible' }}>
           <CardContent className="p-4" style={{ overflow: 'visible' }}>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowAddArtist(!showAddArtist);
-                  setShowAddVenue(false);
                   setIsSearching(false);
                 }}
                 className="flex-1"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Artist
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowAddVenue(!showAddVenue);
-                  setShowAddArtist(false);
-                  setIsSearching(false);
-                }}
-                className="flex-1"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Venue
               </Button>
             </div>
 
@@ -170,22 +159,6 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
                 <ArtistSearchBox
                   onArtistSelect={handleArtistSelect}
                   placeholder="Search for an artist to add..."
-                  onSearchStateChange={setIsSearching}
-                />
-                {adding && (
-                  <div className="flex items-center justify-center mt-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
-                    <span className="text-sm text-muted-foreground">Adding...</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {showAddVenue && (
-              <div className="mt-4 relative" style={{ zIndex: 1000 }}>
-                <VenueSearchBox
-                  onVenueSelect={handleVenueSelect}
-                  placeholder="Search for a venue to add..."
                   onSearchStateChange={setIsSearching}
                 />
                 {adding && (
@@ -211,14 +184,14 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {canEdit
-                    ? 'Add artists or venues to get notified when new shows are announced!'
+                    ? 'Add artists to get notified when new shows are announced!'
                     : 'Follow this fan to see more of their live music plans.'}
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="max-h-[600px] overflow-y-auto pr-2 space-y-3">
-              {bucketList.map((item) => (
+              {bucketList.map((item, index) => (
             <Card
               key={item.id}
               className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-synth-pink/50"
@@ -226,6 +199,31 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
             >
               <CardContent className="p-3">
                 <div className="flex items-center gap-3">
+                  {canEdit && (
+                    <div className="flex flex-col flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-6 p-0"
+                        disabled={index === 0 || reordering}
+                        onClick={() => handleReorder(index, 'up')}
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-6 p-0"
+                        disabled={index === bucketList.length - 1 || reordering}
+                        onClick={() => handleReorder(index, 'down')}
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <div className="h-6 w-6 rounded-full flex items-center justify-center border text-xs font-semibold text-muted-foreground flex-shrink-0">
+                    {index + 1}
+                  </div>
                   <Avatar className="h-10 w-10 flex-shrink-0">
                     {(item.entity_type === 'artist' && item.artist?.image_url) ||
                      (item.entity_type === 'venue' && item.venue?.image_url) ? (

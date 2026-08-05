@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ArrowLeft, Edit, Heart, MapPin, Calendar, Instagram, ExternalLink, Settings, Music, Plus, ThumbsUp, ThumbsDown, Minus, Star, Grid, BarChart3, Clock, Award, Trophy, Flag, Ban, MoreVertical, Trash2 } from 'lucide-react';
+import { PassportBucketListView } from '@/components/passport/PassportBucketListView';
 import { FollowersModal } from './FollowersModal';
 import { FollowingModal } from './FollowingModal';
 import { createFriendRequest, rankFriendSuggestionsForRail } from '@synth/shared';
@@ -164,7 +165,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
   const [friends, setFriends] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('my-events');
-  const [rankingMode, setRankingMode] = useState<boolean | 'unreviewed'>(false);
+  const [rankingMode, setRankingMode] = useState<false | 'unreviewed' | 'bucket'>(false);
   const [attendedEvents, setAttendedEvents] = useState<any[]>([]);
   const [attendedEventsLoading, setAttendedEventsLoading] = useState(false);
   const [draftReviews, setDraftReviews] = useState<any[]>([]);
@@ -846,17 +847,6 @@ const { user, sessionExpired } = useAuth();
     if (review.rating === 'okay') return 3;
     if (review.rating === 'bad') return 1;
     return null; // Return null instead of 0 for unknown values
-  };
-
-  // Compute display rating - use review.rating directly from database (already rounded to 1 decimal)
-  // This ensures consistency - the database trigger calculates it as the average of 5 category ratings
-  // Round to 1 decimal for consistent display and comparison
-  const getDisplayRating = (r: any): number | null => {
-    const rating = calculateCategoryAverage(r);
-    if (rating == null || typeof rating !== 'number' || !Number.isFinite(rating)) {
-      return null;
-    }
-    return parseFloat(rating.toFixed(1));
   };
 
   const fetchFriends = async () => {
@@ -1766,8 +1756,8 @@ const { user, sessionExpired } = useAuth();
 
   return (
     <PageShell header={profileHeader}>
-      <div 
-        className="min-h-screen w-full overflow-x-hidden"
+      <div
+        className="min-h-screen w-full overflow-x-hidden overflow-y-visible"
         style={{ backgroundColor: 'var(--neutral-50)' }}
       >
         {!hideHeader && webDesktopChrome && profile && (
@@ -2256,7 +2246,7 @@ const { user, sessionExpired } = useAuth();
 
       {/* Instagram-style Content Tabs */}
       <div
-        className="w-full max-w-full overflow-x-hidden box-border"
+        className="w-full max-w-full overflow-x-hidden overflow-y-visible box-border"
         style={{
           paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
           paddingRight: 'var(--spacing-screen-margin-x, 20px)',
@@ -2313,7 +2303,7 @@ const { user, sessionExpired } = useAuth();
           )}
 
           {/* My Events Tab - Show attended events with review/ranking toggle */}
-          <TabsContent value="my-events" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden">
+          <TabsContent value="my-events" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden overflow-y-visible">
             <div className="flex flex-col gap-3 mb-4 p-2 w-full max-w-full">
               <h3 className="gradient-text font-semibold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>
                 {isViewingOwnProfile ? 'My Events' : `${profile?.name || 'User'}'s Events`}
@@ -2351,7 +2341,7 @@ const { user, sessionExpired } = useAuth();
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRankingMode(true)}
+                    onClick={() => setRankingMode('bucket')}
                     className="transition-colors"
                     style={{
                       paddingLeft: 'var(--spacing-small, 12px)',
@@ -2362,11 +2352,11 @@ const { user, sessionExpired } = useAuth();
                       fontSize: 'var(--typography-meta-size, 16px)',
                       fontWeight: 'var(--typography-meta-weight, 500)',
                       lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      backgroundColor: rankingMode === true ? 'var(--neutral-50)' : 'transparent',
-                      color: rankingMode === true ? 'var(--neutral-900)' : 'var(--neutral-600)'
+                      backgroundColor: rankingMode === 'bucket' ? 'var(--neutral-50)' : 'transparent',
+                      color: rankingMode === 'bucket' ? 'var(--neutral-900)' : 'var(--neutral-600)'
                     }}
                   >
-                    Rankings
+                    Bucket List
                   </button>
                   {isViewingOwnProfile && (
                     <button
@@ -2429,172 +2419,10 @@ const { user, sessionExpired } = useAuth();
               )
             )}
 
-            {rankingMode === true && (
-              reviews.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', gap: 'var(--spacing-inline, 6px)' }}>
-                  <Calendar className="w-[60px] h-[60px] mx-auto" style={{ color: 'var(--neutral-600)' }} />
-                  <h3 style={{ 
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-body-size, 20px)',
-                    fontWeight: 'var(--typography-body-weight, 500)',
-                    lineHeight: 'var(--typography-body-line-height, 1.5)',
-                    color: 'var(--neutral-900)',
-                    margin: 0,
-                    textAlign: 'center'
-                  }}>No reviews yet</h3>
-                  <p style={{ 
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-meta-size, 16px)',
-                    fontWeight: 'var(--typography-meta-weight, 500)',
-                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    color: 'var(--neutral-600)',
-                    margin: 0,
-                    textAlign: 'center'
-                  }}>{isViewingOwnProfile ? 'Attend a show and write one from the event page.' : 'This user has not published any reviews yet.'}</p>
-                </div>
-              ) : (
-              <div className="space-y-6">
-                {(() => {
-                  // Get all unique ratings from reviews
-                  // Use review.rating directly (already calculated as average of 5 categories by database trigger)
-                  // Round to 1 decimal for consistent grouping
-                  const uniqueRatings = Array.from(new Set(
-                    reviews
-                      .filter(r => (r as any).review_text !== 'ATTENDANCE_ONLY')
-                      .map(r => getDisplayRating(r))
-                      .filter((x): x is number => x != null && Number.isFinite(x))
-                      .map((rating) => Math.round(rating * 10) / 10)
-                  )).sort((a, b) => b - a); // Sort descending
-
-                  if (uniqueRatings.length === 0) {
-                    return (
-                      <p
-                        style={{
-                          fontFamily: 'var(--font-family)',
-                          fontSize: 'var(--typography-meta-size, 16px)',
-                          fontWeight: 'var(--typography-meta-weight, 500)',
-                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                          color: 'var(--neutral-600)',
-                          textAlign: 'center',
-                          padding: 'var(--spacing-grouped, 16px)',
-                        }}
-                      >
-                        No star ratings to rank yet. Complete a review with ratings to organize shows here.
-                      </p>
-                    );
-                  }
-                  
-                  return uniqueRatings.map(ratingGroup => {
-                    // Group reviews by rating (rounded to 1 decimal for comparison)
-                    const group = reviews.filter(r => {
-                      if ((r as any).review_text === 'ATTENDANCE_ONLY') return false;
-                      const displayRating = getDisplayRating(r);
-                      if (displayRating == null || !Number.isFinite(displayRating)) return false;
-                      const roundedRating = Math.round(displayRating * 10) / 10;
-                      // Compare rounded ratings for consistent grouping
-                      return Math.abs(roundedRating - ratingGroup) < 0.01;
-                    });
-                    if (group.length === 0) return null as any;
-                    return (
-                      <div key={ratingGroup}>
-                        <div className="font-semibold mb-2" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>{ratingGroup.toFixed(1)}★</div>
-                      <div 
-                        className="divide-y" 
-                        style={{ 
-                          backgroundColor: 'var(--neutral-50)',
-                          border: '1px solid var(--neutral-200)',
-                          borderRadius: 'var(--radius-corner, 10px)',
-                          padding: 'var(--spacing-small, 12px)',
-                          boxShadow: '0 2px 4px 0 var(--shadow-color)'
-                        }}
-                      >
-                        {group
-                          .sort((a, b) => {
-                            const ao = (a as any).rank_order ?? 9999;
-                            const bo = (b as any).rank_order ?? 9999;
-                            if (ao !== bo) return ao - bo;
-                            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                          })
-                          .map((item, idx) => (
-                          <div
-                            key={item.id}
-                            className="flex items-center justify-between px-3 py-2 cursor-pointer"
-                            style={{
-                              borderBottom: idx < group.length - 1 ? '1px solid var(--neutral-200)' : 'none'
-                            }}
-                            onClick={() => { setSelectedReview(item as any); setViewReviewOpen(true); }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = 'var(--neutral-100)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="h-6 w-6 rounded-full flex items-center justify-center border" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', backgroundColor: 'var(--neutral-50)' }}>{idx + 1}</div>
-                              <div>
-                                <div className="font-medium" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>{item.event.event_name}</div>
-                                <div style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)', color: 'var(--neutral-600)' }}>
-                                  {(() => {
-                                    // event_date might be Date or string, event.event_date is string
-                                    const dateToShow = (item.event_date instanceof Date ? item.event_date : (item.event_date ? new Date(item.event_date) : null))
-                                      || (item.event.event_date ? new Date(item.event.event_date) : null);
-                                    return dateToShow ? dateToShow.toLocaleDateString() : '';
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-                            {isViewingOwnProfile ? (
-                              <div className="flex items-center gap-2">
-                                {idx > 0 && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
-                                    const i = arr.findIndex(x => x.id === item.id);
-                                    if (i > 0) {
-                                      const [moved] = arr.splice(i,1);
-                                      arr.splice(i-1,0,moved);
-                                      (async () => {
-                                        await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
-                                        fetchReviews();
-                                      })();
-                                    }
-                                  }}
-                                >↑</Button>)}
-                                {idx < group.length - 1 && (
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
-                                    const i = arr.findIndex(x => x.id === item.id);
-                                    if (i !== -1 && i < arr.length - 1) {
-                                      const [moved] = arr.splice(i,1);
-                                      arr.splice(i+1,0,moved);
-                                      (async () => {
-                                        await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
-                                        fetchReviews();
-                                      })();
-                                    }
-                                  }}
-                                >↓</Button>)}
-                              </div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    );
-                  });
-                })()}
-              </div>
-              )
+            {rankingMode === 'bucket' && (
+              <PassportBucketListView userId={targetUserId} canEdit={isViewingOwnProfile} />
             )}
-            
+
             {rankingMode === 'unreviewed' && isViewingOwnProfile && (
               <div className="space-y-4">
                 {(attendedEventsLoading || draftReviewsLoading) ? (

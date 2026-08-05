@@ -29,7 +29,6 @@ import {
 } from '../../hooks/useReviewForm';
 import { SearchService } from '../../services/searchService';
 import { MobileAttendeeSelector } from './MobileAttendeeSelector';
-import { MobileRankingModal } from './MobileRankingModal';
 import { MobileImageCropper, type CropResult } from './MobileImageCropper';
 import { Image } from 'expo-image';
 import { EventService } from '../../services/eventService';
@@ -194,9 +193,6 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
     const [venueQ, setVenueQ] = useState('');
     const [venueRows, setVenueRows] = useState<ReviewVenue[]>([]);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
-    const [rankingModalVisible, setRankingModalVisible] = useState(false);
-    const [submittedReviewId, setSubmittedReviewId] = useState<string | null>(null);
-    const [submittedRating, setSubmittedRating] = useState<number>(0);
     const [cropperVisible, setCropperVisible] = useState(false);
     const [cropPhotoIndex, setCropPhotoIndex] = useState(0);
 
@@ -688,15 +684,8 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         }
         void AsyncStorage.removeItem(mobileReviewDraftStorageKey(userId));
         const outEvent = res.eventId ?? initialEventId ?? undefined;
-        // Show ranking modal if we have a review to rank
-        if (res.submittedReview?.id && averageRatingForSummary > 0) {
-            setSubmittedReviewId(res.submittedReview.id);
-            setSubmittedRating(averageRatingForSummary);
-            setRankingModalVisible(true);
-        } else {
-            onSubmitted?.(outEvent, res.submittedReview?.id ?? undefined);
-        }
-    }, [userId, formData, currentFlow, setLoading, onSubmitted, initialEventId, averageRatingForSummary]);
+        onSubmitted?.(outEvent, res.submittedReview?.id ?? undefined);
+    }, [userId, formData, currentFlow, setLoading, onSubmitted, initialEventId]);
 
     const pickPhotos = async () => {
         if (!userId) return;
@@ -1284,18 +1273,6 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
 
     return (
         <>
-        {userId && submittedReviewId ? (
-            <MobileRankingModal
-                visible={rankingModalVisible}
-                onClose={() => {
-                    setRankingModalVisible(false);
-                    onSubmitted?.(undefined, submittedReviewId ?? undefined);
-                }}
-                userId={userId}
-                newReviewId={submittedReviewId}
-                rating={submittedRating}
-            />
-        ) : null}
         {formData.photos[cropPhotoIndex] ? (
             <MobileImageCropper
                 visible={cropperVisible}

@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getEventsFromRankedArtists } from '@synth/shared';
 import { PersonalizedFeedService } from './personalizedFeedService';
+import { BucketListService } from './bucketListService';
 import type { JamBaseEvent } from '@/types/eventTypes';
 
 export interface BecauseYouLikeEvent extends JamBaseEvent {
@@ -152,11 +154,48 @@ export class BecauseYouLikeService {
   }
 
   /**
+   * Get upcoming events for the user's ranked bucket list (artists they've said they
+   * want to see), ordered by that priority rank so #1 surfaces before #2, and so on.
+   */
+  static async getEventsFromBucketList(
+    userId: string,
+    limit: number = 20
+  ): Promise<BecauseYouLikeEvent[]> {
+    try {
+      // Already sorted by rank_order (nulls last), then added_at asc.
+      const bucketList = await BucketListService.getBucketList(userId);
+      const rankedArtistNames = bucketList
+        .filter((item) => item.entity_type === 'artist')
+        .map((item) => item.entity_name);
+
+      const events = await getEventsFromRankedArtists(supabase, rankedArtistNames, limit);
+      return events.map((e) => ({
+        ...e,
+        reason: e.bucket_reason,
+        sourceArtist: e.bucket_source_artist,
+      })) as unknown as BecauseYouLikeEvent[];
+    } catch (error) {
+      console.error('Error getting bucket list events:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get all "Because You Like" carousels for a user
    */
   static async getAllBecauseYouLike(userId: string): Promise<BecauseYouLikeCarousel[]> {
     try {
       const carousels: BecauseYouLikeCarousel[] = [];
+
+      // Bucket list is explicit intent, not an inferred signal - surface it first.
+      const bucketListEvents = await this.getEventsFromBucketList(userId, 10);
+      if (bucketListEvents.length > 0) {
+        carousels.push({
+          title: 'From your bucket list',
+          events: bucketListEvents,
+          type: 'artist',
+        });
+      }
 
       // Get user's top artists
       const topArtists = await PersonalizedFeedService.getUserTopArtists(userId, 5);

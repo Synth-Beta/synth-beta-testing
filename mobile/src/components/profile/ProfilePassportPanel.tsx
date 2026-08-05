@@ -8,25 +8,23 @@ import { PassportIdentityTab } from '../passport/PassportIdentityTab';
 import { PassportStampsTab } from '../passport/PassportStampsTab';
 import { PassportAchievementsTab } from '../passport/PassportAchievementsTab';
 import { PassportTimelineTab } from '../passport/PassportTimelineTab';
-import { PassportBucketTab } from '../passport/PassportBucketTab';
 
 const PINK = SynthTokens.colors.brandPink500;
 
-type SubTab = 'identity' | 'stamps' | 'achievements' | 'timeline' | 'bucket';
+type SubTab = 'identity' | 'stamps' | 'achievements' | 'timeline';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
     { key: 'identity', label: 'Identity' },
     { key: 'stamps', label: 'Stamps' },
     { key: 'achievements', label: 'Achievements' },
     { key: 'timeline', label: 'Timeline' },
-    { key: 'bucket', label: 'Bucket List' },
 ];
 
 /**
- * Live Music Passport — orchestrates the five sub-tabs. Each tab loads its own
+ * Live Music Passport — orchestrates the four sub-tabs. Each tab loads its own
  * data lazily on first visit and stays mounted afterwards so switching back is
- * instant. Editing (timeline milestones/pins, bucket list) is only enabled when
- * the viewer is looking at their own passport.
+ * instant. Editing (timeline milestones/pins) is only enabled when the viewer
+ * is looking at their own passport.
  */
 export function ProfilePassportPanel({
     userId,
@@ -74,7 +72,6 @@ export function ProfilePassportPanel({
             stamps: <PassportStampsTab userId={userId} />,
             achievements: <PassportAchievementsTab userId={userId} />,
             timeline: <PassportTimelineTab userId={userId} canEdit={canEdit} timeline={timeline} />,
-            bucket: <PassportBucketTab userId={userId} canEdit={canEdit} />,
         }),
         [userId, displayName, canEdit, timeline]
     );

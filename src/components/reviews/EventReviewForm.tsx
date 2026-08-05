@@ -17,7 +17,6 @@ import { PrivacySubmitStep } from './ReviewFormSteps/PrivacySubmitStep';
 import { supabase } from '@/integrations/supabase/client';
 import type { ShowEntry } from './ShowRanking';
 import { trackInteraction } from '@/services/interactionTrackingService';
-import { PostSubmitRankingModal } from './PostSubmitRankingModal';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { DraftReviewService, DraftReviewData, DraftReview } from '@/services/draftReviewService';
 import { DraftToggle } from './DraftToggle';
@@ -113,8 +112,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
   const [existingReview, setExistingReview] = useState<UserReview | null>(null);
   const [shows] = useState<ShowEntry[]>([]);
-  const [showRankingModal, setShowRankingModal] = useState(false);
-  const [submittedReview, setSubmittedReview] = useState<UserReview | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [isReviewSubmitted, setIsReviewSubmitted] = useState(false); // Track if review has been submitted
@@ -1195,56 +1192,19 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         trackInteraction.formSubmit('review', reviewEntityId, true, formSubmitMetadata, reviewEntityUuid);
       } catch {}
       toast({ title: existingReview ? 'Review Updated' : 'Review Submitted! 🎉', description: existingReview ? 'Your review has been updated.' : 'Thanks for sharing your concert experience!' });
-      
-      // Check if we should show ranking modal (only for new reviews, not edits)
-      if (!existingReview) {
-        logger.debug('🎯 New review submitted, checking if we should show ranking modal');
-        logger.debug('  Review data:', {
-          id: review.id,
-          rating: review.rating,
-          artist_performance_rating: (review as any).artist_performance_rating,
-          production_rating: (review as any).production_rating,
-          venue_rating: review.venue_rating,
-          location_rating: (review as any).location_rating,
-          value_rating: (review as any).value_rating,
-        });
-        
-        // Calculate the effective rating from the saved review (use decimal values if available)
-        const ratingParts = [
-          (review as any).artist_performance_rating,
-          (review as any).production_rating,
-          (review as any).venue_rating,
-          (review as any).location_rating,
-          (review as any).value_rating,
-        ].filter((value): value is number => typeof value === 'number' && value > 0);
 
-        const effectiveRating = ratingParts.length === 5
-          ? ratingParts.reduce((sum, value) => sum + value, 0) / ratingParts.length
-          : review.rating;
-        
-        logger.debug('  Effective rating for modal:', effectiveRating);
-        logger.debug('  Opening ranking modal with review ID:', review.id);
-        logger.debug('  ⚠️ Deferring onSubmitted callback until ranking modal closes to avoid unmounting component');
-        
-        // Store the review for when the ranking modal closes
-        setSubmittedReview(review);
-        
-        // Small delay to ensure review is fully saved before opening modal
-        setTimeout(() => {
-          setShowRankingModal(true);
-          logger.debug('  ✅ Modal state updated:', { showRankingModal: true, submittedReview: review.id });
-        }, 100);
-        
-        // Don't reset form yet - wait until after ranking modal closes
-        // Don't call onSubmitted yet - will be called when ranking modal closes
-      } else {
-        // For edits, call onSubmitted immediately (no ranking modal, so safe to close)
-        if (onSubmitted) {
-          logger.debug('📞 Calling onSubmitted callback immediately after edit');
-          const result = onSubmitted(review);
-          if (result instanceof Promise) {
-            await result;
-          }
+      if (!existingReview) {
+        // New reviews reset the form so it's ready for the next one.
+        resetForm();
+        setIsReviewSubmitted(false);
+        setPendingReviewThumbnailBlob(null);
+      }
+
+      if (onSubmitted) {
+        logger.debug('📞 Calling onSubmitted callback after submit');
+        const result = onSubmitted(review);
+        if (result instanceof Promise) {
+          await result;
         }
       }
     } catch (e) {
@@ -1255,26 +1215,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       setIsReviewSubmitted(false);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleRankingModalClose = async () => {
-    logger.debug('🚪 Ranking modal closing');
-    setShowRankingModal(false);
-    const reviewToSubmit = submittedReview;
-    setSubmittedReview(null);
-    resetForm();
-    setIsReviewSubmitted(false); // Reset submission state for next review
-    setPendingReviewThumbnailBlob(null);
-    
-    // NOW call the onSubmitted callback (which triggers refresh and closes modal)
-    // This was deferred for new reviews to avoid unmounting before ranking modal could show
-    if (onSubmitted && reviewToSubmit) {
-      logger.debug('📞 Calling onSubmitted callback after ranking modal close');
-      const result = onSubmitted(reviewToSubmit);
-      if (result instanceof Promise) {
-        await result;
-      }
     }
   };
 
@@ -1941,15 +1881,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         onSetlistSelect={handleSetlistSelect}
       />
 
-      {submittedReview && (
-        <PostSubmitRankingModal
-          isOpen={showRankingModal}
-          onClose={handleRankingModalClose}
-          userId={userId}
-          newReview={submittedReview}
-          rating={getEffectiveRating()}
-        />
-      )}
     </>
   );
 }

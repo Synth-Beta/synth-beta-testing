@@ -12,7 +12,6 @@ import { PassportService, type PassportProgress, type NextToUnlock } from '@/ser
 import { PassportIdentity } from '@/components/passport/PassportIdentity';
 import { PassportStampsView } from '@/components/passport/PassportStampsView';
 import { PassportTimelineView } from '@/components/passport/PassportTimelineView';
-import { PassportBucketListView } from '@/components/passport/PassportBucketListView';
 import { PassportAchievementService, type AchievementDisplay } from '@/services/passportAchievementService';
 import { Icon } from '@/components/Icon/Icon';
 import { Progress } from '@/components/ui/progress';
@@ -68,7 +67,7 @@ export const PassportModal: React.FC<PassportModalProps> = ({
   const [nextToUnlock, setNextToUnlock] = useState<NextToUnlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [achievementsError, setAchievementsError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'identity' | 'stamps' | 'achievements' | 'timeline' | 'taste' | 'bucket'>('identity');
+  const [activeTab, setActiveTab] = useState<'identity' | 'stamps' | 'achievements' | 'timeline' | 'taste'>('identity');
   const [venueDialog, setVenueDialog] = useState<{ open: boolean; venueId?: string | null; venueName?: string }>(() => ({ open: false }));
   const [artistDialog, setArtistDialog] = useState<{ open: boolean; artistId?: string | null; artistName?: string }>(() => ({ open: false }));
   const handlingRef = useRef<{ artist: boolean; venue: boolean }>({ artist: false, venue: false });
@@ -432,32 +431,6 @@ export const PassportModal: React.FC<PassportModalProps> = ({
                   Timeline
                 </span>
             </TabsTrigger>
-              <TabsTrigger
-                value="bucket"
-                className="flex flex-col items-center justify-center flex-shrink-0 min-w-[65px]"
-                style={{
-                  gap: 'var(--spacing-inline, 6px)',
-                  padding: 'var(--spacing-small, 12px)',
-                  borderRadius: 'var(--radius-corner, 10px)',
-                  backgroundColor: activeTab === 'bucket' ? 'var(--neutral-50)' : 'var(--neutral-100)',
-                  border: '1px solid var(--neutral-200)',
-                  boxShadow: activeTab === 'bucket' ? '0 4px 4px 0 var(--shadow-color)' : 'none',
-                }}
-              >
-              <Icon name="checkMark" size={16} className="flex-shrink-0" color="var(--neutral-900)" />
-                <span
-                  className="text-center leading-tight"
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-meta-size, 16px)',
-                    fontWeight: 'var(--typography-meta-weight, 500)',
-                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    color: 'var(--neutral-900)',
-                  }}
-                >
-                  Bucket List
-                </span>
-            </TabsTrigger>
           </TabsList>
           </div>
 
@@ -572,9 +545,6 @@ export const PassportModal: React.FC<PassportModalProps> = ({
             <PassportTimelineView userId={userId} canEdit={isOwnProfile} />
           </TabsContent>
 
-          <TabsContent value="bucket" className="mt-4 w-full max-w-full overflow-x-hidden px-1">
-            <PassportBucketListView userId={userId} canEdit={isOwnProfile} />
-          </TabsContent>
         </Tabs>
       )}
     </>

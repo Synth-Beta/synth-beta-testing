@@ -17,7 +17,6 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { supabase, isSupabaseConfigured } from '../../integrations/supabase/client';
@@ -26,14 +25,13 @@ import {
   MyReviewListItem,
   ProfileUnreviewedItem,
 } from '../../services/myEventsService';
-import { setRankOrderForRatingGroup } from '../../services/reviewRankOrderService';
 import {
-  buildRankingsGroups,
   getDisplayRating,
   groupReviewsIntoStarBuckets,
   hasAnyStarBucketContent,
   type StarBucket,
 } from '../../utils/profileReviewGrouping';
+import { PassportBucketTab } from '../passport/PassportBucketTab';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PLACEHOLDER = require('../../../assets/Synth_Placeholder.png');
@@ -55,7 +53,7 @@ function formatCompactReviewDate(ymdOrIso: string | undefined): string {
     return Number.isFinite(dt.getTime()) ? dt.toLocaleDateString() : s;
 }
 
-export type ProfileMyEventsViewMode = 'reviews' | 'rankings' | 'unreviewed';
+export type ProfileMyEventsViewMode = 'reviews' | 'bucket' | 'unreviewed';
 
 export type ProfileMyEventsPanelHandle = {
   reload: () => Promise<void>;
@@ -132,7 +130,6 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeUserId, setActiveUserId] = useState<string | null>(null);
-    const [rankSaving, setRankSaving] = useState(false);
 
     const load = useCallback(async (opts?: { silent?: boolean }) => {
       if (!opts?.silent) setLoading(true);
@@ -175,8 +172,8 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
     }, [load, dataEnabled]);
 
     useEffect(() => {
-      if (routeTab === 'rankings') setMode('rankings');
       if (routeTab === 'reviews') setMode('reviews');
+      if (routeTab === 'bucket') setMode('bucket');
       if (routeTab === 'unreviewed') setMode('unreviewed');
     }, [routeTab]);
 
@@ -186,7 +183,6 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
     }, [load]);
 
     const starGrouped = useMemo(() => groupReviewsIntoStarBuckets(reviews), [reviews]);
-    const rankingsGroups = useMemo(() => buildRankingsGroups(reviews), [reviews]);
 
     useEffect(() => {
       if (loading) return;
@@ -205,35 +201,6 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
         router.push(`/review/${id}` as any);
       },
       [router]
-    );
-
-    const moveInGroup = useCallback(
-      async (ratingKey: number, items: MyReviewListItem[], index: number, dir: 'up' | 'down') => {
-        if (!activeUserId || rankSaving) return;
-        const arr = items.slice();
-        const i = index;
-        if (dir === 'up' && i > 0) {
-          const t = arr[i - 1];
-          arr[i - 1] = arr[i];
-          arr[i] = t;
-        } else if (dir === 'down' && i < arr.length - 1) {
-          const t = arr[i + 1];
-          arr[i + 1] = arr[i];
-          arr[i] = t;
-        } else {
-          return;
-        }
-        setRankSaving(true);
-        try {
-          await setRankOrderForRatingGroup(activeUserId, ratingKey, arr.map(x => x.id));
-          await load({ silent: true });
-        } catch (e) {
-          console.warn('[ProfileMyEventsPanel] rank save failed', e);
-        } finally {
-          setRankSaving(false);
-        }
-      },
-      [activeUserId, rankSaving, load]
     );
 
     const renderCompactReviewCard = (item: MyReviewListItem, starsFallback: number) => {
@@ -317,14 +284,14 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
 
     const segment = (
       <View style={[styles.segment, variant === 'screen' && styles.segmentScreen]}>
-        {(['reviews', 'rankings', 'unreviewed'] as const).map(m => (
+        {(['reviews', 'bucket', 'unreviewed'] as const).map(m => (
           <Pressable
             key={m}
             onPress={() => setMode(m)}
             style={[styles.segBtn, mode === m && styles.segBtnOn]}
           >
             <Text style={[styles.segTxt, mode === m && styles.segTxtOn]}>
-              {m === 'reviews' ? 'Reviews' : m === 'rankings' ? 'Rankings' : 'Unreviewed'}
+              {m === 'reviews' ? 'Reviews' : m === 'bucket' ? 'Bucket List' : 'Unreviewed'}
             </Text>
           </Pressable>
         ))}
@@ -449,86 +416,10 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
           </View>
         );
       }
-    } else if (mode === 'rankings') {
-      if (reviewsLoadError) {
-        body = (
-          <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
-            {__DEV__
-              ? `Couldn't load reviews (${reviewsLoadError}). Pull to refresh or try again.`
-              : `Couldn't load reviews. Pull to refresh or try again.`}
-          </SynthText>
-        );
-      } else if (reviews.length === 0) {
-        body = (
-          <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
-            No reviews yet. Attend a show and write one from the event page.
-          </SynthText>
-        );
-      } else if (rankingsGroups.length === 0) {
-        body = (
-          <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
-            No star ratings to rank yet. Complete a review with ratings to organize shows here.
-          </SynthText>
-        );
-      } else {
-        body = (
-          <View style={styles.rankingsWrap}>
-            {rankingsGroups.map(({ ratingKey, items }) => (
-              <View key={ratingKey} style={styles.rankGroup}>
-                <SynthText variant="meta" style={styles.rankGroupTitle}>
-                  {ratingKey.toFixed(1)}★
-                </SynthText>
-                <View style={styles.rankList}>
-                  {items.map((item, idx) => (
-                    <View key={item.id} style={styles.rankRow}>
-                      <Pressable
-                        style={styles.rankRowMain}
-                        onPress={() => openReview(item.id)}
-                      >
-                        <View style={styles.rankBadge}>
-                          <Text style={styles.rankBadgeTxt}>{idx + 1}</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <SynthText variant="meta" style={styles.rankEventTitle} numberOfLines={2}>
-                            {item.artist_name || item.title}
-                          </SynthText>
-                          <SynthText variant="meta" color="secondary" numberOfLines={1}>
-                            {item.venue_name}
-                          </SynthText>
-                        </View>
-                      </Pressable>
-                      <View style={styles.rankArrows}>
-                        {idx > 0 ? (
-                          <Pressable
-                            hitSlop={8}
-                            disabled={rankSaving}
-                            onPress={() => void moveInGroup(ratingKey, items, idx, 'up')}
-                          >
-                            <ChevronUp size={22} color={SynthTokens.colors.neutral600} />
-                          </Pressable>
-                        ) : (
-                          <View style={{ width: 22 }} />
-                        )}
-                        {idx < items.length - 1 ? (
-                          <Pressable
-                            hitSlop={8}
-                            disabled={rankSaving}
-                            onPress={() => void moveInGroup(ratingKey, items, idx, 'down')}
-                          >
-                            <ChevronDown size={22} color={SynthTokens.colors.neutral600} />
-                          </Pressable>
-                        ) : (
-                          <View style={{ width: 22 }} />
-                        )}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ))}
-          </View>
-        );
-      }
+    } else if (mode === 'bucket') {
+      body = activeUserId ? (
+        <PassportBucketTab userId={activeUserId} canEdit />
+      ) : null;
     } else {
       body =
         unreviewed.length === 0 ? (
@@ -698,44 +589,6 @@ const styles = StyleSheet.create({
     height: 12,
     overflow: 'hidden',
   },
-  rankingsWrap: { gap: 16 },
-  rankGroup: { gap: 8 },
-  rankGroupTitle: {
-    fontWeight: '700',
-    color: SynthTokens.colors.neutral600,
-    fontSize: 15,
-  },
-  rankList: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    backgroundColor: SynthTokens.colors.neutral50,
-    overflow: 'hidden',
-  },
-  rankRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingLeft: 12,
-    paddingRight: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: SynthTokens.colors.neutral200,
-  },
-  rankRowMain: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  rankBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SynthTokens.colors.neutral0,
-  },
-  rankBadgeTxt: { fontWeight: '700', fontSize: 13, color: SynthTokens.colors.neutral900 },
-  rankEventTitle: { fontWeight: '700', fontSize: 14 },
-  rankArrows: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   unrevRow: {
     flexDirection: 'row',
     alignItems: 'center',

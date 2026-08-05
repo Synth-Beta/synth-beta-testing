@@ -1,5 +1,6 @@
-import { getSimilarUsersToFriend, rankFriendSuggestionsForRail } from '@synth/shared';
+import { getSimilarUsersToFriend, rankFriendSuggestionsForRail, getEventsFromRankedArtists } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
+import { BucketListService } from './bucketListService';
 import { ReviewEngagementService } from './reviewEngagementService';
 import { isEventUpcomingForFeed, todayLocalYmd } from '../utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri, hasUsableFeedImageUrl } from '../utils/eventImages';
@@ -94,6 +95,17 @@ export interface TrendingEvent {
     image_url?: string;
     trending_score: number;
     interest_count: number;
+}
+
+/** One event surfaced because it matches a ranked bucket-list artist. */
+export interface BucketListFeedItem {
+    id: string;
+    title: string;
+    artist_name: string;
+    venue_name: string;
+    event_date: string;
+    bucket_rank: number;
+    bucket_reason: string;
 }
 
 /** Same shape as web + {@link @synth/shared#SharedFriendSuggestion}. */
@@ -739,6 +751,31 @@ export class HomeFeedService {
             return rankFriendSuggestionsForRail(pool, maxCards) as FriendSuggestion[];
         } catch (error) {
             console.error('Error loading friend suggestions for rail:', error);
+            return [];
+        }
+    }
+
+    /** Upcoming events for the user's ranked bucket-list artists — same logic as web. */
+    static async getBucketListEvents(userId: string, limit = 10): Promise<BucketListFeedItem[]> {
+        try {
+            // Already sorted by rank_order (nulls last), then added_at asc.
+            const bucketList = await BucketListService.getBucketList(userId);
+            const rankedArtistNames = bucketList
+                .filter(item => item.entity_type === 'artist')
+                .map(item => item.entity_name);
+
+            const events = await getEventsFromRankedArtists(supabase, rankedArtistNames, limit);
+            return events.map((e: any) => ({
+                id: e.id,
+                title: e.title ?? e.artist_name ?? '',
+                artist_name: e.artist_name ?? '',
+                venue_name: e.venue_name ?? '',
+                event_date: e.event_date,
+                bucket_rank: e.bucket_rank,
+                bucket_reason: e.bucket_reason,
+            }));
+        } catch (error) {
+            console.error('Error loading bucket list events for rail:', error);
             return [];
         }
     }

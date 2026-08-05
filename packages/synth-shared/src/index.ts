@@ -91,3 +91,7 @@ export {
   ACQUISITION_SOURCE_CANONICAL_ORDER,
   type AcquisitionSource,
 } from './acquisitionSources';
+export {
+  type BucketListFeedEvent,
+  getEventsFromRankedArtists,
+} from './bucketListFeed';

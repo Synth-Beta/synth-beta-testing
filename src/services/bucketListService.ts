@@ -7,6 +7,7 @@ export interface BucketListItem {
   entity_id: string;
   entity_name: string;
   added_at: string;
+  rank_order?: number | null;
   metadata?: Record<string, any>;
   // Joined data (optional)
   artist?: {
@@ -28,11 +29,23 @@ export class BucketListService {
   static async getBucketList(userId: string): Promise<BucketListItem[]> {
     try {
       // Query bucket_list - entity_name has everything we need
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('bucket_list')
-        .select('id, user_id, entity_id, entity_name, added_at, metadata')
+        .select('id, user_id, entity_id, entity_name, added_at, rank_order, metadata')
         .eq('user_id', userId)
-        .order('added_at', { ascending: false });
+        .order('rank_order', { ascending: true, nullsFirst: false })
+        .order('added_at', { ascending: true });
+
+      // rank_order migration not applied yet on this environment - fall back gracefully.
+      if (error && /rank_order/i.test(error.message || '')) {
+        const fallback = await supabase
+          .from('bucket_list')
+          .select('id, user_id, entity_id, entity_name, added_at, metadata')
+          .eq('user_id', userId)
+          .order('added_at', { ascending: true });
+        data = fallback.data;
+        error = fallback.error;
+      }
 
       if (error) throw error;
 
@@ -73,6 +86,7 @@ export class BucketListService {
                 entity_id: entityUuid,
                 entity_name: item.entity_name,
                 added_at: item.added_at,
+            rank_order: item.rank_order ?? null,
                 metadata: item.metadata || {},
                 artist: artist,
               } as BucketListItem;
@@ -93,6 +107,7 @@ export class BucketListService {
                 entity_id: entityUuid,
                 entity_name: item.entity_name,
                 added_at: item.added_at,
+            rank_order: item.rank_order ?? null,
                 metadata: item.metadata || {},
                 venue: venue,
               } as BucketListItem;
@@ -116,6 +131,7 @@ export class BucketListService {
                 entity_id: artistByName.id,
                 entity_name: item.entity_name,
                 added_at: item.added_at,
+            rank_order: item.rank_order ?? null,
                 metadata: item.metadata || {},
                 artist: artistByName,
               } as BucketListItem;
@@ -136,6 +152,7 @@ export class BucketListService {
                 entity_id: venueByName.id,
                 entity_name: item.entity_name,
                 added_at: item.added_at,
+            rank_order: item.rank_order ?? null,
                 metadata: item.metadata || {},
                 venue: venueByName,
               } as BucketListItem;
@@ -150,12 +167,21 @@ export class BucketListService {
             entity_id: entityUuid || item.entity_id,
             entity_name: item.entity_name,
             added_at: item.added_at,
+            rank_order: item.rank_order ?? null,
             metadata: item.metadata || {},
           } as BucketListItem;
         })
       );
 
-      return enrichedItems;
+      // bucket_list has no DB-level uniqueness on (user_id, entity_id) yet (pending migration),
+      // so collapse any duplicate rows here rather than showing the same entity twice.
+      const seen = new Set<string>();
+      return enrichedItems.filter((item) => {
+        const key = item.entity_id || item.id;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     } catch (error) {
       console.error('Error fetching bucket list:', error);
       return [];
@@ -248,6 +274,28 @@ export class BucketListService {
       return true;
     } catch (error) {
       console.error('Error removing item from bucket list:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Persist a new priority order for the user's bucket list.
+   */
+  static async reorderBucketList(userId: string, orderedItemIds: string[]): Promise<boolean> {
+    try {
+      const updates = orderedItemIds.map((id, idx) =>
+        supabase
+          .from('bucket_list')
+          .update({ rank_order: idx })
+          .eq('id', id)
+          .eq('user_id', userId)
+      );
+      const results = await Promise.all(updates);
+      const failed = results.find(r => r.error);
+      if (failed?.error) throw failed.error;
+      return true;
+    } catch (error) {
+      console.error('Error reordering bucket list:', error);
       return false;
     }
   }
