@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { Icon, divIcon, latLngBounds } from 'leaflet';
@@ -16,11 +16,30 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// Custom pink marker icon for travel tracker
-const createPinkMarkerIcon = () => {
+// Custom pink marker icon for travel tracker — count badge shows when several shows share a city.
+const createPinkMarkerIcon = (count: number = 1) => {
+  const badge = count > 1 ? `
+      <div style="
+        position: absolute;
+        top: -3px;
+        right: -3px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 3px;
+        border-radius: 8px;
+        background: white;
+        border: 1.5px solid var(--brand-pink-500);
+        color: var(--brand-pink-500);
+        font-size: 9px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">${count > 9 ? '9+' : count}</div>` : '';
   return divIcon({
     className: 'travel-tracker-marker',
     html: `<div style="
+      position: relative;
       background-color: var(--brand-pink-500);
       color: white;
       border: 3px solid white;
@@ -36,6 +55,7 @@ const createPinkMarkerIcon = () => {
         <circle cx="8" cy="18" r="4"/>
         <path d="M12 18V2l7 4"/>
       </svg>
+      ${badge}
     </div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 32],
@@ -60,6 +80,47 @@ interface ReviewWithLocation {
   photos: string[] | null;
   mood_tags: string[] | null;
   genre_tags: string[] | null;
+}
+
+/** One map dot — all reviews in the same city/metro area, so nearby venues don't render as overlapping pins. */
+interface ReviewCityGroup {
+  key: string;
+  city: string | null;
+  state: string | null;
+  latitude: number;
+  longitude: number;
+  shows: ReviewWithLocation[];
+}
+
+function groupReviewsByCity(reviews: ReviewWithLocation[]): ReviewCityGroup[] {
+  const groups = new Map<string, ReviewCityGroup>();
+  for (const review of reviews) {
+    const city = review.venue_city?.trim() || null;
+    const state = review.venue_state?.trim() || null;
+    const key = city
+      ? `${city.toLowerCase()}|${(state || '').toLowerCase()}`
+      : state
+        ? `state:${state.toLowerCase()}`
+        : `venue:${(review.venue_name || review.id).toLowerCase()}`;
+
+    const existing = groups.get(key);
+    if (existing) {
+      const n = existing.shows.length;
+      existing.latitude = (existing.latitude * n + review.latitude) / (n + 1);
+      existing.longitude = (existing.longitude * n + review.longitude) / (n + 1);
+      existing.shows.push(review);
+    } else {
+      groups.set(key, {
+        key,
+        city,
+        state,
+        latitude: review.latitude,
+        longitude: review.longitude,
+        shows: [review],
+      });
+    }
+  }
+  return Array.from(groups.values());
 }
 
 interface PassportTravelTrackerProps {
@@ -88,20 +149,12 @@ const MapBoundsFitter = ({ reviews }: { reviews: ReviewWithLocation[] }) => {
   return null;
 };
 
-const guessCityFromVenueName = (name: string | null) => {
-  if (!name) return null;
-  const words = name.trim().split(/\s+/);
-  if (words.length < 2) return null;
-  // Take last 2 words as a city guess, works for "Las Vegas", "New York", etc.
-  return `${words[words.length - 2]} ${words[words.length - 1]}`;
-};
-
-
 export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ userId }) => {
   const [reviews, setReviews] = useState<ReviewWithLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReview, setSelectedReview] = useState<ReviewWithLocation | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]); // Center of US
+  const cityGroups = useMemo(() => groupReviewsByCity(reviews), [reviews]);
 
   useEffect(() => {
     loadTravelData();
@@ -129,6 +182,7 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
             name,
             latitude,
             longitude,
+            city,
             state,
             street_address
           )
@@ -167,7 +221,7 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
               event_title: null, // Not available from venues table
               latitude,
               longitude,
-              venue_city: null, // Not in venues schema provided
+              venue_city: venue.city || null,
               venue_state: venue.state || null,
               photos: review.photos || null,
               mood_tags: review.mood_tags || null,
@@ -393,69 +447,97 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
               />
               <MapBoundsFitter reviews={reviews} />
               
-              {reviews.map((review) => (
+              {cityGroups.map((group) => (
                 <Marker
-                  key={review.id}
-                  position={[review.latitude, review.longitude]}
-                  icon={createPinkMarkerIcon()}
-                  eventHandlers={{
-                    click: () => {
-                      setSelectedReview(review);
-                    },
-                  }}
+                  key={group.key}
+                  position={[group.latitude, group.longitude]}
+                  icon={createPinkMarkerIcon(group.shows.length)}
+                  eventHandlers={
+                    group.shows.length === 1
+                      ? { click: () => setSelectedReview(group.shows[0]) }
+                      : undefined
+                  }
                 >
-                  <Popup maxWidth={300} className="travel-tracker-popup"> 
+                  <Popup maxWidth={300} className="travel-tracker-popup">
                     <div className="travel-tracker-popup-content">
                       <div className="travel-tracker-popup-title">
-                        {review.venue_name || 'Show'}
+                        {group.city || group.state || group.shows[0].venue_name || 'Show'}
                       </div>
-                      {review.venue_state && (
-  <div
-    className="travel-tracker-popup-meta"
-    style={{
-      color: 'var(--neutral-600)',
-      marginTop: '4px',
-      marginBottom: '4px'
-    }}
-  >
-    {review.venue_state}
-  </div>
-)}
                       <div className="travel-tracker-popup-meta" style={{ color: 'var(--neutral-600)', marginTop: '4px', marginBottom: '4px' }}>
-                        {format(new Date(review.Event_date), 'MMMM d, yyyy')}
+                        {group.shows.length} {group.shows.length === 1 ? 'show' : 'shows'}
+                        {group.state ? ` · ${group.state}` : ''}
                       </div>
-                      {review.rating && (
-                        <div className="travel-tracker-popup-meta" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', marginBottom: '4px' }}>
-                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" style={{ flexShrink: 0 }} />
-                          <span>{review.rating.toFixed(1)}</span>
+
+                      {group.shows.length === 1 ? (
+                        <>
+                          {group.shows[0].rating && (
+                            <div className="travel-tracker-popup-meta" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', marginBottom: '4px' }}>
+                              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" style={{ flexShrink: 0 }} />
+                              <span>{group.shows[0].rating.toFixed(1)}</span>
+                            </div>
+                          )}
+                          {group.shows[0].review_text && (
+                            <div className="travel-tracker-popup-meta travel-tracker-popup-review">
+                              {group.shows[0].review_text}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => setSelectedReview(group.shows[0])}
+                            className="travel-tracker-popup-meta"
+                            style={{
+                              marginTop: '8px',
+                              color: 'var(--brand-pink-500)',
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              cursor: 'pointer',
+                              textDecoration: 'underline'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = 'var(--brand-pink-600)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--brand-pink-500)';
+                            }}
+                          >
+                            View Review →
+                          </button>
+                        </>
+                      ) : (
+                        <div style={{ marginTop: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                          {group.shows.map((show) => (
+                            <button
+                              key={show.id}
+                              onClick={() => setSelectedReview(show)}
+                              className="travel-tracker-popup-meta"
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                textAlign: 'left',
+                                background: 'none',
+                                border: 'none',
+                                borderTop: '1px solid var(--neutral-200, #eee)',
+                                padding: '8px 0',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <div style={{ fontWeight: 600, color: 'var(--neutral-900)' }}>
+                                {show.venue_name || 'Show'}
+                              </div>
+                              <div style={{ color: 'var(--neutral-600)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {format(new Date(show.Event_date), 'MMM d, yyyy')}
+                                {show.rating != null && (
+                                  <>
+                                    <span>·</span>
+                                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                    {show.rating.toFixed(1)}
+                                  </>
+                                )}
+                              </div>
+                            </button>
+                          ))}
                         </div>
                       )}
-                      {review.review_text && (
-                        <div className="travel-tracker-popup-meta travel-tracker-popup-review">
-                        {review.review_text}
-                      </div>                      
-                      )}
-                      <button
-                        onClick={() => setSelectedReview(review)}
-                        className="travel-tracker-popup-meta"
-                        style={{ 
-                          marginTop: '8px', 
-                          color: 'var(--brand-pink-500)', 
-                          background: 'none', 
-                          border: 'none', 
-                          padding: 0, 
-                          cursor: 'pointer',
-                          textDecoration: 'underline'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = 'var(--brand-pink-600)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = 'var(--brand-pink-500)';
-                        }}
-                      >
-                        View Review →
-                      </button>
                     </div>
                   </Popup>
                 </Marker>
@@ -517,7 +599,7 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
     <MapPin className="w-4 h-4 text-muted-foreground" style={{ marginTop: 2, flexShrink: 0 }} aria-hidden="true" />
     <span style={{ display: 'block' }}>
       <span className="font-medium">
-        {guessCityFromVenueName(selectedReview.venue_name) || selectedReview.venue_name}
+        {selectedReview.venue_city || selectedReview.venue_name}
       </span>
       {selectedReview.venue_state && (
         <span className="text-muted-foreground">

@@ -5,17 +5,18 @@ import {
     Linking,
     Platform,
     Pressable,
+    ScrollView,
     StyleSheet,
     View,
 } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type LatLng } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Locate, MapPin, Navigation, Star, X } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
-import { TravelTrackerService, type TravelReviewPin } from '../../services/travelTrackerService';
+import { TravelTrackerService, type TravelCityGroup, type TravelReviewPin } from '../../services/travelTrackerService';
 import { SectionError, SkeletonBlock, EmptyState } from './PassportPrimitives';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -40,10 +41,6 @@ const DARK_MAP_STYLE = [
     { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#1B1F25' }] },
 ];
 
-function toLatLng(p: TravelReviewPin): LatLng {
-    return { latitude: p.latitude, longitude: p.longitude };
-}
-
 function openDirections(lat: number, lng: number, label: string) {
     const q = encodeURIComponent(`${lat},${lng}(${label})`);
     const url = Platform.OS === 'ios' ? `maps:0,0?q=${q}` : `geo:0,0?q=${lat},${lng}(${encodeURIComponent(label)})`;
@@ -66,11 +63,18 @@ function GlassPill({ children, style }: { children: React.ReactNode; style?: obj
     return <View style={[styles.glass, styles.glassAndroid, style]}>{children}</View>;
 }
 
-function GlowMarker({ selected }: { selected: boolean }) {
+function GlowMarker({ selected, count }: { selected: boolean; count: number }) {
     return (
         <View style={styles.markerHit}>
             <View style={[styles.markerGlow, selected && styles.markerGlowSelected]} />
             <View style={[styles.markerCore, selected && styles.markerCoreSelected]} />
+            {count > 1 ? (
+                <View style={styles.markerBadge}>
+                    <SynthText variant="meta" style={styles.markerBadgeTxt}>
+                        {count > 9 ? '9+' : count}
+                    </SynthText>
+                </View>
+            ) : null}
         </View>
     );
 }
@@ -81,7 +85,7 @@ export function PassportTravelMap({ userId }: { userId: string }) {
     const [pins, setPins] = useState<TravelReviewPin[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [listExpanded, setListExpanded] = useState(false);
     const cardAnim = useRef(new Animated.Value(0)).current;
 
@@ -102,12 +106,12 @@ export function PassportTravelMap({ userId }: { userId: string }) {
         void load();
     }, [load]);
 
-    // Chronological journey (oldest → newest) for the route line.
-    const journey = useMemo(
-        () => [...pins].sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime()),
-        [pins]
+    // One dot per city/metro area — keeps the map readable when several shows share a city.
+    const cityGroups = useMemo(() => TravelTrackerService.groupByCity(pins), [pins]);
+    const groupCoords = useMemo(
+        () => cityGroups.map(g => ({ latitude: g.latitude, longitude: g.longitude })),
+        [cityGroups]
     );
-    const journeyCoords = useMemo(() => journey.map(toLatLng), [journey]);
 
     const stats = useMemo(() => {
         const venues = new Set<string>();
@@ -121,20 +125,20 @@ export function PassportTravelMap({ userId }: { userId: string }) {
     }, [pins]);
 
     const selected = useMemo(
-        () => (selectedId ? pins.find(p => p.id === selectedId) ?? null : null),
-        [selectedId, pins]
+        () => (selectedKey ? cityGroups.find(g => g.key === selectedKey) ?? null : null),
+        [selectedKey, cityGroups]
     );
 
     const fitAll = useCallback(
         (animated = true) => {
             const m = mapRef.current;
-            if (!m || journeyCoords.length === 0) return;
-            m.fitToCoordinates(journeyCoords, {
+            if (!m || groupCoords.length === 0) return;
+            m.fitToCoordinates(groupCoords, {
                 edgePadding: { top: 70, right: 60, bottom: selected ? 170 : 60, left: 60 },
                 animated,
             });
         },
-        [journeyCoords, selected]
+        [groupCoords, selected]
     );
 
     useEffect(() => {
@@ -142,7 +146,7 @@ export function PassportTravelMap({ userId }: { userId: string }) {
         const t = setTimeout(() => fitAll(false), 60);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [journeyCoords.length]);
+    }, [groupCoords.length]);
 
     useEffect(() => {
         Animated.timing(cardAnim, {
@@ -153,13 +157,13 @@ export function PassportTravelMap({ userId }: { userId: string }) {
         }).start();
     }, [selected, cardAnim]);
 
-    const selectPin = useCallback(
-        (pin: TravelReviewPin, centerMap: boolean) => {
+    const selectGroup = useCallback(
+        (group: TravelCityGroup, centerMap: boolean) => {
             void Haptics.selectionAsync();
-            setSelectedId(prev => (prev === pin.id && !centerMap ? null : pin.id));
+            setSelectedKey(prev => (prev === group.key && !centerMap ? null : group.key));
             if (centerMap) {
                 mapRef.current?.animateToRegion(
-                    { latitude: pin.latitude, longitude: pin.longitude, latitudeDelta: 0.35, longitudeDelta: 0.35 },
+                    { latitude: group.latitude, longitude: group.longitude, latitudeDelta: 0.35, longitudeDelta: 0.35 },
                     350
                 );
             }
@@ -197,7 +201,7 @@ export function PassportTravelMap({ userId }: { userId: string }) {
         );
     }
 
-    const visibleList = listExpanded ? pins : pins.slice(0, 4);
+    const visibleGroups = listExpanded ? cityGroups : cityGroups.slice(0, 4);
 
     return (
         <View style={styles.section}>
@@ -216,38 +220,29 @@ export function PassportTravelMap({ userId }: { userId: string }) {
                         pitchEnabled={false}
                         rotateEnabled={false}
                         toolbarEnabled={false}
-                        onPress={() => setSelectedId(null)}
+                        onPress={() => setSelectedKey(null)}
                         initialRegion={{
-                            latitude: journey[0].latitude,
-                            longitude: journey[0].longitude,
+                            latitude: cityGroups[0].latitude,
+                            longitude: cityGroups[0].longitude,
                             latitudeDelta: 25,
                             longitudeDelta: 25,
                         }}
                     >
-                        {journeyCoords.length >= 2 ? (
-                            <Polyline
-                                coordinates={journeyCoords}
-                                strokeColor="rgba(204, 36, 134, 0.85)"
-                                strokeWidth={2.5}
-                                lineDashPattern={[6, 7]}
-                            />
-                        ) : null}
-
-                        {pins.map(pin => {
-                            const isSelected = pin.id === selectedId;
+                        {cityGroups.map(group => {
+                            const isSelected = group.key === selectedKey;
                             return (
                                 <Marker
-                                    key={pin.id}
-                                    coordinate={toLatLng(pin)}
+                                    key={group.key}
+                                    coordinate={{ latitude: group.latitude, longitude: group.longitude }}
                                     anchor={{ x: 0.5, y: 0.5 }}
                                     onPress={e => {
                                         e.stopPropagation();
-                                        selectPin(pin, false);
+                                        selectGroup(group, false);
                                     }}
                                     tracksViewChanges={isSelected}
                                     zIndex={isSelected ? 2 : 1}
                                 >
-                                    <GlowMarker selected={isSelected} />
+                                    <GlowMarker selected={isSelected} count={group.shows.length} />
                                 </Marker>
                             );
                         })}
@@ -297,24 +292,25 @@ export function PassportTravelMap({ userId }: { userId: string }) {
                             <View style={styles.detailTopRow}>
                                 <View style={{ flex: 1 }}>
                                     <SynthText variant="body" style={styles.detailVenue} numberOfLines={1}>
-                                        {selected.venue_name || 'Venue'}
+                                        {selected.city || selected.state || selected.shows[0].venue_name || 'Venue'}
                                     </SynthText>
                                     <SynthText variant="meta" color="secondary" numberOfLines={1}>
-                                        {formatDate(selected.event_date)}
-                                        {selected.venue_city ? ` · ${selected.venue_city}` : ''}
-                                        {selected.venue_state ? `, ${selected.venue_state}` : ''}
+                                        {selected.shows.length === 1
+                                            ? formatDate(selected.shows[0].event_date)
+                                            : `${selected.shows.length} shows`}
+                                        {selected.city && selected.state ? ` · ${selected.state}` : ''}
                                     </SynthText>
                                 </View>
-                                {selected.rating != null ? (
+                                {selected.shows.length === 1 && selected.shows[0].rating != null ? (
                                     <View style={styles.ratingChip}>
                                         <Star size={13} color={PINK} fill={PINK} />
                                         <SynthText variant="meta" style={styles.ratingTxt}>
-                                            {selected.rating.toFixed(1)}
+                                            {selected.shows[0].rating.toFixed(1)}
                                         </SynthText>
                                     </View>
                                 ) : null}
                                 <Pressable
-                                    onPress={() => setSelectedId(null)}
+                                    onPress={() => setSelectedKey(null)}
                                     hitSlop={10}
                                     style={styles.closeBtn}
                                     accessibilityRole="button"
@@ -324,52 +320,100 @@ export function PassportTravelMap({ userId }: { userId: string }) {
                                 </Pressable>
                             </View>
 
-                            {selected.review_text ? (
-                                <SynthText variant="meta" color="secondary" numberOfLines={2} style={styles.detailQuote}>
-                                    “{selected.review_text.trim()}”
-                                </SynthText>
-                            ) : null}
-
-                            <View style={styles.detailActions}>
-                                {selected.event_id ? (
-                                    <Pressable
-                                        style={styles.primaryAction}
-                                        onPress={() => router.push(`/event/${selected.event_id}`)}
-                                        accessibilityRole="button"
-                                    >
-                                        <SynthText variant="meta" style={styles.primaryActionTxt}>
-                                            View event
+                            {selected.shows.length === 1 ? (
+                                <>
+                                    {selected.shows[0].review_text ? (
+                                        <SynthText
+                                            variant="meta"
+                                            color="secondary"
+                                            numberOfLines={2}
+                                            style={styles.detailQuote}
+                                        >
+                                            “{selected.shows[0].review_text.trim()}”
                                         </SynthText>
-                                        <ChevronRight size={15} color="#fff" />
-                                    </Pressable>
-                                ) : null}
-                                <Pressable
-                                    style={styles.secondaryAction}
-                                    onPress={() =>
-                                        openDirections(selected.latitude, selected.longitude, selected.venue_name || 'Venue')
-                                    }
-                                    accessibilityRole="button"
-                                >
-                                    <Navigation size={14} color={PINK} />
-                                    <SynthText variant="meta" style={styles.secondaryActionTxt}>
-                                        Directions
-                                    </SynthText>
-                                </Pressable>
-                            </View>
+                                    ) : null}
+
+                                    <View style={styles.detailActions}>
+                                        {selected.shows[0].event_id ? (
+                                            <Pressable
+                                                style={styles.primaryAction}
+                                                onPress={() => router.push(`/event/${selected.shows[0].event_id}`)}
+                                                accessibilityRole="button"
+                                            >
+                                                <SynthText variant="meta" style={styles.primaryActionTxt}>
+                                                    View event
+                                                </SynthText>
+                                                <ChevronRight size={15} color="#fff" />
+                                            </Pressable>
+                                        ) : null}
+                                        <Pressable
+                                            style={styles.secondaryAction}
+                                            onPress={() =>
+                                                openDirections(
+                                                    selected.latitude,
+                                                    selected.longitude,
+                                                    selected.shows[0].venue_name || 'Venue'
+                                                )
+                                            }
+                                            accessibilityRole="button"
+                                        >
+                                            <Navigation size={14} color={PINK} />
+                                            <SynthText variant="meta" style={styles.secondaryActionTxt}>
+                                                Directions
+                                            </SynthText>
+                                        </Pressable>
+                                    </View>
+                                </>
+                            ) : (
+                                <ScrollView style={styles.detailList} showsVerticalScrollIndicator={false}>
+                                    {selected.shows.map(show => (
+                                        <Pressable
+                                            key={show.id}
+                                            style={styles.detailListRow}
+                                            onPress={() => show.event_id && router.push(`/event/${show.event_id}`)}
+                                            accessibilityRole="button"
+                                        >
+                                            <View style={{ flex: 1 }}>
+                                                <SynthText variant="meta" style={styles.listVenue} numberOfLines={1}>
+                                                    {show.venue_name || 'Venue'}
+                                                </SynthText>
+                                                <SynthText
+                                                    variant="meta"
+                                                    color="secondary"
+                                                    numberOfLines={1}
+                                                    style={styles.listSub}
+                                                >
+                                                    {formatDate(show.event_date)}
+                                                </SynthText>
+                                            </View>
+                                            {show.rating != null ? (
+                                                <View style={styles.listRating}>
+                                                    <Star size={12} color={PINK} fill={PINK} />
+                                                    <SynthText variant="meta" style={styles.listRatingTxt}>
+                                                        {show.rating.toFixed(1)}
+                                                    </SynthText>
+                                                </View>
+                                            ) : null}
+                                            <ChevronRight size={14} color={SynthTokens.colors.neutral600} />
+                                        </Pressable>
+                                    ))}
+                                </ScrollView>
+                            )}
                         </Animated.View>
                     ) : null}
                 </View>
             ) : null}
 
-            {/* Compact show list — taps sync with the map */}
+            {/* Compact place list — taps sync with the map */}
             <View style={styles.list}>
-                {visibleList.map(pin => {
-                    const isSelected = pin.id === selectedId;
+                {visibleGroups.map(group => {
+                    const isSelected = group.key === selectedKey;
+                    const primary = group.shows[0];
                     return (
                         <Pressable
-                            key={pin.id}
+                            key={group.key}
                             style={[styles.listRow, isSelected && styles.listRowSelected]}
-                            onPress={() => selectPin(pin, true)}
+                            onPress={() => selectGroup(group, true)}
                             accessibilityRole="button"
                         >
                             <View style={styles.listPinIcon}>
@@ -377,28 +421,34 @@ export function PassportTravelMap({ userId }: { userId: string }) {
                             </View>
                             <View style={{ flex: 1 }}>
                                 <SynthText variant="meta" style={styles.listVenue} numberOfLines={1}>
-                                    {pin.venue_name || 'Venue'}
+                                    {group.city || group.state || primary.venue_name || 'Venue'}
                                 </SynthText>
                                 <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.listSub}>
-                                    {formatDate(pin.event_date)}
-                                    {pin.venue_city ? ` · ${pin.venue_city}` : pin.venue_state ? ` · ${pin.venue_state}` : ''}
+                                    {group.shows.length} {group.shows.length === 1 ? 'show' : 'shows'}
+                                    {group.state ? ` · ${group.state}` : ''}
                                 </SynthText>
                             </View>
-                            {pin.rating != null ? (
+                            {group.shows.length === 1 && primary.rating != null ? (
                                 <View style={styles.listRating}>
                                     <Star size={12} color={PINK} fill={PINK} />
                                     <SynthText variant="meta" style={styles.listRatingTxt}>
-                                        {pin.rating.toFixed(1)}
+                                        {primary.rating.toFixed(1)}
+                                    </SynthText>
+                                </View>
+                            ) : group.shows.length > 1 ? (
+                                <View style={styles.countPill}>
+                                    <SynthText variant="meta" style={styles.countPillTxt}>
+                                        {group.shows.length}
                                     </SynthText>
                                 </View>
                             ) : null}
                         </Pressable>
                     );
                 })}
-                {pins.length > 4 ? (
+                {cityGroups.length > 4 ? (
                     <Pressable style={styles.showMore} onPress={() => setListExpanded(v => !v)} accessibilityRole="button">
                         <SynthText variant="meta" style={styles.showMoreTxt}>
-                            {listExpanded ? 'Show less' : `Show all ${pins.length} shows`}
+                            {listExpanded ? 'Show less' : `Show all ${cityGroups.length} places`}
                         </SynthText>
                     </Pressable>
                 ) : null}
@@ -501,6 +551,21 @@ const styles = StyleSheet.create({
         borderColor: '#fff',
     },
     markerCoreSelected: { width: 19, height: 19, borderRadius: 10 },
+    markerBadge: {
+        position: 'absolute',
+        top: -3,
+        right: -3,
+        minWidth: 16,
+        height: 16,
+        borderRadius: 8,
+        paddingHorizontal: 3,
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderWidth: 1.5,
+        borderColor: PINK,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    markerBadgeTxt: { color: PINK, fontWeight: '800', fontSize: 9, lineHeight: 11 },
 
     detailCard: {
         position: 'absolute',
@@ -531,6 +596,15 @@ const styles = StyleSheet.create({
     closeBtn: { padding: 2, marginTop: 2 },
     detailQuote: { marginTop: 8, lineHeight: 20, fontStyle: 'italic' },
     detailActions: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 },
+    detailList: { maxHeight: 220, marginTop: 8 },
+    detailListRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 9,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: SynthTokens.colors.neutral200,
+    },
     primaryAction: {
         flexDirection: 'row',
         alignItems: 'center',

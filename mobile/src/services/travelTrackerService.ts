@@ -15,6 +15,16 @@ export interface TravelReviewPin {
     venue_state: string | null;
 }
 
+/** One map dot — all shows in the same city/metro area, so nearby venues don't render as overlapping pins. */
+export interface TravelCityGroup {
+    key: string;
+    city: string | null;
+    state: string | null;
+    latitude: number;
+    longitude: number;
+    shows: TravelReviewPin[];
+}
+
 export class TravelTrackerService {
     static async getReviewsWithCoordinates(userId: string): Promise<TravelReviewPin[]> {
         const { data: reviewsData, error } = await supabase
@@ -87,5 +97,37 @@ export class TravelTrackerService {
             });
         }
         return out;
+    }
+
+    /** Groups pins by city (falling back to state, then venue) and centroids their coordinates. */
+    static groupByCity(pins: TravelReviewPin[]): TravelCityGroup[] {
+        const groups = new Map<string, TravelCityGroup>();
+        for (const pin of pins) {
+            const city = pin.venue_city?.trim() || null;
+            const state = pin.venue_state?.trim() || null;
+            const key = city
+                ? `${city.toLowerCase()}|${(state || '').toLowerCase()}`
+                : state
+                  ? `state:${state.toLowerCase()}`
+                  : `venue:${(pin.venue_name || pin.id).toLowerCase()}`;
+
+            const existing = groups.get(key);
+            if (existing) {
+                const n = existing.shows.length;
+                existing.latitude = (existing.latitude * n + pin.latitude) / (n + 1);
+                existing.longitude = (existing.longitude * n + pin.longitude) / (n + 1);
+                existing.shows.push(pin);
+            } else {
+                groups.set(key, {
+                    key,
+                    city,
+                    state,
+                    latitude: pin.latitude,
+                    longitude: pin.longitude,
+                    shows: [pin],
+                });
+            }
+        }
+        return Array.from(groups.values());
     }
 }
