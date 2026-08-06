@@ -41,7 +41,8 @@
     "slack:push-pm": "node scripts/setup-slack-pm.mjs --write-env-local --push-vercel",
     "infra:setup": "node scripts/infra-setup.mjs",
     "push:test": "node backend/test-apns-connection.js",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "slack:setup-webhook": "node scripts/setup-slack-signup-webhook.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
