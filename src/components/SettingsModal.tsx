@@ -23,7 +23,6 @@ import {
   updateCurrentUserSettingsPreferences,
 } from '@/services/userSettingsPreferencesService';
 import { useViewTracking } from '@/hooks/useViewTracking';
-import { Capacitor } from '@capacitor/core';
 import { getApiBaseUrl } from '@/utils/apiBaseUrl';
 import { toast } from '@/hooks/use-toast';
 
@@ -109,24 +108,11 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
     setDeleteAccountError(null);
   };
 
-  const notifyNativeAccountDeleted = () => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const handler = (window as any).webkit?.messageHandlers?.synthNativeAuth;
-    if (handler?.postMessage) {
-      handler.postMessage({ action: 'userDeleted' });
-    }
-  };
-
   const handleResetPassword = async () => {
     if (!userEmail) return;
     setIsResettingPassword(true);
     try {
-      const isMobile = Capacitor.isNativePlatform();
-      const redirectUrl = isMobile
-        ? 'synth://reset-password'
-        : `${getCanonicalSiteUrl()}/reset-password`;
+      const redirectUrl = `${getCanonicalSiteUrl()}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(userEmail, { redirectTo: redirectUrl });
       if (error) throw error;
       toast({ title: 'Email sent', description: `Password reset link sent to ${userEmail}.` });
@@ -209,10 +195,8 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
         throw new Error(errorMessage);
       }
 
-      window.webkit?.messageHandlers?.synthNativeAuth?.postMessage({ action: 'userDeleted' });
       await onSignOut();
       handleClose();
-      notifyNativeAccountDeleted();
       window.location.href = '/';
     } catch (error) {
       console.error('Error deleting account:', error);

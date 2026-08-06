@@ -5,35 +5,25 @@ const REMOTE_PROXY_URL =
   import.meta.env.VITE_REMOTE_SETLIST_PROXY_URL || getCanonicalSiteUrl();
 
 // Determine the correct backend URL based on environment
-// Supports: localhost, Vercel web, iOS (Capacitor), Android (Capacitor)
+// Supports: localhost, Vercel web
 const getBackendUrl = () => {
   if (typeof window === 'undefined') {
     // Server-side: use backend URL
     return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
   }
 
-  // For web browsers - check hostname FIRST (prioritize localhost over Capacitor)
   const hostname = window.location.hostname;
-  const isLocalhost = hostname === 'localhost' || 
+  const isLocalhost = hostname === 'localhost' ||
                       hostname.startsWith('127.0.0.1') ||
                       hostname.startsWith('192.168.') ||
                       hostname.startsWith('10.0.') ||
                       hostname.startsWith('172.');
-  
+
   if (isLocalhost) {
-    // Development: use backend Express server (even if Capacitor is loaded)
+    // Development: use backend Express server
     return import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
   }
 
-  // Check if we're in a Capacitor app (iOS/Android) - only for non-localhost
-  const isCapacitor = !!(window as any).Capacitor;
-  
-  if (isCapacitor) {
-    // For Capacitor apps (iOS/Android), always use the Vercel production URL
-    // This ensures the serverless function works in native apps
-    return import.meta.env.VITE_VERCEL_URL || getCanonicalSiteUrl();
-  }
-  
   // Production web (Vercel): use relative URL for serverless functions
   // This will automatically use the same domain (Vercel deployment)
   return '';

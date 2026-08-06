@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { handleAppleSignInFromNative, setupAppleSignInListeners } from '@/services/appleAuthService';
-import { Capacitor } from '@capacitor/core';
 import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
 
 // Add the elegant-shift animation keyframes
@@ -36,8 +34,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const [name, setName] = useState('');
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
   const [loading, setLoading] = useState(false);
-  const [appleSignInLoading, setAppleSignInLoading] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [signupEmailAlreadyRegistered, setSignupEmailAlreadyRegistered] = useState(false);
@@ -52,54 +48,12 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   };
 
   useEffect(() => {
-    // Check if iOS
-    const checkIOS = () => {
-      const userAgent = window.navigator.userAgent || window.navigator.vendor || (window as any).opera;
-      const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
-
-      // Safely check for Capacitor
-      const Capacitor = (window as any).Capacitor;
-      if (Capacitor && typeof Capacitor.getPlatform === 'function') {
-        try {
-          setIsIOS(Capacitor.getPlatform() === 'ios' || isIOSDevice);
-        } catch (error) {
-          // Fallback to user agent detection if Capacitor fails
-          console.warn('Error checking Capacitor platform:', error);
-          setIsIOS(isIOSDevice);
-        }
-      } else {
-        setIsIOS(isIOSDevice);
-      }
-    };
-
-    checkIOS();
-
-    // Set up Apple Sign In listeners only if iOS is detected
-    // We'll check isIOS state in a separate effect to avoid dependency issues
-  }, []);
-
-  useEffect(() => {
     // Don't carry errors across tabs
     setEmailError(null);
     setSignupEmailAlreadyRegistered(false);
     setAuthError(null);
     setResetPasswordSent(false);
   }, [activeTab]);
-
-  useEffect(() => {
-    let cleanup: (() => void) | null = null;
-
-    if (isIOS) {
-      cleanup = setupAppleSignInListeners();
-    }
-
-    // Cleanup function: remove listeners when component unmounts or isIOS changes
-    return () => {
-      if (cleanup) {
-        cleanup();
-      }
-    };
-  }, [isIOS]);
 
   const getSiteOrigin = (): string => {
     // Prefer an explicit deploy-time URL that is also allowlisted in Supabase Auth redirect URLs.
@@ -224,7 +178,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       // Always log for debugging
       console.log('🔐 Attempting sign in...');
       console.log('Email:', email ? `${email.substring(0, 3)}***` : 'empty');
-      console.log('Platform:', Capacitor.isNativePlatform() ? 'Mobile' : 'Web');
       console.log('Supabase client initialized:', !!supabase);
 
       // Check if Supabase credentials are configured
@@ -335,55 +288,6 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
     }
   };
 
-  const handleAppleSignIn = async () => {
-    if (!isIOS) {
-      return;
-    }
-
-    setAppleSignInLoading(true);
-
-    try {
-      if (import.meta.env.DEV) {
-        console.log('🍎 Starting Apple Sign In...');
-      }
-
-      const result = await handleAppleSignInFromNative();
-
-      if (result.success) {
-        if (import.meta.env.DEV) {
-          console.log('✅ Apple Sign In successful');
-        }
-        onAuthSuccess();
-      }
-    } catch (error: any) {
-      if (import.meta.env.DEV) {
-        console.error('❌ Apple Sign In exception:', error);
-      }
-    } finally {
-      setAppleSignInLoading(false);
-    }
-  };
-
-  const AppleAuthButton = () => (
-    <Button
-      onClick={handleAppleSignIn}
-      disabled={!isIOS || appleSignInLoading || loading}
-      className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-    >
-      {appleSignInLoading ? (
-        'Signing in...'
-      ) : (
-        <>
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-          </svg>
-          Continue with Apple
-        </>
-      )}
-    </Button>
-  );
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{
       background: 'linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, #fce7f3 50%, var(--neutral-0) 75%, #fdf2f8 100%)',
@@ -426,23 +330,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             </TabsList>
 
             <TabsContent value="signin" className="mt-6">
-              <div className="space-y-4">
-                <AppleAuthButton />
-                {!isIOS && (
-                  <p className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    Apple Sign In is available on iOS devices.
-                  </p>
-                )}
-              </div>
-
               <div className="py-4">
-                <div className="flex items-center gap-3 pb-4">
-                  <div className="h-px flex-1 bg-gray-200" />
-                  <span className="text-[16px] font-medium leading-[1.5] text-[#666666]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    or
-                  </span>
-                  <div className="h-px flex-1 bg-gray-200" />
-                </div>
                 <form onSubmit={handleSignIn} className="space-y-6">
                   <div>
                     <Input
@@ -530,23 +418,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
             </TabsContent>
 
             <TabsContent value="signup" className="mt-6">
-              <div className="space-y-4">
-                <AppleAuthButton />
-                {!isIOS && (
-                  <p className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    Apple Sign In is available on iOS devices.
-                  </p>
-                )}
-              </div>
-
               <div className="py-4">
-                <div className="flex items-center gap-3 pb-4">
-                  <div className="h-px flex-1 bg-gray-200" />
-                  <span className="text-[16px] font-medium leading-[1.5] text-[#666666]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                    or
-                  </span>
-                  <div className="h-px flex-1 bg-gray-200" />
-                </div>
                 <form onSubmit={handleSignUp} className="space-y-6">
                   {signupEmailAlreadyRegistered && (
                     <p

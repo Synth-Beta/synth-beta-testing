@@ -3,7 +3,6 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { PreferenceSignalsService } from '@/services/preferenceSignalsService';
 import { ensurePublicUserProfile } from '@/services/publicUserRecoveryService';
-import { Capacitor } from '@capacitor/core';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -14,27 +13,13 @@ export function useAuth() {
 
   useEffect(() => {
     // Get initial session - user stays logged in until they explicitly log out
-    const getInitialSession = async (retryCount = 0): Promise<void> => {
-      const isMobile = Capacitor.isNativePlatform();
-      const maxRetries = isMobile ? 5 : 1;
-      const retryDelay = 300;
-
-      // On mobile, give native storage time to initialize on first attempt
-      if (isMobile && retryCount === 0) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
+    const getInitialSession = async (): Promise<void> => {
       try {
-        console.log(`🔐 Getting session (attempt ${retryCount + 1}/${maxRetries})`);
+        console.log('🔐 Getting session');
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
           console.error('Error getting session:', error);
-          // On mobile, retry if storage might still be loading
-          if (retryCount < maxRetries - 1 && isMobile) {
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
-            return getInitialSession(retryCount + 1);
-          }
           setSession(null);
           setUser(null);
         } else if (session) {
@@ -44,22 +29,12 @@ export function useAuth() {
           setUser(session.user);
           schedulePreferenceRefresh();
         } else {
-          // No session found - retry on mobile in case storage is slow
-          if (retryCount < maxRetries - 1 && isMobile) {
-            console.log('⏳ No session yet, retrying...');
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
-            return getInitialSession(retryCount + 1);
-          }
           console.log('ℹ️ No session found - user needs to log in');
           setSession(null);
           setUser(null);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
-        if (retryCount < maxRetries - 1 && isMobile) {
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          return getInitialSession(retryCount + 1);
-        }
         setSession(null);
         setUser(null);
       } finally {

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,16 +62,6 @@ const dedupeFavoriteArtists = (artists: FollowArtistOption[]): FollowArtistOptio
 };
 
 export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
-  // Only use the native Swift onboarding on iOS. Web and Android use this React flow.
-  const USE_NATIVE_ONBOARDING =
-    Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-
-  useEffect(() => {
-    if (USE_NATIVE_ONBOARDING) {
-      onComplete();
-    }
-  }, [onComplete, USE_NATIVE_ONBOARDING]);
-
   const [loading, setLoading] = useState(false);
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
@@ -287,6 +276,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
 
     const trimmedOtherSource = acquisitionSourceOther.trim();
     setAcquisitionSourceError(null);
+    if (acquisitionSource === null) {
+      setAcquisitionSourceError('Please select where you heard about Synth');
+      completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
     if (acquisitionSource === 'Other' && !trimmedOtherSource) {
       setAcquisitionSourceError('Please describe where you heard about Synth');
       completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -424,10 +418,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     }
   };
 
-  if (USE_NATIVE_ONBOARDING) {
-    return null;
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 to-accent/10">
       <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col">
@@ -469,7 +459,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                 <h2 className="text-xl font-semibold mb-4">How did you hear about Synth?</h2>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="acquisition_source_select">Acquisition source</Label>
+                    <Label htmlFor="acquisition_source_select">Acquisition source *</Label>
                     <Select
                       value={acquisitionSource ?? ''}
                       onValueChange={(value) => {
@@ -504,6 +494,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                     <p className="text-[15px] font-medium leading-[1.5] text-muted-foreground">
                       This helps us understand which communities find Synth most often.
                     </p>
+                    {acquisitionSourceError && acquisitionSource !== 'Other' && (
+                      <p className="text-[15px] font-medium leading-[1.5] text-destructive">
+                        {acquisitionSourceError}
+                      </p>
+                    )}
                   </div>
                   {acquisitionSource === 'Other' && (
                     <div className="space-y-2">

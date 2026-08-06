@@ -1,19 +1,12 @@
 /**
  * useShareDeepLink
  *
- * Handles the full share deep-link lifecycle inside MainApp:
+ * Handles the share deep-link lifecycle inside MainApp:
  *
- *  On mount (all platforms):
+ *  On mount:
  *    - Reads ?event/review/artist/venue + ?ref from location.search
  *    - Stores as PendingShareLink in sessionStorage
  *    - Cleans the URL
- *    - On iOS native: signals to Swift that the web layer is ready
- *      (so any Universal Link that arrived before React mounted gets fired back)
- *
- *  On every URL-open event (iOS native):
- *    - Listens to Capacitor 'appUrlOpen' for Universal Links
- *    - Listens to 'synthDeepLink' CustomEvent from SynthDeepLinkRouter
- *    - Parses and stores the link
  *
  *  After auth (user is logged in):
  *    - Calls processPendingShareLink()
@@ -24,8 +17,6 @@
 
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { App as CapApp } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import {
   parseShareUrl,
@@ -47,7 +38,6 @@ export function useShareDeepLink({
 }: UseShareDeepLinkOptions) {
   const location    = useLocation();
   const navigate    = useNavigate();
-  const isNative    = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
   const processedRef = useRef(false);
 
   const tryProcessPending = async () => {
@@ -85,39 +75,9 @@ export function useShareDeepLink({
         navigate(location.pathname, { replace: true });
       }
     }
+  }, [location.pathname, location.search, navigate]);
 
-    if (isNative && typeof (window as any).synthSignalDeepLinkReady === 'function') {
-      (window as any).synthSignalDeepLinkReady();
-    }
-  }, [location.pathname, location.search, navigate, isNative]);
-
-  // ── Step 2: Listen for Universal Links arriving while app is running ─────
-  useEffect(() => {
-    if (!isNative) return;
-
-    // Capacitor fires this when app is foregrounded via a universal link
-    let capHandle: { remove: () => void } | null = null;
-    CapApp.addListener('appUrlOpen', ({ url }: { url: string }) => {
-      const link = parseShareUrl(url);
-      if (link) storePendingLink(link);
-    }).then(h => { capHandle = h; });
-
-    // SynthDeepLinkRouter fires this for links that arrived before React mounted
-    const handleSynthDeepLink = (e: Event) => {
-      const url = (e as CustomEvent<{ url: string }>).detail?.url;
-      if (!url) return;
-      const link = parseShareUrl(url);
-      if (link) storePendingLink(link);
-    };
-    window.addEventListener('synthDeepLink', handleSynthDeepLink);
-
-    return () => {
-      capHandle?.remove();
-      window.removeEventListener('synthDeepLink', handleSynthDeepLink);
-    };
-  }, [isNative]);
-
-  // ── Step 3: Open event/review card once authenticated (retry until feed is ready) ──
+  // ── Step 2: Open event/review card once authenticated (retry until feed is ready) ──
   useEffect(() => {
     if (loading || !userId) return;
 

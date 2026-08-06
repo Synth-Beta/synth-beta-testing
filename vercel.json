@@ -5,15 +5,30 @@
     {
       "source": "/.well-known/apple-app-site-association",
       "headers": [
-        { "key": "Content-Type", "value": "application/json" }
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
       ]
     }
   ],
   "rewrites": [
-    { "source": "/auth/spotify/callback", "destination": "/" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/share", "destination": "/api/share" },
-    { "source": "/share/", "destination": "/api/share" },
+    {
+      "source": "/auth/spotify/callback",
+      "destination": "/"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/share",
+      "destination": "/api/share"
+    },
+    {
+      "source": "/share/",
+      "destination": "/api/share"
+    },
     {
       "source": "/((?!assets/|\\.well-known/|api/).*)",
       "destination": "/index.html"
@@ -46,6 +61,9 @@
     },
     "api/spotify/sync-profile.ts": {
       "maxDuration": 30
+    },
+    "api/slack-signup-webhook.ts": {
+      "maxDuration": 10
     }
   },
   "crons": [
