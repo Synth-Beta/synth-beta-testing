@@ -1,4 +1,3 @@
-import { Capacitor } from '@capacitor/core';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -342,16 +341,8 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
           : 'streaming_stats'
       );
 
-      const isNativeCapacitor = Capacitor.isNativePlatform();
-
       await spotifyService.authenticate({
         forceConsent: options?.forceConsent,
-        onNavigate: isNativeCapacitor
-          ? async (url: string) => {
-              const { Browser } = await import('@capacitor/browser');
-              await Browser.open({ url });
-            }
-          : undefined,
       });
     } catch (err) {
       console.error('Spotify connect error:', err);

@@ -9,7 +9,7 @@ interface BottomNavAdapterProps {
 }
 
 /**
- * Bottom tab bar for web-mobile and Capacitor Android. Items come from `useMainNavItems` in MainApp.
+ * Bottom tab bar for web-mobile. Items come from `useMainNavItems` in MainApp.
  */
 export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({ items, onItemClick }) => {
   return (

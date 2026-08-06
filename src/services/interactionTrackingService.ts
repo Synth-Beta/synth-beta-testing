@@ -74,9 +74,8 @@ class InteractionTrackingService {
   /**
    * startNewSession() previously existed but was never called from anywhere,
    * so every user got exactly one session_id for the entire lifetime of the app
-   * process — making session-duration/bounce-rate analytics meaningless on mobile,
-   * where backgrounding doesn't reload the JS context. This ties session
-   * boundaries to real app foreground/background transitions (web + Capacitor).
+   * process — making session-duration/bounce-rate analytics meaningless.
+   * This ties session boundaries to real tab foreground/background transitions.
    */
   private setupSessionBoundaryListeners(): void {
     if (typeof document === 'undefined') return;
@@ -95,14 +94,6 @@ class InteractionTrackingService {
       if (document.hidden) onBackground();
       else onForeground();
     });
-
-    const capacitorApp = (window as any)?.Capacitor?.Plugins?.App;
-    if (capacitorApp?.addListener) {
-      capacitorApp.addListener('appStateChange', (state: { isActive: boolean }) => {
-        if (state.isActive) onForeground();
-        else onBackground();
-      });
-    }
   }
 
   private generateSessionId(): string {

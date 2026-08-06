@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { SideMenu } from '@/components/SideMenu/SideMenu';
 import { BottomNavAdapter } from './BottomNavAdapter';
 import { WebAppShell } from '@/components/layout/WebAppShell';
@@ -79,22 +78,8 @@ interface MainAppProps {
 }
 
 export const MainApp = ({ onSignOut }: MainAppProps) => {
-  const isIosNative =
-  Capacitor.isNativePlatform() &&
-  typeof Capacitor.getPlatform === 'function' &&
-  Capacitor.getPlatform() === 'ios';
-  const nativeBottomNavAvailable =
-    isIosNative &&
-    typeof window !== 'undefined' &&
-    (window as Window & { __SYNTH_NATIVE_BOTTOM_NAV__?: boolean }).__SYNTH_NATIVE_BOTTOM_NAV__ === true;
   const [currentView, setCurrentView] = useState<ViewType>('feed');
   const prevViewRef = useRef<ViewType>('feed');
-  // Track whether the user has ever been authenticated in this session.
-  // If true and then user === null, it means an explicit sign-out happened —
-  // on iOS we should show the web login form rather than the loading screen.
-  const hasEverHadUserRef = useRef(false);
-  // Safety net: if no native session arrives within 8s, fall through to web login
-  const [nativeAuthTimedOut, setNativeAuthTimedOut] = useState(false);
   const [events, setEvents] = useState<EventCardEvent[]>([]);
   const [profileUserId, setProfileUserId] = useState<string | undefined>(undefined);
   const [notificationFilter, setNotificationFilter] = useState<'friends_only' | 'exclude_friends' | undefined>(undefined);
@@ -112,12 +97,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const layoutMode = useWebLayoutMode();
   const menuNotificationBadgeCount = useMenuNotificationBadgeCount(user?.id);
   const webDesktopChrome = layoutMode === 'web-desktop';
-
-  // Once the user is authenticated, remember it for this session so we can
-  // detect an explicit sign-out later (vs. the initial unauthenticated load).
-  useEffect(() => {
-    if (user?.id) hasEverHadUserRef.current = true;
-  }, [user?.id]);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -143,13 +122,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     checkUsername();
   }, [user?.id, loading]);
 
-  // On iOS: if the Swift layer never sends a session (e.g. expired native tokens),
-  // give up waiting after 8s and show the web login form instead of loading forever.
-  useEffect(() => {
-    if (!isIosNative) return;
-    const timer = setTimeout(() => setNativeAuthTimedOut(true), 8000);
-    return () => clearTimeout(timer);
-  }, [isIosNative]);
   const { accountInfo } = useAccountType();
   const navigate = useNavigate();
   const location = useLocation();
@@ -217,7 +189,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     return () => {
       unsubscribe();
     };
-  }, [isIosNative]);
+  }, []);
 
   // Background streaming refresh when linked (weekly stale data + one-time migrations)
   useEffect(() => {
@@ -270,17 +242,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         }
 
         // If user hasn't completed onboarding and hasn't skipped it, redirect to onboarding.
-        // iOS native: Swift handles the onboarding flow, so never redirect to the React screen.
         if (!status.onboarding_completed && !status.onboarding_skipped) {
-          if (isIosNative) {
-            return; // Native Swift handles onboarding
-          }
           setCurrentView('onboarding');
         }
-        if (isIosNative && currentView === 'onboarding') {
-          setCurrentView('feed');
-        }
-        else if (status.onboarding_skipped && !status.onboarding_completed) {
+        if (status.onboarding_skipped && !status.onboarding_completed) {
           // Show reminder banner if they skipped
           setShowOnboardingReminder(true);
           // Start tour if not completed (tour should start after skip too)
@@ -288,9 +253,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             setTimeout(() => setRunTour(true), 1500);
           }
         } else if (status.onboarding_completed && !status.tour_completed) {
-          // Onboarding done but tour not yet seen — fire it on all platforms.
-          // iOS: native Swift onboarding sets onboarding_completed; tour runs in the Capacitor WebView.
-          // Android/web: React onboarding sets it; tour runs immediately after.
+          // Onboarding done but tour not yet seen.
           if (currentView === 'feed') {
             setTimeout(() => setRunTour(true), 1500);
           }
@@ -301,7 +264,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     if (!loading && user) {
       checkOnboardingStatus();
     }
-  }, [user, loading, currentView, isIosNative]);
+  }, [user, loading, currentView]);
 
   // Initialize push notifications when user is authenticated
   useEffect(() => {
@@ -326,9 +289,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   useEffect(() => {
     const hash = location.hash;
     if (hash === '#onboarding') {
-      if (!isIosNative) {
-        setCurrentView('onboarding');
-      }
+      setCurrentView('onboarding');
       // Clear the hash to prevent re-triggering on refresh
       navigate(`${location.pathname}${location.search}`, { replace: true });
     } else if (hash === '#profile') {
@@ -336,11 +297,10 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       // Clear the hash to prevent re-triggering on refresh
       navigate(`${location.pathname}${location.search}`, { replace: true });
     }
-  }, [location.hash, location.pathname, location.search, navigate, isIosNative]);
+  }, [location.hash, location.pathname, location.search, navigate]);
 
   // ── Deep-link + share referral handling ─────────────────────────────────
-  // useShareDeepLink handles: URL param capture, Universal Links, Capacitor
-  // appUrlOpen, native SynthDeepLinkRouter events, auto-friend the referrer,
+  // useShareDeepLink handles: URL param capture, auto-friend the referrer,
   // and routing to the shared content once the user is authenticated.
   // It is wired up below (after nav helpers are defined) via shareDeepLinkNavRef.
 
@@ -352,9 +312,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     const intendedView = localStorage.getItem('intendedView');
     if (intendedView) {
       if (intendedView === 'onboarding') {
-        if (!isIosNative) {
-          setCurrentView('onboarding');
-        }
+        setCurrentView('onboarding');
         localStorage.removeItem('intendedView');
       } else if (['feed', 'search', 'profile'].includes(intendedView)) {
         setCurrentView(intendedView as ViewType);
@@ -599,8 +557,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     !hideNavigation &&
     currentView !== 'profile-edit' &&
     currentView !== 'settings' &&
-    (currentView !== 'chat' || !isChatSelected || layoutMode === 'web-desktop') &&
-    !nativeBottomNavAvailable;
+    (currentView !== 'chat' || !isChatSelected || layoutMode === 'web-desktop');
 
   const showBottomNavChrome =
     showPrimaryNav && layoutMode !== 'web-desktop' && !(currentView === 'chat' && isChatSelected);
@@ -762,53 +719,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     },
   });
 
-  // Notify the native Swift layer when the side menu opens/closes so the
-  // native BottomNav can be hidden behind the menu overlay.
-  useEffect(() => {
-    if (!isIosNative) return;
-    window.dispatchEvent(new CustomEvent('synthMenuStateChanged', { detail: { open: menuOpen } }));
-  }, [menuOpen, isIosNative]);
-
-  useEffect(() => {
-    if (!isIosNative) return;
-    const shouldHideNav = currentView === 'chat' && isChatSelected;
-    window.dispatchEvent(new CustomEvent('synthMenuStateChanged', { detail: { open: shouldHideNav } }));
-  }, [isIosNative, currentView, isChatSelected]);
-
-  // Keep the native BottomNav selected-tab indicator in sync with the React
-  // view so internal navigations (back button, notifications, deep links, side
-  // menu items) are reflected in the native UI.
-  useEffect(() => {
-    if (!isIosNative) return;
-    const viewToTabIndex: Partial<Record<ViewType, number>> = {
-      feed: 0,
-      search: 1,
-      chat: 3,
-      profile: 4,
-    };
-    const index = viewToTabIndex[currentView];
-    if (typeof index === 'number') {
-      window.dispatchEvent(new CustomEvent('synthActiveTabChanged', { detail: { index } }));
-    }
-  }, [currentView, isIosNative]);
-
-  useEffect(() => {
-    if (!isIosNative) return;
-
-    const handleNativeTabSelected = (event: Event) => {
-      const index = (event as CustomEvent<{ index?: number }>).detail?.index;
-      if (typeof index !== 'number') return;
-      const navItem = mainNavItems[index];
-      if (!navItem) return;
-      handleMainNavItemClick(navItem);
-    };
-
-    window.addEventListener('synthNativeTabSelected', handleNativeTabSelected as EventListener);
-    return () => {
-      window.removeEventListener('synthNativeTabSelected', handleNativeTabSelected as EventListener);
-    };
-  }, [isIosNative, mainNavItems, handleMainNavItemClick]);
-
   const handleNavigateToProfile = (userId?: string, tab?: ProfileTab) => {
     setCurrentView('profile');
     if (tab) {
@@ -869,9 +779,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   };
 
   const handleOnboardingReminderComplete = () => {
-    if (isIosNative) {
-      return;
-    }
     setCurrentView('onboarding');
   };
 
@@ -885,13 +792,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   // Show auth if no user, session expired, or auth requested
   if (showAuth || sessionExpired || !user?.id) {
-    // On iOS native, during the INITIAL load (user has never been authenticated
-    // this session) we defer to the Swift layer and show a loading screen.
-    // But after an explicit sign-out (hasEverHadUserRef.current === true),
-    // Swift won't re-show its auth UI on its own, so we render the web login form.
-    if (isIosNative && !hasEverHadUserRef.current && !nativeAuthTimedOut) {
-      return <SynthLoadingScreen text="Loading Synth..." />;
-    }
     return <Auth onAuthSuccess={handleAuthSuccess} />;
   }
 
@@ -902,15 +802,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     // Rendering current view
     switch (currentView) {
       case 'auth':
-        return isIosNative ? (
-          <SynthLoadingScreen text="Loading Synth..." />
-        ) : (
-          <Auth onAuthSuccess={handleAuthSuccess} />
-        );
+        return <Auth onAuthSuccess={handleAuthSuccess} />;
       case 'onboarding':
-        return isIosNative ? (
-          <SynthLoadingScreen text="Loading Synth..." />
-        ) : (
+        return (
           <OnboardingFlow
             onComplete={handleOnboardingComplete}
             onExit={() => {

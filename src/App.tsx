@@ -8,8 +8,6 @@ import SpotifyCallback from "./pages/SpotifyCallback";
 import AppPage from "./pages/App";
 import { ShareLinkBootstrap } from "@/components/ShareLinkBootstrap";
 import { supabase } from "@/integrations/supabase/client";
-import { Capacitor } from "@capacitor/core";
-import { App as CapacitorApp } from "@capacitor/app";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,8 +42,6 @@ function DeepLinkHandlerInner() {
   useEffect(() => {
     // Handle deep links from Supabase auth callbacks
     const handleAuthCallback = async () => {
-      const isMobile = Capacitor.isNativePlatform();
-      
       // Check for Supabase auth tokens in URL hash (web) or query params (mobile)
       const hash = location.hash.substring(1);
       const search = location.search;
@@ -95,133 +91,13 @@ function DeepLinkHandlerInner() {
             }
             
             // Clear the URL hash/query params after processing
-            if (isMobile) {
-              // On mobile, we can't easily clear query params, but that's okay
-              window.history.replaceState({}, document.title, window.location.pathname);
-            } else {
-              // On web, clear the hash
-              window.history.replaceState({}, document.title, window.location.pathname);
-            }
+            window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (error) {
           console.error('Error processing auth callback:', error);
         }
       }
     };
-    
-    // Also listen for Capacitor app URL events (for mobile deep links)
-    if (Capacitor.isNativePlatform()) {
-      const handleAppUrl = async (event: any) => {
-        const url = event.url;
-        if (url && url.startsWith('synth://')) {
-          // Don't log full URL to avoid exposing sensitive auth tokens
-          console.log('📱 Received synth:// deep link (auth callback)');
-          
-          try {
-            // Parse the deep link URL
-            // Supabase sends URLs like: synth://#access_token=...&type=recovery
-            // or: synth://reset-password?access_token=...&type=recovery
-            const urlObj = new URL(url);
-            const path = urlObj.pathname;
-            const hash = urlObj.hash.substring(1);
-            const search = urlObj.search.substring(1); // Remove leading ?
-            
-            // Check for auth tokens in hash (Supabase default format)
-            if (hash) {
-              const hashParams = new URLSearchParams(hash);
-              const accessToken = hashParams.get('access_token');
-              const refreshToken = hashParams.get('refresh_token');
-              const type = hashParams.get('type');
-              
-              if (accessToken && type) {
-                // Set session directly from hash params
-                const { data, error } = await supabase.auth.setSession({
-                  access_token: accessToken,
-                  refresh_token: refreshToken || '',
-                });
-                
-                if (error) {
-                  console.error('Error setting session from deep link hash:', error);
-                  return;
-                }
-                
-                if (data.session) {
-                  console.log('✅ Successfully authenticated via deep link (hash)');
-                  
-                  // Route based on auth type
-                  if (type === 'recovery') {
-                    navigate('/reset-password', { replace: true });
-                  } else if (type === 'signup' || type === 'email') {
-                    navigate('/#onboarding', { replace: true });
-                  } else {
-                    navigate('/', { replace: true });
-                  }
-                  
-                  // Clear URL
-                  window.history.replaceState({}, document.title, window.location.pathname);
-                }
-                return;
-              }
-            }
-            
-            // Check for auth tokens in query params (alternative format)
-            if (search) {
-              const searchParams = new URLSearchParams(search);
-              const accessToken = searchParams.get('access_token');
-              const refreshToken = searchParams.get('refresh_token');
-              const type = searchParams.get('type');
-              
-              if (accessToken && type) {
-                // Set session directly from query params
-                const { data, error } = await supabase.auth.setSession({
-                  access_token: accessToken,
-                  refresh_token: refreshToken || '',
-                });
-                
-                if (error) {
-                  console.error('Error setting session from deep link query:', error);
-                  return;
-                }
-                
-                if (data.session) {
-                  console.log('✅ Successfully authenticated via deep link (query)');
-                  
-                  // Route based on auth type
-                  if (type === 'recovery') {
-                    navigate('/reset-password', { replace: true });
-                  } else if (type === 'signup' || type === 'email') {
-                    navigate('/#onboarding', { replace: true });
-                  } else {
-                    navigate('/', { replace: true });
-                  }
-                  
-                  // Clear URL
-                  window.history.replaceState({}, document.title, window.location.pathname);
-                }
-                return;
-              }
-            }
-            
-            // No auth tokens - regular deep link navigation
-            if (path && path !== '/') {
-              navigate(path, { replace: true });
-            } else {
-              navigate('/', { replace: true });
-            }
-          } catch (error) {
-            console.error('Error processing deep link:', error);
-            // Fallback: navigate to home
-            navigate('/', { replace: true });
-          }
-        }
-      };
-      
-      CapacitorApp.addListener('appUrlOpen', handleAppUrl);
-      
-      return () => {
-        CapacitorApp.removeAllListeners();
-      };
-    }
     
     // Process auth callback on mount and when location changes
     handleAuthCallback();

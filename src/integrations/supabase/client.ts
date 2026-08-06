@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { Capacitor } from '@capacitor/core';
 import { nativeStorage } from '@/lib/nativeStorage';
 import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
 
@@ -50,88 +49,22 @@ if (SUPABASE_URL === "https://your-project.supabase.co" || SUPABASE_PUBLISHABLE_
   console.log('Supabase URL:', SUPABASE_URL);
 }
 
-// Detect if running on mobile (Capacitor)
-const isMobile = Capacitor.isNativePlatform();
-const isIosNativePlatform =
-  isMobile &&
-  typeof Capacitor.getPlatform === 'function' &&
-  Capacitor.getPlatform() === 'ios';
-
-// Configure Supabase client with mobile-specific settings
+// Configure Supabase client
 const supabaseConfig: any = {
   auth: {
     // Auto-refresh session - ensures tokens are refreshed before expiry
     autoRefreshToken: true,
     // Persist session in storage
     persistSession: true,
-    // Use native storage on mobile for persistent sessions across app restarts
     storage: nativeStorage,
-    // Detect session from URL (for deep links) - only on web
-    detectSessionInUrl: !isMobile,
-    // Redirect URLs based on platform
-    redirectTo: isMobile 
-      ? 'synth://'
-      : getCanonicalSiteUrl(),
+    // Detect session from URL (for deep links)
+    detectSessionInUrl: true,
+    redirectTo: getCanonicalSiteUrl(),
   },
 };
-
-if (isMobile && import.meta.env.DEV) {
-  console.log('📱 Mobile platform detected - using mobile auth configuration');
-}
 
 // Create Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, supabaseConfig);
 
 // Expose URL for validation (for debugging)
 (supabase as any).supabaseUrl = SUPABASE_URL;
-
-// Request native session from Swift layer (when app uses native auth + Capacitor WebView)
-// The native layer injects session via synthNativeSessionReady event
-if (isMobile && typeof window !== 'undefined') {
-  const win = window as any;
-  let nativeSessionReceived = false;
-  win.addEventListener('synthNativeSessionReady', async (e: CustomEvent<{ access_token: string; refresh_token: string }>) => {
-    const { access_token, refresh_token } = e.detail || {};
-    if (access_token && !nativeSessionReceived) {
-      nativeSessionReceived = true;
-      try {
-        await supabase.auth.setSession({ access_token, refresh_token: refresh_token || '' });
-        if (import.meta.env.DEV) console.log('✅ Session restored from native auth');
-      } catch (err) {
-        console.error('Failed to set session from native:', err);
-      }
-    }
-  });
-  const requestNativeSession = () => {
-    if (win.webkit?.messageHandlers?.synthGetSession) {
-      win.webkit.messageHandlers.synthGetSession.postMessage({});
-    }
-  };
-  requestNativeSession();
-  // Retry in case native handler attaches after page load (extends to 5s to cover slow devices)
-  [500, 1500, 3000, 5000].forEach((ms) => setTimeout(requestNativeSession, ms));
-}
-
-// Set up auth state change listener for deep link handling on mobile
-// This is mobile-only because web handles auth callbacks differently
-if (isMobile && typeof window !== 'undefined') {
-  const win = window as any;
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (import.meta.env.DEV) {
-      console.log('🔐 Auth state changed:', event, session ? 'Session exists' : 'No session');
-    }
-
-    if (isIosNativePlatform && event === 'SIGNED_OUT') {
-      win.webkit?.messageHandlers?.synthNativeAuth?.postMessage({ action: 'signedOut' });
-    }
-
-    // Handle deep link callbacks
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-      // Session is established, app can proceed
-      // Deep link processing is handled in App.tsx DeepLinkHandlerInner component
-      if (import.meta.env.DEV) {
-        console.log('✅ User authenticated via deep link');
-      }
-    }
-  });
-}

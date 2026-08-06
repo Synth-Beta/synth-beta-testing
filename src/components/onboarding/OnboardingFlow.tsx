@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,16 +62,6 @@ const dedupeFavoriteArtists = (artists: FollowArtistOption[]): FollowArtistOptio
 };
 
 export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
-  // Only use the native Swift onboarding on iOS. Web and Android use this React flow.
-  const USE_NATIVE_ONBOARDING =
-    Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-
-  useEffect(() => {
-    if (USE_NATIVE_ONBOARDING) {
-      onComplete();
-    }
-  }, [onComplete, USE_NATIVE_ONBOARDING]);
-
   const [loading, setLoading] = useState(false);
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
@@ -428,10 +417,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       }
     }
   };
-
-  if (USE_NATIVE_ONBOARDING) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 to-accent/10">
