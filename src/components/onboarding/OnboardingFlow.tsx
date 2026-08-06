@@ -287,6 +287,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
 
     const trimmedOtherSource = acquisitionSourceOther.trim();
     setAcquisitionSourceError(null);
+    if (acquisitionSource === null) {
+      setAcquisitionSourceError('Please select where you heard about Synth');
+      completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
     if (acquisitionSource === 'Other' && !trimmedOtherSource) {
       setAcquisitionSourceError('Please describe where you heard about Synth');
       completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -469,7 +474,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                 <h2 className="text-xl font-semibold mb-4">How did you hear about Synth?</h2>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="acquisition_source_select">Acquisition source</Label>
+                    <Label htmlFor="acquisition_source_select">Acquisition source *</Label>
                     <Select
                       value={acquisitionSource ?? ''}
                       onValueChange={(value) => {
@@ -504,6 +509,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                     <p className="text-[15px] font-medium leading-[1.5] text-muted-foreground">
                       This helps us understand which communities find Synth most often.
                     </p>
+                    {acquisitionSourceError && acquisitionSource !== 'Other' && (
+                      <p className="text-[15px] font-medium leading-[1.5] text-destructive">
+                        {acquisitionSourceError}
+                      </p>
+                    )}
                   </div>
                   {acquisitionSource === 'Other' && (
                     <div className="space-y-2">

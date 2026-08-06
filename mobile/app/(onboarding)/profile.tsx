@@ -175,7 +175,8 @@ export default function ProfileSetupScreen() {
     const canContinue =
         username.length >= 3 &&
         (usernameStatus === 'available' || usernameStatus === 'idle') &&
-        !validateBirthday(birthday);
+        !validateBirthday(birthday) &&
+        !!acquisitionSource;
 
     const handleContinue = async () => {
         // Final birthday validation
@@ -194,6 +195,10 @@ export default function ProfileSetupScreen() {
         }
 
         const trimmedOtherSource = acquisitionSourceOther.trim();
+        if (!acquisitionSource) {
+            setAcquisitionSourceError('Please select where you heard about Synth');
+            return;
+        }
         if (acquisitionSource === 'Other' && !trimmedOtherSource) {
             setAcquisitionSourceError('Please describe where you heard about Synth');
             return;
@@ -343,7 +348,7 @@ export default function ProfileSetupScreen() {
 
                     {/* Acquisition source */}
                     <View style={styles.fieldBlock}>
-                        <Text style={styles.label}>How did you hear about Synth?</Text>
+                        <Text style={styles.label}>How did you hear about Synth? <Text style={styles.required}>*</Text></Text>
                         <View style={styles.optionsRow}>
                             {ACQUISITION_SOURCE_CANONICAL_ORDER.map(source => {
                                 const selected = acquisitionSource === source;
@@ -363,6 +368,9 @@ export default function ProfileSetupScreen() {
                             })}
                         </View>
                         <Text style={styles.hint}>This helps us understand which communities find Synth most often.</Text>
+                        {acquisitionSourceError && acquisitionSource !== 'Other' ? (
+                            <Text style={[styles.hint, { color: '#dc2626' }]}>{acquisitionSourceError}</Text>
+                        ) : null}
                     </View>
                     {acquisitionSource === 'Other' && (
                         <View style={styles.fieldBlock}>
