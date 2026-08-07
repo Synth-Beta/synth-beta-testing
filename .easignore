@@ -1,0 +1,5 @@
+# EAS Build archives the whole monorepo (mobile/ depends on ../packages/synth-shared),
+# but doesn't respect .gitignore. .agents/ contains symlinks into .claude/skills/ that
+# fail to archive on Windows (EPERM). Neither directory belongs in a mobile app build.
+.agents/
+.claude/
