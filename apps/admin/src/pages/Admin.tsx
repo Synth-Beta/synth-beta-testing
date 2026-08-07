@@ -60,6 +60,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  SignupMethod,
+  normalizeSignupMethod,
+  SIGNUP_METHOD_LABELS,
+  SIGNUP_METHOD_BADGE_VARIANT,
+  SIGNUP_METHOD_FILTER_OPTIONS,
+} from '@/lib/signupMethod';
 import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnalyticsDashboard';
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
 import ContentCalendarDashboard from '@/components/admin/content-calendar/ContentCalendarDashboard';
@@ -229,7 +236,10 @@ export default function Admin() {
   const [selectedDayKey, setSelectedDayKey] = useState('');
   const [daySignupUsers, setDaySignupUsers] = useState<DaySignupUser[]>([]);
   const [dayUsersLoading, setDayUsersLoading] = useState(false);
-  
+  const [signupMethods, setSignupMethods] = useState<Record<string, SignupMethod>>({});
+  const [signupMethodsError, setSignupMethodsError] = useState<string | null>(null);
+  const [signupMethodFilter, setSignupMethodFilter] = useState<'all' | SignupMethod>('all');
+
   // Event Analytics state
   const [totalArtists, setTotalArtists] = useState(0);
   const [totalEvents, setTotalEvents] = useState(0);
@@ -380,6 +390,7 @@ export default function Admin() {
       fetchModerationFlags();
       fetchUserAnalytics();
       fetchSocialMediaAnalytics();
+      fetchSignupMethods();
     }
   }, [user, isAdmin, fetchSocialMediaAnalytics]);
 
@@ -441,6 +452,24 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSignupMethods = async () => {
+    const { data, error } = await db.rpc('get_user_signup_providers');
+
+    if (error) {
+      console.error('Error fetching signup methods:', error);
+      setSignupMethodsError(error.message || 'Signup method data unavailable.');
+      setSignupMethods({});
+      return;
+    }
+
+    const map: Record<string, SignupMethod> = {};
+    (data || []).forEach((row: { user_id: string; signup_method: string }) => {
+      map[row.user_id] = normalizeSignupMethod(row.signup_method);
+    });
+    setSignupMethods(map);
+    setSignupMethodsError(null);
   };
 
   const calculateDailyUsers = (usersList: User[]) => {
