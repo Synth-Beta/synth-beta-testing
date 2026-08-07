@@ -95,3 +95,8 @@ export {
   type BucketListFeedEvent,
   getEventsFromRankedArtists,
 } from './bucketListFeed';
+export {
+  getUpcomingEventsForGenreChat,
+  getUpcomingEventsForGenreUmbrella,
+} from './genreEvents';
+export { GENRE_CHAT_TAG_MAP } from './genreChatTagMap';

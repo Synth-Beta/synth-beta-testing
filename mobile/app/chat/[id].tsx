@@ -7,6 +7,7 @@ import { Image } from 'expo-image';
 import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
+import { GenreChatEventsRail } from '../../src/components/chat/GenreChatEventsRail';
 import { SynthText } from '../../src/components/SynthText';
 import { launchChatImagePicker, type ChatImagePickerSource } from '../../src/utils/launchChatImagePicker';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -102,6 +103,8 @@ export default function ChatThreadScreen() {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageSourceSheetVisible, setImageSourceSheetVisible] = useState(false);
     const [isGroupChat, setIsGroupChat] = useState(false);
+    const [entityType, setEntityType] = useState<string | null>(null);
+    const [entityId, setEntityId] = useState<string | null>(null);
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
@@ -164,11 +167,15 @@ export default function ChatThreadScreen() {
         let cancelled = false;
         void supabase
             .from('chats')
-            .select('is_group_chat')
+            .select('is_group_chat, entity_type, entity_id')
             .eq('id', id)
             .maybeSingle()
             .then(({ data }) => {
-                if (!cancelled) setIsGroupChat(!!data?.is_group_chat);
+                if (!cancelled) {
+                    setIsGroupChat(!!data?.is_group_chat);
+                    setEntityType(data?.entity_type ?? null);
+                    setEntityId(data?.entity_id ?? null);
+                }
             });
         return () => {
             cancelled = true;
@@ -671,6 +678,8 @@ export default function ChatThreadScreen() {
                 </SynthText>
                 <View style={{ width: 40 }} />
             </View>
+
+            {entityType === 'genre' && entityId && <GenreChatEventsRail genreChatId={entityId} />}
 
             <FlatList
                 ref={flatListRef}

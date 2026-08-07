@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { SearchBar } from '@/components/SearchBar';
+import { GenreChatEventsRail } from '@/components/discover/GenreChatEventsRail';
 
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -140,7 +141,7 @@ interface Chat {
   unread_count?: number; // Keep for backward compatibility during transition
   has_unread?: boolean;
   // Verified chat fields
-  entity_type?: 'event' | 'artist' | 'venue' | null;
+  entity_type?: 'event' | 'artist' | 'venue' | 'genre' | null;
   entity_id?: string | null;
   entity_uuid?: string | null;
   is_verified?: boolean;
@@ -2530,6 +2531,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         onTouchCancel={handleChatTouchCancel}
       >{selectedChat ? (
           <>
+            {selectedChat.entity_type === 'genre' && selectedChat.entity_id && (
+              <GenreChatEventsRail genreChatId={selectedChat.entity_id} currentUserId={currentUserId} />
+            )}
             {/* Messages */}
               <div
                 ref={messagesScrollRef}
