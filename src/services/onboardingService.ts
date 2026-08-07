@@ -17,6 +17,7 @@ export interface ProfileSetupData {
   avatar_url?: string;
   acquisition_source?: string | null;
   other_acquisition_source?: string | null;
+  contact_email?: string | null;
 }
 
 export class OnboardingService {
@@ -131,6 +132,9 @@ export class OnboardingService {
       if (data.other_acquisition_source !== undefined) {
         updateData.other_acquisition_source = data.other_acquisition_source;
       }
+      if (data.contact_email !== undefined) {
+        updateData.contact_email = data.contact_email;
+      }
 
       const { error } = await supabase
         .from('users')
@@ -146,6 +150,7 @@ export class OnboardingService {
           delete updateWithoutOptional.location_city;
           delete updateWithoutOptional.acquisition_source;
           delete updateWithoutOptional.other_acquisition_source;
+          delete updateWithoutOptional.contact_email;
           const { error: retryError } = await supabase
             .from('users')
             .upsert(updateWithoutOptional, { onConflict: 'user_id' });

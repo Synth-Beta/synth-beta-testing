@@ -21,7 +21,7 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
-import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource } from '@synth/shared';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail } from '@synth/shared';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -66,6 +66,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const [musicData, setMusicData] = useState<{ genres: string[]; artists: string[] }>({ genres: [], artists: [] });
   const profileStepRef = useRef<ProfileSetupStepRef>(null);
   const { user, session } = useAuth();
+  const showContactEmailField = needsContactEmail(user, null);
   const exitInProgressRef = useRef(false);
   const [prefilledMusicData, setPrefilledMusicData] = useState<{ genres: string[]; artists: string[] } | null>(null);
   const musicPrefillAppliedRef = useRef(false);
@@ -78,6 +79,8 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSource | null>(null);
   const [acquisitionSourceOther, setAcquisitionSourceOther] = useState('');
   const [acquisitionSourceError, setAcquisitionSourceError] = useState<string | null>(null);
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactEmailError, setContactEmailError] = useState<string | null>(null);
   const [prefillLoading, setPrefillLoading] = useState(true);
   const [completionError, setCompletionError] = useState<string | null>(null);
   const completeButtonRef = useRef<HTMLDivElement>(null);
@@ -287,6 +290,21 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       return;
     }
 
+    const trimmedContactEmail = contactEmail.trim();
+    setContactEmailError(null);
+    if (showContactEmailField) {
+      if (!trimmedContactEmail) {
+        setContactEmailError('Please enter your email');
+        completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedContactEmail)) {
+        setContactEmailError('Please enter a valid email');
+        completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // Save profile
@@ -303,6 +321,9 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         profilePayload.acquisition_source = acquisitionSource;
         profilePayload.other_acquisition_source =
           acquisitionSource === 'Other' ? trimmedOtherSource : null;
+      }
+      if (showContactEmailField) {
+        profilePayload.contact_email = trimmedContactEmail;
       }
       let profileSuccess = false;
       try {
@@ -528,6 +549,37 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                   )}
                 </div>
               </section>
+
+              {showContactEmailField && (
+                <section>
+                  <h2 className="text-xl font-semibold mb-4">Contact email</h2>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact_email_input">Email *</Label>
+                    <Input
+                      id="contact_email_input"
+                      type="email"
+                      value={contactEmail}
+                      onChange={(event) => {
+                        setContactEmail(event.target.value);
+                        if (contactEmailError) {
+                          setContactEmailError(null);
+                        }
+                      }}
+                      placeholder="you@example.com"
+                      className={`bg-white ${contactEmailError ? 'border-destructive' : ''}`}
+                    />
+                    {contactEmailError ? (
+                      <p className="text-[15px] font-medium leading-[1.5] text-destructive">
+                        {contactEmailError}
+                      </p>
+                    ) : (
+                      <p className="text-[15px] font-medium leading-[1.5] text-muted-foreground">
+                        We need a real contact email on file so we can reach you about your account and about reports of harassment or abuse.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              )}
 
               <section>
                 <h2 className="text-xl font-semibold mb-4">Music taste</h2>
