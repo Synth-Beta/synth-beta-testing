@@ -43,3 +43,5 @@ Optional Ignored Build Step (only rebuild when admin changes):
 ```bash
 git diff --quiet HEAD^ HEAD -- ./apps/admin
 ```
+
+**Gotcha:** this only diffs the new commit against its immediate parent (`HEAD^`). If you push a *batch* of commits in one `git push` (e.g. a merge that fast-forwards `main` over several commits at once), Vercel evaluates the skip-check against the last commit in that batch only. If that last commit doesn't happen to touch `apps/admin` — even though an earlier commit in the same push did — the deploy is silently skipped and the batch's admin changes never go live. If admin changes don't show up after a push, check whether this happened before assuming the code is wrong; a trivial follow-up commit that touches `apps/admin` (or a manual redeploy from the Vercel dashboard) forces it through.
