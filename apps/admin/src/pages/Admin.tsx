@@ -2348,6 +2348,58 @@ export default function Admin() {
 
                 <Card className="shadow-sm">
                   <CardHeader className="py-3 px-4">
+                    <CardTitle className="text-sm">Users · Signup Method</CardTitle>
+                    <CardDescription className="text-xs">Apple, Android, or email signup, per user</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 pt-0 space-y-3">
+                    <Select value={signupMethodFilter} onValueChange={(value) => setSignupMethodFilter(value as 'all' | SignupMethod)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Filter by signup method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SIGNUP_METHOD_FILTER_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {signupMethodsError ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">Signup method data unavailable</p>
+                    ) : loading ? (
+                      <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                    ) : (
+                      <div className="max-h-[280px] overflow-auto rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Name</TableHead>
+                              <TableHead className="text-xs text-right">Method</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {users
+                              .filter(u => signupMethodFilter === 'all' || (signupMethods[u.id] ?? 'unknown') === signupMethodFilter)
+                              .map(u => {
+                                const method = signupMethods[u.id] ?? 'unknown';
+                                return (
+                                  <TableRow key={u.id}>
+                                    <TableCell className="text-sm py-2">{u.name || u.id.slice(0, 8) || '—'}</TableCell>
+                                    <TableCell className="text-right py-2">
+                                      <Badge variant={SIGNUP_METHOD_BADGE_VARIANT[method]} className="text-[10px]">
+                                        {SIGNUP_METHOD_LABELS[method]}
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                  <CardHeader className="py-3 px-4">
                     <CardTitle className="text-sm">Daily Users Added</CardTitle>
                     <CardDescription className="text-xs">Last 30 days · click a bar for signups + socials</CardDescription>
                   </CardHeader>
