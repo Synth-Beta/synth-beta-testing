@@ -60,6 +60,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  SignupMethod,
+  normalizeSignupMethod,
+  SIGNUP_METHOD_LABELS,
+  SIGNUP_METHOD_BADGE_VARIANT,
+  SIGNUP_METHOD_FILTER_OPTIONS,
+} from '@/lib/signupMethod';
 import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnalyticsDashboard';
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
 import ContentCalendarDashboard from '@/components/admin/content-calendar/ContentCalendarDashboard';
@@ -229,7 +236,10 @@ export default function Admin() {
   const [selectedDayKey, setSelectedDayKey] = useState('');
   const [daySignupUsers, setDaySignupUsers] = useState<DaySignupUser[]>([]);
   const [dayUsersLoading, setDayUsersLoading] = useState(false);
-  
+  const [signupMethods, setSignupMethods] = useState<Record<string, SignupMethod>>({});
+  const [signupMethodsError, setSignupMethodsError] = useState<string | null>(null);
+  const [signupMethodFilter, setSignupMethodFilter] = useState<'all' | SignupMethod>('all');
+
   // Event Analytics state
   const [totalArtists, setTotalArtists] = useState(0);
   const [totalEvents, setTotalEvents] = useState(0);
@@ -380,6 +390,7 @@ export default function Admin() {
       fetchModerationFlags();
       fetchUserAnalytics();
       fetchSocialMediaAnalytics();
+      fetchSignupMethods();
     }
   }, [user, isAdmin, fetchSocialMediaAnalytics]);
 
@@ -441,6 +452,24 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchSignupMethods = async () => {
+    const { data, error } = await db.rpc('get_user_signup_providers');
+
+    if (error) {
+      console.error('Error fetching signup methods:', error);
+      setSignupMethodsError(error.message || 'Signup method data unavailable.');
+      setSignupMethods({});
+      return;
+    }
+
+    const map: Record<string, SignupMethod> = {};
+    (data || []).forEach((row: { user_id: string; signup_method: string }) => {
+      map[row.user_id] = normalizeSignupMethod(row.signup_method);
+    });
+    setSignupMethods(map);
+    setSignupMethodsError(null);
   };
 
   const calculateDailyUsers = (usersList: User[]) => {
@@ -2319,6 +2348,58 @@ export default function Admin() {
 
                 <Card className="shadow-sm">
                   <CardHeader className="py-3 px-4">
+                    <CardTitle className="text-sm">Users · Signup Method</CardTitle>
+                    <CardDescription className="text-xs">Apple, Android, or email signup, per user</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 pt-0 space-y-3">
+                    <Select value={signupMethodFilter} onValueChange={(value) => setSignupMethodFilter(value as 'all' | SignupMethod)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Filter by signup method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SIGNUP_METHOD_FILTER_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {signupMethodsError ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">Signup method data unavailable</p>
+                    ) : loading ? (
+                      <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                    ) : (
+                      <div className="max-h-[280px] overflow-auto rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Name</TableHead>
+                              <TableHead className="text-xs text-right">Method</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {users
+                              .filter(u => signupMethodFilter === 'all' || (signupMethods[u.id] ?? 'unknown') === signupMethodFilter)
+                              .map(u => {
+                                const method = signupMethods[u.id] ?? 'unknown';
+                                return (
+                                  <TableRow key={u.id}>
+                                    <TableCell className="text-sm py-2">{u.name || u.id.slice(0, 8) || '—'}</TableCell>
+                                    <TableCell className="text-right py-2">
+                                      <Badge variant={SIGNUP_METHOD_BADGE_VARIANT[method]} className="text-[10px]">
+                                        {SIGNUP_METHOD_LABELS[method]}
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                  <CardHeader className="py-3 px-4">
                     <CardTitle className="text-sm">Daily Users Added</CardTitle>
                     <CardDescription className="text-xs">Last 30 days · click a bar for signups + socials</CardDescription>
                   </CardHeader>
@@ -2871,6 +2952,66 @@ export default function Admin() {
                                 return (
                                   <div className="rounded-lg border bg-background p-2 shadow-sm">
                                     <div className="font-medium">{payload[0].payload.eventType}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Count: <span className="font-medium">{payload[0].value?.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Signup Method Distribution Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Signup Method Distribution
+                  </CardTitle>
+                  <CardDescription>
+                    Apple (iOS), Android (Google), or email signups
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {signupMethodsError ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Signup method data unavailable
+                    </p>
+                  ) : (
+                    <div className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={(['apple', 'android', 'email', 'unknown'] as SignupMethod[])
+                            .map(method => ({
+                              method: SIGNUP_METHOD_LABELS[method],
+                              count: users.filter(u => (signupMethods[u.id] ?? 'unknown') === method).length,
+                            }))
+                            .filter(entry => entry.count > 0)}
+                          margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="method"
+                            tick={{ fontSize: 11 }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                return (
+                                  <div className="rounded-lg border bg-background p-2 shadow-sm">
+                                    <div className="font-medium">{payload[0].payload.method}</div>
                                     <div className="text-sm text-muted-foreground">
                                       Count: <span className="font-medium">{payload[0].value?.toLocaleString()}</span>
                                     </div>
