@@ -185,6 +185,24 @@ export class OnboardingService {
   }
 
   /**
+   * Targeted update for the existing-user "contact email required" retrofit gate.
+   * Does not touch any other profile field, unlike saveProfileSetup.
+   */
+  static async updateContactEmail(userId: string, email: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ contact_email: email, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error updating contact email:', error);
+      return false;
+    }
+  }
+
+  /**
    * Create an account upgrade request (Step 2)
    */
   static async requestAccountUpgrade(
