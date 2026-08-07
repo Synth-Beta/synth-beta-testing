@@ -2969,6 +2969,66 @@ export default function Admin() {
                 </CardContent>
               </Card>
 
+              {/* Signup Method Distribution Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Signup Method Distribution
+                  </CardTitle>
+                  <CardDescription>
+                    Apple (iOS), Android (Google), or email signups
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {signupMethodsError ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Signup method data unavailable
+                    </p>
+                  ) : (
+                    <div className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={(['apple', 'android', 'email', 'unknown'] as SignupMethod[])
+                            .map(method => ({
+                              method: SIGNUP_METHOD_LABELS[method],
+                              count: users.filter(u => (signupMethods[u.id] ?? 'unknown') === method).length,
+                            }))
+                            .filter(entry => entry.count > 0)}
+                          margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="method"
+                            tick={{ fontSize: 11 }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                          />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                return (
+                                  <div className="rounded-lg border bg-background p-2 shadow-sm">
+                                    <div className="font-medium">{payload[0].payload.method}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Count: <span className="font-medium">{payload[0].value?.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Detailed Breakdown by Event Type */}
               <Card>
                 <CardHeader>
