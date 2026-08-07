@@ -22,6 +22,7 @@ import { InterestedProvider } from '../src/contexts/InterestedContext';
 import { BrowseLocationProvider } from '../src/contexts/BrowseLocationContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryService';
+import { needsContactEmail } from '@synth/shared';
 
 // Hide the native splash as soon as JS is running so the skeleton takes over immediately.
 void SplashScreen.hideAsync().catch(() => {});
@@ -204,6 +205,27 @@ export default function RootLayout() {
     };
   }, [sessionResolved, sessionUserId, storageOnboardingComplete]);
 
+  const [contactEmail, setContactEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionUserId) {
+      setContactEmail(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('users')
+      .select('contact_email')
+      .eq('user_id', sessionUserId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setContactEmail(data?.contact_email ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionUserId]);
+
   useEffect(() => {
     ensureExpoPushNotificationHandler();
   }, []);
@@ -230,6 +252,10 @@ export default function RootLayout() {
     session !== undefined &&
     storageOnboardingComplete !== null &&
     onboardingEffectiveReady;
+
+  const needsEmail = Boolean(
+    session?.user && isOnboardingComplete && needsContactEmail(session.user, contactEmail)
+  );
 
   // SplashScreen is hidden immediately on JS mount (see top of file).
   // No further hide call needed here.
@@ -295,6 +321,8 @@ export default function RootLayout() {
           router.replace('/(auth)/sign-in');
         } else if (!isOnboardingComplete) {
           router.replace(ONBOARDING_FLOW_ENTRY);
+        } else if (needsEmail) {
+          router.replace('/email-required');
         } else {
           router.replace('/(tabs)');
         }
@@ -304,6 +332,7 @@ export default function RootLayout() {
 
     const inAuth = seg0 === '(auth)';
     const inOnboarding = seg0 === '(onboarding)';
+    const inEmailRequired = seg0 === 'email-required';
     const needsAuth =
       seg0 === '(tabs)' ||
       seg0 === 'chat' ||
@@ -339,17 +368,27 @@ export default function RootLayout() {
       return;
     }
 
+    if (needsEmail && needsAuth && session && !inEmailRequired) {
+      router.replace('/email-required');
+      return;
+    }
+
     if (session && inAuth) {
-      router.replace(isOnboardingComplete ? '/(tabs)' : ONBOARDING_FLOW_ENTRY);
+      router.replace(!isOnboardingComplete ? ONBOARDING_FLOW_ENTRY : needsEmail ? '/email-required' : '/(tabs)');
       return;
     }
 
     if (isOnboardingComplete && inOnboarding) {
       if (session) {
-        router.replace('/(tabs)');
+        router.replace(needsEmail ? '/email-required' : '/(tabs)');
       } else {
         router.replace('/(auth)/sign-in');
       }
+      return;
+    }
+
+    if (inEmailRequired && !needsEmail) {
+      router.replace(session ? '/(tabs)' : '/(auth)/sign-in');
       return;
     }
 
@@ -365,7 +404,7 @@ export default function RootLayout() {
         router.replace('/(auth)/sign-in');
       }
     }
-  }, [routingReady, isOnboardingComplete, session, segments, router, sessionUserId, refreshOnboardingFromStorage]);
+  }, [routingReady, isOnboardingComplete, session, segments, router, sessionUserId, refreshOnboardingFromStorage, needsEmail]);
 
   if (!routingReady) {
     return <AppLoadingSkeleton />;
@@ -377,6 +416,7 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(onboarding)" options={{ headerShown: false, animation: 'fade' }} />
+      <Stack.Screen name="email-required" options={{ headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="profile-edit" options={{ headerShown: false }} />
       <Stack.Screen name="my-events" options={{ headerShown: false }} />
