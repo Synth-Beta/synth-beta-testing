@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
     StyleSheet,
     View,
@@ -22,6 +22,7 @@ import { OnboardingService } from '../../src/services/onboardingService';
 import { getCurrentLatLng, reverseGeocode } from '../../src/services/locationService';
 import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail } from '@synth/shared';
 import type { User } from '@supabase/supabase-js';
+import { ContactEmailContext } from '../_layout';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -66,6 +67,7 @@ function suggestUsername(displayName: string): string {
 
 export default function ProfileSetupScreen() {
     const router = useRouter();
+    const { markContactEmailSaved } = useContext(ContactEmailContext);
 
     const [name, setName] = useState('');
     const [userId, setUserId] = useState<string | null>(null);
@@ -234,6 +236,9 @@ export default function ProfileSetupScreen() {
                         acquisitionSource === 'Other' ? trimmedOtherSource : null,
                     contact_email: showContactEmailField ? trimmedContactEmail : undefined,
                 });
+                if (showContactEmailField) {
+                    markContactEmailSaved(trimmedContactEmail);
+                }
             }
         } catch (e) {
             console.warn('Profile setup write failed:', e);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import {
     StyleSheet,
     View,
@@ -15,12 +15,14 @@ import { SynthButton } from '../src/components/SynthButton';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { supabase } from '../src/integrations/supabase/client';
 import { OnboardingService } from '../src/services/onboardingService';
+import { ContactEmailContext } from './_layout';
 
 const PINK = SynthTokens.colors.brandPink500;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function EmailRequiredScreen() {
     const router = useRouter();
+    const { markContactEmailSaved } = useContext(ContactEmailContext);
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
     const [saving, setSaving] = useState(false);
@@ -46,6 +48,7 @@ export default function EmailRequiredScreen() {
                 setError('Could not save your email. Please try again.');
                 return;
             }
+            markContactEmailSaved(trimmed);
             router.replace('/(tabs)');
         } finally {
             setSaving(false);

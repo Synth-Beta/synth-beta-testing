@@ -24,6 +24,16 @@ import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryService';
 import { needsContactEmail } from '@synth/shared';
 
+/**
+ * Lets screens that write `contact_email` (onboarding's profile step, the
+ * `/email-required` retrofit screen) tell the root layout the write succeeded,
+ * without a DB round-trip — the layout's own `contactEmail` state otherwise has
+ * no way to learn a save happened, since it's only fetched once per session.
+ */
+export const ContactEmailContext = React.createContext<{
+  markContactEmailSaved: (email: string) => void;
+}>({ markContactEmailSaved: () => {} });
+
 // Hide the native splash as soon as JS is running so the skeleton takes over immediately.
 void SplashScreen.hideAsync().catch(() => {});
 
@@ -226,6 +236,10 @@ export default function RootLayout() {
     };
   }, [sessionUserId]);
 
+  const markContactEmailSaved = useCallback((email: string) => {
+    setContactEmail(email);
+  }, []);
+
   useEffect(() => {
     ensureExpoPushNotificationHandler();
   }, []);
@@ -411,6 +425,7 @@ export default function RootLayout() {
   }
 
   return (
+    <ContactEmailContext.Provider value={{ markContactEmailSaved }}>
     <InterestedProvider>
     <BrowseLocationProvider>
     <Stack screenOptions={{ headerShown: false }}>
@@ -425,5 +440,6 @@ export default function RootLayout() {
     </Stack>
     </BrowseLocationProvider>
     </InterestedProvider>
+    </ContactEmailContext.Provider>
   );
 }
