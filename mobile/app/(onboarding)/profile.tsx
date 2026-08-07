@@ -20,11 +20,13 @@ import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 import { getCurrentLatLng, reverseGeocode } from '../../src/services/locationService';
-import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource } from '@synth/shared';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail } from '@synth/shared';
+import type { User } from '@supabase/supabase-js';
 
 const PINK = SynthTokens.colors.brandPink500;
 
 const USERNAME_RE = /^[a-z0-9_.]{3,30}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Inclusive gender options. `value` is what's stored (lowercase, matches web + existing
 // data); `label` is what's shown. Keep this list in sync with web + profile-edit.
 const GENDER_OPTIONS = [
@@ -67,6 +69,7 @@ export default function ProfileSetupScreen() {
 
     const [name, setName] = useState('');
     const [userId, setUserId] = useState<string | null>(null);
+    const [authUser, setAuthUser] = useState<User | null>(null);
     const [username, setUsername] = useState('');
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
     const [birthday, setBirthday] = useState('');
@@ -79,6 +82,8 @@ export default function ProfileSetupScreen() {
     const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSource | ''>('');
     const [acquisitionSourceOther, setAcquisitionSourceOther] = useState('');
     const [acquisitionSourceError, setAcquisitionSourceError] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
+    const [contactEmailError, setContactEmailError] = useState('');
 
     const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -87,6 +92,7 @@ export default function ProfileSetupScreen() {
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (!user) return;
             setUserId(user.id);
+            setAuthUser(user);
             const displayName: string =
                 user.user_metadata?.full_name ||
                 user.user_metadata?.name ||
@@ -172,11 +178,14 @@ export default function ProfileSetupScreen() {
         setBirthdayError(validateBirthday(birthday));
     };
 
+    const showContactEmailField = needsContactEmail(authUser, null);
+
     const canContinue =
         username.length >= 3 &&
         (usernameStatus === 'available' || usernameStatus === 'idle') &&
         !validateBirthday(birthday) &&
-        !!acquisitionSource;
+        !!acquisitionSource &&
+        (!showContactEmailField || EMAIL_RE.test(contactEmail.trim()));
 
     const handleContinue = async () => {
         // Final birthday validation
@@ -204,6 +213,12 @@ export default function ProfileSetupScreen() {
             return;
         }
 
+        const trimmedContactEmail = contactEmail.trim();
+        if (showContactEmailField && !EMAIL_RE.test(trimmedContactEmail)) {
+            setContactEmailError('Please enter a valid email');
+            return;
+        }
+
         setSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -217,6 +232,7 @@ export default function ProfileSetupScreen() {
                     acquisition_source: acquisitionSource || undefined,
                     other_acquisition_source:
                         acquisitionSource === 'Other' ? trimmedOtherSource : null,
+                    contact_email: showContactEmailField ? trimmedContactEmail : undefined,
                 });
             }
         } catch (e) {
@@ -390,6 +406,27 @@ export default function ProfileSetupScreen() {
                                 <Text style={[styles.hint, { color: '#dc2626' }]}>{acquisitionSourceError}</Text>
                             ) : (
                                 <Text style={styles.hint}>Share any detail that helps us attribute this referral.</Text>
+                            )}
+                        </View>
+                    )}
+
+                    {showContactEmailField && (
+                        <View style={styles.fieldBlock}>
+                            <Text style={styles.label}>Contact Email <Text style={styles.required}>*</Text></Text>
+                            <TextInput
+                                style={[styles.input, contactEmailError ? styles.inputError : null]}
+                                value={contactEmail}
+                                onChangeText={text => { setContactEmail(text); if (contactEmailError) setContactEmailError(''); }}
+                                placeholder="you@example.com"
+                                placeholderTextColor={SynthTokens.colors.neutral400}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                keyboardType="email-address"
+                            />
+                            {contactEmailError ? (
+                                <Text style={[styles.hint, { color: '#dc2626' }]}>{contactEmailError}</Text>
+                            ) : (
+                                <Text style={styles.hint}>We need a real contact email on file so we can reach you about your account and about reports of harassment or abuse.</Text>
                             )}
                         </View>
                     )}

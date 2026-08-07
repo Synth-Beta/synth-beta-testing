@@ -137,6 +137,7 @@ export class OnboardingService {
         bio?: string;
         acquisition_source?: AcquisitionSource | null;
         other_acquisition_source?: string | null;
+        contact_email?: string | null;
     }): Promise<void> {
         await OnboardingService.ensureUserExists(userId);
 
@@ -167,6 +168,7 @@ export class OnboardingService {
         if (data.bio !== undefined) update.bio = data.bio;
         if (data.acquisition_source !== undefined) update.acquisition_source = data.acquisition_source;
         if (data.other_acquisition_source !== undefined) update.other_acquisition_source = data.other_acquisition_source;
+        if (data.contact_email !== undefined) update.contact_email = data.contact_email;
 
         const { error } = await supabase
             .from('users')
@@ -175,6 +177,22 @@ export class OnboardingService {
         if (error) {
             throw error;
         }
+    }
+
+    /**
+     * Targeted update for the existing-user "contact email required" retrofit gate.
+     * Does not touch any other profile field, unlike saveProfileSetup.
+     */
+    static async updateContactEmail(userId: string, email: string): Promise<boolean> {
+        const { error } = await supabase
+            .from('users')
+            .update({ contact_email: email, updated_at: new Date().toISOString() })
+            .eq('user_id', userId);
+        if (error) {
+            console.warn('Error updating contact email:', error);
+            return false;
+        }
+        return true;
     }
 
     /**
