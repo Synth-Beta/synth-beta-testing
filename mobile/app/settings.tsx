@@ -24,6 +24,7 @@ import {
   UserX,
   LogOut,
   ChevronRight,
+  FileText,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
@@ -366,6 +367,16 @@ export default function SettingsScreen() {
             label="Parental Controls"
             description="Age verification and safety settings"
             onPress={() => router.push('/settings/parental')}
+          />
+        </View>
+
+        <SettingsSection title="About" />
+        <View style={styles.card}>
+          <AccountNavRow
+            icon={FileText}
+            label="Privacy Policy"
+            description="How we handle your information"
+            onPress={() => { void Linking.openURL('https://getsynth.app/privacy-policy.html'); }}
           />
         </View>
 

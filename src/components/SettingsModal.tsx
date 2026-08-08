@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
   LogOut, User, Bell, Shield, Mail, Key, AtSign, Eye, EyeOff,
-  AlertCircle, CheckCircle, ArrowLeft, Info, ChevronRight, UserX, Lock,
+  AlertCircle, CheckCircle, ArrowLeft, Info, ChevronRight, UserX, Lock, FileText,
 } from 'lucide-react';
 import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
@@ -447,6 +447,18 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                   label="Parental Controls"
                   description="Age verification and safety settings"
                   onClick={() => setView('parental-controls')}
+                />
+              </SettingsSection>
+
+              {/* ── About ────────────────────────────────────────────────── */}
+              <SettingsSection label="About">
+                <NavRow
+                  icon={FileText}
+                  iconBg="bg-gray-100"
+                  iconColor="text-gray-500"
+                  label="Privacy Policy"
+                  description="How we handle your information"
+                  onClick={() => window.open('https://getsynth.app/privacy-policy.html', '_blank', 'noopener,noreferrer')}
                 />
               </SettingsSection>
 

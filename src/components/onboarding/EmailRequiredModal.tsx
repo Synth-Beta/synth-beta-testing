@@ -50,7 +50,17 @@ export function EmailRequiredModal({ onComplete }: EmailRequiredModalProps) {
           <div className="text-5xl mb-4">📧</div>
           <h1 className="text-2xl font-bold">We need a contact email</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            We now require a real contact email on every account so we can reach you about your account and about reports of harassment or abuse.
+            We now require a real contact email on every account to help protect our community — so we can reach you about your account and follow up on reports of harassment or bullying.
+          </p>
+          <p className="text-muted-foreground text-xs">
+            <a
+              href="https://getsynth.app/privacy-policy.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              Read our Privacy Policy
+            </a>
           </p>
         </div>
 

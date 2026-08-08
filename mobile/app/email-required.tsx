@@ -8,6 +8,8 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
+    Pressable,
+    Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../src/components/SynthText';
@@ -61,8 +63,11 @@ export default function EmailRequiredScreen() {
                 <View style={styles.content}>
                     <SynthText variant="h1" style={styles.title}>We need a contact email</SynthText>
                     <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                        We now require a real contact email on every account so we can reach you about your account and about reports of harassment or abuse.
+                        We now require a real contact email on every account to help protect our community — so we can reach you about your account and follow up on reports of harassment or bullying.
                     </SynthText>
+                    <Pressable onPress={() => { void Linking.openURL('https://getsynth.app/privacy-policy.html'); }}>
+                        <Text style={styles.privacyLink}>Read our Privacy Policy</Text>
+                    </Pressable>
 
                     <View style={styles.fieldBlock}>
                         <Text style={styles.label}>Email</Text>
@@ -97,7 +102,14 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: SynthTokens.colors.neutral50 },
     content: { flex: 1, padding: SynthTokens.spacing.xl, justifyContent: 'center' },
     title: { marginBottom: 8 },
-    subtitle: { marginBottom: 28 },
+    subtitle: { marginBottom: 12 },
+    privacyLink: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: PINK,
+        textDecorationLine: 'underline',
+        marginBottom: 28,
+    },
     fieldBlock: { marginBottom: 20 },
     label: {
         fontSize: 13,
