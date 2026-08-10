@@ -1265,7 +1265,7 @@
     "semantic_hash": "66c016f1bb63fc379078d29946640a88"
   },
   "src/App.tsx": {
-    "mtime": 1786047202.0272725,
+    "mtime": 1786131189.4496386,
     "ast_hash": "006c07372d3209c384e6821f259cee3c",
     "semantic_hash": ""
   },
@@ -1290,9 +1290,9 @@
     "semantic_hash": "190d67d66e47764dba2ff225cee54065"
   },
   "src/components/ArtistSearchBox.tsx": {
-    "mtime": 1782243119.1679032,
-    "ast_hash": "1a928e79a936dfe0521c19a5a48bada3",
-    "semantic_hash": "1a928e79a936dfe0521c19a5a48bada3"
+    "mtime": 1786129855.3016508,
+    "ast_hash": "cd1c836f6ed3fe09a6d4a0c267b07e61",
+    "semantic_hash": ""
   },
   "src/components/ArtistSelector.tsx": {
     "mtime": 1782243119.1689034,
@@ -2250,8 +2250,8 @@
     "semantic_hash": "bf73201e0fdca119044a30b4c9e2c8ed"
   },
   "src/components/passport/PassportBucketListView.tsx": {
-    "mtime": 1785959059.4816427,
-    "ast_hash": "8c06a0f858c8ea23d6c61f0ff26a8c64",
+    "mtime": 1786129824.105981,
+    "ast_hash": "474d743b5cbd607ae1f7cc963c92f98a",
     "semantic_hash": ""
   },
   "src/components/passport/PassportIdentity.tsx": {
@@ -2365,8 +2365,8 @@
     "semantic_hash": "6f0e3506cd80546f2683b287b7456001"
   },
   "src/components/profile/ProfileView.tsx": {
-    "mtime": 1785959059.4836433,
-    "ast_hash": "966e2b28bc9d0164086a9ed80d02437f",
+    "mtime": 1786124792.1196613,
+    "ast_hash": "eafbbfbc2dd8e8d08569b6f7bb42b84e",
     "semantic_hash": ""
   },
   "src/components/profile/UserInfo.tsx": {
@@ -3650,9 +3650,9 @@
     "semantic_hash": "9c1897f263e09226dfce68622d964c0e"
   },
   "src/services/unifiedArtistSearchService.ts": {
-    "mtime": 1783705082.8375492,
-    "ast_hash": "9c9423da18b566858f99032f138a072a",
-    "semantic_hash": "9c9423da18b566858f99032f138a072a"
+    "mtime": 1786129704.6583326,
+    "ast_hash": "1c33fb0aa9478592ac9dbb1f17a2f253",
+    "semantic_hash": ""
   },
   "src/services/unifiedEventSearchService.ts": {
     "mtime": 1782243119.5305288,
@@ -8365,8 +8365,8 @@
     "semantic_hash": ""
   },
   "apps/admin/README.md": {
-    "mtime": 1785263787.7629883,
-    "ast_hash": "d6dac4f8736b6a62e1ae3ddc9ed563ab",
+    "mtime": 1786123899.6628704,
+    "ast_hash": "25b06911c938b9fba9f60e131ca7612a",
     "semantic_hash": ""
   },
   "apps/admin/SETLIST_INTEGRATION.md": {
@@ -8787,6 +8787,16 @@
   "docs/superpowers/plans/2026-08-06-admin-signup-method-tracking.md": {
     "mtime": 1786071281.8989618,
     "ast_hash": "4c357a6e475cdd92ff1c6758732e0daf",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-08-07-mandatory-email-collection-design.md": {
+    "mtime": 1786125360.8655698,
+    "ast_hash": "8b243ee447eb57e44fd7ce980f6a5d47",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-08-07-mandatory-email-collection.md": {
+    "mtime": 1786125760.6015112,
+    "ast_hash": "5e6bc82f217346a423edea78a1aa10a3",
     "semantic_hash": ""
   }
 }

@@ -1,4 +1,5 @@
 {
+  "ignoreCommand": "exit 1",
   "functions": {
     "api/ops-alert.js": { "maxDuration": 15 }
   },

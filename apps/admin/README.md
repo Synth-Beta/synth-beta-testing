@@ -38,10 +38,4 @@ Vercel project for getsynth.app must use:
 - **Build:** `npm run build`
 - **Output:** `dist`
 
-Optional Ignored Build Step (only rebuild when admin changes):
-
-```bash
-git diff --quiet HEAD^ HEAD -- ./apps/admin
-```
-
-**Gotcha:** this only diffs the new commit against its immediate parent (`HEAD^`). If you push a *batch* of commits in one `git push` (e.g. a merge that fast-forwards `main` over several commits at once), Vercel evaluates the skip-check against the last commit in that batch only. If that last commit doesn't happen to touch `apps/admin` — even though an earlier commit in the same push did — the deploy is silently skipped and the batch's admin changes never go live. If admin changes don't show up after a push, check whether this happened before assuming the code is wrong; a trivial follow-up commit that touches `apps/admin` (or a manual redeploy from the Vercel dashboard) forces it through.
+**Ignored Build Step:** `apps/admin/vercel.json` sets `"ignoreCommand": "exit 1"`, which always signals "changed" so Vercel builds on every push. Do not switch this back to a `git diff --quiet HEAD^ HEAD -- ./apps/admin`-style check in the dashboard — that command only diffs the new commit against its immediate parent, so a *batch* push (several commits landing in one `git push`, e.g. a merge) gets checked only against the last commit. If that last commit doesn't touch `apps/admin`, Vercel silently skips the rebuild even though earlier commits in the same batch changed admin code — this already happened once (2026-08-07) and cost hours to diagnose because the deploy looked fresh (new timestamp) while serving stale JS. If admin changes ever don't show up after a push, first verify the live bundle actually contains the new code (fetch the deployed `/assets/index-*.js` and grep for a string you just added) before assuming the source is wrong.

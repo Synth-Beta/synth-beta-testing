@@ -1757,7 +1757,7 @@ const { user, sessionExpired } = useAuth();
   return (
     <PageShell header={profileHeader}>
       <div
-        className="min-h-screen w-full overflow-x-hidden overflow-y-visible"
+        className="min-h-screen w-full overflow-x-clip overflow-y-visible"
         style={{ backgroundColor: 'var(--neutral-50)' }}
       >
         {!hideHeader && webDesktopChrome && profile && (
@@ -2303,7 +2303,7 @@ const { user, sessionExpired } = useAuth();
           )}
 
           {/* My Events Tab - Show attended events with review/ranking toggle */}
-          <TabsContent value="my-events" className="mt-4 mb-32 w-full max-w-full overflow-x-hidden overflow-y-visible">
+          <TabsContent value="my-events" className="mt-4 mb-32 w-full max-w-full overflow-x-clip overflow-y-visible">
             <div className="flex flex-col gap-3 mb-4 p-2 w-full max-w-full">
               <h3 className="gradient-text font-semibold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>
                 {isViewingOwnProfile ? 'My Events' : `${profile?.name || 'User'}'s Events`}

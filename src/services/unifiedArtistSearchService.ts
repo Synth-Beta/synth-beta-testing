@@ -558,13 +558,11 @@ export class UnifiedArtistSearchService {
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<ArtistSearchResult[]> {
     try {
       // Query artists from database with name filtering first (more efficient)
-      // Use prefix matching for single-word queries (faster, can use regular index)
-      // Use full wildcard for multi-word queries (requires trigram index but matches better)
+      // Contains-match on both single- and multi-word queries (idx_artists_name_trgm
+      // backs this) so "sm" finds "Smashing Pumpkins" as well as "The Smiths" — not
+      // just names that start with the typed letters.
       const trimmedQuery = query.trim();
-      const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
-      const searchPattern = isSingleWord && trimmedQuery.length > 0
-        ? `${trimmedQuery}%`  // Prefix match for single words (faster)
-        : `%${trimmedQuery}%`; // Full wildcard for multi-word queries (uses trigram index)
+      const searchPattern = `%${trimmedQuery}%`;
       
       const { data: artistsFromTable, error: artistsError } = await supabase
         .from('artists')

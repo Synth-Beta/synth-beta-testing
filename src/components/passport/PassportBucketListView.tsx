@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, Music, Building2, X, Plus, ChevronUp, ChevronDown } from 'lucide-react';
 import { BucketListService, type BucketListItem } from '@/services/bucketListService';
-import { ArtistSearchBox } from '@/components/ArtistSearchBox';
+import { SearchBar } from '@/components/SearchBar';
+import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import type { Artist } from '@/types/concertSearch';
 
 interface PassportBucketListViewProps {
   userId: string;
@@ -17,18 +16,62 @@ interface PassportBucketListViewProps {
   canEdit?: boolean;
 }
 
+interface ArtistHit {
+  id: string;
+  name: string;
+  imageUrl?: string;
+}
 
 export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ userId, canEdit = true }) => {
   const [bucketList, setBucketList] = useState<BucketListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddArtist, setShowAddArtist] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
   const [reordering, setReordering] = useState(false);
+
+  const [query, setQuery] = useState('');
+  const [hits, setHits] = useState<ArtistHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadBucketList();
   }, [userId]);
+
+  // Debounced search, inline results — mirrors the mobile bucket-list tab
+  // (PassportBucketTab.tsx) instead of a floating dropdown, so nothing gets
+  // hidden or repositioned out from under the user while they type.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = query.trim();
+    if (!canEdit || q.length < 2) {
+      setHits([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    debounceRef.current = setTimeout(() => {
+      void (async () => {
+        try {
+          const results = await UnifiedArtistSearchService.searchArtists(q, 8);
+          setHits(results.map(r => ({ id: r.id, name: r.name, imageUrl: r.image_url })));
+        } finally {
+          setSearching(false);
+        }
+      })();
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, canEdit]);
+
+  const inList = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of bucketList) {
+      if (item.entity_id) set.add(item.entity_id);
+    }
+    return set;
+  }, [bucketList]);
 
   const loadBucketList = async () => {
     setLoading(true);
@@ -42,19 +85,20 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
     }
   };
 
-  const handleArtistSelect = async (artist: Artist) => {
+  const handleAddHit = async (hit: ArtistHit) => {
     if (!canEdit) return;
-    setAdding(true);
+    setAddingId(hit.id);
     try {
-      const success = await BucketListService.addArtist(userId, artist.id, artist.name);
+      const success = await BucketListService.addArtist(userId, hit.id, hit.name);
       if (success) {
-        setShowAddArtist(false);
+        setQuery('');
+        setHits([]);
         await loadBucketList();
       }
     } catch (error) {
       console.error('Error adding artist:', error);
     } finally {
-      setAdding(false);
+      setAddingId(null);
     }
   };
 
@@ -145,7 +189,8 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
                 variant="outline"
                 onClick={() => {
                   setShowAddArtist(!showAddArtist);
-                  setIsSearching(false);
+                  setQuery('');
+                  setHits([]);
                 }}
                 className="flex-1"
               >
@@ -155,43 +200,86 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
             </div>
 
             {showAddArtist && (
-              <div className="mt-4 relative" style={{ zIndex: 1000 }}>
-                <ArtistSearchBox
-                  onArtistSelect={handleArtistSelect}
+              <div className="mt-4">
+                <SearchBar
+                  value={query}
+                  onChange={setQuery}
                   placeholder="Search for an artist to add..."
-                  onSearchStateChange={setIsSearching}
+                  widthVariant="full"
+                  spellCheck={false}
                 />
-                {adding && (
-                  <div className="flex items-center justify-center mt-2">
+
+                {searching ? (
+                  <div className="flex items-center justify-center mt-3">
                     <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
-                    <span className="text-sm text-muted-foreground">Adding...</span>
+                    <span className="text-sm text-muted-foreground">Searching...</span>
                   </div>
-                )}
+                ) : hits.length > 0 ? (
+                  <div className="mt-3 space-y-1">
+                    {hits.map(hit => {
+                      const already = inList.has(hit.id);
+                      return (
+                        <div key={hit.id} className="flex items-center gap-3 py-2 border-b last:border-b-0">
+                          <Avatar className="h-9 w-9 flex-shrink-0">
+                            {hit.imageUrl ? (
+                              <AvatarImage src={hit.imageUrl} alt={hit.name} />
+                            ) : (
+                              <AvatarFallback className="text-xs">
+                                <Music className="w-4 h-4" />
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <span className="flex-1 min-w-0 font-semibold text-sm truncate">{hit.name}</span>
+                          {already ? (
+                            <span className="text-xs text-muted-foreground flex-shrink-0">Added</span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="flex-shrink-0"
+                              disabled={addingId != null}
+                              onClick={() => handleAddHit(hit)}
+                            >
+                              {addingId === hit.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5 mr-1" />
+                                  Add
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : query.trim().length >= 2 ? (
+                  <p className="text-sm text-muted-foreground mt-3">
+                    No artists found for &quot;{query.trim()}&quot;.
+                  </p>
+                ) : null}
               </div>
             )}
           </CardContent>
         </Card>
       )}
 
-      {/* Bucket List Items - Hide when searching to prioritize search results */}
-      {!isSearching && (
-        <>
-          {bucketList.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground mb-2">
-                  {canEdit ? 'Your bucket list is empty' : 'No bucket list items yet'}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {canEdit
-                    ? 'Add artists to get notified when new shows are announced!'
-                    : 'Follow this fan to see more of their live music plans.'}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="max-h-[600px] overflow-y-auto pr-2 space-y-3">
-              {bucketList.map((item, index) => (
+      {bucketList.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground mb-2">
+              {canEdit ? 'Your bucket list is empty' : 'No bucket list items yet'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {canEdit
+                ? 'Add artists to get notified when new shows are announced!'
+                : 'Follow this fan to see more of their live music plans.'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {bucketList.map((item, index) => (
             <Card
               key={item.id}
               className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-synth-pink/50"
@@ -273,10 +361,8 @@ export const PassportBucketListView: React.FC<PassportBucketListViewProps> = ({ 
                 </div>
               </CardContent>
             </Card>
-              ))}
-            </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
     </div>
   );

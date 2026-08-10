@@ -16,8 +16,8 @@ interface ArtistSearchBoxProps {
   onSearchStateChange?: (isSearching: boolean) => void;
 }
 
-export function ArtistSearchBox({ 
-  onArtistSelect, 
+export function ArtistSearchBox({
+  onArtistSelect,
   placeholder = "Search for an artist...",
   className,
   hideClearButton = false,
@@ -178,6 +178,7 @@ export function ArtistSearchBox({
     }
     if (searchResults && searchResults.artists.length > 0) {
       setIsOpen(true);
+      onSearchStateChange?.(true);
     }
   };
 
@@ -232,8 +233,8 @@ export function ArtistSearchBox({
       {isOpen && searchResults && (
         <div className="absolute top-full left-0 right-0 z-[9999] mt-2 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden">
           {searchResults.artists.length > 0 ? (
-            <div 
-              ref={listRef} 
+            <div
+              ref={listRef}
               className="max-h-[min(520px,70vh)] overflow-y-auto overscroll-contain synth-scrollbar"
               style={{
                 scrollBehavior: 'smooth',
