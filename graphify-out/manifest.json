@@ -250,8 +250,8 @@
     "semantic_hash": "4bf442d16e1c77d20290d6f0d425c3f6"
   },
   "mobile/app/(onboarding)/profile.tsx": {
-    "mtime": 1786047202.012974,
-    "ast_hash": "7dac379314df12761d40bd42cba63972",
+    "mtime": 1786208359.0617363,
+    "ast_hash": "8f30bb391eb5df6ef5cc76c3fc405a2f",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/scene.tsx": {
@@ -310,8 +310,8 @@
     "semantic_hash": "38550dbc30757ea8dc43a4601c2b1d4f"
   },
   "mobile/app/_layout.tsx": {
-    "mtime": 1785721601.5637393,
-    "ast_hash": "e9098379dbd9e1c13a6a236b8d7d0be3",
+    "mtime": 1786208359.0682402,
+    "ast_hash": "65cbe5233f12f40220837a674199cba8",
     "semantic_hash": ""
   },
   "mobile/app/app-menu.tsx": {
@@ -400,9 +400,9 @@
     "semantic_hash": "b8f2999d890b33b7e3298a91903270fe"
   },
   "mobile/app/settings.tsx": {
-    "mtime": 1784601389.4132242,
-    "ast_hash": "65ff299aaf1da4f6801c7b657cad465d",
-    "semantic_hash": "65ff299aaf1da4f6801c7b657cad465d"
+    "mtime": 1786208359.0682402,
+    "ast_hash": "d0cfe42437489c98e68239aa2ef9d6d4",
+    "semantic_hash": ""
   },
   "mobile/app/settings/delete-account.tsx": {
     "mtime": 1784601588.1754484,
@@ -915,9 +915,9 @@
     "semantic_hash": "5b48073bed8e78855cc8a6b066dc9aed"
   },
   "mobile/src/services/onboardingService.ts": {
-    "mtime": 1785092573.9117172,
-    "ast_hash": "ed92a77a91d44876722b5411bee8444e",
-    "semantic_hash": "ed92a77a91d44876722b5411bee8444e"
+    "mtime": 1786208359.0858545,
+    "ast_hash": "a515cf257ed562761c00706c48bf5211",
+    "semantic_hash": ""
   },
   "mobile/src/services/passportAchievementService.ts": {
     "mtime": 1774820048.008857,
@@ -1145,8 +1145,8 @@
     "semantic_hash": "7f7e112bf630810fe28444b82fd0fb6c"
   },
   "packages/synth-shared/src/index.ts": {
-    "mtime": 1786050262.9315603,
-    "ast_hash": "ff8a5d0f4a67118e8b37ece1c873ce57",
+    "mtime": 1786208359.0956724,
+    "ast_hash": "b253ff1d8930c5c4ecde320cb6a079bf",
     "semantic_hash": ""
   },
   "packages/synth-shared/src/notificationNavigation.ts": {
@@ -1475,8 +1475,8 @@
     "semantic_hash": "11ea788e243fd2caf4dbbb3dd075a8cb"
   },
   "src/components/MainApp.tsx": {
-    "mtime": 1786047202.035203,
-    "ast_hash": "82c24b1e74af7b19261c153b28e2e616",
+    "mtime": 1786208359.1000426,
+    "ast_hash": "d7ab7a5410a8ae0f91b7dc1fba2a8d56",
     "semantic_hash": ""
   },
   "src/components/MatchesView.tsx": {
@@ -1595,8 +1595,8 @@
     "semantic_hash": "af65f92459cd08f0191dfab7edf9f1cb"
   },
   "src/components/SettingsModal.tsx": {
-    "mtime": 1786047202.0405376,
-    "ast_hash": "b22957288aaecf89b13a42bb96cc8c47",
+    "mtime": 1786208359.1000426,
+    "ast_hash": "b313ac459a6099faa4ed4792731c5a7a",
     "semantic_hash": ""
   },
   "src/components/ShareLinkBootstrap.tsx": {
@@ -2220,8 +2220,8 @@
     "semantic_hash": "9d2b9b3720e42dad800e108bff393c07"
   },
   "src/components/onboarding/OnboardingFlow.tsx": {
-    "mtime": 1786047202.042526,
-    "ast_hash": "5ae4f0c6f23128ce94304b3a72167c97",
+    "mtime": 1786208359.1131332,
+    "ast_hash": "11c0fc606d2609d91de56a444ca9e3ae",
     "semantic_hash": ""
   },
   "src/components/onboarding/OnboardingReminderBanner.tsx": {
@@ -3490,9 +3490,9 @@
     "semantic_hash": "4bb50501565cc3b0c27e9a5934b9e614"
   },
   "src/services/onboardingService.ts": {
-    "mtime": 1784291827.8536208,
-    "ast_hash": "a4db1bfba7e49f24500ad19182bb5a9c",
-    "semantic_hash": "a4db1bfba7e49f24500ad19182bb5a9c"
+    "mtime": 1786208359.1211696,
+    "ast_hash": "2011c08450f8915e8492d1fa93c736b8",
+    "semantic_hash": ""
   },
   "src/services/passportAchievementService.ts": {
     "mtime": 1782243119.5078495,
@@ -5584,11 +5584,6 @@
     "ast_hash": "57579b7f2f28cab188a63ffdf2fa3c75",
     "semantic_hash": ""
   },
-  "apps/admin/cleanup_duplicate_draft_reviews.sql": {
-    "mtime": 1785263787.808881,
-    "ast_hash": "4bbe5fd01b623f3d3e7a7cac3ed2a11c",
-    "semantic_hash": ""
-  },
   "apps/admin/components.json": {
     "mtime": 1785263787.810685,
     "ast_hash": "8374b74daf75bd47ef5e1123bccde4ad",
@@ -5599,21 +5594,6 @@
     "ast_hash": "e11bbaea166e8a211fb0e9dc30fcd2ec",
     "semantic_hash": ""
   },
-  "apps/admin/debug_attendance_reviews.sql": {
-    "mtime": 1785263787.8108966,
-    "ast_hash": "5ab07a8a09cd20d10cf1557abdc0081b",
-    "semantic_hash": ""
-  },
-  "apps/admin/debug_review_attendance.sql": {
-    "mtime": 1785263787.8108966,
-    "ast_hash": "26f2573ec582f9facffb809207482423",
-    "semantic_hash": ""
-  },
-  "apps/admin/debug_setlist_storage.sql": {
-    "mtime": 1785263787.8108966,
-    "ast_hash": "3f8f4f56cf9242e5fdc48ea9623754fc",
-    "semantic_hash": ""
-  },
   "apps/admin/deploy_production_ready.sh": {
     "mtime": 1785263787.8108966,
     "ast_hash": "b2483e4c085c5b1a643fe5e3b54f4f7a",
@@ -5622,16 +5602,6 @@
   "apps/admin/eslint.config.js": {
     "mtime": 1785263787.8108966,
     "ast_hash": "dca5864d17383a6f9b859a797fcf9054",
-    "semantic_hash": ""
-  },
-  "apps/admin/fix_existing_reviews_attendance.sql": {
-    "mtime": 1785263787.8108966,
-    "ast_hash": "d5110c4a7e0156d5fbc2d4a229e677eb",
-    "semantic_hash": ""
-  },
-  "apps/admin/fix_interaction_tracking.sql": {
-    "mtime": 1785263787.8108966,
-    "ast_hash": "348b0f53c81a00c45f046c8637d99c5c",
     "semantic_hash": ""
   },
   "apps/admin/package.json": {
@@ -5935,8 +5905,8 @@
     "semantic_hash": ""
   },
   "apps/admin/src/components/ModernLandingPage.tsx": {
-    "mtime": 1785529816.0131702,
-    "ast_hash": "bd218f49604311b77af0ff4c48703d57",
+    "mtime": 1786145023.332046,
+    "ast_hash": "2e260ced684b90ad202a38aefdcebdbf",
     "semantic_hash": ""
   },
   "apps/admin/src/components/Navigation.tsx": {
@@ -7885,8 +7855,8 @@
     "semantic_hash": ""
   },
   "apps/admin/vercel.json": {
-    "mtime": 1785263788.3163464,
-    "ast_hash": "3ce60c56605b12e550906ea03e126e87",
+    "mtime": 1786143139.445796,
+    "ast_hash": "a68f2c07ff111abc3f793705b50f6fb2",
     "semantic_hash": ""
   },
   "apps/admin/verify-photo-integration.js": {
@@ -8329,11 +8299,6 @@
     "ast_hash": "3f884e5318999f1ed7fc7cf8338ed8f3",
     "semantic_hash": ""
   },
-  "apps/admin/CONTENT_CALENDAR.md": {
-    "mtime": 1785263787.7375534,
-    "ast_hash": "49764496babcf090c61b3ff5c0b732b7",
-    "semantic_hash": ""
-  },
   "apps/admin/DEPLOYMENT.md": {
     "mtime": 1785263787.7395809,
     "ast_hash": "bc3b8b4e10311d3ea4825a19fa1d0950",
@@ -8365,28 +8330,8 @@
     "semantic_hash": ""
   },
   "apps/admin/README.md": {
-    "mtime": 1786123899.6628704,
-    "ast_hash": "25b06911c938b9fba9f60e131ca7612a",
-    "semantic_hash": ""
-  },
-  "apps/admin/SETLIST_INTEGRATION.md": {
-    "mtime": 1785263787.7730348,
-    "ast_hash": "1749a237760b03d01426a720326054c8",
-    "semantic_hash": ""
-  },
-  "apps/admin/SOCIAL_MEDIA_ANALYTICS_FILES.md": {
-    "mtime": 1785263787.7744832,
-    "ast_hash": "3da0390293023fffba6b2d67d9060c0a",
-    "semantic_hash": ""
-  },
-  "apps/admin/SOURCE.md": {
-    "mtime": 1785263787.7784827,
-    "ast_hash": "6b4db9ef8d9dfdb25cb5ceacf652d2aa",
-    "semantic_hash": ""
-  },
-  "apps/admin/TESTING_INSTRUCTIONS.md": {
-    "mtime": 1785263787.7804825,
-    "ast_hash": "d3723622dbad110ae6b27d8d16eea690",
+    "mtime": 1786143157.951082,
+    "ast_hash": "de6baed61a376bf028180753e7dcbfe4",
     "semantic_hash": ""
   },
   "apps/admin/docs/synth-editorial-content-training-guide.md": {
@@ -8790,13 +8735,38 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-08-07-mandatory-email-collection-design.md": {
-    "mtime": 1786125360.8655698,
+    "mtime": 1786208359.0487492,
     "ast_hash": "8b243ee447eb57e44fd7ce980f6a5d47",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-08-07-mandatory-email-collection.md": {
-    "mtime": 1786125760.6015112,
+    "mtime": 1786208359.0487492,
     "ast_hash": "5e6bc82f217346a423edea78a1aa10a3",
+    "semantic_hash": ""
+  },
+  "mobile/app/email-required.tsx": {
+    "mtime": 1786208359.0682402,
+    "ast_hash": "ee0f238b255f8a44fe52d0cad2a4bf5a",
+    "semantic_hash": ""
+  },
+  "packages/synth-shared/src/contactEmailGate.ts": {
+    "mtime": 1786208359.0878675,
+    "ast_hash": "4d9a0068f4a27f486d97aa12a2a54910",
+    "semantic_hash": ""
+  },
+  "src/components/onboarding/EmailRequiredModal.tsx": {
+    "mtime": 1786208359.1088285,
+    "ast_hash": "a228cbc67a0b06a18f2c8d112df6fab0",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260807120000_add_contact_email_and_sync_trigger.sql": {
+    "mtime": 1786208359.1211696,
+    "ast_hash": "b8cc52ea451f3eec519e8e70389623ba",
+    "semantic_hash": ""
+  },
+  "apps/admin/public/privacy-policy.html": {
+    "mtime": 1786144969.8772805,
+    "ast_hash": "f77675e56373f2b5834e6488dbc8e05c",
     "semantic_hash": ""
   }
 }

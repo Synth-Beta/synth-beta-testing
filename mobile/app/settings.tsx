@@ -24,7 +24,6 @@ import {
   UserX,
   LogOut,
   ChevronRight,
-  FileText,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
@@ -370,16 +369,6 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <SettingsSection title="About" />
-        <View style={styles.card}>
-          <AccountNavRow
-            icon={FileText}
-            label="Privacy Policy"
-            description="How we handle your information"
-            onPress={() => { void Linking.openURL('https://getsynth.app/privacy-policy.html'); }}
-          />
-        </View>
-
         <SettingsSection title="Danger Zone" />
         <View style={styles.card}>
           <AccountNavRow
@@ -390,6 +379,10 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/delete-account')}
           />
         </View>
+
+        <Pressable onPress={() => { void Linking.openURL('https://getsynth.app/privacy-policy.html'); }}>
+          <Text style={styles.privacyLinkText}>Privacy Policy</Text>
+        </Pressable>
 
         <Pressable
           style={[styles.signOutBtn, signingOut && styles.signOutDisabled]}
@@ -621,4 +614,12 @@ const styles = StyleSheet.create({
   },
   signOutDisabled: { opacity: 0.6 },
   signOutTxt: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.neutral0 },
+  privacyLinkText: {
+    fontSize: 12,
+    color: SynthTokens.colors.neutral400,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    marginTop: 12,
+    marginBottom: 4,
+  },
 });
