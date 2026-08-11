@@ -21,7 +21,6 @@
     "noImplicitAny": false,
     "noFallthroughCasesInSwitch": false,
 
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@synth/shared": ["../../packages/synth-shared/src/index.ts"]

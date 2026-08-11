@@ -47,7 +47,7 @@ export async function fetchEventForModal(eventId: string): Promise<EventLookupRe
   const fallback = await supabase
     .from('events')
     .select(EVENT_SELECT)
-    .eq('jambase_event_id', eventId)
+    .eq('jambase_id', eventId)
     .maybeSingle();
 
   if (fallback.data) {

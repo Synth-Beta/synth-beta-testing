@@ -4,16 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { 
-  Bell, 
-  Heart, 
-  MessageCircle, 
-  UserPlus, 
-  Calendar, 
+import {
+  Bell,
+  Heart,
+  MessageCircle,
+  UserPlus,
+  Calendar,
   Star,
   Users,
   Check,
   X,
+  ChevronLeft,
 } from 'lucide-react';
 import {
   acceptFriendRequest as acceptFriendRequestShared,
@@ -27,7 +28,6 @@ import { NotificationService } from '@/services/notificationService';
 import type { NotificationWithDetails } from '@/types/notifications';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { SynthLoadingScreen } from '@/components/ui/SynthLoader';
-import { MobileHeader } from '@/components/Header/MobileHeader';
 import PageShell from '@/components/layout/PageShell';
 
 
@@ -458,107 +458,163 @@ export const NotificationsPage = ({
     );
   }
 
-  const notificationsHeader = (
-    <MobileHeader
-      alignLeft
-      leftIcon="left"
-      onLeftIconClick={onBack}
-      rightButton={<div style={{ width: 44, height: 44 }} aria-hidden="true" />}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <h1
-          style={{
-            fontFamily: 'var(--font-family)',
-            fontSize: 'var(--typography-h1-size, 35px)',
-            fontWeight: 'var(--typography-h1-weight, 700)',
-            lineHeight: 'var(--typography-h1-line-height, 1.2)',
-            color: 'var(--neutral-900)',
-            margin: 0,
-          }}
-        >
-          {headerTitle}
-        </h1>
-        {unreadCount > 0 && (
-          <div
-            style={{
-              backgroundColor: '#EF4444',
-              color: '#fff',
-              borderRadius: 12,
-              minWidth: 24,
-              height: 24,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 12,
-              fontWeight: 600,
-              paddingLeft: 6,
-              paddingRight: 6,
-              boxSizing: 'border-box',
-              border: '2px solid #fff',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-            }}
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </div>
-        )}
-      </div>
-    </MobileHeader>
-  );
-
   return (
-    <PageShell
-      header={notificationsHeader}
-    >
+    <PageShell>
       <div
         style={{
           width: '100%',
-          maxWidth: 720,
-          margin: '0 auto',
           paddingTop: 'var(--spacing-small, 12px)',
         }}
       >
         {/* Content area with iOS padding */}
         <div style={{ padding: '16px' }}>
-        {/* Actions */}
-        {notifications.length > 0 && unreadCount > 0 && (
-          <div style={{
-            backgroundColor: 'var(--neutral-100)',
-            border: 'var(--border-default)',
-            borderRadius: 'var(--radius-corner, 10px)',
-            padding: 'var(--spacing-small, 12px)',
-            marginBottom: 'var(--spacing-small, 12px)',
-          }}>
-            <button
-              onClick={markAllAsRead}
+        {/* Page header — lives in the scrolling content instead of a separate fixed bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+            marginBottom: 'var(--spacing-grouped, 24px)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              aria-hidden="true"
               style={{
-                width: '100%',
+                width: 40,
+                height: 40,
+                borderRadius: 11,
+                background: 'var(--gradient-brand, linear-gradient(135deg, #CC2486 0%, #8D1FF4 100%))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 'var(--spacing-inline, 6px)',
-                height: 'var(--size-button-height, 36px)',
-                backgroundColor: 'var(--neutral-50)',
-                border: 'var(--border-brand)',
+                flexShrink: 0,
+                boxShadow: '0 3px 8px rgba(204, 36, 134, 0.3)',
+              }}
+            >
+              {filter === 'friends_only' ? (
+                <UserPlus size={19} style={{ color: '#fff' }} />
+              ) : (
+                <Bell size={19} style={{ color: '#fff' }} />
+              )}
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h1
+                  style={{
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-h1-size, 35px)',
+                    fontWeight: 'var(--typography-h1-weight, 700)',
+                    lineHeight: 'var(--typography-h1-line-height, 1.2)',
+                    color: 'var(--neutral-900)',
+                    margin: 0,
+                  }}
+                >
+                  {headerTitle}
+                </h1>
+                {unreadCount > 0 && (
+                  <div
+                    style={{
+                      backgroundColor: '#EF4444',
+                      color: '#fff',
+                      borderRadius: 999,
+                      minWidth: 22,
+                      height: 22,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      paddingLeft: 6,
+                      paddingRight: 6,
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </div>
+                )}
+              </div>
+              <p
+                style={{
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 14,
+                  color: 'var(--neutral-600)',
+                  margin: '2px 0 0',
+                }}
+              >
+                {filter === 'friends_only'
+                  ? 'Friend requests and new friendships'
+                  : 'Updates from friends and events you follow'}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {notifications.length > 0 && unreadCount > 0 && (
+              <button
+                onClick={markAllAsRead}
+                type="button"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--spacing-inline, 6px)',
+                  height: 'var(--size-button-height, 36px)',
+                  padding: '0 var(--spacing-small, 12px)',
+                  backgroundColor: 'var(--neutral-50)',
+                  border: 'var(--border-brand)',
+                  borderRadius: 'var(--radius-corner, 10px)',
+                  color: 'var(--brand-pink-500)',
+                  fontFamily: 'var(--font-family)',
+                  fontSize: 14,
+                  fontWeight: 'var(--typography-meta-weight, 500)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
+                }}
+              >
+                <Check size={16} style={{ color: 'var(--brand-pink-500)' }} />
+                <span>Mark all read</span>
+              </button>
+            )}
+
+            <button
+              onClick={onBack}
+              type="button"
+              aria-label="Back"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 40,
+                height: 40,
+                flexShrink: 0,
+                background: 'var(--neutral-50)',
+                border: 'var(--border-default)',
                 borderRadius: 'var(--radius-corner, 10px)',
-                color: 'var(--brand-pink-500)',
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-meta-size, 16px)',
-                fontWeight: 'var(--typography-meta-weight, 500)',
+                color: 'var(--neutral-900)',
                 cursor: 'pointer',
                 transition: 'background-color 0.2s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
+                e.currentTarget.style.backgroundColor = 'var(--neutral-100)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'var(--neutral-50)';
               }}
             >
-              <Check size={18} style={{ color: 'var(--brand-pink-500)' }} />
-              <span>Mark all as read</span>
+              <ChevronLeft size={20} />
             </button>
           </div>
-        )}
+        </div>
 
         {/* Notifications List */}
         {notifications.length === 0 ? (

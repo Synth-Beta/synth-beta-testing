@@ -4,7 +4,6 @@
     "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./*", "./src/*"],
       "@synth/shared": ["../packages/synth-shared/src/index.ts"]
