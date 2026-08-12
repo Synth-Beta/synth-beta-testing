@@ -27,6 +27,7 @@ interface CompactEventCardProps {
   isInterested?: boolean;
   isCommunityPhoto?: boolean;
   reason?: EventReason;
+  distanceLabel?: string;
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
   onJoinChatClick?: (e: React.MouseEvent) => void;
@@ -41,6 +42,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   isInterested = false,
   isCommunityPhoto = false,
   reason,
+  distanceLabel,
   onInterestClick,
   onShareClick,
   onJoinChatClick,
@@ -219,6 +221,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                 ? `${event.title} event photo`
                 : 'Event photo'
           }
+          onClick={onClick ? handleClick : undefined}
           className="absolute inset-0 flex items-center justify-center"
         >
           <div className="absolute w-[120%] h-[120%] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -284,7 +287,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
           </h2>
 
           <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-            {event.venue_name && (
+            {(event.venue_name || event.venue_city || distanceLabel) && (
               <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                 <MapPin size={20} style={{ color: 'var(--brand-pink-500)' }} />
                 <span
@@ -296,8 +299,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                     color: 'var(--neutral-700)',
                   }}
                 >
-                  {event.venue_name}
-                  {event.venue_city && ` · ${event.venue_city}`}
+                  {[event.venue_name, event.venue_city, distanceLabel].filter(Boolean).join(' · ')}
                 </span>
               </div>
             )}

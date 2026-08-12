@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { SearchBar } from '@/components/SearchBar';
-import { GenreChatEventsRail } from '@/components/discover/GenreChatEventsRail';
+import { GenreChatEventsButton } from '@/components/discover/GenreChatEventsButton';
 
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -727,24 +727,25 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
       // Fetch entity data for group chats (to get event images from artists table)
       const groupChatIds = sortedChats.filter(chat => chat.is_group_chat).map(chat => chat.id);
-      const entityDataMap = new Map<string, { entity_type?: string; entity_uuid?: string; event_image_url?: string }>();
-      
+      const entityDataMap = new Map<string, { entity_type?: string; entity_uuid?: string; entity_id?: string; event_image_url?: string }>();
+
       console.log('🔍 fetchChats: Group chat IDs:', groupChatIds);
-      
+
       if (groupChatIds.length > 0) {
         const { data: chatEntities, error: chatEntitiesError } = await supabase
           .from('chats')
-          .select('id, entity_type, entity_uuid')
+          .select('id, entity_type, entity_uuid, entity_id')
           .in('id', groupChatIds);
-        
+
         console.log('🔍 fetchChats: Chat entities:', chatEntities, 'Error:', chatEntitiesError);
-        
-        // Populate entity_type/entity_uuid for all group chats (event, artist, venue)
+
+        // Populate entity_type/entity_uuid/entity_id for all group chats (event, artist, venue, genre)
         chatEntities?.forEach((c) => {
           if (c.id) {
             entityDataMap.set(c.id, {
               entity_type: c.entity_type ?? undefined,
               entity_uuid: c.entity_uuid ?? undefined,
+              entity_id: c.entity_id ?? undefined,
             });
           }
         });
@@ -804,6 +805,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     entityDataMap.set(chat.id, {
                       entity_type: chat.entity_type,
                       entity_uuid: chat.entity_uuid,
+                      entity_id: chat.entity_id ?? undefined,
                       event_image_url: artistImageUrl
                     });
                   }
@@ -832,6 +834,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           member_count: chatAny.member_count ?? null, // member_count from RPC
           entity_type: entityData?.entity_type ?? chatAny.entity_type ?? null,
           entity_uuid: entityData?.entity_uuid ?? chatAny.entity_uuid ?? null,
+          entity_id: entityData?.entity_id ?? chatAny.entity_id ?? null,
           event_image_url: entityData?.event_image_url ?? null,
         created_at: chat.created_at ?? new Date().toISOString(),
         updated_at: chat.updated_at ?? new Date().toISOString(),
@@ -1773,91 +1776,149 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   };
 
   const showChatHeader = !hideHeader && !eventDetailsOpen && !showReviewDetailModal;
-  const chatHeader = showChatHeader ? (
-    <MobileHeader
-      menuOpen={menuOpen}
-      onMenuClick={onMenuClick}
-      rightIcon={selectedChat ? "moreVertical" : undefined}
-      onRightIconClick={selectedChat ? () => setShowSettingsMenu(true) : undefined}
-      alignLeft={true}
-    >
-      {selectedChat ? (
-        <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-          <button
-            onClick={() => {
-              setSelectedChat(null);
-              window.scrollTo(0, 0);
-            }}
-            className="w-6 h-6 flex items-center justify-center cursor-pointer synth-focus rounded"
-            style={{ padding: 0, margin: 0, background: 'none', border: 'none' }}
-            type="button"
-            aria-label="Back to chats"
-          >
-            <ArrowLeft className="w-6 h-6" style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={handleHeaderIdentityClick}
-            className="flex items-center min-w-0 synth-focus rounded"
-            style={{
-              gap: 'var(--spacing-inline, 6px)',
-              padding: 0,
-              margin: 0,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
-            aria-label={selectedChat.is_group_chat ? 'Open chat info' : 'Open user profile'}
-          >
-            <Avatar className="w-8 h-8 flex-shrink-0">
-              <AvatarImage
-                src={getChatAvatar(selectedChat) || undefined}
-                alt={
-                  selectedChat.is_group_chat
-                    ? `${getChatDisplayName(selectedChat)} group chat avatar`
-                    : `${getChatDisplayName(selectedChat)}'s profile picture`
-                }
-              />
-              <AvatarFallback className="font-medium text-base" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
-                {selectedChat.is_group_chat ? (
-                  <Users className="w-5 h-5" />
-                ) : (
-                  getChatDisplayName(selectedChat).split(' ').map((n) => n[0]).join('')
-                )}
-              </AvatarFallback>
-            </Avatar>
-            <h2
-              className="font-bold text-[24px] leading-[normal]"
-              style={{
-                color: 'var(--neutral-900)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                lineHeight: 'normal',
-                maxHeight: 'calc(2 * 1.3em)',
-              }}
-            >
-              {getChatDisplayName(selectedChat)}
-            </h2>
-          </button>
-        </div>
-      ) : (
-        <h1
-          style={{
-            fontFamily: 'var(--font-family)',
-            fontSize: 'var(--typography-h2-size, 24px)',
-            fontWeight: 'var(--typography-h2-weight, 700)',
-            color: 'var(--neutral-900)',
-          }}
-        >
-          {`Messages${unreadMessagesCount > 0 ? ` (${unreadMessagesCount})` : ''}`}
-        </h1>
-      )}
+
+  // Chat list view keeps the boxed MobileHeader (hamburger + "Messages" title, app-level chrome).
+  // Thread view does not — see threadTopBar below, which renders inline in the scrolling panel instead.
+  const chatHeader = showChatHeader && !selectedChat ? (
+    <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick} alignLeft={true}>
+      <h1
+        style={{
+          fontFamily: 'var(--font-family)',
+          fontSize: 'var(--typography-h2-size, 24px)',
+          fontWeight: 'var(--typography-h2-weight, 700)',
+          color: 'var(--neutral-900)',
+        }}
+      >
+        {`Messages${unreadMessagesCount > 0 ? ` (${unreadMessagesCount})` : ''}`}
+      </h1>
     </MobileHeader>
   ) : undefined;
+
+  // Thread view's top bar: back arrow, a small subtle chat-name label (no avatar, no boxed
+  // bar), and the "more options" menu — flows as part of the scrolling panel instead of a
+  // separate fixed header, per the same treatment applied to NotificationsPage.
+  const threadTopBar = showChatHeader && selectedChat ? (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 'var(--spacing-inline, 6px)',
+        padding: '12px var(--spacing-screen-margin-x, 20px)',
+        paddingTop: 'calc(var(--onboarding-banner-height, 0px) + env(safe-area-inset-top, 0px) + 12px)',
+        flexShrink: 0,
+      }}
+    >
+      <button
+        onClick={() => {
+          setSelectedChat(null);
+          window.scrollTo(0, 0);
+        }}
+        className="flex items-center justify-center cursor-pointer synth-focus rounded"
+        style={{ width: 32, height: 32, flexShrink: 0, padding: 0, margin: 0, background: 'none', border: 'none' }}
+        type="button"
+        aria-label="Back to chats"
+      >
+        <ArrowLeft className="w-5 h-5" style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        onClick={handleHeaderIdentityClick}
+        className="synth-focus rounded"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: 0,
+          margin: 0,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'center',
+        }}
+        aria-label={selectedChat.is_group_chat ? 'Open chat info' : 'Open user profile'}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--neutral-600)',
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {getChatDisplayName(selectedChat)}
+        </span>
+      </button>
+      <DropdownMenu open={showSettingsMenu} onOpenChange={setShowSettingsMenu}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center justify-center cursor-pointer synth-focus rounded"
+            style={{ width: 32, height: 32, flexShrink: 0, padding: 0, margin: 0, background: 'none', border: 'none' }}
+            aria-label="More options"
+          >
+            <MoreVertical className="w-5 h-5" style={{ color: 'var(--neutral-900)' }} aria-hidden="true" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56" style={{ zIndex: 50 }}>
+          {selectedChat.is_group_chat && (
+            <DropdownMenuItem onClick={handleViewUsers}>
+              <Users className="mr-2 h-4 w-4" />
+              <span>View Users</span>
+            </DropdownMenuItem>
+          )}
+
+          {!selectedChat.is_group_chat && (
+            <>
+              <DropdownMenuItem onClick={() => handleViewProfile(getOtherUserId(selectedChat))}>
+                <User className="mr-2 h-4 w-4" />
+                <span>View Profile</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => handleBlockUser(getOtherUserId(selectedChat))}>
+                <UserX className="mr-2 h-4 w-4" />
+                <span>Block User</span>
+              </DropdownMenuItem>
+            </>
+          )}
+
+          <DropdownMenuItem onClick={handleMuteNotifications}>
+            {isMuted ? (
+              <Bell className="mr-2 h-4 w-4" />
+            ) : (
+              <BellOff className="mr-2 h-4 w-4" />
+            )}
+            <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
+          </DropdownMenuItem>
+
+          {selectedChat.is_group_chat && linkedEvent && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleViewEvent}>
+                <Calendar className="mr-2 h-4 w-4" />
+                <span>View Event</span>
+              </DropdownMenuItem>
+            </>
+          )}
+
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault();
+              requestDeleteChat();
+            }}
+            className="text-red-600 focus:text-red-600"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            <span>Delete Chat</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ) : null;
 
   const handleSaveGroupName = async () => {
     if (!editedGroupName.trim() || !selectedChat) return;
@@ -2201,81 +2262,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         className="flex w-full flex-1 min-h-0"
         style={{ backgroundColor: 'var(--neutral-50)' }}
       >
-      {/* Settings Menu Dropdown - Positioned relative to header */}
-      {selectedChat && (
-        <DropdownMenu open={showSettingsMenu} onOpenChange={setShowSettingsMenu}>
-          <DropdownMenuTrigger asChild>
-            <button
-              style={{
-                position: 'fixed',
-                top: 'calc(var(--onboarding-banner-height, 0px) + env(safe-area-inset-top, 0px) + 12px)',
-                right: 'var(--spacing-screen-margin-x, 20px)',
-                width: 'var(--size-input-height, 44px)',
-                height: 'var(--size-input-height, 44px)',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                zIndex: 41
-              }}
-              aria-label="More options"
-            />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56" style={{ zIndex: 50 }}>
-            {selectedChat.is_group_chat && (
-              <DropdownMenuItem onClick={handleViewUsers}>
-                <Users className="mr-2 h-4 w-4" />
-                <span>View Users</span>
-              </DropdownMenuItem>
-            )}
-            
-            {!selectedChat.is_group_chat && (
-              <>
-                <DropdownMenuItem onClick={() => handleViewProfile(getOtherUserId(selectedChat))}>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>View Profile</span>
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem onClick={() => handleBlockUser(getOtherUserId(selectedChat))}>
-                  <UserX className="mr-2 h-4 w-4" />
-                  <span>Block User</span>
-                </DropdownMenuItem>
-              </>
-            )}
-            
-            <DropdownMenuItem onClick={handleMuteNotifications}>
-              {isMuted ? (
-                <Bell className="mr-2 h-4 w-4" />
-              ) : (
-                <BellOff className="mr-2 h-4 w-4" />
-              )}
-              <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
-            </DropdownMenuItem>
-            
-            {selectedChat.is_group_chat && linkedEvent && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleViewEvent}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  <span>View Event</span>
-                </DropdownMenuItem>
-              </>
-            )}
-            
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onSelect={(e) => {
-                e.preventDefault();
-                requestDeleteChat();
-              }}
-              className="text-red-600 focus:text-red-600"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete Chat</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-      
       {/* Left Sidebar - Chat List (always mounted; hidden on mobile when a chat is open) */}
       <div
         className="flex flex-col flex-shrink-0 min-h-0"
@@ -2531,8 +2517,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         onTouchCancel={handleChatTouchCancel}
       >{selectedChat ? (
           <>
+            {threadTopBar}
             {selectedChat.entity_type === 'genre' && selectedChat.entity_id && (
-              <GenreChatEventsRail genreChatId={selectedChat.entity_id} currentUserId={currentUserId} />
+              <GenreChatEventsButton genreChatId={selectedChat.entity_id} currentUserId={currentUserId} />
             )}
             {/* Messages */}
               <div

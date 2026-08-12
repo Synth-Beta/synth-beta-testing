@@ -33,7 +33,7 @@ export const GENRE_CHAT_TAG_MAP: Record<string, string[]> = {
     'Drum and bass', 'dubstep', 'breakbeat', 'uk garage', 'jungle', 'footwork',
     'idm', 'glitch', 'downtempo', 'trip-hop', 'chillwave', 'vaporwave',
     'synthwave', 'electroclash', 'ebm', 'industrial', 'darkwave', 'cold wave',
-    'liquid funk', 'bass music', 'hypertechno', 'livetronica', 'jamgrass',
+    'liquid funk', 'bass music', 'hypertechno',
     'lo-fi', 'lo-fi beats', 'lo-fi indie', 'electro swing', 'italo dance',
     'space music', 'dub',
   ],

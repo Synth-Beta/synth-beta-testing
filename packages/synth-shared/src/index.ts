@@ -98,6 +98,8 @@ export {
 export {
   getUpcomingEventsForGenreChat,
   getUpcomingEventsForGenreUmbrella,
+  type NearbyParams,
+  type GenreChatEventRow,
 } from './genreEvents';
 export { GENRE_CHAT_TAG_MAP } from './genreChatTagMap';
 export { needsContactEmail } from './contactEmailGate';

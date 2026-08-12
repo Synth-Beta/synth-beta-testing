@@ -6,13 +6,16 @@ import { getUpcomingEventsForGenreChat } from '@synth/shared';
 import { supabase } from '../../integrations/supabase/client';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { GENRE_CONFIGS } from '../../services/genreChatService';
+import { resolveApproxUserLocation } from '../../hooks/useApproxUserLocation';
 
 interface GenreEventRow {
     id: string;
     title?: string | null;
     artist_name?: string | null;
     venue_name?: string | null;
+    venue_city?: string | null;
     event_date: string;
+    distanceMiles?: number | null;
 }
 
 interface GenreChatEventsRailProps {
@@ -35,12 +38,21 @@ export function GenreChatEventsRail({ genreChatId }: GenreChatEventsRailProps) {
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
-        void getUpcomingEventsForGenreChat(supabase, genreChatId, 10).then((rows) => {
-            if (!cancelled) {
-                setEvents(rows as unknown as GenreEventRow[]);
-                setLoading(false);
-            }
-        });
+        void resolveApproxUserLocation()
+            .then((near) =>
+                getUpcomingEventsForGenreChat(
+                    supabase,
+                    genreChatId,
+                    10,
+                    near ? { latitude: near.latitude, longitude: near.longitude, radiusMiles: 25 } : undefined
+                )
+            )
+            .then((rows) => {
+                if (!cancelled) {
+                    setEvents(rows as unknown as GenreEventRow[]);
+                    setLoading(false);
+                }
+            });
         return () => {
             cancelled = true;
         };
@@ -55,26 +67,37 @@ export function GenreChatEventsRail({ genreChatId }: GenreChatEventsRailProps) {
         <View style={styles.section}>
             <Text style={styles.title}>{title}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-                {events.map((e) => (
-                    <TouchableOpacity
-                        key={e.id}
-                        style={styles.card}
-                        onPress={() => router.push(`/event/${e.id}` as any)}
-                    >
-                        <View style={styles.iconWrap}>
-                            <Music size={20} color={SynthTokens.colors.brandPink500} />
-                        </View>
-                        <Text style={styles.name} numberOfLines={1}>
-                            {e.artist_name || e.title || 'Show'}
-                        </Text>
-                        <Text style={styles.meta} numberOfLines={1}>
-                            {e.venue_name || ''}
-                        </Text>
-                        <Text style={styles.meta} numberOfLines={1}>
-                            {formatRailDate(e.event_date)}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
+                {events.map((e) => {
+                    const distanceLabel =
+                        typeof e.distanceMiles === 'number'
+                            ? `${Math.round(e.distanceMiles)} mi`
+                            : e.venue_city || undefined;
+                    return (
+                        <TouchableOpacity
+                            key={e.id}
+                            style={styles.card}
+                            onPress={() => router.push(`/event/${e.id}` as any)}
+                        >
+                            <View style={styles.iconWrap}>
+                                <Music size={20} color={SynthTokens.colors.brandPink500} />
+                            </View>
+                            <Text style={styles.name} numberOfLines={1}>
+                                {e.artist_name || e.title || 'Show'}
+                            </Text>
+                            <Text style={styles.meta} numberOfLines={1}>
+                                {e.venue_name || ''}
+                            </Text>
+                            <Text style={styles.meta} numberOfLines={1}>
+                                {formatRailDate(e.event_date)}
+                            </Text>
+                            {distanceLabel && (
+                                <Text style={styles.meta} numberOfLines={1}>
+                                    {distanceLabel}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    );
+                })}
             </ScrollView>
         </View>
     );
