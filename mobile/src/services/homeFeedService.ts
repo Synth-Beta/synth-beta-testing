@@ -506,14 +506,18 @@ export class HomeFeedService {
             let query = supabase
                 .from('reviews')
                 .select(selectFields)
-                // Align with review detail + web: treat NULL is_public / is_draft as published/public
-                .or('is_public.eq.true,is_public.is.null')
+                // Align with review detail + web: treat NULL is_draft as published
                 .or('is_draft.eq.false,is_draft.is.null')
                 .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY');
 
-            // Filter by friend network when friends exist; otherwise show all public reviews
+            // Filter by friend network when friends exist; otherwise show all public
+            // reviews from anyone (discovery fallback), which must stay public-only.
+            // Within the friend network, a friend's private review is allowed
+            // through by the reviews_select RLS policy - no is_public filter needed.
             if (hasFriends) {
                 query = query.in('user_id', [...new Set(friendIds)]);
+            } else {
+                query = query.or('is_public.eq.true,is_public.is.null');
             }
 
             const { data: reviews, error: reviewsError } = await query

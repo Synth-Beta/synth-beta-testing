@@ -72,6 +72,12 @@ type Props = {
   hideTitleBlock?: boolean;
   /** When false, skips initial fetch until enabled (profile defers until header is ready). */
   dataEnabled?: boolean;
+  /**
+   * Whether `userId` is the signed-in viewer's own profile. When false, only public
+   * reviews are shown, the Unreviewed tab is hidden, drafts aren't fetched, and the
+   * Bucket List renders read-only.
+   */
+  isOwnProfile?: boolean;
 };
 
 const STAR_SECTIONS: Array<{ stars: StarBucket; label: string }> = [
@@ -118,6 +124,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
       contentBottomPadding = 0,
       hideTitleBlock = false,
       dataEnabled = true,
+      isOwnProfile = true,
     },
     ref
   ) {
@@ -143,26 +150,36 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
         return;
       }
       setActiveUserId(uid);
-      const [r, u, d] = await Promise.all([
-        MyEventsService.getMyReviews(uid),
-        MyEventsService.getProfileUnreviewedQueue(uid),
-        MyEventsService.countDraftReviews(uid),
-      ]);
-      setReviews(r.items);
-      setReviewsLoadError(r.error);
-      if (__DEV__) {
-        console.debug('[ProfileMyEventsPanel] getMyReviews result', {
-          uid,
-          isSupabaseConfigured,
-          itemCount: r.items.length,
-          error: r.error,
-        });
+      if (isOwnProfile) {
+        const [r, u, d] = await Promise.all([
+          MyEventsService.getMyReviews(uid),
+          MyEventsService.getProfileUnreviewedQueue(uid),
+          MyEventsService.countDraftReviews(uid),
+        ]);
+        setReviews(r.items);
+        setReviewsLoadError(r.error);
+        if (__DEV__) {
+          console.debug('[ProfileMyEventsPanel] getMyReviews result', {
+            uid,
+            isSupabaseConfigured,
+            itemCount: r.items.length,
+            error: r.error,
+          });
+        }
+        setUnreviewed(u);
+        setDraftCount(d);
+      } else {
+        // Visibility is enforced by RLS (public reviews, or a direct friend's
+        // private reviews) - no publicOnly flag needed here.
+        const r = await MyEventsService.getMyReviews(uid);
+        setReviews(r.items);
+        setReviewsLoadError(r.error);
+        setUnreviewed([]);
+        setDraftCount(0);
       }
-      setUnreviewed(u);
-      setDraftCount(d);
       setLoading(false);
       setRefreshing(false);
-    }, [userIdProp]);
+    }, [userIdProp, isOwnProfile]);
 
     useImperativeHandle(ref, () => ({ reload: () => load({ silent: true }) }), [load]);
 
@@ -282,9 +299,13 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
       </View>
     );
 
+    const visibleModes = isOwnProfile
+      ? (['reviews', 'bucket', 'unreviewed'] as const)
+      : (['reviews', 'bucket'] as const);
+
     const segment = (
       <View style={[styles.segment, variant === 'screen' && styles.segmentScreen]}>
-        {(['reviews', 'bucket', 'unreviewed'] as const).map(m => (
+        {visibleModes.map(m => (
           <Pressable
             key={m}
             onPress={() => setMode(m)}
@@ -367,7 +388,9 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
       } else if (reviews.length === 0) {
         body = (
           <SynthText variant="body" color="secondary" style={styles.emptyCopy}>
-            No reviews yet. Attend a show and write one from the event page.
+            {isOwnProfile
+              ? 'No reviews yet. Attend a show and write one from the event page.'
+              : 'This user has not published any reviews yet.'}
           </SynthText>
         );
       } else if (!hasAnyStarBucketContent(starGrouped)) {
@@ -418,7 +441,7 @@ export const ProfileMyEventsPanel = forwardRef<ProfileMyEventsPanelHandle, Props
       }
     } else if (mode === 'bucket') {
       body = activeUserId ? (
-        <PassportBucketTab userId={activeUserId} canEdit />
+        <PassportBucketTab userId={activeUserId} canEdit={isOwnProfile} />
       ) : null;
     } else {
       body =

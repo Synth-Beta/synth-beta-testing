@@ -52,7 +52,6 @@ export class FriendsReviewService {
           )
         `)
         .in('user_id', friendIds)
-        .eq('is_public', true)
         .eq('is_draft', false)
         .neq('review_text', 'ATTENDANCE_ONLY')
         .not('review_text', 'is', null)
@@ -77,7 +76,7 @@ export class FriendsReviewService {
         created_at: review.created_at,
         updated_at: review.updated_at,
         rating: review.rating,
-        is_public: true,
+        is_public: review.is_public,
         photos: review.photos || undefined,
         setlist: review.setlist || undefined,
         likes_count: review.likes_count || 0,
@@ -181,7 +180,6 @@ export class FriendsReviewService {
           )
         `)
         .in('user_id', allFriendIds)
-        .eq('is_public', true)
         .eq('is_draft', false)
         .neq('review_text', 'ATTENDANCE_ONLY')
         .not('review_text', 'is', null)
@@ -190,6 +188,9 @@ export class FriendsReviewService {
 
       if (error) throw error;
 
+      // Note: RLS only grants private-review access to *direct* friends, so a
+      // friend-of-friend's private review is already excluded by the database
+      // even though allFriendIds includes 2nd-degree connections here.
       return (reviews || []).map((review: any) => {
         const isDirectFriend = directFriendIds.includes(review.user_id);
         const connectionDegree = isDirectFriend ? 1 : 2;
@@ -209,7 +210,7 @@ export class FriendsReviewService {
           created_at: review.created_at,
           updated_at: review.updated_at,
           rating: review.rating,
-          is_public: true,
+          is_public: review.is_public,
           photos: review.photos || undefined,
           setlist: review.setlist || undefined,
           likes_count: review.likes_count || 0,
@@ -428,7 +429,6 @@ export class FriendsReviewService {
               )
             `)
             .in('user_id', allConnectionIds)
-            .eq('is_public', true)
             .eq('is_draft', false)
             .not('review_text', 'is', null)
             .order('created_at', { ascending: false })

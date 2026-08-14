@@ -67,6 +67,7 @@ apps/admin/.env.local
 *.p8
 backend/secure/
 scripts/sync-checkpoint.json
+scripts/genre-enrich-checkpoint.json
 
 # AI agent skill source (installed via `npx skills add`). .claude/skills/ is
 # the committed copy this repo actually uses; .agents/ is just the local

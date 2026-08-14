@@ -5,6 +5,7 @@ import { RightNowService, type RightNowData } from '@/services/rightNowService';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
+import { useBrowseLocation } from '@/contexts/BrowseLocationContext';
 import type { JamBaseEvent } from '@/types/eventTypes';
 
 interface RightNowSectionProps {
@@ -28,11 +29,13 @@ export const RightNowSection: React.FC<RightNowSectionProps> = ({
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedEventInterested, setSelectedEventInterested] = useState(false);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
+  const browseLocation = useBrowseLocation();
 
   useEffect(() => {
     loadData();
     loadInterestedEvents();
-  }, [currentUserId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId, browseLocation.coords]);
 
   const loadInterestedEvents = async () => {
     try {
@@ -46,17 +49,10 @@ export const RightNowSection: React.FC<RightNowSectionProps> = ({
   const loadData = async () => {
     setLoading(true);
     try {
-      // Get user location
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('latitude, longitude')
-        .eq('user_id', currentUserId)
-        .single();
-
       const rightNowData = await RightNowService.getAllRightNowData(
         currentUserId,
-        userProfile?.latitude,
-        userProfile?.longitude
+        browseLocation.coords?.latitude,
+        browseLocation.coords?.longitude
       );
 
       setData(rightNowData);

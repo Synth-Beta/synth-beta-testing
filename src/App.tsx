@@ -8,6 +8,7 @@ import SpotifyCallback from "./pages/SpotifyCallback";
 import AppPage from "./pages/App";
 import { ShareLinkBootstrap } from "@/components/ShareLinkBootstrap";
 import { supabase } from "@/integrations/supabase/client";
+import { BrowseLocationProvider } from "@/contexts/BrowseLocationContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -112,6 +113,7 @@ const App = () => {
   return (
     <div className="synth-app">
       <QueryClientProvider client={queryClient}>
+        <BrowseLocationProvider>
         <TooltipProvider>
           <BrowserRouter>
             <ShareLinkBootstrap />
@@ -138,6 +140,7 @@ const App = () => {
             </Suspense>
           </BrowserRouter>
         </TooltipProvider>
+        </BrowseLocationProvider>
       </QueryClientProvider>
     </div>
   );

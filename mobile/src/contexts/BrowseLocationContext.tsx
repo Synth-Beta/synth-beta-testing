@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentLatLng, reverseGeocode, type LatLng } from '../services/locationService';
+import { resolveLocation } from '@synth/shared';
 
 /**
  * Shared "what location am I browsing" for Discover + Home feed.
@@ -52,14 +53,19 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
   const initialized = useRef(false);
 
   const fetchGpsLocation = useCallback(async () => {
-    const loc = await getCurrentLatLng();
-    if (!loc) {
+    const live = await getCurrentLatLng();
+    // Precedence here is trivially "live or nothing" (expo-location's own
+    // last-known-position fast path already covers the "cached" tier) - routed
+    // through resolveLocation so the decision stays defined in one shared
+    // place with web's BrowseLocationContext.
+    const resolved = resolveLocation({ live });
+    if (!resolved) {
       setCoords(null);
       setLabel('Your Location');
       return;
     }
-    setCoords(loc);
-    const geo = await reverseGeocode(loc.latitude, loc.longitude);
+    setCoords(resolved);
+    const geo = await reverseGeocode(resolved.latitude, resolved.longitude);
     setLabel(geo ?? 'Current location');
   }, []);
 

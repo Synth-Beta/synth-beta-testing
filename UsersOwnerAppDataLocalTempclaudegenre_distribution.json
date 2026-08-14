@@ -1,0 +1,13266 @@
+[
+  [
+    "rock",
+    4608
+  ],
+  [
+    "pop",
+    4108
+  ],
+  [
+    "indie",
+    3769
+  ],
+  [
+    "folk",
+    2941
+  ],
+  [
+    "edm",
+    2695
+  ],
+  [
+    "punk",
+    1955
+  ],
+  [
+    "metal",
+    1680
+  ],
+  [
+    "blues",
+    1605
+  ],
+  [
+    "hip-hop-rap",
+    1598
+  ],
+  [
+    "jazz",
+    1508
+  ],
+  [
+    "electronic",
+    1349
+  ],
+  [
+    "classical",
+    1302
+  ],
+  [
+    "country",
+    1178
+  ],
+  [
+    "rhythm-and-blues-soul",
+    921
+  ],
+  [
+    "latin",
+    804
+  ],
+  [
+    "country-music",
+    765
+  ],
+  [
+    "americana",
+    495
+  ],
+  [
+    "reggae",
+    436
+  ],
+  [
+    "tribute",
+    416
+  ],
+  [
+    "indie rock",
+    335
+  ],
+  [
+    "afro house",
+    327
+  ],
+  [
+    "bluegrass",
+    326
+  ],
+  [
+    "alternative",
+    289
+  ],
+  [
+    "jamband",
+    282
+  ],
+  [
+    "funk",
+    274
+  ],
+  [
+    "alternative rock",
+    269
+  ],
+  [
+    "hard rock",
+    265
+  ],
+  [
+    "indie pop",
+    259
+  ],
+  [
+    "singer-songwriter",
+    252
+  ],
+  [
+    "hip hop",
+    248
+  ],
+  [
+    "christian",
+    243
+  ],
+  [
+    "classic rock",
+    238
+  ],
+  [
+    "metalcore",
+    230
+  ],
+  [
+    "indie-rock",
+    220
+  ],
+  [
+    "house",
+    217
+  ],
+  [
+    "hardcore",
+    214
+  ],
+  [
+    "techno",
+    206
+  ],
+  [
+    "smooth jazz",
+    202
+  ],
+  [
+    "pop rock",
+    199
+  ],
+  [
+    "lo-fi",
+    190
+  ],
+  [
+    "soul",
+    189
+  ],
+  [
+    "shoegaze",
+    185
+  ],
+  [
+    "post-punk",
+    184
+  ],
+  [
+    "blues rock",
+    179
+  ],
+  [
+    "experimental",
+    179
+  ],
+  [
+    "rap",
+    173
+  ],
+  [
+    "progressive rock",
+    170
+  ],
+  [
+    "british",
+    163
+  ],
+  [
+    "psychedelic rock",
+    163
+  ],
+  [
+    "heavy metal",
+    156
+  ],
+  [
+    "tech house",
+    146
+  ],
+  [
+    "phonk",
+    143
+  ],
+  [
+    "ambient",
+    142
+  ],
+  [
+    "dance",
+    137
+  ],
+  [
+    "death metal",
+    135
+  ],
+  [
+    "female vocalists",
+    135
+  ],
+  [
+    "christian hip hop",
+    132
+  ],
+  [
+    "afro tech",
+    130
+  ],
+  [
+    "cool jazz",
+    127
+  ],
+  [
+    "hip-hop",
+    126
+  ],
+  [
+    "small artist",
+    124
+  ],
+  [
+    "bollywood",
+    123
+  ],
+  [
+    "hardcore punk",
+    122
+  ],
+  [
+    "hindi pop",
+    121
+  ],
+  [
+    "darkwave",
+    114
+  ],
+  [
+    "soft rock",
+    113
+  ],
+  [
+    "lo-fi beats",
+    110
+  ],
+  [
+    "thrash metal",
+    109
+  ],
+  [
+    "power pop",
+    109
+  ],
+  [
+    "latin house",
+    108
+  ],
+  [
+    "art rock",
+    108
+  ],
+  [
+    "post-hardcore",
+    107
+  ],
+  [
+    "reggaeton",
+    106
+  ],
+  [
+    "folk rock",
+    104
+  ],
+  [
+    "new wave",
+    104
+  ],
+  [
+    "grunge",
+    103
+  ],
+  [
+    "dream pop",
+    102
+  ],
+  [
+    "vocal jazz",
+    102
+  ],
+  [
+    "garage rock",
+    101
+  ],
+  [
+    "aor",
+    101
+  ],
+  [
+    "big band",
+    99
+  ],
+  [
+    "glam metal",
+    99
+  ],
+  [
+    "stoner rock",
+    98
+  ],
+  [
+    "black metal",
+    98
+  ],
+  [
+    "usa",
+    98
+  ],
+  [
+    "indie folk",
+    97
+  ],
+  [
+    "celtic",
+    97
+  ],
+  [
+    "jam band",
+    97
+  ],
+  [
+    "r&b",
+    97
+  ],
+  [
+    "melodic house",
+    97
+  ],
+  [
+    "tribal house",
+    96
+  ],
+  [
+    "yacht rock",
+    96
+  ],
+  [
+    "lo-fi hip hop",
+    95
+  ],
+  [
+    "post-rock",
+    95
+  ],
+  [
+    "trance",
+    95
+  ],
+  [
+    "deathcore",
+    95
+  ],
+  [
+    "noise rock",
+    94
+  ],
+  [
+    "hard techno",
+    93
+  ],
+  [
+    "german",
+    92
+  ],
+  [
+    "punk rock",
+    91
+  ],
+  [
+    "synthpop",
+    91
+  ],
+  [
+    "anime",
+    90
+  ],
+  [
+    "soundtrack",
+    90
+  ],
+  [
+    "hard bop",
+    90
+  ],
+  [
+    "deep house",
+    89
+  ],
+  [
+    "pop punk",
+    89
+  ],
+  [
+    "glam rock",
+    87
+  ],
+  [
+    "alternative metal",
+    87
+  ],
+  [
+    "jazz fusion",
+    85
+  ],
+  [
+    "uk garage",
+    85
+  ],
+  [
+    "rockabilly",
+    85
+  ],
+  [
+    "ska",
+    85
+  ],
+  [
+    "afrobeat",
+    84
+  ],
+  [
+    "musicals",
+    83
+  ],
+  [
+    "instrumental",
+    83
+  ],
+  [
+    "drum and bass",
+    82
+  ],
+  [
+    "comedy",
+    82
+  ],
+  [
+    "jazz ballads",
+    81
+  ],
+  [
+    "desi",
+    81
+  ],
+  [
+    "progressive metal",
+    80
+  ],
+  [
+    "stoner metal",
+    80
+  ],
+  [
+    "organic house",
+    80
+  ],
+  [
+    "emo",
+    80
+  ],
+  [
+    "post-grunge",
+    80
+  ],
+  [
+    "disco",
+    79
+  ],
+  [
+    "christmas",
+    79
+  ],
+  [
+    "alt country",
+    79
+  ],
+  [
+    "southern rock",
+    79
+  ],
+  [
+    "hip-hop/rap",
+    78
+  ],
+  [
+    "cold wave",
+    77
+  ],
+  [
+    "j-pop",
+    77
+  ],
+  [
+    "bebop",
+    77
+  ],
+  [
+    "industrial",
+    77
+  ],
+  [
+    "doom metal",
+    76
+  ],
+  [
+    "brazilian phonk",
+    76
+  ],
+  [
+    "gospel",
+    76
+  ],
+  [
+    "sludge metal",
+    75
+  ],
+  [
+    "uk",
+    75
+  ],
+  [
+    "american",
+    75
+  ],
+  [
+    "jazz funk",
+    73
+  ],
+  [
+    "afrobeats",
+    73
+  ],
+  [
+    "screamo",
+    73
+  ],
+  [
+    "nu metal",
+    72
+  ],
+  [
+    "contemporary classical",
+    72
+  ],
+  [
+    "k-pop",
+    71
+  ],
+  [
+    "melodic techno",
+    70
+  ],
+  [
+    "drift phonk",
+    69
+  ],
+  [
+    "latin jazz",
+    69
+  ],
+  [
+    "acoustic",
+    69
+  ],
+  [
+    "christian r&b",
+    68
+  ],
+  [
+    "norwegian pop",
+    68
+  ],
+  [
+    "jangle pop",
+    68
+  ],
+  [
+    "swing music",
+    67
+  ],
+  [
+    "underground hip hop",
+    66
+  ],
+  [
+    "ebm",
+    66
+  ],
+  [
+    "country rock",
+    66
+  ],
+  [
+    "psychedelic",
+    65
+  ],
+  [
+    "cumbia",
+    65
+  ],
+  [
+    "worship",
+    65
+  ],
+  [
+    "dansk pop",
+    64
+  ],
+  [
+    "gothic rock",
+    63
+  ],
+  [
+    "neoclassical",
+    63
+  ],
+  [
+    "ska punk",
+    63
+  ],
+  [
+    "melodic hardcore",
+    62
+  ],
+  [
+    "chamber music",
+    62
+  ],
+  [
+    "hypertechno",
+    62
+  ],
+  [
+    "avant-garde",
+    62
+  ],
+  [
+    "nu jazz",
+    61
+  ],
+  [
+    "downtempo",
+    61
+  ],
+  [
+    "djent",
+    61
+  ],
+  [
+    "progressive house",
+    61
+  ],
+  [
+    "orchestral",
+    61
+  ],
+  [
+    "midwest emo",
+    60
+  ],
+  [
+    "dubstep",
+    60
+  ],
+  [
+    "jersey club",
+    60
+  ],
+  [
+    "modern blues",
+    59
+  ],
+  [
+    "acid techno",
+    59
+  ],
+  [
+    "german hip hop",
+    58
+  ],
+  [
+    "free jazz",
+    58
+  ],
+  [
+    "tropical house",
+    58
+  ],
+  [
+    "electropop",
+    57
+  ],
+  [
+    "space rock",
+    57
+  ],
+  [
+    "power metal",
+    57
+  ],
+  [
+    "dub",
+    57
+  ],
+  [
+    "dansktop",
+    57
+  ],
+  [
+    "hymns",
+    57
+  ],
+  [
+    "speed metal",
+    56
+  ],
+  [
+    "rock and roll",
+    56
+  ],
+  [
+    "trap",
+    56
+  ],
+  [
+    "quiet storm",
+    56
+  ],
+  [
+    "grindcore",
+    56
+  ],
+  [
+    "french jazz",
+    56
+  ],
+  [
+    "lullaby",
+    55
+  ],
+  [
+    "opera",
+    55
+  ],
+  [
+    "east coast hip hop",
+    55
+  ],
+  [
+    "country christian",
+    54
+  ],
+  [
+    "slap house",
+    54
+  ],
+  [
+    "special purpose artist",
+    54
+  ],
+  [
+    "special purpose",
+    54
+  ],
+  [
+    "arena rock",
+    54
+  ],
+  [
+    "southern gothic",
+    54
+  ],
+  [
+    "newgrass",
+    54
+  ],
+  [
+    "french",
+    54
+  ],
+  [
+    "surf rock",
+    53
+  ],
+  [
+    "nu disco",
+    53
+  ],
+  [
+    "math rock",
+    53
+  ],
+  [
+    "neo-psychedelic",
+    52
+  ],
+  [
+    "old school hip hop",
+    52
+  ],
+  [
+    "rap metal",
+    52
+  ],
+  [
+    "disco house",
+    51
+  ],
+  [
+    "drone",
+    51
+  ],
+  [
+    "indie dance",
+    51
+  ],
+  [
+    "j-rock",
+    51
+  ],
+  [
+    "southern hip hop",
+    51
+  ],
+  [
+    "french pop",
+    51
+  ],
+  [
+    "trap latino",
+    50
+  ],
+  [
+    "chanson",
+    50
+  ],
+  [
+    "idm",
+    50
+  ],
+  [
+    "hyperpop",
+    50
+  ],
+  [
+    "lounge",
+    50
+  ],
+  [
+    "italian",
+    50
+  ],
+  [
+    "stutter house",
+    49
+  ],
+  [
+    "urbano latino",
+    49
+  ],
+  [
+    "psychedelic pop",
+    49
+  ],
+  [
+    "deathrock",
+    48
+  ],
+  [
+    "new jack swing",
+    48
+  ],
+  [
+    "psychobilly",
+    48
+  ],
+  [
+    "electronica",
+    48
+  ],
+  [
+    "rnb",
+    48
+  ],
+  [
+    "french rap",
+    48
+  ],
+  [
+    "norsk rock",
+    48
+  ],
+  [
+    "kpop",
+    47
+  ],
+  [
+    "boom bap",
+    47
+  ],
+  [
+    "country hip hop",
+    47
+  ],
+  [
+    "northern soul",
+    47
+  ],
+  [
+    "hardstyle",
+    47
+  ],
+  [
+    "britpop",
+    47
+  ],
+  [
+    "roots rock",
+    47
+  ],
+  [
+    "folk pop",
+    46
+  ],
+  [
+    "afropiano",
+    46
+  ],
+  [
+    "corrido",
+    46
+  ],
+  [
+    "motown",
+    46
+  ],
+  [
+    "skate punk",
+    46
+  ],
+  [
+    "groove metal",
+    45
+  ],
+  [
+    "bedroom pop",
+    45
+  ],
+  [
+    "art pop",
+    45
+  ],
+  [
+    "west coast hip hop",
+    45
+  ],
+  [
+    "mathcore",
+    45
+  ],
+  [
+    "christian rock",
+    45
+  ],
+  [
+    "classic soul",
+    45
+  ],
+  [
+    "dark ambient",
+    44
+  ],
+  [
+    "breakbeat",
+    44
+  ],
+  [
+    "krautrock",
+    43
+  ],
+  [
+    "eurodance",
+    43
+  ],
+  [
+    "afropop",
+    43
+  ],
+  [
+    "v-pop",
+    42
+  ],
+  [
+    "punjabi pop",
+    42
+  ],
+  [
+    "bass house",
+    42
+  ],
+  [
+    "alternative r&b",
+    42
+  ],
+  [
+    "folk punk",
+    42
+  ],
+  [
+    "choral",
+    42
+  ],
+  [
+    "minimalism",
+    42
+  ],
+  [
+    "roots reggae",
+    42
+  ],
+  [
+    "experimental jazz",
+    42
+  ],
+  [
+    "composer",
+    41
+  ],
+  [
+    "spoken word",
+    41
+  ],
+  [
+    "slowcore",
+    41
+  ],
+  [
+    "speedcore",
+    41
+  ],
+  [
+    "hardcore techno",
+    41
+  ],
+  [
+    "afro r&b",
+    41
+  ],
+  [
+    "all",
+    41
+  ],
+  [
+    "doo-wop",
+    41
+  ],
+  [
+    "christian pop",
+    41
+  ],
+  [
+    "italo disco",
+    41
+  ],
+  [
+    "jungle",
+    40
+  ],
+  [
+    "trap metal",
+    40
+  ],
+  [
+    "dancehall",
+    40
+  ],
+  [
+    "big room",
+    40
+  ],
+  [
+    "concerto",
+    40
+  ],
+  [
+    "drill",
+    40
+  ],
+  [
+    "baroque",
+    39
+  ],
+  [
+    "flamenco",
+    39
+  ],
+  [
+    "french indie pop",
+    39
+  ],
+  [
+    "nederpop",
+    39
+  ],
+  [
+    "southern gospel",
+    39
+  ],
+  [
+    "baltimore club",
+    39
+  ],
+  [
+    "industrial metal",
+    38
+  ],
+  [
+    "piano",
+    38
+  ],
+  [
+    "traditional folk",
+    38
+  ],
+  [
+    "red dirt",
+    38
+  ],
+  [
+    "spanish",
+    38
+  ],
+  [
+    "acid rock",
+    38
+  ],
+  [
+    "outlaw country",
+    38
+  ],
+  [
+    "alternative pop",
+    38
+  ],
+  [
+    "guitar",
+    38
+  ],
+  [
+    "spain",
+    38
+  ],
+  [
+    "classical crossover",
+    37
+  ],
+  [
+    "soul blues",
+    37
+  ],
+  [
+    "minimal techno",
+    37
+  ],
+  [
+    "classic country",
+    37
+  ],
+  [
+    "progressive trance",
+    37
+  ],
+  [
+    "funky house",
+    36
+  ],
+  [
+    "canadian",
+    36
+  ],
+  [
+    "synthwave",
+    36
+  ],
+  [
+    "electro house",
+    36
+  ],
+  [
+    "symphonic metal",
+    36
+  ],
+  [
+    "electroacoustic",
+    36
+  ],
+  [
+    "funk rock",
+    36
+  ],
+  [
+    "happy hardcore",
+    36
+  ],
+  [
+    "ragtime",
+    36
+  ],
+  [
+    "italo dance",
+    36
+  ],
+  [
+    "bossa nova",
+    36
+  ],
+  [
+    "rocksteady",
+    36
+  ],
+  [
+    "new age",
+    36
+  ],
+  [
+    "retro soul",
+    35
+  ],
+  [
+    "contemporary r&b",
+    35
+  ],
+  [
+    "texas country",
+    35
+  ],
+  [
+    "rally house",
+    35
+  ],
+  [
+    "blues-rock",
+    35
+  ],
+  [
+    "madchester",
+    35
+  ],
+  [
+    "ambient jazz",
+    35
+  ],
+  [
+    "schlager",
+    35
+  ],
+  [
+    "corridos tumbados",
+    34
+  ],
+  [
+    "brass band",
+    34
+  ],
+  [
+    "singer/songwriter",
+    34
+  ],
+  [
+    "ragga",
+    34
+  ],
+  [
+    "electro",
+    34
+  ],
+  [
+    "philly club",
+    34
+  ],
+  [
+    "acid jazz",
+    33
+  ],
+  [
+    "medieval",
+    33
+  ],
+  [
+    "salsa",
+    33
+  ],
+  [
+    "dance-pop",
+    33
+  ],
+  [
+    "compilation",
+    33
+  ],
+  [
+    "corridos bélicos",
+    33
+  ],
+  [
+    "cloud rap",
+    33
+  ],
+  [
+    "swedish pop",
+    33
+  ],
+  [
+    "latin indie",
+    33
+  ],
+  [
+    "baroque pop",
+    33
+  ],
+  [
+    "future bass",
+    33
+  ],
+  [
+    "traditional country",
+    32
+  ],
+  [
+    "english",
+    32
+  ],
+  [
+    "classical piano",
+    32
+  ],
+  [
+    "sea shanties",
+    32
+  ],
+  [
+    "latin pop",
+    32
+  ],
+  [
+    "melodic death metal",
+    32
+  ],
+  [
+    "christian alternative rock",
+    32
+  ],
+  [
+    "hard house",
+    32
+  ],
+  [
+    "afro soul",
+    31
+  ],
+  [
+    "alté",
+    31
+  ],
+  [
+    "grime",
+    31
+  ],
+  [
+    "hollands",
+    31
+  ],
+  [
+    "riot grrrl",
+    31
+  ],
+  [
+    "miami bass",
+    31
+  ],
+  [
+    "egg punk",
+    30
+  ],
+  [
+    "indian indie",
+    30
+  ],
+  [
+    "opm",
+    30
+  ],
+  [
+    "arabesk",
+    30
+  ],
+  [
+    "neo soul",
+    30
+  ],
+  [
+    "horrorcore",
+    30
+  ],
+  [
+    "post-disco",
+    30
+  ],
+  [
+    "hindi indie",
+    30
+  ],
+  [
+    "proto-punk",
+    30
+  ],
+  [
+    "christian bluegrass",
+    30
+  ],
+  [
+    "queer",
+    29
+  ],
+  [
+    "heartland rock",
+    29
+  ],
+  [
+    "electroclash",
+    29
+  ],
+  [
+    "bass music",
+    29
+  ],
+  [
+    "jazz beats",
+    29
+  ],
+  [
+    "japanese",
+    29
+  ],
+  [
+    "footwork",
+    29
+  ],
+  [
+    "bolero",
+    29
+  ],
+  [
+    "experimental hip hop",
+    29
+  ],
+  [
+    "acid house",
+    29
+  ],
+  [
+    "ccm",
+    29
+  ],
+  [
+    "jazz house",
+    29
+  ],
+  [
+    "turkish pop",
+    28
+  ],
+  [
+    "dembow",
+    28
+  ],
+  [
+    "noise",
+    28
+  ],
+  [
+    "g-funk",
+    28
+  ],
+  [
+    "gothic metal",
+    28
+  ],
+  [
+    "afro-cuban jazz",
+    28
+  ],
+  [
+    "norteño",
+    28
+  ],
+  [
+    "riddim",
+    28
+  ],
+  [
+    "soul jazz",
+    28
+  ],
+  [
+    "anti-folk",
+    28
+  ],
+  [
+    "uk r&b",
+    28
+  ],
+  [
+    "industrial rock",
+    28
+  ],
+  [
+    "world",
+    28
+  ],
+  [
+    "polish",
+    27
+  ],
+  [
+    "chillwave",
+    27
+  ],
+  [
+    "melodic bass",
+    27
+  ],
+  [
+    "horror punk",
+    27
+  ],
+  [
+    "anatolian rock",
+    27
+  ],
+  [
+    "christian folk",
+    27
+  ],
+  [
+    "emo rap",
+    27
+  ],
+  [
+    "tango",
+    27
+  ],
+  [
+    "pop soul",
+    27
+  ],
+  [
+    "psytrance",
+    27
+  ],
+  [
+    "united states",
+    27
+  ],
+  [
+    "finnish pop",
+    27
+  ],
+  [
+    "dark r&b",
+    27
+  ],
+  [
+    "rap rock",
+    27
+  ],
+  [
+    "lo-fi indie",
+    27
+  ],
+  [
+    "jazz rap",
+    27
+  ],
+  [
+    "native american music",
+    27
+  ],
+  [
+    "variété française",
+    26
+  ],
+  [
+    "música mexicana",
+    26
+  ],
+  [
+    "acoustic pop",
+    26
+  ],
+  [
+    "honky tonk",
+    26
+  ],
+  [
+    "neofolk",
+    26
+  ],
+  [
+    "vaporwave",
+    26
+  ],
+  [
+    "mpb",
+    26
+  ],
+  [
+    "desi pop",
+    26
+  ],
+  [
+    "celtic rock",
+    25
+  ],
+  [
+    "future house",
+    25
+  ],
+  [
+    "jazz pop",
+    25
+  ],
+  [
+    "canada",
+    25
+  ],
+  [
+    "queercore",
+    25
+  ],
+  [
+    "finnish rock",
+    25
+  ],
+  [
+    "traditional music",
+    25
+  ],
+  [
+    "tekno",
+    25
+  ],
+  [
+    "mexican hip hop",
+    25
+  ],
+  [
+    "male vocalists",
+    25
+  ],
+  [
+    "soca",
+    25
+  ],
+  [
+    "brazilian jazz",
+    25
+  ],
+  [
+    "afro adura",
+    25
+  ],
+  [
+    "merengue",
+    25
+  ],
+  [
+    "irish",
+    24
+  ],
+  [
+    "lo-fi house",
+    24
+  ],
+  [
+    "chicago house",
+    24
+  ],
+  [
+    "crunk",
+    24
+  ],
+  [
+    "rage rap",
+    24
+  ],
+  [
+    "reggaeton chileno",
+    24
+  ],
+  [
+    "italian singer-songwriter",
+    24
+  ],
+  [
+    "musique concrète",
+    23
+  ],
+  [
+    "england",
+    23
+  ],
+  [
+    "bachata",
+    23
+  ],
+  [
+    "vietnamese hip hop",
+    23
+  ],
+  [
+    "trip hop",
+    23
+  ],
+  [
+    "uk funky",
+    23
+  ],
+  [
+    "electro corridos",
+    23
+  ],
+  [
+    "country blues",
+    23
+  ],
+  [
+    "synth-pop",
+    23
+  ],
+  [
+    "bassline",
+    23
+  ],
+  [
+    "australian",
+    23
+  ],
+  [
+    "sexy drill",
+    23
+  ],
+  [
+    "swedish",
+    23
+  ],
+  [
+    "easy listening",
+    23
+  ],
+  [
+    "russian",
+    23
+  ],
+  [
+    "zouk",
+    23
+  ],
+  [
+    "liquid funk",
+    23
+  ],
+  [
+    "medieval metal",
+    22
+  ],
+  [
+    "chanson québécoise",
+    22
+  ],
+  [
+    "indie jazz",
+    22
+  ],
+  [
+    "amapiano",
+    22
+  ],
+  [
+    "zydeco",
+    22
+  ],
+  [
+    "frenchcore",
+    22
+  ],
+  [
+    "mambo",
+    22
+  ],
+  [
+    "r&b/soul",
+    22
+  ],
+  [
+    "gangster rap",
+    22
+  ],
+  [
+    "experimental rock",
+    22
+  ],
+  [
+    "vietnam indie",
+    21
+  ],
+  [
+    "drone metal",
+    21
+  ],
+  [
+    "punjabi hip hop",
+    21
+  ],
+  [
+    "chillout",
+    21
+  ],
+  [
+    "afroswing",
+    21
+  ],
+  [
+    "finnish",
+    21
+  ],
+  [
+    "turkish",
+    21
+  ],
+  [
+    "europop",
+    21
+  ],
+  [
+    "folk metal",
+    21
+  ],
+  [
+    "breakcore",
+    21
+  ],
+  [
+    "norwegian",
+    21
+  ],
+  [
+    "german pop",
+    21
+  ],
+  [
+    "uk drill",
+    21
+  ],
+  [
+    "hardcore hip hop",
+    21
+  ],
+  [
+    "timba",
+    21
+  ],
+  [
+    "celtic punk",
+    20
+  ],
+  [
+    "gnawa",
+    20
+  ],
+  [
+    "g-house",
+    20
+  ],
+  [
+    "melodic rap",
+    20
+  ],
+  [
+    "sufi",
+    20
+  ],
+  [
+    "deathstep",
+    20
+  ],
+  [
+    "banda",
+    20
+  ],
+  [
+    "3 step",
+    20
+  ],
+  [
+    "iskelmä",
+    20
+  ],
+  [
+    "latin alternative",
+    20
+  ],
+  [
+    "son cubano",
+    20
+  ],
+  [
+    "germany",
+    20
+  ],
+  [
+    "christian jazz",
+    20
+  ],
+  [
+    "female vocalist",
+    20
+  ],
+  [
+    "norwegian hip hop",
+    20
+  ],
+  [
+    "latin hip hop",
+    19
+  ],
+  [
+    "classic-rock",
+    19
+  ],
+  [
+    "danish",
+    19
+  ],
+  [
+    "jamgrass",
+    19
+  ],
+  [
+    "early music",
+    19
+  ],
+  [
+    "french house",
+    19
+  ],
+  [
+    "united kingdom",
+    19
+  ],
+  [
+    "alternative hip hop",
+    19
+  ],
+  [
+    "france",
+    19
+  ],
+  [
+    "cajun",
+    19
+  ],
+  [
+    "sweden",
+    19
+  ],
+  [
+    "worldwide",
+    19
+  ],
+  [
+    "techengue",
+    19
+  ],
+  [
+    "chicago drill",
+    19
+  ],
+  [
+    "ballet",
+    19
+  ],
+  [
+    "brazilian funk",
+    19
+  ],
+  [
+    "bhangra",
+    19
+  ],
+  [
+    "classic pop and rock",
+    19
+  ],
+  [
+    "traditional gospel",
+    19
+  ],
+  [
+    "dansk rap",
+    18
+  ],
+  [
+    "brazilian bass",
+    18
+  ],
+  [
+    "witch house",
+    18
+  ],
+  [
+    "sierreño",
+    18
+  ],
+  [
+    "freestyle",
+    18
+  ],
+  [
+    "impressionism",
+    18
+  ],
+  [
+    "electrocumbia",
+    18
+  ],
+  [
+    "polka",
+    18
+  ],
+  [
+    "uk grime",
+    18
+  ],
+  [
+    "ranchera",
+    18
+  ],
+  [
+    "philly soul",
+    18
+  ],
+  [
+    "chilean trap",
+    18
+  ],
+  [
+    "german indie",
+    18
+  ],
+  [
+    "dutch",
+    18
+  ],
+  [
+    "schlagerparty",
+    18
+  ],
+  [
+    "trip-hop",
+    18
+  ],
+  [
+    "80s",
+    18
+  ],
+  [
+    "melbourne bounce",
+    18
+  ],
+  [
+    "kompa",
+    18
+  ],
+  [
+    "audiobook",
+    18
+  ],
+  [
+    "london",
+    18
+  ],
+  [
+    "2008 universal fire victim",
+    18
+  ],
+  [
+    "classic blues",
+    17
+  ],
+  [
+    "aln-sh",
+    17
+  ],
+  [
+    "dembow belico",
+    17
+  ],
+  [
+    "christian lo-fi",
+    17
+  ],
+  [
+    "mexican indie",
+    17
+  ],
+  [
+    "eurovision",
+    17
+  ],
+  [
+    "tejano",
+    17
+  ],
+  [
+    "hi-nrg",
+    17
+  ],
+  [
+    "french r&b",
+    17
+  ],
+  [
+    "korean",
+    17
+  ],
+  [
+    "grupera",
+    17
+  ],
+  [
+    "trova",
+    17
+  ],
+  [
+    "flamenco pop",
+    17
+  ],
+  [
+    "electro swing",
+    17
+  ],
+  [
+    "garage punk",
+    17
+  ],
+  [
+    "reggae rock",
+    17
+  ],
+  [
+    "author",
+    17
+  ],
+  [
+    "p-pop",
+    16
+  ],
+  [
+    "dub techno",
+    16
+  ],
+  [
+    "exotica",
+    16
+  ],
+  [
+    "pop rap",
+    16
+  ],
+  [
+    "flamenco urbano",
+    16
+  ],
+  [
+    "contemporary jazz",
+    16
+  ],
+  [
+    "hyphy",
+    16
+  ],
+  [
+    "alt-country",
+    16
+  ],
+  [
+    "spotify",
+    16
+  ],
+  [
+    "czech",
+    16
+  ],
+  [
+    "neoperreo",
+    16
+  ],
+  [
+    "catholic music",
+    16
+  ],
+  [
+    "visual kei",
+    16
+  ],
+  [
+    "vinahouse",
+    16
+  ],
+  [
+    "latin folk",
+    16
+  ],
+  [
+    "vocaloid",
+    16
+  ],
+  [
+    "musical",
+    16
+  ],
+  [
+    "score",
+    16
+  ],
+  [
+    "bounce",
+    16
+  ],
+  [
+    "lovers rock",
+    16
+  ],
+  [
+    "gabber",
+    16
+  ],
+  [
+    "cumbia norteña",
+    16
+  ],
+  [
+    "under 2000 listeners",
+    15
+  ],
+  [
+    "glitch",
+    15
+  ],
+  [
+    "argentine trap",
+    15
+  ],
+  [
+    "trap soul",
+    15
+  ],
+  [
+    "vocal",
+    15
+  ],
+  [
+    "club",
+    15
+  ],
+  [
+    "90s",
+    15
+  ],
+  [
+    "villancicos",
+    15
+  ],
+  [
+    "adult standards",
+    15
+  ],
+  [
+    "brutal death metal",
+    15
+  ],
+  [
+    "mariachi",
+    15
+  ],
+  [
+    "calypso",
+    15
+  ],
+  [
+    "cuarteto",
+    15
+  ],
+  [
+    "progressive",
+    15
+  ],
+  [
+    "dansband",
+    15
+  ],
+  [
+    "new mpb",
+    15
+  ],
+  [
+    "new york drill",
+    15
+  ],
+  [
+    "€20.00",
+    15
+  ],
+  [
+    "contemporary folk",
+    14
+  ],
+  [
+    "norway",
+    14
+  ],
+  [
+    "children's music",
+    14
+  ],
+  [
+    "bhajan",
+    14
+  ],
+  [
+    "c-pop",
+    14
+  ],
+  [
+    "rock en español",
+    14
+  ],
+  [
+    "ambient folk",
+    14
+  ],
+  [
+    "chilean mambo",
+    14
+  ],
+  [
+    "neue deutsche welle",
+    14
+  ],
+  [
+    "neo-psychedelia",
+    14
+  ],
+  [
+    "australia",
+    14
+  ],
+  [
+    "new zealand",
+    14
+  ],
+  [
+    "plunderphonics",
+    14
+  ],
+  [
+    "cha cha cha",
+    14
+  ],
+  [
+    "arabic hip hop",
+    14
+  ],
+  [
+    "rkt",
+    14
+  ],
+  [
+    "alternative country",
+    13
+  ],
+  [
+    "city pop",
+    13
+  ],
+  [
+    "oyun havasi",
+    13
+  ],
+  [
+    "indie punk",
+    13
+  ],
+  [
+    "ballad",
+    13
+  ],
+  [
+    "bass",
+    13
+  ],
+  [
+    "funk melody",
+    13
+  ],
+  [
+    "netherlands",
+    13
+  ],
+  [
+    "k-rap",
+    13
+  ],
+  [
+    "brazilian pop",
+    13
+  ],
+  [
+    "new orleans bounce",
+    13
+  ],
+  [
+    "renaissance",
+    13
+  ],
+  [
+    "60s",
+    13
+  ],
+  [
+    "tollywood",
+    13
+  ],
+  [
+    "chicago",
+    13
+  ],
+  [
+    "saxophone",
+    13
+  ],
+  [
+    "belgian",
+    13
+  ],
+  [
+    "hiplife",
+    13
+  ],
+  [
+    "azonto",
+    13
+  ],
+  [
+    "brooklyn drill",
+    13
+  ],
+  [
+    "mandopop",
+    13
+  ],
+  [
+    "desi hip hop",
+    13
+  ],
+  [
+    "karadeniz folk",
+    13
+  ],
+  [
+    "rumba congolaise",
+    12
+  ],
+  [
+    "pop québécoise",
+    12
+  ],
+  [
+    "big beat",
+    12
+  ],
+  [
+    "sad sierreño",
+    12
+  ],
+  [
+    "j-dance",
+    12
+  ],
+  [
+    "vietnamese lo-fi",
+    12
+  ],
+  [
+    "moombahton",
+    12
+  ],
+  [
+    "gregorian chant",
+    12
+  ],
+  [
+    "devotional",
+    12
+  ],
+  [
+    "cedm",
+    12
+  ],
+  [
+    "alternative folk",
+    12
+  ],
+  [
+    "latin afrobeats",
+    12
+  ],
+  [
+    "afrogospel",
+    12
+  ],
+  [
+    "telugu pop",
+    12
+  ],
+  [
+    "moroccan pop",
+    12
+  ],
+  [
+    "prog-rock",
+    12
+  ],
+  [
+    "turkey",
+    12
+  ],
+  [
+    "cover",
+    12
+  ],
+  [
+    "highlife",
+    12
+  ],
+  [
+    "boogie-woogie",
+    12
+  ],
+  [
+    "japanese indie",
+    11
+  ],
+  [
+    "melodic house & techno",
+    11
+  ],
+  [
+    "gangsta rap",
+    11
+  ],
+  [
+    "jazz rock",
+    11
+  ],
+  [
+    "indorock",
+    11
+  ],
+  [
+    "latin rock",
+    11
+  ],
+  [
+    "egyptian pop",
+    11
+  ],
+  [
+    "nueva trova",
+    11
+  ],
+  [
+    "gujarati garba",
+    11
+  ],
+  [
+    "crossover",
+    11
+  ],
+  [
+    "german indie pop",
+    11
+  ],
+  [
+    "colombian pop",
+    11
+  ],
+  [
+    "latin folklore",
+    11
+  ],
+  [
+    "€5.00",
+    11
+  ],
+  [
+    "italy",
+    11
+  ],
+  [
+    "acoustic rock",
+    11
+  ],
+  [
+    "alternative dance",
+    11
+  ],
+  [
+    "ghazal",
+    11
+  ],
+  [
+    "synth pop",
+    11
+  ],
+  [
+    "my top songs",
+    11
+  ],
+  [
+    "[1]",
+    11
+  ],
+  [
+    "italian trap",
+    11
+  ],
+  [
+    "art punk",
+    10
+  ],
+  [
+    "rock quebecois",
+    10
+  ],
+  [
+    "k-rock",
+    10
+  ],
+  [
+    "khaleeji",
+    10
+  ],
+  [
+    "brazilian",
+    10
+  ],
+  [
+    "qawwali",
+    10
+  ],
+  [
+    "irish folk",
+    10
+  ],
+  [
+    "blue-eyed soul",
+    10
+  ],
+  [
+    "shatta",
+    10
+  ],
+  [
+    "russelåter",
+    10
+  ],
+  [
+    "a cappella",
+    10
+  ],
+  [
+    "minimal",
+    10
+  ],
+  [
+    "audio drama",
+    10
+  ],
+  [
+    "pop singer-songwriter",
+    10
+  ],
+  [
+    "pop urbaine",
+    10
+  ],
+  [
+    "samba",
+    10
+  ],
+  [
+    "switzerland",
+    10
+  ],
+  [
+    "kuduro",
+    10
+  ],
+  [
+    "swing",
+    10
+  ],
+  [
+    "reggaeton mexa",
+    10
+  ],
+  [
+    "norteño-sax",
+    10
+  ],
+  [
+    "video game music",
+    9
+  ],
+  [
+    "post-bop",
+    9
+  ],
+  [
+    "pinoy indie",
+    9
+  ],
+  [
+    "70s",
+    9
+  ],
+  [
+    "indie electronic",
+    9
+  ],
+  [
+    "hip house",
+    9
+  ],
+  [
+    "fusion",
+    9
+  ],
+  [
+    "dark wave",
+    9
+  ],
+  [
+    "rap chrétien",
+    9
+  ],
+  [
+    "cumbia sonidera",
+    9
+  ],
+  [
+    "cantopop",
+    9
+  ],
+  [
+    "psychedelic folk",
+    9
+  ],
+  [
+    "mexican rock",
+    9
+  ],
+  [
+    "fado",
+    9
+  ],
+  [
+    "progressive pop",
+    9
+  ],
+  [
+    "disco polo",
+    9
+  ],
+  [
+    "bangla pop",
+    9
+  ],
+  [
+    "crust",
+    9
+  ],
+  [
+    "denmark",
+    9
+  ],
+  [
+    "noise music",
+    9
+  ],
+  [
+    "seattle",
+    9
+  ],
+  [
+    "adult contemporary",
+    9
+  ],
+  [
+    "violin",
+    9
+  ],
+  [
+    "finnish hip hop",
+    9
+  ],
+  [
+    "indietronica",
+    9
+  ],
+  [
+    "edm trap",
+    9
+  ],
+  [
+    "indie soul",
+    9
+  ],
+  [
+    "has german audiobooks",
+    9
+  ],
+  [
+    "thai pop",
+    9
+  ],
+  [
+    "trumpet",
+    9
+  ],
+  [
+    "hindi hip hop",
+    9
+  ],
+  [
+    "chinese rock",
+    9
+  ],
+  [
+    "instrumental hip-hop",
+    9
+  ],
+  [
+    "latin r&b",
+    9
+  ],
+  [
+    "modern classical",
+    9
+  ],
+  [
+    "kurdish",
+    9
+  ],
+  [
+    "fixme or cleanup",
+    9
+  ],
+  [
+    "unknown",
+    9
+  ],
+  [
+    "livetronica",
+    8
+  ],
+  [
+    "harana",
+    8
+  ],
+  [
+    "los angeles",
+    8
+  ],
+  [
+    "k-ballad",
+    8
+  ],
+  [
+    "rock and indie",
+    8
+  ],
+  [
+    "pianist",
+    8
+  ],
+  [
+    "free improvisation",
+    8
+  ],
+  [
+    "female vocals",
+    8
+  ],
+  [
+    "hip hop rnb and dance hall",
+    8
+  ],
+  [
+    "epadunk",
+    8
+  ],
+  [
+    "likedis auto",
+    8
+  ],
+  [
+    "chillstep",
+    8
+  ],
+  [
+    "hiphop",
+    8
+  ],
+  [
+    "surf",
+    8
+  ],
+  [
+    "rapcore",
+    8
+  ],
+  [
+    "go-go",
+    8
+  ],
+  [
+    "traditional pop",
+    8
+  ],
+  [
+    "portuguese",
+    8
+  ],
+  [
+    "portugal",
+    8
+  ],
+  [
+    "drumstep",
+    8
+  ],
+  [
+    "japanese classical",
+    8
+  ],
+  [
+    "pop country",
+    8
+  ],
+  [
+    "japanese vgm",
+    8
+  ],
+  [
+    "expressionism",
+    8
+  ],
+  [
+    "european",
+    8
+  ],
+  [
+    "rave",
+    8
+  ],
+  [
+    "new rave",
+    8
+  ],
+  [
+    "guaracha",
+    8
+  ],
+  [
+    "chinese r&b",
+    8
+  ],
+  [
+    "tribute band",
+    8
+  ],
+  [
+    "acoustic country",
+    8
+  ],
+  [
+    "j-rap",
+    8
+  ],
+  [
+    "chicha",
+    8
+  ],
+  [
+    "canzone napoletana",
+    7
+  ],
+  [
+    "singer",
+    7
+  ],
+  [
+    "folk québécois",
+    7
+  ],
+  [
+    "coldwave",
+    7
+  ],
+  [
+    "girl group",
+    7
+  ],
+  [
+    "technical death metal",
+    7
+  ],
+  [
+    "seen live",
+    7
+  ],
+  [
+    "soft pop",
+    7
+  ],
+  [
+    "lesser known yet streamable artists",
+    7
+  ],
+  [
+    "romantic classical",
+    7
+  ],
+  [
+    "malay",
+    7
+  ],
+  [
+    "chinese hip hop",
+    7
+  ],
+  [
+    "latin country",
+    7
+  ],
+  [
+    "christian reggaeton",
+    7
+  ],
+  [
+    "folk-rock",
+    7
+  ],
+  [
+    "country pop",
+    7
+  ],
+  [
+    "instrumental hip hop",
+    7
+  ],
+  [
+    "noise pop",
+    7
+  ],
+  [
+    "post punk",
+    7
+  ],
+  [
+    "gujarati pop",
+    7
+  ],
+  [
+    "covers",
+    7
+  ],
+  [
+    "funk pop",
+    7
+  ],
+  [
+    "nz reggae",
+    7
+  ],
+  [
+    "pop worship",
+    7
+  ],
+  [
+    "brazil",
+    7
+  ],
+  [
+    "us",
+    7
+  ],
+  [
+    "goregrind",
+    7
+  ],
+  [
+    "percussion",
+    7
+  ],
+  [
+    "champeta",
+    7
+  ],
+  [
+    "taiwanese pop",
+    7
+  ],
+  [
+    "pop-punk",
+    7
+  ],
+  [
+    "austrian",
+    7
+  ],
+  [
+    "gothic",
+    7
+  ],
+  [
+    "christian edm",
+    7
+  ],
+  [
+    "stoner",
+    7
+  ],
+  [
+    "ndombolo",
+    7
+  ],
+  [
+    "garage",
+    7
+  ],
+  [
+    "persian",
+    7
+  ],
+  [
+    "iranian",
+    7
+  ],
+  [
+    "space music",
+    7
+  ],
+  [
+    "kizomba",
+    7
+  ],
+  [
+    "rhythm & blues",
+    7
+  ],
+  [
+    "post-metal",
+    7
+  ],
+  [
+    "berlin",
+    7
+  ],
+  [
+    "new york",
+    7
+  ],
+  [
+    "post rock",
+    7
+  ],
+  [
+    "scottish",
+    7
+  ],
+  [
+    "german audiobook reader",
+    7
+  ],
+  [
+    "ireland",
+    7
+  ],
+  [
+    "female vocal",
+    7
+  ],
+  [
+    "funk gospel",
+    7
+  ],
+  [
+    "boston",
+    7
+  ],
+  [
+    "belgium",
+    7
+  ],
+  [
+    "bongo flava",
+    6
+  ],
+  [
+    "mod",
+    6
+  ],
+  [
+    "emo pop",
+    6
+  ],
+  [
+    "boogie",
+    6
+  ],
+  [
+    "world music",
+    6
+  ],
+  [
+    "sludge",
+    6
+  ],
+  [
+    "indonesian pop",
+    6
+  ],
+  [
+    "alternative/indie rock",
+    6
+  ],
+  [
+    "instrumental rock",
+    6
+  ],
+  [
+    "heavy rock",
+    6
+  ],
+  [
+    "sertanejo",
+    6
+  ],
+  [
+    "chiptune",
+    6
+  ],
+  [
+    "japan",
+    6
+  ],
+  [
+    "ghanaian hip hop",
+    6
+  ],
+  [
+    "melodic rock",
+    6
+  ],
+  [
+    "pentecostal music",
+    6
+  ],
+  [
+    "psychedelic trance",
+    6
+  ],
+  [
+    "teen pop",
+    6
+  ],
+  [
+    "symphonic prog",
+    6
+  ],
+  [
+    "brazilian hip hop",
+    6
+  ],
+  [
+    "traditional",
+    6
+  ],
+  [
+    "romanian",
+    6
+  ],
+  [
+    "indonesian indie",
+    6
+  ],
+  [
+    "tropical music",
+    6
+  ],
+  [
+    "alternative rap",
+    6
+  ],
+  [
+    "nwobhm",
+    6
+  ],
+  [
+    "italia",
+    6
+  ],
+  [
+    "huayno",
+    6
+  ],
+  [
+    "greek",
+    6
+  ],
+  [
+    "reggae en español",
+    6
+  ],
+  [
+    "african",
+    6
+  ],
+  [
+    "funk carioca",
+    6
+  ],
+  [
+    "neo-soul",
+    6
+  ],
+  [
+    "singer songwriter",
+    6
+  ],
+  [
+    "thai rock",
+    6
+  ],
+  [
+    "songwriter",
+    6
+  ],
+  [
+    "turreo",
+    6
+  ],
+  [
+    "cabaret",
+    6
+  ],
+  [
+    "scotland",
+    6
+  ],
+  [
+    "[2]",
+    6
+  ],
+  [
+    "hipdut",
+    6
+  ],
+  [
+    "gqom",
+    6
+  ],
+  [
+    "drummer",
+    6
+  ],
+  [
+    "turkish hip hop",
+    6
+  ],
+  [
+    "funkot",
+    6
+  ],
+  [
+    "christian reggae",
+    6
+  ],
+  [
+    "finland",
+    6
+  ],
+  [
+    "rhythm and blues",
+    6
+  ],
+  [
+    "dance and electronica",
+    6
+  ],
+  [
+    "minimal house",
+    6
+  ],
+  [
+    "chinese indie",
+    6
+  ],
+  [
+    "underground",
+    6
+  ],
+  [
+    "folclor andino",
+    6
+  ],
+  [
+    "forró",
+    6
+  ],
+  [
+    "non-musician",
+    6
+  ],
+  [
+    "terf",
+    6
+  ],
+  [
+    "underground hip-hop",
+    6
+  ],
+  [
+    "chanson française",
+    5
+  ],
+  [
+    "parang",
+    5
+  ],
+  [
+    "kundiman",
+    5
+  ],
+  [
+    "swiss",
+    5
+  ],
+  [
+    "glam",
+    5
+  ],
+  [
+    "deutsch",
+    5
+  ],
+  [
+    "funny",
+    5
+  ],
+  [
+    "2020s",
+    5
+  ],
+  [
+    "dj",
+    5
+  ],
+  [
+    "folktronica",
+    5
+  ],
+  [
+    "avantgarde",
+    5
+  ],
+  [
+    "rock & roll",
+    5
+  ],
+  [
+    "tamil pop",
+    5
+  ],
+  [
+    "kollywood",
+    5
+  ],
+  [
+    "tamil dance",
+    5
+  ],
+  [
+    "doom",
+    5
+  ],
+  [
+    "ohio",
+    5
+  ],
+  [
+    "manchester",
+    5
+  ],
+  [
+    "alternative rnb",
+    5
+  ],
+  [
+    "2010s",
+    5
+  ],
+  [
+    "hard trance",
+    5
+  ],
+  [
+    "electronic classical",
+    5
+  ],
+  [
+    "electronic rock",
+    5
+  ],
+  [
+    "guitarist",
+    5
+  ],
+  [
+    "prog rock",
+    5
+  ],
+  [
+    "film composer",
+    5
+  ],
+  [
+    "rapper",
+    5
+  ],
+  [
+    "bristol",
+    5
+  ],
+  [
+    "pop-rock",
+    5
+  ],
+  [
+    "heavy psych",
+    5
+  ],
+  [
+    "asakaa",
+    5
+  ],
+  [
+    "modern rock",
+    5
+  ],
+  [
+    "live",
+    5
+  ],
+  [
+    "conscious hip hop",
+    5
+  ],
+  [
+    "boy band",
+    5
+  ],
+  [
+    "powerviolence",
+    5
+  ],
+  [
+    "pre-registration",
+    5
+  ],
+  [
+    "has german audio plays",
+    5
+  ],
+  [
+    "baile funk",
+    5
+  ],
+  [
+    "argentine rock",
+    5
+  ],
+  [
+    "beatdown hardcore",
+    5
+  ],
+  [
+    "need to rate",
+    5
+  ],
+  [
+    "raï",
+    5
+  ],
+  [
+    "coupé décalé",
+    5
+  ],
+  [
+    "t-pop",
+    5
+  ],
+  [
+    "shibuya-kei",
+    5
+  ],
+  [
+    "£16.95",
+    5
+  ],
+  [
+    "bubblegum pop",
+    5
+  ],
+  [
+    "pagode",
+    5
+  ],
+  [
+    "melodic metalcore",
+    5
+  ],
+  [
+    "klezmer",
+    5
+  ],
+  [
+    "balkan",
+    5
+  ],
+  [
+    "mahraganat",
+    5
+  ],
+  [
+    "deathgrind",
+    5
+  ],
+  [
+    "moroccan rap",
+    5
+  ],
+  [
+    "nightcore",
+    5
+  ],
+  [
+    "california",
+    5
+  ],
+  [
+    "crossover thrash",
+    5
+  ],
+  [
+    "oldies",
+    5
+  ],
+  [
+    "welsh",
+    5
+  ],
+  [
+    "brazilian rock",
+    5
+  ],
+  [
+    "retro pop",
+    5
+  ],
+  [
+    "dnb",
+    5
+  ],
+  [
+    "oi",
+    5
+  ],
+  [
+    "crank wave",
+    5
+  ],
+  [
+    "duo",
+    5
+  ],
+  [
+    "alt rock",
+    5
+  ],
+  [
+    "ethereal",
+    5
+  ],
+  [
+    "rap québécois",
+    5
+  ],
+  [
+    "dark electro",
+    5
+  ],
+  [
+    "south africa",
+    5
+  ],
+  [
+    "mexican ska",
+    5
+  ],
+  [
+    "ethnic",
+    5
+  ],
+  [
+    "brega",
+    5
+  ],
+  [
+    "ethiopian jazz",
+    5
+  ],
+  [
+    "the netherlands",
+    5
+  ],
+  [
+    "ukraine",
+    5
+  ],
+  [
+    "ukrainian",
+    5
+  ],
+  [
+    "chinese",
+    4
+  ],
+  [
+    "political hip hop",
+    4
+  ],
+  [
+    "chamber folk",
+    4
+  ],
+  [
+    "reggae pop",
+    4
+  ],
+  [
+    "melodic punk",
+    4
+  ],
+  [
+    "música adventist",
+    4
+  ],
+  [
+    "chill",
+    4
+  ],
+  [
+    "latin ballad",
+    4
+  ],
+  [
+    "indonesian r&b",
+    4
+  ],
+  [
+    "post-punk revival",
+    4
+  ],
+  [
+    "indonesian jazz",
+    4
+  ],
+  [
+    "laïko",
+    4
+  ],
+  [
+    "anime rap",
+    4
+  ],
+  [
+    "singer-songwriters",
+    4
+  ],
+  [
+    "afrikaans pop",
+    4
+  ],
+  [
+    "drama",
+    4
+  ],
+  [
+    "filmi",
+    4
+  ],
+  [
+    "pinoy r&b",
+    4
+  ],
+  [
+    "gypsy jazz",
+    4
+  ],
+  [
+    "nordic",
+    4
+  ],
+  [
+    "candombe",
+    4
+  ],
+  [
+    "psy-trance",
+    4
+  ],
+  [
+    "poetry",
+    4
+  ],
+  [
+    "mundart",
+    4
+  ],
+  [
+    "nerdcore",
+    4
+  ],
+  [
+    "egyptian shaabi",
+    4
+  ],
+  [
+    "acoustic guitar",
+    4
+  ],
+  [
+    "no wave",
+    4
+  ],
+  [
+    "mizrahi",
+    4
+  ],
+  [
+    "ndw",
+    4
+  ],
+  [
+    "industrial techno",
+    4
+  ],
+  [
+    "drag queen",
+    4
+  ],
+  [
+    "trollerier",
+    4
+  ],
+  [
+    "mollywood",
+    4
+  ],
+  [
+    "malayalam pop",
+    4
+  ],
+  [
+    "afro",
+    4
+  ],
+  [
+    "jazz and blues",
+    4
+  ],
+  [
+    "hypnotic techno",
+    4
+  ],
+  [
+    "pinoy hip hop",
+    4
+  ],
+  [
+    "emocore",
+    4
+  ],
+  [
+    "malayalam hip hop",
+    4
+  ],
+  [
+    "j-r&b",
+    4
+  ],
+  [
+    "poland",
+    4
+  ],
+  [
+    "nigerian drill",
+    4
+  ],
+  [
+    "fújì",
+    4
+  ],
+  [
+    "country gospel",
+    4
+  ],
+  [
+    "salsa choke",
+    4
+  ],
+  [
+    "neomelodico",
+    4
+  ],
+  [
+    "ska-punk",
+    4
+  ],
+  [
+    "czech republic",
+    4
+  ],
+  [
+    "neurofunk",
+    4
+  ],
+  [
+    "pinoy rock",
+    4
+  ],
+  [
+    "guitar virtuoso",
+    4
+  ],
+  [
+    "the voice",
+    4
+  ],
+  [
+    "drag",
+    4
+  ],
+  [
+    "gypsy",
+    4
+  ],
+  [
+    "dreamy",
+    4
+  ],
+  [
+    "piano rock",
+    4
+  ],
+  [
+    "fantasy",
+    4
+  ],
+  [
+    "jazz-funk",
+    4
+  ],
+  [
+    "hypnagogic pop",
+    4
+  ],
+  [
+    "choir",
+    4
+  ],
+  [
+    "black gospel",
+    4
+  ],
+  [
+    "bisrock",
+    4
+  ],
+  [
+    "€12.00house",
+    4
+  ],
+  [
+    "satire",
+    4
+  ],
+  [
+    "atlanta",
+    4
+  ],
+  [
+    "alt pop",
+    4
+  ],
+  [
+    "breaks",
+    4
+  ],
+  [
+    "electro-industrial",
+    4
+  ],
+  [
+    "acid",
+    4
+  ],
+  [
+    "indie-pop",
+    4
+  ],
+  [
+    "drum n bass",
+    4
+  ],
+  [
+    "rock n roll",
+    4
+  ],
+  [
+    "austria",
+    4
+  ],
+  [
+    "vgm",
+    4
+  ],
+  [
+    "underground rap",
+    4
+  ],
+  [
+    "deutschland",
+    4
+  ],
+  [
+    "euro house",
+    4
+  ],
+  [
+    "entehno",
+    4
+  ],
+  [
+    "argentina",
+    4
+  ],
+  [
+    "progressive folk",
+    4
+  ],
+  [
+    "atmospheric black metal",
+    4
+  ],
+  [
+    "discoverunsigned",
+    4
+  ],
+  [
+    "demential rock",
+    4
+  ],
+  [
+    "1980s",
+    4
+  ],
+  [
+    "taiwanese indie",
+    4
+  ],
+  [
+    "sunshine pop",
+    4
+  ],
+  [
+    "iran",
+    4
+  ],
+  [
+    "french rock",
+    4
+  ],
+  [
+    "try",
+    4
+  ],
+  [
+    "philadelphia",
+    4
+  ],
+  [
+    "sertanejo universitário",
+    4
+  ],
+  [
+    "lofi",
+    4
+  ],
+  [
+    "experimental electronic",
+    4
+  ],
+  [
+    "producer",
+    4
+  ],
+  [
+    "progressive metalcore",
+    4
+  ],
+  [
+    "mexico",
+    4
+  ],
+  [
+    "electric blues",
+    4
+  ],
+  [
+    "minnesota",
+    4
+  ],
+  [
+    "post hardcore",
+    4
+  ],
+  [
+    "kurdistan",
+    4
+  ],
+  [
+    "christmas music",
+    4
+  ],
+  [
+    "detroit techno",
+    4
+  ],
+  [
+    "swamp rock",
+    4
+  ],
+  [
+    "progressive psytrance",
+    4
+  ],
+  [
+    "female",
+    4
+  ],
+  [
+    "pop urbano",
+    4
+  ],
+  [
+    "detroit",
+    4
+  ],
+  [
+    "seen live x2",
+    4
+  ],
+  [
+    "indie r&b",
+    4
+  ],
+  [
+    "thrashcore",
+    4
+  ],
+  [
+    "multiple countries",
+    3
+  ],
+  [
+    "gengetone",
+    3
+  ],
+  [
+    "hungary",
+    3
+  ],
+  [
+    "deutschpunk",
+    3
+  ],
+  [
+    "leftfield",
+    3
+  ],
+  [
+    "american idol",
+    3
+  ],
+  [
+    "fingerstyle guitar",
+    3
+  ],
+  [
+    "psychedelic soul",
+    3
+  ],
+  [
+    "comedy rock",
+    3
+  ],
+  [
+    "abstract hip hop",
+    3
+  ],
+  [
+    "hungarian",
+    3
+  ],
+  [
+    "album rock",
+    3
+  ],
+  [
+    "crust punk",
+    3
+  ],
+  [
+    "female guitarists",
+    3
+  ],
+  [
+    "merseybeat",
+    3
+  ],
+  [
+    "austin",
+    3
+  ],
+  [
+    "neo-prog",
+    3
+  ],
+  [
+    "sxsw 2017",
+    3
+  ],
+  [
+    "avant-folk",
+    3
+  ],
+  [
+    "dixieland",
+    3
+  ],
+  [
+    "basque",
+    3
+  ],
+  [
+    "southern metal",
+    3
+  ],
+  [
+    "hard bounce",
+    3
+  ],
+  [
+    "american composer",
+    3
+  ],
+  [
+    "funeral doom metal",
+    3
+  ],
+  [
+    "furry",
+    3
+  ],
+  [
+    "nashville",
+    3
+  ],
+  [
+    "pop/rock",
+    3
+  ],
+  [
+    "melancholic",
+    3
+  ],
+  [
+    "sold out",
+    3
+  ],
+  [
+    "modern dancehall",
+    3
+  ],
+  [
+    "holiday",
+    3
+  ],
+  [
+    "us metal",
+    3
+  ],
+  [
+    "adult alternative pop/rock",
+    3
+  ],
+  [
+    "freak folk",
+    3
+  ],
+  [
+    "afghanistan",
+    3
+  ],
+  [
+    "disney",
+    3
+  ],
+  [
+    "moroccan chaabi",
+    3
+  ],
+  [
+    "bandcamp",
+    3
+  ],
+  [
+    "bikutsi",
+    3
+  ],
+  [
+    "goat",
+    3
+  ],
+  [
+    "acapella",
+    3
+  ],
+  [
+    "vocal trance",
+    3
+  ],
+  [
+    "nu-jazz",
+    3
+  ],
+  [
+    "street punk",
+    3
+  ],
+  [
+    "traditional doom metal",
+    3
+  ],
+  [
+    "chicago blues",
+    3
+  ],
+  [
+    "portuguese hip hop",
+    3
+  ],
+  [
+    "genius",
+    3
+  ],
+  [
+    "brasil",
+    3
+  ],
+  [
+    "pop and chart",
+    3
+  ],
+  [
+    "desert rock",
+    3
+  ],
+  [
+    "mod revival",
+    3
+  ],
+  [
+    "brega funk",
+    3
+  ],
+  [
+    "psychill",
+    3
+  ],
+  [
+    "broadway",
+    3
+  ],
+  [
+    "darkpsy",
+    3
+  ],
+  [
+    "hard groove",
+    3
+  ],
+  [
+    "fiction",
+    3
+  ],
+  [
+    "smooth soul",
+    3
+  ],
+  [
+    "alt-rock",
+    3
+  ],
+  [
+    "accordion",
+    3
+  ],
+  [
+    "czechia",
+    3
+  ],
+  [
+    "psych",
+    3
+  ],
+  [
+    "washington",
+    3
+  ],
+  [
+    "persian pop",
+    3
+  ],
+  [
+    "memphis rap",
+    3
+  ],
+  [
+    "memphis",
+    3
+  ],
+  [
+    "hawaiian",
+    3
+  ],
+  [
+    "colombia",
+    3
+  ],
+  [
+    "funky",
+    3
+  ],
+  [
+    "actor",
+    3
+  ],
+  [
+    "country folk",
+    3
+  ],
+  [
+    "polski hip hop",
+    3
+  ],
+  [
+    "dark cabaret",
+    3
+  ],
+  [
+    "melodic",
+    3
+  ],
+  [
+    "galiza",
+    3
+  ],
+  [
+    "chill house",
+    3
+  ],
+  [
+    "[3]",
+    3
+  ],
+  [
+    "nu-metal",
+    3
+  ],
+  [
+    "trop rock",
+    3
+  ],
+  [
+    "seen live more than once",
+    3
+  ],
+  [
+    "axé",
+    3
+  ],
+  [
+    "icelandic",
+    3
+  ],
+  [
+    "indian",
+    3
+  ],
+  [
+    "funk_add_to_lidarr_batch_13",
+    3
+  ],
+  [
+    "catalan",
+    3
+  ],
+  [
+    "haryanvi pop",
+    3
+  ],
+  [
+    "private school piano",
+    3
+  ],
+  [
+    "brazilian trap",
+    3
+  ],
+  [
+    "outsider",
+    3
+  ],
+  [
+    "powerpop",
+    3
+  ],
+  [
+    "good",
+    3
+  ],
+  [
+    "goth",
+    3
+  ],
+  [
+    "lithuanian",
+    3
+  ],
+  [
+    "sofar sounds",
+    3
+  ],
+  [
+    "barcelona",
+    3
+  ],
+  [
+    "musical theatre",
+    3
+  ],
+  [
+    "melodifestivalen",
+    3
+  ],
+  [
+    "waiting list",
+    3
+  ],
+  [
+    "melodic hard rock",
+    3
+  ],
+  [
+    "10s",
+    3
+  ],
+  [
+    "humour",
+    3
+  ],
+  [
+    "home collection",
+    3
+  ],
+  [
+    "mellow",
+    3
+  ],
+  [
+    "thrash",
+    3
+  ],
+  [
+    "stoner doom",
+    3
+  ],
+  [
+    "guitar blues",
+    3
+  ],
+  [
+    "maluku",
+    3
+  ],
+  [
+    "raw black metal",
+    3
+  ],
+  [
+    "regional mexicano",
+    3
+  ],
+  [
+    "budots",
+    3
+  ],
+  [
+    "female voices",
+    3
+  ],
+  [
+    "toronto",
+    3
+  ],
+  [
+    "deep techno",
+    3
+  ],
+  [
+    "political",
+    3
+  ],
+  [
+    "drums",
+    3
+  ],
+  [
+    "prog",
+    3
+  ],
+  [
+    "rap ivoire",
+    3
+  ],
+  [
+    "jewish",
+    3
+  ],
+  [
+    "_consistency",
+    3
+  ],
+  [
+    "_edit",
+    3
+  ],
+  [
+    "groove",
+    3
+  ],
+  [
+    "piseiro",
+    3
+  ],
+  [
+    "desert blues",
+    3
+  ],
+  [
+    "unsigned",
+    3
+  ],
+  [
+    "awesomename",
+    3
+  ],
+  [
+    "indian classical",
+    3
+  ],
+  [
+    "avant-garde jazz",
+    3
+  ],
+  [
+    "armenia",
+    3
+  ],
+  [
+    "armenian",
+    3
+  ],
+  [
+    "koplo",
+    3
+  ],
+  [
+    "dangdut",
+    3
+  ],
+  [
+    "beatdown",
+    3
+  ],
+  [
+    "violinist",
+    3
+  ],
+  [
+    "mexican",
+    3
+  ],
+  [
+    "boybands",
+    3
+  ],
+  [
+    "contemporary christian",
+    3
+  ],
+  [
+    "kurdish folk",
+    3
+  ],
+  [
+    "kabarett",
+    3
+  ],
+  [
+    "puerto rico",
+    3
+  ],
+  [
+    "russia",
+    3
+  ],
+  [
+    "female singer",
+    3
+  ],
+  [
+    "ukulele",
+    3
+  ],
+  [
+    "hair metal",
+    3
+  ],
+  [
+    "world fusion",
+    3
+  ],
+  [
+    "balearic",
+    3
+  ],
+  [
+    "vill vill vest 2025",
+    3
+  ],
+  [
+    "thai indie pop",
+    3
+  ],
+  [
+    "lesbian",
+    3
+  ],
+  [
+    "western",
+    3
+  ],
+  [
+    "pinoy alternative",
+    3
+  ],
+  [
+    "abstract hip-hop",
+    3
+  ],
+  [
+    "jazz hop",
+    3
+  ],
+  [
+    "boy group",
+    3
+  ],
+  [
+    "malay pop",
+    3
+  ],
+  [
+    "cowpunk",
+    3
+  ],
+  [
+    "maloya",
+    3
+  ],
+  [
+    "latvian",
+    3
+  ],
+  [
+    "female fronted",
+    3
+  ],
+  [
+    "podcast",
+    3
+  ],
+  [
+    "sound collage",
+    3
+  ],
+  [
+    "technical thrash metal",
+    2
+  ],
+  [
+    "belgian singer",
+    2
+  ],
+  [
+    "dark pop",
+    2
+  ],
+  [
+    "hamburg",
+    2
+  ],
+  [
+    "symphonic power metal",
+    2
+  ],
+  [
+    "ambient pop",
+    2
+  ],
+  [
+    "cumbia peruana",
+    2
+  ],
+  [
+    "indonesia",
+    2
+  ],
+  [
+    "duranguense",
+    2
+  ],
+  [
+    "tge24",
+    2
+  ],
+  [
+    "male vocalist",
+    2
+  ],
+  [
+    "progressive death metal",
+    2
+  ],
+  [
+    "lithuania",
+    2
+  ],
+  [
+    "deep",
+    2
+  ],
+  [
+    "fingerstyle",
+    2
+  ],
+  [
+    "afro-pop",
+    2
+  ],
+  [
+    "eurobeat",
+    2
+  ],
+  [
+    "indonesian hip hop",
+    2
+  ],
+  [
+    "conductor",
+    2
+  ],
+  [
+    "ballroom vogue",
+    2
+  ],
+  [
+    "eurovision 2024 artists",
+    2
+  ],
+  [
+    "improvisation",
+    2
+  ],
+  [
+    "kittencore",
+    2
+  ],
+  [
+    "sertanejo tradicional",
+    2
+  ],
+  [
+    "bavarian",
+    2
+  ],
+  [
+    "dark country",
+    2
+  ],
+  [
+    "neocrust",
+    2
+  ],
+  [
+    "gen z",
+    2
+  ],
+  [
+    "beat",
+    2
+  ],
+  [
+    "bitpop",
+    2
+  ],
+  [
+    "jazz vocal",
+    2
+  ],
+  [
+    "male vocal",
+    2
+  ],
+  [
+    "halftime",
+    2
+  ],
+  [
+    "met",
+    2
+  ],
+  [
+    "bulgarian",
+    2
+  ],
+  [
+    "neo-progressive rock",
+    2
+  ],
+  [
+    "uplifting trance",
+    2
+  ],
+  [
+    "sxsw 2016",
+    2
+  ],
+  [
+    "new weird america",
+    2
+  ],
+  [
+    "£20.34",
+    2
+  ],
+  [
+    "euskara",
+    2
+  ],
+  [
+    "vallenato",
+    2
+  ],
+  [
+    "trio",
+    2
+  ],
+  [
+    "ukhc",
+    2
+  ],
+  [
+    "uk hardcore",
+    2
+  ],
+  [
+    "steampunk",
+    2
+  ],
+  [
+    "harmonies",
+    2
+  ],
+  [
+    "orchestra",
+    2
+  ],
+  [
+    "italian metal",
+    2
+  ],
+  [
+    "punjabi",
+    2
+  ],
+  [
+    "peru",
+    2
+  ],
+  [
+    "canadian hip hop",
+    2
+  ],
+  [
+    "liedermacher",
+    2
+  ],
+  [
+    "koeln-rock",
+    2
+  ],
+  [
+    "azerbaijani",
+    2
+  ],
+  [
+    "azerbaijan",
+    2
+  ],
+  [
+    "russian pop",
+    2
+  ],
+  [
+    "many names",
+    2
+  ],
+  [
+    "praise & worship",
+    2
+  ],
+  [
+    "africa",
+    2
+  ],
+  [
+    "symphonic rock",
+    2
+  ],
+  [
+    "saxophonist",
+    2
+  ],
+  [
+    "film score",
+    2
+  ],
+  [
+    "j-metal",
+    2
+  ],
+  [
+    "hörspiel",
+    2
+  ],
+  [
+    "arabic music",
+    2
+  ],
+  [
+    "eurovision 2023 artists",
+    2
+  ],
+  [
+    "italian pop",
+    2
+  ],
+  [
+    "polish hip-hop",
+    2
+  ],
+  [
+    "alternative singer/songwriter",
+    2
+  ],
+  [
+    "beats",
+    2
+  ],
+  [
+    "afghan",
+    2
+  ],
+  [
+    "cello",
+    2
+  ],
+  [
+    "arrangement",
+    2
+  ],
+  [
+    "minimal synth",
+    2
+  ],
+  [
+    "algerian chaabi",
+    2
+  ],
+  [
+    "neoclassical darkwave",
+    2
+  ],
+  [
+    "colonia",
+    2
+  ],
+  [
+    "ilg",
+    2
+  ],
+  [
+    "grateful dead",
+    2
+  ],
+  [
+    "skiffle",
+    2
+  ],
+  [
+    "plugg",
+    2
+  ],
+  [
+    "1990s",
+    2
+  ],
+  [
+    "nepali",
+    2
+  ],
+  [
+    "electropunk",
+    2
+  ],
+  [
+    "rac",
+    2
+  ],
+  [
+    "sophisti-pop",
+    2
+  ],
+  [
+    "idm/experimental",
+    2
+  ],
+  [
+    "funk consciente",
+    2
+  ],
+  [
+    "dance punk",
+    2
+  ],
+  [
+    "comedy hip hop",
+    2
+  ],
+  [
+    "romania",
+    2
+  ],
+  [
+    "jungle/drum'n'bass",
+    2
+  ],
+  [
+    "god",
+    2
+  ],
+  [
+    "digital hardcore",
+    2
+  ],
+  [
+    "post-industrial",
+    2
+  ],
+  [
+    "2 tone",
+    2
+  ],
+  [
+    "portuguese rock",
+    2
+  ],
+  [
+    "twee",
+    2
+  ],
+  [
+    "latin urban",
+    2
+  ],
+  [
+    "uk hip-hop",
+    2
+  ],
+  [
+    "uk hip hop",
+    2
+  ],
+  [
+    "cagdas turk muzigi",
+    2
+  ],
+  [
+    "turkish classical modern",
+    2
+  ],
+  [
+    "gent",
+    2
+  ],
+  [
+    "live music archive",
+    2
+  ],
+  [
+    "various artists are a pita on lastfm",
+    2
+  ],
+  [
+    "psychedelic-prog-rock",
+    2
+  ],
+  [
+    "yiddish",
+    2
+  ],
+  [
+    "sexy",
+    2
+  ],
+  [
+    "rap francais",
+    2
+  ],
+  [
+    "actresses",
+    2
+  ],
+  [
+    "dark folk",
+    2
+  ],
+  [
+    "heavy",
+    2
+  ],
+  [
+    "iranian pop singers",
+    2
+  ],
+  [
+    "nihilism",
+    2
+  ],
+  [
+    "egyptian hip hop",
+    2
+  ],
+  [
+    "finnish metal",
+    2
+  ],
+  [
+    "acid folk",
+    2
+  ],
+  [
+    "90s emo",
+    2
+  ],
+  [
+    "upcoming album 2022",
+    2
+  ],
+  [
+    "novelty",
+    2
+  ],
+  [
+    "san francisco",
+    2
+  ],
+  [
+    "funk metal",
+    2
+  ],
+  [
+    "liverpool",
+    2
+  ],
+  [
+    "lebanese",
+    2
+  ],
+  [
+    "hang",
+    2
+  ],
+  [
+    "italian indie",
+    2
+  ],
+  [
+    "00s",
+    2
+  ],
+  [
+    "turbo-folk",
+    2
+  ],
+  [
+    "portuguese female vocalists",
+    2
+  ],
+  [
+    "glitch hop",
+    2
+  ],
+  [
+    "cover versions",
+    2
+  ],
+  [
+    "sitar",
+    2
+  ],
+  [
+    "sasscore",
+    2
+  ],
+  [
+    "team maro",
+    2
+  ],
+  [
+    "trancecore",
+    2
+  ],
+  [
+    "death-doom metal",
+    2
+  ],
+  [
+    "cinematic classical",
+    2
+  ],
+  [
+    "pagan metal",
+    2
+  ],
+  [
+    "turkish rock",
+    2
+  ],
+  [
+    "spiritual",
+    2
+  ],
+  [
+    "trombone",
+    2
+  ],
+  [
+    "dance pop",
+    2
+  ],
+  [
+    "deutschrap",
+    2
+  ],
+  [
+    "kleinkunst",
+    2
+  ],
+  [
+    "rock artist",
+    2
+  ],
+  [
+    "ballads",
+    2
+  ],
+  [
+    "venezuela",
+    2
+  ],
+  [
+    "retro",
+    2
+  ],
+  [
+    "son jarocho",
+    2
+  ],
+  [
+    "danmark",
+    2
+  ],
+  [
+    "children",
+    2
+  ],
+  [
+    "slamming brutal death metal",
+    2
+  ],
+  [
+    "parody",
+    2
+  ],
+  [
+    "thai hip hop",
+    2
+  ],
+  [
+    "trap funk",
+    2
+  ],
+  [
+    "roots",
+    2
+  ],
+  [
+    "k-indie",
+    2
+  ],
+  [
+    "emcee",
+    2
+  ],
+  [
+    "swedish male vocalists",
+    2
+  ],
+  [
+    "italian rock",
+    2
+  ],
+  [
+    "brazilian gospel",
+    2
+  ],
+  [
+    "indie-folk",
+    2
+  ],
+  [
+    "alternative punk",
+    2
+  ],
+  [
+    "mosh",
+    2
+  ],
+  [
+    "video game",
+    2
+  ],
+  [
+    "chipmunk soul",
+    2
+  ],
+  [
+    "funk_add_to_lidarr_batch_5",
+    2
+  ],
+  [
+    "death doom metal",
+    2
+  ],
+  [
+    "jam",
+    2
+  ],
+  [
+    "classic",
+    2
+  ],
+  [
+    "funk-jazz",
+    2
+  ],
+  [
+    "south african",
+    2
+  ],
+  [
+    "post-brexit new wave",
+    2
+  ],
+  [
+    "war metal",
+    2
+  ],
+  [
+    "nepo baby",
+    2
+  ],
+  [
+    "funk_add_to_lidarr_batch_10",
+    2
+  ],
+  [
+    "eurovision 2025",
+    2
+  ],
+  [
+    "bluesrock",
+    2
+  ],
+  [
+    "harmonica blues",
+    2
+  ],
+  [
+    "contemporary blues",
+    2
+  ],
+  [
+    "turntablism",
+    2
+  ],
+  [
+    "israel",
+    2
+  ],
+  [
+    "electrotango",
+    2
+  ],
+  [
+    "crossover prog",
+    2
+  ],
+  [
+    "sheffield",
+    2
+  ],
+  [
+    "classical music",
+    2
+  ],
+  [
+    "eurovision song contest",
+    2
+  ],
+  [
+    "sax",
+    2
+  ],
+  [
+    "4ad",
+    2
+  ],
+  [
+    "third wave ska",
+    2
+  ],
+  [
+    "seen-live",
+    2
+  ],
+  [
+    "sarod",
+    2
+  ],
+  [
+    "arabic house",
+    2
+  ],
+  [
+    "rock 'n' roll",
+    2
+  ],
+  [
+    "boogie woogie",
+    2
+  ],
+  [
+    "brighton",
+    2
+  ],
+  [
+    "uk82",
+    2
+  ],
+  [
+    "avant-garde metal",
+    2
+  ],
+  [
+    "croatian",
+    2
+  ],
+  [
+    "straight edge",
+    2
+  ],
+  [
+    "british folk",
+    2
+  ],
+  [
+    "ostrock",
+    2
+  ],
+  [
+    "arrocha",
+    2
+  ],
+  [
+    "us rock",
+    2
+  ],
+  [
+    "goa trance",
+    2
+  ],
+  [
+    "iswcs pending",
+    2
+  ],
+  [
+    "dutch male vocalists",
+    2
+  ],
+  [
+    "to get",
+    2
+  ],
+  [
+    "gaelic",
+    2
+  ],
+  [
+    "india",
+    2
+  ],
+  [
+    "soulection",
+    2
+  ],
+  [
+    "forró tradicional",
+    2
+  ],
+  [
+    "lagu jawa",
+    2
+  ],
+  [
+    "lagu timur",
+    2
+  ],
+  [
+    "incelcore",
+    2
+  ],
+  [
+    "malaysian pop",
+    2
+  ],
+  [
+    "arabic",
+    2
+  ],
+  [
+    "c86",
+    2
+  ],
+  [
+    "deconstructed club",
+    2
+  ],
+  [
+    "depressive black metal",
+    2
+  ],
+  [
+    "slam",
+    2
+  ],
+  [
+    "christian hardcore",
+    2
+  ],
+  [
+    "celtic folk",
+    2
+  ],
+  [
+    "cover band",
+    2
+  ],
+  [
+    "farsi",
+    2
+  ],
+  [
+    "youtube",
+    2
+  ],
+  [
+    "latino",
+    2
+  ],
+  [
+    "illinois",
+    2
+  ],
+  [
+    "humor",
+    2
+  ],
+  [
+    "alabama",
+    2
+  ],
+  [
+    "funk_add_to_lidarr_batch_11",
+    2
+  ],
+  [
+    "clarinet",
+    2
+  ],
+  [
+    "columbus",
+    2
+  ],
+  [
+    "tropical rock",
+    2
+  ],
+  [
+    "gulf and western",
+    2
+  ],
+  [
+    "folk music",
+    2
+  ],
+  [
+    "organic",
+    2
+  ],
+  [
+    "mali",
+    2
+  ],
+  [
+    "scandinavian folk",
+    2
+  ],
+  [
+    "power noise",
+    2
+  ],
+  [
+    "retro rock",
+    2
+  ],
+  [
+    "deutschrock",
+    2
+  ],
+  [
+    "<3",
+    2
+  ],
+  [
+    "hardtek",
+    2
+  ],
+  [
+    "spanish indie pop",
+    2
+  ],
+  [
+    "stenchcore",
+    2
+  ],
+  [
+    "neue deutsche härte",
+    2
+  ],
+  [
+    "bagpipes",
+    2
+  ],
+  [
+    "catala",
+    2
+  ],
+  [
+    "acting",
+    2
+  ],
+  [
+    "actors",
+    2
+  ],
+  [
+    "motion picture actors and actresses",
+    2
+  ],
+  [
+    "aussie",
+    2
+  ],
+  [
+    "series title as artist",
+    2
+  ],
+  [
+    "miami",
+    2
+  ],
+  [
+    "sami",
+    2
+  ],
+  [
+    "new beat",
+    2
+  ],
+  [
+    "anarcho-punk",
+    2
+  ],
+  [
+    "valencia",
+    2
+  ],
+  [
+    "pagode baiano",
+    2
+  ],
+  [
+    "rhythm-and-blues",
+    2
+  ],
+  [
+    "the beatles",
+    2
+  ],
+  [
+    "country-rock",
+    2
+  ],
+  [
+    "slovak",
+    2
+  ],
+  [
+    "discweekly",
+    2
+  ],
+  [
+    "kurdi",
+    2
+  ],
+  [
+    "cuba",
+    2
+  ],
+  [
+    "cubaton",
+    2
+  ],
+  [
+    "wales",
+    2
+  ],
+  [
+    "us power metal",
+    2
+  ],
+  [
+    "mc",
+    2
+  ],
+  [
+    "milwaukee",
+    2
+  ],
+  [
+    "southern rap",
+    2
+  ],
+  [
+    "dark",
+    2
+  ],
+  [
+    "academy award winner",
+    2
+  ],
+  [
+    "dissonant death metal",
+    2
+  ],
+  [
+    "murga",
+    2
+  ],
+  [
+    "folklore argentino",
+    2
+  ],
+  [
+    "barbershop",
+    2
+  ],
+  [
+    "brutal deathcore",
+    2
+  ],
+  [
+    "brutal",
+    2
+  ],
+  [
+    "foo fighters tribute band",
+    2
+  ],
+  [
+    "scandinavian",
+    2
+  ],
+  [
+    "independent",
+    2
+  ],
+  [
+    "symphony orchestra",
+    2
+  ],
+  [
+    "alt-pop",
+    2
+  ],
+  [
+    "nyc",
+    2
+  ],
+  [
+    "voice actor",
+    2
+  ],
+  [
+    "reino unido",
+    2
+  ],
+  [
+    "latin dance",
+    2
+  ],
+  [
+    "flint",
+    2
+  ],
+  [
+    "cdbaby",
+    2
+  ],
+  [
+    "nice music",
+    2
+  ],
+  [
+    "rare sads",
+    2
+  ],
+  [
+    "bhojpuri pop",
+    2
+  ],
+  [
+    "bhojiwood",
+    2
+  ],
+  [
+    "country and irish",
+    2
+  ],
+  [
+    "jazz-rock",
+    2
+  ],
+  [
+    "organ",
+    2
+  ],
+  [
+    "5432fun",
+    2
+  ],
+  [
+    "chamber",
+    2
+  ],
+  [
+    "indie québécois",
+    2
+  ],
+  [
+    "neoclassical metal",
+    2
+  ],
+  [
+    "singeli",
+    2
+  ],
+  [
+    "aussie drill",
+    2
+  ],
+  [
+    "quebecois",
+    2
+  ],
+  [
+    "norsk",
+    2
+  ],
+  [
+    "german techno",
+    2
+  ],
+  [
+    "mashup",
+    2
+  ],
+  [
+    "aggrotech",
+    2
+  ],
+  [
+    "quebec",
+    2
+  ],
+  [
+    "relax",
+    2
+  ],
+  [
+    "alternativo",
+    2
+  ],
+  [
+    "harsh noise",
+    2
+  ],
+  [
+    "beautiful",
+    2
+  ],
+  [
+    "acute sounds",
+    1
+  ],
+  [
+    "noise folk",
+    1
+  ],
+  [
+    "fanmade",
+    1
+  ],
+  [
+    "china",
+    1
+  ],
+  [
+    "genshin impact",
+    1
+  ],
+  [
+    "dublin",
+    1
+  ],
+  [
+    "celtic folk music",
+    1
+  ],
+  [
+    "uk jazz",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_25",
+    1
+  ],
+  [
+    "atlanta rap",
+    1
+  ],
+  [
+    "dreamville",
+    1
+  ],
+  [
+    "€15.00house",
+    1
+  ],
+  [
+    "soundtracks",
+    1
+  ],
+  [
+    "st. pauli",
+    1
+  ],
+  [
+    "die toten aerzte",
+    1
+  ],
+  [
+    "pudel artists",
+    1
+  ],
+  [
+    "acoustic soul",
+    1
+  ],
+  [
+    "gwo ka",
+    1
+  ],
+  [
+    "to clean up",
+    1
+  ],
+  [
+    "adicta a la laca",
+    1
+  ],
+  [
+    "diosa",
+    1
+  ],
+  [
+    "friki",
+    1
+  ],
+  [
+    "frikis y bizarros",
+    1
+  ],
+  [
+    "retrowave",
+    1
+  ],
+  [
+    "booba",
+    1
+  ],
+  [
+    "hyperrap",
+    1
+  ],
+  [
+    "delta blues",
+    1
+  ],
+  [
+    "indie funk",
+    1
+  ],
+  [
+    "rage",
+    1
+  ],
+  [
+    "second wave shoegaze",
+    1
+  ],
+  [
+    "dark hardcore",
+    1
+  ],
+  [
+    "obscuresqism",
+    1
+  ],
+  [
+    "italian progressive rock",
+    1
+  ],
+  [
+    "el gavira rey d murcia",
+    1
+  ],
+  [
+    "rock noir",
+    1
+  ],
+  [
+    "bay area",
+    1
+  ],
+  [
+    "creative commons",
+    1
+  ],
+  [
+    "jamendo",
+    1
+  ],
+  [
+    "thai",
+    1
+  ],
+  [
+    "power electronics",
+    1
+  ],
+  [
+    "sapphic",
+    1
+  ],
+  [
+    "€18.95dance",
+    1
+  ],
+  [
+    "kurdish folk music",
+    1
+  ],
+  [
+    "turkish folk music",
+    1
+  ],
+  [
+    "homelife",
+    1
+  ],
+  [
+    "country rap",
+    1
+  ],
+  [
+    "dirty south",
+    1
+  ],
+  [
+    "emoviolence",
+    1
+  ],
+  [
+    "belgian bassoonist",
+    1
+  ],
+  [
+    "bassoonist",
+    1
+  ],
+  [
+    "jonas brothers",
+    1
+  ],
+  [
+    "jonas bonus",
+    1
+  ],
+  [
+    "bayern",
+    1
+  ],
+  [
+    "bavarian folk",
+    1
+  ],
+  [
+    "and electronic crossover",
+    1
+  ],
+  [
+    "timeless",
+    1
+  ],
+  [
+    "rhythm and flow",
+    1
+  ],
+  [
+    "netlix",
+    1
+  ],
+  [
+    "3-5",
+    1
+  ],
+  [
+    "beat music",
+    1
+  ],
+  [
+    "beat pop",
+    1
+  ],
+  [
+    "british beat",
+    1
+  ],
+  [
+    "8-bit",
+    1
+  ],
+  [
+    "popular colombian music",
+    1
+  ],
+  [
+    "novelist",
+    1
+  ],
+  [
+    "fucking awesome",
+    1
+  ],
+  [
+    "fervor",
+    1
+  ],
+  [
+    "jelly",
+    1
+  ],
+  [
+    "jelly ellington",
+    1
+  ],
+  [
+    "alt-idol",
+    1
+  ],
+  [
+    "multiple vgmdb profiles",
+    1
+  ],
+  [
+    "iamyoungx",
+    1
+  ],
+  [
+    "glam revival",
+    1
+  ],
+  [
+    "balearic trance",
+    1
+  ],
+  [
+    "melodic trance",
+    1
+  ],
+  [
+    "anarchist",
+    1
+  ],
+  [
+    "antifascist",
+    1
+  ],
+  [
+    "wonky",
+    1
+  ],
+  [
+    "psychedelia",
+    1
+  ],
+  [
+    "k-hip hop",
+    1
+  ],
+  [
+    "the view",
+    1
+  ],
+  [
+    "death by drug overdose",
+    1
+  ],
+  [
+    "folkhop",
+    1
+  ],
+  [
+    "eurovision 2022 artists",
+    1
+  ],
+  [
+    "taarab",
+    1
+  ],
+  [
+    "deutschemusik",
+    1
+  ],
+  [
+    "donfabiomusica",
+    1
+  ],
+  [
+    "fabiannoll",
+    1
+  ],
+  [
+    "fabyan",
+    1
+  ],
+  [
+    "fabyán",
+    1
+  ],
+  [
+    "rockefeller music hall",
+    1
+  ],
+  [
+    "seen live rockefeller music hall",
+    1
+  ],
+  [
+    "light shadows",
+    1
+  ],
+  [
+    "art kei",
+    1
+  ],
+  [
+    "old school",
+    1
+  ],
+  [
+    "comic strip",
+    1
+  ],
+  [
+    "french pianist",
+    1
+  ],
+  [
+    "€3.00",
+    1
+  ],
+  [
+    "filthstep",
+    1
+  ],
+  [
+    "pennsylvania",
+    1
+  ],
+  [
+    "magic",
+    1
+  ],
+  [
+    "occultism",
+    1
+  ],
+  [
+    "sholawat",
+    1
+  ],
+  [
+    "piano jazz",
+    1
+  ],
+  [
+    "synth rock",
+    1
+  ],
+  [
+    "classical electronica",
+    1
+  ],
+  [
+    "pain",
+    1
+  ],
+  [
+    "rape",
+    1
+  ],
+  [
+    "misery",
+    1
+  ],
+  [
+    "death",
+    1
+  ],
+  [
+    "blackened thrash metal",
+    1
+  ],
+  [
+    "british christian music",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_18",
+    1
+  ],
+  [
+    "prairie hip hop",
+    1
+  ],
+  [
+    "rockpalast",
+    1
+  ],
+  [
+    "willis",
+    1
+  ],
+  [
+    "spanish hardcore",
+    1
+  ],
+  [
+    "tecnobrega",
+    1
+  ],
+  [
+    "broken beat",
+    1
+  ],
+  [
+    "klassik fuer kinder",
+    1
+  ],
+  [
+    "fanatastisk 2026",
+    1
+  ],
+  [
+    "afrobeats. r&b",
+    1
+  ],
+  [
+    "international",
+    1
+  ],
+  [
+    "saxophoniste",
+    1
+  ],
+  [
+    "pete williams",
+    1
+  ],
+  [
+    "dexys",
+    1
+  ],
+  [
+    "dexys midnight runners",
+    1
+  ],
+  [
+    "the bureau",
+    1
+  ],
+  [
+    "richard hawley",
+    1
+  ],
+  [
+    "johndus",
+    1
+  ],
+  [
+    "education",
+    1
+  ],
+  [
+    "cumbia villera",
+    1
+  ],
+  [
+    "drill and bass",
+    1
+  ],
+  [
+    "fingerpicking",
+    1
+  ],
+  [
+    "eurodisco",
+    1
+  ],
+  [
+    "melancholic hip-hop",
+    1
+  ],
+  [
+    "young money",
+    1
+  ],
+  [
+    "lute",
+    1
+  ],
+  [
+    "€15.00pop",
+    1
+  ],
+  [
+    "goth rock",
+    1
+  ],
+  [
+    "rock 60s",
+    1
+  ],
+  [
+    "kawaiicore",
+    1
+  ],
+  [
+    "kawaii metal",
+    1
+  ],
+  [
+    "matty p",
+    1
+  ],
+  [
+    "oi!",
+    1
+  ],
+  [
+    "world pop",
+    1
+  ],
+  [
+    "progressive hard rock n roll",
+    1
+  ],
+  [
+    "romanian band",
+    1
+  ],
+  [
+    "romanian dj",
+    1
+  ],
+  [
+    "soul and reggae",
+    1
+  ],
+  [
+    "pornogrind",
+    1
+  ],
+  [
+    "fantezi",
+    1
+  ],
+  [
+    "francais",
+    1
+  ],
+  [
+    "hartlepool",
+    1
+  ],
+  [
+    "brit rock",
+    1
+  ],
+  [
+    "europe",
+    1
+  ],
+  [
+    "afro-cuban",
+    1
+  ],
+  [
+    "neo-classical",
+    1
+  ],
+  [
+    "rock tapense",
+    1
+  ],
+  [
+    "kids & young adults",
+    1
+  ],
+  [
+    "garage rock revival",
+    1
+  ],
+  [
+    "palingsound",
+    1
+  ],
+  [
+    "randb",
+    1
+  ],
+  [
+    "electrodisgusting",
+    1
+  ],
+  [
+    "electro-disgusting",
+    1
+  ],
+  [
+    "deutsche schlager",
+    1
+  ],
+  [
+    "ostschlager",
+    1
+  ],
+  [
+    "south asian roots",
+    1
+  ],
+  [
+    "afghani",
+    1
+  ],
+  [
+    "ethiopia",
+    1
+  ],
+  [
+    "arizona",
+    1
+  ],
+  [
+    "video game composer",
+    1
+  ],
+  [
+    "mexico pop 80",
+    1
+  ],
+  [
+    "john oates",
+    1
+  ],
+  [
+    "wip",
+    1
+  ],
+  [
+    "dresden",
+    1
+  ],
+  [
+    "mixed-avantgarde",
+    1
+  ],
+  [
+    "exceptional voice",
+    1
+  ],
+  [
+    "logic",
+    1
+  ],
+  [
+    "hype",
+    1
+  ],
+  [
+    "vg",
+    1
+  ],
+  [
+    "born to touch our feelings",
+    1
+  ],
+  [
+    "música tropical",
+    1
+  ],
+  [
+    "the epoch collective",
+    1
+  ],
+  [
+    "eric lewis",
+    1
+  ],
+  [
+    "neoclassical new age",
+    1
+  ],
+  [
+    "played with no parking",
+    1
+  ],
+  [
+    "neo-medieval folk",
+    1
+  ],
+  [
+    "makina",
+    1
+  ],
+  [
+    "singersong-writer",
+    1
+  ],
+  [
+    "codroipo",
+    1
+  ],
+  [
+    "catania",
+    1
+  ],
+  [
+    "cordio dio",
+    1
+  ],
+  [
+    "male",
+    1
+  ],
+  [
+    "person",
+    1
+  ],
+  [
+    "bubblegum trap",
+    1
+  ],
+  [
+    "vancouv",
+    1
+  ],
+  [
+    "alternative hardcore",
+    1
+  ],
+  [
+    "shinjuku zulu",
+    1
+  ],
+  [
+    "brian wilson",
+    1
+  ],
+  [
+    "seen live 2 times",
+    1
+  ],
+  [
+    "n2",
+    1
+  ],
+  [
+    "funky jazz",
+    1
+  ],
+  [
+    "death metal/black metal",
+    1
+  ],
+  [
+    "soulful",
+    1
+  ],
+  [
+    "skies",
+    1
+  ],
+  [
+    "nepal",
+    1
+  ],
+  [
+    "death grips",
+    1
+  ],
+  [
+    "funao",
+    1
+  ],
+  [
+    "indie chileno",
+    1
+  ],
+  [
+    "mevoy a matar",
+    1
+  ],
+  [
+    "kraut",
+    1
+  ],
+  [
+    "reunion",
+    1
+  ],
+  [
+    "zouk love",
+    1
+  ],
+  [
+    "dance rock",
+    1
+  ],
+  [
+    "freeform",
+    1
+  ],
+  [
+    "strange music",
+    1
+  ],
+  [
+    "ambient noise wall",
+    1
+  ],
+  [
+    "harsh noise wall",
+    1
+  ],
+  [
+    "danish folk music",
+    1
+  ],
+  [
+    "greek hip-hop",
+    1
+  ],
+  [
+    "low bap",
+    1
+  ],
+  [
+    "russian emo",
+    1
+  ],
+  [
+    "latin christian christmas",
+    1
+  ],
+  [
+    "fiction & literature",
+    1
+  ],
+  [
+    "romanian pop",
+    1
+  ],
+  [
+    "rating 5 stars - ok",
+    1
+  ],
+  [
+    "rating 6 stars - reasonable",
+    1
+  ],
+  [
+    "swedish mezzo-soprano",
+    1
+  ],
+  [
+    "mezzo-soprano",
+    1
+  ],
+  [
+    "rush",
+    1
+  ],
+  [
+    "rush tribute band",
+    1
+  ],
+  [
+    "geddy lee",
+    1
+  ],
+  [
+    "alex lifeson",
+    1
+  ],
+  [
+    "neil peart",
+    1
+  ],
+  [
+    "suicide",
+    1
+  ],
+  [
+    "suicidal idols",
+    1
+  ],
+  [
+    "production music",
+    1
+  ],
+  [
+    "coco",
+    1
+  ],
+  [
+    "breton",
+    1
+  ],
+  [
+    "muzika mizrahit",
+    1
+  ],
+  [
+    "oriental rock",
+    1
+  ],
+  [
+    "lgbtq",
+    1
+  ],
+  [
+    "american ska",
+    1
+  ],
+  [
+    "www.wasuremonomusic.com",
+    1
+  ],
+  [
+    "cult rock",
+    1
+  ],
+  [
+    "doom rock",
+    1
+  ],
+  [
+    "garage music",
+    1
+  ],
+  [
+    "london-based",
+    1
+  ],
+  [
+    "folk-soul",
+    1
+  ],
+  [
+    "costa rica",
+    1
+  ],
+  [
+    "bologna",
+    1
+  ],
+  [
+    "contra",
+    1
+  ],
+  [
+    "contra dance",
+    1
+  ],
+  [
+    "techno contra",
+    1
+  ],
+  [
+    "ambient house",
+    1
+  ],
+  [
+    "funk soul",
+    1
+  ],
+  [
+    "münchen",
+    1
+  ],
+  [
+    "pacific soul",
+    1
+  ],
+  [
+    "keyboards",
+    1
+  ],
+  [
+    "sanremo",
+    1
+  ],
+  [
+    "western classical",
+    1
+  ],
+  [
+    "caroline herring",
+    1
+  ],
+  [
+    "justin",
+    1
+  ],
+  [
+    "observational comedy",
+    1
+  ],
+  [
+    "anecdotal humour",
+    1
+  ],
+  [
+    "portland oregon usa",
+    1
+  ],
+  [
+    "mavi",
+    1
+  ],
+  [
+    "€22.00alternative",
+    1
+  ],
+  [
+    "love metal",
+    1
+  ],
+  [
+    "adult alternative",
+    1
+  ],
+  [
+    "€20.00acid techno",
+    1
+  ],
+  [
+    "blackened crust punk",
+    1
+  ],
+  [
+    "minimal wave",
+    1
+  ],
+  [
+    "pop latino",
+    1
+  ],
+  [
+    "hard folk",
+    1
+  ],
+  [
+    "contemporary country",
+    1
+  ],
+  [
+    "€10.00afro",
+    1
+  ],
+  [
+    "greek pop",
+    1
+  ],
+  [
+    "space folk",
+    1
+  ],
+  [
+    "transgender",
+    1
+  ],
+  [
+    "alternative metalcore",
+    1
+  ],
+  [
+    "musical theater pop",
+    1
+  ],
+  [
+    "new mexico music",
+    1
+  ],
+  [
+    "dile",
+    1
+  ],
+  [
+    "lorenzo antonio y su grupo",
+    1
+  ],
+  [
+    "not on boomplay",
+    1
+  ],
+  [
+    "je te kiffe grave vient a ceyrat",
+    1
+  ],
+  [
+    "traditional irish music",
+    1
+  ],
+  [
+    "bandoneon",
+    1
+  ],
+  [
+    "complextro",
+    1
+  ],
+  [
+    "baritone",
+    1
+  ],
+  [
+    "mysticism",
+    1
+  ],
+  [
+    "awesome",
+    1
+  ],
+  [
+    "loki",
+    1
+  ],
+  [
+    "phleng phuea chiwit",
+    1
+  ],
+  [
+    "luk thung",
+    1
+  ],
+  [
+    "southern thai music",
+    1
+  ],
+  [
+    "individualism",
+    1
+  ],
+  [
+    "desolation",
+    1
+  ],
+  [
+    "negativity",
+    1
+  ],
+  [
+    "€15.00alternative",
+    1
+  ],
+  [
+    "leire martinez",
+    1
+  ],
+  [
+    "canción melódica",
+    1
+  ],
+  [
+    "parocktikum",
+    1
+  ],
+  [
+    "party band",
+    1
+  ],
+  [
+    "croatia",
+    1
+  ],
+  [
+    "amazing",
+    1
+  ],
+  [
+    "latin electronic",
+    1
+  ],
+  [
+    "indigenous andean music",
+    1
+  ],
+  [
+    "finnsish",
+    1
+  ],
+  [
+    "sunrise avenue",
+    1
+  ],
+  [
+    "sunrise ave",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_27",
+    1
+  ],
+  [
+    "world & country",
+    1
+  ],
+  [
+    "persian classical",
+    1
+  ],
+  [
+    "favourite vocalists",
+    1
+  ],
+  [
+    "poppy emocore",
+    1
+  ],
+  [
+    "yandex music",
+    1
+  ],
+  [
+    "77 punk",
+    1
+  ],
+  [
+    "geohash:9q8yyq4zugv0",
+    1
+  ],
+  [
+    "genre bending",
+    1
+  ],
+  [
+    "ग़ज़ल",
+    1
+  ],
+  [
+    "movie score",
+    1
+  ],
+  [
+    "boyaca",
+    1
+  ],
+  [
+    "hang drum",
+    1
+  ],
+  [
+    "parts of the body",
+    1
+  ],
+  [
+    "neo-traditional country",
+    1
+  ],
+  [
+    "ottawa",
+    1
+  ],
+  [
+    "ottasa",
+    1
+  ],
+  [
+    "sicilian",
+    1
+  ],
+  [
+    "€18.42house",
+    1
+  ],
+  [
+    "grunge pop",
+    1
+  ],
+  [
+    "nintendo",
+    1
+  ],
+  [
+    "sega",
+    1
+  ],
+  [
+    "neil young",
+    1
+  ],
+  [
+    "folk-pop",
+    1
+  ],
+  [
+    "tde",
+    1
+  ],
+  [
+    "kendrick lamar",
+    1
+  ],
+  [
+    "alevi",
+    1
+  ],
+  [
+    "saturday night live",
+    1
+  ],
+  [
+    "d-beat",
+    1
+  ],
+  [
+    "€40.00hip hop",
+    1
+  ],
+  [
+    "polskie",
+    1
+  ],
+  [
+    "€5.00breakcore",
+    1
+  ],
+  [
+    "€12.99hard techno",
+    1
+  ],
+  [
+    "psych rock",
+    1
+  ],
+  [
+    "shoegazer",
+    1
+  ],
+  [
+    "experimental music",
+    1
+  ],
+  [
+    "gyp hop",
+    1
+  ],
+  [
+    "rhythm & sound",
+    1
+  ],
+  [
+    "oxford",
+    1
+  ],
+  [
+    "synth",
+    1
+  ],
+  [
+    "louisville",
+    1
+  ],
+  [
+    "the voice portugal 2021",
+    1
+  ],
+  [
+    "karaoke kalk",
+    1
+  ],
+  [
+    "karamasov",
+    1
+  ],
+  [
+    "loaf recordings",
+    1
+  ],
+  [
+    "\"foreign agent\" in russia",
+    1
+  ],
+  [
+    "portland",
+    1
+  ],
+  [
+    "pop music",
+    1
+  ],
+  [
+    "albanian pop",
+    1
+  ],
+  [
+    "manila sound",
+    1
+  ],
+  [
+    "dallas",
+    1
+  ],
+  [
+    "utah",
+    1
+  ],
+  [
+    "femalesinger",
+    1
+  ],
+  [
+    "irish female vocalists",
+    1
+  ],
+  [
+    "bbb",
+    1
+  ],
+  [
+    "eurovision backing vocalists",
+    1
+  ],
+  [
+    "skinhead reggae",
+    1
+  ],
+  [
+    "early reggae",
+    1
+  ],
+  [
+    "ass",
+    1
+  ],
+  [
+    "crabcore",
+    1
+  ],
+  [
+    "italiani",
+    1
+  ],
+  [
+    "gentechenonstabene",
+    1
+  ],
+  [
+    "musica per gente che non sta bene di testa",
+    1
+  ],
+  [
+    "doo wop",
+    1
+  ],
+  [
+    "doo whop",
+    1
+  ],
+  [
+    "myanmar",
+    1
+  ],
+  [
+    "pop kreatif",
+    1
+  ],
+  [
+    "indonesian rock",
+    1
+  ],
+  [
+    "jazztronica",
+    1
+  ],
+  [
+    "middle eastern",
+    1
+  ],
+  [
+    "across the universe",
+    1
+  ],
+  [
+    "€9.99electro",
+    1
+  ],
+  [
+    "alternative emo",
+    1
+  ],
+  [
+    "finnish orchestra",
+    1
+  ],
+  [
+    "baroque orchestra",
+    1
+  ],
+  [
+    "anarcho",
+    1
+  ],
+  [
+    "alternatif",
+    1
+  ],
+  [
+    "black metal from germany",
+    1
+  ],
+  [
+    "slovenian",
+    1
+  ],
+  [
+    "thai indie rock",
+    1
+  ],
+  [
+    "praise and worship",
+    1
+  ],
+  [
+    "queen ester marrow",
+    1
+  ],
+  [
+    "beard",
+    1
+  ],
+  [
+    "asure muzigi",
+    1
+  ],
+  [
+    "dutch female vocalists",
+    1
+  ],
+  [
+    "retro-soul",
+    1
+  ],
+  [
+    "€6.00",
+    1
+  ],
+  [
+    "easycore",
+    1
+  ],
+  [
+    "wildflower 2009",
+    1
+  ],
+  [
+    "€12.10house",
+    1
+  ],
+  [
+    "mantra",
+    1
+  ],
+  [
+    "meditation",
+    1
+  ],
+  [
+    "funk-rock",
+    1
+  ],
+  [
+    "music director",
+    1
+  ],
+  [
+    "brooklyn",
+    1
+  ],
+  [
+    "poetry slam",
+    1
+  ],
+  [
+    "heavy dubstep",
+    1
+  ],
+  [
+    "holy terror",
+    1
+  ],
+  [
+    "rodrigo light",
+    1
+  ],
+  [
+    "venezuelan",
+    1
+  ],
+  [
+    "ysl",
+    1
+  ],
+  [
+    "shanty",
+    1
+  ],
+  [
+    "2005",
+    1
+  ],
+  [
+    "de",
+    1
+  ],
+  [
+    "danmarks radio",
+    1
+  ],
+  [
+    "slam death metal",
+    1
+  ],
+  [
+    "kanye west",
+    1
+  ],
+  [
+    "spotify - mix der woche",
+    1
+  ],
+  [
+    "spotify -mix der woche",
+    1
+  ],
+  [
+    "bacardi",
+    1
+  ],
+  [
+    "ninja tune",
+    1
+  ],
+  [
+    "spanish hip-hop",
+    1
+  ],
+  [
+    "union",
+    1
+  ],
+  [
+    "duke",
+    1
+  ],
+  [
+    "west coast jazz",
+    1
+  ],
+  [
+    "wagnerian rock",
+    1
+  ],
+  [
+    "superstore",
+    1
+  ],
+  [
+    "not dead yet s2",
+    1
+  ],
+  [
+    "sleaze rock",
+    1
+  ],
+  [
+    "sonic",
+    1
+  ],
+  [
+    "post grunge",
+    1
+  ],
+  [
+    "co-ed group",
+    1
+  ],
+  [
+    "€8.60house",
+    1
+  ],
+  [
+    "radio 1",
+    1
+  ],
+  [
+    "bbc radio 1",
+    1
+  ],
+  [
+    "chanson à texte",
+    1
+  ],
+  [
+    "brandon pulido",
+    1
+  ],
+  [
+    "bbp",
+    1
+  ],
+  [
+    "zac maan",
+    1
+  ],
+  [
+    "amazing voice",
+    1
+  ],
+  [
+    "melodifestivalen 2020 wishlist",
+    1
+  ],
+  [
+    "harlem",
+    1
+  ],
+  [
+    "compositeur",
+    1
+  ],
+  [
+    "doomgaze",
+    1
+  ],
+  [
+    "dream-pop",
+    1
+  ],
+  [
+    "good mood",
+    1
+  ],
+  [
+    "drum and bass radio",
+    1
+  ],
+  [
+    "bbc radio 2",
+    1
+  ],
+  [
+    "lifebringer",
+    1
+  ],
+  [
+    "paul zervas",
+    1
+  ],
+  [
+    "kathryn pepper",
+    1
+  ],
+  [
+    "digital cumbia",
+    1
+  ],
+  [
+    "guitar drone",
+    1
+  ],
+  [
+    "mittelalter",
+    1
+  ],
+  [
+    "medieval folk",
+    1
+  ],
+  [
+    "german reggae",
+    1
+  ],
+  [
+    "dave grohl",
+    1
+  ],
+  [
+    "krist novoselic",
+    1
+  ],
+  [
+    "sertanejo gospel",
+    1
+  ],
+  [
+    "prog folk",
+    1
+  ],
+  [
+    "avant-americana",
+    1
+  ],
+  [
+    "cosmic",
+    1
+  ],
+  [
+    "queer pop",
+    1
+  ],
+  [
+    "fun",
+    1
+  ],
+  [
+    "rapture",
+    1
+  ],
+  [
+    "audio diaries",
+    1
+  ],
+  [
+    "todd clouser",
+    1
+  ],
+  [
+    "chilean-american",
+    1
+  ],
+  [
+    "improvised",
+    1
+  ],
+  [
+    "unrehearsed",
+    1
+  ],
+  [
+    "harmonica",
+    1
+  ],
+  [
+    "boogie rock",
+    1
+  ],
+  [
+    "€32.00dark wave",
+    1
+  ],
+  [
+    "german metal",
+    1
+  ],
+  [
+    "german heavy metal",
+    1
+  ],
+  [
+    "mac demarco",
+    1
+  ],
+  [
+    "duos",
+    1
+  ],
+  [
+    "technoi",
+    1
+  ],
+  [
+    "kiss",
+    1
+  ],
+  [
+    "pop-indie",
+    1
+  ],
+  [
+    "instumental",
+    1
+  ],
+  [
+    "bemani",
+    1
+  ],
+  [
+    "italian male vocalists",
+    1
+  ],
+  [
+    "sanremo 2022",
+    1
+  ],
+  [
+    "yung ol' soul",
+    1
+  ],
+  [
+    "austel music",
+    1
+  ],
+  [
+    "austel",
+    1
+  ],
+  [
+    "annie rew shaw",
+    1
+  ],
+  [
+    "alternative latin",
+    1
+  ],
+  [
+    "ambient americana",
+    1
+  ],
+  [
+    "central american traditions",
+    1
+  ],
+  [
+    "colombian",
+    1
+  ],
+  [
+    "solo",
+    1
+  ],
+  [
+    "nigeria",
+    1
+  ],
+  [
+    "hardcore hip-hop",
+    1
+  ],
+  [
+    "militant satanism",
+    1
+  ],
+  [
+    "antichrist supremacy",
+    1
+  ],
+  [
+    "anti-humanity",
+    1
+  ],
+  [
+    "daniel rodrigues",
+    1
+  ],
+  [
+    "contemporary",
+    1
+  ],
+  [
+    "rare sad girl",
+    1
+  ],
+  [
+    "iron maiden",
+    1
+  ],
+  [
+    "kitchener",
+    1
+  ],
+  [
+    "ontario",
+    1
+  ],
+  [
+    "magyar",
+    1
+  ],
+  [
+    "texas pop punk",
+    1
+  ],
+  [
+    "modern electric blues",
+    1
+  ],
+  [
+    "mike law",
+    1
+  ],
+  [
+    "broiche pop",
+    1
+  ],
+  [
+    "rock argentino",
+    1
+  ],
+  [
+    "metallic hardcore",
+    1
+  ],
+  [
+    "comedy rap",
+    1
+  ],
+  [
+    "euskadi",
+    1
+  ],
+  [
+    "new complexity",
+    1
+  ],
+  [
+    "galicia",
+    1
+  ],
+  [
+    "folque",
+    1
+  ],
+  [
+    "vegan",
+    1
+  ],
+  [
+    "field recording",
+    1
+  ],
+  [
+    "hauntology",
+    1
+  ],
+  [
+    "scandinavian soul",
+    1
+  ],
+  [
+    "danish female vocalists",
+    1
+  ],
+  [
+    "eurovision 2022",
+    1
+  ],
+  [
+    "avant-prog",
+    1
+  ],
+  [
+    "actress",
+    1
+  ],
+  [
+    "deutscher hiphop",
+    1
+  ],
+  [
+    "video",
+    1
+  ],
+  [
+    "vancouver",
+    1
+  ],
+  [
+    "bc underground hip hop",
+    1
+  ],
+  [
+    "benin",
+    1
+  ],
+  [
+    "pt",
+    1
+  ],
+  [
+    "vocal house",
+    1
+  ],
+  [
+    "€11.99pop",
+    1
+  ],
+  [
+    "sea shanty",
+    1
+  ],
+  [
+    "finnish punk",
+    1
+  ],
+  [
+    "crossover jazz",
+    1
+  ],
+  [
+    "scratch",
+    1
+  ],
+  [
+    "progressive black metal",
+    1
+  ],
+  [
+    "usbm",
+    1
+  ],
+  [
+    "g funk",
+    1
+  ],
+  [
+    "€13.80neorave",
+    1
+  ],
+  [
+    "oregon",
+    1
+  ],
+  [
+    "hands up",
+    1
+  ],
+  [
+    "euro-trance",
+    1
+  ],
+  [
+    "anarcho punk",
+    1
+  ],
+  [
+    "skatepunk",
+    1
+  ],
+  [
+    "fast melodic hardcore",
+    1
+  ],
+  [
+    "€18.00new wave",
+    1
+  ],
+  [
+    "israeli",
+    1
+  ],
+  [
+    "carols",
+    1
+  ],
+  [
+    "west virginia",
+    1
+  ],
+  [
+    "coal",
+    1
+  ],
+  [
+    "country west virginia",
+    1
+  ],
+  [
+    "eclectic rhapsody",
+    1
+  ],
+  [
+    "antigua and barbuda",
+    1
+  ],
+  [
+    "major moment",
+    1
+  ],
+  [
+    "one small step",
+    1
+  ],
+  [
+    "the flood",
+    1
+  ],
+  [
+    "irish country",
+    1
+  ],
+  [
+    "€10.00minimal house",
+    1
+  ],
+  [
+    "marek cimoch",
+    1
+  ],
+  [
+    "want to see live",
+    1
+  ],
+  [
+    "asciiecho",
+    1
+  ],
+  [
+    "futurepop",
+    1
+  ],
+  [
+    "spanish rap",
+    1
+  ],
+  [
+    "tamil hip hop",
+    1
+  ],
+  [
+    "indie surf",
+    1
+  ],
+  [
+    "€8.00afro house",
+    1
+  ],
+  [
+    "african pop",
+    1
+  ],
+  [
+    "howick",
+    1
+  ],
+  [
+    "heisser scheiss",
+    1
+  ],
+  [
+    "geek rock",
+    1
+  ],
+  [
+    "electronic dance music",
+    1
+  ],
+  [
+    "outsider house",
+    1
+  ],
+  [
+    "euro-disco",
+    1
+  ],
+  [
+    "€10.14house",
+    1
+  ],
+  [
+    "madrid",
+    1
+  ],
+  [
+    "slovakian",
+    1
+  ],
+  [
+    "£20.00afro house",
+    1
+  ],
+  [
+    "slovenia",
+    1
+  ],
+  [
+    "esc",
+    1
+  ],
+  [
+    "néo-trad",
+    1
+  ],
+  [
+    "naagar nandji na laal",
+    1
+  ],
+  [
+    "fmera artist",
+    1
+  ],
+  [
+    "rec by mvordeme",
+    1
+  ],
+  [
+    "recommended to fmera",
+    1
+  ],
+  [
+    "€22.00hypnotic techno",
+    1
+  ],
+  [
+    "non-binary",
+    1
+  ],
+  [
+    "women",
+    1
+  ],
+  [
+    "soundcloud",
+    1
+  ],
+  [
+    "bedroom",
+    1
+  ],
+  [
+    "kannada pop",
+    1
+  ],
+  [
+    "celtic electronica",
+    1
+  ],
+  [
+    "didgeridoo",
+    1
+  ],
+  [
+    "didjeridoo",
+    1
+  ],
+  [
+    "yidaki",
+    1
+  ],
+  [
+    "didgerido",
+    1
+  ],
+  [
+    "rap poetry",
+    1
+  ],
+  [
+    "plevel harward",
+    1
+  ],
+  [
+    "8 bit",
+    1
+  ],
+  [
+    "shanties",
+    1
+  ],
+  [
+    "avant-rock",
+    1
+  ],
+  [
+    "r&bclub",
+    1
+  ],
+  [
+    "romance",
+    1
+  ],
+  [
+    "chip",
+    1
+  ],
+  [
+    "brat punk",
+    1
+  ],
+  [
+    "disco-metal",
+    1
+  ],
+  [
+    "hungray",
+    1
+  ],
+  [
+    "fusion rock",
+    1
+  ],
+  [
+    "adam ferraioli",
+    1
+  ],
+  [
+    "andrew lipke",
+    1
+  ],
+  [
+    "billy childs",
+    1
+  ],
+  [
+    "experimental folk",
+    1
+  ],
+  [
+    "experimental pop",
+    1
+  ],
+  [
+    "brass punk",
+    1
+  ],
+  [
+    "free downloads from female vocalists and female fronted bands",
+    1
+  ],
+  [
+    "sarod player",
+    1
+  ],
+  [
+    "[4]",
+    1
+  ],
+  [
+    "[5]",
+    1
+  ],
+  [
+    "drum",
+    1
+  ],
+  [
+    "skinhead rock",
+    1
+  ],
+  [
+    "heathen folk",
+    1
+  ],
+  [
+    "post metal",
+    1
+  ],
+  [
+    "clutch",
+    1
+  ],
+  [
+    "tony carreira",
+    1
+  ],
+  [
+    "portuguese music",
+    1
+  ],
+  [
+    "virtual youtuber",
+    1
+  ],
+  [
+    "british saxophonist",
+    1
+  ],
+  [
+    "soft grunge",
+    1
+  ],
+  [
+    "dope shit",
+    1
+  ],
+  [
+    "good times",
+    1
+  ],
+  [
+    "mix",
+    1
+  ],
+  [
+    "my girl",
+    1
+  ],
+  [
+    "the best",
+    1
+  ],
+  [
+    "the voice season 7",
+    1
+  ],
+  [
+    "musical theater",
+    1
+  ],
+  [
+    "happy",
+    1
+  ],
+  [
+    "showtunes",
+    1
+  ],
+  [
+    "francophone",
+    1
+  ],
+  [
+    "renne dang zmrdlife",
+    1
+  ],
+  [
+    "ddr",
+    1
+  ],
+  [
+    "the",
+    1
+  ],
+  [
+    "friend",
+    1
+  ],
+  [
+    "time",
+    1
+  ],
+  [
+    "river",
+    1
+  ],
+  [
+    "cunningham",
+    1
+  ],
+  [
+    "urban",
+    1
+  ],
+  [
+    "english indie rock",
+    1
+  ],
+  [
+    "brit-hop",
+    1
+  ],
+  [
+    "celtic new age",
+    1
+  ],
+  [
+    "€10.00techno",
+    1
+  ],
+  [
+    "tzadik",
+    1
+  ],
+  [
+    "trap music",
+    1
+  ],
+  [
+    "electro-pop",
+    1
+  ],
+  [
+    "blufunk",
+    1
+  ],
+  [
+    "nigerian",
+    1
+  ],
+  [
+    "north american",
+    1
+  ],
+  [
+    "blackened death metal",
+    1
+  ],
+  [
+    "punkrock",
+    1
+  ],
+  [
+    "orcasitas",
+    1
+  ],
+  [
+    "blackened screamo",
+    1
+  ],
+  [
+    "yanni",
+    1
+  ],
+  [
+    "new age chloe enther thomas",
+    1
+  ],
+  [
+    "new orleans",
+    1
+  ],
+  [
+    "modern country",
+    1
+  ],
+  [
+    "new country",
+    1
+  ],
+  [
+    "african blues",
+    1
+  ],
+  [
+    "kansas city",
+    1
+  ],
+  [
+    "midwest",
+    1
+  ],
+  [
+    "missouri",
+    1
+  ],
+  [
+    "wagrowiec",
+    1
+  ],
+  [
+    "deep tech",
+    1
+  ],
+  [
+    "little star",
+    1
+  ],
+  [
+    "treble",
+    1
+  ],
+  [
+    "under 3000 plays",
+    1
+  ],
+  [
+    "indie electronica",
+    1
+  ],
+  [
+    "the cut",
+    1
+  ],
+  [
+    "hirte michael",
+    1
+  ],
+  [
+    "doujin ongaku",
+    1
+  ],
+  [
+    "flamenco jazz",
+    1
+  ],
+  [
+    "espana",
+    1
+  ],
+  [
+    "liszaj radio",
+    1
+  ],
+  [
+    "operatic pop",
+    1
+  ],
+  [
+    "oriental ballad",
+    1
+  ],
+  [
+    "discoverockult",
+    1
+  ],
+  [
+    "ourstage",
+    1
+  ],
+  [
+    "bonnaroo 2009",
+    1
+  ],
+  [
+    "bremen",
+    1
+  ],
+  [
+    "greek rock",
+    1
+  ],
+  [
+    "unwound worship",
+    1
+  ],
+  [
+    "hawaiian pop",
+    1
+  ],
+  [
+    "cast",
+    1
+  ],
+  [
+    "ambience",
+    1
+  ],
+  [
+    "espanol",
+    1
+  ],
+  [
+    "bulgaria",
+    1
+  ],
+  [
+    "cream",
+    1
+  ],
+  [
+    "eric clapton",
+    1
+  ],
+  [
+    "epic",
+    1
+  ],
+  [
+    "epic music",
+    1
+  ],
+  [
+    "the brighton beat",
+    1
+  ],
+  [
+    "chinese indie rock",
+    1
+  ],
+  [
+    "danish pop",
+    1
+  ],
+  [
+    "omid",
+    1
+  ],
+  [
+    "dancecore",
+    1
+  ],
+  [
+    "extratone",
+    1
+  ],
+  [
+    "mashcore",
+    1
+  ],
+  [
+    "throat singing",
+    1
+  ],
+  [
+    "inuit",
+    1
+  ],
+  [
+    "ambient rock",
+    1
+  ],
+  [
+    "massacre",
+    1
+  ],
+  [
+    "massacre palestina",
+    1
+  ],
+  [
+    "demenziale",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_17",
+    1
+  ],
+  [
+    "turkish jazz",
+    1
+  ],
+  [
+    "electronic pop",
+    1
+  ],
+  [
+    "€8.75rap",
+    1
+  ],
+  [
+    "melodic speed metal",
+    1
+  ],
+  [
+    "st louis",
+    1
+  ],
+  [
+    "edmonton",
+    1
+  ],
+  [
+    "new alternative country and western folk rock swing",
+    1
+  ],
+  [
+    "jazz piano",
+    1
+  ],
+  [
+    "postpop",
+    1
+  ],
+  [
+    "nice",
+    1
+  ],
+  [
+    "underground electronic",
+    1
+  ],
+  [
+    "double ii set",
+    1
+  ],
+  [
+    "jaslo",
+    1
+  ],
+  [
+    "3 stars",
+    1
+  ],
+  [
+    "pie",
+    1
+  ],
+  [
+    "isolation nation",
+    1
+  ],
+  [
+    "musikkabarett",
+    1
+  ],
+  [
+    "rose white",
+    1
+  ],
+  [
+    "art folk",
+    1
+  ],
+  [
+    "oper",
+    1
+  ],
+  [
+    "virtuoso",
+    1
+  ],
+  [
+    "violon",
+    1
+  ],
+  [
+    "gothangelz",
+    1
+  ],
+  [
+    "indie music",
+    1
+  ],
+  [
+    "melodic power metal",
+    1
+  ],
+  [
+    "oriental",
+    1
+  ],
+  [
+    "phineas and ferb",
+    1
+  ],
+  [
+    "kids",
+    1
+  ],
+  [
+    "underground rock",
+    1
+  ],
+  [
+    "rva",
+    1
+  ],
+  [
+    "virginia",
+    1
+  ],
+  [
+    "€9.95hard techno",
+    1
+  ],
+  [
+    "art-rock",
+    1
+  ],
+  [
+    "diy",
+    1
+  ],
+  [
+    "cairo",
+    1
+  ],
+  [
+    "egypt",
+    1
+  ],
+  [
+    "traditional metal",
+    1
+  ],
+  [
+    "comedy-drama",
+    1
+  ],
+  [
+    "teen drama",
+    1
+  ],
+  [
+    "aight",
+    1
+  ],
+  [
+    "eskadra grochow",
+    1
+  ],
+  [
+    "pink floyd cover",
+    1
+  ],
+  [
+    "boys planet",
+    1
+  ],
+  [
+    "zermatt",
+    1
+  ],
+  [
+    "schweiz",
+    1
+  ],
+  [
+    "tech trance",
+    1
+  ],
+  [
+    "leon larregui",
+    1
+  ],
+  [
+    "zoé",
+    1
+  ],
+  [
+    "the west coast sound of holland",
+    1
+  ],
+  [
+    "nu electro",
+    1
+  ],
+  [
+    "den haag",
+    1
+  ],
+  [
+    "marseille",
+    1
+  ],
+  [
+    "painist",
+    1
+  ],
+  [
+    "shimokita-kei",
+    1
+  ],
+  [
+    "harpist",
+    1
+  ],
+  [
+    "hannover",
+    1
+  ],
+  [
+    "sacramento metal",
+    1
+  ],
+  [
+    "contemporary gospel",
+    1
+  ],
+  [
+    "sunny day real estate",
+    1
+  ],
+  [
+    "sleater-kinney",
+    1
+  ],
+  [
+    "teenage fanclub",
+    1
+  ],
+  [
+    "€11.00club",
+    1
+  ],
+  [
+    "txdm",
+    1
+  ],
+  [
+    "swing-ska",
+    1
+  ],
+  [
+    "€21.99techno",
+    1
+  ],
+  [
+    "experimental indie",
+    1
+  ],
+  [
+    "small room",
+    1
+  ],
+  [
+    "swiss hip-hop",
+    1
+  ],
+  [
+    "guadeloupe",
+    1
+  ],
+  [
+    "lyon",
+    1
+  ],
+  [
+    "kurd",
+    1
+  ],
+  [
+    "kurtce",
+    1
+  ],
+  [
+    "lgbt",
+    1
+  ],
+  [
+    "balearic beat",
+    1
+  ],
+  [
+    "karneval",
+    1
+  ],
+  [
+    "british blues",
+    1
+  ],
+  [
+    "lorraine",
+    1
+  ],
+  [
+    "fränkisch",
+    1
+  ],
+  [
+    "francique",
+    1
+  ],
+  [
+    "girl groups",
+    1
+  ],
+  [
+    "all-female bands",
+    1
+  ],
+  [
+    "oneofthebestbands",
+    1
+  ],
+  [
+    "1960s",
+    1
+  ],
+  [
+    "crooner",
+    1
+  ],
+  [
+    "alternative-rock",
+    1
+  ],
+  [
+    "modern blues rock",
+    1
+  ],
+  [
+    "modern hard rock",
+    1
+  ],
+  [
+    "soft visual",
+    1
+  ],
+  [
+    "shownieuws",
+    1
+  ],
+  [
+    "the clarks",
+    1
+  ],
+  [
+    "post-punk 2k",
+    1
+  ],
+  [
+    "gipsy",
+    1
+  ],
+  [
+    "canberra indie",
+    1
+  ],
+  [
+    "sm entertainment",
+    1
+  ],
+  [
+    "new age swing",
+    1
+  ],
+  [
+    "indonesian",
+    1
+  ],
+  [
+    "folk country",
+    1
+  ],
+  [
+    "€10.99industrial",
+    1
+  ],
+  [
+    "neorave",
+    1
+  ],
+  [
+    "russian rock",
+    1
+  ],
+  [
+    "mello",
+    1
+  ],
+  [
+    "deep dnb",
+    1
+  ],
+  [
+    "britain",
+    1
+  ],
+  [
+    "galego",
+    1
+  ],
+  [
+    "orchestral pop",
+    1
+  ],
+  [
+    "space night",
+    1
+  ],
+  [
+    "piedmont blues",
+    1
+  ],
+  [
+    "marathi pop",
+    1
+  ],
+  [
+    "first time flyers",
+    1
+  ],
+  [
+    "italo house",
+    1
+  ],
+  [
+    "female jazz contemporary",
+    1
+  ],
+  [
+    "€28.26classical",
+    1
+  ],
+  [
+    "irish indie",
+    1
+  ],
+  [
+    "portuguese band",
+    1
+  ],
+  [
+    "seen live in the past decade",
+    1
+  ],
+  [
+    "worldbeat",
+    1
+  ],
+  [
+    "argentinean",
+    1
+  ],
+  [
+    "clarinetist",
+    1
+  ],
+  [
+    "punkz",
+    1
+  ],
+  [
+    "frenchz",
+    1
+  ],
+  [
+    "instrumental jazz",
+    1
+  ],
+  [
+    "shred",
+    1
+  ],
+  [
+    "milk",
+    1
+  ],
+  [
+    "east midlands",
+    1
+  ],
+  [
+    "michael",
+    1
+  ],
+  [
+    "warwickshire",
+    1
+  ],
+  [
+    "midlands uk",
+    1
+  ],
+  [
+    "praest",
+    1
+  ],
+  [
+    "nationaliteit: nederlands",
+    1
+  ],
+  [
+    "opgericht: 2015",
+    1
+  ],
+  [
+    "engelstalig",
+    1
+  ],
+  [
+    "invloeden: the band / otis redding / dan auerbach / white denim / the beatles / creedence clearwater revival",
+    1
+  ],
+  [
+    "kazakhstan",
+    1
+  ],
+  [
+    "african folk",
+    1
+  ],
+  [
+    "€50.00pop",
+    1
+  ],
+  [
+    "french hard rock",
+    1
+  ],
+  [
+    "brilliant",
+    1
+  ],
+  [
+    "session",
+    1
+  ],
+  [
+    "nunk",
+    1
+  ],
+  [
+    "the voice uk",
+    1
+  ],
+  [
+    "schanze",
+    1
+  ],
+  [
+    "rembetiko",
+    1
+  ],
+  [
+    "bouzoukia",
+    1
+  ],
+  [
+    "the empty page",
+    1
+  ],
+  [
+    "€21.40r&brap",
+    1
+  ],
+  [
+    "suomi",
+    1
+  ],
+  [
+    "guli guli aram zam zam",
+    1
+  ],
+  [
+    "chill out",
+    1
+  ],
+  [
+    "captains of smooth",
+    1
+  ],
+  [
+    "socal",
+    1
+  ],
+  [
+    "latinx",
+    1
+  ],
+  [
+    "kakker",
+    1
+  ],
+  [
+    "20th century",
+    1
+  ],
+  [
+    "powerfolk",
+    1
+  ],
+  [
+    "€18.00reggae",
+    1
+  ],
+  [
+    "western metal",
+    1
+  ],
+  [
+    "uk punk",
+    1
+  ],
+  [
+    "mansfellerisch",
+    1
+  ],
+  [
+    "nonsense",
+    1
+  ],
+  [
+    "elsterglanz",
+    1
+  ],
+  [
+    "rock urbano",
+    1
+  ],
+  [
+    "gilipollas",
+    1
+  ],
+  [
+    "españa",
+    1
+  ],
+  [
+    "latvia",
+    1
+  ],
+  [
+    "€50.00brazilian",
+    1
+  ],
+  [
+    "donosti",
+    1
+  ],
+  [
+    "san sebastian",
+    1
+  ],
+  [
+    "punk-rap",
+    1
+  ],
+  [
+    "€6.99industrial",
+    1
+  ],
+  [
+    "avant-pop",
+    1
+  ],
+  [
+    "€30.00mpb",
+    1
+  ],
+  [
+    "emotional hardcore",
+    1
+  ],
+  [
+    "new wave of british heavy metal",
+    1
+  ],
+  [
+    "dreampop",
+    1
+  ],
+  [
+    "southern hip-hop",
+    1
+  ],
+  [
+    "rap musicians",
+    1
+  ],
+  [
+    "wizard rock",
+    1
+  ],
+  [
+    "harry potter",
+    1
+  ],
+  [
+    "madness",
+    1
+  ],
+  [
+    "the unknown",
+    1
+  ],
+  [
+    "misanthropy",
+    1
+  ],
+  [
+    "darkness",
+    1
+  ],
+  [
+    "moreno valley",
+    1
+  ],
+  [
+    "k-rnb",
+    1
+  ],
+  [
+    "korean rnb",
+    1
+  ],
+  [
+    "film soundtrack",
+    1
+  ],
+  [
+    "€25.00reggae",
+    1
+  ],
+  [
+    "brazilian traditions",
+    1
+  ],
+  [
+    "garage house",
+    1
+  ],
+  [
+    "filipina",
+    1
+  ],
+  [
+    "acid-jazz",
+    1
+  ],
+  [
+    "manele",
+    1
+  ],
+  [
+    "navarra",
+    1
+  ],
+  [
+    "chill mafia",
+    1
+  ],
+  [
+    "nordic folk",
+    1
+  ],
+  [
+    "norsk folkemusikk",
+    1
+  ],
+  [
+    "future pop",
+    1
+  ],
+  [
+    "boston indie",
+    1
+  ],
+  [
+    "epic doom metal",
+    1
+  ],
+  [
+    "saw live",
+    1
+  ],
+  [
+    "hardcore punk old school hardcore",
+    1
+  ],
+  [
+    "british folk rock",
+    1
+  ],
+  [
+    "czech and slovak good music",
+    1
+  ],
+  [
+    "dreamwave",
+    1
+  ],
+  [
+    "tony wakeford",
+    1
+  ],
+  [
+    "c81",
+    1
+  ],
+  [
+    "no-wave",
+    1
+  ],
+  [
+    "finnish female vocalists",
+    1
+  ],
+  [
+    "lyrical",
+    1
+  ],
+  [
+    "rock ballad",
+    1
+  ],
+  [
+    "korean indie rock",
+    1
+  ],
+  [
+    "visa",
+    1
+  ],
+  [
+    "glitch pop",
+    1
+  ],
+  [
+    "the death of rave",
+    1
+  ],
+  [
+    "occitan",
+    1
+  ],
+  [
+    "toulouse",
+    1
+  ],
+  [
+    "action rock",
+    1
+  ],
+  [
+    "kathleen",
+    1
+  ],
+  [
+    "pipes",
+    1
+  ],
+  [
+    "athens",
+    1
+  ],
+  [
+    "rhode island",
+    1
+  ],
+  [
+    "home rock",
+    1
+  ],
+  [
+    "innocent rock",
+    1
+  ],
+  [
+    "russian rap",
+    1
+  ],
+  [
+    "amsterdam",
+    1
+  ],
+  [
+    "€15.00trance",
+    1
+  ],
+  [
+    "kayokyoku",
+    1
+  ],
+  [
+    "enka",
+    1
+  ],
+  [
+    "funk de bh",
+    1
+  ],
+  [
+    "dance hall",
+    1
+  ],
+  [
+    "beach music",
+    1
+  ],
+  [
+    "detective",
+    1
+  ],
+  [
+    "spanish guitar",
+    1
+  ],
+  [
+    "poezja śpiewana",
+    1
+  ],
+  [
+    "massachusetts",
+    1
+  ],
+  [
+    "shitgaze",
+    1
+  ],
+  [
+    "minimalist rock",
+    1
+  ],
+  [
+    "cincinnati",
+    1
+  ],
+  [
+    "emo revival",
+    1
+  ],
+  [
+    "wishbone ash",
+    1
+  ],
+  [
+    "leeds",
+    1
+  ],
+  [
+    "skinhead",
+    1
+  ],
+  [
+    "loud",
+    1
+  ],
+  [
+    "milos",
+    1
+  ],
+  [
+    "£8.50house",
+    1
+  ],
+  [
+    "€10.00hard techno",
+    1
+  ],
+  [
+    "gratefull dead",
+    1
+  ],
+  [
+    "duran duran",
+    1
+  ],
+  [
+    "outsider music",
+    1
+  ],
+  [
+    "fado de coimbra",
+    1
+  ],
+  [
+    "grand tour",
+    1
+  ],
+  [
+    "jangle",
+    1
+  ],
+  [
+    "pop urban",
+    1
+  ],
+  [
+    "melodic electronic",
+    1
+  ],
+  [
+    "eurovision song contest 2025",
+    1
+  ],
+  [
+    "follow up",
+    1
+  ],
+  [
+    "psychadelic",
+    1
+  ],
+  [
+    "psychedelic country",
+    1
+  ],
+  [
+    "low rock",
+    1
+  ],
+  [
+    "old-time",
+    1
+  ],
+  [
+    "electrorapqueer",
+    1
+  ],
+  [
+    "ghent",
+    1
+  ],
+  [
+    "remix",
+    1
+  ],
+  [
+    "french folk music",
+    1
+  ],
+  [
+    "avant-jazz",
+    1
+  ],
+  [
+    "future rave",
+    1
+  ],
+  [
+    "frankreich",
+    1
+  ],
+  [
+    "pop-folk",
+    1
+  ],
+  [
+    "nederlandstalig",
+    1
+  ],
+  [
+    "dan k",
+    1
+  ],
+  [
+    "french soprano",
+    1
+  ],
+  [
+    "soprano",
+    1
+  ],
+  [
+    "black sabbath",
+    1
+  ],
+  [
+    "rainbow",
+    1
+  ],
+  [
+    "dio tribute",
+    1
+  ],
+  [
+    "cannot unsee",
+    1
+  ],
+  [
+    "soundscapes",
+    1
+  ],
+  [
+    "dungeon synth",
+    1
+  ],
+  [
+    "chile",
+    1
+  ],
+  [
+    "techgrind",
+    1
+  ],
+  [
+    "rock 'n roll",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_22",
+    1
+  ],
+  [
+    "female v ocalists",
+    1
+  ],
+  [
+    "to listen to",
+    1
+  ],
+  [
+    "look up on emusic",
+    1
+  ],
+  [
+    "soulful blues",
+    1
+  ],
+  [
+    "female-fronted",
+    1
+  ],
+  [
+    "italo-disco",
+    1
+  ],
+  [
+    "italo",
+    1
+  ],
+  [
+    "€10.49",
+    1
+  ],
+  [
+    "lyricist",
+    1
+  ],
+  [
+    "heart",
+    1
+  ],
+  [
+    "同人",
+    1
+  ],
+  [
+    "同人サークル",
+    1
+  ],
+  [
+    "東方project",
+    1
+  ],
+  [
+    "r&brock",
+    1
+  ],
+  [
+    "danish rap",
+    1
+  ],
+  [
+    "tennessee",
+    1
+  ],
+  [
+    "rap & hip-hop",
+    1
+  ],
+  [
+    "lithuanian pop",
+    1
+  ],
+  [
+    "lithuanian rap",
+    1
+  ],
+  [
+    "5 stars",
+    1
+  ],
+  [
+    "singer-singwriter",
+    1
+  ],
+  [
+    "deep dubstep",
+    1
+  ],
+  [
+    "no thoughts head empty",
+    1
+  ],
+  [
+    "a capella",
+    1
+  ],
+  [
+    "satanism",
+    1
+  ],
+  [
+    "€3.99r&bfolk",
+    1
+  ],
+  [
+    "san diego",
+    1
+  ],
+  [
+    "japanese hardcore",
+    1
+  ],
+  [
+    "sxsw 2008",
+    1
+  ],
+  [
+    "gentle indie sounds",
+    1
+  ],
+  [
+    "the dreamboats of indie music",
+    1
+  ],
+  [
+    "italian female vocalists",
+    1
+  ],
+  [
+    "classical hip-hop",
+    1
+  ],
+  [
+    "acoustic blues",
+    1
+  ],
+  [
+    "bedroom rock",
+    1
+  ],
+  [
+    "queen",
+    1
+  ],
+  [
+    "11",
+    1
+  ],
+  [
+    "tropicalia",
+    1
+  ],
+  [
+    "volle zalen",
+    1
+  ],
+  [
+    "spotify - release radar",
+    1
+  ],
+  [
+    "bogan funk",
+    1
+  ],
+  [
+    "music from kurdistan",
+    1
+  ],
+  [
+    "trainwreck",
+    1
+  ],
+  [
+    "anti-semite",
+    1
+  ],
+  [
+    "x factor",
+    1
+  ],
+  [
+    "x factor italia",
+    1
+  ],
+  [
+    "x factor italia 2023",
+    1
+  ],
+  [
+    "wa",
+    1
+  ],
+  [
+    "mediterranean",
+    1
+  ],
+  [
+    "sing",
+    1
+  ],
+  [
+    "harp",
+    1
+  ],
+  [
+    "haiti",
+    1
+  ],
+  [
+    "haitian",
+    1
+  ],
+  [
+    "américain",
+    1
+  ],
+  [
+    "death noise",
+    1
+  ],
+  [
+    "kerry",
+    1
+  ],
+  [
+    "chanson francaise",
+    1
+  ],
+  [
+    "bbc introducing",
+    1
+  ],
+  [
+    "ten tracks",
+    1
+  ],
+  [
+    "1 hit wonder",
+    1
+  ],
+  [
+    "texas",
+    1
+  ],
+  [
+    "independent female soul",
+    1
+  ],
+  [
+    "ceske",
+    1
+  ],
+  [
+    "cesko",
+    1
+  ],
+  [
+    "sneeuwpop",
+    1
+  ],
+  [
+    "german voice actor",
+    1
+  ],
+  [
+    "balkan rock",
+    1
+  ],
+  [
+    "bad boy",
+    1
+  ],
+  [
+    "bohemia and moravia",
+    1
+  ],
+  [
+    "czech male vocalists",
+    1
+  ],
+  [
+    "lgbtqi",
+    1
+  ],
+  [
+    "€10.00",
+    1
+  ],
+  [
+    "electronic body",
+    1
+  ],
+  [
+    "british rhythm & blues",
+    1
+  ],
+  [
+    "€11.50amapiano",
+    1
+  ],
+  [
+    "£22.00melodic house & techno",
+    1
+  ],
+  [
+    "anti-pop",
+    1
+  ],
+  [
+    "andalusian",
+    1
+  ],
+  [
+    "persian rap",
+    1
+  ],
+  [
+    "lowend",
+    1
+  ],
+  [
+    "slacker",
+    1
+  ],
+  [
+    "black n roll",
+    1
+  ],
+  [
+    "€16.00r&b",
+    1
+  ],
+  [
+    "saudi",
+    1
+  ],
+  [
+    "saudi arabia",
+    1
+  ],
+  [
+    "saudiarabia",
+    1
+  ],
+  [
+    "dark psytrance",
+    1
+  ],
+  [
+    "forest",
+    1
+  ],
+  [
+    "forest psytrance",
+    1
+  ],
+  [
+    "alaturka",
+    1
+  ],
+  [
+    "dolapdere",
+    1
+  ],
+  [
+    "australian violinist",
+    1
+  ],
+  [
+    "showtune",
+    1
+  ],
+  [
+    "kordish",
+    1
+  ],
+  [
+    "montgomery",
+    1
+  ],
+  [
+    "doe b",
+    1
+  ],
+  [
+    "2016",
+    1
+  ],
+  [
+    "piyano",
+    1
+  ],
+  [
+    "oon kayny kattomassa",
+    1
+  ],
+  [
+    "grado bacon 1",
+    1
+  ],
+  [
+    "sxsw 2011",
+    1
+  ],
+  [
+    "synth funk",
+    1
+  ],
+  [
+    "contemporary rnb",
+    1
+  ],
+  [
+    "frevo",
+    1
+  ],
+  [
+    "netflix series",
+    1
+  ],
+  [
+    "building the band",
+    1
+  ],
+  [
+    "weird",
+    1
+  ],
+  [
+    "thm",
+    1
+  ],
+  [
+    "€40.00soul",
+    1
+  ],
+  [
+    "melodic death",
+    1
+  ],
+  [
+    "gufeng",
+    1
+  ],
+  [
+    "alain johannes",
+    1
+  ],
+  [
+    "barrett martin",
+    1
+  ],
+  [
+    "vietnamese",
+    1
+  ],
+  [
+    "vpop",
+    1
+  ],
+  [
+    "noise-rock",
+    1
+  ],
+  [
+    "jazz guitar",
+    1
+  ],
+  [
+    "guitar jazz",
+    1
+  ],
+  [
+    "hyperfolk",
+    1
+  ],
+  [
+    "wigan",
+    1
+  ],
+  [
+    "mexican rap",
+    1
+  ],
+  [
+    "chicano rap",
+    1
+  ],
+  [
+    "uk subs",
+    1
+  ],
+  [
+    "downtempo deathcore",
+    1
+  ],
+  [
+    "minneapolis",
+    1
+  ],
+  [
+    "blackened crust",
+    1
+  ],
+  [
+    "sri lanka",
+    1
+  ],
+  [
+    "eurovision 2026",
+    1
+  ],
+  [
+    "kora",
+    1
+  ],
+  [
+    "tardcore",
+    1
+  ],
+  [
+    "scum punk",
+    1
+  ],
+  [
+    "this is exactly what i need to listen to right now",
+    1
+  ],
+  [
+    "liberian",
+    1
+  ],
+  [
+    "liberia",
+    1
+  ],
+  [
+    "jesus movement",
+    1
+  ],
+  [
+    "hypnotic",
+    1
+  ],
+  [
+    "hot hot hot",
+    1
+  ],
+  [
+    "sexy as sin",
+    1
+  ],
+  [
+    "michael charles",
+    1
+  ],
+  [
+    "acoustic porridge",
+    1
+  ],
+  [
+    "nc",
+    1
+  ],
+  [
+    "charlotte",
+    1
+  ],
+  [
+    "legend",
+    1
+  ],
+  [
+    "upcoming album 2024",
+    1
+  ],
+  [
+    "cybergrind",
+    1
+  ],
+  [
+    "polish pop",
+    1
+  ],
+  [
+    "helge lien trio",
+    1
+  ],
+  [
+    "under 1000 listerners",
+    1
+  ],
+  [
+    "rap trap rock",
+    1
+  ],
+  [
+    "american orchestra",
+    1
+  ],
+  [
+    "experimental punk",
+    1
+  ],
+  [
+    "los flanagan",
+    1
+  ],
+  [
+    "buscando un eclipse",
+    1
+  ],
+  [
+    "british violinist",
+    1
+  ],
+  [
+    "brutal prog",
+    1
+  ],
+  [
+    "fusion jazz",
+    1
+  ],
+  [
+    "pirate metal",
+    1
+  ],
+  [
+    "alemanha",
+    1
+  ],
+  [
+    "depro punk",
+    1
+  ],
+  [
+    "western north carolina",
+    1
+  ],
+  [
+    "north carolina",
+    1
+  ],
+  [
+    "farm emo",
+    1
+  ],
+  [
+    "turkiye",
+    1
+  ],
+  [
+    "new york city",
+    1
+  ],
+  [
+    "disobey",
+    1
+  ],
+  [
+    "polish heavy metal",
+    1
+  ],
+  [
+    "cananda",
+    1
+  ],
+  [
+    "€8.99techno",
+    1
+  ],
+  [
+    "harsh ebm",
+    1
+  ],
+  [
+    "michigan",
+    1
+  ],
+  [
+    "esham",
+    1
+  ],
+  [
+    "natas",
+    1
+  ],
+  [
+    "detroit rap",
+    1
+  ],
+  [
+    "songwritter",
+    1
+  ],
+  [
+    "techhouse",
+    1
+  ],
+  [
+    "guitar pop",
+    1
+  ],
+  [
+    "lo fi",
+    1
+  ],
+  [
+    "auckland",
+    1
+  ],
+  [
+    "mierda",
+    1
+  ],
+  [
+    "shittrap",
+    1
+  ],
+  [
+    "animator",
+    1
+  ],
+  [
+    "director",
+    1
+  ],
+  [
+    "love this song",
+    1
+  ],
+  [
+    "darkstep",
+    1
+  ],
+  [
+    "pogo punk",
+    1
+  ],
+  [
+    "4",
+    1
+  ],
+  [
+    "middle east",
+    1
+  ],
+  [
+    "country crooner",
+    1
+  ],
+  [
+    "country-blues",
+    1
+  ],
+  [
+    "tratter house",
+    1
+  ],
+  [
+    "be",
+    1
+  ],
+  [
+    "fuzzy artist - series",
+    1
+  ],
+  [
+    "fictitious artist",
+    1
+  ],
+  [
+    "fictitious-artist",
+    1
+  ],
+  [
+    "southampton",
+    1
+  ],
+  [
+    "rondalla",
+    1
+  ],
+  [
+    "estudiantina",
+    1
+  ],
+  [
+    "hollywood punk",
+    1
+  ],
+  [
+    "california punk",
+    1
+  ],
+  [
+    "2000er",
+    1
+  ],
+  [
+    "hi-tech",
+    1
+  ],
+  [
+    "historical mystery",
+    1
+  ],
+  [
+    "adventure",
+    1
+  ],
+  [
+    "€8.99club",
+    1
+  ],
+  [
+    "emmma",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_7",
+    1
+  ],
+  [
+    "deek",
+    1
+  ],
+  [
+    "downbeat",
+    1
+  ],
+  [
+    "third stream",
+    1
+  ],
+  [
+    "alternative pop/rock",
+    1
+  ],
+  [
+    "taiko",
+    1
+  ],
+  [
+    "和太鼓",
+    1
+  ],
+  [
+    "hard",
+    1
+  ],
+  [
+    "alcohard",
+    1
+  ],
+  [
+    "slavic folk music",
+    1
+  ],
+  [
+    "gothic punk",
+    1
+  ],
+  [
+    "radio",
+    1
+  ],
+  [
+    "awsome",
+    1
+  ],
+  [
+    "big music",
+    1
+  ],
+  [
+    "hololive",
+    1
+  ],
+  [
+    "idol",
+    1
+  ],
+  [
+    "ambient techno",
+    1
+  ],
+  [
+    "rock flamenco",
+    1
+  ],
+  [
+    "moldova",
+    1
+  ],
+  [
+    "baroque music",
+    1
+  ],
+  [
+    "vocals",
+    1
+  ],
+  [
+    "poppunk",
+    1
+  ],
+  [
+    "richmond",
+    1
+  ],
+  [
+    "mi primer amor",
+    1
+  ],
+  [
+    "abba",
+    1
+  ],
+  [
+    "neo-folk",
+    1
+  ],
+  [
+    "lambada",
+    1
+  ],
+  [
+    "slacker rock",
+    1
+  ],
+  [
+    "ghettotech",
+    1
+  ],
+  [
+    "fag",
+    1
+  ],
+  [
+    "southern blues",
+    1
+  ],
+  [
+    "lou rawls",
+    1
+  ],
+  [
+    "pat gubler",
+    1
+  ],
+  [
+    "sue garner",
+    1
+  ],
+  [
+    "pg six",
+    1
+  ],
+  [
+    "new metal",
+    1
+  ],
+  [
+    "florida",
+    1
+  ],
+  [
+    "trap queen",
+    1
+  ],
+  [
+    "kamancha",
+    1
+  ],
+  [
+    "caucasian",
+    1
+  ],
+  [
+    "kamancheh",
+    1
+  ],
+  [
+    "trash",
+    1
+  ],
+  [
+    "€6.99soul",
+    1
+  ],
+  [
+    "nu rock",
+    1
+  ],
+  [
+    "gothic pop",
+    1
+  ],
+  [
+    "kill your own",
+    1
+  ],
+  [
+    "killyourown",
+    1
+  ],
+  [
+    "great london band",
+    1
+  ],
+  [
+    "dpc promotions",
+    1
+  ],
+  [
+    "oxjambracknell",
+    1
+  ],
+  [
+    "norwegian hardcore",
+    1
+  ],
+  [
+    "european hardcore",
+    1
+  ],
+  [
+    "extremely long tracks",
+    1
+  ],
+  [
+    "sadcore",
+    1
+  ],
+  [
+    "expieremental",
+    1
+  ],
+  [
+    "played with i h8 it here",
+    1
+  ],
+  [
+    "idles",
+    1
+  ],
+  [
+    "filk",
+    1
+  ],
+  [
+    "note2",
+    1
+  ],
+  [
+    "€5.69electro",
+    1
+  ],
+  [
+    "r&bhip hop",
+    1
+  ],
+  [
+    "air suplay",
+    1
+  ],
+  [
+    "de culto",
+    1
+  ],
+  [
+    "progressive deathcore",
+    1
+  ],
+  [
+    "southern hardcore",
+    1
+  ],
+  [
+    "melodic deathcore",
+    1
+  ],
+  [
+    "indie spanish",
+    1
+  ],
+  [
+    "windhoek",
+    1
+  ],
+  [
+    "muppetcore",
+    1
+  ],
+  [
+    "muppet",
+    1
+  ],
+  [
+    "finnish black metal",
+    1
+  ],
+  [
+    "patchanka",
+    1
+  ],
+  [
+    "agronejo",
+    1
+  ],
+  [
+    "neue bayerische welle",
+    1
+  ],
+  [
+    "stockton",
+    1
+  ],
+  [
+    "classic music",
+    1
+  ],
+  [
+    "epic collage",
+    1
+  ],
+  [
+    "estonian",
+    1
+  ],
+  [
+    "estonia",
+    1
+  ],
+  [
+    "baltic",
+    1
+  ],
+  [
+    "avant-garde folk",
+    1
+  ],
+  [
+    "€25.00rap",
+    1
+  ],
+  [
+    "el canto del loco",
+    1
+  ],
+  [
+    "dance-punk",
+    1
+  ],
+  [
+    "honky-tonk",
+    1
+  ],
+  [
+    "valencian",
+    1
+  ],
+  [
+    "polyphony",
+    1
+  ],
+  [
+    "fiji",
+    1
+  ],
+  [
+    "indie game soundtrack",
+    1
+  ],
+  [
+    "16-bit",
+    1
+  ],
+  [
+    "appalachian soul",
+    1
+  ],
+  [
+    "toxic",
+    1
+  ],
+  [
+    "€6.29trance",
+    1
+  ],
+  [
+    "handmade",
+    1
+  ],
+  [
+    "€5.99dance",
+    1
+  ],
+  [
+    "warsaw",
+    1
+  ],
+  [
+    "rare sad boy",
+    1
+  ],
+  [
+    "best band in the world",
+    1
+  ],
+  [
+    "supergroup",
+    1
+  ],
+  [
+    "baladas",
+    1
+  ],
+  [
+    "the hollies",
+    1
+  ],
+  [
+    "uk rap",
+    1
+  ],
+  [
+    "lambeth",
+    1
+  ],
+  [
+    "seen live twice",
+    1
+  ],
+  [
+    "a bit schraeg",
+    1
+  ],
+  [
+    "stonerrock",
+    1
+  ],
+  [
+    "new zealander",
+    1
+  ],
+  [
+    "global bass",
+    1
+  ],
+  [
+    "hip hop soul",
+    1
+  ],
+  [
+    "neo-rockabilly",
+    1
+  ],
+  [
+    "pinoy pop",
+    1
+  ],
+  [
+    "melodic metal",
+    1
+  ],
+  [
+    "altar of the metal gods melodic metal",
+    1
+  ],
+  [
+    "dragon",
+    1
+  ],
+  [
+    "electric",
+    1
+  ],
+  [
+    "supertramp",
+    1
+  ],
+  [
+    "pigfuck",
+    1
+  ],
+  [
+    "razzmatazz",
+    1
+  ],
+  [
+    "visto en directo",
+    1
+  ],
+  [
+    "queens",
+    1
+  ],
+  [
+    "tropicália",
+    1
+  ],
+  [
+    "english folk",
+    1
+  ],
+  [
+    "tstsnbn",
+    1
+  ],
+  [
+    "€18.00techno",
+    1
+  ],
+  [
+    "is musicbrainz user",
+    1
+  ],
+  [
+    "soul/r&b",
+    1
+  ],
+  [
+    "elektronic beats",
+    1
+  ],
+  [
+    "dirty blues",
+    1
+  ],
+  [
+    "new bergen wave",
+    1
+  ],
+  [
+    "a",
+    1
+  ],
+  [
+    "nirvana",
+    1
+  ],
+  [
+    "turkish folk",
+    1
+  ],
+  [
+    "fretless guitar",
+    1
+  ],
+  [
+    "fretless",
+    1
+  ],
+  [
+    "thrash rock",
+    1
+  ],
+  [
+    "zolo",
+    1
+  ],
+  [
+    "western swing",
+    1
+  ],
+  [
+    "detroit trap",
+    1
+  ],
+  [
+    "global records",
+    1
+  ],
+  [
+    "ja to kocham",
+    1
+  ],
+  [
+    "solo project",
+    1
+  ],
+  [
+    "me",
+    1
+  ],
+  [
+    "top 500",
+    1
+  ],
+  [
+    "€18.00",
+    1
+  ],
+  [
+    "appalachian",
+    1
+  ],
+  [
+    "hammersmith",
+    1
+  ],
+  [
+    "groovy",
+    1
+  ],
+  [
+    "funk and soul",
+    1
+  ],
+  [
+    "€25.00post-punk",
+    1
+  ],
+  [
+    "sophisticated",
+    1
+  ],
+  [
+    "rollicking",
+    1
+  ],
+  [
+    "spotify boycott",
+    1
+  ],
+  [
+    "warzywacore",
+    1
+  ],
+  [
+    "turkisch",
+    1
+  ],
+  [
+    "tribute act",
+    1
+  ],
+  [
+    "chaotic hardcore",
+    1
+  ],
+  [
+    "elmolewis42",
+    1
+  ],
+  [
+    "€10.99club",
+    1
+  ],
+  [
+    "led zeppelin",
+    1
+  ],
+  [
+    "classic rock led zeppelin tribute band",
+    1
+  ],
+  [
+    "meditative",
+    1
+  ],
+  [
+    "handpan",
+    1
+  ],
+  [
+    "theatre",
+    1
+  ],
+  [
+    "west end",
+    1
+  ],
+  [
+    "serbian black metal",
+    1
+  ],
+  [
+    "pagan black metal",
+    1
+  ],
+  [
+    "true black metal",
+    1
+  ],
+  [
+    "serbian metal",
+    1
+  ],
+  [
+    "fender",
+    1
+  ],
+  [
+    "music",
+    1
+  ],
+  [
+    "instumental hip-hop",
+    1
+  ],
+  [
+    "string quartet",
+    1
+  ],
+  [
+    "strings",
+    1
+  ],
+  [
+    "bongo piano",
+    1
+  ],
+  [
+    "the l word",
+    1
+  ],
+  [
+    "tulpen uit antwerpen",
+    1
+  ],
+  [
+    "oslo",
+    1
+  ],
+  [
+    "surf punk",
+    1
+  ],
+  [
+    "meditational",
+    1
+  ],
+  [
+    "€12.99detroit techno",
+    1
+  ],
+  [
+    "flute",
+    1
+  ],
+  [
+    "celtic fusion",
+    1
+  ],
+  [
+    "party",
+    1
+  ],
+  [
+    "magfest",
+    1
+  ],
+  [
+    "elektro-bitpop-chiptune-dubstep",
+    1
+  ],
+  [
+    "metadisco",
+    1
+  ],
+  [
+    "crack rock steady",
+    1
+  ],
+  [
+    "belgian composer",
+    1
+  ],
+  [
+    "elektro-dance-pop",
+    1
+  ],
+  [
+    "schwandorf",
+    1
+  ],
+  [
+    "€12.88reggae",
+    1
+  ],
+  [
+    "hard core",
+    1
+  ],
+  [
+    "upcoming album 2023",
+    1
+  ],
+  [
+    "pre-war blues",
+    1
+  ],
+  [
+    "modern jazz",
+    1
+  ],
+  [
+    "jazz saxophone",
+    1
+  ],
+  [
+    "christian metal",
+    1
+  ],
+  [
+    "€10.00soul",
+    1
+  ],
+  [
+    "€10.99hypnotic techno",
+    1
+  ],
+  [
+    "sanremo 2021",
+    1
+  ],
+  [
+    "alternative italiana",
+    1
+  ],
+  [
+    "€12.00techno",
+    1
+  ],
+  [
+    "oslo-disco",
+    1
+  ],
+  [
+    "cobario",
+    1
+  ],
+  [
+    "balkan beats",
+    1
+  ],
+  [
+    "balkan groove",
+    1
+  ],
+  [
+    "women composers",
+    1
+  ],
+  [
+    "dutch pianist",
+    1
+  ],
+  [
+    "poprock",
+    1
+  ],
+  [
+    "soski",
+    1
+  ],
+  [
+    "deepkho",
+    1
+  ],
+  [
+    "irani",
+    1
+  ],
+  [
+    "future garage",
+    1
+  ],
+  [
+    "2-step",
+    1
+  ],
+  [
+    "post-garage",
+    1
+  ],
+  [
+    "ethereal wave",
+    1
+  ],
+  [
+    "metal alternative",
+    1
+  ],
+  [
+    "canadian black metal",
+    1
+  ],
+  [
+    "glamour rock",
+    1
+  ],
+  [
+    "vicente",
+    1
+  ],
+  [
+    "relaxed",
+    1
+  ],
+  [
+    "smooth",
+    1
+  ],
+  [
+    "vicente patiz",
+    1
+  ],
+  [
+    "kleztronica",
+    1
+  ],
+  [
+    "interpol",
+    1
+  ],
+  [
+    "two or more artists with the same name",
+    1
+  ],
+  [
+    "guinea bissau",
+    1
+  ],
+  [
+    "guinea-bissau",
+    1
+  ],
+  [
+    "guine-bissau",
+    1
+  ],
+  [
+    "morocco",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_23",
+    1
+  ],
+  [
+    "jaripeo",
+    1
+  ],
+  [
+    "banda sinaloense",
+    1
+  ],
+  [
+    "spanish female vocalists",
+    1
+  ],
+  [
+    "bands i have seen live",
+    1
+  ],
+  [
+    "ultra84",
+    1
+  ],
+  [
+    "microhouse",
+    1
+  ],
+  [
+    "wackies",
+    1
+  ],
+  [
+    "underrated",
+    1
+  ],
+  [
+    "french soul",
+    1
+  ],
+  [
+    "australian male vocalists",
+    1
+  ],
+  [
+    "dsfdslfjs :c",
+    1
+  ],
+  [
+    "wolfs of the masked singer",
+    1
+  ],
+  [
+    "the masked singer",
+    1
+  ],
+  [
+    "salento",
+    1
+  ],
+  [
+    "wave",
+    1
+  ],
+  [
+    "romantic",
+    1
+  ],
+  [
+    "pop funk",
+    1
+  ],
+  [
+    "piano blues",
+    1
+  ],
+  [
+    "nardcore",
+    1
+  ],
+  [
+    "scottish rock",
+    1
+  ],
+  [
+    "polinacore",
+    1
+  ],
+  [
+    "indiefolk",
+    1
+  ],
+  [
+    "modern metal",
+    1
+  ],
+  [
+    "dj spider",
+    1
+  ],
+  [
+    "plan b recordings",
+    1
+  ],
+  [
+    "abstract",
+    1
+  ],
+  [
+    "€33.99dance",
+    1
+  ],
+  [
+    "g4",
+    1
+  ],
+  [
+    "[p[",
+    1
+  ],
+  [
+    "asian",
+    1
+  ],
+  [
+    "brant bjork",
+    1
+  ],
+  [
+    "palm desert",
+    1
+  ],
+  [
+    "hard-n-blues",
+    1
+  ],
+  [
+    "belarus",
+    1
+  ],
+  [
+    "jazz sax",
+    1
+  ],
+  [
+    "k-r&b",
+    1
+  ],
+  [
+    "river jones music label",
+    1
+  ],
+  [
+    "river jones music",
+    1
+  ],
+  [
+    "arizona indie",
+    1
+  ],
+  [
+    "female french",
+    1
+  ],
+  [
+    "soloist",
+    1
+  ],
+  [
+    "huh gak",
+    1
+  ],
+  [
+    "denmark is the new sweden",
+    1
+  ],
+  [
+    "japanoise",
+    1
+  ],
+  [
+    "brisbane",
+    1
+  ],
+  [
+    "hebrew",
+    1
+  ],
+  [
+    "tumbia",
+    1
+  ],
+  [
+    "sonidero",
+    1
+  ],
+  [
+    "irish rock",
+    1
+  ],
+  [
+    "€22.00hard techno",
+    1
+  ],
+  [
+    "€33.91classical",
+    1
+  ],
+  [
+    "alt. rock",
+    1
+  ],
+  [
+    "psyprog",
+    1
+  ],
+  [
+    "dream rock",
+    1
+  ],
+  [
+    "£11.30",
+    1
+  ],
+  [
+    "zamrock",
+    1
+  ],
+  [
+    "posthardcore",
+    1
+  ],
+  [
+    "german hiphop",
+    1
+  ],
+  [
+    "min'yō",
+    1
+  ],
+  [
+    "wisconsin",
+    1
+  ],
+  [
+    "japanese fusion band",
+    1
+  ],
+  [
+    "thai trap",
+    1
+  ],
+  [
+    "surf funk",
+    1
+  ],
+  [
+    "mbalax",
+    1
+  ],
+  [
+    "indie acoustic",
+    1
+  ],
+  [
+    "fixme",
+    1
+  ],
+  [
+    "fixme [spa] mess",
+    1
+  ],
+  [
+    "use actual artists",
+    1
+  ],
+  [
+    "crust grind",
+    1
+  ],
+  [
+    "crustgrind",
+    1
+  ],
+  [
+    "groove salad",
+    1
+  ],
+  [
+    "zurich",
+    1
+  ],
+  [
+    "ska core",
+    1
+  ],
+  [
+    "indian pop",
+    1
+  ],
+  [
+    "marla glen",
+    1
+  ],
+  [
+    "norge",
+    1
+  ],
+  [
+    "chiara oliver",
+    1
+  ],
+  [
+    "hardpop",
+    1
+  ],
+  [
+    "boysband",
+    1
+  ],
+  [
+    "mierdacore",
+    1
+  ],
+  [
+    "ecm",
+    1
+  ],
+  [
+    "queer country",
+    1
+  ],
+  [
+    "technical",
+    1
+  ],
+  [
+    "chaotic",
+    1
+  ],
+  [
+    "kirovograd",
+    1
+  ],
+  [
+    "death rap",
+    1
+  ],
+  [
+    "hardcore rap",
+    1
+  ],
+  [
+    "old school death metal",
+    1
+  ],
+  [
+    "lucero",
+    1
+  ],
+  [
+    "ben nichols",
+    1
+  ],
+  [
+    "alawite",
+    1
+  ],
+  [
+    "maro the trio tour",
+    1
+  ],
+  [
+    "contemporary pop/rock",
+    1
+  ],
+  [
+    "female artists",
+    1
+  ],
+  [
+    "tornis",
+    1
+  ],
+  [
+    "latvian indie",
+    1
+  ],
+  [
+    "isle of man",
+    1
+  ],
+  [
+    "graffiti",
+    1
+  ],
+  [
+    "so underground its a potato",
+    1
+  ],
+  [
+    "surf pop",
+    1
+  ],
+  [
+    "saxophones",
+    1
+  ],
+  [
+    "persian music",
+    1
+  ],
+  [
+    "iowa",
+    1
+  ],
+  [
+    "humour noir",
+    1
+  ],
+  [
+    "northwest",
+    1
+  ],
+  [
+    "poporgel",
+    1
+  ],
+  [
+    "cabaret folk",
+    1
+  ],
+  [
+    "fedoracore",
+    1
+  ],
+  [
+    "€10.00dub techno",
+    1
+  ],
+  [
+    "pittsburgh",
+    1
+  ],
+  [
+    "buku",
+    1
+  ],
+  [
+    "ukf",
+    1
+  ],
+  [
+    "bandcamp com",
+    1
+  ],
+  [
+    "dinamarca",
+    1
+  ],
+  [
+    "keep it peel",
+    1
+  ],
+  [
+    "ease up",
+    1
+  ],
+  [
+    "hityouwiththeobeah",
+    1
+  ],
+  [
+    "obeah",
+    1
+  ],
+  [
+    "tbo",
+    1
+  ],
+  [
+    "tbo theblackomen",
+    1
+  ],
+  [
+    "chicago soul",
+    1
+  ],
+  [
+    "game music",
+    1
+  ],
+  [
+    "pop r&b",
+    1
+  ],
+  [
+    "art-punk",
+    1
+  ],
+  [
+    "circus",
+    1
+  ],
+  [
+    "b2k",
+    1
+  ],
+  [
+    "disco-funk",
+    1
+  ],
+  [
+    "lebanon",
+    1
+  ],
+  [
+    "dancepunk",
+    1
+  ],
+  [
+    "new orleans r&b",
+    1
+  ],
+  [
+    "dansk",
+    1
+  ],
+  [
+    "skacore",
+    1
+  ],
+  [
+    "black death metal",
+    1
+  ],
+  [
+    "atmospheric drum and bass",
+    1
+  ],
+  [
+    "country singer",
+    1
+  ],
+  [
+    "nashville sound",
+    1
+  ],
+  [
+    "electric guitars",
+    1
+  ],
+  [
+    "perth",
+    1
+  ],
+  [
+    "jebediah",
+    1
+  ],
+  [
+    "nekromantik",
+    1
+  ],
+  [
+    "folk-jazz",
+    1
+  ],
+  [
+    "birds",
+    1
+  ],
+  [
+    "sunday",
+    1
+  ],
+  [
+    "tenor",
+    1
+  ],
+  [
+    "lds",
+    1
+  ],
+  [
+    "mexicano",
+    1
+  ],
+  [
+    "€18.99techno",
+    1
+  ],
+  [
+    "symphony",
+    1
+  ],
+  [
+    "punk-rock",
+    1
+  ],
+  [
+    "geohash:9q5ctnsgxk11",
+    1
+  ],
+  [
+    "math",
+    1
+  ],
+  [
+    "doujin",
+    1
+  ],
+  [
+    "doujin circle",
+    1
+  ],
+  [
+    "american authors",
+    1
+  ],
+  [
+    "ben rector",
+    1
+  ],
+  [
+    "brand new",
+    1
+  ],
+  [
+    "funkabluesadelic",
+    1
+  ],
+  [
+    "uk dance",
+    1
+  ],
+  [
+    "italiana",
+    1
+  ],
+  [
+    "mathgrind",
+    1
+  ],
+  [
+    "sass",
+    1
+  ],
+  [
+    "bimbo",
+    1
+  ],
+  [
+    "house gospel choir",
+    1
+  ],
+  [
+    "old school hardcore",
+    1
+  ],
+  [
+    "rock brasil",
+    1
+  ],
+  [
+    "stoner doom metal",
+    1
+  ],
+  [
+    "backstreet boys",
+    1
+  ],
+  [
+    "ritual-noise",
+    1
+  ],
+  [
+    "new musicals",
+    1
+  ],
+  [
+    "new musical theatre",
+    1
+  ],
+  [
+    "shakira",
+    1
+  ],
+  [
+    "live music",
+    1
+  ],
+  [
+    "romantica",
+    1
+  ],
+  [
+    "reyli",
+    1
+  ],
+  [
+    "inuk",
+    1
+  ],
+  [
+    "communism",
+    1
+  ],
+  [
+    "communist",
+    1
+  ],
+  [
+    "labor",
+    1
+  ],
+  [
+    "labour",
+    1
+  ],
+  [
+    "socialism",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_16",
+    1
+  ],
+  [
+    "brasileiro",
+    1
+  ],
+  [
+    "nasheed",
+    1
+  ],
+  [
+    "tontipop",
+    1
+  ],
+  [
+    "liedermacherin",
+    1
+  ],
+  [
+    "southern soul",
+    1
+  ],
+  [
+    "yass",
+    1
+  ],
+  [
+    "santa barbara",
+    1
+  ],
+  [
+    "goleta",
+    1
+  ],
+  [
+    "français",
+    1
+  ],
+  [
+    "post-folk",
+    1
+  ],
+  [
+    "sabrina carpenter",
+    1
+  ],
+  [
+    "wacken",
+    1
+  ],
+  [
+    "westcoast flow",
+    1
+  ],
+  [
+    "disc jockey",
+    1
+  ],
+  [
+    "llanera",
+    1
+  ],
+  [
+    "polish metal",
+    1
+  ],
+  [
+    "folk/rock",
+    1
+  ],
+  [
+    "rock chileno",
+    1
+  ],
+  [
+    "reggea",
+    1
+  ],
+  [
+    "mainstream pop",
+    1
+  ],
+  [
+    "male pop",
+    1
+  ],
+  [
+    "vocal pop",
+    1
+  ],
+  [
+    "technical deathcore",
+    1
+  ],
+  [
+    "psybient",
+    1
+  ],
+  [
+    "liebe",
+    1
+  ],
+  [
+    "birp",
+    1
+  ],
+  [
+    "slam poetry",
+    1
+  ],
+  [
+    "dance-rock",
+    1
+  ],
+  [
+    "combat folk",
+    1
+  ],
+  [
+    "cisco",
+    1
+  ],
+  [
+    "dungeons and dragons",
+    1
+  ],
+  [
+    "gaming",
+    1
+  ],
+  [
+    "stupid",
+    1
+  ],
+  [
+    "ftw",
+    1
+  ],
+  [
+    "socks",
+    1
+  ],
+  [
+    "boioioioioioioioioi",
+    1
+  ],
+  [
+    "catch",
+    1
+  ],
+  [
+    "funktronica",
+    1
+  ],
+  [
+    "ru",
+    1
+  ],
+  [
+    "bolton",
+    1
+  ],
+  [
+    "model",
+    1
+  ],
+  [
+    "€55.00deep techno",
+    1
+  ],
+  [
+    "afrikaans",
+    1
+  ],
+  [
+    "levantine arabic music",
+    1
+  ],
+  [
+    "oriental jewish music",
+    1
+  ],
+  [
+    "degrassi",
+    1
+  ],
+  [
+    "tunisian",
+    1
+  ],
+  [
+    "tunisia",
+    1
+  ],
+  [
+    "eddie rubin",
+    1
+  ],
+  [
+    "€40.00",
+    1
+  ],
+  [
+    "het jachtseizoen",
+    1
+  ],
+  [
+    "het jachtseizoen 2023",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_30",
+    1
+  ],
+  [
+    "cumbia colombiana",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_20",
+    1
+  ],
+  [
+    "nu-disco",
+    1
+  ],
+  [
+    "rap queen",
+    1
+  ],
+  [
+    "mountain express acoustic",
+    1
+  ],
+  [
+    "czech female vocalists",
+    1
+  ],
+  [
+    "finnish choir",
+    1
+  ],
+  [
+    "family",
+    1
+  ],
+  [
+    "gypsies tramps and thieves",
+    1
+  ],
+  [
+    "future",
+    1
+  ],
+  [
+    "ootray",
+    1
+  ],
+  [
+    "dielaughingrecords",
+    1
+  ],
+  [
+    "men i would fuck",
+    1
+  ],
+  [
+    "irish folk music",
+    1
+  ],
+  [
+    "armenian folk",
+    1
+  ],
+  [
+    "ska revival",
+    1
+  ],
+  [
+    "darksynth",
+    1
+  ],
+  [
+    "deezer",
+    1
+  ],
+  [
+    "tiktok",
+    1
+  ],
+  [
+    "funk_add_to_lidarr_batch_1",
+    1
+  ],
+  [
+    "dark trap",
+    1
+  ],
+  [
+    "scream rap",
+    1
+  ],
+  [
+    "britannique",
+    1
+  ],
+  [
+    "mosaic",
+    1
+  ],
+  [
+    "speedofsound",
+    1
+  ],
+  [
+    "steviewonder",
+    1
+  ],
+  [
+    "manctalo",
+    1
+  ],
+  [
+    "malay rap",
+    1
+  ],
+  [
+    "dark techno",
+    1
+  ],
+  [
+    "black noise",
+    1
+  ],
+  [
+    "blackened noise",
+    1
+  ],
+  [
+    "€12.95progressive trance",
+    1
+  ],
+  [
+    "latincore",
+    1
+  ],
+  [
+    "martial industrial",
+    1
+  ],
+  [
+    "martial",
+    1
+  ],
+  [
+    "brazilian music",
+    1
+  ],
+  [
+    "nacional",
+    1
+  ],
+  [
+    "khmer",
+    1
+  ],
+  [
+    "hifi",
+    1
+  ],
+  [
+    "nz",
+    1
+  ],
+  [
+    "eurovision 2021",
+    1
+  ],
+  [
+    "female fronted metal",
+    1
+  ],
+  [
+    "tulsa",
+    1
+  ],
+  [
+    "scrubs",
+    1
+  ],
+  [
+    "swag",
+    1
+  ],
+  [
+    "€48.00techno",
+    1
+  ],
+  [
+    "montreal",
+    1
+  ],
+  [
+    "3rei sud est",
+    1
+  ],
+  [
+    "3 sud est",
+    1
+  ],
+  [
+    "independent hip-hop",
+    1
+  ],
+  [
+    "accordionist",
+    1
+  ],
+  [
+    "accordéoniste",
+    1
+  ],
+  [
+    "noize-rock",
+    1
+  ],
+  [
+    "napoli",
+    1
+  ],
+  [
+    "heavy blues rock",
+    1
+  ],
+  [
+    "heavy blues",
+    1
+  ],
+  [
+    "balada",
+    1
+  ],
+  [
+    "drumfunk",
+    1
+  ],
+  [
+    "afro-beat",
+    1
+  ],
+  [
+    "jùjú",
+    1
+  ],
+  [
+    "€6.00house",
+    1
+  ],
+  [
+    "yes please",
+    1
+  ],
+  [
+    "minimalist",
+    1
+  ],
+  [
+    "€9.99rap",
+    1
+  ],
+  [
+    "local bands",
+    1
+  ],
+  [
+    "swing revival",
+    1
+  ],
+  [
+    "retro swing",
+    1
+  ],
+  [
+    "neo swing",
+    1
+  ],
+  [
+    "uriah heep",
+    1
+  ],
+  [
+    "kiwi",
+    1
+  ],
+  [
+    "multiple artists",
+    1
+  ],
+  [
+    "eastblues",
+    1
+  ],
+  [
+    "canarias",
+    1
+  ],
+  [
+    "joik",
+    1
+  ],
+  [
+    "sleaze glam",
+    1
+  ],
+  [
+    "proto doom",
+    1
+  ],
+  [
+    "celo & abdi",
+    1
+  ],
+  [
+    "field recordings",
+    1
+  ],
+  [
+    "nature recordings",
+    1
+  ],
+  [
+    "cardiff",
+    1
+  ],
+  [
+    "_download comic",
+    1
+  ],
+  [
+    "moratalaz",
+    1
+  ],
+  [
+    "progressive country",
+    1
+  ],
+  [
+    "aachen",
+    1
+  ],
+  [
+    "multi-instrumentalist",
+    1
+  ],
+  [
+    "sexiehexies",
+    1
+  ],
+  [
+    "glam punk",
+    1
+  ],
+  [
+    "€9.80techno",
+    1
+  ],
+  [
+    "houston rap",
+    1
+  ],
+  [
+    "dark jazz",
+    1
+  ],
+  [
+    "everything",
+    1
+  ],
+  [
+    "pop balada",
+    1
+  ],
+  [
+    "sunsara",
+    1
+  ],
+  [
+    "malaysia",
+    1
+  ],
+  [
+    "novelty song",
+    1
+  ],
+  [
+    "free kurdistan",
+    1
+  ],
+  [
+    "kurdo",
+    1
+  ],
+  [
+    "cocktail nation",
+    1
+  ],
+  [
+    "€15.99hard groove",
+    1
+  ],
+  [
+    "aotearoa",
+    1
+  ],
+  [
+    "cringe-core",
+    1
+  ],
+  [
+    "the cookers",
+    1
+  ],
+  [
+    "riot jazz",
+    1
+  ],
+  [
+    "glamrock",
+    1
+  ],
+  [
+    "justin bieber",
+    1
+  ],
+  [
+    "american pop",
+    1
+  ],
+  [
+    "lauv",
+    1
+  ],
+  [
+    "tribal ambient",
+    1
+  ]
+]

@@ -36,7 +36,7 @@ export const GenreChatEventsButton: React.FC<GenreChatEventsButtonProps> = ({
           supabase,
           genreChatId,
           10,
-          near ? { latitude: near.latitude, longitude: near.longitude, radiusMiles: 25 } : undefined
+          near ? { latitude: near.latitude, longitude: near.longitude, radiusMiles: 40 } : undefined
         )
       )
       .then((rows) => {

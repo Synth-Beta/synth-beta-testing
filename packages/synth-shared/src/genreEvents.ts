@@ -6,8 +6,11 @@
  * directly against the raw events.genres array using GENRE_CHAT_TAG_MAP, a
  * curated list built from the real distinct tag values in production. Reliable
  * by construction. Optionally location-aware: pass `near` to get nearby events
- * first (closest first, within radiusMiles), backfilled with the next-soonest
- * nationwide events (excluding duplicates) up to `limit`.
+ * within radiusMiles, backfilled (if under `limit`) with a random selection from
+ * the 1-week-to-1-month window (not sooner — not enough lead time for someone to
+ * decide to go; not later — too far out to be a useful suggestion). The whole
+ * list, nearby + backfill together, is always ordered closest-to-farthest —
+ * only WHICH farther events get picked is randomized, not the display order.
  *
  * getUpcomingEventsForGenreUmbrella walks the genre_parent/genre_paths taxonomy
  * graph via get_genres_under_umbrella. Kept for other potential uses, but it's
@@ -26,18 +29,19 @@ import { calculateDistanceMiles, boundingBoxDeltas } from './geo';
 export interface NearbyParams {
   latitude: number;
   longitude: number;
-  /** Default 25 miles. */
+  /** Default 40 miles. */
   radiusMiles?: number;
 }
 
 export interface GenreChatEventRow extends Record<string, unknown> {
-  /** Distance from the `near` point in miles, or `null` if this row was
-   *  backfilled from the nationwide query rather than matched nearby. */
+  /** Distance from the `near` point in miles. `null` only when `near` was
+   *  never provided, or the event itself has no coordinates on file. */
   distanceMiles: number | null;
 }
 
 /** Upcoming events for one of the 12 genre-chat IDs (see GENRE_CHAT_TAG_MAP).
- *  When `near` is omitted, behavior is unchanged: soonest events nationwide. */
+ *  When `near` is omitted, behavior is unchanged: random pick nationwide from
+ *  the 1-week-to-1-month window (see fetchRandomInWindow). */
 export async function getUpcomingEventsForGenreChat(
   client: SynthSupabaseClient,
   genreChatId: string,
@@ -48,13 +52,20 @@ export async function getUpcomingEventsForGenreChat(
   if (!tags || tags.length === 0) return [];
 
   if (!near) {
-    const rows = await fetchByDate(client, tags, limit);
+    const rows = await fetchRandomInWindow(client, tags, new Set(), limit);
     return rows.map((row) => ({ ...row, distanceMiles: null }));
   }
 
-  const radiusMiles = near.radiusMiles ?? 25;
+  const radiusMiles = near.radiusMiles ?? 40;
   const { latDelta, lngDelta } = boundingBoxDeltas(near.latitude, radiusMiles);
 
+  // No upper bound on limit-vs-sort-order bug: this used to sort by event_date
+  // and cap at 50 BEFORE distance is computed, so a genuinely closer event
+  // with a later date than 50 sooner-but-farther ones would get cut before
+  // distance sorting ever saw it (reported live: the actual closest event was
+  // missing from results). Order by distance isn't expressible in SQL here
+  // (no PostGIS), so instead: no DB-side order, and a limit generous enough
+  // that the true closest event is essentially never excluded by the cap.
   const { data: nearbyCandidates, error: nearbyError } = await client
     .from('events')
     .select('*')
@@ -66,8 +77,7 @@ export async function getUpcomingEventsForGenreChat(
     .gte('longitude', near.longitude - lngDelta)
     .lte('longitude', near.longitude + lngDelta)
     .gte('event_date', new Date().toISOString())
-    .order('event_date', { ascending: true })
-    .limit(50);
+    .limit(500);
 
   const candidateRows: Record<string, unknown>[] =
     nearbyError || !nearbyCandidates ? [] : (nearbyCandidates as Record<string, unknown>[]);
@@ -91,29 +101,65 @@ export async function getUpcomingEventsForGenreChat(
   if (nearby.length >= limit) return nearby;
 
   const nearbyIds = new Set(nearby.map((row) => row.id as string));
-  const backfillCandidates = await fetchByDate(client, tags, 50);
-  const backfill: GenreChatEventRow[] = backfillCandidates
-    .filter((row) => !nearbyIds.has(row.id as string))
-    .slice(0, limit - nearby.length)
-    .map((row) => ({ ...row, distanceMiles: null }));
+  // Random SELECTION from the 1-week-to-1-month window, but still distance-
+  // ordered for DISPLAY — the whole list should read as one continuous
+  // closest-to-farthest sequence, just with the farther portion randomly
+  // picked rather than picked by soonest date.
+  const backfillPicks = await fetchRandomInWindow(client, tags, nearbyIds, limit - nearby.length);
+  const backfill: GenreChatEventRow[] = backfillPicks
+    .map(
+      (row): GenreChatEventRow => ({
+        ...row,
+        distanceMiles:
+          row.latitude != null && row.longitude != null
+            ? calculateDistanceMiles(near.latitude, near.longitude, Number(row.latitude), Number(row.longitude))
+            : null,
+      })
+    )
+    .sort((a, b) => (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity));
 
   return [...nearby, ...backfill];
 }
 
-async function fetchByDate(
+function shuffle<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/**
+ * Random pick from events 1 week to 1 month out — deliberately excludes
+ * "this week" (not enough lead time for someone to actually decide to go)
+ * and anything past a month (too far out to be a useful suggestion), then
+ * shuffles rather than sorting by date so the same soonest handful doesn't
+ * dominate every request.
+ */
+async function fetchRandomInWindow(
   client: SynthSupabaseClient,
   tags: string[],
-  limit: number
+  excludeIds: Set<string>,
+  count: number
 ): Promise<Record<string, unknown>[]> {
+  const now = Date.now();
+  const from = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const to = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
+
   const { data, error } = await client
     .from('events')
     .select('*')
     .overlaps('genres', tags)
-    .gte('event_date', new Date().toISOString())
-    .order('event_date', { ascending: true })
-    .limit(limit);
+    .gte('event_date', from)
+    .lte('event_date', to)
+    .limit(100);
   if (error || !data) return [];
-  return data;
+
+  const pool = (data as Record<string, unknown>[]).filter(
+    (row) => !excludeIds.has(row.id as string)
+  );
+  return shuffle(pool).slice(0, count);
 }
 
 export async function getUpcomingEventsForGenreUmbrella(

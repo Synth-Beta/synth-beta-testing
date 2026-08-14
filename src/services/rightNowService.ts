@@ -24,28 +24,11 @@ export class RightNowService {
     limit: number = 12
   ): Promise<RightNowEvent[]> {
     try {
-      // Get user's location if not provided
-      if (!latitude || !longitude) {
-        const { data: userProfile } = await supabase
-          .from('users')
-          .select('latitude, longitude, location_city')
-          .eq('user_id', userId)
-          .single();
-
-        if (userProfile?.latitude && userProfile?.longitude) {
-          latitude = userProfile.latitude;
-          longitude = userProfile.longitude;
-        } else if (userProfile?.location_city) {
-          // Try to get coordinates from city
-          const { RadiusSearchService } = await import('./radiusSearchService');
-          const coords = await RadiusSearchService.getCityCoordinates(userProfile.location_city);
-          if (coords) {
-            latitude = coords.lat;
-            longitude = coords.lng;
-          }
-        }
-      }
-
+      // Location is resolved once, up front, by the shared BrowseLocationContext
+      // (live GPS / manual override) and passed in by the caller. This used to
+      // fall back to `users.latitude/longitude`/`location_city` here, which
+      // silently disagreed with whatever location the rest of the feed was
+      // using - see the DC/NJ inconsistency writeup.
       if (!latitude || !longitude) {
         // Fallback: get trending events without location
         const trending = await HomeFeedService.getTrendingEvents(userId, undefined, undefined, 50, limit);

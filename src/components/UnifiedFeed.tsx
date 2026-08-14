@@ -99,6 +99,7 @@ import { FriendSuggestionsRail } from '@/components/feed/FriendSuggestionsRail';
 import { FriendsService } from '@/services/friendsService';
 import { normalizeCityName, deduplicateCities } from '@/utils/cityNormalization';
 import { RadiusSearchService } from '@/services/radiusSearchService';
+import { useBrowseLocation } from '@/contexts/BrowseLocationContext';
 import { useNavigate } from 'react-router-dom';
 import type { JamBaseEventResponse, JamBaseEvent } from '@/types/eventTypes';
 import { UnifiedEventSearchService, type UnifiedEvent } from '@/services/unifiedEventSearchService';
@@ -284,6 +285,19 @@ export const UnifiedFeed = ({
   const autoCityAppliedRef = useRef<boolean>(false);
   const userHasChangedFiltersRef = useRef<boolean>(false); // Track if user manually changed filters
   const filterDebounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Single source of truth for "where is this user" (live GPS / manual
+  // override) - shared with HomeFeed and RightNow. `location_city` is only
+  // consulted as a last-resort fallback while this hasn't resolved yet.
+  const browseLocation = useBrowseLocation();
+  const browseLocationRef = useRef(browseLocation);
+  useEffect(() => {
+    browseLocationRef.current = browseLocation;
+  }, [browseLocation]);
+  // True when the currently-applied city filter came from the location_city
+  // fallback rather than live GPS/manual override - cleared once real
+  // coordinates resolve so the guess gets replaced (see effect below).
+  const appliedFromProfileFallbackRef = useRef(false);
   
   // Refresh state - track offset to get new events on refresh
   const [refreshOffset, setRefreshOffset] = useState(0);
@@ -490,17 +504,42 @@ export const UnifiedFeed = ({
       return;
     }
     
-    // Load user's city from profile and auto-apply as filter (only once)
+    // Resolve initial location and load the feed (only once per session).
     const loadUserCityAndApply = async () => {
+      // Prefer the shared browse-location (live GPS / manual override) - the
+      // same source HomeFeed and RightNow use. Only fall back to the
+      // profile's location_city below when it truly hasn't resolved yet.
+      // Setting `userLocation` here (with selectedCities left empty) lets the
+      // existing "auto-apply nearest city" effect turn real coordinates into
+      // a proper nearest-city filter instead of fuzzy-matching a raw profile
+      // string.
+      if (browseLocationRef.current.coords && !userHasChangedFiltersRef.current) {
+        const { latitude, longitude } = browseLocationRef.current.coords;
+        appliedFromProfileFallbackRef.current = false;
+        setUserLocation({ lat: latitude, lng: longitude });
+        setMapCenter([latitude, longitude]);
+        setIsInitializing(false);
+        Promise.all([
+          Promise.resolve(loadFeedData(0, false)),
+          loadUpcomingEvents(),
+          loadFollowedData(),
+          loadCities(),
+          loadRecommendedFriends(),
+          loadAllInterestedEvents()
+        ]).catch(err => console.warn('Error loading parallel data:', err));
+        return;
+      }
+
       try {
         const { data: profile } = await supabase
           .from('users')
           .select('location_city')
           .eq('user_id', currentUserId)
           .maybeSingle();
-        
+
         // Only auto-apply city if user hasn't manually changed filters
         if (profile?.location_city && !userHasChangedFiltersRef.current) {
+          appliedFromProfileFallbackRef.current = true;
           // Get the user's city and find the best match from available cities in the database
           const userCityRaw = profile.location_city.trim();
           console.log('📍 User location_city from profile:', userCityRaw);
@@ -628,6 +667,23 @@ export const UnifiedFeed = ({
     
     loadUserCityAndApply();
   }, [sessionExpired, currentUserId]);
+
+  // Once live/cached GPS or a manual override resolves, replace a
+  // location_city fallback guess with the real nearest-city match instead of
+  // leaving a stale profile-derived city applied for the rest of the session.
+  useEffect(() => {
+    if (!browseLocation.coords) return;
+    if (!appliedFromProfileFallbackRef.current) return;
+    if (userHasChangedFiltersRef.current) return;
+
+    appliedFromProfileFallbackRef.current = false;
+    autoCityAppliedRef.current = false;
+    const { latitude, longitude } = browseLocation.coords;
+    setUserLocation({ lat: latitude, lng: longitude });
+    setMapCenter([latitude, longitude]);
+    setFilters(prev => ({ ...prev, selectedCities: [] }));
+    setPendingFilters(prev => ({ ...prev, selectedCities: [] }));
+  }, [browseLocation.coords]);
 
   // Auto-apply nearest city to filters once when we have userLocation and no city filter yet
   useEffect(() => {

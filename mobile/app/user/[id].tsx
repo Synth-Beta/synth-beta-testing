@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Image, ActivityIndicator, Alert, Text } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, MessageCircle, UserPlus, UserCheck, UserX } from 'lucide-react-native';
@@ -10,13 +10,11 @@ import { ChatService } from '../../src/services/chatService';
 import { Image as ExpoImage } from 'expo-image';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { ProfilePassportPanel } from '../../src/components/profile/ProfilePassportPanel';
+import { ProfileMyEventsPanel } from '../../src/components/profile/ProfileMyEventsPanel';
 import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
-import type { MyReviewListItem } from '../../src/services/myEventsService';
+import { MyEventsService, type InterestedEventItem } from '../../src/services/myEventsService';
 import { PassportService, type ProfileTimelineItem, type ProfileStats } from '../../src/services/passportService';
 import { EventService } from '../../src/services/eventService';
-import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
-import { SafeImage } from '../../src/components/SafeImage';
-import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 import { createFriendRequest } from '@synth/shared';
 
 type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'friends';
@@ -27,7 +25,6 @@ export default function PublicUserProfileScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'events' | 'interested' | 'passport'>('events');
-  const [eventsMode, setEventsMode] = useState<'reviews' | 'rankings'>('reviews');
   const [selfId, setSelfId] = useState<string | null>(null);
   const [profile, setProfile] = useState<{
     name: string | null;
@@ -35,8 +32,7 @@ export default function PublicUserProfileScreen() {
     avatar_url: string | null;
     bio: string | null;
   } | null>(null);
-  const [reviews, setReviews] = useState<MyReviewListItem[]>([]);
-  const [interestedEvents, setInterestedEvents] = useState<any[]>([]);
+  const [interestedEvents, setInterestedEvents] = useState<InterestedEventItem[]>([]);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
   const [friendStatus, setFriendStatus] = useState<FriendStatus>('none');
@@ -69,103 +65,12 @@ export default function PublicUserProfileScreen() {
         setProfile(null);
       }
 
-      // Public reviews (web-aligned rules): include was_there OR real review_text, and only public when viewing others.
-      const { data: reviewRows, error: reviewsError } = await supabase
-        .from('reviews')
-        .select(
-          `
-          id,
-          rating,
-          review_text,
-          was_there,
-          created_at,
-          event_id,
-          rank_order,
-          events (
-            id,
-            title,
-            artist_name,
-            venue_name,
-            venue_city,
-            event_date,
-            images
-          )
-        `
-        )
-        .eq('user_id', id)
-        .or('is_draft.eq.false,is_draft.is.null')
-        .neq('is_public', false)
-        .order('created_at', { ascending: false })
-        .limit(80);
-
-      if (reviewsError) {
-        console.warn('[publicProfile] reviews', reviewsError.message);
-        setReviews([]);
-      } else {
-        const list = (reviewRows || [])
-          .filter((r: any) => {
-            if (r.was_there === true) return true;
-            if (r.review_text && r.review_text !== 'ATTENDANCE_ONLY') return true;
-            return false;
-          })
-          .map((r: any) => {
-            const ev = r.events;
-            return {
-              id: r.id,
-              rating: r.rating,
-              review_text: r.review_text,
-              was_there: r.was_there ?? null,
-              created_at: r.created_at,
-              event_id: r.event_id,
-              rank_order: r.rank_order ?? null,
-              title: ev?.title || ev?.artist_name || 'Event',
-              artist_name: ev?.artist_name || '',
-              venue_name: ev?.venue_name || '',
-              event_date: ev?.event_date || '',
-              image_url: resolveFeedImageUri(ev?.images?.[0]?.url) ?? undefined,
-            } as MyReviewListItem;
-          });
-        setReviews(list);
-      }
-
-      const { data: rel, error: relErr } = await supabase
-        .from('user_event_relationships')
-        .select(
-          `
-          event_id,
-          events (
-            id,
-            title,
-            venue_city,
-            event_date,
-            images,
-            artist_id,
-            venue_id,
-            ticket_url,
-            artists(name),
-            venues(name)
-          )
-        `
-        )
-        .eq('user_id', id)
-        .in('relationship_type', ['interested', 'going', 'maybe'])
-        .order('created_at', { ascending: false })
-        .limit(120);
-
-      if (relErr) {
-        console.warn('[publicProfile] interested', relErr.message);
+      try {
+        const items = await MyEventsService.getInterestedEvents(id);
+        setInterestedEvents(items);
+      } catch (interestedError) {
+        console.warn('[publicProfile] interested', interestedError);
         setInterestedEvents([]);
-      } else {
-        setInterestedEvents(
-          (rel || [])
-            .map((row: any) => row.events)
-            .filter((e: any) => e?.id)
-            .map((e: any) => ({
-              ...e,
-              artist_name: e.artists?.name ?? e.artist_name ?? '',
-              venue_name: e.venues?.name ?? e.venue_name ?? '',
-            }))
-        );
       }
 
       const t = await PassportService.getTimeline(id);
@@ -259,21 +164,9 @@ export default function PublicUserProfileScreen() {
     }
   }, [id, selfId, friendStatus]);
 
-  const groupedByStar = useMemo(() => {
-    const map = new Map<number, MyReviewListItem[]>();
-    for (const rv of reviews) {
-      if (rv.rating == null) continue;
-      const r = Math.round(rv.rating);
-      if (!Number.isFinite(r)) continue;
-      const key = Math.min(5, Math.max(1, r));
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(rv);
-    }
-    for (const [, list] of map) {
-      list.sort((a, b) => (a.rank_order ?? 999) - (b.rank_order ?? 999));
-    }
-    return map;
-  }, [reviews]);
+  const isOwnProfile = !!selfId && !!id && id === selfId;
+  // Matches web ProfileView `canViewInterested`: only friends (or self) see the Interested tab.
+  const canViewInterested = isOwnProfile || friendStatus === 'friends';
 
   return (
     <>
@@ -391,7 +284,7 @@ export default function PublicUserProfileScreen() {
             </View>
 
             <View style={styles.tabs}>
-              {(['events', 'interested', 'passport'] as const).map((t) => (
+              {(['events', ...(canViewInterested ? (['interested'] as const) : []), 'passport'] as const).map((t) => (
                 <Pressable
                   key={t}
                   onPress={() => setTab(t)}
@@ -406,109 +299,39 @@ export default function PublicUserProfileScreen() {
 
             {tab === 'events' ? (
               <View style={styles.panel}>
-                <View style={styles.segment}>
-                  {(['reviews', 'rankings'] as const).map((m) => (
-                    <Pressable
-                      key={m}
-                      onPress={() => setEventsMode(m)}
-                      style={[styles.segBtn, eventsMode === m && styles.segBtnOn]}
-                    >
-                      <Text style={[styles.segTxt, eventsMode === m && styles.segTxtOn]}>
-                        {m === 'reviews' ? 'Reviews' : 'Rankings'}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {eventsMode === 'reviews' ? (
-                  reviews.length === 0 ? (
-                    <SynthText variant="body" color="secondary">
-                      No public reviews yet.
-                    </SynthText>
-                  ) : (
-                    reviews.map((r) => (
-                      <Pressable
-                        key={r.id}
-                        style={styles.reviewRow}
-                        onPress={() => router.push(`/review/${r.id}`)}
-                      >
-                        <SafeImage uri={r.image_url} style={styles.reviewThumb} />
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
-                            {r.artist_name || r.title}
-                          </SynthText>
-                          <SynthText variant="meta" color="secondary" numberOfLines={1}>
-                            {r.venue_name}
-                          </SynthText>
-                        </View>
-                        <SynthText variant="meta" color="secondary">
-                          {r.rating != null ? `${r.rating.toFixed(1)}★` : ''}
-                        </SynthText>
-                      </Pressable>
-                    ))
-                  )
-                ) : (
-                  <View style={{ gap: 14 }}>
-                    {Array.from(groupedByStar.entries())
-                      .sort((a, b) => b[0] - a[0])
-                      .map(([star, items]) => (
-                        <View key={star}>
-                          <SynthText variant="meta" style={styles.groupHeader}>
-                            {star}★ ({items.length})
-                          </SynthText>
-                          {items.map((r) => (
-                            <Pressable
-                              key={r.id}
-                              style={styles.reviewRow}
-                              onPress={() => router.push(`/review/${r.id}`)}
-                            >
-                              <SafeImage uri={r.image_url} style={styles.reviewThumb} />
-                              <View style={{ flex: 1, minWidth: 0 }}>
-                                <SynthText variant="meta" style={styles.reviewTitle} numberOfLines={1}>
-                                  {r.artist_name || r.title}
-                                </SynthText>
-                                <SynthText variant="meta" color="secondary" numberOfLines={1}>
-                                  {r.venue_name}
-                                </SynthText>
-                              </View>
-                              <SynthText variant="meta" color="secondary">
-                                {r.rating != null ? `${r.rating.toFixed(1)}★` : ''}
-                              </SynthText>
-                            </Pressable>
-                          ))}
-                        </View>
-                      ))}
-                  </View>
-                )}
+                <ProfileMyEventsPanel
+                  userId={String(id)}
+                  isOwnProfile={isOwnProfile}
+                  variant="embedded"
+                  hideTitleBlock
+                  showDraftsBanner={false}
+                />
               </View>
             ) : null}
 
-            {tab === 'interested' ? (
+            {tab === 'interested' && canViewInterested ? (
               <View style={styles.panel}>
                 {interestedEvents.length === 0 ? (
                   <SynthText variant="body" color="secondary">
                     No interested events yet.
                   </SynthText>
                 ) : (
-                  interestedEvents.map((ev: any) => {
-                    const rawImg =
-                      pickFeedImageUrlFromPayload(ev) ?? ev.images?.[0]?.url ?? undefined;
+                  interestedEvents.map((ev) => {
                     return (
                       <EventCard
-                        key={ev.id}
-                        id={ev.id}
+                        key={ev.event_id}
+                        id={ev.event_id}
                         title={ev.title}
                         artist_name={ev.artist_name}
                         venue_name={ev.venue_name}
                         venue_city={ev.venue_city}
                         event_date={ev.event_date}
-                        image_url={resolveFeedImageUri(rawImg) ?? undefined}
+                        image_url={ev.image_url}
                         initialInterested
-                        ticket_url={getCompliantEventLinkFromPayload(ev) ?? undefined}
-                        artist_id={ev.artist_id != null ? String(ev.artist_id) : undefined}
-                        venue_id={ev.venue_id != null ? String(ev.venue_id) : undefined}
+                        ticket_url={ev.ticket_url}
+                        currentUserId={selfId}
                         onPress={() => {
-                          void EventService.toEventRouteId(ev.id).then(rid => {
+                          void EventService.toEventRouteId(ev.event_id).then(rid => {
                             router.push(`/event/${rid}` as any);
                           });
                         }}
@@ -585,24 +408,6 @@ const styles = StyleSheet.create({
     color: SynthTokens.colors.neutral600,
   },
   panel: { gap: 10 },
-  segment: { flexDirection: 'row', backgroundColor: SynthTokens.colors.neutral100, borderRadius: 12, padding: 4, gap: 4 },
-  segBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  segBtnOn: { backgroundColor: SynthTokens.colors.neutral900 },
-  segTxt: { fontWeight: '700', fontSize: 12, color: SynthTokens.colors.neutral600 },
-  segTxtOn: { color: SynthTokens.colors.neutral0 },
-  reviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-  },
-  reviewThumb: { width: 56, height: 56, borderRadius: 10 },
-  reviewTitle: { fontWeight: '800' },
-  groupHeader: { fontWeight: '800', marginTop: 6, marginBottom: 6, fontSize: 15 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   friendBtn: {
     flexDirection: 'row',

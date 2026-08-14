@@ -782,15 +782,10 @@ export default function ReviewDetailScreen() {
                     custom_setlist: Array.isArray(row.custom_setlist) ? row.custom_setlist : null,
                 };
 
-                const isOwner = user != null && normalized.user_id === user.id;
-                if (!normalized.is_public && !isOwner) {
-                    setLastError(null);
-                    setForbidden(true);
-                    setReview(null);
-                    setLoading(false);
-                    return;
-                }
-
+                // No client-side is_public gate: the reviews_select RLS policy already
+                // only returns this row if the viewer is allowed to see it (owner,
+                // public, a direct friend of the author, or admin) - if the query
+                // above returned a row at all, it's visible to this viewer.
                 setForbidden(false);
                 setLastError(null);
                 setReview(normalized);

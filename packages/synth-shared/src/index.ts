@@ -103,3 +103,9 @@ export {
 } from './genreEvents';
 export { GENRE_CHAT_TAG_MAP } from './genreChatTagMap';
 export { needsContactEmail } from './contactEmailGate';
+export {
+  resolveLocation,
+  type Coordinates,
+  type ResolvedLocation,
+  type LocationResolutionInputs,
+} from './locationResolution';

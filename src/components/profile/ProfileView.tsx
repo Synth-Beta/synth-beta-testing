@@ -637,14 +637,14 @@ const { user, sessionExpired } = useAuth();
       }
       
       // Transform to match the expected interface for display (include rank_order and category ratings for display)
-      // Filter reviews based on privacy: show all reviews for own profile, only public reviews for others
-      // Also exclude ATTENDANCE_ONLY reviews that don't have was_there=true
+      // Privacy is enforced by the reviews_select RLS policy (own reviews, public
+      // reviews, or private reviews from a direct friend) - the query already only
+      // returns rows this viewer is allowed to see, so no client-side is_public
+      // filter is needed (and one here would incorrectly hide a friend's private
+      // review that RLS already deemed visible).
+      // Exclude ATTENDANCE_ONLY reviews that don't have was_there=true.
       const transformedReviews = result.reviews
         .filter((item: any) => {
-          // Show all reviews for own profile, only public reviews for others
-          if (!isViewingOwnProfile && !item.review.is_public) {
-            return false;
-          }
           // Exclude ATTENDANCE_ONLY reviews unless was_there is true
           if (item.review.review_text === 'ATTENDANCE_ONLY' && !item.review.was_there) {
             return false;
@@ -781,16 +781,14 @@ const { user, sessionExpired } = useAuth();
       // Count all non-draft reviews that the user has either:
       // 1. Attended (was_there = true), OR
       // 2. Written a review (review_text is not null and not 'ATTENDANCE_ONLY')
-      let query = supabase
+      // Visibility (own reviews, public reviews, or a direct friend's private
+      // reviews) is enforced by the reviews_select RLS policy - no client-side
+      // is_public filter needed here.
+      const query = supabase
         .from('reviews')
         .select('id, was_there, review_text, is_public', { count: 'exact' })
         .eq('user_id', targetUserId)
         .or('is_draft.eq.false,is_draft.is.null');
-
-      // If viewing someone else's profile, only count public reviews
-      if (!isViewingOwnProfile) {
-        query = query.eq('is_public', true);
-      }
 
       const { data, count, error } = await query;
 

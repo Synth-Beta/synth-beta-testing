@@ -35,6 +35,7 @@ import { FlagContentModal } from '@/components/moderation/FlagContentModal';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { LocationService } from '@/services/locationService';
 import { getLastKnownLocation } from '@/services/locationCacheService';
+import { useBrowseLocation } from '@/contexts/BrowseLocationContext';
 import { getFallbackEventImage, replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import {
   DropdownMenu,
@@ -124,6 +125,11 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   refreshTrigger = 0,
   webDesktopChrome = false,
 }) => {
+  // Single source of truth for "where is this user" - live GPS by default, with
+  // an explicit manual override. Never silently falls back to the profile's
+  // `location_city` (see BrowseLocationContext for why).
+  const browseLocation = useBrowseLocation();
+
   // Header state
   const [activeCity, setActiveCity] = useState<string | null>(null);
   const [dateWindow, setDateWindow] = useState<DateWindow>('next_30_days');
@@ -278,9 +284,6 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     longitude: number;
     radiusMiles: number;
     locationName: string; // Current location from geolocation
-    specifiedLocationName?: string; // User specified location (from profile/filters)
-    specifiedLatitude?: number;
-    specifiedLongitude?: number;
   } | null>(null);
 
   // Event details modal
@@ -352,11 +355,46 @@ interface FriendEventInterest {
     return cleanup;
   }, []);
 
-  // Load user's active city and apply to filters
+  // Apply the resolved browse location (live GPS / manual override) to both the
+  // main feed filters and the Trending section whenever it changes - replaces
+  // two separate profile-driven lookups (loadFeedLocation/loadUserCity) that
+  // used to disagree with each other and with live GPS.
   useEffect(() => {
-    loadUserCity();
-    loadFeedLocation(); // Also load location for feed filtering
-  }, [currentUserId]);
+    if (!currentUserId || !browseLocation.coords) return;
+
+    const { latitude, longitude } = browseLocation.coords;
+
+    setFeedLocation({
+      latitude,
+      longitude,
+      radiusMiles: filtersRef.current?.radiusMiles || 50,
+      locationName: browseLocation.label,
+    });
+
+    setActiveCity(browseLocation.label);
+    setCityCoordinates({ lat: latitude, lng: longitude });
+
+    // Skip the filters update if this is within a few miles of what's already
+    // active (e.g. the seeded cache value) - filters feed UnifiedEventsFeed's
+    // query key, so tiny GPS jitter shouldn't trigger a full feed re-fetch.
+    const priorLat = filters.latitude;
+    const priorLng = filters.longitude;
+    const isNegligibleMove =
+      priorLat != null &&
+      priorLng != null &&
+      LocationService.calculateDistance(priorLat, priorLng, latitude, longitude) < 10;
+
+    if (!isNegligibleMove) {
+      setFilters(prev => ({
+        ...prev,
+        latitude,
+        longitude,
+        radiusMiles: prev.radiusMiles || 50,
+        selectedCities: [], // Clear city names - we use coordinates
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId, browseLocation.coords, browseLocation.label]);
 
   // Fetch unread notifications count for header badge (includes friend requests in total)
   useEffect(() => {
@@ -793,162 +831,6 @@ interface FriendEventInterest {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFeedType]);
-
-  // Load user location for feed filtering - ALWAYS use lat/long + radius, NEVER city names
-  const loadFeedLocation = async () => {
-    try {
-      // Always get current location from geolocation first
-      let currentLocation: { latitude: number; longitude: number } | null = null;
-      let currentLocationName: string | null = null;
-
-      try {
-        currentLocation = await LocationService.getCurrentLocation();
-        const cityName = await LocationService.reverseGeocode(
-          currentLocation.latitude,
-          currentLocation.longitude
-        );
-        if (cityName) {
-          currentLocationName = cityName;
-        }
-      } catch (geoError: any) {
-        // Only log unexpected errors, not permission denials
-        if (geoError?.code !== 1) { // 1 = PERMISSION_DENIED
-          console.error('Error getting current location:', geoError);
-        }
-        // If geolocation fails, currentLocationName stays null (will show "Not found")
-      }
-
-      // Get user's specified location from database/profile
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('location_city, latitude, longitude')
-        .eq('user_id', currentUserId)
-        .single();
-
-      let specifiedLocationName: string | undefined;
-      let specifiedLat: number | undefined;
-      let specifiedLng: number | undefined;
-
-      // Convert user's specified city to coordinates if they have one
-      if (userProfile?.location_city) {
-        specifiedLocationName = userProfile.location_city;
-        
-        // Convert city name to coordinates using city_centers table
-        try {
-          const { RadiusSearchService } = await import('@/services/radiusSearchService');
-          const coords = await RadiusSearchService.getCityCoordinates(userProfile.location_city);
-          if (coords) {
-            specifiedLat = coords.lat;
-            specifiedLng = coords.lng;
-          }
-        } catch (error) {
-          console.error('Error converting city to coordinates:', error);
-        }
-      } else if (userProfile?.latitude && userProfile?.longitude) {
-        // User has coordinates saved
-        specifiedLat = userProfile.latitude;
-        specifiedLng = userProfile.longitude;
-        try {
-          const cityName = await LocationService.reverseGeocode(
-            userProfile.latitude,
-            userProfile.longitude
-          );
-          if (cityName) {
-            specifiedLocationName = cityName;
-          }
-        } catch (error) {
-          console.error('Error reverse geocoding specified location:', error);
-        }
-      }
-
-      // Use specified location for filtering (if available), otherwise use current location
-      const filterLat = specifiedLat || currentLocation?.latitude;
-      const filterLng = specifiedLng || currentLocation?.longitude;
-
-      if (filterLat && filterLng) {
-        setFeedLocation({
-          latitude: filterLat,
-          longitude: filterLng,
-          radiusMiles: 50,
-          locationName: currentLocationName,
-          specifiedLocationName,
-          specifiedLatitude: specifiedLat,
-          specifiedLongitude: specifiedLng,
-        });
-
-        // ALWAYS use lat/long + radius for filtering, NEVER city names.
-        // Skip the update if this is within a few miles of what's already active (e.g. the
-        // seeded cache value) — filters feeding UnifiedEventsFeed's query key, so changing
-        // lat/lng even slightly triggers a full re-fetch of the feed RPC. Without this guard,
-        // returning users get the feed fetched once from cache, then fetched AGAIN moments
-        // later once live GPS resolves to a near-identical location.
-        const priorLat = filters.latitude;
-        const priorLng = filters.longitude;
-        const isNegligibleMove =
-          priorLat != null &&
-          priorLng != null &&
-          LocationService.calculateDistance(priorLat, priorLng, filterLat, filterLng) < 10;
-
-        if (!isNegligibleMove) {
-          setFilters(prev => ({
-            ...prev,
-            latitude: filterLat,
-            longitude: filterLng,
-            radiusMiles: prev.radiusMiles || 50,
-            selectedCities: [], // Clear city names - we use coordinates
-          }));
-        }
-      } else if (currentLocation) {
-        // Fallback to current location only
-        setFeedLocation({
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          radiusMiles: 50,
-          locationName: currentLocationName,
-        });
-
-        setFilters(prev => ({
-          ...prev,
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          radiusMiles: prev.radiusMiles || 50,
-          selectedCities: [],
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading feed location:', error);
-    }
-  };
-
-  const loadUserCity = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('location_city')
-        .eq('user_id', currentUserId)
-        .single();
-
-      if (error) throw error;
-      if (data?.location_city) {
-        setActiveCity(data.location_city);
-        // Get city coordinates
-        try {
-          const { RadiusSearchService } = await import('@/services/radiusSearchService');
-          const coords = await RadiusSearchService.getCityCoordinates(data.location_city);
-          if (coords) setCityCoordinates(coords);
-        } catch (err) {
-          console.error('Error getting city coordinates:', err);
-        }
-      } else {
-        // Explicitly set to null if no city found (so useEffect can trigger)
-        setActiveCity(null);
-      }
-    } catch (error) {
-      console.error('Error loading user city:', error);
-      // Set to null on error so feed can still load
-      setActiveCity(null);
-    }
-  };
 
   const getDateRange = (): { from?: Date; to?: Date } => {
     const today = new Date();

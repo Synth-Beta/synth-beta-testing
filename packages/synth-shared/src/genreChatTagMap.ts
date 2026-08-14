@@ -20,7 +20,9 @@
  * is "R&B & Soul", "reggae" is "Reggae & Ska", "indie" is "Indie & Alternative").
  * Nationality/language/decade/meta tags ("USA", "80s", "small artist", "tribute",
  * "compilation", instrument-only tags like "guitar") are deliberately excluded —
- * they aren't genres and don't belong under any umbrella.
+ * they aren't genres and don't belong under any umbrella. "singer-songwriter" is
+ * excluded for the same reason (2026-08-14) — a performance format, not a sound,
+ * and too generic a catch-all to belong under any single chat's umbrella.
  */
 
 export const GENRE_CHAT_TAG_MAP: Record<string, string[]> = {
@@ -100,7 +102,7 @@ export const GENRE_CHAT_TAG_MAP: Record<string, string[]> = {
   ],
   country: [
     'country-music', 'country', 'Country', 'americana', 'bluegrass',
-    'newgrass', 'jamgrass', 'folk', 'Folk', 'singer-songwriter',
+    'newgrass', 'jamgrass', 'folk', 'Folk',
     'alt country', 'outlaw country', 'traditional country', 'classic country',
     'red dirt', 'texas country', 'country rock', 'country christian',
     'christian bluegrass', 'christian folk', 'cajun', 'zydeco', 'celtic',

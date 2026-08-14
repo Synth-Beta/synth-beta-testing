@@ -151,6 +151,11 @@ export class MyEventsService {
     /**
      * Loads published reviews like web `getUserReviewHistory`: `reviews` first, then batch `events`
      * (no PostgREST embed on the critical path).
+     *
+     * Visibility (own reviews, public reviews, or a direct friend's private
+     * reviews) is enforced by the reviews_select RLS policy - no is_public
+     * filter here, so a friend's private review isn't hidden even though RLS
+     * already deems it visible to this viewer.
      */
     static async getMyReviews(userId: string): Promise<GetMyReviewsResult> {
         // Try full query first (includes user_created columns added in later migrations).
@@ -162,22 +167,24 @@ export class MyEventsService {
 
         let reviewsData: any[] | null = null;
         let reviewsError: any = null;
-        ({ data: reviewsData, error: reviewsError } = await supabase
-            .from('reviews')
-            .select(FULL_SELECT)
-            .eq('user_id', userId)
-            .or('is_draft.eq.false,is_draft.is.null')
-            .order('created_at', { ascending: false }));
+        {
+            const q = supabase
+                .from('reviews')
+                .select(FULL_SELECT)
+                .eq('user_id', userId)
+                .or('is_draft.eq.false,is_draft.is.null');
+            ({ data: reviewsData, error: reviewsError } = await q.order('created_at', { ascending: false }));
+        }
 
         let hasUserCreatedCols = true;
         if (reviewsError) {
             // Retry with base columns in case user_created columns don't exist yet.
-            const fallback = await supabase
+            const fallbackQuery = supabase
                 .from('reviews')
                 .select(BASE_SELECT)
                 .eq('user_id', userId)
-                .or('is_draft.eq.false,is_draft.is.null')
-                .order('created_at', { ascending: false });
+                .or('is_draft.eq.false,is_draft.is.null');
+            const fallback = await fallbackQuery.order('created_at', { ascending: false });
             if (fallback.error) {
                 const code = fallback.error.code ?? 'unknown';
                 const msg = fallback.error.message ?? String(fallback.error);

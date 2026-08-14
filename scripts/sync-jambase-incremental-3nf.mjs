@@ -1069,6 +1069,31 @@ class IncrementalSync3NF {
       }
     }
 
+    // Events whose own JamBase payload has no genre inherit their artist's
+    // genre at write time (eventGenresFromArtistIfEmpty only fills in when
+    // eventGenres is empty — never overwrites an event that already has one).
+    // 'small artist' is a placeholder default, not a real genre, so it's
+    // excluded here the same way it's excluded from the SQL backfill.
+    const artistIdsNeedingGenreFallback = [...new Set(
+      eventsData
+        .filter(e => isEmptyGenres(e.genres) && e.artist_id)
+        .map(e => e.artist_id)
+    )];
+    const artistGenresById = new Map();
+    if (artistIdsNeedingGenreFallback.length > 0) {
+      const { data: artistRows, error: artistGenresErr } = await this.syncService.supabase
+        .from('artists')
+        .select('id, genres')
+        .in('id', artistIdsNeedingGenreFallback);
+      if (artistGenresErr) {
+        console.warn(`  ⚠️  Could not fetch artist genres for event fallback (non-fatal): ${artistGenresErr.message}`);
+      } else {
+        for (const row of artistRows || []) {
+          artistGenresById.set(row.id, row.genres);
+        }
+      }
+    }
+
     const nowIso = new Date().toISOString();
     const toUpsert = eventsData
       .map(eventData => {
@@ -1093,13 +1118,20 @@ class IncrementalSync3NF {
           ...eventDataClean
         } = eventData;
 
+        const rawArtistGenres = eventData.artist_id ? artistGenresById.get(eventData.artist_id) : undefined;
+        const usableArtistGenres =
+          rawArtistGenres && rawArtistGenres.length === 1 && rawArtistGenres[0] === 'small artist'
+            ? undefined
+            : rawArtistGenres;
+        const resolvedGenres = eventGenresFromArtistIfEmpty(eventGenres, usableArtistGenres);
+
         const isUpdate = existingByJambase.has(jambaseEventId);
         const row = {
           ...eventDataClean,
           jambase_id: jambaseEventId,
           updated_at: nowIso,
           // Only write genres when present (never clobber with empty)
-          ...(isEmptyGenres(eventGenres) ? {} : { genres: eventGenres }),
+          ...(isEmptyGenres(resolvedGenres) ? {} : { genres: resolvedGenres }),
         };
 
         // Existing rows: do not overwrite stored images with null/empty from JamBase metadata-only updates.
