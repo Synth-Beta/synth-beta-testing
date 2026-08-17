@@ -27,6 +27,12 @@ export default function middleware(request: Request) {
 
   const url = new URL(request.url);
   const path = url.pathname;
+
+  if (path === '/admin' && !url.searchParams.has('tab')) {
+    url.searchParams.set('tab', 'ai-scene-guides');
+    return Response.redirect(url, 307);
+  }
+
   if (path.startsWith('/api/') || path.startsWith('/_site/')) return next();
 
   const isStatic =
