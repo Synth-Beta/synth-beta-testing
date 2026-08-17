@@ -420,25 +420,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: record.message,
         data: dataPayload,
       });
-      if (expoRes.ok) {
-        expoSent++;
-        deliveries.push({
-          notification_id: record.id ?? null, user_id: record.user_id,
-          channel: 'expo', platform, device_token_tail: tail,
-          status: 'sent', error: null, deactivated: false,
-        });
-      } else {
-        const failed = expoRes;
-        errors.push(`expo:${failed.error}`);
+      if (expoRes.ok === false) {
+        errors.push(`expo:${expoRes.error}`);
         let deactivated = false;
-        if (failed.deactivate) {
+        if (expoRes.deactivate) {
           await deactivateDeviceToken(supabase, deviceToken);
           deactivated = true;
         }
         deliveries.push({
           notification_id: record.id ?? null, user_id: record.user_id,
           channel: 'expo', platform, device_token_tail: tail,
-          status: 'failed', error: failed.error, deactivated,
+          status: 'failed', error: expoRes.error, deactivated,
+        });
+      } else {
+        expoSent++;
+        deliveries.push({
+          notification_id: record.id ?? null, user_id: record.user_id,
+          channel: 'expo', platform, device_token_tail: tail,
+          status: 'sent', error: null, deactivated: false,
         });
       }
       continue;

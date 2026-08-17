@@ -151,14 +151,14 @@ export async function downloadSlackFile(file: SlackFile): Promise<Buffer> {
 async function extractPdf(buf: Buffer): Promise<string> {
   // unpdf works in Node/Vercel (pdf-parse v2 needs DOMMatrix / browser APIs)
   const { extractText } = await import('unpdf');
-  const result = await extractText(new Uint8Array(buf), { mergePages: true });
+  const result: unknown = await extractText(new Uint8Array(buf), { mergePages: true });
   if (typeof result === 'string') return result.trim();
-  if (Array.isArray(result)) return result.join('\n\n').trim();
+  if (Array.isArray(result)) return result.map(String).join('\n\n').trim();
   if (result && typeof result === 'object' && 'text' in result) {
-    const t = (result as { text: string | string[] }).text;
-    return (Array.isArray(t) ? t.join('\n\n') : String(t || '')).trim();
+    const t = (result as { text: unknown }).text;
+    return (Array.isArray(t) ? t.map(String).join('\n\n') : String(t ?? '')).trim();
   }
-  return String(result || '').trim();
+  return String(result ?? '').trim();
 }
 
 async function extractDocx(buf: Buffer): Promise<string> {

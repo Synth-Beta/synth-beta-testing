@@ -8,6 +8,29 @@ export interface PublicUserRecoveryResult {
 }
 
 const RPC_NAME = 'ensure_public_user';
+const SIGNUP_ALERT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const SIGNUP_WEBHOOK_URL = 'https://join.getsynth.app/api/slack-signup-webhook';
+
+async function notifySlackSignupIfRecent(): Promise<void> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session;
+    if (!session?.access_token || !session.user?.created_at) return;
+    const ageMs = Date.now() - new Date(session.user.created_at).getTime();
+    if (ageMs > SIGNUP_ALERT_MAX_AGE_MS) return;
+
+    await fetch(SIGNUP_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ source: 'client' }),
+    });
+  } catch (err) {
+    console.warn('[publicUserRecovery.mobile] Slack signup notify failed', err);
+  }
+}
 
 export async function ensurePublicUserProfile(): Promise<PublicUserRecoveryResult> {
   try {
@@ -36,6 +59,10 @@ export async function ensurePublicUserProfile(): Promise<PublicUserRecoveryResul
     console.log(
       `[publicUserRecovery.mobile] ensured public.users row for ${userId ?? 'unknown'} (inserted=${inserted}, rpcError=${reportedError ?? 'none'})`
     );
+
+    if (!reportedError) {
+      void notifySlackSignupIfRecent();
+    }
 
     return {
       success: !reportedError,

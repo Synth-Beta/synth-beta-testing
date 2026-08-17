@@ -7,6 +7,12 @@ import { Image } from 'expo-image';
 import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
+import {
+    AiBadge,
+    AiGuideMessageBubble,
+    AiSceneGuideRoomNotice,
+    isAiSceneGuideMessage,
+} from '../../src/components/chat/AiSceneGuideUi';
 import { SynthText } from '../../src/components/SynthText';
 import { launchChatImagePicker, type ChatImagePickerSource } from '../../src/utils/launchChatImagePicker';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -434,6 +440,7 @@ export default function ChatThreadScreen() {
     const renderSenderHeader = (item: Message) => {
         const name = item.sender_name || 'User';
         const initial = name.trim().charAt(0).toUpperCase() || 'U';
+        const isAi = isAiSceneGuideMessage(item);
         return (
             <View style={styles.senderRow}>
                 {item.sender_avatar ? (
@@ -444,6 +451,7 @@ export default function ChatThreadScreen() {
                     </View>
                 )}
                 <Text style={styles.senderName}>{name}</Text>
+                {isAi ? <AiBadge /> : null}
             </View>
         );
     };
@@ -645,6 +653,23 @@ export default function ChatThreadScreen() {
             );
         }
 
+        // ── AI SCENE GUIDE ────────────────────────────────────────────────────
+        if (isAiSceneGuideMessage(item)) {
+            return (
+                <View style={[styles.messageWrapper, styles.theirMessageWrapper]}>
+                    {senderHeader}
+                    <AiGuideMessageBubble
+                        content={item.content}
+                        containsSetlistSpoiler={Boolean(item.contains_setlist_spoiler)}
+                        senderName={item.sender_name}
+                    />
+                    <SynthText variant="meta" color="secondary" style={styles.messageTime}>
+                        {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </SynthText>
+                </View>
+            );
+        }
+
         // ── PLAIN TEXT MESSAGE ────────────────────────────────────────────────
         return (
             <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
@@ -694,6 +719,7 @@ export default function ChatThreadScreen() {
                 renderItem={({ item, index }) => renderMessage({ item, index })}
                 keyExtractor={item => item.id}
                 inverted
+                ListFooterComponent={isGroupChat ? <AiSceneGuideRoomNotice /> : null}
                 contentContainerStyle={styles.messageList}
                 keyboardShouldPersistTaps="handled"
                 onContentSizeChange={() => {

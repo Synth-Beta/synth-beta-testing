@@ -1,0 +1,24 @@
+{
+  "name": "@synth/ai-scene-guides",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AI Scene Guides pipeline: grounded facts, planner, generator, verifier, shadow publisher",
+  "scripts": {
+    "seed": "tsx src/cli/seed.ts",
+    "seed-sample": "tsx src/cli/seed-sample.ts",
+    "dry-run": "tsx src/cli/dry-run.ts",
+    "shadow": "tsx src/cli/shadow.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

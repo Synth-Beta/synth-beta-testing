@@ -1,0 +1,467 @@
+import type { GroundedFact } from '../types.js';
+
+const ANCHOR = Date.parse('2026-08-06T15:00:00.000Z');
+
+function iso(offsetMs: number): string {
+  return new Date(ANCHOR + offsetMs).toISOString();
+}
+
+function day(n: number, hour = 19, minute = 0): string {
+  const d = new Date(ANCHOR + n * 24 * 3600_000);
+  d.setUTCHours(hour, minute, 0, 0);
+  return d.toISOString();
+}
+
+function eventFact(input: {
+  id: string;
+  artist: string;
+  venue: string;
+  city: string;
+  genreId: string;
+  when: string;
+  doors?: string;
+  rawId: string;
+}): GroundedFact {
+  const doorsNote = input.doors ? ` Doors ${input.doors}.` : '';
+  return {
+    id: input.id,
+    kind: 'event',
+    claim: `JamBase lists ${input.artist} at ${input.venue} in ${input.city} on ${input.when.slice(0, 10)}.${doorsNote}`,
+    sourceKind: 'fixture',
+    sourceUrl: `fixture://jambase/events/${input.rawId}`,
+    sourceTitle: `JamBase — ${input.artist} at ${input.venue}`,
+    occurredAt: input.when,
+    retrievedAt: iso(0),
+    expiresAt: iso(21 * 24 * 3600_000),
+    confidence: 0.92,
+    rawSourceId: input.rawId,
+    provenanceKey: `fixture:jambase:event:${input.rawId}`,
+    artistName: input.artist,
+    eventId: input.rawId,
+    venueName: input.venue,
+    genreId: input.genreId,
+    city: input.city,
+    dataSegment: 'fixture',
+  };
+}
+
+/** Dense multi-genre event catalog for quality pilot seeding (JamBase-shaped fixtures). */
+export const PILOT_EVENTS: GroundedFact[] = [
+  // Indie & Alternative
+  eventFact({
+    id: 'pilot-indie-1',
+    artist: 'Alvvays',
+    venue: '9:30 Club',
+    city: 'Washington, DC',
+    genreId: 'indie',
+    when: day(7, 19, 0),
+    doors: '7:00 p.m.',
+    rawId: 'jb-pilot-indie-1',
+  }),
+  eventFact({
+    id: 'pilot-indie-2',
+    artist: 'Wednesday',
+    venue: 'Black Cat',
+    city: 'Washington, DC',
+    genreId: 'indie',
+    when: day(9, 20, 0),
+    doors: '7:30 p.m.',
+    rawId: 'jb-pilot-indie-2',
+  }),
+  eventFact({
+    id: 'pilot-indie-3',
+    artist: 'MJ Lenderman',
+    venue: '40 Watt Club',
+    city: 'Athens, GA',
+    genreId: 'indie',
+    when: day(11, 20, 0),
+    doors: '7:00 p.m.',
+    rawId: 'jb-pilot-indie-3',
+  }),
+  eventFact({
+    id: 'pilot-indie-4',
+    artist: 'Japanese Breakfast',
+    venue: 'The Anthem',
+    city: 'Washington, DC',
+    genreId: 'indie',
+    when: day(14, 19, 30),
+    doors: '6:30 p.m.',
+    rawId: 'jb-pilot-indie-4',
+  }),
+  eventFact({
+    id: 'pilot-indie-5',
+    artist: 'Big Thief',
+    venue: 'Lincoln Theatre',
+    city: 'Washington, DC',
+    genreId: 'indie',
+    when: day(16, 20, 0),
+    rawId: 'jb-pilot-indie-5',
+  }),
+  eventFact({
+    id: 'pilot-indie-6',
+    artist: 'Soccer Mommy',
+    venue: 'Union Stage',
+    city: 'Washington, DC',
+    genreId: 'indie',
+    when: day(5, 19, 0),
+    doors: '6:00 p.m.',
+    rawId: 'jb-pilot-indie-6',
+  }),
+  eventFact({
+    id: 'pilot-indie-7',
+    artist: 'Snail Mail',
+    venue: 'U Street Music Hall',
+    city: 'Washington, DC',
+    genreId: 'indie',
+    when: day(18, 21, 0),
+    rawId: 'jb-pilot-indie-7',
+  }),
+  eventFact({
+    id: 'pilot-indie-8',
+    artist: 'Phoebe Bridgers',
+    venue: 'Merriweather Post Pavilion',
+    city: 'Columbia, MD',
+    genreId: 'indie',
+    when: day(20, 19, 0),
+    doors: '5:30 p.m.',
+    rawId: 'jb-pilot-indie-8',
+  }),
+
+  // Hip-hop
+  eventFact({
+    id: 'pilot-hh-1',
+    artist: 'Noname',
+    venue: 'Howard Theatre',
+    city: 'Washington, DC',
+    genreId: 'hip-hop',
+    when: day(6, 20, 0),
+    doors: '7:00 p.m.',
+    rawId: 'jb-pilot-hh-1',
+  }),
+  eventFact({
+    id: 'pilot-hh-2',
+    artist: 'JPEGMAFIA',
+    venue: '9:30 Club',
+    city: 'Washington, DC',
+    genreId: 'hip-hop',
+    when: day(10, 21, 0),
+    rawId: 'jb-pilot-hh-2',
+  }),
+  eventFact({
+    id: 'pilot-hh-3',
+    artist: 'Earl Sweatshirt',
+    venue: 'The Fillmore Silver Spring',
+    city: 'Silver Spring, MD',
+    genreId: 'hip-hop',
+    when: day(12, 20, 0),
+    doors: '7:00 p.m.',
+    rawId: 'jb-pilot-hh-3',
+  }),
+  eventFact({
+    id: 'pilot-hh-4',
+    artist: 'Saba',
+    venue: 'Lincoln Theatre',
+    city: 'Washington, DC',
+    genreId: 'hip-hop',
+    when: day(15, 19, 30),
+    rawId: 'jb-pilot-hh-4',
+  }),
+  eventFact({
+    id: 'pilot-hh-5',
+    artist: 'Little Simz',
+    venue: 'The Anthem',
+    city: 'Washington, DC',
+    genreId: 'hip-hop',
+    when: day(17, 20, 0),
+    doors: '6:30 p.m.',
+    rawId: 'jb-pilot-hh-5',
+  }),
+  eventFact({
+    id: 'pilot-hh-6',
+    artist: 'JID',
+    venue: 'Echostage',
+    city: 'Washington, DC',
+    genreId: 'hip-hop',
+    when: day(19, 21, 0),
+    rawId: 'jb-pilot-hh-6',
+  }),
+  eventFact({
+    id: 'pilot-hh-7',
+    artist: 'Tyler, The Creator',
+    venue: 'Capital One Arena',
+    city: 'Washington, DC',
+    genreId: 'hip-hop',
+    when: day(22, 19, 0),
+    doors: '6:00 p.m.',
+    rawId: 'jb-pilot-hh-7',
+  }),
+  eventFact({
+    id: 'pilot-hh-8',
+    artist: 'Open Mike Eagle',
+    venue: 'Union Stage',
+    city: 'Washington, DC',
+    genreId: 'hip-hop',
+    when: day(8, 19, 0),
+    rawId: 'jb-pilot-hh-8',
+  }),
+
+  // EDM
+  eventFact({
+    id: 'pilot-edm-1',
+    artist: 'Four Tet',
+    venue: 'Echostage',
+    city: 'Washington, DC',
+    genreId: 'edm',
+    when: day(8, 22, 0),
+    doors: '9:00 p.m.',
+    rawId: 'jb-pilot-edm-1',
+  }),
+  eventFact({
+    id: 'pilot-edm-2',
+    artist: 'Floating Points',
+    venue: '9:30 Club',
+    city: 'Washington, DC',
+    genreId: 'edm',
+    when: day(13, 21, 0),
+    rawId: 'jb-pilot-edm-2',
+  }),
+  eventFact({
+    id: 'pilot-edm-3',
+    artist: 'Peggy Gou',
+    venue: 'The Anthem',
+    city: 'Washington, DC',
+    genreId: 'edm',
+    when: day(15, 22, 0),
+    doors: '8:00 p.m.',
+    rawId: 'jb-pilot-edm-3',
+  }),
+  eventFact({
+    id: 'pilot-edm-4',
+    artist: 'Bicep',
+    venue: 'Echostage',
+    city: 'Washington, DC',
+    genreId: 'edm',
+    when: day(18, 22, 0),
+    rawId: 'jb-pilot-edm-4',
+  }),
+  eventFact({
+    id: 'pilot-edm-5',
+    artist: 'Disclosure',
+    venue: 'Merriweather Post Pavilion',
+    city: 'Columbia, MD',
+    genreId: 'edm',
+    when: day(21, 19, 0),
+    doors: '5:00 p.m.',
+    rawId: 'jb-pilot-edm-5',
+  }),
+  eventFact({
+    id: 'pilot-edm-6',
+    artist: 'Kaytranada',
+    venue: 'The Fillmore Silver Spring',
+    city: 'Silver Spring, MD',
+    genreId: 'edm',
+    when: day(9, 21, 0),
+    rawId: 'jb-pilot-edm-6',
+  }),
+  eventFact({
+    id: 'pilot-edm-7',
+    artist: 'Caribou',
+    venue: 'Lincoln Theatre',
+    city: 'Washington, DC',
+    genreId: 'edm',
+    when: day(11, 20, 0),
+    rawId: 'jb-pilot-edm-7',
+  }),
+  eventFact({
+    id: 'pilot-edm-8',
+    artist: 'Overmono',
+    venue: 'U Street Music Hall',
+    city: 'Washington, DC',
+    genreId: 'edm',
+    when: day(16, 22, 0),
+    rawId: 'jb-pilot-edm-8',
+  }),
+
+  // Metal & Punk
+  eventFact({
+    id: 'pilot-metal-1',
+    artist: 'Deafheaven',
+    venue: 'Black Cat',
+    city: 'Washington, DC',
+    genreId: 'metal',
+    when: day(4, 20, 0),
+    doors: '7:00 p.m.',
+    rawId: 'jb-pilot-metal-1',
+  }),
+  eventFact({
+    id: 'pilot-metal-2',
+    artist: 'Turnstile',
+    venue: 'The Anthem',
+    city: 'Washington, DC',
+    genreId: 'metal',
+    when: day(10, 19, 0),
+    doors: '6:30 p.m.',
+    rawId: 'jb-pilot-metal-2',
+  }),
+  eventFact({
+    id: 'pilot-metal-3',
+    artist: 'Knocked Loose',
+    venue: '9:30 Club',
+    city: 'Washington, DC',
+    genreId: 'metal',
+    when: day(12, 20, 0),
+    rawId: 'jb-pilot-metal-3',
+  }),
+  eventFact({
+    id: 'pilot-metal-4',
+    artist: 'Power Trip',
+    venue: 'Black Cat',
+    city: 'Washington, DC',
+    genreId: 'metal',
+    when: day(14, 20, 0),
+    rawId: 'jb-pilot-metal-4',
+  }),
+  eventFact({
+    id: 'pilot-metal-5',
+    artist: 'Idles',
+    venue: 'The Fillmore Silver Spring',
+    city: 'Silver Spring, MD',
+    genreId: 'metal',
+    when: day(17, 20, 0),
+    doors: '7:00 p.m.',
+    rawId: 'jb-pilot-metal-5',
+  }),
+  eventFact({
+    id: 'pilot-metal-6',
+    artist: 'Amyl and the Sniffers',
+    venue: 'Union Stage',
+    city: 'Washington, DC',
+    genreId: 'metal',
+    when: day(19, 21, 0),
+    rawId: 'jb-pilot-metal-6',
+  }),
+  eventFact({
+    id: 'pilot-metal-7',
+    artist: 'Elder',
+    venue: 'U Street Music Hall',
+    city: 'Washington, DC',
+    genreId: 'metal',
+    when: day(7, 20, 0),
+    rawId: 'jb-pilot-metal-7',
+  }),
+  eventFact({
+    id: 'pilot-metal-8',
+    artist: 'Spiritual Cramp',
+    venue: 'Black Cat',
+    city: 'Washington, DC',
+    genreId: 'metal',
+    when: day(21, 20, 0),
+    rawId: 'jb-pilot-metal-8',
+  }),
+
+  // Pop
+  eventFact({
+    id: 'pilot-pop-1',
+    artist: 'Chappell Roan',
+    venue: 'Capital One Arena',
+    city: 'Washington, DC',
+    genreId: 'pop',
+    when: day(13, 19, 0),
+    doors: '6:00 p.m.',
+    rawId: 'jb-pilot-pop-1',
+  }),
+  eventFact({
+    id: 'pilot-pop-2',
+    artist: 'Reneé Rapp',
+    venue: 'The Anthem',
+    city: 'Washington, DC',
+    genreId: 'pop',
+    when: day(8, 20, 0),
+    rawId: 'jb-pilot-pop-2',
+  }),
+  eventFact({
+    id: 'pilot-pop-3',
+    artist: 'Sabrina Carpenter',
+    venue: 'Capital One Arena',
+    city: 'Washington, DC',
+    genreId: 'pop',
+    when: day(20, 19, 30),
+    doors: '6:30 p.m.',
+    rawId: 'jb-pilot-pop-3',
+  }),
+  eventFact({
+    id: 'pilot-pop-4',
+    artist: 'Caroline Polachek',
+    venue: '9:30 Club',
+    city: 'Washington, DC',
+    genreId: 'pop',
+    when: day(11, 20, 0),
+    rawId: 'jb-pilot-pop-4',
+  }),
+  eventFact({
+    id: 'pilot-pop-5',
+    artist: 'Charli XCX',
+    venue: 'Merriweather Post Pavilion',
+    city: 'Columbia, MD',
+    genreId: 'pop',
+    when: day(16, 19, 0),
+    doors: '5:00 p.m.',
+    rawId: 'jb-pilot-pop-5',
+  }),
+  eventFact({
+    id: 'pilot-pop-6',
+    artist: 'Maggie Rogers',
+    venue: 'The Anthem',
+    city: 'Washington, DC',
+    genreId: 'pop',
+    when: day(18, 20, 0),
+    rawId: 'jb-pilot-pop-6',
+  }),
+  eventFact({
+    id: 'pilot-pop-7',
+    artist: 'Clairo',
+    venue: 'Lincoln Theatre',
+    city: 'Washington, DC',
+    genreId: 'pop',
+    when: day(6, 19, 0),
+    doors: '6:30 p.m.',
+    rawId: 'jb-pilot-pop-7',
+  }),
+  eventFact({
+    id: 'pilot-pop-8',
+    artist: 'Olivia Rodrigo',
+    venue: 'Capital One Arena',
+    city: 'Washington, DC',
+    genreId: 'pop',
+    when: day(23, 19, 0),
+    rawId: 'jb-pilot-pop-8',
+  }),
+];
+
+/** Fixture-only setlist (contract-supported) for one hip-hop event. */
+export const PILOT_SETLIST: GroundedFact = {
+  id: 'pilot-hh-setlist-1',
+  kind: 'setlist',
+  claim:
+    'Confirmed fixture setlist for Noname at Howard Theatre lists 14 songs including encore tracks "Diddy Bop" and "Busy / Siren".',
+  sourceKind: 'fixture',
+  sourceUrl: 'fixture://contract-setlist/jb-pilot-hh-1',
+  sourceTitle: 'Fixture contract setlist — Noname',
+  occurredAt: day(-1, 22, 0),
+  retrievedAt: iso(0),
+  expiresAt: iso(14 * 24 * 3600_000),
+  confidence: 0.9,
+  rawSourceId: 'fx-setlist-pilot-hh-1',
+  provenanceKey: 'fixture:setlist:jb-pilot-hh-1',
+  artistName: 'Noname',
+  eventId: 'jb-pilot-hh-1',
+  genreId: 'hip-hop',
+  city: 'Washington, DC',
+  dataSegment: 'fixture',
+};
+
+export function pilotFactsForGenre(genreId: string): GroundedFact[] {
+  const events = PILOT_EVENTS.filter((e) => e.genreId === genreId);
+  if (genreId === 'hip-hop') return [...events, PILOT_SETLIST];
+  return events;
+}

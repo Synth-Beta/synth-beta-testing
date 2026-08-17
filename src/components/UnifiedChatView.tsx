@@ -49,6 +49,13 @@ import { UserInfo } from '@/components/profile/UserInfo';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { EventMessageCard } from '@/components/chat/EventMessageCard';
 import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
+import {
+  AiBadge,
+  AiGuideMessageBubble,
+  AiSceneGuideRoomNotice,
+} from '@/components/chat/AiSceneGuideUi';
+import { isAiSceneGuideMessage } from '@/components/chat/aiSceneGuideConstants';
+import { AiSceneGuideMuteService } from '@/services/aiSceneGuideMuteService';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
@@ -164,6 +171,11 @@ interface Message {
   shared_event_id?: string | null;
   shared_review_id?: string | null;
   metadata?: any;
+  author_type?: 'human' | 'ai_scene_guide' | 'system' | null;
+  persona_id?: string | null;
+  plan_id?: string | null;
+  cited_fact_ids?: string[] | null;
+  contains_setlist_spoiler?: boolean | null;
 }
 
 interface User {
@@ -207,6 +219,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
   const [didLoadMessages, setDidLoadMessages] = useState(false);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
+  const [aiGuidesMuted, setAiGuidesMuted] = useState(false);
   const [isEditingGroupName, setIsEditingGroupName] = useState(false);
   const [editedGroupName, setEditedGroupName] = useState('');
 const lastAnnouncedMessageIdRef = useRef<string | null>(null);
@@ -2104,13 +2117,14 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               >
                 {/* Group chat user info (6px above first bubble) */}
                 {showSenderInfo && (
-                  <div style={{ marginBottom: 'var(--spacing-inline, 6px)' }}>
+                  <div style={{ marginBottom: 'var(--spacing-inline, 6px)', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <UserInfo
                       variant="chat"
                       name={firstMessage.sender_name}
                       initial={firstMessage.sender_name.split(' ').map(n => n[0]).join('').substring(0, 1)}
                       imageUrl={firstMessage.sender_avatar || null}
                     />
+                    {isAiSceneGuideMessage(firstMessage) && <AiBadge compact />}
                   </div>
                 )}
 
@@ -2172,7 +2186,22 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                             );
                           }
                           
-                          // Priority 3: Text content (only if not review or event share)
+                          // Priority 3: AI Scene Guide text (disclosed)
+                          if (isAiSceneGuideMessage(message)) {
+                            const metaFacts = Array.isArray(message.metadata?.source_facts)
+                              ? message.metadata.source_facts
+                              : [];
+                            return (
+                              <AiGuideMessageBubble
+                                content={message.content}
+                                containsSetlistSpoiler={Boolean(message.contains_setlist_spoiler)}
+                                sourceFacts={metaFacts}
+                                isSent={isSent}
+                              />
+                            );
+                          }
+
+                          // Priority 4: Text content (only if not review or event share)
                           return (
                             <div
                               style={{
@@ -2540,6 +2569,17 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 }}
               >
               <div className="sr-only" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
+              {selectedChat?.is_group_chat && selectedChat.entity_type === 'genre' && (
+                <AiSceneGuideRoomNotice
+                  muted={aiGuidesMuted}
+                  onMute={async () => {
+                    if (!selectedChat) return;
+                    const next = !aiGuidesMuted;
+                    setAiGuidesMuted(next);
+                    await AiSceneGuideMuteService.setMuted(currentUserId, selectedChat.id, next);
+                  }}
+                />
+              )}
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                   {/* Large icon (60px), dark grey */}

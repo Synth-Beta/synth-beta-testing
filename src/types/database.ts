@@ -562,6 +562,11 @@ export interface Message {
   content: string;
   is_encrypted?: boolean; // Indicates if message content is encrypted
   created_at: string;
+  author_type?: 'human' | 'ai_scene_guide' | 'system';
+  persona_id?: string | null;
+  plan_id?: string | null;
+  cited_fact_ids?: string[] | null;
+  contains_setlist_spoiler?: boolean;
 }
 
 // Legacy interface - deprecated, use Event from concertSearch.ts instead

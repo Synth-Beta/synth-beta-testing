@@ -14,6 +14,38 @@
   ],
   "rewrites": [
     {
+      "source": "/api/cron/ai-scene-guides-schedule",
+      "destination": "/api/ai-scene-guides?job=schedule"
+    },
+    {
+      "source": "/api/cron/ai-scene-guides-publish",
+      "destination": "/api/ai-scene-guides?job=publish"
+    },
+    {
+      "source": "/api/cron/ai-scene-guides-shadow",
+      "destination": "/api/ai-scene-guides?job=shadow"
+    },
+    {
+      "source": "/api/admin/ai-scene-guides-cron",
+      "destination": "/api/ai-scene-guides?job=admin"
+    },
+    {
+      "source": "/api/admin/ai-scene-guides-quality-seed",
+      "destination": "/api/ai-scene-guides?job=quality-seed"
+    },
+    {
+      "source": "/api/slack/scene-guides/commands",
+      "destination": "/api/ai-scene-guides?job=slack-commands"
+    },
+    {
+      "source": "/api/slack/scene-guides/events",
+      "destination": "/api/ai-scene-guides?job=slack-events"
+    },
+    {
+      "source": "/api/slack/scene-guides/interactions",
+      "destination": "/api/ai-scene-guides?job=slack-interactions"
+    },
+    {
       "source": "/auth/spotify/callback",
       "destination": "/"
     },
@@ -44,6 +76,9 @@
     "api/push-notification-webhook.ts": {
       "maxDuration": 15
     },
+    "api/slack-signup-webhook.ts": {
+      "maxDuration": 10
+    },
     "api/slack-pm/commands.ts": {
       "maxDuration": 30
     },
@@ -59,11 +94,11 @@
     "api/cron/slack-pm-digest.ts": {
       "maxDuration": 60
     },
+    "api/ai-scene-guides.ts": {
+      "maxDuration": 120
+    },
     "api/spotify/sync-profile.ts": {
       "maxDuration": 30
-    },
-    "api/slack-signup-webhook.ts": {
-      "maxDuration": 10
     }
   },
   "crons": [
@@ -74,6 +109,34 @@
     {
       "path": "/api/cron/seed-bot-messages",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/ai-scene-guides",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/ai-scene-guides",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/ai-scene-guides",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/ai-scene-guides",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/ai-scene-guides",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/ai-scene-guides",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/ai-scene-guides",
+      "schedule": "0 14 * * *"
     },
     {
       "path": "/api/cron/slack-pm-digest",

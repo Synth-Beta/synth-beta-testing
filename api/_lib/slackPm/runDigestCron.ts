@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { timingSafeEqual } from 'crypto';
+import { catchUpMissedSignups } from '../slackSignup.js';
 import { getSupabaseService } from './client.js';
 import { postDigestForWorkspace, type DigestKind } from './digest.js';
 
@@ -35,6 +36,19 @@ export async function handleDigestCron(
   }
 
   try {
+    let signupCatchUp = { posted: 0, skipped: 0 };
+    try {
+      signupCatchUp = await catchUpMissedSignups();
+      if (signupCatchUp.posted > 0 || signupCatchUp.skipped > 0) {
+        console.log(`[cron/slack-pm-digest:${kind}] signup catch-up`, signupCatchUp);
+      }
+    } catch (signupErr) {
+      console.warn(
+        `[cron/slack-pm-digest:${kind}] signup catch-up failed`,
+        (signupErr as Error).message,
+      );
+    }
+
     const { data: workspaces, error } = await supabase.from('pm_workspaces').select('*');
     if (error) throw error;
 
@@ -49,7 +63,7 @@ export async function handleDigestCron(
       results.push({ workspaceId: ws.id, ...r });
     }
     console.log(`[cron/slack-pm-digest:${kind}]`, results);
-    return res.status(200).json({ ok: true, kind, results });
+    return res.status(200).json({ ok: true, kind, results, signupCatchUp });
   } catch (err) {
     const message = (err as Error).message || 'unknown';
     console.error(`[cron/slack-pm-digest:${kind}] Failed:`, message);

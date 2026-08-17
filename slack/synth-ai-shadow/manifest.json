@@ -1,0 +1,49 @@
+{
+  "display_information": {
+    "name": "Synth AI Shadow",
+    "description": "Private review queue for AI Scene Guides shadow pilot. Does not post to Synth consumer chat.",
+    "background_color": "#0B0B0B"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Synth AI Shadow",
+      "always_online": true
+    },
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": false,
+      "messages_tab_read_only_enabled": true
+    },
+    "slash_commands": [
+      {
+        "command": "/synth-shadow",
+        "url": "https://JOIN.GETSYNTH.APP/api/slack/scene-guides/commands",
+        "description": "AI Scene Guides shadow pilot controls",
+        "usage_hint": "status | pause | resume | kill | sample <genre> | export",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "commands",
+        "im:write"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://JOIN.GETSYNTH.APP/api/slack/scene-guides/events",
+      "bot_events": ["app_home_opened"]
+    },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://JOIN.GETSYNTH.APP/api/slack/scene-guides/interactions"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
