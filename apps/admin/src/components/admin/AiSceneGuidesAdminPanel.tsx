@@ -560,8 +560,10 @@ export function AiSceneGuidesAdminPanel() {
                 Cron schedule job: <code>0 6 * * *</code> →{' '}
                 <code>/api/cron/ai-scene-guides-schedule</code>
                 <br />
-                Publish tick: <code>*/15 * * * *</code> →{' '}
-                <code>/api/cron/ai-scene-guides-publish</code>
+                Publish ticks (Hobby-safe, once per day each): 12:00 / 15:00 / 18:00 / 21:00 / 00:00
+                UTC → <code>/api/cron/ai-scene-guides-publish</code>
+                <br />
+                Vercel Hobby cannot run <code>*/15</code>. Pro would allow a true 15-minute tick.
                 <br />
                 Live posting requires cron ON + kill switch open + dry-run OFF + mode production (or
                 staff_approve).
@@ -572,7 +574,7 @@ export function AiSceneGuidesAdminPanel() {
                 <div>
                   <Label>Cron enabled</Label>
                   <p className="text-sm text-muted-foreground">
-                    When on, daily schedule + 15‑min publish ticks run.
+                    When on, the daily schedule job plus several once-a-day publish ticks run.
                   </p>
                 </div>
                 <Switch

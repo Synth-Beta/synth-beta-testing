@@ -2,7 +2,7 @@
  * Vercel Cron — publish due AI Scene Guide scheduled posts.
  * Runs frequently; posts only when cron_enabled + enabled and not dry_run.
  *
- * Schedule: every 15 minutes (see vercel.json)
+ * Schedule: several once-a-day ticks in vercel.json (Hobby-safe; not */15).
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
