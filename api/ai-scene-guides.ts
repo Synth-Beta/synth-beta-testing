@@ -16,6 +16,7 @@ type Job =
   | 'shadow'
   | 'admin'
   | 'quality-seed'
+  | 'ops-alert'
   | 'slack-commands'
   | 'slack-events'
   | 'slack-interactions';
@@ -49,6 +50,7 @@ function resolveJob(req: VercelRequest): Job {
     'shadow',
     'admin',
     'quality-seed',
+    'ops-alert',
     'slack-commands',
     'slack-events',
     'slack-interactions',
@@ -56,6 +58,7 @@ function resolveJob(req: VercelRequest): Job {
   if ((allowed as string[]).includes(q)) return q as Job;
 
   const path = pathOf(req);
+  if (path.includes('ops-alert')) return 'ops-alert';
   if (path.includes('quality-seed')) return 'quality-seed';
   if (path.includes('ai-scene-guides-cron') || path.endsWith('/admin/ai-scene-guides')) return 'admin';
   if (path.includes('ai-scene-guides-schedule')) return 'schedule';
@@ -90,6 +93,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (job === 'slack-interactions') {
     const { default: slackInteractions } = await import('./_lib/aiSceneGuides/handlers/slackInteractions.js');
     return slackInteractions(req, res);
+  }
+  if (job === 'ops-alert') {
+    const { default: opsAlert } = await import('./_lib/opsAlert.js');
+    return opsAlert(req, res);
   }
 
   const raw = await readRawBody(req);
