@@ -17,49 +17,34 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// Custom pink marker icon for travel tracker — count badge shows when several shows share a city.
+// Custom pink marker icon for travel tracker — a single bubble shows the note icon for
+// one show, or the show count itself when several shows share a city.
 const createPinkMarkerIcon = (count: number = 1) => {
-  const badge = count > 1 ? `
-      <div style="
-        position: absolute;
-        top: -3px;
-        right: -3px;
-        min-width: 16px;
-        height: 16px;
-        padding: 0 3px;
-        border-radius: 8px;
-        background: white;
-        border: 1.5px solid var(--brand-pink-500);
-        color: var(--brand-pink-500);
-        font-size: 9px;
-        font-weight: 800;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      ">${count > 9 ? '9+' : count}</div>` : '';
+  const size = count > 1 ? 36 : 32;
+  const inner = count > 1
+    ? `<span style="font-size: 15px; font-weight: 800; line-height: 1;">${count > 9 ? '9+' : count}</span>`
+    : `<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-music2-icon lucide-music-2" style="stroke: var(--neutral-50);">
+        <circle cx="8" cy="18" r="4"/>
+        <path d="M12 18V2l7 4"/>
+      </svg>`;
   return divIcon({
     className: 'travel-tracker-marker',
     html: `<div style="
-      position: relative;
       background-color: var(--brand-pink-500);
       color: white;
       border: 3px solid white;
       border-radius: 50%;
-      width: 32px;
-      height: 32px;
+      width: ${size}px;
+      height: ${size}px;
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     ">
-      <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-music2-icon lucide-music-2" style="stroke: var(--neutral-50);">
-        <circle cx="8" cy="18" r="4"/>
-        <path d="M12 18V2l7 4"/>
-      </svg>
-      ${badge}
+      ${inner}
     </div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
   });
 };
 

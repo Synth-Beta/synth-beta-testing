@@ -67,14 +67,19 @@ function GlowMarker({ selected, count }: { selected: boolean; count: number }) {
     return (
         <View style={styles.markerHit}>
             <View style={[styles.markerGlow, selected && styles.markerGlowSelected]} />
-            <View style={[styles.markerCore, selected && styles.markerCoreSelected]} />
-            {count > 1 ? (
-                <View style={styles.markerBadge}>
-                    <SynthText variant="meta" style={styles.markerBadgeTxt}>
+            <View
+                style={[
+                    styles.markerCore,
+                    count > 1 && styles.markerCoreWithCount,
+                    selected && styles.markerCoreSelected,
+                ]}
+            >
+                {count > 1 ? (
+                    <SynthText variant="meta" style={styles.markerCoreTxt}>
                         {count > 9 ? '9+' : count}
                     </SynthText>
-                </View>
-            ) : null}
+                ) : null}
+            </View>
         </View>
     );
 }
@@ -549,23 +554,12 @@ const styles = StyleSheet.create({
         backgroundColor: PINK,
         borderWidth: 2.5,
         borderColor: '#fff',
-    },
-    markerCoreSelected: { width: 19, height: 19, borderRadius: 10 },
-    markerBadge: {
-        position: 'absolute',
-        top: -3,
-        right: -3,
-        minWidth: 16,
-        height: 16,
-        borderRadius: 8,
-        paddingHorizontal: 3,
-        backgroundColor: SynthTokens.colors.neutral0,
-        borderWidth: 1.5,
-        borderColor: PINK,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    markerBadgeTxt: { color: PINK, fontWeight: '800', fontSize: 9, lineHeight: 11 },
+    markerCoreSelected: { width: 19, height: 19, borderRadius: 10 },
+    markerCoreWithCount: { width: 22, height: 22, borderRadius: 11 },
+    markerCoreTxt: { color: '#fff', fontWeight: '800', fontSize: 10, lineHeight: 12 },
 
     detailCard: {
         position: 'absolute',

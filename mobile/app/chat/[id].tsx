@@ -7,7 +7,6 @@ import { Image } from 'expo-image';
 import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
-import { GenreChatEventsRail } from '../../src/components/chat/GenreChatEventsRail';
 import { SynthText } from '../../src/components/SynthText';
 import { launchChatImagePicker, type ChatImagePickerSource } from '../../src/utils/launchChatImagePicker';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -676,10 +675,18 @@ export default function ChatThreadScreen() {
                 <SynthText variant="h2" style={styles.headerTitle} numberOfLines={1}>
                     {chatTitle || 'Messages'}
                 </SynthText>
-                <View style={{ width: 40 }} />
+                {entityType === 'genre' && entityId ? (
+                    <Pressable
+                        onPress={() => router.push(`/genre/${entityId}/events` as any)}
+                        style={styles.genreEventsButton}
+                        accessibilityLabel="View upcoming shows"
+                    >
+                        <Calendar size={22} color={SynthTokens.colors.neutral900} />
+                    </Pressable>
+                ) : (
+                    <View style={{ width: 40 }} />
+                )}
             </View>
-
-            {entityType === 'genre' && entityId && <GenreChatEventsRail genreChatId={entityId} />}
 
             <FlatList
                 ref={flatListRef}
@@ -758,6 +765,12 @@ const styles = StyleSheet.create({
     },
     backButton: {
         padding: 8,
+    },
+    genreEventsButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     headerTitle: {
         flex: 1,

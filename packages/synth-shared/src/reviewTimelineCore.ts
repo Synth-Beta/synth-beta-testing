@@ -29,12 +29,10 @@ type ReviewTimelineRow = Record<string, unknown> & {
 type EventTimelineRow = Record<string, unknown> & {
   id?: string;
   title?: string | null;
-  artist_name?: string | null;
-  venue_name?: string | null;
   venue_city?: string | null;
+  venue_state?: string | null;
   event_date?: string | null;
-  image?: string | null;
-  poster_image_url?: string | null;
+  event_media_url?: string | null;
   images?: Array<{ url?: string | null }> | null;
 };
 
@@ -50,11 +48,8 @@ function firstImageUrl(review: ReviewTimelineRow, event: EventTimelineRow | null
     : undefined;
   if (fromEventImages) return fromEventImages;
 
-  if (typeof event?.poster_image_url === 'string' && event.poster_image_url.trim()) {
-    return event.poster_image_url;
-  }
-  if (typeof event?.image === 'string' && event.image.trim()) {
-    return event.image;
+  if (typeof event?.event_media_url === 'string' && event.event_media_url.trim()) {
+    return event.event_media_url;
   }
 
   const photos = review.photos;
@@ -66,16 +61,14 @@ function firstImageUrl(review: ReviewTimelineRow, event: EventTimelineRow | null
 }
 
 function titleForEvent(event: EventTimelineRow | null): string {
-  if (event?.artist_name && event?.venue_name) return `${event.artist_name} @ ${event.venue_name}`;
   if (event?.title) return event.title;
-  if (event?.artist_name) return event.artist_name;
-  if (event?.venue_name) return event.venue_name;
   return 'Concert';
 }
 
 function subtitleForReview(review: ReviewTimelineRow, event: EventTimelineRow | null): string {
+  const place = event?.venue_city || event?.venue_state;
   const pieces = [
-    event?.venue_name,
+    place,
     typeof review.rating === 'number' ? `${review.rating} stars` : null,
   ].filter(Boolean);
 
@@ -100,12 +93,10 @@ export async function fetchProfileReviewTimeline(
           events:event_id (
             id,
             title,
-            artist_name,
-            venue_name,
             venue_city,
+            venue_state,
             event_date,
-            image,
-            poster_image_url,
+            event_media_url,
             images
           )
         `)
