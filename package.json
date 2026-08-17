@@ -12,6 +12,7 @@
     "backend:start": "cd backend && npm start",
     "ingest:tm": "node --enable-source-maps ./scripts/ingest_ticketmaster_events.mjs",
     "build": "vite build",
+    "build:vercel": "node scripts/build-vercel-production.mjs",
     "build:dev": "vite build --mode development",
     "build:verify": "npm run build && node scripts/security-check.mjs",
     "security:audit": "node scripts/security-check.mjs",

@@ -11,7 +11,9 @@ Marketing site + `/admin` ops portal. Lives in this monorepo at `apps/admin/`.
 |---|---|
 | **Live** | https://getsynth.app (`/admin` = ops portal) |
 | **Consumer app** | Repo root → https://join.getsynth.app |
-| **Vercel project** | `plusone-event-crew` (Root Directory = `apps/admin`) |
+| **Vercel project** | `synth-beta-testing` (same deploy as join; `middleware.ts` routes getsynth.app → `apps/admin` build) |
+
+Legacy **`plusone-event-crew`** is no longer used for production — do not deploy admin there.
 
 ## Local
 
@@ -31,11 +33,11 @@ Copy env from the getsynth.app Vercel project into `apps/admin/.env.local`. Neve
 
 ## Deploy
 
-Vercel project for getsynth.app must use:
+Production admin ships with the **unified** Vercel project **`synth-beta-testing`** (not a separate getsynth project):
 
-- **Git repo:** `Synth-Beta/synth-beta-testing`
-- **Root Directory:** `apps/admin`
-- **Build:** `npm run build`
-- **Output:** `dist`
+- **Git repo:** `Synth-Beta/synth-beta-testing` (repo root)
+- **Build:** `node scripts/build-vercel-production.mjs` (consumer + admin)
+- **getsynth.app routing:** root `middleware.ts` → `dist/_site/getsynth/`
+- **Local build check:** `npm run build:vercel`
 
-**Ignored Build Step:** `apps/admin/vercel.json` sets `"ignoreCommand": "exit 1"`, which always signals "changed" so Vercel builds on every push. Do not switch this back to a `git diff --quiet HEAD^ HEAD -- ./apps/admin`-style check in the dashboard — that command only diffs the new commit against its immediate parent, so a *batch* push (several commits landing in one `git push`, e.g. a merge) gets checked only against the last commit. If that last commit doesn't touch `apps/admin`, Vercel silently skips the rebuild even though earlier commits in the same batch changed admin code — this already happened once (2026-08-07) and cost hours to diagnose because the deploy looked fresh (new timestamp) while serving stale JS. If admin changes ever don't show up after a push, first verify the live bundle actually contains the new code (fetch the deployed `/assets/index-*.js` and grep for a string you just added) before assuming the source is wrong.
+Ensure Production env on `synth-beta-testing` includes admin needs (`VITE_SUPABASE_*`, Instagram keys if used, `SLACK_ALERTS_WEBHOOK_URL` for `/api/ops-alert`).

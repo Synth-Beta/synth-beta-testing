@@ -1,6 +1,6 @@
 {
-  "installCommand": "npm install --include=dev",
-  "buildCommand": "npm run build",
+  "installCommand": "npm install --include=dev && npm install --prefix apps/admin && npm install --prefix ai-scene-guides --omit=dev",
+  "buildCommand": "node scripts/build-vercel-production.mjs",
   "headers": [
     {
       "source": "/.well-known/apple-app-site-association",
@@ -62,7 +62,7 @@
       "destination": "/api/share"
     },
     {
-      "source": "/((?!assets/|\\.well-known/|api/).*)",
+      "source": "/((?!assets/|\\.well-known/|api/|_site/).*)",
       "destination": "/index.html"
     }
   ],
@@ -93,6 +93,9 @@
     },
     "api/cron/slack-pm-digest.ts": {
       "maxDuration": 60
+    },
+    "api/ops-alert.js": {
+      "maxDuration": 15
     },
     "api/ai-scene-guides.ts": {
       "maxDuration": 120

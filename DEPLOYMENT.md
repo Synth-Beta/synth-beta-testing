@@ -5,33 +5,29 @@
 
 | App | Path in repo | Domain | Vercel |
 |-----|--------------|--------|--------|
-| Consumer web + APIs | repo root | https://join.getsynth.app | `synth-beta-testing` |
-| Admin + marketing | `apps/admin/` | https://getsynth.app | `plusone-event-crew` (Root Directory = `apps/admin`) |
+| Consumer web + APIs + admin | repo root (+ `apps/admin` build) | https://join.getsynth.app, https://getsynth.app | `synth-beta-testing` |
 | Styleguide | `styleguide/` | https://styleguide.getsynth.app | `synth-styleguide` |
 | Mobile | `mobile/` | App Store / EAS | — |
 
-`/admin` on getsynth.app is the ops portal from `apps/admin` — same app as before the monorepo merge. Do not change admin UX unless intentional.
+`/admin` on **getsynth.app** is served from the same **`synth-beta-testing`** deployment as join (host-based routing via `middleware.ts`). The legacy **`plusone-event-crew`** project is retired — do not deploy admin there.
 
-## Vercel — join.getsynth.app (repo root)
+## Vercel — unified web (`synth-beta-testing`)
 
-Production deploys from **[Synth-Beta/synth-beta-testing](https://github.com/Synth-Beta/synth-beta-testing)** `main` via Vercel. Mobile store builds use **EAS** from `mobile/`.
+Production deploys from **[Synth-Beta/synth-beta-testing](https://github.com/Synth-Beta/synth-beta-testing)** `main`.
 
-## Vercel — getsynth.app (`apps/admin`)
+- **join.getsynth.app** → consumer Vite app (`dist/`)
+- **getsynth.app** → admin + marketing (`dist/_site/getsynth/`, built from `apps/admin/`)
+- Build: `node scripts/build-vercel-production.mjs` (see root `vercel.json`)
 
-1. Project **plusone-event-crew** → connect Git to `Synth-Beta/synth-beta-testing`
-2. Settings → General → **Root Directory** = `apps/admin`
-3. Keep existing Production env vars on that project (do not reuse join-only secrets incorrectly)
-4. Optional Ignored Build Step so admin only rebuilds when `apps/admin/**` changes:
-   ```bash
-   git diff --quiet HEAD^ HEAD -- ./apps/admin
-   ```
+Copy **Production** env vars from the old getsynth project if anything admin-only is missing (Instagram API keys, etc.).
 
 Local admin:
+
 ```bash
 npm run admin:install && npm run admin:dev
 ```
 
-## Vercel (web + API routes — join)
+## Vercel — join.getsynth.app (API routes)
 
 1. Link the Vercel project to `Synth-Beta/synth-beta-testing` (Git integration on `main`).
 2. Set **Production** environment variables:
