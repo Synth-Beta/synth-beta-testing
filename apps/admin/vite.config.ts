@@ -37,6 +37,8 @@ export default defineConfig({
         __dirname,
         "../../ai-scene-guides/src/pipeline/contextualSeed.ts",
       ),
+      // Importer lives outside apps/admin, so resolve zod from this app's install.
+      zod: path.resolve(__dirname, "node_modules/zod"),
     },
   },
 });

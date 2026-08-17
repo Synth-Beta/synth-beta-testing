@@ -1,5 +1,6 @@
 {
   "ignoreCommand": "exit 1",
+  "installCommand": "npm install && npm install --prefix ../../ai-scene-guides --omit=dev",
   "functions": {
     "api/ops-alert.js": { "maxDuration": 15 }
   },
