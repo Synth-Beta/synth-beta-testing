@@ -101,9 +101,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { recordReview, buildFailReasonModal } = await import(
-    '../../../ai-scene-guides/src/slack/commands.js'
+    '../../../../ai-scene-guides/src/slack/commands.js'
   ).then(async (mod) => {
-    const blocks = await import('../../../ai-scene-guides/src/slack/blocks.js');
+    const blocks = await import('../../../../ai-scene-guides/src/slack/blocks.js');
     return { ...mod, buildFailReasonModal: blocks.buildFailReasonModal };
   });
 

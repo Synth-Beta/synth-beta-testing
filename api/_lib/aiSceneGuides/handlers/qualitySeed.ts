@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const count = Math.max(50, Math.min(Number(body.count) || 300, 1000));
     const seed = Number(body.seed) || 42;
 
-    const { runQualitySeed } = await import('../../ai-scene-guides/src/pipeline/qualitySeed.js');
+    const { runQualitySeed } = await import('../../../../ai-scene-guides/src/pipeline/qualitySeed.js');
     const result = runQualitySeed({
       targetMessages: count,
       seed,

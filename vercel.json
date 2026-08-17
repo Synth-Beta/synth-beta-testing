@@ -14,6 +14,38 @@
   ],
   "rewrites": [
     {
+      "source": "/api/cron/ai-scene-guides-schedule",
+      "destination": "/api/ai-scene-guides?job=schedule"
+    },
+    {
+      "source": "/api/cron/ai-scene-guides-publish",
+      "destination": "/api/ai-scene-guides?job=publish"
+    },
+    {
+      "source": "/api/cron/ai-scene-guides-shadow",
+      "destination": "/api/ai-scene-guides?job=shadow"
+    },
+    {
+      "source": "/api/admin/ai-scene-guides-cron",
+      "destination": "/api/ai-scene-guides?job=admin"
+    },
+    {
+      "source": "/api/admin/ai-scene-guides-quality-seed",
+      "destination": "/api/ai-scene-guides?job=quality-seed"
+    },
+    {
+      "source": "/api/slack/scene-guides/commands",
+      "destination": "/api/ai-scene-guides?job=slack-commands"
+    },
+    {
+      "source": "/api/slack/scene-guides/events",
+      "destination": "/api/ai-scene-guides?job=slack-events"
+    },
+    {
+      "source": "/api/slack/scene-guides/interactions",
+      "destination": "/api/ai-scene-guides?job=slack-interactions"
+    },
+    {
       "source": "/auth/spotify/callback",
       "destination": "/"
     },
@@ -62,19 +94,7 @@
     "api/cron/slack-pm-digest.ts": {
       "maxDuration": 60
     },
-    "api/cron/ai-scene-guides-shadow.ts": {
-      "maxDuration": 60
-    },
-    "api/cron/ai-scene-guides-schedule.ts": {
-      "maxDuration": 60
-    },
-    "api/cron/ai-scene-guides-publish.ts": {
-      "maxDuration": 60
-    },
-    "api/admin/ai-scene-guides-cron.ts": {
-      "maxDuration": 60
-    },
-    "api/admin/ai-scene-guides-quality-seed.ts": {
+    "api/ai-scene-guides.ts": {
       "maxDuration": 120
     },
     "api/spotify/sync-profile.ts": {
@@ -91,31 +111,31 @@
       "schedule": "0 10 * * *"
     },
     {
-      "path": "/api/cron/ai-scene-guides-schedule",
+      "path": "/api/ai-scene-guides",
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/ai-scene-guides-publish",
+      "path": "/api/ai-scene-guides",
       "schedule": "0 12 * * *"
     },
     {
-      "path": "/api/cron/ai-scene-guides-publish",
+      "path": "/api/ai-scene-guides",
       "schedule": "0 15 * * *"
     },
     {
-      "path": "/api/cron/ai-scene-guides-publish",
+      "path": "/api/ai-scene-guides",
       "schedule": "0 18 * * *"
     },
     {
-      "path": "/api/cron/ai-scene-guides-publish",
+      "path": "/api/ai-scene-guides",
       "schedule": "0 21 * * *"
     },
     {
-      "path": "/api/cron/ai-scene-guides-publish",
+      "path": "/api/ai-scene-guides",
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/cron/ai-scene-guides-shadow",
+      "path": "/api/ai-scene-guides",
       "schedule": "0 14 * * *"
     },
     {

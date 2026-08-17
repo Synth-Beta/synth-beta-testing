@@ -55,9 +55,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (body.event?.type === 'app_home_opened' && body.event.user) {
     const { buildAppHomeView, getPilotState } = await import(
-      '../../../ai-scene-guides/src/slack/commands.js'
+      '../../../../ai-scene-guides/src/slack/commands.js'
     );
-    const { publishAppHome } = await import('../../../ai-scene-guides/src/slack/client.js');
+    const { publishAppHome } = await import('../../../../ai-scene-guides/src/slack/client.js');
     const token = process.env.AI_SHADOW_SLACK_BOT_TOKEN;
     if (token) {
       await publishAppHome({

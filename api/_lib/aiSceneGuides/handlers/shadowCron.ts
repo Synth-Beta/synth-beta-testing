@@ -49,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const { getPilotState } = await import('../../ai-scene-guides/src/slack/commands.js');
+  const { getPilotState } = await import('../../../../ai-scene-guides/src/slack/commands.js');
   const state = getPilotState();
   if (state.killed || state.paused) {
     return res.status(200).json({
@@ -59,11 +59,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const { runFixturePipeline } = await import('../../ai-scene-guides/src/pipeline/run.js');
+  const { runFixturePipeline } = await import('../../../../ai-scene-guides/src/pipeline/run.js');
   const { buildPlanParentBlocks, buildCandidateBlocks } = await import(
-    '../../ai-scene-guides/src/slack/blocks.js'
+    '../../../../ai-scene-guides/src/slack/blocks.js'
   );
-  const { postSlackMessage } = await import('../../ai-scene-guides/src/slack/client.js');
+  const { postSlackMessage } = await import('../../../../ai-scene-guides/src/slack/client.js');
 
   const scenarios = [
     'upcoming-indie',

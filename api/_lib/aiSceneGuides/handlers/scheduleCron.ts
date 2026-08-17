@@ -11,7 +11,7 @@ import {
   buildDailyRandomSchedule,
   getServiceSupabase,
   loadScheduleSettings,
-} from '../_lib/aiSceneGuides/cronScheduler.js';
+} from '../cronScheduler.js';
 
 function secureEquals(a: string, b: string): boolean {
   const ab = Buffer.from(a);

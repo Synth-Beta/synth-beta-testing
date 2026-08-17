@@ -104,7 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Lazy-load package handlers (keeps cold start lighter when unused)
-  const { handleShadowCommand } = await import('../../../ai-scene-guides/src/slack/commands.js');
+  const { handleShadowCommand } = await import('../../../../ai-scene-guides/src/slack/commands.js');
   const result = await handleShadowCommand({
     text: form.text || '',
     userId,
