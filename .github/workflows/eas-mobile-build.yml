@@ -57,6 +57,7 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
 
       - name: Verify monorepo shared package
+        working-directory: .
         run: test -d packages/synth-shared/src
 
       - name: Install dependencies
