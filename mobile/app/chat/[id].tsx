@@ -7,7 +7,12 @@ import { Image } from 'expo-image';
 import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
-import { GenreChatEventsRail } from '../../src/components/chat/GenreChatEventsRail';
+import {
+    AiBadge,
+    AiGuideMessageBubble,
+    AiSceneGuideRoomNotice,
+    isAiSceneGuideMessage,
+} from '../../src/components/chat/AiSceneGuideUi';
 import { SynthText } from '../../src/components/SynthText';
 import { launchChatImagePicker, type ChatImagePickerSource } from '../../src/utils/launchChatImagePicker';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -103,8 +108,6 @@ export default function ChatThreadScreen() {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [imageSourceSheetVisible, setImageSourceSheetVisible] = useState(false);
     const [isGroupChat, setIsGroupChat] = useState(false);
-    const [entityType, setEntityType] = useState<string | null>(null);
-    const [entityId, setEntityId] = useState<string | null>(null);
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
@@ -167,15 +170,11 @@ export default function ChatThreadScreen() {
         let cancelled = false;
         void supabase
             .from('chats')
-            .select('is_group_chat, entity_type, entity_id')
+            .select('is_group_chat')
             .eq('id', id)
             .maybeSingle()
             .then(({ data }) => {
-                if (!cancelled) {
-                    setIsGroupChat(!!data?.is_group_chat);
-                    setEntityType(data?.entity_type ?? null);
-                    setEntityId(data?.entity_id ?? null);
-                }
+                if (!cancelled) setIsGroupChat(!!data?.is_group_chat);
             });
         return () => {
             cancelled = true;
@@ -435,6 +434,7 @@ export default function ChatThreadScreen() {
     const renderSenderHeader = (item: Message) => {
         const name = item.sender_name || 'User';
         const initial = name.trim().charAt(0).toUpperCase() || 'U';
+        const isAi = isAiSceneGuideMessage(item);
         return (
             <View style={styles.senderRow}>
                 {item.sender_avatar ? (
@@ -445,6 +445,7 @@ export default function ChatThreadScreen() {
                     </View>
                 )}
                 <Text style={styles.senderName}>{name}</Text>
+                {isAi ? <AiBadge /> : null}
             </View>
         );
     };
@@ -646,6 +647,23 @@ export default function ChatThreadScreen() {
             );
         }
 
+        // ── AI SCENE GUIDE ────────────────────────────────────────────────────
+        if (isAiSceneGuideMessage(item)) {
+            return (
+                <View style={[styles.messageWrapper, styles.theirMessageWrapper]}>
+                    {senderHeader}
+                    <AiGuideMessageBubble
+                        content={item.content}
+                        containsSetlistSpoiler={Boolean(item.contains_setlist_spoiler)}
+                        senderName={item.sender_name}
+                    />
+                    <SynthText variant="meta" color="secondary" style={styles.messageTime}>
+                        {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </SynthText>
+                </View>
+            );
+        }
+
         // ── PLAIN TEXT MESSAGE ────────────────────────────────────────────────
         return (
             <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
@@ -679,14 +697,13 @@ export default function ChatThreadScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            {entityType === 'genre' && entityId && <GenreChatEventsRail genreChatId={entityId} />}
-
             <FlatList
                 ref={flatListRef}
                 data={listMessages}
                 renderItem={({ item, index }) => renderMessage({ item, index })}
                 keyExtractor={item => item.id}
                 inverted
+                ListFooterComponent={isGroupChat ? <AiSceneGuideRoomNotice /> : null}
                 contentContainerStyle={styles.messageList}
                 keyboardShouldPersistTaps="handled"
                 onContentSizeChange={() => {

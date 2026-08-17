@@ -44,6 +44,9 @@
     "api/push-notification-webhook.ts": {
       "maxDuration": 15
     },
+    "api/slack-signup-webhook.ts": {
+      "maxDuration": 10
+    },
     "api/slack-pm/commands.ts": {
       "maxDuration": 30
     },
@@ -59,11 +62,23 @@
     "api/cron/slack-pm-digest.ts": {
       "maxDuration": 60
     },
+    "api/cron/ai-scene-guides-shadow.ts": {
+      "maxDuration": 60
+    },
+    "api/cron/ai-scene-guides-schedule.ts": {
+      "maxDuration": 60
+    },
+    "api/cron/ai-scene-guides-publish.ts": {
+      "maxDuration": 60
+    },
+    "api/admin/ai-scene-guides-cron.ts": {
+      "maxDuration": 60
+    },
+    "api/admin/ai-scene-guides-quality-seed.ts": {
+      "maxDuration": 120
+    },
     "api/spotify/sync-profile.ts": {
       "maxDuration": 30
-    },
-    "api/slack-signup-webhook.ts": {
-      "maxDuration": 10
     }
   },
   "crons": [
@@ -74,6 +89,18 @@
     {
       "path": "/api/cron/seed-bot-messages",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/ai-scene-guides-schedule",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/ai-scene-guides-publish",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/ai-scene-guides-shadow",
+      "schedule": "0 14 * * *"
     },
     {
       "path": "/api/cron/slack-pm-digest",

@@ -33,6 +33,12 @@
     "infra:setup": "node scripts/infra-setup.mjs",
     "push:test": "node backend/test-apns-connection.js",
     "test:e2e": "playwright test",
+    "ai-guides:install": "npm --prefix ai-scene-guides install",
+    "ai-guides:seed": "npm --prefix ai-scene-guides run seed --",
+    "ai-guides:seed-sample": "npm --prefix ai-scene-guides run seed-sample --",
+    "ai-guides:dry-run": "npm --prefix ai-scene-guides run dry-run --",
+    "ai-guides:shadow": "npm --prefix ai-scene-guides run shadow --",
+    "ai-guides:test": "npm --prefix ai-scene-guides test",
     "slack:setup-webhook": "node scripts/setup-slack-signup-webhook.mjs"
   },
   "dependencies": {

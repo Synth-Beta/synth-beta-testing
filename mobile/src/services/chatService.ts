@@ -187,6 +187,11 @@ export interface Message {
     shared_event_id?: string | null;
     shared_review_id?: string | null;
     metadata?: Record<string, unknown> | null;
+    author_type?: 'human' | 'ai_scene_guide' | 'system' | null;
+    persona_id?: string | null;
+    plan_id?: string | null;
+    cited_fact_ids?: string[] | null;
+    contains_setlist_spoiler?: boolean | null;
 }
 
 async function resolveChatDisplayName(

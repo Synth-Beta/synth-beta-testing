@@ -25,7 +25,7 @@ const RouteFallback = () => (
   </div>
 );
 
-const Admin = React.lazy(() => import("./pages/Admin"));
+const AdminRedirect = React.lazy(() => import("./pages/AdminRedirect"));
 const ArtistPage = React.lazy(() => import("./pages/ArtistPage").then(m => ({ default: m.default })));
 const VenuePage = React.lazy(() => import("./pages/VenuePage").then(m => ({ default: m.default })));
 const StreamingStatsPage = React.lazy(() => import("./pages/StreamingStatsPage").then(m => ({ default: m.StreamingStatsPage })));
@@ -122,7 +122,7 @@ const App = () => {
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/" element={<AppPage />} />
-                <Route path="/admin" element={<Admin />} />
+                <Route path="/admin" element={<AdminRedirect />} />
               {/* Artist/Venue info pages (support id or name) */}
               <Route path="/artist/:artistIdOrName" element={<ArtistPage />} />
               <Route path="/venue/:venueIdOrName" element={<VenuePage />} />

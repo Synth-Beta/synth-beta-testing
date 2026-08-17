@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountType } from '@/hooks/useAccountType';
 import { supabase } from '@/integrations/supabase/client';
@@ -60,9 +61,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnalyticsDashboard';
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
 import ContentCalendarDashboard from '@/components/admin/content-calendar/ContentCalendarDashboard';
+import { AiSceneGuidesAdminPanel } from '@/components/admin/AiSceneGuidesAdminPanel';
 import {
   PlatformComparison,
   RecentPostRow,
@@ -100,6 +103,7 @@ interface ChartDataPoint {
   dateKey?: string;
   users: number;
   mau?: number;
+  names?: string[];
 }
 
 interface NewsItem {
@@ -152,6 +156,37 @@ const formatValue = (value: any): string => {
   if (typeof value === 'string' && value.length > 100) return value.substring(0, 100) + '...';
   return String(value);
 };
+
+function SignupNamesTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: { date?: string; users?: number; count?: number; names?: string[] } }>;
+}) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload ?? {};
+  const count = row.users ?? row.count ?? 0;
+  const names = row.names ?? [];
+  return (
+    <div className="rounded-lg border bg-background p-2 shadow-sm max-w-xs">
+      <div className="font-medium">{row.date}</div>
+      <div className="text-sm">
+        {count} signup{count === 1 ? '' : 's'}
+      </div>
+      {names.length > 0 ? (
+        <ul className="mt-1 text-xs text-muted-foreground space-y-0.5 max-h-40 overflow-auto">
+          {names.slice(0, 12).map((n, i) => (
+            <li key={`${n}-${i}`}>{n}</li>
+          ))}
+          {names.length > 12 ? <li>+{names.length - 12} more</li> : null}
+        </ul>
+      ) : (
+        <p className="mt-1 text-xs text-muted-foreground">No names for this day</p>
+      )}
+    </div>
+  );
+}
 
 // Helper function to get missing fields for each type based on actual schemas
 const getMissingFields = (record: any, type: 'event' | 'artist' | 'venue'): string[] => {
@@ -220,6 +255,31 @@ export default function Admin() {
   
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdmin, loading: accountTypeLoading, accountType } = useAccountType();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ADMIN_TABS = useMemo(
+    () =>
+      new Set([
+        'users',
+        'content-calendar',
+        'social',
+        'events',
+        'moderation',
+        'news',
+        'style-guide',
+        'ai-scene-guides',
+      ]),
+    [],
+  );
+  const activeAdminTab = ADMIN_TABS.has(searchParams.get('tab') || '')
+    ? (searchParams.get('tab') as string)
+    : 'ai-scene-guides';
+  const setActiveAdminTab = (tab: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    }, { replace: true });
+  };
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [dailyUsersData, setDailyUsersData] = useState<ChartDataPoint[]>([]);
@@ -306,7 +366,9 @@ export default function Admin() {
   }[]>([]);
   
   // New User Signups (last 30 days)
-  const [newUserSignups, setNewUserSignups] = useState<{ date: string; count: number }[]>([]);
+  const [newUserSignups, setNewUserSignups] = useState<
+    { date: string; dateKey: string; count: number; names: string[] }[]
+  >([]);
   // Referral/external shares: count per user (user_id -> count) from referral_shares table
   const [userShareCounts, setUserShareCounts] = useState<Record<string, number>>({});
   
@@ -451,6 +513,7 @@ export default function Admin() {
 
     // Group users by creation date
     const dailyCounts: Record<string, number> = {};
+    const dailyNames: Record<string, string[]> = {};
     
     // Initialize all dates with 0
     dateRange.forEach(date => {
@@ -466,6 +529,8 @@ export default function Admin() {
       // Only count if within the last 30 days
       if (createdDate >= startDate) {
         dailyCounts[dateKey] = (dailyCounts[dateKey] || 0) + 1;
+        if (!dailyNames[dateKey]) dailyNames[dateKey] = [];
+        dailyNames[dateKey]!.push(user.name || user.username || user.id.slice(0, 8));
       }
     });
 
@@ -476,6 +541,7 @@ export default function Admin() {
         date: format(date, 'MMM dd'),
         dateKey,
         users: dailyCounts[dateKey] || 0,
+        names: dailyNames[dateKey] || [],
       };
     });
 
@@ -1784,7 +1850,7 @@ export default function Admin() {
       // Calculate new user signups (last 30 days)
       const { data: newUsers, error: newUsersError } = await db
         .from('users')
-        .select('created_at')
+        .select('user_id, name, username, created_at')
         .gte('created_at', startISO)
         .lte('created_at', endISO);
 
@@ -1794,15 +1860,20 @@ export default function Admin() {
 
       const newUsersList = newUsers || [];
       const signupsByDate: Record<string, number> = {};
+      const signupNamesByDate: Record<string, string[]> = {};
       dateRange.forEach(date => {
         const dateKey = format(startOfDay(date), 'yyyy-MM-dd');
         signupsByDate[dateKey] = 0;
+        signupNamesByDate[dateKey] = [];
       });
 
-      newUsersList.forEach(user => {
+      newUsersList.forEach((user: { user_id?: string; name?: string | null; username?: string | null; created_at: string }) => {
         const dateKey = format(startOfDay(new Date(user.created_at)), 'yyyy-MM-dd');
         if (signupsByDate[dateKey] !== undefined) {
           signupsByDate[dateKey]++;
+          signupNamesByDate[dateKey]!.push(
+            user.name || user.username || (user.user_id ? user.user_id.slice(0, 8) : 'user'),
+          );
         }
       });
 
@@ -1811,7 +1882,9 @@ export default function Admin() {
           const dateKey = format(startOfDay(date), 'yyyy-MM-dd');
           return {
             date: format(date, 'MMM dd'),
+            dateKey,
             count: signupsByDate[dateKey] || 0,
+            names: signupNamesByDate[dateKey] || [],
           };
         })
       );
@@ -2176,8 +2249,12 @@ export default function Admin() {
           </div>
         </div>
 
-        <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full max-w-6xl grid-cols-7 mb-6">
+        <Tabs
+          value={activeAdminTab}
+          onValueChange={setActiveAdminTab}
+          className="w-full"
+        >
+          <TabsList className="grid w-full max-w-6xl grid-cols-4 lg:grid-cols-8 mb-6 gap-1 h-auto">
             <TabsTrigger value="users">
               <Users className="h-4 w-4 mr-2" />
               Users & Analytics
@@ -2205,6 +2282,10 @@ export default function Admin() {
             <TabsTrigger value="style-guide">
               <BookOpen className="h-4 w-4 mr-2" />
               Style Guide
+            </TabsTrigger>
+            <TabsTrigger value="ai-scene-guides">
+              <Music className="h-4 w-4 mr-2" />
+              AI Scene Guides
             </TabsTrigger>
           </TabsList>
 
@@ -2253,7 +2334,7 @@ export default function Admin() {
                     <Card className="shadow-sm">
                       <CardHeader className="py-3 px-4">
                         <CardTitle className="text-sm">Today&apos;s new users</CardTitle>
-                        <CardDescription className="text-xs">Name</CardDescription>
+                        <CardDescription className="text-xs">Hover a name for username, type, and join time</CardDescription>
                       </CardHeader>
                       <CardContent className="px-4 pb-4 pt-0">
                         {loading ? (
@@ -2271,7 +2352,26 @@ export default function Admin() {
                               <TableBody>
                                 {todaysNewUsers.map(u => (
                                   <TableRow key={u.id}>
-                                    <TableCell className="text-sm py-2">{u.name || u.id.slice(0, 8) || '—'}</TableCell>
+                                    <TableCell className="text-sm py-2">
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <span className="cursor-help underline decoration-dotted underline-offset-2">
+                                            {u.name || u.id.slice(0, 8) || '—'}
+                                          </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right" className="max-w-xs">
+                                          <div className="space-y-0.5">
+                                            <p className="font-medium">{u.name || 'No name'}</p>
+                                            {u.username ? <p>@{u.username}</p> : null}
+                                            {u.account_type ? <p>Type: {u.account_type}</p> : null}
+                                            <p>
+                                              Joined {u.created_at ? format(new Date(u.created_at), 'MMM d, yyyy h:mm a') : '—'}
+                                            </p>
+                                            <p className="text-[10px] text-muted-foreground font-mono">{u.id.slice(0, 8)}</p>
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TableCell>
                                   </TableRow>
                                 ))}
                               </TableBody>
@@ -2320,7 +2420,7 @@ export default function Admin() {
                 <Card className="shadow-sm">
                   <CardHeader className="py-3 px-4">
                     <CardTitle className="text-sm">Daily Users Added</CardTitle>
-                    <CardDescription className="text-xs">Last 30 days · click a bar for signups + socials</CardDescription>
+                    <CardDescription className="text-xs">Last 30 days · hover for names · click a bar for signups + socials</CardDescription>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
                     {loading ? (
@@ -2334,7 +2434,7 @@ export default function Admin() {
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                           <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <ChartTooltip content={<SignupNamesTooltip />} />
                           <Bar
                             dataKey="users"
                             fill="hsl(var(--chart-1))"
@@ -2636,7 +2736,7 @@ export default function Admin() {
                   New User Signups
                 </CardTitle>
                 <CardDescription>
-                  New user registrations over the last 30 days
+                  New user registrations over the last 30 days · hover a bar for names · click for socials
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -2664,11 +2764,17 @@ export default function Admin() {
                         height={80}
                       />
                       <YAxis tick={{ fontSize: 12 }} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartTooltip content={<SignupNamesTooltip />} />
                       <Bar 
                         dataKey="count" 
                         fill="hsl(var(--chart-3))"
                         radius={[4, 4, 0, 0]}
+                        cursor="pointer"
+                        onClick={(data) => {
+                          const payload = (data as { payload?: { dateKey?: string; date?: string } })?.payload;
+                          if (!payload?.dateKey) return;
+                          void openDailyUsersForDay(payload.dateKey, payload.date ?? payload.dateKey);
+                        }}
                       />
                     </BarChart>
                   </ChartContainer>
@@ -3946,6 +4052,10 @@ export default function Admin() {
 
           <TabsContent value="style-guide" className="space-y-6">
             <AdminStyleGuidePanel />
+          </TabsContent>
+
+          <TabsContent value="ai-scene-guides" className="space-y-6">
+            <AiSceneGuidesAdminPanel />
           </TabsContent>
         </Tabs>
 

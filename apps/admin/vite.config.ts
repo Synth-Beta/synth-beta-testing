@@ -33,6 +33,10 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@synth/shared": path.resolve(__dirname, "../../packages/synth-shared/src/index.ts"),
+      "@synth/ai-scene-guides/quality": path.resolve(
+        __dirname,
+        "../../ai-scene-guides/src/pipeline/contextualSeed.ts",
+      ),
     },
   },
 });
