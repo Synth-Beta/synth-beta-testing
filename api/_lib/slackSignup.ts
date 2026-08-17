@@ -179,7 +179,7 @@ export async function alertSignupIfNeeded(
   if (alreadyAlerted(record)) return { posted: false, skipped: 'already_alerted' };
 
   const result = await postSignupToSlack(record);
-  if (!result.ok) {
+  if (result.ok === false) {
     console.error('[slack-signup] Slack post failed', result.status, result.error);
     return { posted: false, skipped: 'slack_failed' };
   }

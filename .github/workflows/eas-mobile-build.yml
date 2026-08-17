@@ -60,26 +60,34 @@ jobs:
         working-directory: .
         run: test -d packages/synth-shared/src
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Validate EXPO_TOKEN
+      - name: Check EXPO_TOKEN
+        id: expo
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
-            echo "Missing EXPO_TOKEN secret. Add it in GitHub repo settings: Secrets and variables > Actions."
-            exit 1
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+              echo "Missing EXPO_TOKEN secret. Add it in GitHub repo settings: Secrets and variables > Actions."
+              exit 1
+            fi
+            echo "EXPO_TOKEN secret is not set; skipping EAS build on push."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Install dependencies
+        if: steps.expo.outputs.present == 'true'
+        run: npm ci
+
       - name: Build with EAS (push => both platforms)
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && steps.expo.outputs.present == 'true'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: npx eas-cli build --platform all --profile production --non-interactive
 
       - name: Build with EAS (manual dispatch)
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && steps.expo.outputs.present == 'true'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: npx eas-cli build --platform ${{ inputs.platform }} --profile ${{ inputs.profile }} --non-interactive

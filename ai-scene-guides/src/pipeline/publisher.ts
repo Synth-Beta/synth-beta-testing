@@ -70,13 +70,8 @@ export function evaluatePublish(options: {
     aiReplyAlreadySentForHuman = false,
   } = options;
 
+  // Fixture dry-run still evaluates would_publish for review when the kill switch is off.
   if (!settings.enabled && settings.mode !== 'fixture') {
-    // Fixture dry-run still evaluates would_publish for review
-    if (settings.mode !== 'fixture') {
-      return { decision: 'suppressed', reason: 'global_kill_switch', wroteToSynthMessages: false };
-    }
-  }
-  if (settings.mode !== 'fixture' && !settings.enabled) {
     return { decision: 'suppressed', reason: 'global_kill_switch', wroteToSynthMessages: false };
   }
 

@@ -44,7 +44,8 @@ export function canDeliverToSlack(settings: SceneGuidesRuntimeSettings): boolean
 }
 
 export function getJamBaseCredentials(): { apiKey: string; userAgent: string } | null {
-  const apiKey = process.env.JAMBASE_API_KEY?.trim();
+  const apiKey =
+    process.env.JAMBASE_API_KEY?.trim() || process.env.VITE_JAMBASE_API_KEY?.trim();
   if (!apiKey) return null;
   return {
     apiKey,
