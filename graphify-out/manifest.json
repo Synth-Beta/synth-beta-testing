@@ -220,8 +220,8 @@
     "semantic_hash": "d8d09d83028ac4b6c29d57b97cb36fe0"
   },
   "mobile/app.json": {
-    "mtime": 1786047225.6326678,
-    "ast_hash": "ab51d16e08365bd696c6d3fe7f9776bd",
+    "mtime": 1786743830.0152173,
+    "ast_hash": "e02052061cde8b85d6098a7ac6ad3873",
     "semantic_hash": ""
   },
   "mobile/app/(auth)/_layout.tsx": {
@@ -980,9 +980,9 @@
     "semantic_hash": "28d515cebfea38123a5812cc035eb540"
   },
   "mobile/src/services/spotifyAuthService.ts": {
-    "mtime": 1781616103.0108774,
-    "ast_hash": "c826740a9327b8a252276453db57b9d7",
-    "semantic_hash": "c826740a9327b8a252276453db57b9d7"
+    "mtime": 1786747285.8995385,
+    "ast_hash": "d021c9bde94e9e3223dfe21a06691b23",
+    "semantic_hash": ""
   },
   "mobile/src/services/statsService.ts": {
     "mtime": 1774402134.6799512,
@@ -1215,8 +1215,8 @@
     "semantic_hash": "9a47e0ba88096afe84ff72fbd742cb9a"
   },
   "scripts/fetch-artist-genres.mjs": {
-    "mtime": 1786673560.2070794,
-    "ast_hash": "65bba88ff05712844cd6d46ea85242c7",
+    "mtime": 1786743118.2396727,
+    "ast_hash": "83486c5e97d5782613fe716a7c4d7e49",
     "semantic_hash": ""
   },
   "scripts/infra-setup.mjs": {
@@ -8690,18 +8690,18 @@
     "semantic_hash": ""
   },
   "mobile/src/components/chat/GenreChatEventsRail.tsx": {
-    "mtime": 1786572660.9175162,
-    "ast_hash": "2ef0d3fd6f012c3beecf49007fc8bc1c",
+    "mtime": 1786742700.755434,
+    "ast_hash": "89802dbb489d8c32c39c4f9a8323329e",
     "semantic_hash": ""
   },
   "packages/synth-shared/src/genreChatTagMap.ts": {
-    "mtime": 1786507217.139719,
-    "ast_hash": "d006ee4d1b638323cd9ab8067e58f05c",
+    "mtime": 1786742899.355202,
+    "ast_hash": "602bfc2a50898c4297b732f1f5ea1318",
     "semantic_hash": ""
   },
   "packages/synth-shared/src/genreEvents.ts": {
-    "mtime": 1786487720.094028,
-    "ast_hash": "2d4b821fe15111b0141319a9d1f361d7",
+    "mtime": 1786744230.7918823,
+    "ast_hash": "a72ba7a9eac94e13dbba185b231ec9ce",
     "semantic_hash": ""
   },
   "scripts/setup-slack-signup-webhook.mjs": {
@@ -8760,8 +8760,8 @@
     "semantic_hash": ""
   },
   "src/components/discover/GenreChatEventsButton.tsx": {
-    "mtime": 1786507496.499099,
-    "ast_hash": "00a96f4ae634712f4340163e865cbbe1",
+    "mtime": 1786742705.5858724,
+    "ast_hash": "f1ef194e69da380c3125f1715af3ca30",
     "semantic_hash": ""
   },
   "src/components/discover/GenreShowsModal.tsx": {
@@ -8812,6 +8812,16 @@
   "supabase/migrations/20260813030000_backfill_signup_platform_on_new_user.sql": {
     "mtime": 1786673554.1225672,
     "ast_hash": "26e431f77728b101a8482ed8c08f7cae",
+    "semantic_hash": ""
+  },
+  "UsersOwnerAppDataLocalTempclaudegenre_distribution.json": {
+    "mtime": 1786681882.4317322,
+    "ast_hash": "07723045daf8bcda272cc57e3183fa00",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260814000000_cleanup_singer_songwriter_genre.sql": {
+    "mtime": 1786743170.0658991,
+    "ast_hash": "15f21cce19e9f4fb48ed526510a95254",
     "semantic_hash": ""
   }
 }

@@ -109,3 +109,8 @@ export {
   type ResolvedLocation,
   type LocationResolutionInputs,
 } from './locationResolution';
+export {
+  groupTravelPinsByLocation,
+  type TravelPinLocation,
+  type TravelLocationGroup,
+} from './travelMapGrouping';

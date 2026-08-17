@@ -105,6 +105,8 @@ export function LocationSheet({
       const label = (await reverseGeocode(location.latitude, location.longitude)) ?? 'Current location';
       setPreviewCoords(location);
       setPreviewLabel(label);
+      onApply(location, label, radius);
+      onClose();
     } catch (err) {
       console.error('[LocationSheet] useCurrentLocation error', err);
       setError('Could not determine your location right now.');
@@ -122,14 +124,17 @@ export function LocationSheet({
       return;
     }
     const label = [city.name, city.state].filter(Boolean).join(', ');
-    setPreviewCoords({
+    const coords = {
       latitude: city.center_latitude,
       longitude: city.center_longitude,
-    });
+    };
+    setPreviewCoords(coords);
     setPreviewLabel(label);
     setSearchQuery('');
     setCitySuggestions([]);
     setError(null);
+    onApply(coords, label, radius);
+    onClose();
   };
 
   const changeRadius = (delta: number) => {
@@ -137,18 +142,6 @@ export function LocationSheet({
       const next = prev + delta;
       return Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, next));
     });
-  };
-
-  const handleApply = () => {
-    onApply(previewCoords, previewLabel, radius);
-    onClose();
-  };
-
-  const handleClear = () => {
-    setPreviewCoords(null);
-    setPreviewLabel('Your Location');
-    onApply(null, 'Your Location', radius);
-    onClose();
   };
 
   const locationLine = useMemo(() => {
@@ -252,10 +245,6 @@ export function LocationSheet({
               {error}
             </SynthText>
           ) : null}
-          <View style={styles.actions}>
-            <SynthButton title="Apply location" onPress={handleApply} />
-            <SynthButton title="Clear selection" onPress={handleClear} variant="secondary" />
-          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -354,9 +343,5 @@ const styles = StyleSheet.create({
   error: {
     marginTop: SynthTokens.spacing.sm,
     color: SynthTokens.colors.brandPink500,
-  },
-  actions: {
-    marginTop: SynthTokens.spacing.md,
-    gap: SynthTokens.spacing.sm,
   },
 });

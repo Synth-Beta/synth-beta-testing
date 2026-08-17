@@ -11,7 +11,6 @@
  * Spotify Developer Dashboard. It will look like: exp+synth://spotify-callback
  */
 
-import * as Crypto from 'expo-crypto';
 import {
   makeRedirectUri,
   AuthRequest,
@@ -35,35 +34,6 @@ const SCOPES = [
   'user-read-playback-state',
   'user-read-currently-playing',
 ];
-
-/** Characters used for PKCE verifier strings. */
-const PKCE_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-function pkceGenerateRandom(size: number): string {
-  const bytes = Crypto.getRandomValues(new Uint8Array(size));
-  return Array.from(bytes)
-    .map((b) => PKCE_CHARSET[b % PKCE_CHARSET.length])
-    .join('');
-}
-
-function base64UrlSafe(b64: string): string {
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-async function pkceDeriveChallengeAsync(verifier: string): Promise<string> {
-  const digest = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    verifier,
-    { encoding: Crypto.CryptoEncoding.BASE64 }
-  );
-  return base64UrlSafe(digest);
-}
-
-async function buildPkceCodesAsync(): Promise<{ codeVerifier: string; codeChallenge: string }> {
-  const codeVerifier = pkceGenerateRandom(128);
-  const codeChallenge = await pkceDeriveChallengeAsync(codeVerifier);
-  return { codeVerifier, codeChallenge };
-}
 
 function getSpotifyClientId(): string {
   const id = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID?.trim() ?? '';
@@ -205,25 +175,19 @@ export async function authenticateSpotifyInApp(options?: {
 
   const redirectUri = getSpotifyExpoRedirectUri();
 
-  let codeVerifier: string;
-  let codeChallenge: string;
-  try {
-    ({ codeVerifier, codeChallenge } = await buildPkceCodesAsync());
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : 'Failed to build PKCE challenge.',
-    };
-  }
-
+  // usePKCE defaults to true: AuthRequest generates its own codeVerifier/codeChallenge
+  // internally (via ensureCodeIsSetupAsync) and includes code_challenge in the /authorize
+  // request. Do not pass a manually-computed codeChallenge here — this version of
+  // expo-auth-session's AuthRequest never wires a caller-supplied codeChallenge into the
+  // request, so with usePKCE:false the /authorize call silently drops PKCE entirely, Spotify
+  // issues a non-PKCE code, and the later code_verifier-only token exchange fails with
+  // "Invalid client secret".
   const request = new AuthRequest({
     clientId,
     scopes: SCOPES,
     redirectUri,
     responseType: ResponseType.Code,
-    codeChallenge,
     codeChallengeMethod: CodeChallengeMethod.S256,
-    usePKCE: false, // We supply codeChallenge manually above
     extraParams: options?.forceConsent ? { show_dialog: 'true' } : {},
   });
 
@@ -252,10 +216,14 @@ export async function authenticateSpotifyInApp(options?: {
     return { ok: false, error: 'Spotify did not return an authorization code.' };
   }
 
+  if (!request.codeVerifier) {
+    return { ok: false, error: 'Spotify auth: PKCE code verifier was not generated.' };
+  }
+
   try {
     const tokens = await exchangeCodeForTokens({
       code: result.params.code,
-      codeVerifier,
+      codeVerifier: request.codeVerifier,
       redirectUri,
       clientId,
     });

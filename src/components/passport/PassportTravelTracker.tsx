@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { getMapboxToken } from '@/utils/mapboxToken';
+import { groupTravelPinsByLocation, type TravelLocationGroup } from '@synth/shared';
 
 // Fix for default markers in React Leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -83,45 +84,7 @@ interface ReviewWithLocation {
 }
 
 /** One map dot — all reviews in the same city/metro area, so nearby venues don't render as overlapping pins. */
-interface ReviewCityGroup {
-  key: string;
-  city: string | null;
-  state: string | null;
-  latitude: number;
-  longitude: number;
-  shows: ReviewWithLocation[];
-}
-
-function groupReviewsByCity(reviews: ReviewWithLocation[]): ReviewCityGroup[] {
-  const groups = new Map<string, ReviewCityGroup>();
-  for (const review of reviews) {
-    const city = review.venue_city?.trim() || null;
-    const state = review.venue_state?.trim() || null;
-    const key = city
-      ? `${city.toLowerCase()}|${(state || '').toLowerCase()}`
-      : state
-        ? `state:${state.toLowerCase()}`
-        : `venue:${(review.venue_name || review.id).toLowerCase()}`;
-
-    const existing = groups.get(key);
-    if (existing) {
-      const n = existing.shows.length;
-      existing.latitude = (existing.latitude * n + review.latitude) / (n + 1);
-      existing.longitude = (existing.longitude * n + review.longitude) / (n + 1);
-      existing.shows.push(review);
-    } else {
-      groups.set(key, {
-        key,
-        city,
-        state,
-        latitude: review.latitude,
-        longitude: review.longitude,
-        shows: [review],
-      });
-    }
-  }
-  return Array.from(groups.values());
-}
+type ReviewCityGroup = TravelLocationGroup<ReviewWithLocation>;
 
 interface PassportTravelTrackerProps {
   userId: string;
@@ -154,7 +117,7 @@ export const PassportTravelTracker: React.FC<PassportTravelTrackerProps> = ({ us
   const [loading, setLoading] = useState(true);
   const [selectedReview, setSelectedReview] = useState<ReviewWithLocation | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>([39.8283, -98.5795]); // Center of US
-  const cityGroups = useMemo(() => groupReviewsByCity(reviews), [reviews]);
+  const cityGroups = useMemo(() => groupTravelPinsByLocation(reviews), [reviews]);
 
   useEffect(() => {
     loadTravelData();

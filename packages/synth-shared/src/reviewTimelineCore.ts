@@ -22,7 +22,6 @@ type ReviewTimelineRow = Record<string, unknown> & {
   created_at?: string | null;
   Event_date?: string | null;
   event_id?: string | null;
-  entity_id?: string | null;
   photos?: string[] | null;
   events?: EventTimelineRow | EventTimelineRow[] | null;
 };
@@ -97,7 +96,6 @@ export async function fetchProfileReviewTimeline(
           created_at,
           Event_date,
           event_id,
-          entity_id,
           photos,
           events:event_id (
             id,
@@ -118,33 +116,10 @@ export async function fetchProfileReviewTimeline(
     if (error) throw error;
 
     const rows = (reviews || []) as ReviewTimelineRow[];
-    const legacyEventIds = Array.from(
-      new Set(
-        rows
-          .filter((rev) => !rev.event_id && typeof rev.entity_id === 'string' && rev.entity_id.trim())
-          .map((rev) => rev.entity_id as string)
-      )
-    );
-
-    const legacyEventsById = new Map<string, EventTimelineRow>();
-    if (legacyEventIds.length > 0) {
-      const { data: legacyEvents, error: legacyError } = await client
-        .from('events')
-        .select('id, title, artist_name, venue_name, venue_city, event_date, image, poster_image_url, images')
-        .in('id', legacyEventIds);
-
-      if (!legacyError) {
-        ((legacyEvents || []) as EventTimelineRow[]).forEach((event) => {
-          if (event.id) legacyEventsById.set(event.id, event);
-        });
-      }
-    }
 
     return rows.map((rev) => {
-      const event =
-        firstEvent(rev.events) ||
-        (rev.entity_id ? legacyEventsById.get(rev.entity_id) ?? null : null);
-      const eventId = rev.event_id || rev.entity_id || event?.id;
+      const event = firstEvent(rev.events);
+      const eventId = rev.event_id || event?.id;
 
       return {
         id: String(rev.id),
