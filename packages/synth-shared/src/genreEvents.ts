@@ -39,6 +39,25 @@ export interface GenreChatEventRow extends Record<string, unknown> {
   distanceMiles: number | null;
 }
 
+// events.venue_name / events.artist_name were dropped when venues and artists
+// were normalized into their own tables (venue-dedup / event-dedup, 2026-07);
+// callers still read the flat `venue_name`/`artist_name` fields, so every
+// `select('*')` on events here must also embed the FK'd name and flatten it
+// back onto the row, or those fields silently come back undefined.
+const EVENTS_SELECT_WITH_NAMES = '*, venues(name), artists(name)';
+
+function flattenVenueArtistNames(row: Record<string, unknown>): Record<string, unknown> {
+  const { venues, artists, ...rest } = row as Record<string, unknown> & {
+    venues?: { name?: string | null } | null;
+    artists?: { name?: string | null } | null;
+  };
+  return {
+    ...rest,
+    venue_name: venues?.name ?? null,
+    artist_name: artists?.name ?? null,
+  };
+}
+
 /** Upcoming events for one of the 12 genre-chat IDs (see GENRE_CHAT_TAG_MAP).
  *  When `near` is omitted, behavior is unchanged: random pick nationwide from
  *  the 1-week-to-1-month window (see fetchRandomInWindow). */
@@ -68,7 +87,7 @@ export async function getUpcomingEventsForGenreChat(
   // that the true closest event is essentially never excluded by the cap.
   const { data: nearbyCandidates, error: nearbyError } = await client
     .from('events')
-    .select('*')
+    .select(EVENTS_SELECT_WITH_NAMES)
     .overlaps('genres', tags)
     .not('latitude', 'is', null)
     .not('longitude', 'is', null)
@@ -80,7 +99,9 @@ export async function getUpcomingEventsForGenreChat(
     .limit(500);
 
   const candidateRows: Record<string, unknown>[] =
-    nearbyError || !nearbyCandidates ? [] : (nearbyCandidates as Record<string, unknown>[]);
+    nearbyError || !nearbyCandidates
+      ? []
+      : (nearbyCandidates as Record<string, unknown>[]).map(flattenVenueArtistNames);
 
   const nearby: GenreChatEventRow[] = candidateRows
     .map(
@@ -149,16 +170,16 @@ async function fetchRandomInWindow(
 
   const { data, error } = await client
     .from('events')
-    .select('*')
+    .select(EVENTS_SELECT_WITH_NAMES)
     .overlaps('genres', tags)
     .gte('event_date', from)
     .lte('event_date', to)
     .limit(100);
   if (error || !data) return [];
 
-  const pool = (data as Record<string, unknown>[]).filter(
-    (row) => !excludeIds.has(row.id as string)
-  );
+  const pool = (data as Record<string, unknown>[])
+    .map(flattenVenueArtistNames)
+    .filter((row) => !excludeIds.has(row.id as string));
   return shuffle(pool).slice(0, count);
 }
 
