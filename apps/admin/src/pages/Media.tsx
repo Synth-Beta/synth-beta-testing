@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, ExternalLink, Rss } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MarketingNavbar } from '@/components/marketing/MarketingNavbar';
+import { MarketingFooter } from '@/components/marketing/MarketingFooter';
 
 const APP_STORE_URL = 'https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095';
 const NEWS_CACHE_KEY = 'media_news_feed_cache_v1';
@@ -125,43 +127,7 @@ export default function Media() {
       </div>
 
       <main>
-        {/* Navigation */}
-        <nav className="relative z-10 p-6 glass-header" aria-label="Main navigation">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <Link
-              to="/"
-              className="flex items-center space-x-2 text-gray-900 hover:opacity-90 transition-opacity"
-              aria-label="Synth home"
-            >
-              <img
-                src="/Logos/Main logo black background.png"
-                alt="Synth Logo"
-                className="h-10 w-10"
-                width={40}
-                height={40}
-              />
-              <span className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-pink-700 bg-clip-text text-transparent">
-                Synth
-              </span>
-            </Link>
-
-            <div className="hidden md:flex items-center space-x-8">
-              <Link
-                to="/#about"
-                className="text-gray-700 hover:text-pink-600 transition-colors font-medium"
-              >
-                About
-              </Link>
-              <span className="text-pink-600 font-semibold">Media</span>
-              <Button
-                onClick={openAppStore}
-                className="bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white border-0 shadow-lg shadow-pink-500/30 hover:shadow-xl hover:shadow-pink-500/40 transition-all duration-300 rounded-full"
-              >
-                Download
-              </Button>
-            </div>
-          </div>
-        </nav>
+        <MarketingNavbar activeItem="media" />
 
         {/* Hero */}
         <section className="relative z-10 px-6 py-16 md:py-24">
@@ -263,50 +229,7 @@ export default function Media() {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="relative z-10 px-6 py-12 border-t border-pink-200/30" aria-label="Site footer">
-          <div className="max-w-7xl mx-auto text-center">
-            <Link
-              to="/"
-              className="inline-flex items-center justify-center space-x-2 mb-6 text-gray-900 hover:opacity-90"
-            >
-              <img
-                src="/Logos/Main logo black background.png"
-                alt="Synth Logo"
-                className="h-8 w-8"
-              />
-              <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-pink-700 bg-clip-text text-transparent">
-                Synth
-              </span>
-            </Link>
-            <p className="text-gray-600 mb-6">
-              Connecting music lovers through safe, fun, and friendly concert experiences
-            </p>
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center text-pink-600 hover:text-pink-700 font-medium mb-6"
-            >
-              Download on the App Store
-              <ExternalLink className="w-4 h-4 ml-1" />
-            </a>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm text-gray-600">
-              <Link to="/" className="hover:text-pink-600 transition-colors">
-                Home
-              </Link>
-              <Link to="/pr" className="hover:text-pink-600 transition-colors">
-                Media
-              </Link>
-              <a href="#" className="hover:text-pink-600 transition-colors">
-                Privacy Policy
-              </a>
-              <a href="#" className="hover:text-pink-600 transition-colors">
-                Terms of Service
-              </a>
-            </div>
-          </div>
-        </footer>
+        <MarketingFooter activeItem="media" />
       </main>
     </div>
   );

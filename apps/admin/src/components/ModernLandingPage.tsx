@@ -142,6 +142,12 @@ export const ModernLandingPage = () => {
             >
               Media
             </Link>
+            <Link
+              to="/newsletter"
+              className="text-gray-700 hover:text-pink-600 transition-colors font-medium"
+            >
+              Newsletter
+            </Link>
             <Button
               onClick={openWebBeta}
               variant="outline"
@@ -185,6 +191,13 @@ export const ModernLandingPage = () => {
                 className="text-gray-700 hover:text-pink-600 transition-colors font-medium"
               >
                 Media
+              </Link>
+              <Link
+                to="/newsletter"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-gray-700 hover:text-pink-600 transition-colors font-medium"
+              >
+                Newsletter
               </Link>
               <Button
                 onClick={() => {

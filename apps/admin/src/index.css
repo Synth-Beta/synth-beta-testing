@@ -456,6 +456,20 @@
   }
 }
 
+.newsletter-document {
+  width: 100%;
+  background: #f5f5f5;
+  overflow-x: auto;
+}
+
+.newsletter-document table {
+  max-width: 100%;
+}
+
+.newsletter-document img {
+  height: auto;
+}
+
 /* Synth Design System - Bold, modern, music-focused */
 
 @layer base {

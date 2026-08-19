@@ -8,6 +8,8 @@ import { ModernLandingPage } from "@/components/ModernLandingPage";
 import Admin from "@/pages/Admin";
 import Media from "@/pages/Media";
 import Preview from "@/pages/Preview";
+import NewsletterArchive from "@/pages/NewsletterArchive";
+import NewsletterDetail from "@/pages/NewsletterDetail";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +35,8 @@ const App = () => {
               <Routes>
                 <Route path="/admin" element={<><RouteDebugger /><Admin /></>} />
                 <Route path="/pr" element={<><RouteDebugger /><Media /></>} />
+                <Route path="/newsletter" element={<><RouteDebugger /><NewsletterArchive /></>} />
+                <Route path="/newsletter/:slug" element={<><RouteDebugger /><NewsletterDetail /></>} />
                 <Route path="/preview" element={<><RouteDebugger /><Preview /></>} />
                 <Route path="/" element={<><RouteDebugger /><ModernLandingPage /></>} />
               </Routes>
