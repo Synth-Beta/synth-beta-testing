@@ -137,19 +137,39 @@ async function refreshFeedAfterStreamingSync(userId: string): Promise<void> {
 }
 
 /**
- * Appends the current Supabase session to a join.getsynth.app URL as a hash fragment
- * (never sent to the server, unlike query params — matches the #access_token= convention
- * DeepLinkHandlerInner already reads in src/App.tsx). Without this, WebBrowser.openBrowserAsync
- * opens a completely fresh browser context with no Synth login, so the web page's own auth
- * check never resolves a user and the page spins on "Loading your stats..." forever.
+ * Bridges the current Supabase session into a join.getsynth.app URL so the web page can
+ * log itself in — without WebBrowser.openBrowserAsync's fresh browser context, the web
+ * page's own auth check never resolves a user and it spins on "Loading your stats..."
+ * forever. Puts only a random single-use code in the URL (as a #fragment, so it's never
+ * sent to the server either) — the real access/refresh token is exchanged server-side via
+ * api/auth/bridge-session.ts + api/auth/redeem-session.ts, never appearing in the URL
+ * itself, so it can't leak via browser history or analytics that log window.location.href.
+ * Falls back to returning the URL unchanged on any failure (no session, network error,
+ * server not deployed yet) — the page will then fall back to its own no-session handling.
  */
 export async function withSessionHash(url: string): Promise<string> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.access_token || !session?.refresh_token) return url;
-  const hash = `access_token=${encodeURIComponent(session.access_token)}&refresh_token=${encodeURIComponent(session.refresh_token)}`;
-  return `${url}#${hash}`;
+
+  try {
+    const base = getExpoSiteUrl();
+    const response = await fetch(`${base}/api/auth/bridge-session`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: session.refresh_token }),
+    });
+    if (!response.ok) return url;
+    const data: { code?: string } = await response.json();
+    if (!data.code) return url;
+    return `${url}#bridge=${encodeURIComponent(data.code)}`;
+  } catch {
+    return url;
+  }
 }
 
 /** Deep link for one-time web connect when no stored refresh token exists. */

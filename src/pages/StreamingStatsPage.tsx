@@ -52,34 +52,71 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   const [autoSyncAttempted, setAutoSyncAttempted] = useState(false);
   const [showExpoReturnBanner, setShowExpoReturnBanner] = useState(false);
   const connectFromExpoAttempted = useRef(false);
+  const [sessionUnavailable, setSessionUnavailable] = useState(false);
 
-  // Bootstrap a session passed via URL hash from the mobile app's "Reconnect on web" /
-  // "Connect on web" links. WebBrowser.openBrowserAsync opens a fresh browser context with
-  // no Synth login otherwise, so useAuth()'s `user` would never resolve and this page would
-  // spin on "Loading your stats..." forever without this (see withSessionHash() in
-  // mobile/src/services/streamingSyncActions.ts, which is what puts the hash there).
+  // Bootstrap a session from a one-time bridge code passed via URL hash from the mobile
+  // app's "Reconnect on web" / "Connect on web" links. WebBrowser.openBrowserAsync opens a
+  // fresh browser context with no Synth login otherwise, so useAuth()'s `user` would never
+  // resolve and this page would spin on "Loading your stats..." forever without this. The
+  // code itself carries no credentials — it's exchanged server-side for the real session via
+  // api/auth/redeem-session.ts, so an access/refresh token never appears in this URL (see
+  // withSessionHash() in mobile/src/services/streamingSyncActions.ts, which mints the code
+  // via api/auth/bridge-session.ts and puts only the code here).
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
-    if (!accessToken || !refreshToken) return;
+    const code = hashParams.get('bridge');
 
-    void (async () => {
-      const { error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-      if (error) {
-        console.error('Failed to bootstrap session from reconnect link:', error);
-      }
+    const stripHash = () => {
       if (window.history?.replaceState) {
         const cleaned = new URL(window.location.href);
         cleaned.hash = '';
         window.history.replaceState({}, '', cleaned.toString());
       }
+    };
+
+    if (!code) return;
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/auth/redeem-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        if (!response.ok) {
+          console.error('Bridge code redeem failed:', response.status);
+          return;
+        }
+        const data: { access_token?: string; refresh_token?: string } = await response.json();
+        if (!data.access_token || !data.refresh_token) return;
+        const { error } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+        if (error) {
+          console.error('Failed to bootstrap session from bridge code:', error);
+        }
+      } finally {
+        stripHash();
+      }
     })();
   }, []);
+
+  // If no session ever materializes (bridge code missing/expired/redeem failed, or the
+  // page was just opened directly with no login) don't spin on "Loading your stats..."
+  // forever with no feedback — this is the actual bug that motivated the bridge above.
+  useEffect(() => {
+    if (user) {
+      setSessionUnavailable(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSessionUnavailable(true);
+      setLoading(false);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [user]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -485,6 +522,18 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   const showSongResyncBanner = isSpotify && songsNeedResync && !syncing;
 
   // ─── Loading ────────────────────────────────────────────────────────────────
+
+  if (sessionUnavailable) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-xs mx-auto px-4">
+          <p className="text-sm text-muted-foreground">
+            This link may have expired. Please go back to the app and try again.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
