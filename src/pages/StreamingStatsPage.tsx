@@ -53,6 +53,34 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   const [showExpoReturnBanner, setShowExpoReturnBanner] = useState(false);
   const connectFromExpoAttempted = useRef(false);
 
+  // Bootstrap a session passed via URL hash from the mobile app's "Reconnect on web" /
+  // "Connect on web" links. WebBrowser.openBrowserAsync opens a fresh browser context with
+  // no Synth login otherwise, so useAuth()'s `user` would never resolve and this page would
+  // spin on "Loading your stats..." forever without this (see withSessionHash() in
+  // mobile/src/services/streamingSyncActions.ts, which is what puts the hash there).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    if (!accessToken || !refreshToken) return;
+
+    void (async () => {
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) {
+        console.error('Failed to bootstrap session from reconnect link:', error);
+      }
+      if (window.history?.replaceState) {
+        const cleaned = new URL(window.location.href);
+        cleaned.hash = '';
+        window.history.replaceState({}, '', cleaned.toString());
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);

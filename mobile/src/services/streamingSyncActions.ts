@@ -136,16 +136,32 @@ async function refreshFeedAfterStreamingSync(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Appends the current Supabase session to a join.getsynth.app URL as a hash fragment
+ * (never sent to the server, unlike query params — matches the #access_token= convention
+ * DeepLinkHandlerInner already reads in src/App.tsx). Without this, WebBrowser.openBrowserAsync
+ * opens a completely fresh browser context with no Synth login, so the web page's own auth
+ * check never resolves a user and the page spins on "Loading your stats..." forever.
+ */
+export async function withSessionHash(url: string): Promise<string> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token || !session?.refresh_token) return url;
+  const hash = `access_token=${encodeURIComponent(session.access_token)}&refresh_token=${encodeURIComponent(session.refresh_token)}`;
+  return `${url}#${hash}`;
+}
+
 /** Deep link for one-time web connect when no stored refresh token exists. */
-export function buildExpoSpotifyConnectUrl(): string {
+export async function buildExpoSpotifyConnectUrl(): Promise<string> {
   const base = `${getExpoSiteUrl()}/streaming-stats`;
-  return `${base}?connect=${encodeURIComponent('spotify')}&source=expo&action=resync`;
+  return withSessionHash(`${base}?connect=${encodeURIComponent('spotify')}&source=expo&action=resync`);
 }
 
 /** Web OAuth with forced consent — re-grant track permissions after partial sync. */
-export function buildExpoSpotifyReconnectUrl(): string {
+export async function buildExpoSpotifyReconnectUrl(): Promise<string> {
   const base = `${getExpoSiteUrl()}/streaming-stats`;
-  return `${base}?connect=${encodeURIComponent('spotify')}&source=expo&reconnect=1`;
+  return withSessionHash(`${base}?connect=${encodeURIComponent('spotify')}&source=expo&reconnect=1`);
 }
 
 export async function requestServerSpotifySync(): Promise<StreamingSyncResult> {

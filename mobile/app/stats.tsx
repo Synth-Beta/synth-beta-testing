@@ -42,6 +42,7 @@ import {
   syncStreamingProfile,
   buildExpoSpotifyConnectUrl,
   buildExpoSpotifyReconnectUrl,
+  withSessionHash,
   formatStreamingSyncCountLine,
 } from '../src/services/streamingSyncActions';
 import { authenticateSpotifyInApp } from '../src/services/spotifyAuthService';
@@ -128,15 +129,21 @@ export default function StreamingStatsScreen() {
       provider && provider !== 'unknown'
         ? `${base}?connect=${encodeURIComponent(provider)}&source=expo`
         : `${base}?source=expo`;
-    void WebBrowser.openBrowserAsync(url);
+    void (async () => {
+      void WebBrowser.openBrowserAsync(await withSessionHash(url));
+    })();
   };
 
   const openSpotifyConnectOnWeb = () => {
-    void WebBrowser.openBrowserAsync(buildExpoSpotifyConnectUrl());
+    void (async () => {
+      void WebBrowser.openBrowserAsync(await buildExpoSpotifyConnectUrl());
+    })();
   };
 
   const openSpotifyReconnectOnWeb = () => {
-    void WebBrowser.openBrowserAsync(buildExpoSpotifyReconnectUrl());
+    void (async () => {
+      void WebBrowser.openBrowserAsync(await buildExpoSpotifyReconnectUrl());
+    })();
   };
 
   const handleConnectSpotifyInApp = async () => {
@@ -218,6 +225,7 @@ export default function StreamingStatsScreen() {
             result.message || 'Spotify sign-in was cancelled. Tap Resync to try again.',
             [
               { text: 'OK', style: 'cancel' },
+              { text: 'Connect Spotify', onPress: () => void handleConnectSpotifyInApp() },
               { text: 'Reconnect on web', onPress: openSpotifyReconnectOnWeb },
             ]
           );
@@ -254,12 +262,14 @@ export default function StreamingStatsScreen() {
       }
 
       if (result.skipped === 'no-stored-token') {
-        // In-app OAuth was cancelled or failed — offer reconnect on web as fallback.
+        // Silent sync found no server-saved token — offer a real native re-login, not just
+        // the web fallback (which needs a logged-in web session that TestFlight users won't have).
         Alert.alert(
           'Could not reach Spotify',
           result.message || 'Sign in to Spotify in the app or try reconnecting on the web.',
           [
             { text: 'Cancel', style: 'cancel' },
+            { text: 'Connect Spotify', onPress: () => void handleConnectSpotifyInApp() },
             { text: 'Reconnect on web', onPress: openSpotifyReconnectOnWeb },
           ]
         );

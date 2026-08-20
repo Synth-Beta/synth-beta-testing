@@ -26,18 +26,24 @@
  */
 
 export const GENRE_CHAT_TAG_MAP: Record<string, string[]> = {
+  // Pruned 2026-08-19: 'dance-pop'/'europop' (mainstream pop, already under
+  // `pop`), 'disco'/'Disco'/'nu disco'/'post-disco'/'italo disco' (live/cover
+  // bands keep surfacing here off a loose disco tag; disco stays represented
+  // under `rnb`), 'downtempo'/'space music' (ambient, not club/dance music),
+  // and 'lo-fi'/'lo-fi beats'/'lo-fi indie' ('lo-fi indie' already under
+  // `indie`) were all removed after live data showed them matching clearly
+  // non-EDM acts (e.g. a rock orchestra via "downtempo", a funk cover band via
+  // "post-disco") into the EDM chat's upcoming-shows list.
   edm: [
-    'edm', 'electronic', 'Electronic', 'electronica', 'dance', 'dance-pop',
+    'edm', 'electronic', 'Electronic', 'electronica', 'dance',
     'techno', 'house', 'House', 'deep house', 'tech house', 'afro house',
     'organic house', 'melodic house', 'latin house', 'acid house', 'hard house',
-    'tribal house', 'jazz house', 'nu disco', 'disco', 'Disco', 'post-disco',
-    'italo disco', 'eurodance', 'europop', 'trance', 'drum and bass',
+    'tribal house', 'jazz house', 'eurodance', 'trance', 'drum and bass',
     'Drum and bass', 'dubstep', 'breakbeat', 'uk garage', 'jungle', 'footwork',
-    'idm', 'glitch', 'downtempo', 'trip-hop', 'chillwave', 'vaporwave',
+    'idm', 'glitch', 'trip-hop', 'chillwave', 'vaporwave',
     'synthwave', 'electroclash', 'ebm', 'industrial', 'darkwave', 'cold wave',
     'liquid funk', 'bass music', 'hypertechno',
-    'lo-fi', 'lo-fi beats', 'lo-fi indie', 'electro swing', 'italo dance',
-    'space music', 'dub',
+    'electro swing', 'italo dance', 'dub',
   ],
   'jam-bands': ['jamband', 'jam band', 'livetronica', 'jamgrass'],
   rock: [

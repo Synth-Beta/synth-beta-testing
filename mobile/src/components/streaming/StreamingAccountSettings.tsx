@@ -18,6 +18,7 @@ import {
   disconnectStreamingAccount,
   syncStreamingProfile,
   buildExpoSpotifyReconnectUrl,
+  withSessionHash,
   formatStreamingSyncCountLine,
 } from '../../services/streamingSyncActions';
 import { authenticateSpotifyInApp } from '../../services/spotifyAuthService';
@@ -82,7 +83,9 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
 
   const openConnectAppleMusic = () => {
     const url = `${getExpoSiteUrl()}/streaming-stats?connect=apple-music&source=expo`;
-    void WebBrowser.openBrowserAsync(url);
+    void (async () => {
+      void WebBrowser.openBrowserAsync(await withSessionHash(url));
+    })();
   };
 
   const handleConnectSpotifyInApp = async () => {
@@ -123,6 +126,12 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
   const serviceLabel =
     provider === 'spotify' ? 'Spotify' : provider === 'apple-music' ? 'Apple Music' : null;
 
+  const openSpotifyReconnectOnWeb = () => {
+    void (async () => {
+      void WebBrowser.openBrowserAsync(await buildExpoSpotifyReconnectUrl());
+    })();
+  };
+
   const handleResync = async () => {
     if (!userId || !linked || provider === 'unknown') return;
 
@@ -162,7 +171,7 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
             : result.message || 'Reconnect Spotify on the web, then resync in the app.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Reconnect on web', onPress: () => void WebBrowser.openBrowserAsync(buildExpoSpotifyReconnectUrl()) },
+            { text: 'Reconnect on web', onPress: openSpotifyReconnectOnWeb },
             { text: 'Resync', onPress: () => void handleResync() },
           ]
         );
@@ -176,7 +185,7 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
           [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Connect Spotify', onPress: () => void handleConnectSpotifyInApp() },
-            { text: 'Reconnect on web', onPress: () => void WebBrowser.openBrowserAsync(buildExpoSpotifyReconnectUrl()) },
+            { text: 'Reconnect on web', onPress: openSpotifyReconnectOnWeb },
           ]
         );
         return;

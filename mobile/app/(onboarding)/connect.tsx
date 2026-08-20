@@ -12,7 +12,7 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { getStreamingLinkStatus } from '../../src/services/streamingConnectionService';
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
 import { authenticateSpotifyInApp } from '../../src/services/spotifyAuthService';
-import { syncStreamingProfile } from '../../src/services/streamingSyncActions';
+import { syncStreamingProfile, withSessionHash } from '../../src/services/streamingSyncActions';
 
 export default function ConnectScreen() {
     const router = useRouter();
@@ -21,7 +21,7 @@ export default function ConnectScreen() {
 
     const openConnectAppleMusic = useCallback(async () => {
         const url = `${getExpoSiteUrl()}/streaming-stats?connect=apple-music&source=expo`;
-        await WebBrowser.openBrowserAsync(url);
+        await WebBrowser.openBrowserAsync(await withSessionHash(url));
         setChecking(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
