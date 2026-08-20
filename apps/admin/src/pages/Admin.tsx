@@ -73,6 +73,7 @@ import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnal
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
 import ContentCalendarDashboard from '@/components/admin/content-calendar/ContentCalendarDashboard';
 import { AiSceneGuidesAdminPanel } from '@/components/admin/AiSceneGuidesAdminPanel';
+import NewsletterBuilder from '@/components/admin/newsletter/NewsletterBuilder';
 import {
   PlatformComparison,
   RecentPostRow,
@@ -272,6 +273,7 @@ export default function Admin() {
         'events',
         'moderation',
         'news',
+        'newsletter-builder',
         'style-guide',
         'ai-scene-guides',
       ]),
@@ -2283,7 +2285,7 @@ export default function Admin() {
           onValueChange={setActiveAdminTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-6xl grid-cols-4 lg:grid-cols-8 mb-6 gap-1 h-auto">
+          <TabsList className="grid w-full max-w-6xl grid-cols-4 lg:grid-cols-9 mb-6 gap-1 h-auto">
             <TabsTrigger value="users">
               <Users className="h-4 w-4 mr-2" />
               Users & Analytics
@@ -2307,6 +2309,10 @@ export default function Admin() {
             <TabsTrigger value="news">
               <Newspaper className="h-4 w-4 mr-2" />
               In the News
+            </TabsTrigger>
+            <TabsTrigger value="newsletter-builder">
+              <Newspaper className="h-4 w-4 mr-2" />
+              Newsletter Builder
             </TabsTrigger>
             <TabsTrigger value="style-guide">
               <BookOpen className="h-4 w-4 mr-2" />
@@ -4189,6 +4195,10 @@ export default function Admin() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="newsletter-builder" className="space-y-6">
+            <NewsletterBuilder />
           </TabsContent>
 
           <TabsContent value="style-guide" className="space-y-6">
