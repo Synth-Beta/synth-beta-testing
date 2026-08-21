@@ -540,6 +540,75 @@ export class SpotifyService {
   }
 
   /**
+   * Fill in artist genres from our own `artists` table.
+   *
+   * Spotify's artist objects no longer come back with a populated `genres` array (verified
+   * live: 0 of 123 artists tagged, where a 2026-07-02 sync of the same account had 65 of
+   * 130). Left alone, a sync writes genre-less artists and the process_spotify_genres_to_signals
+   * trigger — which replaces the user's spotify_genre signals wholesale on every sync —
+   * empties them, quietly degrading feed personalization.
+   *
+   * Display-cased to match what the stats UI renders and what refresh_user_preferences_v5
+   * normalizes ("Hip Hop Rap" and "hip-hop-rap" both slug to "hip-hop-rap").
+   * Mirrors backfillArtistGenresFromDb in api/spotify/sync-profile.ts, which does the same
+   * for the mobile server-sync path. Best-effort: failures leave Spotify's data untouched.
+   */
+  private async backfillArtistGenresFromDb(artistLists: SpotifyArtist[][]): Promise<void> {
+    const PLACEHOLDER_GENRES = new Set(['small artist', 'unknown', 'n/a']);
+    const toDisplay = (value: string) =>
+      value
+        .split(/[-\s]+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+    const names = new Set<string>();
+    for (const list of artistLists) {
+      for (const artist of list) {
+        const name = artist?.name?.trim();
+        if (name && !(Array.isArray(artist.genres) && artist.genres.length > 0)) names.add(name);
+      }
+    }
+    if (names.size === 0) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('artists')
+        .select('name, genres')
+        .in('name', [...names]);
+      if (error || !data) return;
+
+      const byName = new Map<string, string[]>();
+      for (const row of data as Array<{ name?: string | null; genres?: string[] | null }>) {
+        const rowName = row.name?.trim().toLowerCase();
+        if (!rowName || !Array.isArray(row.genres)) continue;
+        const cleaned = row.genres
+          .filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+          .filter((g) => !PLACEHOLDER_GENRES.has(g.trim().toLowerCase()))
+          .map((g) => toDisplay(g.trim()));
+        if (cleaned.length > 0) byName.set(rowName, [...new Set(cleaned)]);
+      }
+      if (byName.size === 0) return;
+
+      let filled = 0;
+      for (const list of artistLists) {
+        for (const artist of list) {
+          const name = artist?.name?.trim().toLowerCase();
+          if (!name || (Array.isArray(artist.genres) && artist.genres.length > 0)) continue;
+          const fromDb = byName.get(name);
+          if (fromDb) {
+            artist.genres = fromDb;
+            filled++;
+          }
+        }
+      }
+      logger.debug(`Backfilled genres for ${filled} artists from the artists table`);
+    } catch (error) {
+      logger.warn('Artist genre backfill skipped:', error);
+    }
+  }
+
+  /**
    * Save Spotify data to streaming_profiles table to trigger database sync
    */
   private async saveToStreamingProfiles(data: {
@@ -565,6 +634,15 @@ export class SpotifyService {
         logger.warn('No authenticated user for streaming profile save');
         return;
       }
+
+      // Spotify stopped returning artist genres — fill them from our own artists table
+      // before the row is written, so the genre trigger has something to work with.
+      await this.backfillArtistGenresFromDb([
+        data.topArtistsByTimeRange?.short_term ?? [],
+        data.topArtistsByTimeRange?.medium_term ?? [],
+        data.topArtistsByTimeRange?.long_term ?? [],
+        data.topArtists,
+      ]);
 
       // Prepare profile data for streaming_profiles table
       const { data: existingRow } = await supabase

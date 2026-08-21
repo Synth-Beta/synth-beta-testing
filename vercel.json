@@ -50,6 +50,26 @@
       "destination": "/api/ai-scene-guides?job=slack-interactions"
     },
     {
+      "source": "/api/auth/bridge-session",
+      "destination": "/api/auth/session?job=bridge"
+    },
+    {
+      "source": "/api/auth/redeem-session",
+      "destination": "/api/auth/session?job=redeem"
+    },
+    {
+      "source": "/api/cron/sync-events",
+      "destination": "/api/cron?job=sync-events"
+    },
+    {
+      "source": "/api/cron/seed-bot-messages",
+      "destination": "/api/cron?job=seed-bot-messages"
+    },
+    {
+      "source": "/api/cron/slack-pm-digest",
+      "destination": "/api/cron?job=slack-pm-digest"
+    },
+    {
       "source": "/auth/spotify/callback",
       "destination": "/"
     },
@@ -89,14 +109,11 @@
     "api/slack-pm/interactions.ts": {
       "maxDuration": 60
     },
-    "api/cron/sync-events.ts": {
-      "maxDuration": 10
-    },
-    "api/cron/seed-bot-messages.ts": {
-      "maxDuration": 10
-    },
-    "api/cron/slack-pm-digest.ts": {
+    "api/cron/index.ts": {
       "maxDuration": 60
+    },
+    "api/auth/session.ts": {
+      "maxDuration": 10
     },
     "api/ai-scene-guides.ts": {
       "maxDuration": 120
@@ -107,11 +124,11 @@
   },
   "crons": [
     {
-      "path": "/api/cron/sync-events",
+      "path": "/api/cron?job=sync-events",
       "schedule": "30 9 * * *"
     },
     {
-      "path": "/api/cron/seed-bot-messages",
+      "path": "/api/cron?job=seed-bot-messages",
       "schedule": "0 10 * * *"
     },
     {
@@ -143,15 +160,15 @@
       "schedule": "0 14 * * *"
     },
     {
-      "path": "/api/cron/slack-pm-digest",
+      "path": "/api/cron?job=slack-pm-digest",
       "schedule": "0 13 * * *"
     },
     {
-      "path": "/api/cron/slack-pm-digest",
+      "path": "/api/cron?job=slack-pm-digest",
       "schedule": "0 17 * * *"
     },
     {
-      "path": "/api/cron/slack-pm-digest",
+      "path": "/api/cron?job=slack-pm-digest",
       "schedule": "0 21 * * *"
     }
   ]

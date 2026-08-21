@@ -25,7 +25,7 @@
  * and too generic a catch-all to belong under any single chat's umbrella.
  */
 
-export const GENRE_CHAT_TAG_MAP: Record<string, string[]> = {
+const GENRE_CHAT_TAG_MAP_BASE: Record<string, string[]> = {
   // Pruned 2026-08-19: 'dance-pop'/'europop' (mainstream pop, already under
   // `pop`), 'disco'/'Disco'/'nu disco'/'post-disco'/'italo disco' (live/cover
   // bands keep surfacing here off a loose disco tag; disco stays represented
@@ -61,7 +61,9 @@ export const GENRE_CHAT_TAG_MAP: Record<string, string[]> = {
     'psychedelic pop', 'psychedelic', 'neo-psychedelic', 'honky tonk',
   ],
   'hip-hop': [
-    'hip-hop-rap', 'hip hop', 'Hip-Hop', 'rap', 'cloud rap', 'boom bap',
+    // 'hip-hop/rap' is a separate upstream spelling (34 upcoming events) that no
+    // amount of case-folding reaches — the separator differs, not the case.
+    'hip-hop-rap', 'hip-hop/rap', 'hip hop', 'Hip-Hop', 'rap', 'cloud rap', 'boom bap',
     'french rap', 'k-rap', 'underground hip hop', 'west coast hip hop',
     'lo-fi hip hop', 'hardcore hip hop', 'christian hip hop', 'trip-hop',
     'rap metal',
@@ -121,4 +123,50 @@ export const GENRE_CHAT_TAG_MAP: Record<string, string[]> = {
     'medieval', 'ragtime',
   ],
   reggae: ['reggae', 'ska', 'ska punk', 'rocksteady', 'roots reggae', 'dub', 'calypso', 'ragga'],
+  // Added 2026-08-20. 'latin' alone carries 1,182 upcoming events and was the
+  // single largest unserved tag — 359 of those events were reachable by no
+  // chat whatsoever. Sub-genres below were all confirmed present in live data.
+  latin: [
+    'latin', 'latin pop', 'latin rock', 'latin jazz', 'latin r&b', 'latino',
+    'reggaeton', 'neoperreo', 'salsa', 'cumbia', 'bachata', 'merengue',
+    'mariachi', 'banda', 'norteno', 'norteño', 'corridos', 'ranchera',
+    'regional mexican', 'tango', 'flamenco', 'bossa nova', 'samba',
+    'bolero', 'vallenato', 'tropical', 'musica mexicana',
+  ],
 };
+
+/**
+ * events.genres is written from several upstream APIs with no shared casing
+ * convention, so the same genre arrives as "pop", "Pop", and occasionally
+ * "POP". `.overlaps()` is a Postgres array operator and is case-SENSITIVE, so
+ * every variant has to be listed explicitly or the events silently fall through
+ * to no chat at all.
+ *
+ * Hand-listing them was the old approach and it drifted: a live audit on
+ * 2026-08-20 found 'Rock' (52 events), 'Alternative' (48), 'Pop' (35) and
+ * 'Hip-Hop/Rap' (34) among the top orphan tags — reachable by nothing, purely
+ * because of capitalisation. Generating the variants removes that whole class
+ * of bug instead of patching it one tag at a time.
+ *
+ * Separator variants (e.g. "Hip-Hop/Rap" vs "hip-hop-rap") are NOT derivable
+ * and remain listed explicitly in the base map above.
+ */
+function expandCaseVariants(tags: string[]): string[] {
+  const out = new Set<string>();
+  for (const tag of tags) {
+    const lower = tag.toLowerCase();
+    out.add(tag);
+    out.add(lower);
+    // Title Case every word, hyphen- and slash-aware: "hip-hop-rap" -> "Hip-Hop-Rap"
+    out.add(lower.replace(/(^|[^a-z0-9])([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase()));
+    // Sentence case: "alternative rock" -> "Alternative rock"
+    out.add(lower.charAt(0).toUpperCase() + lower.slice(1));
+    // Short tags are usually acronyms in the wild: edm -> EDM, idm -> IDM
+    if (lower.length <= 4) out.add(lower.toUpperCase());
+  }
+  return [...out];
+}
+
+export const GENRE_CHAT_TAG_MAP: Record<string, string[]> = Object.fromEntries(
+  Object.entries(GENRE_CHAT_TAG_MAP_BASE).map(([chatId, tags]) => [chatId, expandCaseVariants(tags)])
+);

@@ -54,23 +54,43 @@ function extractTopArtists(
     .filter((a) => a.name);
 }
 
-/** Convert user_preferences.genre_preference_scores to [{genre, count}] */
+/**
+ * Convert user_preferences into a display list of [{genre, count}].
+ *
+ * `top_genres` is preferred for the LABEL. As of
+ * supabase/genre-pipeline-2026-08-20/01_genre_match_keys_and_preferences.sql,
+ * the keys of `genre_preference_scores` are slugs ("hip-hop-rap",
+ * "country-music") so that get_personalized_feed_v5 can match them against the
+ * raw strings in events.genres — they are machine keys, not display text.
+ * `top_genres` carries the human-readable canonical names ("Hip Hop Rap") and
+ * is ordered by the same descending score, so the two line up positionally.
+ *
+ * Falls back to the score keys when top_genres is missing, which keeps this
+ * working for rows written before that migration is applied.
+ */
 function scorestoGenreList(
   scores: Record<string, number> | null | undefined,
   topGenres: string[] | null | undefined,
   limit = 20
 ): Array<{ genre: string; count: number }> {
-  if (scores && typeof scores === 'object' && Object.keys(scores).length > 0) {
-    return Object.entries(scores)
-      .sort(([, a], [, b]) => b - a)
+  const sortedScores: Array<[string, number]> =
+    scores && typeof scores === 'object'
+      ? Object.entries(scores).sort(([, a], [, b]) => b - a)
+      : [];
+
+  if (Array.isArray(topGenres) && topGenres.length > 0) {
+    return topGenres.slice(0, limit).map((genre, i) => ({
+      genre,
+      count: Math.round(sortedScores[i]?.[1] ?? Math.max(1, limit - i)),
+    }));
+  }
+
+  if (sortedScores.length > 0) {
+    return sortedScores
       .slice(0, limit)
       .map(([genre, score]) => ({ genre, count: Math.round(score) }));
   }
-  if (Array.isArray(topGenres) && topGenres.length > 0) {
-    return topGenres
-      .slice(0, limit)
-      .map((genre, i) => ({ genre, count: limit - i }));
-  }
+
   return [];
 }
 

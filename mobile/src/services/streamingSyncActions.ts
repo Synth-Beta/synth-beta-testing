@@ -342,22 +342,31 @@ export async function syncStreamingProfile(
   }
 
   if (complete && isManual && !syncRan) {
-    const noRefreshMessage =
-      'Could not reach Spotify. Tap Sync again — if it keeps failing, use Reconnect on web.';
+    // The stored profile is complete but this sync did not refresh it. Only report that as
+    // a token problem when the server actually said so. Hardcoding 'no-stored-token' here
+    // meant a real server-side failure (a 500 from api/spotify/sync-profile, a timeout) was
+    // relabelled "not connected", the UI offered "Connect Spotify", and the user was sent
+    // back through Spotify OAuth — which can never fix a server error, so consenting again
+    // just returned to this same alert. Surface the server's own message instead.
+    const isTokenProblem =
+      !serverResult.usedServer || serverResult.skipped === 'no-stored-token';
+    const failureMessage = isTokenProblem
+      ? 'Could not reach Spotify. Tap Sync again — if it keeps failing, use Reconnect on web.'
+      : serverResult.message || 'Spotify sync failed. Tap Sync again to retry.';
     logSyncResult({
       ok: false,
       manual: true,
-      skipped: 'no-stored-token',
+      skipped: isTokenProblem ? 'no-stored-token' : 'sync-failed',
       syncRan: false,
       counts,
-      message: noRefreshMessage,
+      message: failureMessage,
     });
     return {
       ok: false,
-      skipped: 'no-stored-token',
-      usedServer: false,
+      skipped: isTokenProblem ? 'no-stored-token' : 'sync-failed',
+      usedServer: serverResult.usedServer ?? false,
       counts,
-      message: noRefreshMessage,
+      message: failureMessage,
     };
   }
 

@@ -318,6 +318,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, skipped: reason });
   }
 
+  // Burst cap: a backstop, not the primary fix. The real cap now lives upstream
+  // in queue_or_send_notification() (supabase/migrations/20260821000000_notification_
+  // burst_throttle.sql) — it only ever creates 2 `notifications` rows per recipient
+  // per type within 10 minutes, queuing the rest for later drip-release, so this
+  // webhook shouldn't normally see a burst at all. Kept as a safety net in case some
+  // other notification-creating path doesn't go through that helper.
+  const BURST_WINDOW_MS = 2 * 60 * 1000;
+  const BURST_CAP = 2;
+  const { count: recentSentCount } = await supabase
+    .from('push_delivery_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', record.user_id)
+    .eq('status', 'sent')
+    .gte('created_at', new Date(Date.now() - BURST_WINDOW_MS).toISOString());
+
+  if ((recentSentCount ?? 0) >= BURST_CAP) {
+    const reason = 'burst cap reached';
+    console.log(`[push-webhook] skipped: ${reason}`, {
+      user_id: record.user_id,
+      notification_id: record.id,
+      recentSentCount,
+    });
+    await writeDeliveryLog(supabase, [
+      {
+        notification_id: record.id ?? null,
+        user_id: record.user_id,
+        channel: null,
+        platform: null,
+        device_token_tail: null,
+        status: 'skipped',
+        error: 'burst-cap-reached',
+        deactivated: false,
+      },
+    ]);
+    return res.status(200).json({ ok: true, skipped: reason, sent: 0 });
+  }
+
   // Fetch active device tokens (Expo tokens can represent iOS or Android).
   const { data: devicesRaw, error: devicesError } = await supabase
     .from('device_tokens')

@@ -28,6 +28,9 @@ export const GENRE_CONFIGS: GenreConfig[] = [
     { id: 'country', name: 'Country', fullName: 'Country & Folk', emoji: '🤠', color: '#65A30D', description: 'Honky-tonk to folk festivals' },
     { id: 'classical', name: 'Classical', fullName: 'Classical & Orchestral', emoji: '🎻', color: '#92400E', description: 'Symphonies and chamber music' },
     { id: 'reggae', name: 'Reggae', fullName: 'Reggae & Ska', emoji: '🌴', color: '#16A34A', description: 'Roots, dancehall & ska' },
+    // Added 2026-08-20: 'latin' is the most common single tag with no chat behind
+    // it (1,182 upcoming events, 359 of them reachable by no other chat at all).
+    { id: 'latin', name: 'Latin', fullName: 'Latin & Reggaeton', emoji: '💃', color: '#EA580C', description: 'Reggaeton, salsa, cumbia & más' },
 ];
 
 export interface GenreChatInfo {

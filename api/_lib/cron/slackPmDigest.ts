@@ -1,5 +1,5 @@
 /**
- * Synth PM digests — one function, three daily Vercel cron schedules
+ * Synth PM digests — three daily schedules, dispatched from api/cron/index.ts.
  * (Hobby: max 1 run/day per cron expression; max 12 serverless functions).
  *
  * Schedules (EDT = UTC-4):
@@ -15,10 +15,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { handleDigestCron } from '../_lib/slackPm/runDigestCron.js';
-import type { DigestKind } from '../_lib/slackPm/digest.js';
+import { handleDigestCron } from '../slackPm/runDigestCron.js';
+import type { DigestKind } from '../slackPm/digest.js';
 
-export const config = { maxDuration: 60 };
 
 function kindFromScheduleHeader(schedule: string | string[] | undefined): DigestKind | null {
   const raw = Array.isArray(schedule) ? schedule[0] : schedule;

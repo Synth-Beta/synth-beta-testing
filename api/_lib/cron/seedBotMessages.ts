@@ -19,7 +19,7 @@ import {
   generateDailyBotMessage,
   randomInt,
   shuffle,
-} from '../../scripts/lib/bot-seed-shared.mjs';
+} from '../../../scripts/lib/bot-seed-shared.mjs';
 
 // Constant-time comparison so response timing can't leak secret prefixes
 function secureEquals(a: string, b: string): boolean {

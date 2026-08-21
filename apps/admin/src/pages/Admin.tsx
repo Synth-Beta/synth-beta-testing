@@ -3098,44 +3098,27 @@ export default function Admin() {
                       Signup method data unavailable
                     </p>
                   ) : (
-                    <div className="h-[300px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={(['apple', 'android', 'email', 'unknown'] as SignupMethod[])
-                            .map(method => ({
-                              method: SIGNUP_METHOD_LABELS[method],
-                              count: users.filter(u => (signupMethods[u.id] ?? 'unknown') === method).length,
-                            }))
-                            .filter(entry => entry.count > 0)}
-                          margin={{ top: 20, right: 30, left: 0, bottom: 60 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis
-                            dataKey="method"
-                            tick={{ fontSize: 11 }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                          />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip
-                            content={({ active, payload }) => {
-                              if (active && payload && payload.length) {
-                                return (
-                                  <div className="rounded-lg border bg-background p-2 shadow-sm">
-                                    <div className="font-medium">{payload[0].payload.method}</div>
-                                    <div className="text-sm text-muted-foreground">
-                                      Count: <span className="font-medium">{payload[0].value?.toLocaleString()}</span>
-                                    </div>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            }}
-                          />
-                          <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {(['apple', 'android', 'email', 'unknown'] as SignupMethod[])
+                        .map(method => ({
+                          method,
+                          label: SIGNUP_METHOD_LABELS[method],
+                          count: users.filter(u => (signupMethods[u.id] ?? 'unknown') === method).length,
+                        }))
+                        .filter(entry => entry.count > 0)
+                        .map(entry => (
+                          <Card key={entry.method} className="shadow-sm">
+                            <CardHeader className="p-3 pb-1">
+                              <CardTitle className="text-xs font-medium text-muted-foreground">
+                                {entry.label}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3 pt-0">
+                              <div className="text-xl font-bold">{entry.count.toLocaleString()}</div>
+                              <p className="text-xs text-muted-foreground">Users signed up</p>
+                            </CardContent>
+                          </Card>
+                        ))}
                     </div>
                   )}
                 </CardContent>

@@ -4,7 +4,10 @@
  * lookup fails or is skipped) and looks up real genres for them via
  * fetch-artist-genres.mjs (MusicBrainz — see that file for why Spotify, the
  * original plan, turned out to be a dead end; iTunes fallback also exists
- * there but is off by default, GENRE_ENRICH_USE_ITUNES=1 to enable it).
+ * there and is ON by default -- set GENRE_ENRICH_USE_ITUNES=0 to go
+ * MusicBrainz-only. This comment previously claimed the opposite; the code has
+ * always read `!== '0'` (fetch-artist-genres.mjs:49), i.e. enabled unless
+ * explicitly disabled.
  *
  * Processes the backlog ordered by EVENT COUNT, most first (via the
  * get_stuck_artists_by_event_count DB function — apply
