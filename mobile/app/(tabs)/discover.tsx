@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -266,29 +266,61 @@ export default function DiscoverScreen() {
     setCalDaySelection(null);
   }, [calMonth, calYear]);
 
+  /** Months already paged in for the current location, so navigating back is free. */
+  const loadedMonthsRef = useRef<Set<string>>(new Set());
+  const calLocationKeyRef = useRef<string>('');
+
   useEffect(() => {
     if (tab !== 'calendar') {
       return;
     }
+
+    // A location or radius change invalidates everything already loaded.
+    const locationKey = `${coords?.latitude ?? 'na'}|${coords?.longitude ?? 'na'}|${discoverRadius}`;
+    if (calLocationKeyRef.current !== locationKey) {
+      calLocationKeyRef.current = locationKey;
+      loadedMonthsRef.current = new Set();
+      setCalendarByDate({});
+    }
+
+    const monthKey = `${calYear}-${calMonth}`;
+    if (loadedMonthsRef.current.has(monthKey)) {
+      return;
+    }
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(calYear, calMonth, 1);
+    const monthEnd = new Date(calYear, calMonth + 1, 0, 23, 59, 59, 999);
+    // Wholly past months have nothing upcoming in them — skip the round trip.
+    if (monthEnd < todayStart) {
+      return;
+    }
+
     let cancelled = false;
     setCalLoading(true);
     setCalLoadError(null);
+    // Scoped to the month on screen. Loading "the next 1000 events" instead only
+    // reached about four weeks out, which left later months rendering empty.
     void SearchService.loadDiscoverCalendarEvents({
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
       radiusMiles: discoverRadius,
-      limit: 10000,
+      minDate: (monthStart < todayStart ? todayStart : monthStart).toISOString(),
+      until: monthEnd.toISOString(),
     }).then(({ byDate, error }) => {
       if (cancelled) return;
-      setCalendarByDate(byDate);
+      // Merge rather than replace so previously loaded months survive navigation.
+      setCalendarByDate(prev => ({ ...prev, ...byDate }));
       setCalLoadError(error);
+      if (!error) loadedMonthsRef.current.add(monthKey);
     }).finally(() => {
       if (!cancelled) setCalLoading(false);
     });
     return () => {
       cancelled = true;
     };
-  }, [tab, coords?.latitude, coords?.longitude, discoverRadius]);
+  }, [tab, coords?.latitude, coords?.longitude, discoverRadius, calMonth, calYear]);
 
   const daysWithEventsInMonth = useMemo(() => {
     const set = new Set<number>();

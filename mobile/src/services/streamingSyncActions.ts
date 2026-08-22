@@ -226,12 +226,27 @@ export async function requestServerSpotifySync(): Promise<StreamingSyncResult> {
       };
     }
 
+    // The Spotify half succeeded and the database write timed out. Prefer the server's
+    // human-readable `message` over `error` here — `error` is the machine code
+    // ('save_timeout'), which is what the user would otherwise see in the alert. Crucially
+    // this is NOT a token problem, so it must not route into the "connect Spotify" flow.
+    if (response.status === 504 && body.error === 'save_timeout') {
+      return {
+        ok: false,
+        skipped: 'sync-failed',
+        message: body.message || 'Saving your Spotify data timed out. This is a server issue.',
+        usedServer: true,
+        counts: successBody.counts,
+      };
+    }
+
     if (!response.ok) {
       return {
         ok: false,
         skipped: 'sync-failed',
-        message: body.error || body.message || `Sync failed (${response.status})`,
+        message: body.message || body.error || `Sync failed (${response.status})`,
         usedServer: true,
+        counts: successBody.counts,
       };
     }
 

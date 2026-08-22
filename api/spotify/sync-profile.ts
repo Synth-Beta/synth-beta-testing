@@ -354,7 +354,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     if (upsertError) {
-      return res.status(500).json({ error: 'Failed to save streaming profile' });
+      // Never swallow this again. Returning only "Failed to save streaming profile"
+      // hid the actual Postgres error for several rounds of debugging: the write was
+      // dying on 57014 (statement timeout) inside the AFTER-UPDATE-OF-profile_data
+      // trigger cascade on streaming_profiles, which no amount of app-side change
+      // could have fixed because the app could not see it.
+      console.error('[spotify/sync-profile] streaming_profiles upsert failed', {
+        userId,
+        code: upsertError.code,
+        message: upsertError.message,
+        details: upsertError.details,
+        hint: upsertError.hint,
+        artistCount,
+        trackCount,
+        payloadBytes: Buffer.byteLength(JSON.stringify(profileData)),
+      });
+
+      // 57014 is the statement_timeout cancel. The Spotify half of the sync succeeded;
+      // what failed is the database write, so say that rather than blaming the user's
+      // Spotify connection and sending them back through OAuth (which can never fix it).
+      if (upsertError.code === '57014') {
+        return res.status(504).json({
+          error: 'save_timeout',
+          message:
+            'Spotify data loaded, but saving it timed out in the database. This is a server-side issue, not your Spotify connection — reconnecting will not help.',
+          code: upsertError.code,
+          counts: { artists: artistCount, tracks: trackCount },
+        });
+      }
+
+      return res.status(500).json({
+        error: `Failed to save streaming profile: ${upsertError.message}`,
+        code: upsertError.code,
+        counts: { artists: artistCount, tracks: trackCount },
+      });
     }
 
     const externalUrls = me?.external_urls;
@@ -370,9 +403,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Belt-and-suspenders: triggers also refresh preferences; explicit call for mobile-only path.
-    await supabase.rpc('refresh_user_preferences_v5', { p_user_id: userId });
+    // Non-fatal, but log it: this shares a statement_timeout budget with the trigger cascade
+    // above, so when that cascade is slow this silently fails and the feed never picks up the
+    // new taste data — a sync that looks successful but changes nothing.
+    const { error: refreshError } = await supabase.rpc('refresh_user_preferences_v5', {
+      p_user_id: userId,
+    });
+    if (refreshError) {
+      console.error('[spotify/sync-profile] refresh_user_preferences_v5 failed', {
+        userId,
+        code: refreshError.code,
+        message: refreshError.message,
+      });
+    }
 
-    await supabase.from('personalized_feed_cache').delete().eq('user_id', userId);
+    const { error: cacheError } = await supabase
+      .from('personalized_feed_cache')
+      .delete()
+      .eq('user_id', userId);
+    if (cacheError) {
+      console.error('[spotify/sync-profile] feed cache invalidation failed', {
+        userId,
+        code: cacheError.code,
+        message: cacheError.message,
+      });
+    }
 
     return res.status(200).json({
       ok: true,

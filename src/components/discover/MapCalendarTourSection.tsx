@@ -12,7 +12,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-import { format } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeFilters } from '@/services/discoverVibeService';
@@ -26,6 +26,14 @@ import { SynthLoadingInline } from '@/components/ui/SynthLoader';
 import { getMapboxToken } from '@/utils/mapboxToken';
 
 const MAPBOX_TOKEN = getMapboxToken();
+
+/**
+ * Hard row cap PostgREST applies to every response on this project. Asking
+ * get_calendar_events for more than this returns nothing extra, but the no-location
+ * branch then sorts/spills the larger set and trips the statement timeout
+ * (measured: 3.1s timeout at p_limit 10000 vs 0.39s at 1000).
+ */
+const POSTGREST_MAX_ROWS = 1000;
 
 // Create numbered marker icon factory
 const createNumberedIcon = (number: number) => {
@@ -119,10 +127,17 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   const loadCalendarEvents = useCallback(async () => {
     setCalendarLoading(true);
     try {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0); // Start of today
-      
-      console.log('📅 [CALENDAR] Loading upcoming events with optimized spatial filtering');
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0); // Start of today
+
+      // Scope the load to the month on screen. PostgREST caps responses at 1000 rows and
+      // get_calendar_events has no upper date bound, so "everything from today" only ever
+      // reached as far as 1000 events stretch — roughly four weeks in a dense market,
+      // which left later months rendering as an empty grid.
+      const monthStart = startOfMonth(calendarDate);
+      const now = monthStart > todayStart ? monthStart : todayStart;
+
+      console.log('📅 [CALENDAR] Loading events for', format(monthStart, 'yyyy-MM'));
       
       let filteredEvents: JamBaseEvent[] = [];
 
@@ -140,7 +155,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
           p_radius_miles: filters.radiusMiles,
           p_min_date: now.toISOString(),
           p_genres: singleUmbrella ? null : (filters?.genres && filters.genres.length > 0 ? filters.genres : null),
-          p_limit: 1500,
+          p_limit: POSTGREST_MAX_ROWS,
           p_umbrella_slug: singleUmbrella,
           p_max_depth: 5
         });
@@ -186,7 +201,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
           p_radius_miles: null,
           p_min_date: now.toISOString(),
           p_genres: singleUmbrellaNoLoc ? null : (filters?.genres && filters.genres.length > 0 ? filters.genres : null),
-          p_limit: 10000,
+          p_limit: POSTGREST_MAX_ROWS,
           p_umbrella_slug: singleUmbrellaNoLoc,
           p_max_depth: 5
         });
@@ -210,13 +225,18 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       });
 
       console.log(`📅 [CALENDAR] Grouped events into ${eventsByDate.size} unique dates`);
-      setCalendarEvents(eventsByDate);
+      // Merge rather than replace, so months already loaded survive navigating back.
+      setCalendarEvents(prev => {
+        const merged = new Map(prev);
+        eventsByDate.forEach((events, dateKey) => merged.set(dateKey, events));
+        return merged;
+      });
     } catch (error) {
       console.error('Error loading calendar events:', error);
     } finally {
       setCalendarLoading(false);
     }
-  }, [filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities, filters?.genres]);
+  }, [filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities, filters?.genres, calendarDate]);
 
   // Load calendar events
   useEffect(() => {
@@ -231,6 +251,8 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       radius: filters?.radiusMiles,
       cities: filters?.cities,
       genres: filters?.genres,
+      // The load is scoped to the displayed month, so changing month is a real reload.
+      month: format(startOfMonth(calendarDate), 'yyyy-MM'),
     });
 
     // Only reload if filters actually changed
@@ -258,7 +280,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     lastFilterKeyRef.current = filterKey;
     hasLoadedOnceRef.current = true;
     loadCalendarEvents();
-  }, [activeTab, filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities, filters?.genres, loadCalendarEvents]);
+  }, [activeTab, filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities, filters?.genres, calendarDate, loadCalendarEvents]);
 
   // Load tour events when artist is selected
   useEffect(() => {

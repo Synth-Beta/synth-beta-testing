@@ -700,6 +700,17 @@ export class SpotifyService {
         logger.debug('Streaming profile upsert failed:', { code: upsertError.code, message: upsertError.message });
         if (upsertError.code === 'PGRST205') {
           logger.warn('Table streaming_profiles does not exist or RLS policy issue');
+          throw new Error(
+            `Could not save streaming profile: ${upsertError.message} (${upsertError.code})`
+          );
+        } else if (upsertError.code === '57014') {
+          // statement_timeout. The Spotify half succeeded; the DATABASE write was
+          // cancelled, so this is not the user's Spotify connection and reconnecting
+          // cannot help. Say so, or the UI sends them back through OAuth forever.
+          logger.error('Streaming profile save timed out in the database (57014)');
+          throw new Error(
+            'Spotify data loaded, but saving it timed out in the database. This is a server-side issue, not your Spotify connection — reconnecting will not help.'
+          );
         } else if (upsertError.code === '23505') {
           const { error: updateError } = await supabase
             .from('streaming_profiles')
@@ -713,11 +724,17 @@ export class SpotifyService {
 
           if (updateError) {
             logger.error('Error updating streaming profile:', updateError.code, updateError.message);
+            throw new Error(
+              `Could not save streaming profile: ${updateError.message} (${updateError.code})`
+            );
           } else {
             logger.debug('✅ Updated streaming profile for user:', user.id);
           }
         } else {
           logger.error('Error upserting streaming profile:', upsertError.code, upsertError.message);
+          throw new Error(
+            `Could not save streaming profile: ${upsertError.message} (${upsertError.code})`
+          );
         }
       } else {
         logger.debug('✅ Upserted streaming profile for user:', user.id);
@@ -740,7 +757,17 @@ export class SpotifyService {
         }
       }
     } catch (error) {
+      // Rethrow, do NOT swallow. This method used to log and return void, so a failed
+      // save was indistinguishable from a successful one: UnifiedStreamingStats set
+      // syncStatus('success') the moment syncUserMusicPreferences resolved, and the
+      // stats silently stayed stale. That is exactly how the 57014 statement-timeout
+      // outage (2026-08-21) went unnoticed on web while mobile at least said
+      // "Sync failed". Every caller already handles a rejection: SpotifyCallback
+      // catches and still redirects, streamingSyncActions maps it to {ok:false,
+      // message}, UnifiedStreamingStats shows the error, and SpotifyStats opts out
+      // explicitly with .catch(() => {}).
       logger.error('Error saving to streaming profiles:', error);
+      throw error;
     }
   }
 
