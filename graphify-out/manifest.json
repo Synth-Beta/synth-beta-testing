@@ -265,8 +265,8 @@
     "semantic_hash": "96db696d7dee756fde6852eb26ca117e"
   },
   "mobile/app/(tabs)/discover.tsx": {
-    "mtime": 1785721601.5584018,
-    "ast_hash": "7bc687c81320a4eed4a4795fc760f41c",
+    "mtime": 1787353428.1988964,
+    "ast_hash": "8b25411d9bfad05248d2b4a2ca43997c",
     "semantic_hash": ""
   },
   "mobile/app/(tabs)/index.tsx": {
@@ -960,8 +960,8 @@
     "semantic_hash": "e681cf9e6480efe019753fd3cdc40187"
   },
   "mobile/src/services/searchService.ts": {
-    "mtime": 1787349057.5973477,
-    "ast_hash": "d7f21873b2e78bbd3de3a883a6aebaff",
+    "mtime": 1787372470.1719165,
+    "ast_hash": "3c81bab72e347cb3696ce0b5a767d855",
     "semantic_hash": ""
   },
   "mobile/src/services/shareAppService.ts": {
@@ -1880,9 +1880,9 @@
     "semantic_hash": "836289c43a5d026a16faf0cd48ccdc61"
   },
   "src/components/discover/MapCalendarTourSection.tsx": {
-    "mtime": 1783095398.6518958,
-    "ast_hash": "062d1a4c61cdea959032abbe57e900ad",
-    "semantic_hash": "062d1a4c61cdea959032abbe57e900ad"
+    "mtime": 1787355697.0926657,
+    "ast_hash": "e0d6055e2e03c2b50a61da73a9e4867a",
+    "semantic_hash": ""
   },
   "src/components/discover/PassportBadge.tsx": {
     "mtime": 1782243119.263919,
@@ -3595,8 +3595,8 @@
     "semantic_hash": "f052b566ebd5b08820869ab93baca6fe"
   },
   "src/services/spotifyService.ts": {
-    "mtime": 1787290091.3723333,
-    "ast_hash": "7c580453f61dcd411852488f18d4d005",
+    "mtime": 1787374392.5688486,
+    "ast_hash": "0e6871d2bffa601a34193720f8b1d695",
     "semantic_hash": ""
   },
   "src/services/storageService.ts": {
@@ -9430,8 +9430,33 @@
     "semantic_hash": ""
   },
   "supabase/streaming-sync-timeout-2026-08-21/03_materialize_genre_cluster_keys.sql": {
-    "mtime": 1787349194.0012581,
-    "ast_hash": "d3885ce186ee6ec6f37db9f9d2e3cca5",
+    "mtime": 1787372770.5156794,
+    "ast_hash": "afe0a9287513a01a2a9046fe2af5526e",
+    "semantic_hash": ""
+  },
+  "supabase/calendar-rpc-timeout-2026-08-21/02_diagnose_hot_paths.sql": {
+    "mtime": 1787373069.406088,
+    "ast_hash": "8b5c877318d917e81e25710af33e744e",
+    "semantic_hash": ""
+  },
+  "supabase/calendar-rpc-timeout-2026-08-21/03_proposed_fix.sql": {
+    "mtime": 1787373841.9527261,
+    "ast_hash": "a2f3ff524abc399309b2d4bfdc476e8c",
+    "semantic_hash": ""
+  },
+  "supabase/calendar-rpc-timeout-2026-08-21/04_verify.sql": {
+    "mtime": 1787373600.580871,
+    "ast_hash": "3390dc516b89db953a4bd07c30a3c84b",
+    "semantic_hash": ""
+  },
+  "supabase/calendar-rpc-timeout-2026-08-21/05_fix_view_duplication.sql": {
+    "mtime": 1787373744.479561,
+    "ast_hash": "f9cd22b5eccaedc64e3385f1192b6981",
+    "semantic_hash": ""
+  },
+  "supabase/streaming-sync-timeout-2026-08-21/04_genre_cache_refresh.sql": {
+    "mtime": 1787372746.0737467,
+    "ast_hash": "aa862f33f93f22b58bcf314b99ecf508",
     "semantic_hash": ""
   }
 }

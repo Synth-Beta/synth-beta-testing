@@ -490,22 +490,44 @@ export default function DiscoverScreen() {
               selectedDate={calDaySelection}
               daysWithEvents={daysWithEventsInMonth}
               onSelectDay={day => {
-                setCalDaySelection({ year: calYear, month: calMonth, day });
+                // Tapping the selected day again clears it, collapsing the results
+                // list back to the plain calendar.
+                setCalDaySelection(prev =>
+                  prev && prev.year === calYear && prev.month === calMonth && prev.day === day
+                    ? null
+                    : { year: calYear, month: calMonth, day }
+                );
               }}
             />
             {calDaySelection != null ? (
               <View style={styles.calResults}>
-                <SynthText variant="meta" style={styles.calResultsTitle}>
-                  {new Date(
-                    calDaySelection.year,
-                    calDaySelection.month,
-                    calDaySelection.day
-                  ).toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </SynthText>
+                {/* Tapping the day again also clears it, but that gesture is invisible
+                    and needs a scroll back up once the list is long. */}
+                <View style={styles.calResultsHeader}>
+                  <SynthText variant="meta" style={styles.calResultsTitle}>
+                    {new Date(
+                      calDaySelection.year,
+                      calDaySelection.month,
+                      calDaySelection.day
+                    ).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </SynthText>
+                  <Pressable
+                    onPress={() => setCalDaySelection(null)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear selected date"
+                    style={styles.calClearButton}
+                  >
+                    <SynthText variant="meta" style={styles.calClearText}>
+                      Show all
+                    </SynthText>
+                    <X size={14} color={PINK} />
+                  </Pressable>
+                </View>
                 {calLoading ? (
                   <DiscoverCalEventsSkeleton />
                 ) : selectedDayEvents.length === 0 ? (
@@ -706,5 +728,19 @@ const styles = StyleSheet.create({
   calHint: { marginTop: 4, marginBottom: 4 },
   calError: { marginTop: 4, marginBottom: 4, color: SynthTokens.colors.brandPink500 },
   calResults: { gap: 8, marginTop: 4 },
+  calResultsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   calResultsTitle: { fontWeight: '700', fontSize: 15, marginBottom: 4 },
+  calClearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    marginBottom: 4,
+  },
+  calClearText: { color: PINK, fontWeight: '600' },
 });
