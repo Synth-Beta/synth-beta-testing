@@ -69,6 +69,7 @@ import {
   SIGNUP_METHOD_BADGE_VARIANT,
   SIGNUP_METHOD_FILTER_OPTIONS,
 } from '@/lib/signupMethod';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@synth/shared';
 import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnalyticsDashboard';
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
 import ContentCalendarDashboard from '@/components/admin/content-calendar/ContentCalendarDashboard';
@@ -112,6 +113,22 @@ interface ChartDataPoint {
   users: number;
   mau?: number;
   names?: string[];
+}
+
+interface AcquisitionSourceCount {
+  source: string;
+  count: number;
+}
+
+interface AcquisitionWeeklyBreakdownPoint {
+  date: string;
+  [source: string]: number | string;
+}
+
+interface AcquisitionOtherResponse {
+  id: string;
+  created_at: string;
+  other_acquisition_source: string;
 }
 
 interface NewsItem {
@@ -164,6 +181,35 @@ const formatValue = (value: any): string => {
   if (typeof value === 'string' && value.length > 100) return value.substring(0, 100) + '...';
   return String(value);
 };
+
+const ACQUISITION_SOURCE_COLOR_MAP: Record<string, string> = {
+  'Friends or Family': '#f97316',
+  Instagram: '#ec4899',
+  TikTok: '#312e81',
+  Reddit: '#f87171',
+  LinkedIn: '#0ea5e9',
+  Facebook: '#2563eb',
+  'App Store': '#a855f7',
+  Artist: '#10b981',
+  Venue: '#f59e0b',
+  Other: '#6b7280',
+};
+
+const getAcquisitionSourceColor = (source: string) => ACQUISITION_SOURCE_COLOR_MAP[source] ?? '#94a3b8';
+
+const normalizeAcquisitionSource = (value?: string | null): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.toLowerCase();
+  if (normalized === 'other') {
+    return 'Other';
+  }
+  const match = ACQUISITION_SOURCE_CANONICAL_ORDER.find((source) => source.toLowerCase() === normalized);
+  return match || 'Other';
+};
+
+const FULL_OTHER_RESPONSES_LIMIT = 500;
 
 function SignupNamesTooltip({
   active,
@@ -301,6 +347,13 @@ export default function Admin() {
   const [signupMethods, setSignupMethods] = useState<Record<string, SignupMethod>>({});
   const [signupMethodsError, setSignupMethodsError] = useState<string | null>(null);
   const [signupMethodFilter, setSignupMethodFilter] = useState<'all' | SignupMethod>('all');
+  const [acquisitionSourceCounts, setAcquisitionSourceCounts] = useState<AcquisitionSourceCount[]>([]);
+  const [acquisitionWeeklyBreakdown, setAcquisitionWeeklyBreakdown] = useState<AcquisitionWeeklyBreakdownPoint[]>([]);
+  const [recentOtherAcquisitionResponses, setRecentOtherAcquisitionResponses] = useState<AcquisitionOtherResponse[]>([]);
+  const [isOtherAcquisitionModalOpen, setIsOtherAcquisitionModalOpen] = useState(false);
+  const [otherAcquisitionModalResponses, setOtherAcquisitionModalResponses] = useState<AcquisitionOtherResponse[]>([]);
+  const [otherAcquisitionModalLoading, setOtherAcquisitionModalLoading] = useState(false);
+  const [otherAcquisitionModalError, setOtherAcquisitionModalError] = useState<string | null>(null);
 
   // Event Analytics state
   const [totalArtists, setTotalArtists] = useState(0);
@@ -455,6 +508,7 @@ export default function Admin() {
       fetchUserAnalytics();
       fetchSocialMediaAnalytics();
       fetchSignupMethods();
+      fetchAcquisitionAnalytics();
     }
   }, [user, isAdmin, fetchSocialMediaAnalytics]);
 
@@ -535,6 +589,120 @@ export default function Admin() {
     setSignupMethods(map);
     setSignupMethodsError(null);
   };
+
+  const fetchAcquisitionAnalytics = async () => {
+    try {
+      const [countsResponse, weeklyResponse, otherResponse] = await Promise.all([
+        db.from('users').select('acquisition_source'),
+        db
+          .from('users')
+          .select('created_at, acquisition_source')
+          .gte('created_at', subDays(new Date(), 6).toISOString()),
+        db
+          .from('users')
+          .select('id, created_at, acquisition_source, other_acquisition_source')
+          .not('other_acquisition_source', 'is', null)
+          .neq('other_acquisition_source', '')
+          .ilike('acquisition_source', 'other')
+          .order('created_at', { ascending: false })
+          .limit(10),
+      ]);
+
+      if (countsResponse.error) throw countsResponse.error;
+      if (weeklyResponse.error) throw weeklyResponse.error;
+      if (otherResponse.error) throw otherResponse.error;
+
+      const counts = new Map<string, number>();
+      ACQUISITION_SOURCE_CANONICAL_ORDER.forEach((source) => counts.set(source, 0));
+      (countsResponse.data || []).forEach((row: { acquisition_source?: string | null }) => {
+        const normalized = normalizeAcquisitionSource(row.acquisition_source);
+        if (!normalized) return;
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      });
+      const sortedCounts = Array.from(counts.entries())
+        .map(([source, count]) => ({ source, count }))
+        .sort((a, b) => b.count - a.count);
+      setAcquisitionSourceCounts(sortedCounts);
+
+      const grouped: Record<string, Record<string, number>> = {};
+      (weeklyResponse.data || []).forEach((row: { created_at?: string | null; acquisition_source?: string | null }) => {
+        if (!row.created_at) return;
+        const dateKey = new Date(row.created_at).toISOString().split('T')[0];
+        const normalized = normalizeAcquisitionSource(row.acquisition_source);
+        if (!normalized) return;
+        if (!grouped[dateKey]) {
+          grouped[dateKey] = {};
+        }
+        grouped[dateKey][normalized] = (grouped[dateKey][normalized] || 0) + 1;
+      });
+
+      const startDate = startOfDay(subDays(new Date(), 6));
+      const weekly: AcquisitionWeeklyBreakdownPoint[] = [];
+      for (let i = 0; i < 7; i++) {
+        const currentDate = addDays(startDate, i);
+        const isoDate = currentDate.toISOString().split('T')[0];
+        const dayTotals = grouped[isoDate] || {};
+        const entry: AcquisitionWeeklyBreakdownPoint = { date: isoDate };
+        ACQUISITION_SOURCE_CANONICAL_ORDER.forEach((source) => {
+          entry[source] = dayTotals[source] || 0;
+        });
+        weekly.push(entry);
+      }
+      setAcquisitionWeeklyBreakdown(weekly);
+
+      const otherPreview = (otherResponse.data || [])
+        .filter((row: { acquisition_source?: string | null }) => normalizeAcquisitionSource(row.acquisition_source) === 'Other')
+        .slice(0, 5)
+        .map((row: { id: string; created_at: string; other_acquisition_source: string }) => ({
+          id: row.id,
+          created_at: row.created_at,
+          other_acquisition_source: row.other_acquisition_source,
+        }));
+      setRecentOtherAcquisitionResponses(otherPreview);
+    } catch (error) {
+      console.error('Error fetching acquisition analytics:', error);
+      setAcquisitionSourceCounts(ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => ({ source, count: 0 })));
+      setAcquisitionWeeklyBreakdown([]);
+      setRecentOtherAcquisitionResponses([]);
+    }
+  };
+
+  const fetchAllOtherAcquisitionResponses = async () => {
+    try {
+      setOtherAcquisitionModalLoading(true);
+      setOtherAcquisitionModalError(null);
+      const { data, error } = await db
+        .from('users')
+        .select('id, created_at, acquisition_source, other_acquisition_source')
+        .not('other_acquisition_source', 'is', null)
+        .neq('other_acquisition_source', '')
+        .ilike('acquisition_source', 'other')
+        .order('created_at', { ascending: false })
+        .limit(FULL_OTHER_RESPONSES_LIMIT);
+
+      if (error) throw error;
+
+      const rows = (data || [])
+        .filter((row: { acquisition_source?: string | null }) => normalizeAcquisitionSource(row.acquisition_source) === 'Other')
+        .map((row: { id: string; created_at: string; other_acquisition_source: string }) => ({
+          id: row.id,
+          created_at: row.created_at,
+          other_acquisition_source: row.other_acquisition_source,
+        }));
+      setOtherAcquisitionModalResponses(rows);
+    } catch (error: any) {
+      console.error('Error loading full other acquisition responses:', error);
+      setOtherAcquisitionModalResponses([]);
+      setOtherAcquisitionModalError(error?.message || 'Unable to load acquisition responses.');
+    } finally {
+      setOtherAcquisitionModalLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOtherAcquisitionModalOpen) return;
+    void fetchAllOtherAcquisitionResponses();
+  }, [isOtherAcquisitionModalOpen]);
 
   const calculateDailyUsers = (usersList: User[]) => {
     // Get the last 30 days
@@ -2914,6 +3082,129 @@ export default function Admin() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    How Users Found Synth
+                  </CardTitle>
+                  <CardDescription>
+                    Acquisition source mix plus recent custom &quot;Other&quot; responses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="rounded-xl border bg-muted/20 p-4">
+                      <div className="mb-2 flex items-center justify-between">
+                        <h4 className="text-sm font-semibold">Source Count</h4>
+                        <span className="text-xs text-muted-foreground">Totals</span>
+                      </div>
+                      {acquisitionSourceCounts.length > 0 ? (
+                        <ChartContainer
+                          config={{ count: { label: 'Signups', color: '#6366f1' } }}
+                          className="h-[260px] w-full"
+                        >
+                          <BarChart data={acquisitionSourceCounts} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="source" interval={0} height={60} tick={{ fontSize: 12 }} />
+                            <YAxis allowDecimals={false} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Bar dataKey="count" radius={[8, 8, 0, 0]} fill="#6366f1" />
+                          </BarChart>
+                        </ChartContainer>
+                      ) : (
+                        <div className="py-10 text-center text-sm text-muted-foreground">
+                          No acquisition source data yet
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-xl border bg-muted/20 p-4">
+                      <div className="mb-2 flex items-center justify-between">
+                        <h4 className="text-sm font-semibold">Weekly Breakdown</h4>
+                        <span className="text-xs text-muted-foreground">Last 7 days</span>
+                      </div>
+                      {acquisitionWeeklyBreakdown.length > 0 ? (
+                        <ChartContainer
+                          config={Object.fromEntries(
+                            ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => [
+                              source,
+                              { label: source, color: getAcquisitionSourceColor(source) },
+                            ]),
+                          )}
+                          className="h-[260px] w-full"
+                        >
+                          <BarChart data={acquisitionWeeklyBreakdown} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              dataKey="date"
+                              tick={{ fontSize: 12 }}
+                              tickFormatter={(value) => format(new Date(value), 'M/d')}
+                            />
+                            <YAxis allowDecimals={false} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Legend verticalAlign="top" align="left" height={28} />
+                            {ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => (
+                              <Bar
+                                key={source}
+                                dataKey={source}
+                                stackId="acquisition"
+                                fill={getAcquisitionSourceColor(source)}
+                                radius={[4, 4, 0, 0]}
+                              />
+                            ))}
+                          </BarChart>
+                        </ChartContainer>
+                      ) : (
+                        <div className="py-10 text-center text-sm text-muted-foreground">
+                          No weekly acquisition data yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border bg-muted/20 p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-semibold">Other Responses Preview</h4>
+                        <p className="text-xs text-muted-foreground">Latest custom answers</p>
+                      </div>
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    </div>
+
+                    {recentOtherAcquisitionResponses.length > 0 ? (
+                      <div className="space-y-3">
+                        {recentOtherAcquisitionResponses.map((response) => (
+                          <div key={response.id} className="rounded-lg border bg-background p-3">
+                            <p className="text-sm font-semibold">
+                              {new Date(response.created_at).toLocaleDateString()}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {response.other_acquisition_source}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-10 text-center text-sm text-muted-foreground">
+                        No recent custom responses yet
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="text-sm font-semibold"
+                        onClick={() => setIsOtherAcquisitionModalOpen(true)}
+                      >
+                        View Full Detail
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
                     <Heart className="h-5 w-5" />
                     Top Interested Events
                   </CardTitle>
@@ -4298,6 +4589,59 @@ export default function Admin() {
             </div>
             <DialogFooter className="shrink-0 border-t px-4 py-3 sm:px-6">
               <Button type="button" variant="outline" onClick={() => setDayUsersDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isOtherAcquisitionModalOpen} onOpenChange={setIsOtherAcquisitionModalOpen}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Other Acquisition Responses</DialogTitle>
+              <DialogDescription>
+                Full list of entries where users selected &quot;Other&quot;. Newest responses appear first.
+              </DialogDescription>
+            </DialogHeader>
+
+            {otherAcquisitionModalLoading ? (
+              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Loading responses...
+              </div>
+            ) : otherAcquisitionModalError ? (
+              <div className="py-6 text-sm text-destructive text-center">{otherAcquisitionModalError}</div>
+            ) : otherAcquisitionModalResponses.length === 0 ? (
+              <div className="py-8 text-sm text-muted-foreground text-center">
+                No &quot;Other&quot; responses recorded yet.
+              </div>
+            ) : (
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-48">Created</TableHead>
+                      <TableHead>Custom Response</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {otherAcquisitionModalResponses.map((response) => (
+                      <TableRow key={response.id}>
+                        <TableCell className="font-semibold">
+                          {new Date(response.created_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="whitespace-pre-line text-muted-foreground">
+                          {response.other_acquisition_source}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsOtherAcquisitionModalOpen(false)}>
                 Close
               </Button>
             </DialogFooter>
