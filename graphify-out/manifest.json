@@ -265,8 +265,8 @@
     "semantic_hash": "96db696d7dee756fde6852eb26ca117e"
   },
   "mobile/app/(tabs)/discover.tsx": {
-    "mtime": 1787353428.1988964,
-    "ast_hash": "8b25411d9bfad05248d2b4a2ca43997c",
+    "mtime": 1787415554.0166907,
+    "ast_hash": "5c5de90eb31ef7f514fb5dc6fd46db9d",
     "semantic_hash": ""
   },
   "mobile/app/(tabs)/index.tsx": {
