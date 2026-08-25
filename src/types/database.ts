@@ -526,7 +526,7 @@ export interface Chat {
   created_at?: string | null; // TIMESTAMPTZ, default now()
   updated_at?: string | null; // TIMESTAMPTZ, default now()
   // Verified chat fields
-  entity_type?: 'event' | 'artist' | 'venue' | null;
+  entity_type?: 'event' | 'artist' | 'venue' | 'genre' | 'scene' | null;
   entity_id?: string | null; // TEXT - can be UUID or text ID (jambase_artist_id, venue_name)
   entity_uuid?: string | null; // UUID - references actual entity table (events.id, artists.id, venues.id)
   is_verified?: boolean | null; // default false
