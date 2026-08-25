@@ -14,7 +14,6 @@ import { MobileHeader } from '@/components/Header/MobileHeader';
 import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
-import { FeaturedThisWeekSection } from './FeaturedThisWeekSection';
 import { WarmChatsStrip } from './WarmChatsStrip';
 import { SYNTH_20_DEMO } from '@/config/synth20Demo';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
@@ -2029,13 +2028,6 @@ interface FriendEventInterest {
               </select>
             </div>
           </>
-        )}
-        {SYNTH_20_DEMO && selectedFeedType === 'events' && (
-          <FeaturedThisWeekSection
-            onEventClick={(eventId) => {
-              void handleEventClick(eventId);
-            }}
-          />
         )}
         {SYNTH_20_DEMO && selectedFeedType === 'events' && (
           <WarmChatsStrip
