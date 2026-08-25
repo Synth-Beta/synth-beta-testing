@@ -1,20 +1,28 @@
 /**
- * Density scene rooms (LOI-562 / LOI-547).
+ * Density scene rooms (LOI-562 / LOI-547 / LOI-597).
  *
  * Product owns two persistent collision rooms for DC ICP onboarding.
- * Storage today uses chats.entity_type='genre' with reserved scene ids until
- * chats_entity_type_check allows 'scene' (see supabase migration).
+ * Canonical chat keys: scene.dc.this_week + scene.dc.going_out.
+ * Legacy aliases (dc-this-week, scene.this_week_dc, …) remap in SQL.
  */
 
-export const SCENE_ROOM_STORAGE_ENTITY_TYPE = 'genre' as const;
+export const SCENE_ROOM_STORAGE_ENTITY_TYPE = 'scene' as const;
 
-/** Reserved entity_id values — never add these to GENRE_CONFIGS. */
+/** Canonical product chat keys — never add these to GENRE_CONFIGS. */
 export const SCENE_ROOM_IDS = {
-  THIS_WEEK_IN_DC: 'dc-this-week',
-  GOING_OUT: 'dc-going-out',
+  THIS_WEEK_IN_DC: 'scene.dc.this_week',
+  GOING_OUT: 'scene.dc.going_out',
 } as const;
 
 export type SceneRoomId = (typeof SCENE_ROOM_IDS)[keyof typeof SCENE_ROOM_IDS];
+
+/** Legacy ids accepted by join/lookup until all clients migrate. */
+export const SCENE_ROOM_LEGACY_ALIASES: Record<string, SceneRoomId> = {
+  'dc-this-week': 'scene.dc.this_week',
+  'scene.this_week_dc': 'scene.dc.this_week',
+  'dc-going-out': 'scene.dc.going_out',
+  'scene.going_out': 'scene.dc.going_out',
+};
 
 export type SceneRoomDefinition = {
   id: SceneRoomId;
@@ -102,9 +110,18 @@ export function isDcCity(city: string | null | undefined): boolean {
   return DC_CITY_NEEDLES.some((needle) => c === needle || c.includes(needle));
 }
 
+export function canonicalizeSceneRoomId(
+  entityId: string | null | undefined
+): SceneRoomId | null {
+  if (!entityId) return null;
+  if ((Object.values(SCENE_ROOM_IDS) as string[]).includes(entityId)) {
+    return entityId as SceneRoomId;
+  }
+  return SCENE_ROOM_LEGACY_ALIASES[entityId] ?? null;
+}
+
 export function isReservedSceneRoomId(entityId: string | null | undefined): boolean {
-  if (!entityId) return false;
-  return (Object.values(SCENE_ROOM_IDS) as string[]).includes(entityId);
+  return canonicalizeSceneRoomId(entityId) != null;
 }
 
 export type OnboardingJoinPlan = {

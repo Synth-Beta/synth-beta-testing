@@ -5,8 +5,8 @@
  */
 
 const SCENE_ROOM_IDS = {
-  THIS_WEEK_IN_DC: 'dc-this-week',
-  GOING_OUT: 'dc-going-out',
+  THIS_WEEK_IN_DC: 'scene.dc.this_week',
+  GOING_OUT: 'scene.dc.going_out',
 };
 
 const ONBOARDING_MAX_ROOM_JOINS = 2;
@@ -78,7 +78,7 @@ const required = buildOnboardingJoinPlan({
   preference: 'free_this_weekend',
   joinOptionalRoom2: false,
 });
-assert(required.requiredRoomId === 'dc-this-week', 'room1 required');
+assert(required.requiredRoomId === 'scene.dc.this_week', 'room1 required');
 assert(required.optionalRoomId === null, 'room2 not forced');
 assert(required.roomJoinCount === 1, 'one join');
 
@@ -87,7 +87,7 @@ const withOptional = buildOnboardingJoinPlan({
   preference: 'venue_cluster',
   joinOptionalRoom2: true,
 });
-assert(withOptional.optionalRoomId === 'dc-going-out', 'room2 opt-in');
+assert(withOptional.optionalRoomId === 'scene.dc.going_out', 'room2 opt-in');
 assert(withOptional.roomJoinCount <= ONBOARDING_MAX_ROOM_JOINS, 'cap');
 
 const killed = buildOnboardingJoinPlan({

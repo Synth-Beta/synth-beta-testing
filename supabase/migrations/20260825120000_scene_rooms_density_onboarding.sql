@@ -19,7 +19,7 @@ ALTER TABLE public.chats
 UPDATE public.chats
 SET entity_type = 'scene'
 WHERE entity_type = 'genre'
-  AND entity_id IN ('dc-this-week', 'dc-going-out');
+  AND entity_id IN ('dc-this-week', 'dc-going-out', 'scene.dc.this_week', 'scene.dc.going_out');
 
 CREATE OR REPLACE FUNCTION public.get_or_create_scene_room(
   p_scene_id text,
@@ -75,5 +75,5 @@ GRANT EXECUTE ON FUNCTION public.get_or_create_scene_room(text, text) TO authent
 GRANT EXECUTE ON FUNCTION public.get_or_create_scene_room(text, text) TO anon;
 
 -- Ensure both density rooms exist
-SELECT public.get_or_create_scene_room('dc-this-week', 'This week in DC');
-SELECT public.get_or_create_scene_room('dc-going-out', 'Going out tonight / this weekend');
+SELECT public.get_or_create_scene_room('scene.dc.this_week', 'This week in DC');
+SELECT public.get_or_create_scene_room('scene.dc.going_out', 'Going out tonight / this weekend');

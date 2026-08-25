@@ -74,6 +74,7 @@ import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnal
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
 import ContentCalendarDashboard from '@/components/admin/content-calendar/ContentCalendarDashboard';
 import { AiSceneGuidesAdminPanel } from '@/components/admin/AiSceneGuidesAdminPanel';
+import { DemoWarmthAdminPanel } from '@/components/admin/DemoWarmthAdminPanel';
 import NewsletterBuilder from '@/components/admin/newsletter/NewsletterBuilder';
 import {
   PlatformComparison,
@@ -2486,6 +2487,7 @@ export default function Admin() {
               <BookOpen className="h-4 w-4 mr-2" />
               Style Guide
             </TabsTrigger>
+            <TabsTrigger value="demo-warmth">Demo warmth</TabsTrigger>
             <TabsTrigger value="ai-scene-guides">
               <Music className="h-4 w-4 mr-2" />
               AI Scene Guides
@@ -4477,6 +4479,10 @@ export default function Admin() {
 
           <TabsContent value="style-guide" className="space-y-6">
             <AdminStyleGuidePanel />
+          </TabsContent>
+
+          <TabsContent value="demo-warmth" className="space-y-6">
+            <DemoWarmthAdminPanel />
           </TabsContent>
 
           <TabsContent value="ai-scene-guides" className="space-y-6">

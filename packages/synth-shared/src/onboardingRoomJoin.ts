@@ -9,6 +9,7 @@ import {
   buildOnboardingJoinPlan,
   pickFeaturedShowForPreference,
   type FeaturedShowCandidate,
+  canonicalizeSceneRoomId,
 } from './sceneRooms';
 
 export type ApplyOnboardingRoomJoinsInput = {
@@ -33,8 +34,10 @@ async function ensureSceneRoomChatId(
   supabase: SynthSupabaseClient,
   roomId: SceneRoomId
 ): Promise<{ chatId: string | null; error: string | null }> {
-  const room = SCENE_ROOMS.find((r) => r.id === roomId);
+  const canonical = canonicalizeSceneRoomId(roomId) ?? roomId;
+  const room = SCENE_ROOMS.find((r) => r.id === canonical);
   if (!room) return { chatId: null, error: 'unknown_room' };
+  roomId = canonical;
 
   // Prefer native scene rows once migration is applied.
   const { data: sceneExisting } = await supabase
