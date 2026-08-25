@@ -114,3 +114,36 @@ export {
   type TravelPinLocation,
   type TravelLocationGroup,
 } from './travelMapGrouping';
+export {
+  FEATURED_METRO_DC,
+  FEATURED_MIN,
+  FEATURED_MAX,
+  FEATURED_TARGET,
+  featuredShowChatKey,
+  dcWeekStartDate,
+  dcWeekId,
+  validateFeaturedPins,
+  type FeaturedMetro,
+  type FeaturedSetStatus,
+  type FeaturedPinInput,
+  type FeaturedSetValidation,
+} from './weeklyFeatured';
+
+export {
+  WARMTH_CONTRACT_VERSION,
+  WARMTH_MEMBER_THRESHOLD,
+  WARMTH_HUMAN_MSG_24H_THRESHOLD,
+  DEFAULT_DEMO_SEED_LIVE_KEYS,
+  computeWarmthSnapshot,
+  fetchChatWarmthSnapshot,
+  fetchHomeWarmChats,
+  publishDemoSeedLiveSet,
+  ensureDensityDemoChats,
+  type ChatWarmthKind,
+  type WarmthFailReason,
+  type ChatWarmthGate,
+  type ChatWarmthSnapshot,
+  type HomeWarmChatsResponse,
+  type DemoSeedLiveSetResult,
+  type WarmthEvalInput,
+} from './chatWarmth';
