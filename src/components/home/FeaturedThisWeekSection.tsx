@@ -52,6 +52,7 @@ export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekS
         setUsedSeed(false);
         try {
           const set = await fetchWeeklyFeaturedSet();
+          const raw = set?.shows ?? [];
           let interestBoost = new Set<string>();
           try {
             const {
@@ -64,8 +65,16 @@ export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekS
             // interest boost is optional
           }
 
-          const raw = set?.shows ?? [];
-          const goingCounts = new Map<string, number>();
+          // Two-pass collision: load going counts before order so they participate (P3).
+          let goingCounts = new Map<string, number>();
+          try {
+            goingCounts = await UserEventService.getInterestedCountsByEventId(
+              raw.map((s) => s.eventId)
+            );
+          } catch {
+            // going counts optional for sort; proof still loads below
+          }
+
           const ordered = orderFeaturedByCollisionPotential(raw, {
             interestBoostIds: interestBoost,
             goingCounts,
@@ -100,7 +109,20 @@ export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekS
           }
 
           const proof = await loadPeopleGoingProof(next.map((s) => s.eventId));
-          if (!cancelled) setProofById(proof);
+          if (!cancelled) {
+            setProofById(proof);
+            // Re-order after proof so live going counts refine collision (same band).
+            const refinedCounts = new Map<string, number>();
+            for (const [id, p] of proof) {
+              refinedCounts.set(id, p.count);
+            }
+            const refined = orderFeaturedByCollisionPotential(next, {
+              interestBoostIds: interestBoost,
+              goingCounts: refinedCounts,
+            });
+            setShows(refined);
+            onShowsChange?.(refined);
+          }
         } catch (err) {
           console.error('[FeaturedThisWeekSection]', err);
           if (!cancelled) {

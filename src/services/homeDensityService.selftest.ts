@@ -45,6 +45,7 @@ const unordered = [
   show({ eventId: 'late', position: 2, eventDate: '2026-08-28T00:00:00Z' }),
   show({ eventId: 'boosted', position: 5, eventDate: '2026-08-30T00:00:00Z' }),
   show({ eventId: 'early', position: 1, eventDate: '2026-08-26T00:00:00Z' }),
+  show({ eventId: 'popular', position: 3, eventDate: '2026-08-27T00:00:00Z' }),
 ];
 const ordered = orderFeaturedByCollisionPotential(unordered, {
   interestBoostIds: new Set(['boosted']),
@@ -52,5 +53,14 @@ const ordered = orderFeaturedByCollisionPotential(unordered, {
 assert(ordered[0].eventId === 'boosted', 'seeded interest sorts first');
 assert(ordered[1].eventId === 'early', 'then curator position / doors');
 assert(ordered[2].eventId === 'late', 'remaining by position');
+
+const byGoing = orderFeaturedByCollisionPotential(
+  [
+    show({ eventId: 'a', position: 1, eventDate: '2026-08-26T00:00:00Z' }),
+    show({ eventId: 'b', position: 1, eventDate: '2026-08-26T00:00:00Z' }),
+  ],
+  { goingCounts: new Map([['b', 12], ['a', 2]]) }
+);
+assert(byGoing[0].eventId === 'b', 'going counts break position/doors ties');
 
 console.log('homeDensityService.selftest: ok');

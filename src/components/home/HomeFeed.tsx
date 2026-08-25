@@ -2054,14 +2054,15 @@ interface FriendEventInterest {
                 void handleEventClick(eventId);
               }}
               onOpenChat={(eventId, chatProvisionKey) => {
-                // Prefer provision key routing when Messages supports it; fall back to event detail chat entry.
-                void handleEventClick(eventId);
-                if (chatProvisionKey) {
+                // Deterministic Messages entry via MainApp listener; event detail is fallback only.
+                if (chatProvisionKey || eventId) {
                   window.dispatchEvent(
                     new CustomEvent('synth-open-featured-chat', {
                       detail: { eventId, chatProvisionKey },
                     })
                   );
+                } else {
+                  void handleEventClick(eventId);
                 }
               }}
               onSeeAll={() => onViewChange?.('search')}

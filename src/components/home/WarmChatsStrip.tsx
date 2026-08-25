@@ -12,7 +12,10 @@ import {
   HOME_WARM_STRIP_MAX,
   HOME_WARM_STRIP_MIN,
 } from '@/services/chatWarmthService';
-import { getHiddenHomeWarmChatIds } from '@/services/homeDensityService';
+import {
+  getHiddenHomeWarmChatIds,
+  reportEmptyHomeWarmChat,
+} from '@/services/homeDensityService';
 
 interface WarmChatsStripProps {
   onOpenChat?: (chatId: string) => void;
@@ -49,11 +52,31 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
       if (document.visibilityState === 'visible') softRefresh();
     };
 
+    /** ICP / ops empty-room report → T3 hide (also used by console tooling). */
+    const onReportEmpty = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { chatId?: string } | undefined;
+      const chatId = String(detail?.chatId || '').trim();
+      if (!chatId) return;
+      reportEmptyHomeWarmChat(chatId);
+      softRefresh();
+    };
+
+    const onHidden = () => {
+      softRefresh();
+    };
+
     window.addEventListener('focus', softRefresh);
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('synth-report-empty-home-warm-chat', onReportEmpty as EventListener);
+    window.addEventListener('synth-home-warm-chat-hidden', onHidden as EventListener);
     return () => {
       window.removeEventListener('focus', softRefresh);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener(
+        'synth-report-empty-home-warm-chat',
+        onReportEmpty as EventListener
+      );
+      window.removeEventListener('synth-home-warm-chat-hidden', onHidden as EventListener);
     };
   }, [load]);
 
@@ -112,12 +135,10 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
           }}
         >
           {chats.map((chat) => (
-            <button
+            <div
               key={chat.chatId}
-              type="button"
               data-home-eligible="true"
               data-chat-kind={chat.chatKind}
-              onClick={() => onOpenChat?.(chat.chatId)}
               style={{
                 flex: '0 0 auto',
                 width: 200,
@@ -126,51 +147,88 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
                 borderRadius: 16,
                 background: 'var(--neutral-0, #fff)',
                 padding: 14,
-                cursor: 'pointer',
                 boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 8,
               }}
             >
-              <div
+              <button
+                type="button"
+                onClick={() => onOpenChat?.(chat.chatId)}
                 style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  background: 'rgba(233, 30, 140, 0.1)',
+                  border: 'none',
+                  background: 'transparent',
+                  padding: 0,
+                  textAlign: 'left',
+                  cursor: 'pointer',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--brand-pink-500, #e91e8c)',
+                  flexDirection: 'column',
+                  gap: 8,
                 }}
               >
-                <MessageCircle size={18} />
-              </div>
-              <div
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    background: 'rgba(233, 30, 140, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--brand-pink-500, #e91e8c)',
+                  }}
+                >
+                  <MessageCircle size={18} />
+                </div>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 15,
+                    color: 'var(--neutral-900)',
+                    lineHeight: 1.25,
+                  }}
+                >
+                  {chat.displayName}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
+                  {chat.chatKind === 'scene_persistent' ? 'Scene room' : 'Show chat'}
+                </div>
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--brand-pink-500, #e91e8c)',
+                  }}
+                >
+                  Open chat
+                </div>
+              </button>
+              {/* T3 ICP call site: same-day hide empty-room offenders from Home only */}
+              <button
+                type="button"
+                data-testid="home-warm-hide-empty"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  reportEmptyHomeWarmChat(chat.chatId);
+                }}
                 style={{
-                  fontWeight: 700,
-                  fontSize: 15,
-                  color: 'var(--neutral-900)',
-                  lineHeight: 1.25,
+                  border: 'none',
+                  background: 'transparent',
+                  padding: 0,
+                  marginTop: 2,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: 'var(--neutral-500)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  textDecoration: 'underline',
                 }}
               >
-                {chat.displayName}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--neutral-500)' }}>
-                {chat.chatKind === 'scene_persistent' ? 'Scene room' : 'Show chat'}
-              </div>
-              <div
-                style={{
-                  marginTop: 4,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'var(--brand-pink-500, #e91e8c)',
-                }}
-              >
-                Open chat
-              </div>
-            </button>
+                Hide empty today
+              </button>
+            </div>
           ))}
         </div>
       )}

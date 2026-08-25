@@ -164,6 +164,23 @@ export function hideHomeWarmChatSameDay(chatId: string): void {
       ? { day, chatIds: Array.from(new Set([...store.chatIds, id])) }
       : { day, chatIds: [id] };
   localStorage.setItem(WARM_HIDE_STORAGE_KEY, JSON.stringify(next));
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('synth-home-warm-chat-hidden', { detail: { chatId: id, day } })
+      );
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * ICP / empty-room report path (T3 call site).
+ * Hides the offender from Home for the DC civil day; show-detail join stays available.
+ */
+export function reportEmptyHomeWarmChat(chatId: string): void {
+  hideHomeWarmChatSameDay(chatId);
 }
 
 export function getHiddenHomeWarmChatIds(now: Date = new Date()): Set<string> {
