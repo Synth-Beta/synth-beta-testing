@@ -14,6 +14,9 @@ import { MobileHeader } from '@/components/Header/MobileHeader';
 import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
+import { FeaturedThisWeekSection } from './FeaturedThisWeekSection';
+import { WarmChatsStrip } from './WarmChatsStrip';
+import { SYNTH_20_DEMO } from '@/config/synth20Demo';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
@@ -21,8 +24,6 @@ import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { UnifiedEventsFeed } from './UnifiedEventsFeed';
 import { JamBaseHeaderAttribution } from './JamBaseHeaderAttribution';
-import { FeaturedThisWeekSection } from './FeaturedThisWeekSection';
-import { SYNTH_20_DEMO } from '@/config/synth20Demo';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
@@ -2040,6 +2041,13 @@ interface FriendEventInterest {
               void handleEventClick(eventId);
             }}
             onSeeAll={() => onViewChange?.('search')}
+          />
+        )}
+        {SYNTH_20_DEMO && selectedFeedType === 'events' && (
+          <WarmChatsStrip
+            onOpenChat={(chatId) => {
+              onNavigateToChat?.(chatId);
+            }}
           />
         )}
 
