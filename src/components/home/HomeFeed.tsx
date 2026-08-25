@@ -15,6 +15,9 @@ import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
 import { FeaturedThisWeekSection } from './FeaturedThisWeekSection';
+import { HomeDensityHero } from './HomeDensityHero';
+import { WhosGoingStrip } from './WhosGoingStrip';
+import type { WeeklyFeaturedShow } from '@/services/weeklyFeaturedService';
 import { WarmChatsStrip } from './WarmChatsStrip';
 import { SYNTH_20_DEMO } from '@/config/synth20Demo';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
@@ -278,6 +281,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [flaggedEvent, setFlaggedEvent] = useState<{ id: string; title: string } | null>(null);
 
   // Feed type selection - simplified to just Events and Reviews
+  const [featuredShowsForHome, setFeaturedShowsForHome] = useState<WeeklyFeaturedShow[]>([]);
   const [selectedFeedType, setSelectedFeedType] = useState<string>('events');
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
 
@@ -2036,23 +2040,51 @@ interface FriendEventInterest {
           </>
         )}
         {SYNTH_20_DEMO && selectedFeedType === 'events' && (
-          <FeaturedThisWeekSection
-            onEventClick={(eventId) => {
-              void handleEventClick(eventId);
-            }}
-            onSeeAll={() => onViewChange?.('search')}
-          />
-        )}
-        {SYNTH_20_DEMO && selectedFeedType === 'events' && (
-          <WarmChatsStrip
-            onOpenChat={(chatId) => {
-              onNavigateToChat?.(chatId);
-            }}
-          />
+          <>
+            <HomeDensityHero
+              onPrimary={() => {
+                document.getElementById('synth20-featured-week')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onSecondary={() => {
+                document.querySelector('[data-testid="home-warm-chats-strip"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+            <FeaturedThisWeekSection
+              onEventClick={(eventId) => {
+                void handleEventClick(eventId);
+              }}
+              onOpenChat={(eventId, chatProvisionKey) => {
+                // Prefer provision key routing when Messages supports it; fall back to event detail chat entry.
+                void handleEventClick(eventId);
+                if (chatProvisionKey) {
+                  window.dispatchEvent(
+                    new CustomEvent('synth-open-featured-chat', {
+                      detail: { eventId, chatProvisionKey },
+                    })
+                  );
+                }
+              }}
+              onSeeAll={() => onViewChange?.('search')}
+              onShowsChange={setFeaturedShowsForHome}
+            />
+            <WhosGoingStrip
+              shows={featuredShowsForHome}
+              onOpenShow={(eventId) => {
+                void handleEventClick(eventId);
+              }}
+            />
+            <WarmChatsStrip
+              onOpenChat={(chatId) => {
+                onNavigateToChat?.(chatId);
+              }}
+            />
+          </>
         )}
 
-        {/* Feed content based on selection */}
-        {selectedFeedType === 'events' && (
+        {/* Feed content based on selection.
+            Density Home (SYNTH_20_DEMO): above-the-fold composition is the default;
+            skip sparse/global catalog dump on the events tab (AC-1 / AC-8). */}
+        {selectedFeedType === 'events' && !SYNTH_20_DEMO && (
           <UnifiedEventsFeed
             currentUserId={currentUserId}
             filters={filters}

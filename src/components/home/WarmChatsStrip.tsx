@@ -1,15 +1,18 @@
 /**
  * Home warm-chats strip — consumes Chat warmth contract v1 (`homeEligible` only).
  * Never pads with cold chats. Soft-refreshes on focus / ≤5 min cache.
+ * T3: same-day hide list filters empty-room offenders off Home only.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { MessageCircle } from 'lucide-react';
-import { SYNTH_20_DEMO } from '@/config/synth20Demo';
+import { SYNTH_20_DEMO, SYNTH_20_HOME } from '@/config/synth20Demo';
 import {
   getHomeWarmChats,
   type HomeWarmChat,
   HOME_WARM_STRIP_MAX,
+  HOME_WARM_STRIP_MIN,
 } from '@/services/chatWarmthService';
+import { getHiddenHomeWarmChatIds } from '@/services/homeDensityService';
 
 interface WarmChatsStripProps {
   onOpenChat?: (chatId: string) => void;
@@ -23,7 +26,9 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
     if (!SYNTH_20_DEMO) return;
     try {
       const next = await getHomeWarmChats({ force });
-      setChats(next);
+      const hidden = getHiddenHomeWarmChatIds();
+      // Never pad after T3 hides — under-gate / hidden stay off Home.
+      setChats(next.filter((c) => !hidden.has(c.chatId)));
     } catch (err) {
       console.error('[WarmChatsStrip]', err);
       setChats([]);
@@ -66,6 +71,7 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
       }}
       data-testid="home-warm-chats-strip"
       data-warm-count={chats.length}
+      data-warm-min={HOME_WARM_STRIP_MIN}
       data-warm-max={HOME_WARM_STRIP_MAX}
     >
       <div style={{ marginBottom: 12 }}>
@@ -78,7 +84,7 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
             margin: 0,
           }}
         >
-          Warm chats
+          {SYNTH_20_HOME.chats.teaserLabel}
         </h2>
         <p
           style={{
@@ -89,7 +95,7 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
             maxWidth: 520,
           }}
         >
-          Rooms that are actually active right now. Cold chats stay off Home.
+          {SYNTH_20_HOME.chats.newThreadHint}
         </p>
       </div>
 
