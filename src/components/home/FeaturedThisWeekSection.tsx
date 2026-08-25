@@ -1,13 +1,19 @@
 /**
- * Synth 2.0 Home featured shows block (CMO LOI-553 copy).
- * Reads the shared weekly featured SoT (LOI-566) - same source as Discover.
+ * Synth 2.0 Home + Discover featured strip (LOI-646).
+ * Both surfaces read the same SoT week via fetchDemoWeeklyFeaturedSet (2026-W35).
+ * Empty / unpublished / wrong-week responses degrade to the curated empty state.
+ * Order follows SoT position; no hard-coded pin list / seed fixtures.
  */
 import React, { forwardRef, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Calendar, MessageCircle } from 'lucide-react';
-import { SYNTH_20_DEMO, SYNTH_20_HOME } from '@/config/synth20Demo';
 import {
-  fetchWeeklyFeaturedSet,
+  SYNTH_20_DEMO,
+  SYNTH_20_FEATURED_WEEK_ID,
+  SYNTH_20_HOME,
+} from '@/config/synth20Demo';
+import {
+  fetchDemoWeeklyFeaturedSet,
   type WeeklyFeaturedShow,
 } from '@/services/weeklyFeaturedService';
 
@@ -17,9 +23,20 @@ interface FeaturedThisWeekSectionProps {
   onSeeAll?: () => void;
 }
 
+function formatGenreChip(genre: string | null | undefined): string | null {
+  if (!genre?.trim()) return null;
+  return genre
+    .trim()
+    .split(/[-_/]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekSectionProps>(
   function FeaturedThisWeekSection({ onEventClick, onOpenChat, onSeeAll }, ref) {
     const [shows, setShows] = useState<WeeklyFeaturedShow[]>([]);
+    const [weekId, setWeekId] = useState(SYNTH_20_FEATURED_WEEK_ID);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const copy = SYNTH_20_HOME.featured;
@@ -31,14 +48,17 @@ export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekS
         setLoading(true);
         setError(false);
         try {
-          const set = await fetchWeeklyFeaturedSet();
+          const set = await fetchDemoWeeklyFeaturedSet();
           if (!cancelled) {
+            setWeekId(set?.weekId ?? SYNTH_20_FEATURED_WEEK_ID);
+            // Position order comes from SoT; cap is density max (15), never a hard-coded pin list.
             setShows((set?.shows ?? []).slice(0, SYNTH_20_HOME.featuredCap));
           }
         } catch (err) {
           console.error('[FeaturedThisWeekSection]', err);
           if (!cancelled) {
             setShows([]);
+            setWeekId(SYNTH_20_FEATURED_WEEK_ID);
             setError(true);
           }
         } finally {
@@ -55,6 +75,11 @@ export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekS
     return (
       <section
         ref={ref}
+        id="synth20-featured-week"
+        data-testid="home-featured-this-week"
+        data-featured-week={weekId}
+        data-featured-count={shows.length}
+        aria-label={copy.title}
         style={{
           marginBottom: 'var(--spacing-medium, 24px)',
           paddingLeft: 'var(--spacing-small, 12px)',
@@ -156,10 +181,14 @@ export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekS
               const label = show.artistName || show.title || 'Show';
               const day = show.eventDate ? format(new Date(show.eventDate), 'EEE') : '';
               const cardLine = [day, show.venueName, show.venueCity].filter(Boolean).join(' · ');
+              const genreChip = formatGenreChip(show.genre);
+              const blurb = show.curatorNote?.trim() || null;
               return (
                 <button
                   key={show.eventId}
                   type="button"
+                  data-featured-position={show.position}
+                  data-event-id={show.eventId}
                   onClick={() => {
                     onEventClick?.(show.eventId, label);
                     onOpenChat?.(show.eventId, show.chatProvisionKey);
@@ -186,6 +215,22 @@ export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekS
                     }}
                   />
                   <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {genreChip ? (
+                      <span
+                        style={{
+                          alignSelf: 'flex-start',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          letterSpacing: 0.2,
+                          color: 'var(--brand-pink-600, #b01d6e)',
+                          background: 'var(--brand-pink-50, #fce8f3)',
+                          borderRadius: 999,
+                          padding: '2px 8px',
+                        }}
+                      >
+                        {genreChip}
+                      </span>
+                    ) : null}
                     <div
                       style={{
                         fontWeight: 700,
@@ -208,6 +253,18 @@ export const FeaturedThisWeekSection = forwardRef<HTMLElement, FeaturedThisWeekS
                       <Calendar size={12} />
                       {cardLine}
                     </div>
+                    {blurb ? (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 12,
+                          lineHeight: 1.35,
+                          color: 'var(--neutral-700)',
+                        }}
+                      >
+                        {blurb}
+                      </p>
+                    ) : null}
                     <div
                       style={{
                         display: 'flex',

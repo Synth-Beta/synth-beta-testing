@@ -57,7 +57,9 @@ Response (`contractVersion: 1`):
 }
 ```
 
-Client SDK (same SoT): `fetchWeeklyFeaturedSet()` in `src/services/weeklyFeaturedService.ts`.
+Client SDK (same SoT): `fetchWeeklyFeaturedSet()` / `fetchDemoWeeklyFeaturedSet()` in `src/services/weeklyFeaturedService.ts` (and Expo `mobile/src/services/weeklyFeaturedService.ts`).
+
+Demo wire ([LOI-646](/LOI/issues/LOI-646)): Home + Discover request `weekId=2026-W35` (`DEMO_FEATURED_WEEK_ID`). Empty / unpublished / wrong-week responses render the curated empty state (no hard-coded pin list, no other-week fallback).
 
 RPC: `get_weekly_featured_set(p_metro, p_week_id)`.
 

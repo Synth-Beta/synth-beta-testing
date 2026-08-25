@@ -8,6 +8,13 @@
  */
 export const SYNTH_20_DEMO = true;
 
+/**
+ * Locked demo week for Home + Discover featured SoT (LOI-646).
+ * Both surfaces request this weekId so an unpublished/empty set never
+ * silently falls back to another week's pins.
+ */
+export { DEMO_FEATURED_WEEK_ID as SYNTH_20_FEATURED_WEEK_ID } from '@synth/shared';
+
 /** Washington, DC (approx National Mall / downtown). */
 export const SYNTH_20_DC = {
   name: 'Washington, DC',

@@ -119,6 +119,8 @@ export {
   FEATURED_MIN,
   FEATURED_MAX,
   FEATURED_TARGET,
+  DEMO_FEATURED_WEEK_ID,
+  DEMO_FEATURED_WEEK_START,
   featuredShowChatKey,
   dcWeekStartDate,
   dcWeekId,

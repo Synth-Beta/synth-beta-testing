@@ -1,11 +1,12 @@
 /**
- * Shared weekly featured curation SoT (LOI-566).
+ * Shared weekly featured curation SoT (LOI-566 / LOI-646).
  * Home and Discover both read via fetchWeeklyFeaturedSet.
  * Editorial writes via replaceWeeklyFeaturedPins / publishWeeklyFeaturedSet
  * (or the admin HTTP API) without an app release.
  */
 import { supabase } from '@/integrations/supabase/client';
 import {
+  DEMO_FEATURED_WEEK_ID,
   FEATURED_METRO_DC,
   FEATURED_TARGET,
   dcWeekId,
@@ -67,6 +68,10 @@ type RpcRow = {
   event_genres: string[] | null;
 };
 
+function sortShowsByPosition(shows: WeeklyFeaturedShow[]): WeeklyFeaturedShow[] {
+  return [...shows].sort((a, b) => a.position - b.position);
+}
+
 function rowsToSet(rows: RpcRow[]): WeeklyFeaturedSet | null {
   if (!rows.length) return null;
   const head = rows[0];
@@ -79,20 +84,116 @@ function rowsToSet(rows: RpcRow[]): WeeklyFeaturedSet | null {
     targetCount: head.target_count,
     publishedAt: head.published_at,
     updatedAt: head.updated_at,
-    shows: rows.map((r) => ({
-      eventId: r.event_id,
-      position: r.position,
-      genre: r.genre,
-      curatorNote: r.curator_note,
-      chatProvisionKey: r.chat_provision_key || featuredShowChatKey(r.week_id, r.event_id),
-      title: r.event_title,
-      artistName: r.artist_name,
-      venueName: r.venue_name,
-      venueCity: r.venue_city,
-      eventDate: r.event_date,
-      imageUrl: r.image_url,
-      eventGenres: r.event_genres,
-    })),
+    shows: sortShowsByPosition(
+      rows.map((r) => ({
+        eventId: r.event_id,
+        position: r.position,
+        genre: r.genre,
+        curatorNote: r.curator_note,
+        chatProvisionKey: r.chat_provision_key || featuredShowChatKey(r.week_id, r.event_id),
+        title: r.event_title,
+        artistName: r.artist_name,
+        venueName: r.venue_name,
+        venueCity: r.venue_city,
+        eventDate: r.event_date,
+        imageUrl: r.image_url,
+        eventGenres: r.event_genres,
+      }))
+    ),
+  };
+}
+
+/**
+ * Reject wrong-week / unpublished payloads so Home + Discover never render
+ * stale pins from another week (LOI-646 AC-3).
+ */
+export function acceptFeaturedSetForWeek(
+  set: WeeklyFeaturedSet | null,
+  requestedWeekId: string | null | undefined
+): WeeklyFeaturedSet | null {
+  if (!set) return null;
+  if (requestedWeekId && set.weekId !== requestedWeekId) return null;
+  if (set.status && set.status !== 'published') return null;
+  return {
+    ...set,
+    shows: sortShowsByPosition(set.shows ?? []),
+  };
+}
+
+type FeaturedWeekHttpResponse = {
+  contractVersion?: number;
+  weekId?: string;
+  empty?: boolean;
+  set?: {
+    setId: string;
+    weekStartDate: string;
+    status: FeaturedSetStatus;
+    targetCount: number;
+    publishedAt: string | null;
+    updatedAt: string | null;
+    showCount?: number;
+  } | null;
+  shows?: Array<{
+    eventId: string;
+    position: number;
+    genre: string | null;
+    curatorNote: string | null;
+    chatProvisionKey: string;
+    title: string | null;
+    artistName: string | null;
+    venueName: string | null;
+    venueCity: string | null;
+    eventDate: string | null;
+    imageUrl: string | null;
+    eventGenres: string[] | null;
+  }>;
+  metro?: string;
+};
+
+async function fetchWeeklyFeaturedSetHttp(opts: {
+  weekId?: string | null;
+  metro: string;
+}): Promise<WeeklyFeaturedSet | null> {
+  const params = new URLSearchParams({ metro: opts.metro });
+  if (opts.weekId) params.set('weekId', opts.weekId);
+
+  const res = await fetch(`/api/featured/week?${params.toString()}`, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    throw new Error(`GET /api/featured/week failed (${res.status})`);
+  }
+
+  const body = (await res.json()) as FeaturedWeekHttpResponse;
+  if (body.empty || !body.set || !body.shows?.length) return null;
+
+  const weekId = body.weekId || opts.weekId || '';
+  return {
+    setId: body.set.setId,
+    weekId,
+    weekStartDate: body.set.weekStartDate,
+    metro: body.metro || opts.metro,
+    status: body.set.status,
+    targetCount: body.set.targetCount,
+    publishedAt: body.set.publishedAt,
+    updatedAt: body.set.updatedAt,
+    shows: sortShowsByPosition(
+      body.shows.map((s) => ({
+        eventId: s.eventId,
+        position: s.position,
+        genre: s.genre,
+        curatorNote: s.curatorNote,
+        chatProvisionKey: s.chatProvisionKey || featuredShowChatKey(weekId, s.eventId),
+        title: s.title,
+        artistName: s.artistName,
+        venueName: s.venueName,
+        venueCity: s.venueCity,
+        eventDate: s.eventDate,
+        imageUrl: s.imageUrl,
+        eventGenres: s.eventGenres,
+      }))
+    ),
   };
 }
 
@@ -100,9 +201,21 @@ function rowsToSet(rows: RpcRow[]): WeeklyFeaturedSet | null {
 export async function fetchWeeklyFeaturedSet(opts?: {
   weekId?: string | null;
   metro?: string;
+  /** Prefer HTTP public contract; fall back to RPC (default true for demo wire). */
+  preferHttp?: boolean;
 }): Promise<WeeklyFeaturedSet | null> {
   const metro = opts?.metro ?? FEATURED_METRO_DC;
   const weekId = opts?.weekId ?? null;
+  const preferHttp = opts?.preferHttp ?? true;
+
+  if (preferHttp) {
+    try {
+      const viaHttp = await fetchWeeklyFeaturedSetHttp({ weekId, metro });
+      return acceptFeaturedSetForWeek(viaHttp, weekId);
+    } catch (err) {
+      console.warn('[weeklyFeaturedService] HTTP read failed; trying RPC', err);
+    }
+  }
 
   const { data, error } = await supabase.rpc('get_weekly_featured_set', {
     p_metro: metro,
@@ -114,7 +227,12 @@ export async function fetchWeeklyFeaturedSet(opts?: {
     throw error;
   }
 
-  return rowsToSet((data || []) as RpcRow[]);
+  return acceptFeaturedSetForWeek(rowsToSet((data || []) as RpcRow[]), weekId);
+}
+
+/** Demo-week helper used by Home + Discover (LOI-646). */
+export function fetchDemoWeeklyFeaturedSet(): Promise<WeeklyFeaturedSet | null> {
+  return fetchWeeklyFeaturedSet({ weekId: DEMO_FEATURED_WEEK_ID });
 }
 
 /** Admin/editorial: upsert draft set + replace ordered pins (no app release). */
@@ -198,7 +316,7 @@ export async function replaceWeeklyFeaturedPins(input: {
     }
   }
 
-  const published = await fetchWeeklyFeaturedSet({ weekId });
+  const published = await fetchWeeklyFeaturedSet({ weekId, preferHttp: false });
   if (published) return published;
 
   // Draft may not appear in public RPC; return a constructed shape from pins.
@@ -211,20 +329,22 @@ export async function replaceWeeklyFeaturedPins(input: {
     targetCount,
     publishedAt: null,
     updatedAt: setRow.updated_at,
-    shows: input.pins.map((pin, index) => ({
-      eventId: pin.eventId,
-      position: pin.position ?? index + 1,
-      genre: pin.genre ?? null,
-      curatorNote: pin.curatorNote ?? null,
-      chatProvisionKey: featuredShowChatKey(weekId, pin.eventId),
-      title: null,
-      artistName: null,
-      venueName: null,
-      venueCity: null,
-      eventDate: null,
-      imageUrl: null,
-      eventGenres: null,
-    })),
+    shows: sortShowsByPosition(
+      input.pins.map((pin, index) => ({
+        eventId: pin.eventId,
+        position: pin.position ?? index + 1,
+        genre: pin.genre ?? null,
+        curatorNote: pin.curatorNote ?? null,
+        chatProvisionKey: featuredShowChatKey(weekId, pin.eventId),
+        title: null,
+        artistName: null,
+        venueName: null,
+        venueCity: null,
+        eventDate: null,
+        imageUrl: null,
+        eventGenres: null,
+      }))
+    ),
   };
 }
 

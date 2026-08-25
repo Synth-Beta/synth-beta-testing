@@ -8,6 +8,10 @@ export const FEATURED_MIN = 10;
 export const FEATURED_MAX = 15;
 export const FEATURED_TARGET = 12;
 
+/** Demo / density sprint week (LOI-585 / LOI-646). Home + Discover pin this SoT week. */
+export const DEMO_FEATURED_WEEK_ID = '2026-W35' as const;
+export const DEMO_FEATURED_WEEK_START = '2026-08-24' as const;
+
 export type FeaturedMetro = typeof FEATURED_METRO_DC;
 export type FeaturedSetStatus = 'draft' | 'published' | 'archived';
 
