@@ -30,10 +30,15 @@ import { type LatLng } from '../../src/services/locationService';
 import { toLocalYmd } from '../../src/utils/localYmd';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { GenreChatsSection } from '../../src/components/discover/GenreChatsSection';
+import { MobileScenesRail } from '../../src/components/discover/MobileScenesRail';
 import { supabase } from '../../src/integrations/supabase/client';
 import { VibeSelectorSheet, type VibeType } from '../../src/components/discover/VibeSelectorSheet';
 import { LocationSheet } from '../../src/components/discover/LocationSheet';
 import { useBrowseLocation } from '../../src/contexts/BrowseLocationContext';
+import {
+  SYNTH_20_DEMO,
+  SYNTH_20_DISCOVER,
+} from '../../src/config/synth20Demo';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
@@ -386,10 +391,12 @@ export default function DiscoverScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.dualActions}>
+          {(!SYNTH_20_DEMO || SYNTH_20_DISCOVER.showBrowseVibes) && (
           <Pressable style={styles.browseVibes} onPress={() => setIsVibeSheetOpen(true)}>
             <Sparkles size={18} color="#fff" />
             <Text style={styles.browseVibesText}>Browse Vibes</Text>
           </Pressable>
+          )}
           <Pressable style={styles.locationBtn} onPress={() => setIsLocationSheetOpen(true)}>
             <MapPin size={18} color={SynthTokens.colors.neutral900} />
             <Text style={styles.locationBtnText}>Location</Text>
@@ -412,6 +419,12 @@ export default function DiscoverScreen() {
           </View>
         ) : null}
 
+        {SYNTH_20_DEMO && SYNTH_20_DISCOVER.showScenes ? (
+          <MobileScenesRail userId={userId} />
+        ) : null}
+
+        {(!SYNTH_20_DEMO || SYNTH_20_DISCOVER.showMapCalendarTour) && (
+        <>
         <View style={styles.sectionHead}>
           <SynthText variant="h2" style={styles.sectionTitle}>
             Discover Events
@@ -507,9 +520,11 @@ export default function DiscoverScreen() {
         ) : (
           <MobileTourTracker />
         )}
+        </>
+        )}
 
-        {/* Genre Communities — shown below calendar and tour tracker */}
-        {userId ? (
+        {/* Genre / scene rooms */}
+        {(!SYNTH_20_DEMO || SYNTH_20_DISCOVER.showGenreChats) && userId ? (
           <GenreChatsSection currentUserId={userId} />
         ) : null}
 

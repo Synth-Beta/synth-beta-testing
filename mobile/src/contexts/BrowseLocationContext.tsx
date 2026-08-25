@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentLatLng, reverseGeocode, type LatLng } from '../services/locationService';
 import { resolveLocation } from '@synth/shared';
+import { SYNTH_20_DEMO, SYNTH_20_DC } from '../config/synth20Demo';
 
 /**
  * Shared "what location am I browsing" for Discover + Home feed.
@@ -14,7 +15,7 @@ import { resolveLocation } from '@synth/shared';
  */
 
 const STORAGE_KEY = '@synth/browseLocation';
-const DEFAULT_RADIUS_MILES = 30;
+const DEFAULT_RADIUS_MILES = SYNTH_20_DEMO ? SYNTH_20_DC.radiusMiles : 30;
 
 interface StoredBrowseLocation {
   coords: LatLng;
@@ -89,6 +90,15 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
         }
       } catch (err) {
         console.error('[BrowseLocationContext] failed to read stored location', err);
+      }
+      // Synth 2.0 demo: default browse location to DC for denser rooms.
+      if (SYNTH_20_DEMO) {
+        setCoords({ latitude: SYNTH_20_DC.latitude, longitude: SYNTH_20_DC.longitude });
+        setLabel(SYNTH_20_DC.name);
+        setRadiusMiles(SYNTH_20_DC.radiusMiles);
+        setIsManual(true);
+        setLoading(false);
+        return;
       }
       // No manual override stored - fall back to live GPS (today's default behavior).
       await fetchGpsLocation();

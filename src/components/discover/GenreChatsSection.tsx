@@ -5,6 +5,11 @@
 import React, { useEffect, useState } from 'react';
 import { MessageCircle, Users } from 'lucide-react';
 import { GenreChatService, type GenreChatInfo } from '@/services/genreChatService';
+import {
+    SYNTH_20_DEMO,
+    SYNTH_20_DISCOVER,
+    isSynth20GenreId,
+} from '@/config/synth20Demo';
 
 const BRAND_PINK = 'var(--brand-pink-500, #e91e8c)';
 const BRAND_PINK_LIGHT = 'rgba(233, 30, 140, 0.1)';
@@ -180,7 +185,10 @@ export function GenreChatsSection({ currentUserId, onNavigateToChat }: Props) {
 
     useEffect(() => {
         void GenreChatService.getGenreChats(currentUserId).then(data => {
-            setGenres(data);
+            const filtered = SYNTH_20_DEMO
+                ? data.filter((g) => isSynth20GenreId(g.genre.id))
+                : data;
+            setGenres(filtered);
             setLoading(false);
         });
     }, [currentUserId]);
@@ -235,7 +243,7 @@ export function GenreChatsSection({ currentUserId, onNavigateToChat }: Props) {
                     margin: 0,
                     fontFamily: 'var(--font-family)',
                 }}>
-                    Genre Communities
+                    {SYNTH_20_DEMO ? SYNTH_20_DISCOVER.genreSectionTitle : 'Genre Communities'}
                 </h2>
                 <p style={{
                     margin: '4px 0 0',
@@ -243,7 +251,9 @@ export function GenreChatsSection({ currentUserId, onNavigateToChat }: Props) {
                     color: 'var(--neutral-500)',
                     fontFamily: 'var(--font-family)',
                 }}>
-                    Join group chats with fans who share your taste
+                    {SYNTH_20_DEMO
+                        ? SYNTH_20_DISCOVER.genreSectionDescription
+                        : 'Join group chats with fans who share your taste'}
                 </p>
             </div>
 

@@ -14,6 +14,11 @@ import { MobileHeader } from '@/components/Header/MobileHeader';
 import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
+import { FeaturedThisWeekSection } from './FeaturedThisWeekSection';
+import { HomeHeroSection } from './HomeHeroSection';
+import { WhosGoingSection } from './WhosGoingSection';
+import { HomeChatTeaserSection } from './HomeChatTeaserSection';
+import { SYNTH_20_DEMO, navigateSynthView } from '@/config/synth20Demo';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
@@ -2026,6 +2031,13 @@ interface FriendEventInterest {
               </select>
             </div>
           </>
+        )}
+        {SYNTH_20_DEMO && selectedFeedType === 'events' && (
+          <FeaturedThisWeekSection
+            onEventClick={(eventId) => {
+              void handleEventClick(eventId);
+            }}
+          />
         )}
         {/* Feed content based on selection */}
         {selectedFeedType === 'events' && (

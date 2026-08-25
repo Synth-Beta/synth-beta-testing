@@ -17,6 +17,11 @@ import { MessageCircle, Users } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { GenreChatService, type GenreChatInfo, type GenreConfig } from '../../services/genreChatService';
+import {
+    SYNTH_20_DEMO,
+    SYNTH_20_DISCOVER,
+    isSynth20GenreId,
+} from '../../config/synth20Demo';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -100,7 +105,9 @@ export function GenreChatsSection({ currentUserId }: Props) {
 
     const loadGenres = useCallback(async () => {
         const data = await GenreChatService.getGenreChats(currentUserId);
-        setGenres(data);
+        setGenres(
+            SYNTH_20_DEMO ? data.filter((g) => isSynth20GenreId(g.genre.id)) : data
+        );
         setLoading(false);
     }, [currentUserId]);
 
@@ -144,9 +151,13 @@ export function GenreChatsSection({ currentUserId }: Props) {
             {/* Section header */}
             <View style={styles.header}>
                 <View>
-                    <SynthText variant="h2" style={styles.title}>Genre Communities</SynthText>
+                    <SynthText variant="h2" style={styles.title}>
+                        {SYNTH_20_DEMO ? SYNTH_20_DISCOVER.genreSectionTitle : 'Genre Communities'}
+                    </SynthText>
                     <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                        Join chats with fans who share your taste
+                        {SYNTH_20_DEMO
+                            ? SYNTH_20_DISCOVER.genreSectionDescription
+                            : 'Join chats with fans who share your taste'}
                     </SynthText>
                 </View>
             </View>

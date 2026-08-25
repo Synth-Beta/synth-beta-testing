@@ -12,11 +12,17 @@ import { DiscoverResultsView } from './DiscoverResultsView';
 import { BecauseYouLikeSection } from './BecauseYouLikeSection';
 import { MapCalendarTourSection } from './MapCalendarTourSection';
 import { GenreChatsSection } from './GenreChatsSection';
+import { ScenesSection } from './ScenesSection';
 import { LocationService } from '@/services/locationService';
 import { CityService, type CityData } from '@/services/cityService';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeType } from '@/services/discoverVibeService';
 import type { VibeFilters } from '@/services/discoverVibeService';
+import {
+  SYNTH_20_DEMO,
+  SYNTH_20_DC,
+  SYNTH_20_DISCOVER,
+} from '@/config/synth20Demo';
 import { MobileHeader } from '@/components/Header/MobileHeader';
 import { SearchBar } from '@/components/SearchBar/SearchBar';
 import { useViewTracking } from '@/hooks/useViewTracking';
@@ -66,17 +72,26 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [selectedVibe, setSelectedVibe] = useState<VibeType | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   
-  // Filter state - only location with coordinates
+  // Filter state - only location with coordinates (Synth 2.0 demo defaults to DC)
   const [filters, setFilters] = useState<VibeFilters>({
-    radiusMiles: 30,
+    radiusMiles: SYNTH_20_DEMO ? SYNTH_20_DC.radiusMiles : 30,
+    ...(SYNTH_20_DEMO
+      ? { latitude: SYNTH_20_DC.latitude, longitude: SYNTH_20_DC.longitude }
+      : {}),
   });
   const [locationPopoverOpen, setLocationPopoverOpen] = useState(false);
   const [customCityInput, setCustomCityInput] = useState('');
   const [citySuggestions, setCitySuggestions] = useState<CityData[]>([]);
   const [isSearchingCities, setIsSearchingCities] = useState(false);
-  const [selectedLocationName, setSelectedLocationName] = useState<string>('');
+  const [selectedLocationName, setSelectedLocationName] = useState<string>(
+    SYNTH_20_DEMO ? SYNTH_20_DC.name : ''
+  );
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(
+    SYNTH_20_DEMO
+      ? { latitude: SYNTH_20_DC.latitude, longitude: SYNTH_20_DC.longitude }
+      : null
+  );
 
   const [detailView, setDetailView] = useState<DiscoverDetailView | null>(null);
 
@@ -124,6 +139,19 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   }, [customCityInput]);
 
   const loadUserLocation = async () => {
+    // Synth 2.0 demo: keep Washington, DC as the browse default so rooms stay dense.
+    if (SYNTH_20_DEMO) {
+      setUserLocation({ latitude: SYNTH_20_DC.latitude, longitude: SYNTH_20_DC.longitude });
+      setFilters((prev) => ({
+        ...prev,
+        latitude: SYNTH_20_DC.latitude,
+        longitude: SYNTH_20_DC.longitude,
+        radiusMiles: SYNTH_20_DC.radiusMiles,
+      }));
+      setSelectedLocationName(SYNTH_20_DC.name);
+      return;
+    }
+
     try {
       // First try to get from user profile
       const { data: userProfile } = await supabase
@@ -550,7 +578,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       >
         {/* Browse Vibes and Location Filter */}
         <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
-          {/* Browse Vibes Button */}
+          {/* Browse Vibes Button — hidden in Synth 2.0 demo */}
+          {(!SYNTH_20_DEMO || SYNTH_20_DISCOVER.showBrowseVibes) && (
           <Button
             onClick={() => setVibeModalOpen(true)}
             className="gap-2 flex-shrink-0" 
@@ -563,6 +592,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             <Icon name="mediumShootingStar" size={24} color="var(--neutral-50)" />
             Browse Vibes
           </Button>
+          )}
 
           {/* Location Filter */}
           <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
@@ -831,7 +861,25 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
       {/* Main Content */}
       {!isSearchActive && (
           <>
+            {/* Synth 2.0: Scenes first for denser browse */}
+            {SYNTH_20_DEMO && SYNTH_20_DISCOVER.showScenes && (
+              <div style={{ marginBottom: '32px' }}>
+                <ScenesSection
+                  currentUserId={currentUserId}
+                  onNavigateToProfile={onNavigateToProfile}
+                  onNavigateToChat={onNavigateToChat}
+                  onArtistClick={(id, name) => setDetailView({ type: 'artist', id, name })}
+                  onVenueClick={(id, name) => setDetailView({ type: 'venue', id, name })}
+                  onEventClick={(event) => {
+                    const eventId = (event as { id?: string })?.id;
+                    if (eventId) void handleEventClickFromVenue(eventId);
+                  }}
+                />
+              </div>
+            )}
+
             {/* Section 1: Because You Like ___ */}
+            {(!SYNTH_20_DEMO || SYNTH_20_DISCOVER.showBecauseYouLike) && (
             <div style={{ marginBottom: '32px' }}>
             <BecauseYouLikeSection
             currentUserId={currentUserId}
@@ -839,8 +887,10 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             onNavigateToChat={onNavigateToChat}
           />
             </div>
+            )}
 
             {/* Section 2: Map/Calendar/Tour Section */}
+            {(!SYNTH_20_DEMO || SYNTH_20_DISCOVER.showMapCalendarTour) && (
             <div style={{ marginBottom: '32px' }}>
             <MapCalendarTourSection
             currentUserId={currentUserId}
@@ -849,12 +899,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             onNavigateToChat={onNavigateToChat}
           />
             </div>
+            )}
 
-            {/* Section 3: Genre Communities */}
+            {/* Section 3: Genre / scene rooms */}
+            {(!SYNTH_20_DEMO || SYNTH_20_DISCOVER.showGenreChats) && (
             <GenreChatsSection
               currentUserId={currentUserId}
               onNavigateToChat={onNavigateToChat}
             />
+            )}
 
           </>
         )}

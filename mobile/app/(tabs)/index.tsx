@@ -27,6 +27,8 @@ import { useInterested } from '../../src/contexts/InterestedContext';
 import { useBrowseLocation } from '../../src/contexts/BrowseLocationContext';
 import { resolveFeedImageUri } from '../../src/utils/eventImages';
 import { isEventUpcomingForFeed } from '../../src/utils/localYmd';
+import { FeaturedThisWeekSection } from '../../src/components/home/FeaturedThisWeekSection';
+import { SYNTH_20_DEMO } from '../../src/config/synth20Demo';
 
 type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
@@ -291,13 +293,14 @@ export default function FeedScreen() {
     () => (
       <>
         <ShareWithFriendsBanner referralCode={referralCode} source="home_feed" />
+        {SYNTH_20_DEMO && feedDisplayMode === 'events' ? <FeaturedThisWeekSection /> : null}
         <BucketListRail events={bucketListEvents} />
         {friendSuggestions.length > 0 ? (
           <FriendSuggestionsRail suggestions={friendSuggestions} />
         ) : null}
       </>
     ),
-    [referralCode, bucketListEvents, friendSuggestions]
+    [referralCode, bucketListEvents, friendSuggestions, feedDisplayMode]
   );
 
   return (
