@@ -9,10 +9,15 @@ import {
   featuredShowChatKey,
   validateFeaturedPins,
   FEATURED_MAX,
+  DEMO_FEATURED_WEEK_ID,
+  DEMO_FEATURED_WEEK_START,
 } from './weeklyFeatured.ts';
 
 const wed = new Date('2026-08-26T15:00:00.000Z');
 assert.equal(dcWeekStartDate(wed), '2026-08-24');
+assert.equal(DEMO_FEATURED_WEEK_START, '2026-08-24');
+assert.equal(DEMO_FEATURED_WEEK_ID, '2026-W35');
+assert.equal(dcWeekId(wed), DEMO_FEATURED_WEEK_ID);
 assert.match(dcWeekId(wed), /^2026-W\d{2}$/);
 
 assert.equal(

@@ -9,6 +9,7 @@ import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import { SynthText } from '../../src/components/SynthText';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
 import { BucketListRail } from '../../src/components/Feed/BucketListRail';
+import { FeaturedThisWeekSection } from '../../src/components/home/FeaturedThisWeekSection';
 import { FeedListSkeleton } from '../../src/components/skeletons/FeedListSkeleton';
 import { ShareWithFriendsBanner } from '../../src/components/share/ShareWithFriendsBanner';
 import {
@@ -291,13 +292,20 @@ export default function FeedScreen() {
     () => (
       <>
         <ShareWithFriendsBanner referralCode={referralCode} source="home_feed" />
+        <FeaturedThisWeekSection
+          onEventPress={(eventId) => {
+            void EventService.toEventRouteId(eventId).then((rid) => {
+              router.push(`/event/${rid}` as any);
+            });
+          }}
+        />
         <BucketListRail events={bucketListEvents} />
         {friendSuggestions.length > 0 ? (
           <FriendSuggestionsRail suggestions={friendSuggestions} />
         ) : null}
       </>
     ),
-    [referralCode, bucketListEvents, friendSuggestions]
+    [referralCode, bucketListEvents, friendSuggestions, router]
   );
 
   return (

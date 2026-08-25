@@ -30,6 +30,8 @@ import { type LatLng } from '../../src/services/locationService';
 import { toLocalYmd } from '../../src/utils/localYmd';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { GenreChatsSection } from '../../src/components/discover/GenreChatsSection';
+import { FeaturedThisWeekSection } from '../../src/components/home/FeaturedThisWeekSection';
+import { EventService } from '../../src/services/eventService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { VibeSelectorSheet, type VibeType } from '../../src/components/discover/VibeSelectorSheet';
 import { LocationSheet } from '../../src/components/discover/LocationSheet';
@@ -507,6 +509,14 @@ export default function DiscoverScreen() {
         ) : (
           <MobileTourTracker />
         )}
+
+        <FeaturedThisWeekSection
+          onEventPress={(eventId) => {
+            void EventService.toEventRouteId(eventId).then((rid) => {
+              router.push(`/event/${rid}` as any);
+            });
+          }}
+        />
 
         {/* Genre Communities — shown below calendar and tour tracker */}
         {userId ? (
