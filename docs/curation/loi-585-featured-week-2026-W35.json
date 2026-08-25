@@ -2,13 +2,19 @@
   "contractVersion": 1,
   "sourceIssue": "LOI-585",
   "ingestIssue": "LOI-601",
+  "copyIssue": "LOI-656",
+  "cmoGateIssue": "LOI-611",
   "metro": "dc",
   "weekId": "2026-W35",
   "weekStartDate": "2026-08-24",
   "weekLabel": "Tue Aug 25–Mon Aug 31, 2026",
   "status": "published",
   "targetCount": 12,
-  "notes": "Ingested from LOI-585 featured-set. Catalog gaps filled with manual editorial events for Shaolin Jazz, Neon Habits, Flashband. Tiffany Day mapped to Atlantis (catalog) not 9:30. Arlo Parks mapped to catalog date Aug 30 (curator listed Sat Aug 29).",
+  "weekFrame": {
+    "title": "This week in DC",
+    "support": "Twelve shows worth leaving the house for."
+  },
+  "notes": "Pins from LOI-585 featured-set. curatorNote values are CMO+Board approved Home blurbs (LOI-611 / LOI-656) with no catalog parentheticals. Catalog venue/title/date mismatches remain in match only. Catalog gaps: Shaolin Jazz, Neon Habits, Flashband editorial events. Tiffany Day pin is Atlantis catalog row (blurb still says 9:30 per approved copy). Arlo Parks catalog date Aug 30 (curator listed Sat Aug 29).",
   "pins": [
     {
       "position": 1,
@@ -31,7 +37,7 @@
       "eventId": "c6ff7e1d-481e-4068-a838-43eb27ceecb0",
       "label": "Swervedriver @ Atlantis",
       "genre": "shoegaze",
-      "curatorNote": "Swervedriver plays the raise-at-35 set for the shoegaze kids who still go out.",
+      "curatorNote": "Swervedriver brings the raise-at-35 shoegaze set to Atlantis.",
       "match": "catalog"
     },
     {
@@ -47,7 +53,7 @@
       "eventId": "707916cf-043a-40a7-a39b-6ebabe1882c8",
       "label": "Tiffany Day @ Atlantis",
       "genre": "pop",
-      "curatorNote": "Tiffany Day hits the HALO Tour. Pop that fills a room. (Catalog venue: Atlantis; curator listed 9:30.)",
+      "curatorNote": "Tiffany Day hits 9:30 with HALO Tour pop that fills the room.",
       "match": "catalog_venue_note"
     },
     {
@@ -55,7 +61,7 @@
       "eventId": "f03d02aa-5e5e-46fd-9740-34c9af165af8",
       "label": "Hit Shuffle / Father Sokka @ Songbyrd",
       "genre": "hip-hop",
-      "curatorNote": "Kontra’s Hit Shuffle packs Songbyrd with DC hip-hop heat. (Catalog title: Father Sokka.)",
+      "curatorNote": "Kontra's Hit Shuffle packs Songbyrd with DC hip-hop heat.",
       "match": "catalog_title_note"
     },
     {
@@ -63,7 +69,7 @@
       "eventId": "967eb536-6348-460d-bc57-ac75d013b463",
       "label": "Res @ Songbyrd (Night 1)",
       "genre": "r&b",
-      "curatorNote": "Res celebrates How I Do at 25. Soul night at Songbyrd.",
+      "curatorNote": "Res celebrates How I Do at 25 with a soul night at Songbyrd.",
       "match": "catalog"
     },
     {
@@ -79,7 +85,7 @@
       "eventId": "93e9310d-56ab-4049-bbdc-62ea57238f49",
       "label": "Arlo Parks @ Howard",
       "genre": "indie-soul",
-      "curatorNote": "Arlo Parks at Howard is the destination set of the weekend. (Catalog date: Sun Aug 30.)",
+      "curatorNote": "Arlo Parks owns the weekend destination set at Howard.",
       "match": "catalog_date_note"
     },
     {
@@ -87,7 +93,7 @@
       "eventId": "f161bfe7-6488-5540-bfe4-f29b12dd699e",
       "label": "Flashband @ Atlantis",
       "genre": "pop-punk",
-      "curatorNote": "Flashband’s Warped Tour showcase is the local singalong night at Atlantis.",
+      "curatorNote": "Flashband's Warped Tour showcase turns Atlantis into the local singalong night.",
       "match": "editorial_or_prior"
     },
     {
