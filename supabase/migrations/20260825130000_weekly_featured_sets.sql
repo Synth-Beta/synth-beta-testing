@@ -217,15 +217,17 @@ AS $$
     i.curator_note,
     ('featured_show:' || c.week_id || ':' || i.event_id::text) AS chat_provision_key,
     e.title AS event_title,
-    e.artist_name,
-    e.venue_name,
-    e.venue_city,
+    COALESCE(a.name, NULLIF(split_part(e.title, ' at ', 1), '')) AS artist_name,
+    v.name AS venue_name,
+    COALESCE(v.city, e.venue_city) AS venue_city,
     e.event_date,
-    e.poster_image_url AS image_url,
+    COALESCE(e.event_media_url, e.media_urls[1]) AS image_url,
     e.genres AS event_genres
   FROM chosen c
   JOIN public.weekly_featured_items i ON i.set_id = c.id
   JOIN public.events e ON e.id = i.event_id
+  LEFT JOIN public.artists a ON a.id = e.artist_id
+  LEFT JOIN public.venues v ON v.id = e.venue_id
   ORDER BY i.position ASC;
 $$;
 
