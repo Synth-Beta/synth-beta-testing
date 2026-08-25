@@ -3,7 +3,7 @@
  * Manages persistent genre-based community group chats.
  * Uses entity_type='genre' + entity_id=slug on the chats table.
  */
-import { getOrCreateGenreChat } from '@synth/shared';
+import { getOrCreateGenreChat, isReservedSceneRoomId } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface GenreConfig {
@@ -52,7 +52,7 @@ export class GenreChatService {
             const chatByGenreId = new Map<string, string>();
             const chatIds: string[] = [];
             for (const c of chats || []) {
-                if (c.entity_id) {
+                if (c.entity_id && !isReservedSceneRoomId(c.entity_id)) {
                     chatByGenreId.set(c.entity_id, c.id);
                     chatIds.push(c.id);
                 }

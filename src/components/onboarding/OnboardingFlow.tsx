@@ -11,8 +11,13 @@ import {
 } from '@/components/ui/select';
 import { ProfileSetupStep, type ProfileSetupStepRef } from './ProfileSetupStep';
 import { MusicTagsStep } from './MusicTagsStep';
+import {
+  DensityPreferenceStep,
+  type DensityPreferenceValue,
+} from './DensityPreferenceStep';
 import { FollowArtistsModal, type FollowArtistOption } from './FollowArtistsModal';
 import { OnboardingService, ProfileSetupData } from '@/services/onboardingService';
+import { SceneRoomService } from '@/services/sceneRoomService';
 import { MusicTagsService, type MusicTagInput } from '@/services/musicTagsService';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,7 +26,14 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
-import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail } from '@synth/shared';
+import {
+  ACQUISITION_SOURCE_CANONICAL_ORDER,
+  isDcCity,
+  pickFeaturedShowForPreference,
+  type AcquisitionSource,
+  type FeaturedShowCandidate,
+  needsContactEmail,
+} from '@synth/shared';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -84,6 +96,13 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const [prefillLoading, setPrefillLoading] = useState(true);
   const [completionError, setCompletionError] = useState<string | null>(null);
   const completeButtonRef = useRef<HTMLDivElement>(null);
+  const [densityPreference, setDensityPreference] = useState<DensityPreferenceValue>({
+    preference: null,
+    joinOptionalRoom2: false,
+    markFeaturedInterested: false,
+  });
+  const [densityPreferenceError, setDensityPreferenceError] = useState<string | null>(null);
+  const [suggestedShow, setSuggestedShow] = useState<FeaturedShowCandidate | null>(null);
 
   const beginExit = useCallback(() => {
     exitInProgressRef.current = true;
@@ -160,6 +179,56 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const handleMusicDraftChange = useCallback((data: { genres: string[]; artists: string[] }) => {
     setMusicData(data);
   }, []);
+
+  const handleDensityPreferenceChange = useCallback((next: DensityPreferenceValue) => {
+    setDensityPreference(next);
+    setDensityPreferenceError(null);
+  }, []);
+
+  // Suggest one featured show when preference changes (DC only).
+  useEffect(() => {
+    let cancelled = false;
+    const preference = densityPreference.preference;
+    const city = profileData.location_city;
+    if (!preference || !isDcCity(city)) {
+      setSuggestedShow(null);
+      return;
+    }
+
+    (async () => {
+      try {
+        const now = new Date().toISOString();
+        const { data, error } = await supabase
+          .from('events')
+          .select(
+            'id, title, artist_name, venue_name, venue_city, event_date, is_promoted, promotion_tier'
+          )
+          .gte('event_date', now)
+          .order('event_date', { ascending: true })
+          .limit(80);
+        if (cancelled) return;
+        if (error) {
+          logger.warn('OnboardingFlow: featured show suggestion failed:', error);
+          setSuggestedShow(null);
+          return;
+        }
+        const picked = pickFeaturedShowForPreference(
+          preference,
+          (data || []) as FeaturedShowCandidate[]
+        );
+        setSuggestedShow(picked);
+      } catch (err) {
+        if (!cancelled) {
+          logger.warn('OnboardingFlow: featured show suggestion error:', err);
+          setSuggestedShow(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [densityPreference.preference, profileData.location_city]);
 
   useViewTracking('view', 'onboarding_one_page', {
     step: 'onboarding_single_page',
@@ -305,6 +374,14 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       }
     }
 
+    const cityForDensity = profileResult.data.location_city;
+    setDensityPreferenceError(null);
+    if (isDcCity(cityForDensity) && !densityPreference.preference) {
+      setDensityPreferenceError('Pick one preference to land in the right room');
+      completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+
     setLoading(true);
     try {
       // Save profile
@@ -338,6 +415,30 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         setCompletionError('Failed to save profile. Please try again.');
         completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
+      }
+
+      // Density membership: auto-join room 1 (DC); optional room 2 only if opted in.
+      try {
+        const joinResult = await SceneRoomService.applyOnboardingJoins({
+          userId: user.id,
+          locationCity: profileResult.data.location_city,
+          preference: densityPreference.preference,
+          joinOptionalRoom2: densityPreference.joinOptionalRoom2,
+          markFeaturedInterested: densityPreference.markFeaturedInterested,
+        });
+        trackInteraction.formSubmit('form', 'onboarding_density_rooms', true, {
+          is_dc: joinResult.plan.isDc,
+          joined: joinResult.joinedRoomIds,
+          optional_offered: joinResult.plan.offerOptionalRoom2,
+          suggested_show_id: joinResult.suggestedShow?.id ?? null,
+          marked_interested: joinResult.markedInterestedEventId,
+          room_join_count: joinResult.plan.roomJoinCount,
+        });
+        if (joinResult.errors.length > 0) {
+          logger.warn('OnboardingFlow: density room join warnings:', joinResult.errors);
+        }
+      } catch (joinErr) {
+        logger.error('OnboardingFlow: density room join failed (continuing):', joinErr);
       }
 
       // Save music preferences (optional; same logic as former handleMusicTags)
@@ -475,6 +576,14 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                   onChange={handleProfileDraftChange}
                 />
               </section>
+
+              <DensityPreferenceStep
+                locationCity={profileData.location_city}
+                value={densityPreference}
+                onChange={handleDensityPreferenceChange}
+                suggestedShow={suggestedShow}
+                preferenceError={densityPreferenceError}
+              />
 
               <section>
                 <h2 className="text-xl font-semibold mb-4">How did you hear about Synth?</h2>
