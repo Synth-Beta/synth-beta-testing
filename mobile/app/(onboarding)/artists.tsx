@@ -71,7 +71,8 @@ export default function ArtistsScreen() {
         }
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.replace('/(tabs)');
+        // End onboarding on Home (feed), not Discover.
+        router.replace('/(tabs)/');
     };
 
     return (
