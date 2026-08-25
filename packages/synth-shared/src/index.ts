@@ -93,6 +93,22 @@ export {
   type WarmthEvalInput,
 } from './chatWarmth';
 export {
+  WAVE1_LIVE_CHAT_KEYS,
+  WAVE1_HOST_HANDLES,
+  WAVE1_SCENE_A_HANDLES,
+  WAVE1_SCENE_B_HANDLES,
+  WAVE1_SHOW_DEPTH_HANDLES,
+  WAVE1_STANDBY_HANDLES,
+  buildWave1Seats,
+  expectedWave1SeatCounts,
+  allLiveRoomsMeetMemberFloor,
+  enrollWave1SeedProxies,
+  type Wave1Crew,
+  type Wave1Seat,
+  type Wave1RoomSeatCount,
+  type Wave1EnrollmentResult,
+} from './wave1SeedEnrollment';
+export {
   type InAppBrowserHost,
   isIOS,
   isAndroid,
