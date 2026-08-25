@@ -75,6 +75,24 @@ export {
 export { getOrCreateDirectChat } from './directChat';
 export { getOrCreateGenreChat } from './genreChat';
 export {
+  WARMTH_CONTRACT_VERSION,
+  WARMTH_MEMBER_THRESHOLD,
+  WARMTH_HUMAN_MSG_24H_THRESHOLD,
+  DEFAULT_DEMO_SEED_LIVE_KEYS,
+  computeWarmthSnapshot,
+  fetchChatWarmthSnapshot,
+  fetchHomeWarmChats,
+  publishDemoSeedLiveSet,
+  ensureDensityDemoChats,
+  type ChatWarmthKind,
+  type WarmthFailReason,
+  type ChatWarmthGate,
+  type ChatWarmthSnapshot,
+  type HomeWarmChatsResponse,
+  type DemoSeedLiveSetResult,
+  type WarmthEvalInput,
+} from './chatWarmth';
+export {
   type InAppBrowserHost,
   isIOS,
   isAndroid,
