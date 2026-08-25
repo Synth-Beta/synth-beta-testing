@@ -172,6 +172,30 @@ BEGIN
 
   PERFORM set_config('row_security', 'off', true);
 
+  -- Prefer LOI-566 published weekly featured set when that schema is present.
+  IF to_regclass('public.weekly_featured_sets') IS NOT NULL
+     AND to_regclass('public.weekly_featured_items') IS NOT NULL THEN
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.weekly_featured_sets s
+      JOIN public.weekly_featured_items i ON i.set_id = s.id
+      WHERE s.metro = 'dc'
+        AND s.status = 'published'
+        AND s.week_id = CASE
+          WHEN to_regprocedure('public.dc_week_id(timestamptz)') IS NOT NULL
+            THEN public.dc_week_id(now())
+          ELSE to_char(date_trunc('week', now()), 'IYYY') || '-W' || to_char(date_trunc('week', now()), 'IW')
+        END
+        AND (
+          i.event_id::text = p_show_id
+          OR i.event_id::text = replace(p_show_id, 'featured.', '')
+        )
+    ) INTO v_exists;
+    IF coalesce(v_exists, false) THEN
+      RETURN true;
+    END IF;
+  END IF;
+
   SELECT c.featured_show_ids INTO v_ids
   FROM public.density_runtime_config c
   WHERE c.id = 'default';
@@ -180,7 +204,7 @@ BEGIN
     RETURN true;
   END IF;
 
-  -- Live curated/promoted events this week in DC
+  -- Live curated/promoted events this week in DC (fallback)
   SELECT EXISTS (
     SELECT 1
     FROM public.events e
@@ -690,6 +714,53 @@ CREATE TRIGGER trg_chats_demo_seed_warmth
   ON public.chats
   FOR EACH ROW
   EXECUTE FUNCTION public.trg_reevaluate_chat_warmth();
+
+-- Featured-set change → re-evaluate featured_show chats (when LOI-566 tables exist)
+CREATE OR REPLACE FUNCTION public.trg_reevaluate_warmth_on_featured_set()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_id uuid;
+BEGIN
+  FOR v_id IN
+    SELECT c.id FROM public.chats c
+    WHERE c.chat_kind = 'featured_show'
+       OR c.entity_type = 'event'
+       OR c.chat_key LIKE 'FIX-SHOW-%'
+       OR c.chat_key LIKE 'featured.%'
+  LOOP
+    BEGIN
+      PERFORM public.evaluate_chat_warmth(v_id);
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING 'evaluate_chat_warmth failed for %: %', v_id, SQLERRM;
+    END;
+  END LOOP;
+  RETURN coalesce(NEW, OLD);
+END;
+$$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.weekly_featured_sets') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS trg_weekly_featured_sets_warmth ON public.weekly_featured_sets;
+    CREATE TRIGGER trg_weekly_featured_sets_warmth
+      AFTER INSERT OR UPDATE OR DELETE
+      ON public.weekly_featured_sets
+      FOR EACH STATEMENT
+      EXECUTE FUNCTION public.trg_reevaluate_warmth_on_featured_set();
+  END IF;
+  IF to_regclass('public.weekly_featured_items') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS trg_weekly_featured_items_warmth ON public.weekly_featured_items;
+    CREATE TRIGGER trg_weekly_featured_items_warmth
+      AFTER INSERT OR UPDATE OR DELETE
+      ON public.weekly_featured_items
+      FOR EACH STATEMENT
+      EXECUTE FUNCTION public.trg_reevaluate_warmth_on_featured_set();
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- Grants
