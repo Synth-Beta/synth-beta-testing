@@ -75,6 +75,31 @@ export {
 export { getOrCreateDirectChat } from './directChat';
 export { getOrCreateGenreChat } from './genreChat';
 export {
+  SCENE_ROOM_STORAGE_ENTITY_TYPE,
+  SCENE_ROOM_IDS,
+  SCENE_ROOMS,
+  REQUIRED_SCENE_ROOM,
+  OPTIONAL_SCENE_ROOM,
+  ONBOARDING_MAX_ROOM_JOINS,
+  OPTIONAL_SCENE_ROOM_2_ENABLED,
+  ONBOARDING_PREFERENCE_IDS,
+  ONBOARDING_PREFERENCE_OPTIONS,
+  isDcCity,
+  isReservedSceneRoomId,
+  buildOnboardingJoinPlan,
+  pickFeaturedShowForPreference,
+  type SceneRoomId,
+  type SceneRoomDefinition,
+  type OnboardingPreferenceId,
+  type OnboardingJoinPlan,
+  type FeaturedShowCandidate,
+} from './sceneRooms';
+export {
+  applyOnboardingRoomJoins,
+  type ApplyOnboardingRoomJoinsInput,
+  type ApplyOnboardingRoomJoinsResult,
+} from './onboardingRoomJoin';
+export {
   type InAppBrowserHost,
   isIOS,
   isAndroid,
