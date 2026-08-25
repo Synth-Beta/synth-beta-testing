@@ -84,7 +84,7 @@ export function FeaturedThisWeekSection({ onEventPress }: Props) {
           This week in DC
         </SynthText>
         <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-          10-15 featured shows. Mixed genres. One city.
+          Twelve shows worth leaving the house for.
         </SynthText>
       </View>
 

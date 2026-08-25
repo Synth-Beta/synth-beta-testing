@@ -3,8 +3,9 @@
  * Reuses existing promotions, scenes, genre chats, and feeds.
  * Flip SYNTH_20_DEMO off to restore catalog-first defaults.
  *
- * Home / Messages user-facing strings: CMO-approved LOI-553 homepage-copy-draft.
- * Do not publish publicly without Board approval via Pam.
+ * Home featured week frame (title + support): CMO + Board approved LOI-611 / LOI-656.
+ * Card blurbs: weekly featured SoT curatorNote (seed docs/curation/loi-585-featured-week-2026-W35.json).
+ * Do not edit public Home copy without CMO re-gate.
  */
 export const SYNTH_20_DEMO = true;
 
@@ -45,7 +46,7 @@ export const SYNTH_20_HOME = {
   },
   featured: {
     title: 'This week in DC',
-    subtitle: '10-15 featured shows. Mixed genres. One city.',
+    subtitle: 'Twelve shows worth leaving the house for.',
     cardCta: 'Open show',
     goingCount: (n: number) => `${n} going`,
     empty: 'Featured shows for this week land here.',
@@ -73,7 +74,7 @@ export const SYNTH_20_HOME = {
   /** @deprecated use featured.title; kept for older call sites during wire-up */
   title: 'This week in DC',
   /** @deprecated use featured.subtitle */
-  subtitle: '10-15 featured shows. Mixed genres. One city.',
+  subtitle: 'Twelve shows worth leaving the house for.',
   featuredCap: 15,
   featuredTarget: 12,
   featuredMin: 10,
