@@ -133,10 +133,13 @@ export default function SceneScreen() {
     }
 
     setSaving(true);
+    setPreferenceError(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         try {
+          // Density membership: auto-join room 1 (DC); optional room 2 only if opted in.
+          // Fail closed for required room 1 so Home never lands without membership.
           const joinResult = await SceneRoomService.applyOnboardingJoins({
             userId: user.id,
             locationCity,
@@ -144,11 +147,24 @@ export default function SceneScreen() {
             joinOptionalRoom2,
             markFeaturedInterested,
           });
+          if (joinResult.requiredJoinFailed) {
+            setPreferenceError(
+              'Could not join This week in DC. Check your connection and try again.'
+            );
+            return;
+          }
           if (joinResult.errors.length > 0) {
             console.warn('[onboarding/scene] density room join warnings:', joinResult.errors);
           }
         } catch (joinErr) {
-          // Soft-fail: do not block onboarding if room join hiccups.
+          // Non-DC soft-gate: no forced joins, so hiccups do not block continue.
+          if (isDc) {
+            console.warn('[onboarding/scene] density room join failed:', joinErr);
+            setPreferenceError(
+              'Could not join This week in DC. Check your connection and try again.'
+            );
+            return;
+          }
           console.warn('[onboarding/scene] density room join failed (continuing):', joinErr);
         }
       }
