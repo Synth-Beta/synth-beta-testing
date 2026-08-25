@@ -81,8 +81,7 @@ export default function ConnectScreen() {
         }
     }, []);
 
-    // Connecting music is OPTIONAL — continue to the mandatory genres + artists step.
-    // (When Spotify/Apple Music sync works, that step auto-fills from the library.)
+    // Connecting music is optional. Next: density room preference, then artists.
     const handleContinue = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push('/(onboarding)/scene');
