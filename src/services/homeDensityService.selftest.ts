@@ -4,7 +4,9 @@
  */
 import {
   clampFeaturedBand,
+  getHomeWarmT1Scorecard,
   orderFeaturedByCollisionPotential,
+  recordHomeWarmT1Instrument,
 } from './homeDensityService';
 import type { WeeklyFeaturedShow } from './weeklyFeaturedService';
 
@@ -62,5 +64,26 @@ const byGoing = orderFeaturedByCollisionPotential(
   { goingCounts: new Map([['b', 12], ['a', 2]]) }
 );
 assert(byGoing[0].eventId === 'b', 'going counts break position/doors ties');
+
+// T1 instrument: pass when eligibleCount >= 3
+const t1Pass = recordHomeWarmT1Instrument({
+  eligibleCount: 4,
+  shownCount: 3,
+  at: new Date('2026-08-25T16:00:00Z'),
+});
+assert(t1Pass.pass === true, 'T1 pass at eligibleCount=4');
+assert(t1Pass.eligibleCount === 4, 'T1 stores gate-pass count');
+assert(t1Pass.shownCount === 3, 'T1 stores post-hide shown count');
+
+const t1Fail = recordHomeWarmT1Instrument({
+  eligibleCount: 2,
+  shownCount: 2,
+  at: new Date('2026-08-24T16:00:00Z'),
+});
+assert(t1Fail.pass === false, 'T1 fail under threshold');
+
+const scorecard = getHomeWarmT1Scorecard({ windowDays: 7, now: new Date('2026-08-25T20:00:00Z') });
+assert(scorecard.days.length >= 1, 'T1 scorecard retains days');
+assert(scorecard.days.some((d) => d.day === t1Pass.day && d.pass), 'T1 scorecard keeps pass day');
 
 console.log('homeDensityService.selftest: ok');

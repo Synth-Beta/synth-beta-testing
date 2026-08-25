@@ -14,6 +14,7 @@ import {
 } from '@/services/chatWarmthService';
 import {
   getHiddenHomeWarmChatIds,
+  recordHomeWarmT1Instrument,
   reportEmptyHomeWarmChat,
 } from '@/services/homeDensityService';
 
@@ -24,6 +25,7 @@ interface WarmChatsStripProps {
 export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) => {
   const [chats, setChats] = useState<HomeWarmChat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [t1EligibleCount, setT1EligibleCount] = useState<number | null>(null);
 
   const load = useCallback(async (force = false) => {
     if (!SYNTH_20_DEMO) return;
@@ -31,9 +33,18 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
       const next = await getHomeWarmChats({ force });
       const hidden = getHiddenHomeWarmChatIds();
       // Never pad after T3 hides — under-gate / hidden stay off Home.
-      setChats(next.filter((c) => !hidden.has(c.chatId)));
+      const shown = next.filter((c) => !hidden.has(c.chatId));
+      // T1: gate-pass count (eligible), not post-hide shown count.
+      recordHomeWarmT1Instrument({
+        eligibleCount: next.length,
+        shownCount: shown.length,
+      });
+      setT1EligibleCount(next.length);
+      setChats(shown);
     } catch (err) {
       console.error('[WarmChatsStrip]', err);
+      recordHomeWarmT1Instrument({ eligibleCount: 0, shownCount: 0 });
+      setT1EligibleCount(0);
       setChats([]);
     } finally {
       setLoading(false);
@@ -96,6 +107,10 @@ export const WarmChatsStrip: React.FC<WarmChatsStripProps> = ({ onOpenChat }) =>
       data-warm-count={chats.length}
       data-warm-min={HOME_WARM_STRIP_MIN}
       data-warm-max={HOME_WARM_STRIP_MAX}
+      data-t1-eligible-count={t1EligibleCount ?? undefined}
+      data-t1-pass={
+        t1EligibleCount == null ? undefined : t1EligibleCount >= HOME_WARM_STRIP_MIN ? 'true' : 'false'
+      }
     >
       <div style={{ marginBottom: 12 }}>
         <h2

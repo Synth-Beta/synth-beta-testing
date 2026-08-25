@@ -24,11 +24,29 @@ export type PeopleGoingProof = {
 };
 
 const WARM_HIDE_STORAGE_KEY = 'synth.home.warm.hide.v1';
+/** Chicken-egg T1: dated daily eligible counts (DC civil day). */
+const T1_SCORECARD_STORAGE_KEY = 'synth.home.warm.t1.v1';
+const T1_PASS_THRESHOLD = 3;
+const T1_SCORECARD_KEEP_DAYS = 14;
 
 type WarmHideStore = {
   /** YYYY-MM-DD America/New_York civil date */
   day: string;
   chatIds: string[];
+};
+
+export type HomeWarmT1DayEntry = {
+  /** YYYY-MM-DD America/New_York */
+  day: string;
+  eligibleCount: number;
+  /** After same-day T3 hides (Home shown count). */
+  shownCount: number;
+  pass: boolean;
+  updatedAt: string;
+};
+
+type HomeWarmT1Scorecard = {
+  days: HomeWarmT1DayEntry[];
 };
 
 function dcCivilDay(at: Date = new Date()): string {
@@ -187,6 +205,122 @@ export function getHiddenHomeWarmChatIds(now: Date = new Date()): Set<string> {
   const store = readWarmHideStore();
   if (store.day !== dcCivilDay(now)) return new Set();
   return new Set(store.chatIds);
+}
+
+/**
+ * Chicken-egg T1 instrument: dated `[home-density] T1 eligibleCount=N` when warm strip loads.
+ * Persists a rolling DC-day scorecard so QA/PM can evidence ≥3 eligible for 5/7 demo days.
+ */
+export function recordHomeWarmT1Instrument(payload: {
+  eligibleCount: number;
+  shownCount?: number;
+  at?: Date;
+}): HomeWarmT1DayEntry {
+  const at = payload.at ?? new Date();
+  const day = dcCivilDay(at);
+  const eligibleCount = Math.max(0, Math.floor(Number(payload.eligibleCount) || 0));
+  const shownCount =
+    payload.shownCount == null
+      ? eligibleCount
+      : Math.max(0, Math.floor(Number(payload.shownCount) || 0));
+  const entry: HomeWarmT1DayEntry = {
+    day,
+    eligibleCount,
+    shownCount,
+    pass: eligibleCount >= T1_PASS_THRESHOLD,
+    updatedAt: at.toISOString(),
+  };
+
+  console.info(`[home-density] T1 eligibleCount=${eligibleCount}`, {
+    source: 'loi-571-home-density',
+    day,
+    shownCount,
+    pass: entry.pass,
+    threshold: T1_PASS_THRESHOLD,
+  });
+
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('synth-home-warm-t1', { detail: entry }));
+    }
+  } catch {
+    // ignore
+  }
+
+  persistHomeWarmT1Day(entry);
+  return entry;
+}
+
+/** Rolling T1 scorecard (newest first). Window for demo-week readout. */
+export function getHomeWarmT1Scorecard(opts?: {
+  windowDays?: number;
+  now?: Date;
+}): {
+  days: HomeWarmT1DayEntry[];
+  passDays: number;
+  windowDays: number;
+  meetsFiveOfSeven: boolean;
+} {
+  const windowDays = opts?.windowDays ?? 7;
+  const now = opts?.now ?? new Date();
+  const all = readHomeWarmT1Scorecard().days;
+  const cutoff = dcCivilDayOffset(now, -(windowDays - 1));
+  const days = all.filter((d) => d.day >= cutoff).slice(0, windowDays);
+  const passDays = days.filter((d) => d.pass).length;
+  return {
+    days,
+    passDays,
+    windowDays,
+    meetsFiveOfSeven: windowDays >= 7 ? passDays >= 5 : passDays >= Math.ceil(windowDays * (5 / 7)),
+  };
+}
+
+function dcCivilDayOffset(at: Date, dayDelta: number): string {
+  // Approximate civil-day walk via UTC noon anchors in America/New_York parts.
+  const day = dcCivilDay(at);
+  const [y, m, d] = day.split('-').map(Number);
+  const anchor = new Date(Date.UTC(y, m - 1, d, 16, 0, 0)); // ~noon ET-ish
+  anchor.setUTCDate(anchor.getUTCDate() + dayDelta);
+  return dcCivilDay(anchor);
+}
+
+function persistHomeWarmT1Day(entry: HomeWarmT1DayEntry): void {
+  if (typeof localStorage === 'undefined') return;
+  const store = readHomeWarmT1Scorecard();
+  const without = store.days.filter((d) => d.day !== entry.day);
+  const next: HomeWarmT1Scorecard = {
+    days: [entry, ...without]
+      .sort((a, b) => b.day.localeCompare(a.day))
+      .slice(0, T1_SCORECARD_KEEP_DAYS),
+  };
+  try {
+    localStorage.setItem(T1_SCORECARD_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function readHomeWarmT1Scorecard(): HomeWarmT1Scorecard {
+  if (typeof localStorage === 'undefined') return { days: [] };
+  try {
+    const raw = localStorage.getItem(T1_SCORECARD_STORAGE_KEY);
+    if (!raw) return { days: [] };
+    const parsed = JSON.parse(raw) as HomeWarmT1Scorecard;
+    if (!parsed || !Array.isArray(parsed.days)) return { days: [] };
+    return {
+      days: parsed.days
+        .filter((d) => d && typeof d.day === 'string')
+        .map((d) => ({
+          day: String(d.day),
+          eligibleCount: Math.max(0, Math.floor(Number(d.eligibleCount) || 0)),
+          shownCount: Math.max(0, Math.floor(Number(d.shownCount) || 0)),
+          pass: Boolean(d.pass) || Math.floor(Number(d.eligibleCount) || 0) >= T1_PASS_THRESHOLD,
+          updatedAt: typeof d.updatedAt === 'string' ? d.updatedAt : new Date().toISOString(),
+        })),
+    };
+  } catch {
+    return { days: [] };
+  }
 }
 
 function readWarmHideStore(): WarmHideStore {
