@@ -13,20 +13,34 @@ const ONBOARDING_MAX_ROOM_JOINS = 2;
 
 function isDcCity(city) {
   if (!city) return false;
-  const c = city.trim().toLowerCase();
+  const c = city.trim().toLowerCase().replace(/\s+/g, ' ');
   if (!c) return false;
-  if (c === 'dc' || c === 'd.c.' || c === 'd.c') return true;
-  const needles = [
+  const exact = new Set([
+    'dc',
+    'd.c',
+    'd.c.',
     'washington',
+    'washington, dc',
+    'washington dc',
+    'washington d.c',
+    'washington d.c.',
+    'district of columbia',
     'arlington',
+    'arlington, va',
     'alexandria',
+    'alexandria, va',
     'silver spring',
+    'silver spring, md',
     'bethesda',
+    'bethesda, md',
     'georgetown',
     'capitol hill',
-    'district of columbia',
-  ];
-  return needles.some((n) => c === n || c.includes(n));
+  ]);
+  if (exact.has(c)) return true;
+  if (/\bwashington\b/.test(c) && (/\bdc\b/.test(c) || /\bd\.c\.?\b/.test(c) || c.includes('district'))) {
+    return true;
+  }
+  return false;
 }
 
 function buildOnboardingJoinPlan({
@@ -71,8 +85,11 @@ function assert(cond, msg) {
 
 assert(isDcCity('Washington, DC'), 'dc city');
 assert(isDcCity('Arlington'), 'arlington');
+assert(isDcCity('DC'), 'exact dc');
 assert(!isDcCity('Chicago'), 'non-dc');
-
+assert(!isDcCity('Washington State'), 'washington state false positive');
+assert(!isDcCity('medicine'), 'dc substring false positive');
+assert(!isDcCity('Georgetown, KY'), 'georgetown ky false positive');
 const required = buildOnboardingJoinPlan({
   locationCity: 'Washington, DC',
   preference: 'free_this_weekend',

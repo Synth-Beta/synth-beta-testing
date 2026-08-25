@@ -32,15 +32,22 @@ SET search_path = public
 AS $$
 DECLARE
   v_chat_id uuid;
+  v_scene_id text;
 BEGIN
-  IF p_scene_id IS NULL OR length(trim(p_scene_id)) = 0 THEN
+  v_scene_id := lower(trim(COALESCE(p_scene_id, '')));
+  IF v_scene_id = '' THEN
     RAISE EXCEPTION 'p_scene_id is required';
+  END IF;
+
+  -- Allowlist only density collision rooms (LOI-562 review P1).
+  IF v_scene_id NOT IN ('dc-this-week', 'dc-going-out') THEN
+    RAISE EXCEPTION 'p_scene_id is not an allowed density scene room';
   END IF;
 
   SELECT c.id INTO v_chat_id
   FROM public.chats c
   WHERE c.entity_type = 'scene'
-    AND c.entity_id = p_scene_id
+    AND c.entity_id = v_scene_id
     AND c.is_group_chat = true
   LIMIT 1;
 
@@ -56,10 +63,10 @@ BEGIN
     is_verified
   )
   VALUES (
-    COALESCE(NULLIF(trim(p_chat_name), ''), p_scene_id),
+    COALESCE(NULLIF(trim(p_chat_name), ''), v_scene_id),
     true,
     'scene',
-    p_scene_id,
+    v_scene_id,
     true
   )
   RETURNING id INTO v_chat_id;
@@ -69,11 +76,14 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.get_or_create_scene_room(text, text) IS
-  'Idempotent create/lookup for density persistent scene rooms (LOI-562).';
+  'Idempotent create/lookup for allowlisted density scene rooms (LOI-562).';
 
+-- SECURITY DEFINER + public schema defaults EXECUTE to PUBLIC; lock it down.
+REVOKE ALL ON FUNCTION public.get_or_create_scene_room(text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_or_create_scene_room(text, text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_or_create_scene_room(text, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_or_create_scene_room(text, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.get_or_create_scene_room(text, text) TO service_role;
 
--- Ensure both density rooms exist
+-- Ensure both density rooms exist (migration role has execute).
 SELECT public.get_or_create_scene_room('dc-this-week', 'This week in DC');
 SELECT public.get_or_create_scene_room('dc-going-out', 'Going out tonight / this weekend');

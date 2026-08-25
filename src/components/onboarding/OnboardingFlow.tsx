@@ -418,6 +418,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       }
 
       // Density membership: auto-join room 1 (DC); optional room 2 only if opted in.
+      // Fail closed for required room 1 so Home never lands without membership.
       try {
         const joinResult = await SceneRoomService.applyOnboardingJoins({
           userId: user.id,
@@ -433,12 +434,25 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
           suggested_show_id: joinResult.suggestedShow?.id ?? null,
           marked_interested: joinResult.markedInterestedEventId,
           room_join_count: joinResult.plan.roomJoinCount,
+          required_join_failed: joinResult.requiredJoinFailed,
         });
+        if (joinResult.requiredJoinFailed) {
+          setCompletionError(
+            'Could not join This week in DC. Check your connection and try again.'
+          );
+          completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          return;
+        }
         if (joinResult.errors.length > 0) {
           logger.warn('OnboardingFlow: density room join warnings:', joinResult.errors);
         }
       } catch (joinErr) {
-        logger.error('OnboardingFlow: density room join failed (continuing):', joinErr);
+        logger.error('OnboardingFlow: density room join failed:', joinErr);
+        setCompletionError(
+          'Could not join This week in DC. Check your connection and try again.'
+        );
+        completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
       }
 
       // Save music preferences (optional; same logic as former handleMusicTags)

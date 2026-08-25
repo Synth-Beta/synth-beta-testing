@@ -27,6 +27,8 @@ export type ApplyOnboardingRoomJoinsResult = {
   suggestedShow: FeaturedShowCandidate | null;
   markedInterestedEventId: string | null;
   errors: string[];
+  /** True when DC required room 1 did not land (fail closed before Home). */
+  requiredJoinFailed: boolean;
 };
 
 async function ensureSceneRoomChatId(
@@ -153,6 +155,7 @@ export async function applyOnboardingRoomJoins(
     suggestedShow: null,
     markedInterestedEventId: null,
     errors: [],
+    requiredJoinFailed: false,
   };
 
   if (!plan.isDc || !plan.requiredRoomId) {
@@ -165,14 +168,23 @@ export async function applyOnboardingRoomJoins(
   }
 
   for (const roomId of roomsToJoin.slice(0, 2)) {
+    const isRequired = roomId === plan.requiredRoomId;
     const { chatId, error } = await ensureSceneRoomChatId(supabase, roomId);
     if (!chatId) {
       result.errors.push(error || `missing_chat:${roomId}`);
+      if (isRequired) {
+        result.requiredJoinFailed = true;
+        return result;
+      }
       continue;
     }
     const joinError = await joinChatParticipant(supabase, chatId, input.userId);
     if (joinError) {
       result.errors.push(joinError);
+      if (isRequired) {
+        result.requiredJoinFailed = true;
+        return result;
+      }
       continue;
     }
     result.joinedRoomIds.push(roomId);
@@ -196,6 +208,10 @@ export async function applyOnboardingRoomJoins(
         result.markedInterestedEventId = result.suggestedShow.id;
       }
     }
+  }
+
+  if (!result.joinedRoomIds.includes(plan.requiredRoomId)) {
+    result.requiredJoinFailed = true;
   }
 
   return result;

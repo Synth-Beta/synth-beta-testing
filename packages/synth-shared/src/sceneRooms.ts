@@ -79,27 +79,40 @@ export const ONBOARDING_PREFERENCE_OPTIONS: readonly {
   },
 ] as const;
 
-const DC_CITY_NEEDLES = [
+/** Exact metro labels (avoid bare substring false positives). */
+const DC_CITY_EXACT = new Set([
+  'dc',
+  'd.c',
+  'd.c.',
   'washington',
   'washington, dc',
   'washington dc',
-  'dc',
+  'washington d.c',
+  'washington d.c.',
   'district of columbia',
   'arlington',
+  'arlington, va',
   'alexandria',
+  'alexandria, va',
   'silver spring',
+  'silver spring, md',
   'bethesda',
+  'bethesda, md',
   'georgetown',
   'capitol hill',
-] as const;
+]);
 
 /** Soft DC gate for density onboarding (metro-adjacent OK). */
 export function isDcCity(city: string | null | undefined): boolean {
   if (!city) return false;
-  const c = city.trim().toLowerCase();
+  const c = city.trim().toLowerCase().replace(/\s+/g, ' ');
   if (!c) return false;
-  if (c === 'dc' || c === 'd.c.' || c === 'd.c') return true;
-  return DC_CITY_NEEDLES.some((needle) => c === needle || c.includes(needle));
+  if (DC_CITY_EXACT.has(c)) return true;
+  // Washington only when DC / District markers are present.
+  if (/\bwashington\b/.test(c) && (/\bdc\b/.test(c) || /\bd\.c\.?\b/.test(c) || c.includes('district'))) {
+    return true;
+  }
+  return false;
 }
 
 export function isReservedSceneRoomId(entityId: string | null | undefined): boolean {
