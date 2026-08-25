@@ -2033,11 +2033,33 @@ interface FriendEventInterest {
           </>
         )}
         {SYNTH_20_DEMO && selectedFeedType === 'events' && (
-          <FeaturedThisWeekSection
-            onEventClick={(eventId) => {
-              void handleEventClick(eventId);
-            }}
-          />
+          <>
+            <HomeHeroSection
+              onSeeThisWeek={() => {
+                document
+                  .getElementById('synth20-featured-week')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onOpenChats={() => navigateSynthView('chat')}
+            />
+            <FeaturedThisWeekSection
+              onEventClick={(eventId) => {
+                void handleEventClick(eventId);
+              }}
+              onSeeAll={() => {
+                document
+                  .getElementById('synth20-featured-week')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+            <WhosGoingSection
+              events={[...firstDegreeEvents, ...friendFeedEvents]}
+              onEventClick={(eventId) => {
+                void handleEventClick(eventId);
+              }}
+            />
+            <HomeChatTeaserSection onOpenMessages={() => navigateSynthView('chat')} />
+          </>
         )}
         {/* Feed content based on selection */}
         {selectedFeedType === 'events' && (

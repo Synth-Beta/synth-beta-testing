@@ -69,6 +69,7 @@ import {
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import type { UnifiedFeedItem } from '@/services/unifiedFeedService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
+import { SYNTH_20_COPY, SYNTH_20_DEMO } from '@/config/synth20Demo';
 
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -2323,6 +2324,18 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
             >
               New Chat
             </SynthButton>
+            {SYNTH_20_DEMO && (
+              <p
+                style={{
+                  margin: '10px 0 0',
+                  fontSize: 13,
+                  lineHeight: 1.4,
+                  color: 'var(--neutral-600)',
+                }}
+              >
+                {SYNTH_20_COPY.chats.newThreadHint}
+              </p>
+            )}
         </div>
 
         {/* Chat List */}
@@ -2345,7 +2358,11 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   margin: 0,
                   textAlign: 'center'
                 }}>
-                  {chatFetchError ? 'Could not load conversations' : 'No Conversations Yet'}
+                  {chatFetchError
+                    ? 'Could not load conversations'
+                    : SYNTH_20_DEMO
+                      ? SYNTH_20_COPY.tabs.messages
+                      : 'No Conversations Yet'}
                 </h2>
 
                 {/* Subtitle */}
@@ -2358,7 +2375,11 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   margin: 0,
                   textAlign: 'center'
                 }}>
-                  {chatFetchError ? 'There was a problem loading your chats. Please try again.' : 'Start chatting with your friends!'}
+                  {chatFetchError
+                    ? 'There was a problem loading your chats. Please try again.'
+                    : SYNTH_20_DEMO
+                      ? SYNTH_20_COPY.chats.messagesEmpty
+                      : 'Start chatting with your friends!'}
                 </p>
               </div>
               
@@ -2372,6 +2393,21 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 }}
               >
                 <div className="swift-ui-card-content">
+                  {SYNTH_20_DEMO && !chatFetchError ? (
+                    <p
+                      style={{
+                        fontFamily: 'var(--font-family)',
+                        color: 'var(--neutral-900)',
+                        fontSize: 'var(--typography-meta-size, 16px)',
+                        fontWeight: 'var(--typography-meta-weight, 500)',
+                        lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                        margin: 0,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {SYNTH_20_COPY.chats.newThreadHint}
+                    </p>
+                  ) : (
                   <ul className="list-disc space-y-0 ml-6" style={{ color: 'var(--neutral-900)' }}>
                     <li className="mb-0">
                       <span style={{ 
@@ -2401,12 +2437,72 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       }}>Then start chatting!</span>
                     </li>
                   </ul>
+                  )}
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto" style={{ paddingTop: 0, paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column' }}>
-              {chats.map((chat, index) => (
+              {(() => {
+                type ChatListEntry =
+                  | { kind: 'header'; key: string; title: string }
+                  | { kind: 'chat'; key: string; chat: (typeof chats)[number] };
+                const entries: ChatListEntry[] = [];
+                if (SYNTH_20_DEMO) {
+                  const showChats = chats.filter((c) => c.entity_type === 'event');
+                  const sceneChats = chats.filter((c) => c.entity_type === 'genre');
+                  const otherChats = chats.filter(
+                    (c) => c.entity_type !== 'event' && c.entity_type !== 'genre'
+                  );
+                  if (showChats.length > 0) {
+                    entries.push({
+                      kind: 'header',
+                      key: 'hdr-show',
+                      title: SYNTH_20_COPY.chats.messagesShowSection,
+                    });
+                    showChats.forEach((chat) =>
+                      entries.push({ kind: 'chat', key: chat.id, chat })
+                    );
+                  }
+                  if (sceneChats.length > 0) {
+                    entries.push({
+                      kind: 'header',
+                      key: 'hdr-scene',
+                      title: SYNTH_20_COPY.chats.messagesSceneSection,
+                    });
+                    sceneChats.forEach((chat) =>
+                      entries.push({ kind: 'chat', key: chat.id, chat })
+                    );
+                  }
+                  otherChats.forEach((chat) =>
+                    entries.push({ kind: 'chat', key: chat.id, chat })
+                  );
+                } else {
+                  chats.forEach((chat) =>
+                    entries.push({ kind: 'chat', key: chat.id, chat })
+                  );
+                }
+                return entries.map((entry, index) => {
+                  if (entry.kind === 'header') {
+                    return (
+                      <div
+                        key={entry.key}
+                        style={{
+                          padding: '16px var(--spacing-screen-margin-x, 20px) 8px',
+                          fontFamily: 'var(--font-family)',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          letterSpacing: '0.03em',
+                          textTransform: 'uppercase',
+                          color: 'var(--neutral-500)',
+                        }}
+                      >
+                        {entry.title}
+                      </div>
+                    );
+                  }
+                  const chat = entry.chat;
+                  return (
                 <div
                   key={chat.id}
                   className="cursor-pointer transition-colors"
@@ -2414,7 +2510,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     padding: 'var(--spacing-grouped, 24px)',
                     paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
                     paddingRight: 'var(--spacing-screen-margin-x, 20px)',
-                    borderBottom: index < chats.length - 1 ? '1px solid var(--neutral-200)' : 'none',
+                    borderBottom: index < entries.length - 1 ? '1px solid var(--neutral-200)' : 'none',
                     backgroundColor: selectedChat?.id === chat.id ? 'var(--neutral-100)' : 'transparent'
                   }}
                   onClick={() => {
@@ -2526,7 +2622,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       </Button>
                     </div>
                 </div>
-              ))}
+                  );
+                });
+              })()}
             </div>
           )}
       </div>
