@@ -71,6 +71,9 @@ export default function ArtistsScreen() {
         }
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // End onboarding on Home (feed), not Discover.
+        // No trailing slash — '/(tabs)/' is not a valid typed route and every other
+        // call site in the app uses this form (_layout, share, email-required, post).
         router.replace('/(tabs)');
     };
 

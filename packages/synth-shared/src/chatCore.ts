@@ -83,7 +83,8 @@ export interface SharedUserChat {
   latest_message_created_at: string | null;
   latest_message_sender_name: string | null;
   group_admin_id: string | null;
-  entity_type: 'event' | 'artist' | 'venue' | 'genre' | null;
+  /** 'scene' added by migration 20260825120000 (scene rooms / density onboarding). */
+  entity_type: 'event' | 'artist' | 'venue' | 'genre' | 'scene' | null;
   entity_uuid: string | null;
   created_at: string;
   updated_at: string;

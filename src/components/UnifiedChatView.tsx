@@ -158,7 +158,7 @@ interface Chat {
   unread_count?: number; // Keep for backward compatibility during transition
   has_unread?: boolean;
   // Verified chat fields
-  entity_type?: 'event' | 'artist' | 'venue' | 'genre' | null;
+  entity_type?: 'event' | 'artist' | 'venue' | 'genre' | 'scene' | null;
   entity_id?: string | null;
   entity_uuid?: string | null;
   is_verified?: boolean;
