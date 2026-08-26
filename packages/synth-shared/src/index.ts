@@ -124,10 +124,21 @@ export {
 } from './chatReactions';
 export {
   CHAT_NOTIFICATION_TYPES,
+  ENTITY_CHAT_TYPES,
+  DEFAULT_CHAT_NOTIFICATION_SETTINGS,
   isChatNotificationType,
-  chatNotificationTypesFilter,
+  isEntityChatType,
+  wouldNotify,
+  muteReason,
   type ChatNotificationType,
+  type EntityChatType,
+  type ChatNotificationSettings,
 } from './chatNotificationPolicy';
+export {
+  isChatMuted,
+  setChatMuted,
+  fetchMutedChatIds,
+} from './chatMute';
 export {
   SCENE_ROOM_STORAGE_ENTITY_TYPE,
   SCENE_ROOM_IDS,

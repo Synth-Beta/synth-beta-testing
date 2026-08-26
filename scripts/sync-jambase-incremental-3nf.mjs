@@ -1119,10 +1119,14 @@ class IncrementalSync3NF {
         } = eventData;
 
         const rawArtistGenres = eventData.artist_id ? artistGenresById.get(eventData.artist_id) : undefined;
-        const usableArtistGenres =
-          rawArtistGenres && rawArtistGenres.length === 1 && rawArtistGenres[0] === 'small artist'
-            ? undefined
-            : rawArtistGenres;
+        // 'small artist' is a placeholder, not a genre, and it is NOT always
+        // alone in the array — 169 artists were found carrying mixed values
+        // like ['small artist','edm'] (2026-08-25). The old check here only
+        // rejected an array of exactly length 1, so a mixed array was treated
+        // as usable and the sentinel got copied straight onto the event.
+        // Filter it out by value instead of testing the array's shape.
+        const cleanedArtistGenres = (rawArtistGenres || []).filter((g) => g !== 'small artist');
+        const usableArtistGenres = cleanedArtistGenres.length > 0 ? cleanedArtistGenres : undefined;
         const resolvedGenres = eventGenresFromArtistIfEmpty(eventGenres, usableArtistGenres);
 
         const isUpdate = existingByJambase.has(jambaseEventId);

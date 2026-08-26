@@ -242,7 +242,24 @@ async function main() {
   console.log(`   Sources: ${JSON.stringify(totals.bySource)}`);
 
   if (clearedBacklog) {
+    // Reaching the end of the scan means the checkpoint is parked at the TAIL
+    // of the event_count-desc ordering (lastEventCount: 0). Left in place, the
+    // next run resumes *after* that point, fetches zero rows, and exits
+    // instantly reporting "backlog is clear" — even when artists were skipped
+    // mid-run by throttle trips or batch boundaries, and even when the sync has
+    // since added brand-new unattempted artists. Observed live 2026-08-25: 713
+    // artists with upcoming events stayed unattempted across repeated restarts.
+    //
+    // Dropping the checkpoint here makes the next run rescan from the top. It
+    // does NOT re-query dead ends: genre_lookup_attempted_at stays set, and
+    // get_stuck_artists_by_event_count filters on `attempted IS NULL`.
+    try {
+      fs.unlinkSync(CHECKPOINT_FILE);
+    } catch {
+      // never written, or already gone — nothing to reset
+    }
     console.log('\n✅ Backlog is clear — no stuck, unattempted artists left.');
+    console.log('   Checkpoint reset, so the next run rescans from the top for newly-synced artists.');
     console.log('   Run with GENRE_ENRICH_RESET=1 to re-sweep already-attempted artists (e.g. after adding a new source).');
   } else if (stoppedForRuntime) {
     console.log(

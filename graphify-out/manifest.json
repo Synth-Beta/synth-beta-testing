@@ -230,8 +230,8 @@
     "semantic_hash": "10ba2e79ce9eaf468733a8283a2a3e29"
   },
   "mobile/app/(onboarding)/artists.tsx": {
-    "mtime": 1787703298.7165172,
-    "ast_hash": "cbf0ca6d9802e549a0964fbc2fb82935",
+    "mtime": 1787703637.7057154,
+    "ast_hash": "89600a19d211907ff17c4ea6038427cb",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/connect.tsx": {
@@ -1130,8 +1130,8 @@
     "semantic_hash": "7f7e112bf630810fe28444b82fd0fb6c"
   },
   "packages/synth-shared/src/index.ts": {
-    "mtime": 1787703349.8879075,
-    "ast_hash": "c7e2061eeabf21d1c69650fb3f4342f6",
+    "mtime": 1787703365.06601,
+    "ast_hash": "e1836676b2c93ed94e65428b22643b04",
     "semantic_hash": ""
   },
   "packages/synth-shared/src/notificationNavigation.ts": {
@@ -1620,8 +1620,8 @@
     "semantic_hash": "6995e6df9e55c0607aff5d3a21fbbce3"
   },
   "src/components/UnifiedChatView.tsx": {
-    "mtime": 1787690959.6904664,
-    "ast_hash": "ce2a930b836e1a8f293b1ad5dd376f4b",
+    "mtime": 1787703445.2984238,
+    "ast_hash": "46c01c2cd9f64b88a831568fb70408cd",
     "semantic_hash": ""
   },
   "src/components/UnifiedFeed.tsx": {
@@ -9520,8 +9520,8 @@
     "semantic_hash": ""
   },
   "packages/synth-shared/src/chatCore.ts": {
-    "mtime": 1787691489.9339337,
-    "ast_hash": "a8ad1979e613275387d65358918d04fb",
+    "mtime": 1787703439.866678,
+    "ast_hash": "eecbf4fba466af2c83b49dc9b505d992",
     "semantic_hash": ""
   },
   "packages/synth-shared/src/chatCrypto.test.ts": {
@@ -9602,6 +9602,46 @@
   "supabase/chat-parity-2026-08-25/README.md": {
     "mtime": 1787690238.2257602,
     "ast_hash": "defa7d53f066379e77022826fa6c7fe2",
+    "semantic_hash": ""
+  },
+  "mobile/src/services/sceneRoomService.ts": {
+    "mtime": 1787703298.7239304,
+    "ast_hash": "7a6d5b6cca865c56a282bf18a75d1cdc",
+    "semantic_hash": ""
+  },
+  "packages/synth-shared/src/onboardingRoomJoin.ts": {
+    "mtime": 1787703298.7279131,
+    "ast_hash": "1b3c2199f228f2416d8245f5fb722e04",
+    "semantic_hash": ""
+  },
+  "packages/synth-shared/src/sceneRooms.smoke.mjs": {
+    "mtime": 1787703298.7290123,
+    "ast_hash": "31f9702b6de85444574781e49df561cd",
+    "semantic_hash": ""
+  },
+  "packages/synth-shared/src/sceneRooms.ts": {
+    "mtime": 1787703298.729608,
+    "ast_hash": "a8aa18ec80af0bd0f4b158202b0860a8",
+    "semantic_hash": ""
+  },
+  "scripts/seed-scene-rooms.mjs": {
+    "mtime": 1787703298.730822,
+    "ast_hash": "acb06808e998d053dff13654a7a94bd1",
+    "semantic_hash": ""
+  },
+  "src/components/onboarding/DensityPreferenceStep.tsx": {
+    "mtime": 1787703298.7322297,
+    "ast_hash": "8e7e5411f98a218b13d142b31dd0aaa0",
+    "semantic_hash": ""
+  },
+  "src/services/sceneRoomService.ts": {
+    "mtime": 1787703298.7379196,
+    "ast_hash": "eadf10d632f013c0669e165765f50677",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260825120000_scene_rooms_density_onboarding.sql": {
+    "mtime": 1787703298.7401114,
+    "ast_hash": "279fdda5597388ed01d9263147f386bc",
     "semantic_hash": ""
   }
 }

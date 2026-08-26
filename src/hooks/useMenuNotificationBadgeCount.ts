@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { CHAT_NOTIFICATION_TYPES } from '@synth/shared';
-
-/** Friend types get their own badge bucket below, so they are excluded here too. */
-const EXCLUDED_FROM_MENU_BADGE = `(${['friend_request', 'friend_accepted', ...CHAT_NOTIFICATION_TYPES].join(',')})`;
+/** Friend types get their own badge bucket below, so they are excluded here. */
+const EXCLUDED_FROM_MENU_BADGE = '(friend_request,friend_accepted)';
 
 /**
  * Unread counts for SideMenu / web rail "Menu" — matches HomeFeed MobileHeader badge logic.

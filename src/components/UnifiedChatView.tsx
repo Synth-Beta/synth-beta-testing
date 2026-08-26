@@ -81,7 +81,14 @@ import { ReplyQuote } from '@/components/chat/ReplyQuote';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { useChatPresence } from '@/hooks/useChatPresence';
 import { useChatReactions } from '@/hooks/useChatReactions';
-import { quotePreview, type QuotedMessage } from '@synth/shared';
+import {
+  quotePreview,
+  isChatMuted,
+  setChatMuted,
+  muteReason,
+  type QuotedMessage,
+} from '@synth/shared';
+import { getCurrentUserSettingsPreferences } from '@/services/userSettingsPreferencesService';
 import { Reply } from 'lucide-react';
 
 // Chat Review Message wrapper — renders exactly like EventMessageCard (no chrome/header)
@@ -253,6 +260,34 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     setReplyTo(null);
   }, [selectedChat?.id]);
 
+  // Mute state is per (user, chat) and lives in the database, so it has to be
+  // read when the thread opens rather than assumed false.
+  useEffect(() => {
+    if (!selectedChat?.id || !currentUserId) return;
+    let cancelled = false;
+
+    setIsMuted(false);
+    void isChatMuted(supabase, selectedChat.id, currentUserId).then((muted) => {
+      if (!cancelled) setIsMuted(muted);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChat?.id, currentUserId]);
+
+  // Settings are needed to explain WHY a chat is silent (global switch vs room
+  // opt-in vs this chat), not to gate delivery — the trigger decides that.
+  useEffect(() => {
+    let cancelled = false;
+    void getCurrentUserSettingsPreferences().then((prefs) => {
+      if (!cancelled && prefs) setNotificationPrefs(prefs);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId]);
+
   /** Starts a reply to `message`, quoting it above the composer. */
   const startReplyTo = useCallback((message: Message) => {
     setReplyTo({
@@ -314,7 +349,15 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   // Settings menu state
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [chatParticipants, setChatParticipants] = useState<any[]>([]);
+  // Backed by chat_participants.notifications_muted and enforced by the
+  // notify_chat_message_v2 trigger. Before 2026-08-26 this was local-only state
+  // that showed "Muted" and did nothing.
   const [isMuted, setIsMuted] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState<{
+    enable_push_notifications?: boolean;
+    enable_chat_notifications?: boolean;
+    enable_entity_chat_notifications?: boolean;
+  } | null>(null);
   const [linkedEvent, setLinkedEvent] = useState<any>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -1684,9 +1727,23 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     }
   };
 
-  const handleMuteNotifications = () => {
-    setIsMuted(!isMuted);
-    };
+  const handleMuteNotifications = async () => {
+    if (!selectedChat) return;
+    const next = !isMuted;
+
+    // Optimistic, rolled back if the write is rejected — a mute that silently
+    // failed would look identical to one that worked.
+    setIsMuted(next);
+    const { ok } = await setChatMuted(supabase, selectedChat.id, currentUserId, next);
+    if (!ok) {
+      setIsMuted(!next);
+      toast({
+        title: 'Could not update notifications',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleViewEvent = () => {
     if (linkedEvent) {
@@ -1853,6 +1910,25 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
             )}
             <span>{isMuted ? 'Unmute Notifications' : 'Mute Notifications'}</span>
           </DropdownMenuItem>
+
+          {/* If the chat is already silent for a reason other than this toggle,
+              say so — otherwise unmuting here appears to do nothing. */}
+          {(() => {
+            const reason = muteReason(notificationPrefs, selectedChat, isMuted);
+            if (!reason || isMuted) return null;
+            return (
+              <div
+                style={{
+                  padding: '4px 8px 6px 32px',
+                  fontSize: 12,
+                  lineHeight: 1.3,
+                  color: 'var(--neutral-600)',
+                }}
+              >
+                {reason}
+              </div>
+            );
+          })()}
 
           {selectedChat.is_group_chat && linkedEvent && (
             <>

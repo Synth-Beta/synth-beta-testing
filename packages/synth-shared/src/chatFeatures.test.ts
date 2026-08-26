@@ -8,7 +8,8 @@
 import assert from 'node:assert/strict';
 import { summarizeReactions, type MessageReactionRow } from './chatReactions.ts';
 import { quotePreview } from './chatCore.ts';
-import { formatTypingIndicator } from './chatPresence.ts';
+import { formatTypingIndicator, joinChatPresence } from './chatPresence.ts';
+import { wouldNotify, muteReason } from './chatNotificationPolicy.ts';
 
 const ME = 'user-me';
 const THEM = 'user-them';
@@ -102,7 +103,150 @@ function typing() {
   console.log('  typing: 0/1/2/many wording');
 }
 
+/**
+ * Regression: "cannot add presence callbacks after joining a channel".
+ *
+ * RealtimeClient.channel(topic) returns an EXISTING channel for a topic rather
+ * than creating a new one, and RealtimeChannel.on() throws for presence
+ * listeners once the channel has joined. Reopening the same chat therefore
+ * crashed. This stub reproduces both behaviours exactly.
+ */
+function presenceReuse() {
+  let channelCalls = 0;
+  let broadcastListeners = 0;
+  const sent: unknown[] = [];
+  const channels = new Map<string, any>();
+
+  const supabase: any = {
+    channel(topic: string) {
+      channelCalls += 1;
+      const existing = channels.get(topic);
+      if (existing) return existing; // real client dedupes by topic
+      const chan: any = {
+        joined: false,
+        on(type: string, _filter: unknown, _cb: unknown) {
+          // Real guard: presence listeners are rejected after joining.
+          if (chan.joined && type === 'presence') {
+            throw new Error('cannot add presence callbacks after joining a channel');
+          }
+          if (type === 'broadcast') broadcastListeners += 1;
+          return chan;
+        },
+        subscribe() {
+          chan.joined = true;
+          return chan;
+        },
+        send(msg: unknown) {
+          sent.push(msg);
+          return Promise.resolve('ok');
+        },
+      };
+      channels.set(topic, chan);
+      return chan;
+    },
+    removeChannel: () => Promise.resolve('ok'),
+  };
+
+  const options = { chatId: 'chat-1', userId: 'me', userName: 'Alex' };
+
+  const first = joinChatPresence(supabase, { ...options, onTypingChange: () => {} });
+  first.setTyping(true);
+  void first.leave();
+
+  // The crash was here: remounting the same chat re-entered a joined channel.
+  const second = joinChatPresence(supabase, { ...options, onTypingChange: () => {} });
+  second.setTyping(true);
+  void second.leave();
+
+  // Stronger than just relying on the client's own dedupe: the room registry
+  // means the second mount never asks the client for a channel at all.
+  assert.equal(channelCalls, 1, 'channel created once for the chat');
+  assert.equal(channels.size, 1, 'one channel per chat topic');
+  assert.equal(
+    broadcastListeners,
+    1,
+    'listeners must be registered once, not stacked on every remount'
+  );
+  assert.ok(sent.length > 0, 'typing still broadcasts after the remount');
+
+  // A third mount while the first is still attached must also be safe.
+  const a = joinChatPresence(supabase, { ...options, onTypingChange: () => {} });
+  const b = joinChatPresence(supabase, { ...options, onTypingChange: () => {} });
+  assert.equal(broadcastListeners, 1, 'concurrent subscribers share one registration');
+  void a.leave();
+  void b.leave();
+
+  console.log('  presence: same-chat remount reuses the channel, no presence callbacks');
+}
+
 reactions();
 quotes();
 typing();
+presenceReuse();
+
+/**
+ * Notification policy: mirrors the recipient filter in notify_chat_message_v2().
+ * If these diverge from the trigger, the UI explains a state the database does
+ * not actually produce.
+ */
+function notificationPolicy() {
+  const direct = { entity_type: null };
+  const genreRoom = { entity_type: 'genre' };
+  const on = {
+    enable_push_notifications: true,
+    enable_chat_notifications: true,
+    enable_entity_chat_notifications: false,
+  };
+
+  // Direct chats notify by default; entity rooms do not.
+  assert.equal(wouldNotify(on, direct, false), true);
+  assert.equal(wouldNotify(on, genreRoom, false), false, 'entity rooms are opt-in');
+  assert.equal(
+    wouldNotify({ ...on, enable_entity_chat_notifications: true }, genreRoom, false),
+    true
+  );
+
+  // Per-chat mute beats every setting.
+  assert.equal(wouldNotify(on, direct, true), false);
+  assert.equal(
+    wouldNotify({ ...on, enable_entity_chat_notifications: true }, genreRoom, true),
+    false
+  );
+
+  // Global chat switch beats the room opt-in.
+  assert.equal(
+    wouldNotify(
+      { ...on, enable_chat_notifications: false, enable_entity_chat_notifications: true },
+      genreRoom,
+      false
+    ),
+    false
+  );
+
+  // Missing settings row must fall back to the documented defaults, not to
+  // "notify everything" — entity rooms would spam on a fresh account.
+  assert.equal(wouldNotify(null, direct, false), true);
+  assert.equal(wouldNotify(null, genreRoom, false), false);
+  assert.equal(wouldNotify({}, genreRoom, false), false);
+
+  // Reasons are ordered most-specific first, so the message matches the cause.
+  assert.equal(muteReason(on, direct, true), 'Muted');
+  assert.equal(muteReason(on, genreRoom, false), 'Room notifications are off in Settings');
+  assert.equal(
+    muteReason({ ...on, enable_chat_notifications: false }, genreRoom, false),
+    'Chat notifications are off in Settings'
+  );
+  assert.equal(muteReason(on, direct, false), null, 'no reason when it will notify');
+
+  // Push off is not the same as silent: the bell entry is still created.
+  assert.ok(
+    (muteReason({ ...on, enable_push_notifications: false }, direct, false) ?? '').includes(
+      'still see'
+    )
+  );
+
+  console.log('  policy: mute > global chat > room opt-in, defaults safe');
+}
+
+notificationPolicy();
 console.log('chatFeatures: all checks passed');

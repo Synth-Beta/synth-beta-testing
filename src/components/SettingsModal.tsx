@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   LogOut, User, Bell, Shield, Mail, Key, AtSign, Eye, EyeOff,
   AlertCircle, CheckCircle, ArrowLeft, Info, ChevronRight, UserX, Lock,
+  MessageCircle, Users,
 } from 'lucide-react';
 import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,6 +63,9 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
   const [accountType, setAccountType] = useState<'user' | 'creator' | 'business' | 'admin'>('user');
   const [isVerified, setIsVerified] = useState(false);
   const [enablePushNotifications, setEnablePushNotifications] = useState(true);
+  const [enableChatNotifications, setEnableChatNotifications] = useState(true);
+  // Opt-in by default — genre/event rooms can have hundreds of members.
+  const [enableEntityChatNotifications, setEnableEntityChatNotifications] = useState(false);
   const [enableEmails, setEnableEmails] = useState(true);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -241,6 +245,32 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
     }
   };
 
+  const handleToggleChatNotifications = async (checked: boolean) => {
+    if (!user?.id) return;
+    setIsLoadingPreferences(true);
+    try {
+      const updated = await updateCurrentUserSettingsPreferences({ enable_chat_notifications: checked });
+      if (updated) { setEnableChatNotifications(checked); } else { throw new Error('Failed to update preferences'); }
+    } catch (error) {
+      console.error('Error toggling chat notifications:', error);
+    } finally {
+      setIsLoadingPreferences(false);
+    }
+  };
+
+  const handleToggleEntityChatNotifications = async (checked: boolean) => {
+    if (!user?.id) return;
+    setIsLoadingPreferences(true);
+    try {
+      const updated = await updateCurrentUserSettingsPreferences({ enable_entity_chat_notifications: checked });
+      if (updated) { setEnableEntityChatNotifications(checked); } else { throw new Error('Failed to update preferences'); }
+    } catch (error) {
+      console.error('Error toggling room notifications:', error);
+    } finally {
+      setIsLoadingPreferences(false);
+    }
+  };
+
   const handleToggleEmails = async (checked: boolean) => {
     if (!user?.id) return;
     setIsLoadingPreferences(true);
@@ -267,6 +297,9 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
       getCurrentUserSettingsPreferences().then(preferences => {
         if (preferences) {
           setEnablePushNotifications(preferences.enable_push_notifications);
+          // ?? keeps the documented defaults when migration 04/05 has not run yet.
+          setEnableChatNotifications(preferences.enable_chat_notifications ?? true);
+          setEnableEntityChatNotifications(preferences.enable_entity_chat_notifications ?? false);
           setEnableEmails(preferences.enable_emails);
           if (preferences.is_public_profile !== undefined) setIsPublicProfile(preferences.is_public_profile);
         }
@@ -388,6 +421,39 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                   checked={enablePushNotifications}
                   onCheckedChange={handleTogglePushNotifications}
                   disabled={isLoadingPreferences}
+                />
+                {/* Chat notifications. A burst in one conversation only notifies
+                    once until you read it — the database coalesces them. */}
+                <ToggleRow
+                  icon={MessageCircle}
+                  iconBg="bg-pink-100"
+                  iconColor="text-pink-500"
+                  label="Message Notifications"
+                  description={
+                    enableChatNotifications
+                      ? 'One notification per conversation until you read it'
+                      : 'Off — unread messages still show the red dot'
+                  }
+                  checked={enableChatNotifications}
+                  onCheckedChange={handleToggleChatNotifications}
+                  disabled={isLoadingPreferences}
+                />
+                {/* Genre / event / artist / venue rooms, off by default. */}
+                <ToggleRow
+                  icon={Users}
+                  iconBg="bg-sky-100"
+                  iconColor="text-sky-500"
+                  label="Genre & Event Room Notifications"
+                  description={
+                    !enableChatNotifications
+                      ? 'Unavailable while Message Notifications are off'
+                      : enableEntityChatNotifications
+                        ? 'On — these rooms can be busy'
+                        : 'Off by default'
+                  }
+                  checked={enableChatNotifications && enableEntityChatNotifications}
+                  onCheckedChange={handleToggleEntityChatNotifications}
+                  disabled={isLoadingPreferences || !enableChatNotifications}
                 />
                 {/* Email Notifications — hidden until a real email pipeline exists.
                     The `send-email` edge function isn't deployed and nothing reads

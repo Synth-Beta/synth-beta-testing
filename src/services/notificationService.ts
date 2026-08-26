@@ -1,8 +1,4 @@
-import {
-  deleteExpiredFriendAcceptedNotifications as deleteExpiredFriendAcceptedShared,
-  chatNotificationTypesFilter,
-  isChatNotificationType,
-} from '@synth/shared';
+import { deleteExpiredFriendAcceptedNotifications as deleteExpiredFriendAcceptedShared } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import type { 
   Notification, 
@@ -263,15 +259,13 @@ export class NotificationService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    // Query notifications table.
-    // Chat types are excluded here, in the query, rather than by each caller —
-    // unread messages are surfaced by the red dot on the chat icon only, and a
-    // screen that forgets to filter must not be able to show them.
+    // Query notifications table. Chat types are included: they are ordinary
+    // notifications again as of 2026-08-26, coalesced one-per-chat by
+    // notify_chat_message_v2() so a burst cannot flood this list.
     let query = supabase
       .from('notifications')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
-      .not('type', 'in', chatNotificationTypesFilter())
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -604,7 +598,6 @@ export class NotificationService {
         .from('notifications')
         .select('id, type, data, is_read')
         .eq('user_id', user.id)
-        .not('type', 'in', chatNotificationTypesFilter())
         .eq('is_read', false);
 
       if (fetchError) {
@@ -642,12 +635,9 @@ export class NotificationService {
         }
       }
 
-      // Filter out processed friend request notifications and chat notifications.
-      // Chat uses the unread dot on the chat icon instead — note this list now
-      // comes from @synth/shared so it cannot drift from the query-level filter
-      // (it previously missed the 'chat_message' type).
+      // Filter out processed friend request notifications. Chat notifications
+      // are counted normally now — the database keeps them to one row per chat.
       const validNotifications = notifications.filter((notif) => {
-        if (isChatNotificationType(notif.type)) return false;
         if (notif.type === 'friend_request' && notif.data?.request_id) {
           const requestId = notif.data.request_id;
           return !processedRequestIds.has(requestId);

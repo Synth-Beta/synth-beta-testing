@@ -10,6 +10,10 @@ export interface UserSettingsPreferences {
   id: string;
   user_id: string;
   enable_push_notifications: boolean;
+  /** Chat messages create notifications at all. */
+  enable_chat_notifications: boolean;
+  /** Genre / event / artist / venue rooms. Opt-in: these are high volume. */
+  enable_entity_chat_notifications: boolean;
   enable_emails: boolean;
   is_public_profile: boolean;
   created_at: string;
@@ -18,6 +22,8 @@ export interface UserSettingsPreferences {
 
 export interface UpdateUserSettingsPreferences {
   enable_push_notifications?: boolean;
+  enable_chat_notifications?: boolean;
+  enable_entity_chat_notifications?: boolean;
   enable_emails?: boolean;
   is_public_profile?: boolean;
 }
@@ -131,6 +137,9 @@ export async function createUserSettingsPreferences(
       .insert({
         user_id: userId,
         enable_push_notifications: true,
+        enable_chat_notifications: true,
+        // Opt-in: genre/event/artist/venue rooms are high volume.
+        enable_entity_chat_notifications: false,
         enable_emails: true,
         is_public_profile: true,
       })

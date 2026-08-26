@@ -1,0 +1,54 @@
+-- =============================================================================
+-- Drop the duplicate event-share notification
+-- 2026-08-26
+--
+-- notify_event_share_trigger fires AFTER INSERT ON messages alongside
+-- notify_chat_message_v2_trigger. For a message_type='event_share' row both run,
+-- so one share produces TWO notification rows and TWO pushes (the push webhook
+-- has no type filter).
+--
+-- Worse, notify_event_share() predates the v2 controls and honours none of them:
+--   * ignores chat_participants.notifications_muted   (per-chat mute)
+--   * ignores enable_chat_notifications               (global switch)
+--   * ignores enable_entity_chat_notifications        (genre/event room opt-in)
+--   * no coalescing — a new row per share
+--   * fans out from the chats.users array, not chat_participants
+--
+-- That last combination is the bad one: sharing an event into a genre room
+-- notifies every participant even if they muted the room.
+--
+-- notify_chat_message_v2() already covers this case. It sets the message to
+-- 'Shared an event' and carries chat_id + message_id in data, which is the same
+-- deep link. The client treats type='event_share' as generic anyway — it is
+-- absent from getNotificationIcon() and getNotificationColor(), so it renders
+-- with the default bell and grey chip.
+--
+-- SAFETY: drops one trigger. No table, column or row is touched. Existing
+-- event_share notification rows stay and keep rendering. Reversible by
+-- recreating the trigger (the function is left in place for exactly that).
+-- =============================================================================
+
+DROP TRIGGER IF EXISTS notify_event_share_trigger ON public.messages;
+
+-- The function is intentionally kept so this is a one-line revert:
+--   CREATE TRIGGER notify_event_share_trigger AFTER INSERT ON public.messages
+--     FOR EACH ROW EXECUTE FUNCTION public.notify_event_share();
+--
+-- Once you are happy, it can go too:
+--   DROP FUNCTION IF EXISTS public.notify_event_share();
+
+
+-- -----------------------------------------------------------------------------
+-- Verification (read-only)
+-- -----------------------------------------------------------------------------
+-- Expect exactly four triggers on messages, none of them notify_event_share:
+--   notify_chat_message_v2_trigger
+--   trigger_update_chat_last_activity
+--   update_chat_latest_message_trigger
+--   update_messages_updated_at        (BEFORE UPDATE, unrelated)
+--
+--   SELECT tgname FROM pg_trigger
+--   WHERE tgrelid='public.messages'::regclass AND NOT tgisinternal
+--   ORDER BY tgname;
+--
+-- Then share an event into a muted chat: no new notification row at all.

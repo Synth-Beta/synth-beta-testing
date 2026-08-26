@@ -43,7 +43,6 @@ function useOwnDisplayName(userId: string): string {
 export function useChatPresence(chatId: string | null | undefined, userId: string) {
   const userName = useOwnDisplayName(userId);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
-  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const handleRef = useRef<ChatPresenceHandle | null>(null);
 
   // Read through a ref, not a dependency: the name arrives a moment after mount,
@@ -56,14 +55,12 @@ export function useChatPresence(chatId: string | null | undefined, userId: strin
 
     // Reset immediately: state from the previous chat must never leak into this one.
     setTypingUsers([]);
-    setOnlineUserIds([]);
 
     const handle = joinChatPresence(supabase, {
       chatId,
       userId,
       userName: () => userNameRef.current,
       onTypingChange: setTypingUsers,
-      onPresenceChange: setOnlineUserIds,
     });
     handleRef.current = handle;
 
@@ -77,5 +74,5 @@ export function useChatPresence(chatId: string | null | undefined, userId: strin
     handleRef.current?.setTyping(isTyping);
   }, []);
 
-  return { typingUsers, onlineUserIds, setTyping };
+  return { typingUsers, setTyping };
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard, InteractionManager, DeviceEventEmitter } from 'react-native';
 import { CHAT_READ_EVENT } from '../../src/hooks/useUnreadMessageCount';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText } from 'lucide-react-native';
+import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText, Bell, BellOff } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,7 +25,7 @@ import {
 } from '../../src/components/chat/ChatMessageExtras';
 import { useChatPresence } from '../../src/hooks/useChatPresence';
 import { useChatReactions } from '../../src/hooks/useChatReactions';
-import { quotePreview, type QuotedMessage } from '@synth/shared';
+import { quotePreview, isChatMuted, setChatMuted, type QuotedMessage } from '@synth/shared';
 import { EventService, type EventDetail } from '../../src/services/eventService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -127,6 +127,8 @@ export default function ChatThreadScreen() {
     /** Message the composer is replying to, and the one whose action sheet is open. */
     const [replyTo, setReplyTo] = useState<QuotedMessage | null>(null);
     const [actionsFor, setActionsFor] = useState<Message | null>(null);
+    /** chat_participants.notifications_muted — enforced by notify_chat_message_v2. */
+    const [muted, setMuted] = useState(false);
 
     /** Inverted list: index 0 renders at the bottom — newest message first. */
     const listMessages = useMemo(() => [...messages].reverse(), [messages]);
@@ -137,6 +139,30 @@ export default function ChatThreadScreen() {
     // Reactions need migration 02; the hook returns an empty map until it is applied.
     const messageIds = useMemo(() => messages.map((m) => m.id), [messages]);
     const { reactions, toggleReaction } = useChatReactions(id, userId, messageIds);
+
+    // Mute is per (user, chat) and lives in the database, so read it on open.
+    useEffect(() => {
+        if (!id || !userId) return;
+        let cancelled = false;
+        setMuted(false);
+        void isChatMuted(supabase, id, userId).then(v => {
+            if (!cancelled) setMuted(v);
+        });
+        return () => { cancelled = true; };
+    }, [id, userId]);
+
+    const toggleMuted = useCallback(async () => {
+        if (!id || !userId) return;
+        const next = !muted;
+        // Optimistic, rolled back on failure — a mute that silently failed would
+        // look identical to one that worked.
+        setMuted(next);
+        const { ok } = await setChatMuted(supabase, id, userId, next);
+        if (!ok) {
+            setMuted(!next);
+            Alert.alert('Could not update notifications', 'Please try again.');
+        }
+    }, [id, userId, muted]);
 
     /** Starts a reply, quoting the message above the composer. */
     const startReplyTo = useCallback((message: Message) => {
@@ -776,17 +802,26 @@ export default function ChatThreadScreen() {
                 <SynthText variant="h2" style={styles.headerTitle} numberOfLines={1}>
                     {chatTitle || 'Messages'}
                 </SynthText>
-                {entityType === 'genre' && entityId ? (
+                <View style={styles.headerActions}>
+                    {entityType === 'genre' && entityId ? (
+                        <Pressable
+                            onPress={() => router.push(`/genre/${entityId}/events` as any)}
+                            style={styles.genreEventsButton}
+                            accessibilityLabel="View upcoming shows"
+                        >
+                            <Calendar size={22} color={SynthTokens.colors.neutral900} />
+                        </Pressable>
+                    ) : null}
                     <Pressable
-                        onPress={() => router.push(`/genre/${entityId}/events` as any)}
+                        onPress={() => void toggleMuted()}
                         style={styles.genreEventsButton}
-                        accessibilityLabel="View upcoming shows"
+                        accessibilityLabel={muted ? 'Unmute notifications' : 'Mute notifications'}
                     >
-                        <Calendar size={22} color={SynthTokens.colors.neutral900} />
+                        {muted
+                            ? <BellOff size={22} color={PINK} />
+                            : <Bell size={22} color={SynthTokens.colors.neutral900} />}
                     </Pressable>
-                ) : (
-                    <View style={{ width: 40 }} />
-                )}
+                </View>
             </View>
 
             <FlatList
@@ -936,6 +971,11 @@ const styles = StyleSheet.create({
     messageTime: {
         fontSize: 10,
         marginTop: 4,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
     replyBar: {
         marginHorizontal: SynthTokens.spacing.md,

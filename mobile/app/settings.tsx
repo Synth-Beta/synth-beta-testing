@@ -24,6 +24,8 @@ import {
   UserX,
   LogOut,
   ChevronRight,
+  MessageCircle,
+  Users,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
@@ -63,6 +65,9 @@ export default function SettingsScreen() {
   const [loadingVisibility, setLoadingVisibility] = useState(false);
 
   const [enablePush, setEnablePush] = useState(true);
+  const [enableChatNotifs, setEnableChatNotifs] = useState(true);
+  // Opt-in by default — genre/event rooms can have hundreds of members.
+  const [enableEntityChatNotifs, setEnableEntityChatNotifs] = useState(false);
   const [enableEmails, setEnableEmails] = useState(true);
   const [loadingPreferences, setLoadingPreferences] = useState(false);
 
@@ -90,6 +95,9 @@ export default function SettingsScreen() {
     const prefs = await getCurrentUserSettingsPreferences();
     if (prefs) {
       setEnablePush(prefs.enable_push_notifications);
+      // ?? keeps the documented defaults when migration 04/05 has not run yet.
+      setEnableChatNotifs(prefs.enable_chat_notifications ?? true);
+      setEnableEntityChatNotifs(prefs.enable_entity_chat_notifications ?? false);
       setEnableEmails(prefs.enable_emails);
     }
     setLoadingPreferences(false);
@@ -158,6 +166,32 @@ export default function SettingsScreen() {
       Alert.alert('Could not save', 'Something went wrong. Please try again.');
     } finally {
       setLoadingVisibility(false);
+    }
+  };
+
+  const onToggleChatNotifs = async (checked: boolean) => {
+    if (!userId) return;
+    setLoadingPreferences(true);
+    try {
+      const updated = await updateCurrentUserSettingsPreferences({ enable_chat_notifications: checked });
+      if (updated) setEnableChatNotifs(checked);
+    } catch (error) {
+      console.error('Error toggling chat notifications:', error);
+    } finally {
+      setLoadingPreferences(false);
+    }
+  };
+
+  const onToggleEntityChatNotifs = async (checked: boolean) => {
+    if (!userId) return;
+    setLoadingPreferences(true);
+    try {
+      const updated = await updateCurrentUserSettingsPreferences({ enable_entity_chat_notifications: checked });
+      if (updated) setEnableEntityChatNotifs(checked);
+    } catch (error) {
+      console.error('Error toggling room notifications:', error);
+    } finally {
+      setLoadingPreferences(false);
     }
   };
 
@@ -321,6 +355,36 @@ export default function SettingsScreen() {
             value={enablePush}
             onValueChange={onTogglePush}
             disabled={loadingPreferences}
+          />
+          <RowDivider />
+          {/* A burst in one conversation only notifies once until you read it —
+              the database coalesces them. */}
+          <ToggleRow
+            icon={MessageCircle}
+            label="Message Notifications"
+            description={
+              enableChatNotifs
+                ? 'One notification per conversation until you read it'
+                : 'Off — unread messages still show the red dot'
+            }
+            value={enableChatNotifs}
+            onValueChange={onToggleChatNotifs}
+            disabled={loadingPreferences}
+          />
+          <RowDivider />
+          <ToggleRow
+            icon={Users}
+            label="Genre & Event Rooms"
+            description={
+              !enableChatNotifs
+                ? 'Unavailable while Message Notifications are off'
+                : enableEntityChatNotifs
+                  ? 'On — these rooms can be busy'
+                  : 'Off by default'
+            }
+            value={enableChatNotifs && enableEntityChatNotifs}
+            onValueChange={onToggleEntityChatNotifs}
+            disabled={loadingPreferences || !enableChatNotifs}
           />
           {EMAIL_NOTIFICATIONS_ENABLED ? (
             <>
