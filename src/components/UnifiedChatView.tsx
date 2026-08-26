@@ -61,6 +61,7 @@ import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 import {
   fetchUserChats,
+  fetchChatMessages,
   sendEncryptedMessage,
   decryptChatMessage,
   fetchChatSenderProfiles,
@@ -75,6 +76,13 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { toast } from '@/hooks/use-toast';
 import { buildChatImageStoragePath, resolveChatImageDisplayUrl } from '@/utils/chatImageStorage';
 import PageShell from '@/components/layout/PageShell';
+import { MessageReactions, ReactionPicker } from '@/components/chat/MessageReactions';
+import { ReplyQuote } from '@/components/chat/ReplyQuote';
+import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { useChatPresence } from '@/hooks/useChatPresence';
+import { useChatReactions } from '@/hooks/useChatReactions';
+import { quotePreview, type QuotedMessage } from '@synth/shared';
+import { Reply } from 'lucide-react';
 
 // Chat Review Message wrapper — renders exactly like EventMessageCard (no chrome/header)
 const ChatReviewMessage: React.FC<{
@@ -136,6 +144,8 @@ const ChatImageMessage: React.FC<{
 interface Chat {
   id: string;
   chat_name: string;
+  /** Resolved by the shared chat layer (peer name for direct chats, group name for groups). */
+  display_name?: string;
   is_group_chat: boolean;
   users: string[]; // Populated by get_user_chats RPC from chat_participants (backward compatibility)
   latest_message_id: string | null;
@@ -171,6 +181,8 @@ interface Message {
   shared_event_id?: string | null;
   shared_review_id?: string | null;
   metadata?: any;
+  reply_to_id?: string | null;
+  reply_to?: QuotedMessage | null;
   author_type?: 'human' | 'ai_scene_guide' | 'system' | null;
   persona_id?: string | null;
   plan_id?: string | null;
@@ -208,6 +220,8 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  /** Message the composer is currently replying to, if any. */
+  const [replyTo, setReplyTo] = useState<QuotedMessage | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [showUserSearch, setShowUserSearch] = useState(false);
   // Map of chat_id -> other_user_id for direct chats (to fix Bug 1)
@@ -223,6 +237,36 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const [isEditingGroupName, setIsEditingGroupName] = useState(false);
   const [editedGroupName, setEditedGroupName] = useState('');
 const lastAnnouncedMessageIdRef = useRef<string | null>(null);
+
+  // Typing / presence rides Realtime broadcast — no table, works without any migration.
+  const { typingUsers, setTyping } = useChatPresence(selectedChat?.id, currentUserId);
+
+  // Reactions need migration 02; the hook returns an empty map until it is applied.
+  const { reactions, toggleReaction } = useChatReactions(
+    selectedChat?.id,
+    currentUserId,
+    messages.map((m) => m.id)
+  );
+
+  // A reply target from one chat must never follow you into another.
+  useEffect(() => {
+    setReplyTo(null);
+  }, [selectedChat?.id]);
+
+  /** Starts a reply to `message`, quoting it above the composer. */
+  const startReplyTo = useCallback((message: Message) => {
+    setReplyTo({
+      id: message.id,
+      sender_id: message.sender_id,
+      sender_name: message.sender_name,
+      preview: quotePreview({
+        content: message.content,
+        message_type: message.message_type || 'text',
+      }),
+      message_type: message.message_type || 'text',
+    });
+    document.getElementById('chat-message-input')?.focus();
+  }, []);
 
   // Total unread messages across all chats (for Messages header)
   // Prefer unread_count (message count). Fall back to has_unread (treated as 1) when counts aren't available.
@@ -948,126 +992,17 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     try {
       setIsFetchingMessages(true);
       setLiveAnnouncement('Loading messages…');
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          id,
-          chat_id,
-          sender_id,
-          content,
-          is_encrypted,
-          created_at,
-          message_type,
-          shared_event_id,
-          shared_review_id,
-          metadata
-        `)
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
 
+      // Query, decryption, event_shares fallback and message_type derivation all live
+      // in @synth/shared so this screen and the mobile thread stay in step.
+      const { data, error } = await fetchChatMessages(chatId, currentUserId);
       if (error) {
-        console.error('Error fetching messages:', error);
+        setLiveAnnouncement('Failed to load messages.');
         return;
       }
 
-      const rawMessages = data || [];
-      const messageIds = rawMessages.map(m => m.id);
-      const senderIds = [...new Set(rawMessages.map(msg => msg.sender_id))];
-
-      const [eventSharesResult, senderProfiles] = await Promise.all([
-        messageIds.length > 0
-          ? supabase
-              .from('event_shares')
-              .select('message_id, event_id')
-              .eq('chat_id', chatId)
-              .in('message_id', messageIds)
-          : Promise.resolve({ data: [] }),
-        senderIds.length > 0
-          ? fetchChatSenderProfiles(chatId, senderIds)
-          : Promise.resolve(new Map()),
-      ]);
-
-      const eventShares = eventSharesResult.data || [];
-      const eventIdByMessageId = new Map(
-        eventShares.map((s: { message_id: string; event_id: string }) => [s.message_id, s.event_id])
-      );
-
-      // Decrypt encrypted messages and merge event_id from event_shares when missing
-      const transformedMessages = await Promise.all(rawMessages.map(async (msg) => {
-        const profile = senderProfiles.get(msg.sender_id);
-        const fallbackEventId = eventIdByMessageId.get(msg.id);
-        
-        // Parse metadata if it's a string (JSONB can sometimes be returned as string)
-        let parsedMetadata: any = {};
-        if (msg.metadata) {
-          if (typeof msg.metadata === 'string') {
-            try {
-              parsedMetadata = JSON.parse(msg.metadata);
-            } catch (e) {
-              console.warn('Failed to parse metadata as JSON:', e, msg.metadata);
-              parsedMetadata = {};
-            }
-          } else {
-            parsedMetadata = msg.metadata;
-          }
-        }
-        
-        
-        const resolvedEventId = msg.shared_event_id ?? parsedMetadata?.event_id ?? fallbackEventId ?? null;
-        const resolvedMetadata = {
-          ...parsedMetadata,
-          ...(resolvedEventId != null ? { event_id: resolvedEventId } : {})
-        };
-        
-        // If message_type is 'event_share' but we don't have an event_id yet, try to get it from fallback
-        const isEventShare = msg.message_type === 'event_share' || (resolvedEventId != null && !msg.message_type);
-        
-        // Decrypt message content if encrypted
-        let decryptedContent = msg.content;
-        if (msg.is_encrypted) {
-          try {
-            decryptedContent = await decryptChatMessage(
-              { content: msg.content, chat_id: msg.chat_id, is_encrypted: msg.is_encrypted },
-              currentUserId
-            );
-          } catch (error) {
-            console.error('Error decrypting message:', error);
-            decryptedContent = '[Unable to decrypt message]';
-          }
-        }
-        
-        return {
-          id: msg.id,
-          chat_id: msg.chat_id,
-          sender_id: msg.sender_id,
-          content: decryptedContent,
-          is_encrypted: msg.is_encrypted,
-          created_at: msg.created_at,
-          sender_name: resolveSenderDisplayName(profile, parsedMetadata),
-          sender_avatar: profile?.avatar_url ?? null,
-          message_type: isEventShare ? 'event_share' : (msg.message_type || 'text'),
-          shared_event_id: msg.shared_event_id ?? fallbackEventId ?? null,
-          shared_review_id: msg.shared_review_id,
-          metadata: resolvedMetadata
-        };
-      }));
-
-      // Ensure message_type is assigned to the allowed union type
-      setMessages(
-        transformedMessages.map(msg => ({
-          ...msg,
-          message_type:
-            msg.message_type === 'text' ||
-            msg.message_type === 'event_share' ||
-            msg.message_type === 'review_share' ||
-            msg.message_type === 'system' ||
-            msg.message_type === 'image'
-              ? msg.message_type
-              : 'text'
-        }))
-      );
+      setMessages(data);
       setDidLoadMessages(true);
-      
       setLiveAnnouncement('Messages loaded.');
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -1170,14 +1105,19 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     if (!newMessage.trim() || !selectedChat) return;
 
     const messageText = newMessage.trim();
+    const replyToId = replyTo?.id ?? null;
     setNewMessage('');
+    setReplyTo(null);
+    // Stop the other side showing "typing…" the moment the message lands.
+    setTyping(false);
 
     try {
       // Encrypt and send message
       const { data, error } = await sendEncryptedMessage(
         selectedChat.id,
         currentUserId,
-        messageText
+        messageText,
+        replyToId
       );
 
       if (error) {
@@ -1436,11 +1376,18 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     return chat.users.find(id => id !== currentUserId) || '';
   };
 
+  // Strip a legacy " Group Chat" suffix some rows still carry. Display polish only.
+  const stripGroupSuffix = (name: string) => name.replace(/\s+Group\s+Chat\s*$/, '');
+
   const getChatDisplayName = (chat: Chat) => {
+    // The shared chat layer already resolved this from a batched peer lookup, and
+    // mobile renders the same value. Prefer it so the two platforms cannot disagree;
+    // the local resolution below stays as a fallback for chats fetched elsewhere.
+    const shared = typeof chat.display_name === 'string' ? chat.display_name.trim() : '';
+    if (shared) return chat.is_group_chat ? stripGroupSuffix(shared) : shared;
+
     if (chat.is_group_chat) {
-      const chatName = chat.chat_name || 'Group Chat';
-      // Remove any " Group Chat" suffix that might have been added
-      return chatName.replace(/\s+Group\s+Chat\s*$/, '');
+      return stripGroupSuffix(chat.chat_name || 'Group Chat');
     }
 
     // For direct chats, find the specific other user for this chat (Bug 1 fix)
@@ -2112,7 +2059,13 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 className="flex flex-col"
                 style={{
                   alignItems: isSent ? 'flex-end' : 'flex-start',
-                  marginTop: prevGroup ? 'var(--spacing-grouped, 24px)' : '0'
+                  marginTop: prevGroup ? 'var(--spacing-grouped, 24px)' : '0',
+                  // The responsive cap lives here, not on the bubble. This div's
+                  // parent has a definite width, so the percentage resolves; on the
+                  // bubble it resolved against a shrink-to-fit parent and collapsed.
+                  // Floored at 300px so the fixed-width event/review cards below
+                  // never get clipped on a narrow pane.
+                  maxWidth: 'max(85%, 300px)',
                 }}
               >
                 {/* Group chat user info (6px above first bubble) */}
@@ -2129,15 +2082,26 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 )}
 
                 {/* Messages in group */}
-                <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+                <div
+                  className="flex flex-col"
+                  style={{
+                    gap: 'var(--spacing-inline, 6px)',
+                    maxWidth: '100%',
+                    alignItems: isSent ? 'flex-end' : 'flex-start',
+                  }}
+                >
                   {group.map((message, msgIndex) => {
                     const isLastInGroup = msgIndex === group.length - 1;
 
                     return (
                       <div
                         key={message.id}
-                        className="flex flex-col"
-                        style={{ gap: isLastInGroup ? 'var(--spacing-small, 12px)' : '0' }}
+                        className="flex flex-col chat-msg-row"
+                        style={{
+                          gap: isLastInGroup ? 'var(--spacing-small, 12px)' : '0',
+                          maxWidth: '100%',
+                          alignItems: isSent ? 'flex-end' : 'flex-start',
+                        }}
                       >
                         {/* Determine what to render: review card, event card, or text - mutually exclusive */}
                         {(() => {
@@ -2208,7 +2172,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                 display: 'inline-block',
                                 width: 'fit-content',
                                 alignSelf: isSent ? 'flex-end' : 'flex-start',
-                                maxWidth: 'min(340px, 72%)',
+                                // Absolute cap only — the percentage cap moved to the
+                                // group wrapper, which has a resolvable parent width.
+                                maxWidth: 340,
                                 padding: 'var(--spacing-small, 12px)',
                                 borderRadius: 'var(--radius-corner, 10px)',
                                 border: message.sender_id === currentUserId ? 'none' : '1px solid var(--neutral-200)',
@@ -2218,6 +2184,12 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                 whiteSpace: 'pre-wrap'
                               }}
                             >
+                              {message.reply_to && (
+                                <ReplyQuote
+                                  quote={message.reply_to}
+                                  onSentBubble={message.sender_id === currentUserId}
+                                />
+                              )}
                               <p
                                 style={{
                                   fontFamily: 'var(--font-family)',
@@ -2233,6 +2205,50 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                             </div>
                           );
                         })()}
+
+                        {/* Reactions and the reply / react controls. System messages get neither. */}
+                        {message.message_type !== 'system' && (
+                          <>
+                            <MessageReactions
+                              reactions={reactions.get(message.id) || []}
+                              align={isSent ? 'flex-end' : 'flex-start'}
+                              onToggle={(emoji) => toggleReaction(message.id, emoji)}
+                            />
+                            <div
+                              className="chat-msg-actions"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                marginTop: 2,
+                                alignSelf: isSent ? 'flex-end' : 'flex-start',
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => startReplyTo(message)}
+                                aria-label={`Reply to ${message.sender_name}`}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: 24,
+                                  height: 24,
+                                  border: 'none',
+                                  background: 'transparent',
+                                  cursor: 'pointer',
+                                  color: 'var(--neutral-600)',
+                                }}
+                              >
+                                <Reply size={14} />
+                              </button>
+                              <ReactionPicker
+                                align={isSent ? 'flex-end' : 'flex-start'}
+                                onPick={(emoji) => toggleReaction(message.id, emoji)}
+                              />
+                            </div>
+                          </>
+                        )}
 
                         {/* Timestamp (only on last message in group) */}
                         {isLastInGroup && (
@@ -2645,6 +2661,21 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     onChange={handleImageUpload}
                   />
                   <style>{`
+                    /* Reply / react buttons stay out of the way until you hover the message. */
+                    .chat-msg-actions {
+                      opacity: 0;
+                      transition: opacity 0.12s ease;
+                      pointer-events: none;
+                    }
+                    .chat-msg-row:hover .chat-msg-actions,
+                    .chat-msg-row:focus-within .chat-msg-actions {
+                      opacity: 1;
+                      pointer-events: auto;
+                    }
+                    /* Touch devices have no hover — always show them there. */
+                    @media (hover: none) {
+                      .chat-msg-actions { opacity: 1; pointer-events: auto; }
+                    }
                     #chat-message-input-container {
                       border-color: rgba(236, 72, 153, 0.2) !important;
                       border-width: 2px !important;
@@ -2666,6 +2697,24 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       max-height: 44px !important;
                     }
                   `}</style>
+
+                  <TypingIndicator users={typingUsers} />
+
+                  {replyTo && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        marginBottom: 6,
+                        padding: '6px 8px',
+                        borderRadius: 8,
+                        background: 'var(--neutral-100)',
+                      }}
+                    >
+                      <ReplyQuote quote={replyTo} onDismiss={() => setReplyTo(null)} />
+                    </div>
+                  )}
+
                   <div
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
@@ -2712,8 +2761,13 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   >
                   <Input
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      // Throttled inside the shared presence handle, so per-keystroke is fine.
+                      setTyping(e.target.value.trim().length > 0);
+                    }}
                     placeholder="Type a message..."
+                    onBlur={() => setTyping(false)}
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                     className="bg-transparent border-0 flex-1 text-[16px] px-0"
                     style={{ 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isChatNotificationType } from '@synth/shared';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -45,10 +46,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
       };
 
       const result = await NotificationService.getNotifications(filters);
-      // Exclude chat notifications - those use the chat icon indicator instead
-      const nonChat = result.notifications.filter(
-        n => n.type !== 'message' && n.type !== 'group_chat_invite'
-      );
+      // Exclude chat notifications - those use the chat icon indicator instead.
+      // getNotifications already filters at the query; this is belt-and-braces
+      // and now uses the shared list so it cannot miss a type.
+      const nonChat = result.notifications.filter(n => !isChatNotificationType(n.type));
       setNotifications(nonChat);
     } catch (error) {
       console.error('Error loading notifications:', error);

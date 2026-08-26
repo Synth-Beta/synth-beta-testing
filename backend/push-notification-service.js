@@ -268,6 +268,13 @@ class PushNotificationService {
       return;
     }
 
+    // Chat never pushes — unread messages are the red dot on the chat icon only.
+    // Guarded here as well as in queuePendingNotifications because this entry
+    // point can be called directly with a notification id.
+    if (['message', 'chat_message', 'group_chat_invite'].includes(notification.type)) {
+      return;
+    }
+
     // Send push notification
     const result = await this.sendToUser(notification.user_id, {
       title: notification.title,
@@ -290,9 +297,17 @@ class PushNotificationService {
   async queuePendingNotifications(limit = 100) {
     try {
       // Step 1: Fetch unread notifications (no embed - no FK between notifications and device_tokens)
+      //
+      // Chat types are excluded here, not just in the Vercel webhook: this worker is a
+      // SECOND, independent push path that queues straight from `notifications`, so a
+      // guard on the webhook alone still lets chat messages through. Unread messages
+      // are surfaced by the red dot on the chat icon and must never become a push.
+      // Keep in sync with @synth/shared chatNotificationPolicy (inlined - backend is
+      // CommonJS and cannot import the workspace package).
       const { data: notifications, error: notifError } = await this.supabase
         .from('notifications')
         .select('id, user_id, title, message, data')
+        .not('type', 'in', '(message,chat_message,group_chat_invite)')
         .eq('is_read', false)
         // Prefer newest notifications first so users get timely pushes and we don't get stuck
         // working through a huge backlog.

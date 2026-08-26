@@ -21,6 +21,7 @@ import {
   declineFriendRequest as declineFriendRequestShared,
   deleteFriendRequestNotificationsByRequestId,
   isFriendsHubNotificationType,
+  isChatNotificationType,
 } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -67,8 +68,10 @@ export const NotificationsPage = ({
         NotificationService.getNotifications({ limit: 50 }),
         NotificationService.getUnreadCount()
       ]);
+      // getNotifications already filters at the query; kept as belt-and-braces,
+      // now using the shared list so it cannot miss a type.
       const nonChatNotifications = result.notifications.filter(
-        n => n.type !== 'message' && n.type !== 'group_chat_invite'
+        n => !isChatNotificationType(n.type)
       );
       let filtered = nonChatNotifications;
       if (filter === 'friends_only') {

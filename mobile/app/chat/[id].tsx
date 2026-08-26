@@ -17,6 +17,15 @@ import { SynthText } from '../../src/components/SynthText';
 import { launchChatImagePicker, type ChatImagePickerSource } from '../../src/utils/launchChatImagePicker';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { ChatService, Message } from '../../src/services/chatService';
+import {
+    MessageActionsSheet,
+    MessageReactions,
+    ReplyQuote,
+    TypingIndicator,
+} from '../../src/components/chat/ChatMessageExtras';
+import { useChatPresence } from '../../src/hooks/useChatPresence';
+import { useChatReactions } from '../../src/hooks/useChatReactions';
+import { quotePreview, type QuotedMessage } from '@synth/shared';
 import { EventService, type EventDetail } from '../../src/services/eventService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -115,8 +124,30 @@ export default function ChatThreadScreen() {
     const flatListRef = useRef<FlatList>(null);
     const stickToBottomRef = useRef(true);
 
+    /** Message the composer is replying to, and the one whose action sheet is open. */
+    const [replyTo, setReplyTo] = useState<QuotedMessage | null>(null);
+    const [actionsFor, setActionsFor] = useState<Message | null>(null);
+
     /** Inverted list: index 0 renders at the bottom — newest message first. */
     const listMessages = useMemo(() => [...messages].reverse(), [messages]);
+
+    // Typing / presence rides Realtime broadcast — no table, works without any migration.
+    const { typingUsers, setTyping } = useChatPresence(id, userId);
+
+    // Reactions need migration 02; the hook returns an empty map until it is applied.
+    const messageIds = useMemo(() => messages.map((m) => m.id), [messages]);
+    const { reactions, toggleReaction } = useChatReactions(id, userId, messageIds);
+
+    /** Starts a reply, quoting the message above the composer. */
+    const startReplyTo = useCallback((message: Message) => {
+        setReplyTo({
+            id: message.id,
+            sender_id: message.sender_id,
+            sender_name: message.sender_name || 'User',
+            preview: quotePreview({ content: message.content, message_type: message.message_type }),
+            message_type: message.message_type,
+        });
+    }, []);
 
     const scrollToLatest = useCallback((animated = false) => {
         if (!flatListRef.current || listMessages.length === 0) return;
@@ -327,9 +358,14 @@ export default function ChatThreadScreen() {
     const handleSend = async () => {
         if (!inputText.trim() || !userId) return;
 
-        const success = await ChatService.sendMessage(id, userId, inputText);
+        const replyToId = replyTo?.id ?? null;
+        // Stop the other side showing "typing…" the moment the message lands.
+        setTyping(false);
+
+        const success = await ChatService.sendMessage(id, userId, inputText, replyToId);
         if (success) {
             setInputText('');
+            setReplyTo(null);
             stickToBottomRef.current = true;
             await loadMessages();
             setTimeout(() => scrollToLatest(true), 200);
@@ -474,7 +510,14 @@ export default function ChatThreadScreen() {
             return (
                 <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
                     {senderHeader}
-                    <ChatImageBubble imageUrl={imageUrl} storagePath={storagePath} />
+                    <Pressable onLongPress={() => setActionsFor(item)} delayLongPress={300}>
+                        <ChatImageBubble imageUrl={imageUrl} storagePath={storagePath} />
+                    </Pressable>
+                    <MessageReactions
+                        reactions={reactions.get(item.id) || []}
+                        isMine={item.is_mine}
+                        onToggle={emoji => void toggleReaction(item.id, emoji)}
+                    />
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </SynthText>
@@ -495,7 +538,12 @@ export default function ChatThreadScreen() {
             return (
                 <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
                     {senderHeader}
-                    <Pressable onPress={() => router.push(`/review/${reviewId}`)} style={styles.shareCard}>
+                    <Pressable
+                        onPress={() => router.push(`/review/${reviewId}`)}
+                        onLongPress={() => setActionsFor(item)}
+                        delayLongPress={300}
+                        style={styles.shareCard}
+                    >
                         {/* Gradient header band */}
                         <LinearGradient
                             colors={['#EC4899', '#9333EA']}
@@ -559,6 +607,11 @@ export default function ChatThreadScreen() {
                             <Text style={styles.shareViewDetails}>View Full Review →</Text>
                         </View>
                     </Pressable>
+                    <MessageReactions
+                        reactions={reactions.get(item.id) || []}
+                        isMine={item.is_mine}
+                        onToggle={emoji => void toggleReaction(item.id, emoji)}
+                    />
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </SynthText>
@@ -594,7 +647,12 @@ export default function ChatThreadScreen() {
             return (
                 <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
                     {senderHeader}
-                    <Pressable onPress={() => void openEvent(eventId)} style={styles.shareCard}>
+                    <Pressable
+                        onPress={() => void openEvent(eventId)}
+                        onLongPress={() => setActionsFor(item)}
+                        delayLongPress={300}
+                        style={styles.shareCard}
+                    >
                         {/* Gradient header band */}
                         <LinearGradient
                             colors={['#EC4899', '#9333EA']}
@@ -646,6 +704,11 @@ export default function ChatThreadScreen() {
                             <Text style={styles.shareViewDetails}>View Full Details →</Text>
                         </View>
                     </Pressable>
+                    <MessageReactions
+                        reactions={reactions.get(item.id) || []}
+                        isMine={item.is_mine}
+                        onToggle={emoji => void toggleReaction(item.id, emoji)}
+                    />
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </SynthText>
@@ -674,11 +737,24 @@ export default function ChatThreadScreen() {
         return (
             <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
                 {senderHeader}
-                <View style={[styles.messageBubble, item.is_mine ? styles.myBubble : styles.theirBubble]}>
+                {/* Long press is the touch equivalent of the web's hover controls. */}
+                <Pressable
+                    onLongPress={() => setActionsFor(item)}
+                    delayLongPress={300}
+                    style={[styles.messageBubble, item.is_mine ? styles.myBubble : styles.theirBubble]}
+                >
+                    {item.reply_to ? (
+                        <ReplyQuote quote={item.reply_to} onSentBubble={item.is_mine} />
+                    ) : null}
                     <SynthText variant="meta" color={item.is_mine ? 'white' : 'primary'}>
                         {item.content}
                     </SynthText>
-                </View>
+                </Pressable>
+                <MessageReactions
+                    reactions={reactions.get(item.id) || []}
+                    isMine={item.is_mine}
+                    onToggle={emoji => void toggleReaction(item.id, emoji)}
+                />
                 <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                     {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </SynthText>
@@ -734,6 +810,14 @@ export default function ChatThreadScreen() {
                 scrollEventThrottle={100}
             />
 
+            <TypingIndicator users={typingUsers} />
+
+            {replyTo ? (
+                <View style={styles.replyBar}>
+                    <ReplyQuote quote={replyTo} onDismiss={() => setReplyTo(null)} />
+                </View>
+            ) : null}
+
             <View style={[styles.inputArea, { paddingBottom: insets.bottom + 8 }]}>
                 <Pressable
                     style={styles.iconButton}
@@ -749,7 +833,12 @@ export default function ChatThreadScreen() {
                     placeholder="Message..."
                     style={styles.input}
                     value={inputText}
-                    onChangeText={setInputText}
+                    onChangeText={text => {
+                        setInputText(text);
+                        // Throttled inside the shared presence handle, so per-keystroke is fine.
+                        setTyping(text.trim().length > 0);
+                    }}
+                    onBlur={() => setTyping(false)}
                     multiline
                 />
                 <Pressable
@@ -766,6 +855,17 @@ export default function ChatThreadScreen() {
             visible={imageSourceSheetVisible}
             onClose={() => setImageSourceSheetVisible(false)}
             onChoose={source => void runImagePick(source)}
+        />
+
+        <MessageActionsSheet
+            visible={actionsFor != null}
+            onClose={() => setActionsFor(null)}
+            onReact={emoji => {
+                if (actionsFor) void toggleReaction(actionsFor.id, emoji);
+            }}
+            onReply={() => {
+                if (actionsFor) startReplyTo(actionsFor);
+            }}
         />
         </View>
     );
@@ -836,6 +936,14 @@ const styles = StyleSheet.create({
     messageTime: {
         fontSize: 10,
         marginTop: 4,
+    },
+    replyBar: {
+        marginHorizontal: SynthTokens.spacing.md,
+        marginBottom: 6,
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        borderRadius: SynthTokens.radius.small,
+        backgroundColor: SynthTokens.colors.neutral100,
     },
     inputArea: {
         flexDirection: 'row',

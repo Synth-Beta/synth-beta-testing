@@ -1,0 +1,132 @@
+-- =============================================================================
+-- Turn OFF push + in-app notifications for chat messages
+-- 2026-08-25  —  diagnostics run, culprit identified
+--
+-- Intent: chat unread state is the red dot on the chat icon only. No push, no
+-- bell entry, no bell badge, no app-icon badge.
+--
+-- DIAGNOSTIC RESULTS (2026-08-25):
+--
+--   Triggers on public.messages
+--   ---------------------------
+--   notify_chat_message_trigger        AFTER INSERT, WHEN (message_type IS NULL
+--                                      OR message_type = 'text')
+--                                      -> notify_chat_message_received()      << CULPRIT
+--   notify_event_share_trigger         AFTER INSERT, no WHEN clause
+--                                      -> notify_event_share()                << INVESTIGATE
+--   trigger_update_chat_last_activity  -> update_chat_last_activity()            KEEP
+--   update_chat_latest_message_trigger -> update_chat_latest_message()           KEEP
+--   update_messages_updated_at         BEFORE UPDATE                             KEEP
+--
+--   notifications rows by type
+--   --------------------------
+--   chat_message   121 rows   newest 2026-08-25 20:53   << actively firing
+--   message          6 rows   newest 2026-07-18 20:27   << dormant legacy
+--
+-- So `notify_chat_message_received()` writes type 'chat_message' and is what
+-- pushed to your phone. The 6 'message' rows have no live source.
+--
+-- ###########################################################################
+-- ## DO NOT DROP THE OTHER THREE TRIGGERS.
+-- ##
+-- ## update_chat_latest_message_trigger maintains chats.latest_message_id.
+-- ## Every chat-list preview reads `messages!latest_message_id` through it —
+-- ## dropping it silently empties the preview on every row, web and mobile.
+-- ## trigger_update_chat_last_activity and update_messages_updated_at are
+-- ## likewise unrelated to notifications.
+-- ###########################################################################
+-- =============================================================================
+SET statement_timeout = '120s';
+
+
+-- ---- STEP 1: the fix --------------------------------------------------------
+-- Removes the trigger only. The function is left in place — harmless once
+-- nothing calls it, and trivial to re-attach if you ever want chat push back.
+
+DROP TRIGGER IF EXISTS notify_chat_message_trigger ON public.messages;
+
+
+-- ---- STEP 2: the second trigger (READ-ONLY — decide after reading) ----------
+--
+-- notify_event_share_trigger fires on EVERY message insert (it has no WHEN
+-- clause), so it runs for plain text too. It did not appear in the earlier
+-- function search, which means its body does not contain the strings
+-- 'chat_message' or 'message' — it likely writes a different notification type,
+-- or writes nothing unless shared_event_id is set.
+--
+-- Sharing an event INTO a chat is still a chat message, so if this produces a
+-- notification it should go the same way. Read the body first:
+--
+--   SELECT prosrc FROM pg_proc WHERE proname = 'notify_event_share';
+--
+-- Then check whether it has been producing rows:
+--
+--   SELECT type, count(*), max(created_at) FROM public.notifications
+--   WHERE type ILIKE '%event_share%' OR type ILIKE '%share%'
+--   GROUP BY type;
+--
+-- The obvious danger would be that this trigger populates the `event_shares`
+-- table, which chatCore reads for its shared-event fallback. CHECKED: it does
+-- not. Both apps insert that row themselves —
+--   src/services/inAppShareService.ts:181
+--   mobile/src/services/inAppShareService.ts:148
+-- so the table is maintained by app code and dropping the trigger cannot break
+-- event shares.
+--
+-- If the body confirms it inserts into public.notifications for a chat share:
+--
+--   DROP TRIGGER IF EXISTS notify_event_share_trigger ON public.messages;
+--
+-- Read the body first anyway — it is the only thing this diagnostic has not seen.
+--
+-- Side note: it has no WHEN clause, so it executes a function call on EVERY
+-- message insert including plain text. Even if you keep it, adding
+-- `WHEN (NEW.shared_event_id IS NOT NULL)` would save that work per message.
+
+
+-- ---- STEP 3: clear the backlog ----------------------------------------------
+-- This database has BOTH notification_queue and push_notification_queue. The
+-- burst throttle (queue_or_send_notification, migration 20260821000000) only
+-- creates 2 rows per recipient per type per 10 minutes and QUEUES the rest for
+-- drip-release — so queued chat entries can still drain after the trigger is
+-- gone. Clear all three.
+--
+-- Inspect first, since the queue column names are unknown:
+--
+--   SELECT * FROM public.notification_queue      LIMIT 20;
+--   SELECT * FROM public.push_notification_queue LIMIT 20;
+--
+-- Then delete (adjust the column if the queues use notification_type or a jsonb
+-- payload->>'type' instead of a plain `type` column):
+--
+--   DELETE FROM public.notification_queue      WHERE type IN ('message','chat_message','group_chat_invite');
+--   DELETE FROM public.push_notification_queue WHERE type IN ('message','chat_message','group_chat_invite');
+--   DELETE FROM public.notifications           WHERE type IN ('message','chat_message','group_chat_invite');
+--
+-- NOTE: the app no longer depends on this cleanup. The push webhook refuses chat
+-- types outright and both notification lists exclude them at the query, so these
+-- rows are already invisible. This only tidies the data.
+
+
+-- ---- STEP 4: verify (read-only) ---------------------------------------------
+--
+-- a) The culprit trigger is gone, the three keepers remain:
+--
+--   SELECT tgname FROM pg_trigger
+--   WHERE tgrelid = 'public.messages'::regclass AND NOT tgisinternal
+--   ORDER BY tgname;
+--   -- expect notify_chat_message_trigger ABSENT,
+--   --        trigger_update_chat_last_activity / update_chat_latest_message_trigger
+--   --        / update_messages_updated_at PRESENT
+--
+-- b) Send a test message, then confirm nothing new was written:
+--
+--   SELECT count(*) FROM public.notifications
+--   WHERE type IN ('message','chat_message')
+--     AND created_at > now() - interval '5 minutes';
+--   -- expect 0
+--
+-- c) Confirm chat previews still work (this is what the KEEP warning protects):
+--
+--   SELECT count(*) FROM public.chats WHERE latest_message_id IS NOT NULL;
+--   -- should not drop after sending new messages

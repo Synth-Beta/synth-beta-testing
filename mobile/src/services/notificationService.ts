@@ -4,6 +4,7 @@ import {
     deleteExpiredFriendAcceptedNotifications as deleteExpiredFriendAcceptedShared,
     deleteFriendRequestNotificationsByRequestId,
     pruneStaleFriendRequestNotifications as pruneStaleFriendRequestsShared,
+    chatNotificationTypesFilter,
 } from '@synth/shared';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -55,10 +56,13 @@ export class NotificationService {
 
     static async getUnreadCount(userId: string): Promise<number> {
         try {
+            // Chat types excluded: unread messages are surfaced by the red dot on
+            // the chat icon, never by the bell badge (parity with web).
             const { count, error } = await supabase
                 .from('notifications')
                 .select('id', { count: 'exact', head: true })
                 .eq('user_id', userId)
+                .not('type', 'in', chatNotificationTypesFilter())
                 .eq('is_read', false);
             if (error) throw error;
             return count || 0;
@@ -76,6 +80,7 @@ export class NotificationService {
                 .from('notifications')
                 .select('*')
                 .eq('user_id', userId)
+                .not('type', 'in', chatNotificationTypesFilter())
                 .order('created_at', { ascending: false })
                 .limit(50);
 

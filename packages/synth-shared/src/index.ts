@@ -75,6 +75,60 @@ export {
 export { getOrCreateDirectChat } from './directChat';
 export { getOrCreateGenreChat } from './genreChat';
 export {
+  createChatCrypto,
+  isEncrypted,
+  isMessageEncrypted,
+  type ChatCrypto,
+  type ChatCryptoDeps,
+  type ChatKeyStorage,
+  type EncryptedMessageRef,
+} from './chatCrypto';
+export {
+  createChatCore,
+  looksLikeOpaquePreview,
+  normalizeChatSenderProfile,
+  resolveSenderDisplayName,
+  parseMessageMetadata,
+  CHAT_SENDER_NAME_FALLBACK,
+  DEFAULT_MESSAGE_LIMIT,
+  type ChatCore,
+  type ChatCoreDeps,
+  type ChatMessageType,
+  type ChatAuthorType,
+  type ChatSenderProfile,
+  type SharedChatMessage,
+  type SharedUserChat,
+  type FetchUserChatsOptions,
+  quotePreview,
+  __resetReplyColumnProbe,
+  type QuotedMessage,
+} from './chatCore';
+export {
+  joinChatPresence,
+  formatTypingIndicator,
+  TYPING_TIMEOUT_MS,
+  TYPING_BROADCAST_INTERVAL_MS,
+  type ChatPresenceHandle,
+  type ChatPresenceOptions,
+  type TypingUser,
+} from './chatPresence';
+export {
+  createChatReactions,
+  summarizeReactions,
+  __resetReactionsTableProbe,
+  DEFAULT_REACTION_EMOJIS,
+  type ChatReactions,
+  type MessageReactionRow,
+  type ReactionSummary,
+  type ReactionsByMessage,
+} from './chatReactions';
+export {
+  CHAT_NOTIFICATION_TYPES,
+  isChatNotificationType,
+  chatNotificationTypesFilter,
+  type ChatNotificationType,
+} from './chatNotificationPolicy';
+export {
   type InAppBrowserHost,
   isIOS,
   isAndroid,

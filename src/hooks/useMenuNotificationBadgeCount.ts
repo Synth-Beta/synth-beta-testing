@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { CHAT_NOTIFICATION_TYPES } from '@synth/shared';
+
+/** Friend types get their own badge bucket below, so they are excluded here too. */
+const EXCLUDED_FROM_MENU_BADGE = `(${['friend_request', 'friend_accepted', ...CHAT_NOTIFICATION_TYPES].join(',')})`;
 
 /**
  * Unread counts for SideMenu / web rail "Menu" — matches HomeFeed MobileHeader badge logic.
@@ -21,7 +25,7 @@ export function useMenuNotificationBadgeCount(userId: string | undefined) {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .eq('is_read', false)
-          .not('type', 'in', '(friend_request,friend_accepted,message,group_chat_invite)');
+          .not('type', 'in', EXCLUDED_FROM_MENU_BADGE);
 
         // Friend request / accepted notifications (separate bucket)
         const { count: friendReqCount } = await supabase

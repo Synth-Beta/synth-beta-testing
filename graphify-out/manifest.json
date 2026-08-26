@@ -210,8 +210,8 @@
     "semantic_hash": "d8d09d83028ac4b6c29d57b97cb36fe0"
   },
   "mobile/app.json": {
-    "mtime": 1786743830.0152173,
-    "ast_hash": "e02052061cde8b85d6098a7ac6ad3873",
+    "mtime": 1787586626.840647,
+    "ast_hash": "2ab71865f4cb1697ed4d8ed52afbbacb",
     "semantic_hash": ""
   },
   "mobile/app/(auth)/_layout.tsx": {
@@ -6845,8 +6845,8 @@
     "semantic_hash": ""
   },
   "apps/admin/src/pages/Admin.tsx": {
-    "mtime": 1787258182.4445288,
-    "ast_hash": "36622636c288238375506d71bbd059b9",
+    "mtime": 1787611724.0151327,
+    "ast_hash": "15a83f91ebc6aac3ebb6e1b6597901e6",
     "semantic_hash": ""
   },
   "apps/admin/src/pages/App.tsx": {
@@ -9457,6 +9457,61 @@
   "supabase/streaming-sync-timeout-2026-08-21/04_genre_cache_refresh.sql": {
     "mtime": 1787372746.0737467,
     "ast_hash": "aa862f33f93f22b58bcf314b99ecf508",
+    "semantic_hash": ""
+  },
+  "supabase/bot-message-purge-2026-08-24/01_delete_bot_messages.sql": {
+    "mtime": 1787587230.087262,
+    "ast_hash": "8cf0a77e2aa258d5e17445164cc162d4",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260823000000_feed_v5_relevance_gate.CACHE_CLEAR.sql": {
+    "mtime": 1787542119.3284316,
+    "ast_hash": "bfee9a1aab3ee80927e0ed8743ee6338",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260823000000_feed_v5_relevance_gate.DIAGNOSTIC.sql": {
+    "mtime": 1787540913.1790786,
+    "ast_hash": "19d907d672cc9248319dedd784ff2c06",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260823000000_feed_v5_relevance_gate.VERIFY.sql": {
+    "mtime": 1787584846.2961757,
+    "ast_hash": "a1046749f170c13cde7059f2ce855512",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260823000000_feed_v5_relevance_gate.sql": {
+    "mtime": 1787540882.6352797,
+    "ast_hash": "7fd81e991677cb718ab3585a303320e8",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260823010000_artist_signal_reach.DIAGNOSTIC.sql": {
+    "mtime": 1787542245.7665033,
+    "ast_hash": "30fdf8f1e336a67b3070d81764036810",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260824000000_feed_v5_genre_idf.PREVIEW.sql": {
+    "mtime": 1787584246.9503136,
+    "ast_hash": "62444cb93f1ae7e173569f0ddce7872d",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260824000000_feed_v5_genre_idf.sql": {
+    "mtime": 1787584631.3836164,
+    "ast_hash": "a1a837b2a19d7f3ffc7608999129ac56",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260824000000_genre_specificity.DIAGNOSTIC.sql": {
+    "mtime": 1787583830.2218716,
+    "ast_hash": "7116fa3ac43700ef26c49c4adce5e444",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260824010000_feed_v5_candidate_retrieval.PROBE.sql": {
+    "mtime": 1787585001.8282907,
+    "ast_hash": "4e13e59f2bfe4f8ec3b620407761402e",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260824020000_artist_genre_fallback.DIAGNOSTIC.sql": {
+    "mtime": 1787585333.9153657,
+    "ast_hash": "f3bf87741bdb7dbeae54e8b0795251cd",
     "semantic_hash": ""
   }
 }

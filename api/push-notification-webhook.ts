@@ -18,6 +18,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { timingSafeEqual } from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
+/**
+ * Inlined from @synth/shared (chatNotificationPolicy) — Vercel serverless cannot
+ * bundle the workspace package. Keep in sync with it.
+ *
+ * Chat is deliberately outside the notification system: unread messages show as
+ * the red dot on the chat icon and nothing else.
+ */
+const CHAT_NOTIFICATION_TYPES = ['message', 'chat_message', 'group_chat_invite'];
+
 // Constant-time comparison so response timing can't leak secret prefixes
 function secureEquals(a: string, b: string): boolean {
   const ab = Buffer.from(a);
@@ -291,6 +300,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Skip friend_accepted - no push for this type
   if (record.type === 'friend_accepted') {
     const reason = 'friend_accepted (push disabled)';
+    console.log(`[push-webhook] skipped: ${reason}`, { user_id: record.user_id });
+    return res.status(200).json({ ok: true, skipped: reason });
+  }
+
+  // Chat is deliberately outside the notification system: unread messages are
+  // surfaced by the red dot on the chat icon only. Rows of these types can still
+  // exist (a database trigger, an old backlog) — they must never become a push.
+  if (record.type && CHAT_NOTIFICATION_TYPES.includes(record.type)) {
+    const reason = `${record.type} (chat uses the unread dot, push disabled)`;
     console.log(`[push-webhook] skipped: ${reason}`, { user_id: record.user_id });
     return res.status(200).json({ ok: true, skipped: reason });
   }
