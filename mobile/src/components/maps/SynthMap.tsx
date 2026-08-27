@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Linking, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { SynthText } from '../SynthText';
@@ -30,11 +30,22 @@ export function SynthMap({ latitude, longitude, title, subtitle, height = 180, z
     return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${pin}/${longitude},${latitude},${z}/800x400@2x?access_token=${token}`;
   }, [latitude, longitude, token, zoom]);
 
+  // Default action: open the coordinates in the OS maps app.
+  const openInMaps = () => {
+    const label = encodeURIComponent(title || 'Location');
+    const url = Platform.select({
+      ios: `http://maps.apple.com/?ll=${latitude},${longitude}&q=${label}`,
+      default: `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+    })!;
+    void Linking.openURL(url).catch(() => {});
+  };
+
   return (
     <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [styles.card, pressed && onPress ? styles.pressed : null, { height }]}
+      onPress={onPress ?? openInMaps}
+      accessibilityRole="button"
+      accessibilityLabel={title ? `Open ${title} in Maps` : 'Open in Maps'}
+      style={({ pressed }) => [styles.card, pressed ? styles.pressed : null, { height }]}
     >
       {url ? (
         <Image source={{ uri: url }} style={StyleSheet.absoluteFillObject} contentFit="cover" />
