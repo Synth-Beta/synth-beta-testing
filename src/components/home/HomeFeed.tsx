@@ -14,6 +14,8 @@ import { MobileHeader } from '@/components/Header/MobileHeader';
 import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
+import { WarmChatsStrip } from './WarmChatsStrip';
+import { SYNTH_20_DEMO } from '@/config/synth20Demo';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
@@ -2027,6 +2029,14 @@ interface FriendEventInterest {
             </div>
           </>
         )}
+        {SYNTH_20_DEMO && selectedFeedType === 'events' && (
+          <WarmChatsStrip
+            onOpenChat={(chatId) => {
+              onNavigateToChat?.(chatId);
+            }}
+          />
+        )}
+
         {/* Feed content based on selection */}
         {selectedFeedType === 'events' && (
           <UnifiedEventsFeed
