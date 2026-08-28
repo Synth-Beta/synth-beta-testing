@@ -1,0 +1,125 @@
+{
+  "contractVersion": 1,
+  "sourceIssue": "LOI-585",
+  "ingestIssue": "LOI-601",
+  "metro": "dc",
+  "weekId": "2026-W35",
+  "weekStartDate": "2026-08-24",
+  "weekLabel": "Tue Aug 25–Mon Aug 31, 2026",
+  "status": "published",
+  "targetCount": 12,
+  "notes": "Ingested from LOI-585 featured-set. Catalog gaps filled with manual editorial events for Shaolin Jazz, Neon Habits, Flashband. Tiffany Day mapped to Atlantis (catalog) not 9:30. Arlo Parks mapped to catalog date Aug 30 (curator listed Sat Aug 29).",
+  "pins": [
+    {
+      "position": 1,
+      "eventId": "f66610d0-b566-4d95-85f7-f7d4d5c5fcf2",
+      "label": "Shaolin Jazz @ Songbyrd",
+      "genre": "jazz-hip-hop",
+      "curatorNote": "Shaolin Jazz turns Songbyrd into a crate-dig night with hip-hop muscle.",
+      "match": "editorial_created"
+    },
+    {
+      "position": 2,
+      "eventId": "0343eb31-8b1f-4e0c-86aa-6a85616d3de5",
+      "label": "In Color @ Atlantis",
+      "genre": "indie",
+      "curatorNote": "In Color brings sharp indie energy to Atlantis with Hana Eid opening.",
+      "match": "catalog"
+    },
+    {
+      "position": 3,
+      "eventId": "c6ff7e1d-481e-4068-a838-43eb27ceecb0",
+      "label": "Swervedriver @ Atlantis",
+      "genre": "shoegaze",
+      "curatorNote": "Swervedriver plays the raise-at-35 set for the shoegaze kids who still go out.",
+      "match": "catalog"
+    },
+    {
+      "position": 4,
+      "eventId": "89d91468-34ec-481b-bc2e-504feabe484e",
+      "label": "Time in the Wilderness @ Songbyrd",
+      "genre": "indie",
+      "curatorNote": "Time in the Wilderness stacks a local indie bill at Songbyrd.",
+      "match": "catalog"
+    },
+    {
+      "position": 5,
+      "eventId": "707916cf-043a-40a7-a39b-6ebabe1882c8",
+      "label": "Tiffany Day @ Atlantis",
+      "genre": "pop",
+      "curatorNote": "Tiffany Day hits the HALO Tour. Pop that fills a room. (Catalog venue: Atlantis; curator listed 9:30.)",
+      "match": "catalog_venue_note"
+    },
+    {
+      "position": 6,
+      "eventId": "f03d02aa-5e5e-46fd-9740-34c9af165af8",
+      "label": "Hit Shuffle / Father Sokka @ Songbyrd",
+      "genre": "hip-hop",
+      "curatorNote": "Kontra’s Hit Shuffle packs Songbyrd with DC hip-hop heat. (Catalog title: Father Sokka.)",
+      "match": "catalog_title_note"
+    },
+    {
+      "position": 7,
+      "eventId": "967eb536-6348-460d-bc57-ac75d013b463",
+      "label": "Res @ Songbyrd (Night 1)",
+      "genre": "r&b",
+      "curatorNote": "Res celebrates How I Do at 25. Soul night at Songbyrd.",
+      "match": "catalog"
+    },
+    {
+      "position": 8,
+      "eventId": "49b1c131-71d6-4036-8583-2e7975cee228",
+      "label": "Neon Habits @ Pie Shop",
+      "genre": "indie",
+      "curatorNote": "Neon Habits keep Pie Shop loud and intimate on Friday.",
+      "match": "editorial_created"
+    },
+    {
+      "position": 9,
+      "eventId": "93e9310d-56ab-4049-bbdc-62ea57238f49",
+      "label": "Arlo Parks @ Howard",
+      "genre": "indie-soul",
+      "curatorNote": "Arlo Parks at Howard is the destination set of the weekend. (Catalog date: Sun Aug 30.)",
+      "match": "catalog_date_note"
+    },
+    {
+      "position": 10,
+      "eventId": "f161bfe7-6488-5540-bfe4-f29b12dd699e",
+      "label": "Flashband @ Atlantis",
+      "genre": "pop-punk",
+      "curatorNote": "Flashband’s Warped Tour showcase is the local singalong night at Atlantis.",
+      "match": "editorial_or_prior"
+    },
+    {
+      "position": 11,
+      "eventId": "442cce93-8254-43e4-bfc1-e3b7832539ed",
+      "label": "Meltt @ Atlantis",
+      "genre": "indie-psych",
+      "curatorNote": "Meltt brings psych-leaning indie to Atlantis on Sunday.",
+      "match": "catalog"
+    },
+    {
+      "position": 12,
+      "eventId": "58b1f402-080a-40f7-b617-de280a73089d",
+      "label": "Solya @ Atlantis",
+      "genre": "bedroom-pop",
+      "curatorNote": "Solya closes the week at Atlantis with bedroom-pop intimacy.",
+      "match": "catalog"
+    }
+  ],
+  "editPath": {
+    "adminApi": "PUT /api/admin/featured/week",
+    "clientHelpers": [
+      "replaceWeeklyFeaturedPins()",
+      "publishWeeklyFeaturedSet()"
+    ],
+    "publicRead": [
+      "GET /api/featured/week",
+      "fetchWeeklyFeaturedSet()"
+    ],
+    "tables": [
+      "public.weekly_featured_sets",
+      "public.weekly_featured_items"
+    ]
+  }
+}
