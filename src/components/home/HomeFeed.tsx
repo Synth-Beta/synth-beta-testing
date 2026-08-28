@@ -21,6 +21,8 @@ import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
 import { UnifiedEventsFeed } from './UnifiedEventsFeed';
 import { JamBaseHeaderAttribution } from './JamBaseHeaderAttribution';
+import { FeaturedThisWeekSection } from './FeaturedThisWeekSection';
+import { SYNTH_20_DEMO } from '@/config/synth20Demo';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
@@ -56,7 +58,6 @@ const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '@/services/notificationService';
-
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
   // Convert to number - be very explicit
@@ -101,7 +102,7 @@ interface HomeFeedProps {
   onNavigateToArtist?: (artistId: string) => void;
   onNavigateToVenue?: (venueName: string) => void;
   onNavigateToChat?: (userId: string) => void;
-  onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
+  onViewChange?: (view: 'feed' | 'search' | 'profile' | 'chat') => void;
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
@@ -162,6 +163,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   // Note: Will be initialized with actual callbacks immediately after they're created
   const loadTrendingEventsRef = useRef<((reset: boolean) => Promise<void>) | null>(null);
   const loadNetworkEventsRef = useRef<((reset: boolean) => Promise<void>) | null>(null);
+
   
   // Refs to store current page numbers for synchronous access in callbacks
   const trendingPageRef = useRef(0);
@@ -582,7 +584,12 @@ interface FriendEventInterest {
     } else if (selectedFeedType === 'events') {
       loadFriendSuggestionsForRail();
       if (currentUserId) {
-        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10).then(setFriendFeedEvents).catch(() => {});
+        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10)
+          .then((rows) => {
+            setFriendFeedEvents(rows);
+            setFirstDegreeEvents(rows);
+          })
+          .catch(() => {});
       }
     } else if (selectedFeedType === 'group-chats') {
       loadRecommendedGroupChats();
@@ -2027,6 +2034,15 @@ interface FriendEventInterest {
             </div>
           </>
         )}
+        {SYNTH_20_DEMO && selectedFeedType === 'events' && (
+          <FeaturedThisWeekSection
+            onEventClick={(eventId) => {
+              void handleEventClick(eventId);
+            }}
+            onSeeAll={() => onViewChange?.('search')}
+          />
+        )}
+
         {/* Feed content based on selection */}
         {selectedFeedType === 'events' && (
           <UnifiedEventsFeed

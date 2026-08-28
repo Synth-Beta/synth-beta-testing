@@ -1,0 +1,96 @@
+{
+  "weekId": "2026-W35",
+  "weekStartDate": "2026-08-24",
+  "opsWeekKey": "2026-08-25",
+  "metro": "dc",
+  "status": "published",
+  "targetCount": 12,
+  "notes": "LOI-590 Aug 25-31 DC pin ingest (LOI-608). Ops key 2026-08-25 maps to DC Monday week 2026-W35 / 2026-08-24.",
+  "sourceIssue": "LOI-590",
+  "pins": [
+    {
+      "position": 1,
+      "eventId": "93e9310d-56ab-4049-bbdc-62ea57238f49",
+      "genre": "indie soul / alt",
+      "roomKey": "arlo-parks-howard",
+      "curatorNote": "Arlo Parks Desire Tour at Howard Theatre (Sat Aug 29)."
+    },
+    {
+      "position": 2,
+      "eventId": "f161bfe7-6488-5540-bfe4-f29b12dd699e",
+      "genre": "local punk / emo covers",
+      "roomKey": "flashband-atlantis",
+      "curatorNote": "Editorial stub: Flashband Warped Tour Showcase at The Atlantis (Sat Aug 29). Not in JamBase at ingest."
+    },
+    {
+      "position": 3,
+      "eventId": "2f8f3236-8a7a-4071-8719-d7c5bf14732f",
+      "genre": "hip-hop",
+      "roomKey": "jack-harlow-anthem",
+      "curatorNote": "Jack Harlow Monica Tour at The Anthem (Tue Aug 25 local; JB event_date 2026-08-26Z)."
+    },
+    {
+      "position": 4,
+      "eventId": "707916cf-043a-40a7-a39b-6ebabe1882c8",
+      "genre": "pop",
+      "roomKey": "tiffany-day-930",
+      "curatorNote": "Tiffany Day HALO Tour. Curator listed 9:30 Club; JamBase still shows The Atlantis for 2026-08-27."
+    },
+    {
+      "position": 5,
+      "eventId": "df3555f2-3245-4115-9cfd-031379ac4ac5",
+      "genre": "EDM / melodic bass",
+      "roomKey": "william-black-echostage",
+      "curatorNote": "William Black Shadow Realm Tour at Echostage (Sat Aug 29 late)."
+    },
+    {
+      "position": 6,
+      "eventId": "0343eb31-8b1f-4e0c-86aa-6a85616d3de5",
+      "genre": "indie / alt",
+      "roomKey": "in-color-atlantis",
+      "curatorNote": "In Color at The Atlantis (Tue Aug 25)."
+    },
+    {
+      "position": 7,
+      "eventId": "b1bece58-a218-54a1-b791-632eda153e9d",
+      "genre": "party / campus night",
+      "roomKey": "first-day-out-howard",
+      "curatorNote": "Editorial stub: First Day Out at Howard Theatre (Fri Aug 28). Not in JamBase at ingest."
+    },
+    {
+      "position": 8,
+      "eventId": "967eb536-6348-460d-bc57-ac75d013b463",
+      "genre": "neo-soul / R&B",
+      "roomKey": "res-how-i-do-songbyrd",
+      "curatorNote": "Res How I Do 25th Anniversary Night 1 at Songbyrd (Fri Aug 28)."
+    },
+    {
+      "position": 9,
+      "eventId": "442cce93-8254-43e4-bfc1-e3b7832539ed",
+      "genre": "dream pop",
+      "roomKey": "meltt-atlantis",
+      "curatorNote": "Meltt at The Atlantis (Sun Aug 30)."
+    },
+    {
+      "position": 10,
+      "eventId": "e8f29f00-cd0c-4344-92e7-71f95fa6ac0a",
+      "genre": "Latin urban",
+      "roomKey": "clarent-howard",
+      "curatorNote": "Clarent USA Tour at Howard Theatre (Sun Aug 30 local; JB event_date 2026-08-31Z)."
+    },
+    {
+      "position": 11,
+      "eventId": "de1b0261-c81a-473e-ac2e-faab0424fd04",
+      "genre": "hardcore / post-hardcore",
+      "roomKey": "quicksand-bane-930",
+      "curatorNote": "Quicksand & Bane at 9:30 Club (Mon Aug 31)."
+    },
+    {
+      "position": 12,
+      "eventId": "f03d02aa-5e5e-46fd-9740-34c9af165af8",
+      "genre": "alt / punk-rap (local)",
+      "roomKey": "hit-shuffle-songbyrd",
+      "curatorNote": "Mapped to Father Sokka at Songbyrd (Thu Aug 27); closest JamBase row for Hit Shuffle by Kontra ft. Father Sokka + T.A.T."
+    }
+  ]
+}

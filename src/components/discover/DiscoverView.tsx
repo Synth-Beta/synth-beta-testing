@@ -12,6 +12,8 @@ import { DiscoverResultsView } from './DiscoverResultsView';
 import { BecauseYouLikeSection } from './BecauseYouLikeSection';
 import { MapCalendarTourSection } from './MapCalendarTourSection';
 import { GenreChatsSection } from './GenreChatsSection';
+import { FeaturedThisWeekSection } from '@/components/home/FeaturedThisWeekSection';
+import { SYNTH_20_DEMO, SYNTH_20_DISCOVER } from '@/config/synth20Demo';
 import { LocationService } from '@/services/locationService';
 import { CityService, type CityData } from '@/services/cityService';
 import { supabase } from '@/integrations/supabase/client';
@@ -440,7 +442,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
                 setSearchQuery(value);
                 setIsSearchActive(value.trim().length >= 2);
               }}
-              placeholder='Try "Radiohead"'
+              placeholder={SYNTH_20_DEMO ? SYNTH_20_DISCOVER.searchHelper : 'Try "Radiohead"'}
               widthVariant="flex"
             />
           </div>
@@ -465,7 +467,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               setSearchQuery(value);
               setIsSearchActive(value.trim().length >= 2);
             }}
-            placeholder='Try "Radiohead"'
+            placeholder={SYNTH_20_DEMO ? SYNTH_20_DISCOVER.searchHelper : 'Try "Radiohead"'}
             widthVariant="flex"
           />
         </header>
@@ -548,9 +550,17 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           zIndex: 1,
         }}
       >
+        {SYNTH_20_DEMO && (
+          <FeaturedThisWeekSection
+            onEventClick={(eventId, name) => {
+              setDetailView({ type: 'event', id: eventId, name });
+            }}
+          />
+        )}
         {/* Browse Vibes and Location Filter */}
         <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
-          {/* Browse Vibes Button */}
+          {/* Browse Vibes Button - secondary/hidden when Synth 2.0 density demo is on */}
+          {SYNTH_20_DISCOVER.showBrowseVibes && (
           <Button
             onClick={() => setVibeModalOpen(true)}
             className="gap-2 flex-shrink-0" 
@@ -563,6 +573,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             <Icon name="mediumShootingStar" size={24} color="var(--neutral-50)" />
             Browse Vibes
           </Button>
+          )}
 
           {/* Location Filter */}
           <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
