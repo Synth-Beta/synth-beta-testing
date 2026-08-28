@@ -416,11 +416,68 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     window.addEventListener('open-event-details', handleOpenEventDetails as EventListener);
     window.addEventListener('synth-navigate', handleSynthNavigate as EventListener);
 
+    /** Featured show-chat CTA → Messages (provision key or event verified chat). */
+    const handleOpenFeaturedChat = async (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        eventId?: string;
+        chatProvisionKey?: string;
+      };
+      const provisionKey = String(detail?.chatProvisionKey || '').trim();
+      const eventId = String(detail?.eventId || '').trim();
+
+      try {
+        if (provisionKey) {
+          const { data, error } = await supabase
+            .from('chats')
+            .select('id')
+            .eq('chat_key', provisionKey)
+            .maybeSingle();
+          if (!error && data?.id) {
+            setChatId(data.id);
+            setChatUserId(undefined);
+            setCurrentView('chat');
+            setIsChatSelected(false);
+            return;
+          }
+        }
+
+        if (eventId) {
+          const { VerifiedChatService } = await import('@/services/verifiedChatService');
+          const chatId = await VerifiedChatService.getOrCreateVerifiedChat(
+            'event',
+            eventId,
+            'Show'
+          );
+          if (chatId) {
+            setChatId(chatId);
+            setChatUserId(undefined);
+            setCurrentView('chat');
+            setIsChatSelected(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[MainApp] featured chat open failed; falling back to event detail', err);
+      }
+
+      if (eventId) {
+        window.dispatchEvent(
+          new CustomEvent('open-event-details', { detail: { eventId } })
+        );
+      }
+    };
+
+    window.addEventListener('synth-open-featured-chat', handleOpenFeaturedChat as EventListener);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('open-user-profile', handleOpenUserProfile as EventListener);
       window.removeEventListener('open-event-details', handleOpenEventDetails as EventListener);
       window.removeEventListener('synth-navigate', handleSynthNavigate as EventListener);
+      window.removeEventListener(
+        'synth-open-featured-chat',
+        handleOpenFeaturedChat as EventListener
+      );
     };
   }, []);
 

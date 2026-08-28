@@ -14,6 +14,12 @@ import { MobileHeader } from '@/components/Header/MobileHeader';
 import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
+import { FeaturedThisWeekSection } from './FeaturedThisWeekSection';
+import { HomeDensityHero } from './HomeDensityHero';
+import { WhosGoingStrip } from './WhosGoingStrip';
+import type { WeeklyFeaturedShow } from '@/services/weeklyFeaturedService';
+import { WarmChatsStrip } from './WarmChatsStrip';
+import { SYNTH_20_DEMO } from '@/config/synth20Demo';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
@@ -56,7 +62,6 @@ const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import { useNavigate } from 'react-router-dom';
 import { NotificationService } from '@/services/notificationService';
-
 // Helper function to format member count - guaranteed to return clean string
 const formatMemberCount = (count: number | string | null | undefined): string => {
   // Convert to number - be very explicit
@@ -101,7 +106,7 @@ interface HomeFeedProps {
   onNavigateToArtist?: (artistId: string) => void;
   onNavigateToVenue?: (venueName: string) => void;
   onNavigateToChat?: (userId: string) => void;
-  onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
+  onViewChange?: (view: 'feed' | 'search' | 'profile' | 'chat') => void;
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
@@ -162,6 +167,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   // Note: Will be initialized with actual callbacks immediately after they're created
   const loadTrendingEventsRef = useRef<((reset: boolean) => Promise<void>) | null>(null);
   const loadNetworkEventsRef = useRef<((reset: boolean) => Promise<void>) | null>(null);
+
   
   // Refs to store current page numbers for synchronous access in callbacks
   const trendingPageRef = useRef(0);
@@ -275,6 +281,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [flaggedEvent, setFlaggedEvent] = useState<{ id: string; title: string } | null>(null);
 
   // Feed type selection - simplified to just Events and Reviews
+  const [featuredShowsForHome, setFeaturedShowsForHome] = useState<WeeklyFeaturedShow[]>([]);
   const [selectedFeedType, setSelectedFeedType] = useState<string>('events');
   const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
 
@@ -582,7 +589,12 @@ interface FriendEventInterest {
     } else if (selectedFeedType === 'events') {
       loadFriendSuggestionsForRail();
       if (currentUserId) {
-        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10).then(setFriendFeedEvents).catch(() => {});
+        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10)
+          .then((rows) => {
+            setFriendFeedEvents(rows);
+            setFirstDegreeEvents(rows);
+          })
+          .catch(() => {});
       }
     } else if (selectedFeedType === 'group-chats') {
       loadRecommendedGroupChats();
@@ -2027,8 +2039,53 @@ interface FriendEventInterest {
             </div>
           </>
         )}
-        {/* Feed content based on selection */}
-        {selectedFeedType === 'events' && (
+        {SYNTH_20_DEMO && selectedFeedType === 'events' && (
+          <>
+            <HomeDensityHero
+              onPrimary={() => {
+                document.getElementById('synth20-featured-week')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onSecondary={() => {
+                document.querySelector('[data-testid="home-warm-chats-strip"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+            <FeaturedThisWeekSection
+              onEventClick={(eventId) => {
+                void handleEventClick(eventId);
+              }}
+              onOpenChat={(eventId, chatProvisionKey) => {
+                // Deterministic Messages entry via MainApp listener; event detail is fallback only.
+                if (chatProvisionKey || eventId) {
+                  window.dispatchEvent(
+                    new CustomEvent('synth-open-featured-chat', {
+                      detail: { eventId, chatProvisionKey },
+                    })
+                  );
+                } else {
+                  void handleEventClick(eventId);
+                }
+              }}
+              onSeeAll={() => onViewChange?.('search')}
+              onShowsChange={setFeaturedShowsForHome}
+            />
+            <WhosGoingStrip
+              shows={featuredShowsForHome}
+              onOpenShow={(eventId) => {
+                void handleEventClick(eventId);
+              }}
+            />
+            <WarmChatsStrip
+              onOpenChat={(chatId) => {
+                onNavigateToChat?.(chatId);
+              }}
+            />
+          </>
+        )}
+
+        {/* Feed content based on selection.
+            Density Home (SYNTH_20_DEMO): above-the-fold composition is the default;
+            skip sparse/global catalog dump on the events tab (AC-1 / AC-8). */}
+        {selectedFeedType === 'events' && !SYNTH_20_DEMO && (
           <UnifiedEventsFeed
             currentUserId={currentUserId}
             filters={filters}
