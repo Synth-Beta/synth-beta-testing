@@ -335,7 +335,7 @@ export class HomeFeedService {
       const { data: allInterests, error: interestsError } = await supabase
         .from('user_event_relationships')
         .select('event_id')
-        .eq('relationship_type', 'interested');
+        .in('relationship_type', ['interested', 'going', 'maybe']);
 
       if (interestsError) {
         console.error('❌ [TRENDING SERVICE] Error fetching interests:', interestsError);

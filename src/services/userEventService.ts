@@ -27,7 +27,7 @@ export class UserEventService {
         .from('user_event_relationships')
         .select('event_id')
         .eq('user_id', userId)
-        .eq('relationship_type', 'interested');
+        .in('relationship_type', ['interested', 'going', 'maybe']);
 
       if (eventIds.length > 0) {
         relationshipsQuery = relationshipsQuery.in('event_id', eventIds);
@@ -67,7 +67,7 @@ export class UserEventService {
       let relationshipsQuery = supabase
         .from('user_event_relationships')
         .select('event_id, user_id')
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .in('event_id', eventIds);
 
       if (excludeUserId) {
@@ -158,6 +158,10 @@ export class UserEventService {
 
       if (eventUuid) {
         if (interested) {
+          // ignoreDuplicates => ON CONFLICT DO NOTHING. The table's PK is
+          // (user_id, event_id), so a row already holding a stronger RSVP
+          // ('going'/'maybe') is left intact rather than downgraded to
+          // 'interested' — and it takes no extra read to know that.
           const { error } = await supabase
             .from('user_event_relationships')
             .upsert(
@@ -166,7 +170,7 @@ export class UserEventService {
                 event_id: eventUuid,
                 relationship_type: 'interested',
               },
-              { onConflict: 'user_id,event_id' }
+              { onConflict: 'user_id,event_id', ignoreDuplicates: true }
             );
 
           if (!error) {
@@ -175,12 +179,16 @@ export class UserEventService {
             primaryWriteError = error;
           }
         } else {
+          // No relationship_type filter. The heart reads as on for any saved row
+          // (interested/going/maybe), so un-hearting has to clear any saved row.
+          // Filtering on 'interested' made un-hearting a 'going' row match zero
+          // rows while still reporting success, so the UI flipped off and the
+          // next load flipped it back on.
           const { error } = await supabase
             .from('user_event_relationships')
             .delete()
             .eq('user_id', userId)
-            .eq('event_id', eventUuid)
-            .eq('relationship_type', 'interested');
+            .eq('event_id', eventUuid);
 
           if (!error) {
             writeSucceeded = true;
@@ -200,39 +208,13 @@ export class UserEventService {
         }
       }
       
-      console.log('🔍 Checking if relationship was saved:', { userId, eventUuid, interested });
-      
-      // Wait a moment for the database write to complete
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      // Get current authenticated user - RPC uses auth.uid() so we should query with that
-      const { data: authData2, error: authError2 } = await supabase.auth.getUser();
-      
-      // Check for auth errors (non-fatal, just log)
-      if (authError2) {
-        console.warn('⚠️ Error getting auth user:', authError2);
-      }
-      
-      const currentAuthUser = authData2?.user;
-      const queryUserId = currentAuthUser?.id || userId; // Use auth.uid() if available, fallback to userId
-      
-      let data: any = null;
-      if (eventUuid) {
-        const { data: relationship, error: fetchError } = await supabase
-          .from('user_event_relationships')
-          .select('*')
-          .eq('user_id', queryUserId)
-          .eq('event_id', eventUuid)
-          .eq('relationship_type', 'interested')
-          .maybeSingle();
+      console.log('🔍 Relationship write completed:', { userId, eventUuid, interested });
 
-        if (!fetchError) {
-          data = relationship;
-        } else {
-          console.error('Error checking user_event_relationships after write:', fetchError);
-        }
-      }
-      
+      // No read-back. The write above is synchronous and its error is already
+      // handled, so the old 300ms sleep + re-select only added latency to every
+      // heart tap. No caller reads this return value.
+      const data: any = null;
+
       // DISABLED: Auto-join event chat feature blocked per user request
       // If interested, automatically join the event's verified chat
       // if (interested && eventUuid) {
@@ -261,21 +243,8 @@ export class UserEventService {
       // }
       
       try {
-        // Try to get event UUID from database if jambaseEventId is not a UUID
-        let eventUuid: string | null = null;
-        if (jambaseEventId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId)) {
-          eventUuid = jambaseEventId;
-        } else {
-          // Try to resolve from external_entity_ids or events table
-          const { data: eventData } = await supabase
-            .from('events')
-            .select('id')
-            .eq('jambase_event_id', jambaseEventId)
-            .maybeSingle();
-          if (eventData?.id) {
-            eventUuid = eventData.id;
-          }
-        }
+        // Reuse the UUID resolved at the top of this function. This block used to
+        // re-resolve it with a second events lookup on every single heart tap.
         trackInteraction.interest('event', jambaseEventId, interested, {}, eventUuid);
         console.log('🎯 Tracked interest interaction:', { jambaseEventId, interested, eventUuid });
       } catch (error) {
@@ -293,24 +262,11 @@ export class UserEventService {
    */
   static async removeEventInterest(userId: string, jambaseEventId: string): Promise<void> {
     try {
+      // setEventInterest already resolves the event and fires the
+      // trackInteraction.interest(..., false, ...) analytics event. The block that
+      // used to sit here re-resolved the UUID a third time and emitted a second,
+      // duplicate analytics event for the same un-heart.
       await UserEventService.setEventInterest(userId, jambaseEventId, false);
-      try {
-        // Try to get event UUID
-        let eventUuid: string | null = null;
-        if (jambaseEventId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jambaseEventId)) {
-          eventUuid = jambaseEventId;
-        } else {
-          const { data: eventData } = await supabase
-            .from('events')
-            .select('id')
-            .eq('jambase_event_id', jambaseEventId)
-            .maybeSingle();
-          if (eventData?.id) {
-            eventUuid = eventData.id;
-          }
-        }
-        trackInteraction.interest('event', jambaseEventId, false, { action: 'remove' }, eventUuid);
-      } catch {}
     } catch (error) {
       console.error('Error removing event interest:', error);
       throw new Error(`Failed to remove event interest: ${error instanceof Error ? error.message : 'Unknown error'}`);

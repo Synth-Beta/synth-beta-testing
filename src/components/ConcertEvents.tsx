@@ -83,7 +83,7 @@ useEffect(() => {
         .from('user_event_relationships')
         .select('event_id')
         .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interested');
+        .in('relationship_type', ['interested', 'going', 'maybe']);
 
       if (error) throw error;
 
@@ -106,8 +106,7 @@ useEffect(() => {
           .from('user_event_relationships')
           .delete()
           .eq('user_id', currentUserId)
-          .eq('event_id', eventId)
-          .eq('relationship_type', 'interested');
+          .eq('event_id', eventId);
 
         if (error) throw error;
 
@@ -121,11 +120,14 @@ useEffect(() => {
         // Add to interested
         const { error } = await supabase
           .from('user_event_relationships')
-          .insert({
-            user_id: currentUserId,
-            event_id: eventId,
-            relationship_type: 'interested'
-          });
+          .upsert(
+            {
+              user_id: currentUserId,
+              event_id: eventId,
+              relationship_type: 'interested'
+            },
+            { onConflict: 'user_id,event_id', ignoreDuplicates: true }
+          );
 
         if (error) throw error;
 

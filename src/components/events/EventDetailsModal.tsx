@@ -897,7 +897,7 @@ export function EventDetailsModal({
           .from('user_event_relationships')
           .select('user_id')
           .eq('event_id', actualEvent.id)
-          .eq('relationship_type', 'interested');
+          .in('relationship_type', ['interested', 'going', 'maybe']);
 
         if (interestedError) {
           throw interestedError;
@@ -1259,7 +1259,7 @@ export function EventDetailsModal({
         .from('user_event_relationships')
         .select('user_id')
         .eq('event_id', uuidId)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .neq('user_id', currentUserId)
         .range(from, to);
 

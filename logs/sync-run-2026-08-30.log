@@ -1,0 +1,819 @@
+◇ injected env (0) from .env.local // tip: ◈ encrypted .env [www.dotenvx.com]
+🔄 Starting Daily Incremental Sync (3NF Compliant)...
+📅 Started at: 2026-08-30T18:39:26.803Z
+🔄 Starting Daily Incremental Sync (3NF Compliant)...
+
+📅 dateModifiedFrom: 2026-08-26T14:10:32+00:00
+📅 eventDateFrom (upcoming only): 2026-08-30
+
+  🔍 Fetching genres for new artist: Artist Mastermind Course
+
+🛑 MusicBrainz circuit breaker tripped: MusicBrainz returned 503 (Retry-After: 0s)
+🛑 No further MusicBrainz calls will be made until reset.
+
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Rome and the Lost Pines
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: DJ Chris Abood
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Falz
+  ✓ Found genres via iTunes: Afrobeats
+  🔍 Fetching genres for new artist: Moose
+  ✓ Found genres via iTunes: Alternative
+  ⚠️  Venue update skipped (key collision): d2a22c1b-aa56-40d1-acc3-2d87fb90c600
+✅ Processed page 1/1 (63/100 upcoming)
+  🔍 Fetching genres for new artist: Steve Mac
+  ✓ Found genres via iTunes: Dance
+  ⚠️  Venue update skipped (key collision): 73e6c165-7ef5-4009-a4c4-6a8447064b21
+  ⚠️  Venue update skipped (key collision): d882e9d9-721f-4eb6-8e9c-20f689581ab1
+✅ Processed page 2/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Myka Lace
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Gescu
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: DJ Anderson do Paraíso
+  ✓ Found genres via iTunes: Baile Funk
+  🔍 Fetching genres for new artist: Orofino
+  ✓ Found genres via iTunes: Contemporary Jazz
+  🔍 Fetching genres for new artist: Carina
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: La Snacks
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Dustin Muchuvitz
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: 47Tec
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Will Slater
+  ✓ Found genres via iTunes: Country
+  ⚠️  Venue update skipped (key collision): 207b52a6-726b-4920-8edc-e076ef0dbe5e
+  ⚠️  Venue update skipped (key collision): 0e938294-4c33-4afa-bf95-77156a123f24
+✅ Processed page 3/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Regina Bonelli
+  ✓ Found genres via iTunes: Blues-Rock
+  🔍 Fetching genres for new artist: Alzira E
+  ✓ Found genres via iTunes: MPB
+  🔍 Fetching genres for new artist: Iesha Marie
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Creepy Deep
+  ✓ Found genres via iTunes: Trance
+  ⚠️  Venue update skipped (key collision): 6444bdf5-85c6-4761-9620-f44f84680050
+  ⚠️  Venue update skipped (key collision): f847b545-daec-4ee4-a1b5-cbbdd9b164aa
+  ⚠️  Venue update skipped (key collision): 38581bcd-26af-465f-b8b5-15df66cf72f7
+  ⚠️  Venue update skipped (key collision): 71fcb26a-b4cc-4a32-8e7c-b187359db085
+✅ Processed page 4/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Big Chemical
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: The Komboocha Mushroom Band
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Rosamii
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: The Driftwoods
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Brave The Spirit
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Anthony Mikus
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Bastet
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Matthew Cha
+  ✓ Found genres via iTunes: IDM/Experimental
+  🔍 Fetching genres for new artist: LabRats
+  ✓ Found genres via iTunes: R&B/Soul
+  🔍 Fetching genres for new artist: dogtailcorners
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: Ímã
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Saints of New Madrid
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: İlker Pehriz
+  ✓ Found genres via iTunes: Rock
+  ⚠️  Venue update skipped (key collision): 1584a72c-1411-4e25-8409-6bb45e4e5544
+  ⚠️  Venue update skipped (key collision): 7837b097-2712-4525-b86d-7d7d2fd99593
+✅ Processed page 5/123 (100/100 upcoming)
+  🔗 Linking Jambase ID to existing artist: "Jeff Sipe & Friends"
+  🔗 Linking Jambase ID to existing artist: "Magi"
+  ⚠️ Artist "Jeff Sipe & Friends" already has Jambase ID 16876215, skipping new ID 16967982 (possible name collision)
+  🔍 Fetching genres for new artist: North West
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Colton Mckenna
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: Hawgs
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Shugi
+  ✓ Found genres via iTunes: Dance
+  🔍 Fetching genres for new artist: Bill Pinkneys Original Drifters
+  ⚠️  Genre lookup error for "Bill Pinkneys Original Drifters": fetch failed
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Heldtight
+  ✓ Found genres via iTunes: Metal
+  🔍 Fetching genres for new artist: 77Lemons
+  ✓ Found genres via iTunes: Dubstep
+  🔍 Fetching genres for new artist: Lauren Woodall
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Carlos
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Blood, Sweat, and Whiskey
+  ✓ Found genres via iTunes: Punk
+  🔍 Fetching genres for new artist: Loteria
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Olive Pants
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Naum
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Pocket Thief
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Trevor Bystrom
+  ✓ Found genres via iTunes: Worldwide
+  🔍 Fetching genres for new artist: Zaza Flamenca
+  ✓ Found genres via iTunes: Latin
+  🔍 Fetching genres for new artist: Jeff Sipe & Friends
+  ⚠️  No genres found, setting default: small artist
+✅ Processed page 6/123 (100/100 upcoming)
+  🔗 Linking Jambase ID to existing artist: "Jolie"
+  🔍 Fetching genres for new artist: The Dewars
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Slim Collins
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Lane Drix
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: Vice Versa
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Under the Deku Tree
+  ✓ Found genres via iTunes: Jazz
+  🔍 Fetching genres for new artist: Spring Breeding
+  ✓ Found genres via iTunes: Punk
+  🔍 Fetching genres for new artist: Abismo Ónix
+  ✓ Found genres via iTunes: Latin
+  🔍 Fetching genres for new artist: Adderall XR
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Dywayne Lyrique
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: A. Petrov
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Erica Reese
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Brett Staska & The Souvenirs
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: El Malo
+  ✓ Found genres via iTunes: Urbano latino
+  🔍 Fetching genres for new artist: Kolor
+  ✓ Found genres via iTunes: Cantopop/HK-Pop
+  ⚠️  Venue update skipped (key collision): 34181431-0875-41db-914a-370b80d543ed
+✅ Processed page 7/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Longriver
+  ✓ Found genres via iTunes: Folk
+✅ Processed page 8/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Megan and Shane
+  ✓ Found genres via iTunes: Americana
+  🔍 Fetching genres for new artist: Here I Come Again: a nod to Dolly Parton
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Cody Ellis
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: Capt Reese & The Sons Of Man
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Homeward Bound
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Gil Grand
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: DOVECHLD
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: A Band Beyond Description
+  ⚠️  No genres found, setting default: small artist
+  ⚠️  Venue update skipped (key collision): c97bfdde-9a5d-4fc3-8042-76c77688e351
+✅ Processed page 9/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Tough Cookie
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Grey Street (A Tribute To The Dave Matthews Band)
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Gay Cum Daddies
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Mora Lucay
+  ✓ Found genres via iTunes: Worldwide
+  ⚠️  Venue update skipped (key collision): 3b8a3400-d924-4afa-aad7-549fc56a3a15
+  ⚠️  Venue update skipped (key collision): 44116e8f-1a76-4490-b380-495b8fee838a
+✅ Processed page 10/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Casii Stephan
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Key Found
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Matt Axton
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: Supatight
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Ümlouse
+  ✓ Found genres via iTunes: Metal
+  🔍 Fetching genres for new artist: Limo Scene
+  ✓ Found genres via iTunes: Dance
+  ⚠️  Venue update skipped (key collision): 27ac54fb-32f6-415b-a262-b0e19ebd6541
+✅ Processed page 11/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Earth to Mars: Tribute to Bruno Mars
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Souvineer
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Friends Like Us
+  ✓ Found genres via iTunes: Punk
+  🔍 Fetching genres for new artist: The Family Ties
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: 86hope
+  ✓ Found genres via iTunes: Punk
+  🔍 Fetching genres for new artist: Gage Cowart
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: Felipe Valenzuela
+  ✓ Found genres via iTunes: House
+  ⚠️  Venue update skipped (key collision): 9da0cf98-f94d-43a0-bab5-28a25843153f
+✅ Processed page 12/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Ramona + the RIOT
+  ✓ Found genres via iTunes: R&B/Soul
+  🔍 Fetching genres for new artist: Peyton Lescher
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Kirk Fleta
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Jake Clayton
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: Drew Regan
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: The Smokin’ Oaks
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: +3 Against Undead
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: The Shed
+  ✓ Found genres via iTunes: Metal
+  🔍 Fetching genres for new artist: Feed Your Body to the Void
+  ✓ Found genres via iTunes: Metal
+  🔍 Fetching genres for new artist: The Saltones
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Exhaustra
+  ✓ Found genres via iTunes: Metal
+  🔍 Fetching genres for new artist: Horizon
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: ISYA
+  ✓ Found genres via iTunes: Punk
+  🔍 Fetching genres for new artist: Mitzi McKee & The Precious Cargo
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Marissa Christine
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: Taildraggers Ultralight
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Billy Buchanan & His Rock ‘N Soul Revue
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Johnny Malek
+  ✓ Found genres via iTunes: House
+  🔍 Fetching genres for new artist: Bebe Deluxe
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Lauren Breen
+  ✓ Found genres via iTunes: Rock
+✅ Processed page 13/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Gypsy-String Revival
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Strawberry Hands
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Trustfall
+  ✓ Found genres via iTunes: Pop/Rock
+  🔍 Fetching genres for new artist: Jeremy Price
+  ✓ Found genres via iTunes: Soundtrack
+  🔍 Fetching genres for new artist: Special Characters
+  ✓ Found genres via iTunes: Dance
+✅ Processed page 14/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Kaydee Mulvehill
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Linus Fenton
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: My Autumn Attic
+  ✓ Found genres via iTunes: Rock
+  ⚠️  Venue update skipped (key collision): 22395f71-a982-408f-ba33-18d02607f493
+✅ Processed page 15/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Jacksonfalls
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Cataclysmic
+  ✓ Found genres via iTunes: Metal
+  🔍 Fetching genres for new artist: Connor Kent
+  ✓ Found genres via iTunes: Worldwide
+  🔍 Fetching genres for new artist: The Projections
+  ✓ Found genres via iTunes: Rock
+  ⚠️  Venue update skipped (key collision): 35fa3b00-71a5-45f4-8df9-ac638e3be0f4
+✅ Processed page 16/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Brad Allen Williams
+  ✓ Found genres via iTunes: Jazz
+  🔍 Fetching genres for new artist: Jimmy Dale
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Jake Everard
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Bill Warfield’s Hell’s Kitchen Funk Orchestra
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Pirah
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Phantasma
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: The Talking Hours
+  ✓ Found genres via iTunes: Rock
+  ⚠️  Venue update skipped (key collision): 72b3fa9c-4335-4249-8634-b75903d39859
+  ⚠️  Venue update skipped (key collision): 27ac54fb-32f6-415b-a262-b0e19ebd6541
+  ⚠️  Venue update skipped (key collision): 5de32c55-53b0-4be0-9379-5e1b17fe6b18
+  ⚠️  Venue update skipped (key collision): d2aeaf55-c1c4-443e-89b0-5df9f3271100
+✅ Processed page 17/123 (100/100 upcoming)
+  ⚠️  Venue update skipped (key collision): 2574cf15-3036-4652-bab4-e5eedaba8bfb
+  ⚠️  Venue update skipped (key collision): 4c4a71ea-5b56-4e21-83e1-9da0982ab816
+  ⚠️  Venue update skipped (key collision): c61255ff-c201-4c8e-9619-1a34e3d27770
+✅ Processed page 18/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Tom Haney
+  ✓ Found genres via iTunes: Music Videos
+  🔍 Fetching genres for new artist: Three Leg Cat
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Kevin PM
+  ✓ Found genres via iTunes: Folk
+  🔍 Fetching genres for new artist: Sentimento
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: POLICECREATEHIPPIES (PCH)
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Harleighblu
+  ✓ Found genres via iTunes: R&B/Soul
+  🔍 Fetching genres for new artist: Tano
+  ✓ Found genres via iTunes: Modern Dancehall
+  🔍 Fetching genres for new artist: Ashton Holloway
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Native Elements
+  ✓ Found genres via iTunes: Reggae
+  🔍 Fetching genres for new artist: Alejandro Meola
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Dodan
+  ✓ Found genres via iTunes: Worldwide
+  🔍 Fetching genres for new artist: Alyse Dione
+  ⚠️  No genres found, setting default: small artist
+  ⚠️  Venue update skipped (key collision): f060de7c-925c-443a-9bf5-619422c13cb6
+  ⚠️  Venue update skipped (key collision): dffa141f-70e3-4fe5-91aa-7eed4facc702
+  ⚠️  Venue update skipped (key collision): ff18a8b7-6a0d-45c9-b3c2-c87e0e4f25d9
+  ⚠️  Venue update skipped (key collision): 9b24b260-6686-43b4-989c-97c6d387f52f
+  🔀 Merged 1 legacy null-id duplicate event(s) into canonical rows
+✅ Processed page 19/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Annie Dukes
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Ben Haley
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: The Montaines
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: The Pemberwicks
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Lucius Parr
+  ✓ Found genres via iTunes: Blues
+  🔍 Fetching genres for new artist: Too Many Daves
+  ✓ Found genres via iTunes: Punk
+  🔍 Fetching genres for new artist: Bayleaf
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Petteri Sariola
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Local Zero
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: The Dreadful Yawns
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Soapdish
+  ✓ Found genres via iTunes: Pop
+  ⚠️  Venue update skipped (key collision): 6e0e187d-3ec1-4db4-b43f-8a19d3207edb
+  ⚠️  Venue update skipped (key collision): 588956d5-50ca-4163-8f36-424a8e15fb8e
+  ⚠️  Venue update skipped (key collision): f060de7c-925c-443a-9bf5-619422c13cb6
+✅ Processed page 20/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Dan Miraldi
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Loose Touch
+  ✓ Found genres via iTunes: Dance
+  🔍 Fetching genres for new artist: Purple Kloud
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Nyx Division
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Ache
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Paula Maya
+  ✓ Found genres via iTunes: Brazilian
+  🔍 Fetching genres for new artist: The Elements
+  ✓ Found genres via iTunes: Alternative
+  ⚠️  Venue update skipped (key collision): 24f5463d-e3fd-498c-b268-c7083e455fb2
+✅ Processed page 21/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Thelonious Love
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  ⚠️  Venue update skipped (key collision): 08b3fc8c-3581-41b9-b3b1-bcd31ef2664e
+  ⚠️  Venue update skipped (key collision): 23fa27b8-7ac3-45a3-8cb6-22de6e43c741
+✅ Processed page 22/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Valatie
+  ✓ Found genres via iTunes: Punk
+  🔍 Fetching genres for new artist: Nick Taylor
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: Emane
+  ✓ Found genres via iTunes: Contemporary R&B
+  🔍 Fetching genres for new artist: Swallow These City Lights
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Epal
+  ✓ Found genres via iTunes: French Pop
+  🔍 Fetching genres for new artist: Stevie Tombstone
+  ✓ Found genres via iTunes: Alternative Country
+✅ Processed page 23/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Tongue Love
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: The Board of Directors
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Doris
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Los Adolescentes
+  ✓ Found genres via iTunes: Latin
+  🔍 Fetching genres for new artist: Lunar Pilots
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Teks LV
+  ⚠️  No genres found, setting default: small artist
+✅ Processed page 24/123 (100/100 upcoming)
+  ⚠️  Venue update skipped (key collision): 3c35c611-6180-40aa-8873-7b5847122c08
+  ⚠️  Venue update skipped (key collision): b0cd4bb7-76b2-45eb-a064-bdaeea33babe
+✅ Processed page 25/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Elliott Skinner
+  ✓ Found genres via iTunes: Folk
+  🔍 Fetching genres for new artist: Fetty P Franklin
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Waterpennies
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Trim
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Briars
+  ✓ Found genres via iTunes: Traditional Folk
+  🔍 Fetching genres for new artist: Monty Kiddo
+  ✓ Found genres via iTunes: House
+  🔍 Fetching genres for new artist: The Black Vultures
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: James Cole
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Hektor Mass
+  ✓ Found genres via iTunes: Dance
+  ⚠️  Venue update skipped (key collision): 2befdd99-3ede-4bfc-98f2-44c8219f21c0
+  ⚠️  Venue update skipped (key collision): e3b18119-e50e-45d2-8eec-bc1df3f4be6e
+✅ Processed page 26/123 (100/100 upcoming)
+  🔗 Linking Jambase ID to existing artist: "Sarz"
+  ⚠️  Venue update skipped (key collision): 764165d3-4c28-4d0f-be90-23089a235936
+  ⚠️  Venue update skipped (key collision): d87ad159-943c-4895-a273-f33b4e1b37a6
+  ⚠️  Venue update skipped (key collision): 356a478b-a1e1-4b89-9e26-97a78e040538
+  ⚠️  Venue update skipped (key collision): 2f7c8892-f5d1-473f-b2a9-bacea37e26cb
+✅ Processed page 27/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Charlie Tee
+  ✓ Found genres via iTunes: Jungle/Drum'n'bass
+  🔍 Fetching genres for new artist: Dravin and the Ravens
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Patria Jacobs
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Nuage Rose
+  ✓ Found genres via iTunes: Biographies & Memoirs
+  🔍 Fetching genres for new artist: SONIwithanEYE
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Lucas Jagneaux
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Wet Denim
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: DJ Flaco
+  ✓ Found genres via iTunes: Dance
+  🔍 Fetching genres for new artist: Nate Aronow Nextet
+  ✓ Found genres via iTunes: Jazz
+  🔍 Fetching genres for new artist: Roots Zombie
+  ✓ Found genres via iTunes: Dub
+✅ Processed page 28/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Thornscrubs
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: Aisha Vibes
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Larry Ochs
+  ✓ Found genres via iTunes: Jazz
+✅ Processed page 29/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Randal Bays
+  ✓ Found genres via iTunes: Worldwide
+  ⚠️  Venue update skipped (key collision): 08800f9c-9eb3-44e9-ad1d-acba048f46f5
+✅ Processed page 30/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Something Beautiful
+  ✓ Found genres via iTunes: Alternative
+  ⚠️  Venue update skipped (key collision): 8e81ba33-132d-4d60-8602-c19696f7252b
+  ⚠️  Venue update skipped (key collision): cc73bb46-0d58-429d-8287-03880d296367
+✅ Processed page 31/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: NOWAR
+  ✓ Found genres via iTunes: Dance
+  🔍 Fetching genres for new artist: Kuttl3ss
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  ⚠️  Venue update skipped (key collision): 6b8d84b9-6618-42b9-8411-37760f7f2ce7
+  ⚠️  Venue update skipped (key collision): 98ec4dc2-2cf6-4895-b6c7-b24b28bf5510
+  ⚠️  Venue update skipped (key collision): 8224904e-a5be-4a3b-b793-40ca5f855467
+  ⚠️  Venue update skipped (key collision): cdcd4c7f-5bb8-4495-87c0-837c52cc935d
+  ⚠️  Venue update skipped (key collision): 71fcb26a-b4cc-4a32-8e7c-b187359db085
+✅ Processed page 32/123 (100/100 upcoming)
+  ⚠️  Venue update skipped (key collision): 97afe395-5a65-4567-90db-1944792377d5
+  ⚠️  Venue update skipped (key collision): 10281f78-95bb-4473-adf6-62323488118a
+✅ Processed page 33/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: The Imperial Mustard
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Naked On Palmtrees
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Sean Payne
+  ✓ Found genres via iTunes: Jazz
+  🔍 Fetching genres for new artist: Sam Snitchy
+  ✓ Found genres via iTunes: New Wave
+  🔍 Fetching genres for new artist: Macartney Reinhardt
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: The Violent Years
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Lady Heroine
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Brandon
+  ✓ Found genres via iTunes: R&B/Soul
+  ⚠️  Venue update skipped (key collision): ff18a8b7-6a0d-45c9-b3c2-c87e0e4f25d9
+  ⚠️  Venue update skipped (key collision): 09a045da-e876-4972-a530-a5cb0ac4b464
+  ⚠️  Venue update skipped (key collision): 8e866960-be4a-45da-b0ab-174093c47442
+  ⚠️  Venue update skipped (key collision): 97afe395-5a65-4567-90db-1944792377d5
+✅ Processed page 34/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Dave P.
+  ✓ Found genres via iTunes: Techno
+  🔍 Fetching genres for new artist: Vaexus
+  ✓ Found genres via iTunes: Metal
+  🔍 Fetching genres for new artist: Lewis Carroll
+  ✓ Found genres via iTunes: Classics
+  🔍 Fetching genres for new artist: Dadcore
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Madman
+  ✓ Found genres via iTunes: Punk
+  🔍 Fetching genres for new artist: Yeng Constantino
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: Low Expectations
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Lahgo
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: mypilotis
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Oku Luukkainen
+  ✓ Found genres via iTunes: Hip-Hop
+  ⚠️  Venue update skipped (key collision): 74b4e1a2-7ff4-4d93-a642-4de94ef20631
+  ⚠️  Venue update skipped (key collision): 03764417-6d87-41f6-8cd5-5aa5990eb74c
+  ⚠️  Venue update skipped (key collision): 20677996-ab04-4212-b9fd-65741e59219f
+✅ Processed page 35/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Kara Cole
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: Origami Summer
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Esdras Boyajian
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: Jacob Sharp
+  ✓ Found genres via iTunes: Folk-Rock
+  🔍 Fetching genres for new artist: Valley Lodge
+  ✓ Found genres via iTunes: Rock
+  ⚠️  Venue update skipped (key collision): dd2da2e3-f5cb-4cef-a442-5eba979adafd
+  ⚠️  Venue update skipped (key collision): ce7b02b7-0367-472e-849c-c4a14f79ef2e
+  ⚠️  Venue update skipped (key collision): 33cc95a5-0200-40d3-81ba-178626fcc7c7
+✅ Processed page 36/123 (100/100 upcoming)
+  🔗 Linking Jambase ID to existing artist: "Az Chike"
+  🔍 Fetching genres for new artist: Hansa Czypionka
+  ⚠️  No genres found, setting default: small artist
+  ⚠️  Venue update skipped (key collision): 126e80b3-7845-418a-83f5-5b396969ef4a
+✅ Processed page 37/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Asheville Symphony
+  ✓ Found genres via iTunes: Americana
+✅ Processed page 38/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: The Gentlemen’s Anti-Temperance League
+  ✓ Found genres via iTunes: Jazz
+  🔍 Fetching genres for new artist: Artificial Muscle
+  ✓ Found genres via iTunes: Downtempo
+  🔍 Fetching genres for new artist: Alex Hartley
+  ✓ Found genres via iTunes: Pop
+✅ Processed page 39/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Animaux Formidables
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Mama’S Anthem
+  ✓ Found genres via iTunes: Reggae
+  🔍 Fetching genres for new artist: The Scummies
+  ✓ Found genres via iTunes: Punk
+  ⚠️  Venue update skipped (key collision): 0c08a369-d4f5-48e4-bd83-bdf38101ec29
+  ⚠️  Venue update skipped (key collision): 4353416d-d2d5-4094-bb31-afcca9334b98
+  ⚠️  Venue update skipped (key collision): 63b7773d-3f79-43b0-8970-6472af44cf01
+  ⚠️  Venue update skipped (key collision): 97afe395-5a65-4567-90db-1944792377d5
+  ⚠️  Venue update skipped (key collision): 5c1d0cf5-8990-4c75-bf99-a7a1cb6464ba
+✅ Processed page 40/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: The Whipstitch Sallies
+  ✓ Found genres via iTunes: Alternative Folk
+  ⚠️  Venue update skipped (key collision): 3537d7b8-cb71-4e12-8751-3f6b094e7f6b
+  ⚠️  Venue update skipped (key collision): 6ced8ac3-86b7-481e-a160-8dbb9eaa8040
+  ⚠️  Venue update skipped (key collision): 0f749f62-b631-49e8-926f-d753305c131d
+  ⚠️  Venue update skipped (key collision): fccef628-7e31-459a-baf5-caf939ad9aa9
+✅ Processed page 41/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: U.S. Bastards
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: This Retro Future
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Rastan
+  ✓ Found genres via iTunes: Reggae
+  🔍 Fetching genres for new artist: Shortii B
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Ryan Michaels Band
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Jac with No K
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Conep
+  ✓ Found genres via iTunes: Urbano latino
+  ⚠️  Venue update skipped (key collision): a34f1c7a-ccd6-4733-acb5-1a7876d7358f
+  ⚠️  Venue update skipped (key collision): 215788a9-2cd8-4b76-a357-51adadd0c2ad
+  ⚠️  Venue update skipped (key collision): 5bd343c1-0591-42dc-bc3c-9e1dfde51118
+  ⚠️  Venue update skipped (key collision): 97afe395-5a65-4567-90db-1944792377d5
+✅ Processed page 42/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Broken Record
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: lizzie is trying
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: July Turner
+  ✓ Found genres via iTunes: Country
+  🔍 Fetching genres for new artist: jeona
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Victoria Ulriksen
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: By Surprise
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Ethan Setiawan
+  ✓ Found genres via iTunes: Bluegrass
+  ⚠️  Venue update skipped (key collision): 6b8d84b9-6618-42b9-8411-37760f7f2ce7
+  ⚠️  Venue update skipped (key collision): 3537d7b8-cb71-4e12-8751-3f6b094e7f6b
+  ⚠️  Venue update skipped (key collision): 5e4a44d6-6818-4f52-98cb-ab01312ae880
+  ⚠️  Venue update skipped (key collision): b320266c-5342-4028-af53-bee49a8e82cc
+✅ Processed page 43/123 (100/100 upcoming)
+  ⚠️  Venue update skipped (key collision): 9340ecfd-a90b-4d47-969d-42dbb1430ca9
+✅ Processed page 44/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Tomar and the FCs
+  ✓ Found genres via iTunes: R&B/Soul
+  🔍 Fetching genres for new artist: Alpha & Omega
+  ✓ Found genres via iTunes: Reggae
+  🔍 Fetching genres for new artist: Caitlin Cook
+  ✓ Found genres via iTunes: Comedy
+  🔍 Fetching genres for new artist: Third Coast Symphony
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: De’wayne Jackson
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Sunanda Sharma
+  ✓ Found genres via iTunes: Pop
+✅ Processed page 45/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: SHARAI
+  ✓ Found genres via iTunes: Pop
+  ⚠️  Venue update skipped (key collision): 05521950-eedf-4caf-8800-010c6af80367
+✅ Processed page 46/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Mike Donello & the New Essentials
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: nineteen minutes later
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Rip Room
+  ✓ Found genres via iTunes: Rock
+  ⚠️  Venue update skipped (key collision): 6e70d800-2ef8-4628-949b-de51f46c7f0f
+  ⚠️  Venue update skipped (key collision): 17613511-b43d-4346-a9d6-bfeb45bc3f97
+✅ Processed page 47/123 (100/100 upcoming)
+  🔗 Linking Jambase ID to existing artist: "SMO"
+  🔍 Fetching genres for new artist: Tosser
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: POHL
+  ✓ Found genres via iTunes: Dance
+  ⚠️  Venue update skipped (key collision): 0f76946a-0834-4071-aa60-e40eb0790ef7
+  ⚠️  Venue update skipped (key collision): eaf59267-70af-44d7-b17a-c5180bb1ef71
+  ⚠️  Venue update skipped (key collision): b6710ed2-7249-4576-8694-8dd4a59a222d
+✅ Processed page 48/123 (100/100 upcoming)
+  ⚠️  Venue update skipped (key collision): 2574cf15-3036-4652-bab4-e5eedaba8bfb
+  ⚠️  Venue update skipped (key collision): 4887b232-9a80-4fb0-8e10-d6f86c46e45d
+  ⚠️  Venue update skipped (key collision): 417eae4b-3f8f-4ddc-a37f-34b3fa36a205
+✅ Processed page 49/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Zoe Moon
+  ✓ Found genres via iTunes: R&B/Soul
+  🔍 Fetching genres for new artist: Christian Wargo
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Lackadays
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: bonny.AF
+  ✓ Found genres via iTunes: R&B/Soul
+  🔍 Fetching genres for new artist: Sulphur
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: The Banshees
+  ✓ Found genres via iTunes: Traditional Folk
+  🔍 Fetching genres for new artist: The Jailbirds
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Savine
+  ✓ Found genres via iTunes: Pop
+  ⚠️  Venue update skipped (key collision): e8790cb3-cd19-4ae1-a652-faf7d0fb56f2
+  ⚠️  Venue update skipped (key collision): e6bef0f8-6feb-4580-a261-377a3ad35f91
+  ⚠️  Venue update skipped (key collision): 87a517be-22ef-4f77-bb8e-291029f4194d
+  ⚠️  Venue update skipped (key collision): 63cd84b7-1f95-4378-8d2f-94d91f792c54
+  ⚠️  Venue update skipped (key collision): 8a731994-9ffe-44bf-8189-7f0f056b22bb
+✅ Processed page 50/123 (100/100 upcoming)
+  ⚠️  Venue update skipped (key collision): d42ba8e8-cd75-4399-ba63-b40f399d7978
+  ⚠️  Venue update skipped (key collision): 97afe395-5a65-4567-90db-1944792377d5
+  ⚠️  Venue update skipped (key collision): ff18a8b7-6a0d-45c9-b3c2-c87e0e4f25d9
+  ⚠️  Venue update skipped (key collision): 02448864-331b-442f-834f-474f9e3dbfa9
+✅ Processed page 51/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Greek Fire
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Ejeca
+  ✓ Found genres via iTunes: Dance
+  🔍 Fetching genres for new artist: Napsack
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Stelth Ulvang
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Sloppy Heads
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Honest Soulz
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Kolpa
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Matt Shore
+  ✓ Found genres via iTunes: Pop
+  ⚠️  Venue update skipped (key collision): e56249ab-80a8-431c-ade0-4c2e797423fc
+  ⚠️  Venue update skipped (key collision): bf4e5470-2892-4bfd-8fd7-296d6d8d58ba
+  ⚠️  Venue update skipped (key collision): d842552a-7e68-4c51-8200-4dac55c484af
+  ⚠️  Venue update skipped (key collision): f927e384-5dac-4d52-b75d-8ca0bc9e4b83
+✅ Processed page 52/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Keegan Powell
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Hikurangi Schaverien-Kaa
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Soco Jazz Collective
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Jimmy Rock
+  ✓ Found genres via iTunes: Electronic
+  🔍 Fetching genres for new artist: Nick Cheo
+  ✓ Found genres via iTunes: Dance
+  ⚠️  Venue update skipped (key collision): 44ce012f-333b-4301-82c0-584c20c0da82
+  ⚠️  Venue update skipped (key collision): dc6a4323-807d-4a24-a4df-92abfa99557c
+✅ Processed page 53/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Mike Mainieri
+  ✓ Found genres via iTunes: Jazz
+  ⚠️  Venue update skipped (key collision): 2688d03d-9a8a-4461-9272-113775daffec
+  ⚠️  Venue update skipped (key collision): 8711ab62-0f42-4121-854c-e7bec0593119
+  ⚠️  Venue update skipped (key collision): 0f749f62-b631-49e8-926f-d753305c131d
+✅ Processed page 54/123 (100/100 upcoming)
+  ⚠️  Venue update skipped (key collision): a9ff5cb6-918f-4731-bac6-1c74d8f4a97e
+✅ Processed page 55/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Doglover95
+  ✓ Found genres via iTunes: Alternative
+  ⚠️  Venue update skipped (key collision): 91522718-5729-42b8-9321-28086adcbfae
+  ⚠️  Venue update skipped (key collision): 222891c4-9403-4d4b-9f7d-a60042876b13
+  ⚠️  Venue update skipped (key collision): 7bbfe098-9150-4328-b736-727c293aefab
+✅ Processed page 56/123 (100/100 upcoming)
+  🔗 Linking Jambase ID to existing artist: "D-Block Europe"
+  🔍 Fetching genres for new artist: Bill Cody Band
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: Big Murph
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+✅ Processed page 57/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Jesus And The Zealots
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: ERISTHEPLANET
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Marul
+  ✓ Found genres via iTunes: Dance
+  🔍 Fetching genres for new artist: Emma Whale
+  ✓ Found genres via iTunes: Electronica
+  🔍 Fetching genres for new artist: Aux Animaux
+  ✓ Found genres via iTunes: Electronica
+  🔍 Fetching genres for new artist: Mountain Holler
+  ✓ Found genres via iTunes: Alternative Folk
+  🔍 Fetching genres for new artist: Kipp Boucher
+  ✓ Found genres via iTunes: Alternative
+  ⚠️  Venue update skipped (key collision): 9356010c-2946-4537-a275-77f814501271
+✅ Processed page 58/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: HOSS&SWET 1987
+  ✓ Found genres via iTunes: Electronica
+  🔍 Fetching genres for new artist: Jodie Langford
+  ✓ Found genres via iTunes: Breakbeat
+  🔍 Fetching genres for new artist: PALEFACE
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Juliana
+  ✓ Found genres via iTunes: Pop
+  🔍 Fetching genres for new artist: RealYungPhil
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Lana Wild
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Lucas Jack
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: DonoSpectacular
+  ✓ Found genres via iTunes: Hip-Hop/Rap
+  🔍 Fetching genres for new artist: Sadhbh Keane
+  ✓ Found genres via iTunes: Singer/Songwriter
+  🔍 Fetching genres for new artist: Rushmore
+  ✓ Found genres via iTunes: Underground Rap
+  🔍 Fetching genres for new artist: Magnolia Honey
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Clüb De Combat
+  ✓ Found genres via iTunes: Dance
+  ⚠️  Venue update skipped (key collision): 64ae1370-7dbe-4ea2-853c-b14ca1c14de9
+  ⚠️  Venue update skipped (key collision): 0f749f62-b631-49e8-926f-d753305c131d
+  ⚠️  Venue update skipped (key collision): 5e4a44d6-6818-4f52-98cb-ab01312ae880
+  ⚠️  Venue update skipped (key collision): a4e5a7f5-4369-4074-beb6-6d9a12017171
+✅ Processed page 59/123 (100/100 upcoming)
+✅ Processed page 60/123 (100/100 upcoming)
+  ⚠️  Venue update skipped (key collision): f01df9e4-c56a-4fac-9a77-c392f0cff1b6
+  ⚠️  Venue update skipped (key collision): 177a059f-f234-41ad-9cc8-6e66470b6205
+  ⚠️  Venue update skipped (key collision): c280ce25-1426-4284-ba99-7af18756225e
+  ⚠️  Venue update skipped (key collision): 93d03517-7c36-41ae-8a90-1c56a1427f0f
+  ⚠️  Venue update skipped (key collision): 4090adcf-7b90-4ce8-bd21-ab2c69e1bbc4
+✅ Processed page 61/123 (100/100 upcoming)
+  🔍 Fetching genres for new artist: Lizzen
+  ✓ Found genres via iTunes: R&B/Soul
+  🔍 Fetching genres for new artist: The Recyclists
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Famous Volcanoes
+  ✓ Found genres via iTunes: Rock
+  🔍 Fetching genres for new artist: Willowbank Grove
+  ✓ Found genres via iTunes: Alternative
+  🔍 Fetching genres for new artist: Frameshifter
+  ✓ Found genres via iTunes: Metal
+  🔍 Fetching genres for new artist: 97 Crosses
+  ⚠️  No genres found, setting default: small artist
+  🔍 Fetching genres for new artist: The Rusty Pickups
+  ✓ Found genres via iTunes: Country

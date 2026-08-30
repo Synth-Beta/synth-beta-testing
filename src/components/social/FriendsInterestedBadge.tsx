@@ -53,7 +53,7 @@ export function FriendsInterestedBadge({ eventId, onClick }: FriendsInterestedBa
         .from('user_event_relationships')
         .select('user_id')
         .eq('event_id', eventId)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .in('user_id', friendIds);
 
       if (!error && interestedFriends) {

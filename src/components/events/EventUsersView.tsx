@@ -97,7 +97,7 @@ const { sessionExpired } = useAuth();
         .from('user_event_relationships')
         .select('user_id')
         .eq('event_id', event.id)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .neq('user_id', currentUserId);
 
       if (interestsError) throw interestsError;
@@ -189,7 +189,7 @@ const { sessionExpired } = useAuth();
           )
         `)
         .eq('user_id', userId)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;

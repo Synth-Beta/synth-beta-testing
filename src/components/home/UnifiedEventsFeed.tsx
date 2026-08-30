@@ -684,7 +684,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         .from('user_event_relationships')
         .select('event_id')
         .eq('user_id', currentUserId)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
     )
       .then(({ data }) => {
         if (data) setInterestedEvents(new Set(data.map(r => r.event_id)));

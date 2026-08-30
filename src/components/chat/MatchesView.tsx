@@ -161,7 +161,7 @@ export const MatchesView = ({ currentUserId, onBack, onOpenChat }: MatchesViewPr
               )
             `)
             .eq('user_id', otherUserId)
-            .eq('relationship_type', 'interested')
+            .in('relationship_type', ['interested', 'going', 'maybe'])
             .order('created_at', { ascending: false })
             .limit(5); // Show up to 5 recent events
 

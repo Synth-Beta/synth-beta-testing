@@ -183,7 +183,7 @@ class HybridSearchService {
         .select('*')
         .eq('event_id', eventId)
         .eq('user_id', userId)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .maybeSingle();
 
       if (existing) {
@@ -194,11 +194,14 @@ class HybridSearchService {
       // Create new link in user_event_relationships table
       const { error } = await supabase
         .from('user_event_relationships')
-        .insert({ 
-          event_id: eventId,
-          relationship_type: 'interested',
-          user_id: userId 
-        });
+        .upsert(
+          {
+            event_id: eventId,
+            relationship_type: 'interested',
+            user_id: userId
+          },
+          { onConflict: 'user_id,event_id', ignoreDuplicates: true }
+        );
 
       if (error) {
         console.error('Error linking event to user:', error);

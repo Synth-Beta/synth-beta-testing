@@ -82,7 +82,7 @@ export function FriendActivityFeed({ limit = 10 }: { limit?: number }) {
           )
         `)
         .in('user_id', friendIds)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .order('created_at', { ascending: false })
         .limit(limit);
 

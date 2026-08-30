@@ -102,7 +102,7 @@ export class RightNowService {
         .from('user_event_relationships')
         .select('event_id, user_id')
         .in('user_id', friendIds)
-        .eq('relationship_type', 'interested')
+        .in('relationship_type', ['interested', 'going', 'maybe'])
         .order('created_at', { ascending: false })
         .limit(limit * 2);
 

@@ -125,7 +125,11 @@ async function markEventInterested(
       relationship_type: 'interested',
       updated_at: new Date().toISOString(),
     },
-    { onConflict: 'user_id,event_id,relationship_type' }
+    // The table's only unique constraint is the PK (user_id, event_id). Naming
+    // relationship_type here does not match any unique index, so Postgres rejects
+    // it with 42P10 rather than doing the intended no-op. ignoreDuplicates keeps a
+    // stronger existing RSVP ('going'/'maybe') from being downgraded.
+    { onConflict: 'user_id,event_id', ignoreDuplicates: true }
   );
   if (error && error.code !== '23505') {
     return error.message;

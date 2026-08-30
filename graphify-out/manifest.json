@@ -665,9 +665,9 @@
     "semantic_hash": "dea6cc5a3b49a5cd665c61f55e7c92fe"
   },
   "mobile/src/components/maps/SynthMap.tsx": {
-    "mtime": 1774968483.8760955,
-    "ast_hash": "f50683409cc5ff15f3ece00d681cf11f",
-    "semantic_hash": "f50683409cc5ff15f3ece00d681cf11f"
+    "mtime": 1787861809.2786202,
+    "ast_hash": "d596e0a9b4ef2b37d60f45abefa0be7c",
+    "semantic_hash": ""
   },
   "mobile/src/components/navigation/SynthTabBar.tsx": {
     "mtime": 1782506215.8630662,
@@ -3115,8 +3115,8 @@
     "semantic_hash": "1d7e56e3c5f6ea8dac3c6178b0a05758"
   },
   "src/main.tsx": {
-    "mtime": 1786047202.0520344,
-    "ast_hash": "634c50e54902e42def8467d269a13cd8",
+    "mtime": 1788114805.1322727,
+    "ast_hash": "589fc37863749f924af14a56fdb465c0",
     "semantic_hash": ""
   },
   "src/pages/Analytics/AdminAnalyticsDashboard.tsx": {
@@ -9662,6 +9662,11 @@
   "supabase/chat-parity-2026-08-25/06_drop_duplicate_event_share_notification.sql": {
     "mtime": 1787757900.3261096,
     "ast_hash": "11eae0111a63cab77f856be02dc5bcf2",
+    "semantic_hash": ""
+  },
+  "apps/admin/public/privacy-policy.html": {
+    "mtime": 1788114802.254407,
+    "ast_hash": "d0032342e4823c3323852cbb5d71af70",
     "semantic_hash": ""
   }
 }
