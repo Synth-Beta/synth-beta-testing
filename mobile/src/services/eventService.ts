@@ -383,6 +383,36 @@ export class EventService {
     }
 
     /**
+     * Set the caller's RSVP via the set_event_rsvp RPC — the same function web
+     * calls, so the ladder rules cannot drift between the two platforms.
+     *
+     * Target-state: pass what the row should become, or null to remove it.
+     * `force` overwrites a stronger existing RSVP; the heart leaves it false so
+     * it never demotes a 'going' row, the Going control passes true when it
+     * deliberately steps back down. Returns the resulting type.
+     */
+    static async setRsvp(
+        eventId: string,
+        target: 'interested' | 'going' | null,
+        force = false
+    ): Promise<string | null> {
+        const canonicalEventId = await this.resolveEventQueryId(eventId);
+        if (!canonicalEventId) return null;
+
+        const { data, error } = await supabase.rpc('set_event_rsvp', {
+            p_event_id: canonicalEventId,
+            p_target: target,
+            p_force: force,
+        });
+
+        if (error) {
+            console.error('[eventService] set_event_rsvp failed', error.message);
+            return null;
+        }
+        return (data as string | null) ?? null;
+    }
+
+    /**
      * Set user interaction (going/interested)
      */
     static async toggleInteraction(
@@ -401,52 +431,25 @@ export class EventService {
                 .eq('event_id', canonicalEventId)
                 .maybeSingle();
 
-            if (type === 'interested') {
-                // Only un-heart when the current type is specifically 'interested'.
-                // 'going'/'maybe' are stronger RSVPs — preserve them and signal no-op.
-                if (existing?.relationship_type === 'interested') {
-                    const { error } = await supabase
-                        .from('user_event_relationships')
-                        .delete()
-                        .eq('user_id', userId)
-                        .eq('event_id', canonicalEventId);
-                    return error ? null : 'removed';
-                }
-                if (existing?.relationship_type) {
-                    return 'noop';
-                }
-                const { error } = await supabase.from('user_event_relationships').upsert(
-                    {
-                        user_id: userId,
-                        event_id: canonicalEventId,
-                        relationship_type: 'interested',
-                        updated_at: new Date().toISOString(),
-                    },
-                    { onConflict: 'user_id,event_id' }
-                );
-                return error ? null : 'added';
+            const current = existing?.relationship_type ?? null;
+
+            // Same type again = toggle off.
+            if (current === type) {
+                const result = await EventService.setRsvp(canonicalEventId, null);
+                // setRsvp returns null both on success and on failure; the RPC logs
+                // its own error, and a failed delete self-corrects on the next load.
+                // Same tolerance the previous implementation had.
+                return result === null ? 'removed' : null;
             }
 
-            // `going`: same-type removes; otherwise upsert.
-            if (existing && existing.relationship_type === type) {
-                const { error } = await supabase
-                    .from('user_event_relationships')
-                    .delete()
-                    .eq('user_id', userId)
-                    .eq('event_id', canonicalEventId);
-                return error ? null : 'removed';
+            // A stronger RSVP already on the row is preserved: hearting an event the
+            // user is already going to must not demote it.
+            if (type === 'interested' && current) {
+                return 'noop';
             }
 
-            const { error } = await supabase.from('user_event_relationships').upsert(
-                {
-                    user_id: userId,
-                    event_id: canonicalEventId,
-                    relationship_type: type,
-                    updated_at: new Date().toISOString(),
-                },
-                { onConflict: 'user_id,event_id' }
-            );
-            return error ? null : 'added';
+            const result = await EventService.setRsvp(canonicalEventId, type);
+            return result === type ? 'added' : null;
         } catch (error) {
             console.error('Error toggling event interaction:', error);
             return null;

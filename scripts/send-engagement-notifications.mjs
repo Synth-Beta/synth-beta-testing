@@ -4,8 +4,9 @@
  * Wires up two notification types that already exist in src/types/notifications.ts
  * but were never triggered anywhere in the codebase:
  *
- *   1. event_attendance_reminder — sent once, the day before an event, to every
- *      user who marked "interested" or "going".
+ *   1. event_attendance_reminder — DISABLED in main(): the live pg_cron job
+ *      'event-reminders' (public.send_event_reminders, 0 15 * * *) already does this.
+ *      Kept here so the behaviour stays documented and reversible.
  *   2. friends_event_interest_summary — sent at most once every 6 days to a user
  *      when their friends have marked interest/going on upcoming events they
  *      haven't engaged with themselves yet.
@@ -14,15 +15,24 @@
  * delivery is already handled by the existing backend/push-notification-worker.js,
  * which polls unread notifications and sends via Expo push — no changes needed there.
  *
- * Run daily via the same scheduler (launchd/cron) as sync-jambase-incremental-3nf.mjs.
+ * Scheduled via Vercel cron: /api/cron?job=engagement-notifications (see vercel.json),
+ * which imports sendFriendInterestDigest from this file. Also runnable by hand:
+ *   node scripts/send-engagement-notifications.mjs
  */
 
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// True only when this file is executed directly (`node scripts/send-...mjs`),
+// false when imported — e.g. by api/_lib/cron/engagementNotifications.ts, which
+// calls the exported functions itself. A static import is also what makes Vercel
+// trace this file into the serverless bundle; spawning it by path would not.
+const isDirectRun =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 const DIGEST_MIN_INTERVAL_DAYS = 6;
 
@@ -30,7 +40,7 @@ function ymd(date) {
   return date.toISOString().slice(0, 10);
 }
 
-function getSupabaseClient() {
+export function getSupabaseClient() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -111,9 +121,11 @@ async function sendAttendanceReminders(supabase) {
   return { sent: toInsert.length };
 }
 
-async function sendFriendInterestDigest(supabase) {
+export async function sendFriendInterestDigest(supabase) {
   const now = new Date();
-  const weekOut = ymd(new Date(now.getTime() + 7 * 86400000));
+  // 30 days, not 7: the digest is the only place a friend's "going" surfaces, so it
+  // answers "what are my friends going to next month".
+  const monthOut = ymd(new Date(now.getTime() + 30 * 86400000));
   const todayStr = ymd(now);
 
   const { data: friendships, error: friendshipError } = await supabase
@@ -140,29 +152,30 @@ async function sendFriendInterestDigest(supabase) {
     friendsOf.get(f.related_user_id).add(f.user_id);
   }
 
-  // All interested/going relationships for events in the next 7 days.
+  // All interested/going relationships for events in the next 30 days.
   const { data: rows, error } = await supabase
     .from('user_event_relationships')
-    .select('user_id, event_id, events:events!user_event_relationships_event_id_fkey!inner(id, title, event_date)')
+    .select('user_id, event_id, relationship_type, events:events!user_event_relationships_event_id_fkey!inner(id, title, event_date)')
     .in('relationship_type', ['interested', 'going'])
     .gte('events.event_date', todayStr)
-    .lt('events.event_date', weekOut);
+    .lt('events.event_date', monthOut);
 
   if (error) {
-    console.error('❌ Error fetching upcoming-week interested/going relationships:', error.message);
+    console.error('❌ Error fetching upcoming-month interested/going relationships:', error.message);
     return { sent: 0 };
   }
   const upcoming = (rows || []).filter((r) => r.events && r.events.id);
   if (upcoming.length === 0) {
-    console.log('✅ No upcoming-week event interest to digest.');
+    console.log('✅ No upcoming-month event interest to digest.');
     return { sent: 0 };
   }
 
-  // eventId -> Set<userId who is interested/going>
+  // eventId -> Map<userId, relationship_type>. Carries the type so going can be
+  // counted separately from a plain bookmark.
   const interestedByEvent = new Map();
   for (const r of upcoming) {
-    if (!interestedByEvent.has(r.events.id)) interestedByEvent.set(r.events.id, new Set());
-    interestedByEvent.get(r.events.id).add(r.user_id);
+    if (!interestedByEvent.has(r.events.id)) interestedByEvent.set(r.events.id, new Map());
+    interestedByEvent.get(r.events.id).set(r.user_id, r.relationship_type);
   }
   const myOwnEvents = new Map(); // userId -> Set<eventId> they've already engaged with
   for (const r of upcoming) {
@@ -177,17 +190,23 @@ async function sendFriendInterestDigest(supabase) {
     const ownEvents = myOwnEvents.get(userId) || new Set();
     const relevantFriends = new Set();
     const relevantEvents = new Set();
-    for (const [eventId, interestedUsers] of interestedByEvent.entries()) {
+    const goingFriends = new Set();
+    for (const [eventId, rsvpByUser] of interestedByEvent.entries()) {
       if (ownEvents.has(eventId)) continue;
       for (const friendId of friendIds) {
-        if (interestedUsers.has(friendId)) {
-          relevantFriends.add(friendId);
-          relevantEvents.add(eventId);
-        }
+        const rsvp = rsvpByUser.get(friendId);
+        if (!rsvp) continue;
+        relevantFriends.add(friendId);
+        relevantEvents.add(eventId);
+        if (rsvp === 'going') goingFriends.add(friendId);
       }
     }
     if (relevantEvents.size > 0) {
-      digestByUser.set(userId, { eventCount: relevantEvents.size, friendCount: relevantFriends.size });
+      digestByUser.set(userId, {
+        eventCount: relevantEvents.size,
+        friendCount: relevantFriends.size,
+        goingCount: goingFriends.size,
+      });
     }
   }
 
@@ -210,14 +229,18 @@ async function sendFriendInterestDigest(supabase) {
   const recentlyDigested = new Set((recentDigests || []).map((n) => n.user_id));
 
   const toInsert = [];
-  for (const [userId, { eventCount, friendCount }] of digestByUser.entries()) {
+  for (const [userId, { eventCount, friendCount, goingCount }] of digestByUser.entries()) {
     if (recentlyDigested.has(userId)) continue;
+    // Lead with going when there is any — it is the higher-signal commitment.
+    const message = goingCount > 0
+      ? `${goingCount} of your friends ${goingCount === 1 ? 'is' : 'are'} going to shows next month, across ${eventCount} event${eventCount === 1 ? '' : 's'}.`
+      : `${friendCount} of your friends ${friendCount === 1 ? 'is' : 'are'} interested in ${eventCount} show${eventCount === 1 ? '' : 's'} next month.`;
     toInsert.push({
       user_id: userId,
       type: 'friends_event_interest_summary',
       title: 'Your friends are going out',
-      message: `${friendCount} of your friends ${friendCount === 1 ? 'is' : 'are'} interested in ${eventCount} show${eventCount === 1 ? '' : 's'} this week.`,
-      data: { event_count: eventCount, friend_count: friendCount },
+      message,
+      data: { event_count: eventCount, friend_count: friendCount, going_count: goingCount },
     });
   }
 
@@ -235,7 +258,7 @@ async function sendFriendInterestDigest(supabase) {
   return { sent: toInsert.length };
 }
 
-async function main() {
+export async function main() {
   try {
     const dotenv = await import('dotenv');
     dotenv.default.config({ path: path.join(__dirname, '..', '.env.local') });
@@ -246,15 +269,21 @@ async function main() {
   console.log(`🔔 Engagement notifications run started: ${new Date().toISOString()}`);
   const supabase = getSupabaseClient();
 
-  const reminderResult = await sendAttendanceReminders(supabase);
+  // DISABLED: public.send_event_reminders() (pg_cron job 'event-reminders', 0 15 * * *)
+  // already sends the 1-day attendance reminder. Running both double-notifies every
+  // user who marked interested or going. sendAttendanceReminders() is kept in this
+  // file only so the behaviour is documented and reversible.
+  // const reminderResult = await sendAttendanceReminders(supabase);
   const digestResult = await sendFriendInterestDigest(supabase);
 
-  console.log(
-    `✨ Done. Reminders sent: ${reminderResult.sent}, digests sent: ${digestResult.sent}`
-  );
+  console.log(`✨ Done. Digests sent: ${digestResult.sent} (attendance reminders intentionally disabled)`);
 }
 
-main().catch((error) => {
-  console.error(`❌ Fatal error: ${error.message}\n${error.stack}`);
-  process.exit(1);
-});
+// Only self-run when invoked directly. Importing this module (the Vercel cron
+// handler does) must not kick off a run as a side effect.
+if (isDirectRun) {
+  main().catch((error) => {
+    console.error(`❌ Fatal error: ${error.message}\n${error.stack}`);
+    process.exit(1);
+  });
+}

@@ -25,6 +25,8 @@ export interface InterestedEventItem {
     image_url?: string;
     venue_city?: string;
     ticket_url?: string;
+    /** 'interested' | 'going' | 'maybe' — drives the Going label on the card. */
+    relationship_type: string;
 }
 
 /** Web-aligned unreviewed queue: attendance-marker reviews + eligible drafts. */
@@ -388,7 +390,7 @@ export class MyEventsService {
         // Step 1: get event IDs (same two-step approach as web to avoid PostgREST join issues)
         const { data: relRows, error: relError } = await supabase
             .from('user_event_relationships')
-            .select('event_id')
+            .select('event_id, relationship_type')
             .eq('user_id', userId)
             .in('relationship_type', ['interested', 'going', 'maybe'])
             .order('created_at', { ascending: false })
@@ -401,6 +403,11 @@ export class MyEventsService {
 
         const eventIds = (relRows || []).map((r: any) => r.event_id).filter(Boolean) as string[];
         if (eventIds.length === 0) return [];
+
+        // Which rung of the ladder each event sits on, for the Going label.
+        const typeByEventId = new Map<string, string>(
+            (relRows || []).map((r: any) => [r.event_id as string, r.relationship_type as string])
+        );
 
         // Exclude events moved to “My Events” via attendance (matches web ProfileView).
         const { data: attendanceRows } = await supabase
@@ -483,8 +490,20 @@ export class MyEventsService {
                 image_url: imageUrl,
                 venue_city: ev.venue_city || undefined,
                 ticket_url: (ev.ticket_urls as string[] | null)?.[0] || undefined,
+                relationship_type: typeByEventId.get(ev.id) ?? 'interested',
             });
         }
+
+        // Going first — it's the real commitment, so it leads the list. Array.sort is
+        // stable, so everything else keeps the existing created_at-desc order. Done
+        // here rather than per screen so the Interested screen and another user's
+        // profile stay in sync.
+        results.sort((a, b) => {
+            const aGoing = a.relationship_type === 'going' ? 0 : 1;
+            const bGoing = b.relationship_type === 'going' ? 0 : 1;
+            return aGoing - bGoing;
+        });
+
         return results;
     }
 

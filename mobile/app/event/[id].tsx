@@ -70,7 +70,7 @@ export default function EventDetailScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
-    const { isInterested: isInterestedCtx, toggle: toggleInterested } = useInterested();
+    const { isInterested: isInterestedCtx, toggle: toggleInterested, rsvpOf, setRsvp } = useInterested();
 
     const [event, setEvent] = useState<EventDetail | null>(null);
     const [friends, setFriends] = useState<FriendAttending[]>([]);
@@ -474,6 +474,7 @@ export default function EventDetailScreen() {
     const isPastEvent = event.event_date ? new Date(event.event_date) < new Date() : false;
     const isUpcomingEvent = !isPastEvent;
     const isInterested = isInterestedCtx(event.id);
+    const rsvp = rsvpOf(event.id);
     const priceLine = formatEventDetailPrice(event);
     const doorsShort = formatDoorsTimeShort(event.doors_time);
     const showTimePrimary = formatEventDetailTime(event.event_date);
@@ -529,7 +530,29 @@ export default function EventDetailScreen() {
                                     {isInterested ? 'Interested' : "I'm Interested"}
                                 </Text>
                             </Pressable>
-                        ) : (
+                        ) : null}
+                        {isUpcomingEvent && sessionUserId ? (
+                            <Pressable
+                                onPress={() => {
+                                    // Ladder: un-going falls back to interested, never to nothing.
+                                    // Stepping down is a deliberate demotion, so it must force.
+                                    const steppingDown = rsvp === 'going';
+                                    void setRsvp(event.id, steppingDown ? 'interested' : 'going', steppingDown);
+                                }}
+                                style={[styles.outlineAction, rsvp === 'going' && styles.outlineActionActive]}
+                                accessibilityRole="button"
+                                accessibilityLabel={rsvp === 'going' ? 'Going' : "I'm Going"}
+                            >
+                                <Calendar
+                                    size={22}
+                                    color={rsvp === 'going' ? SynthTokens.colors.neutral0 : PINK}
+                                />
+                                <Text style={[styles.outlineActionText, rsvp === 'going' && styles.outlineActionTextOn]} numberOfLines={1}>
+                                    {rsvp === 'going' ? 'Going' : "I'm Going"}
+                                </Text>
+                            </Pressable>
+                        ) : null}
+                        {!isUpcomingEvent ? (
                             <Pressable
                                 onPress={() => router.push(`/review-compose?eventId=${event.id}`)}
                                 style={styles.outlineAction}
@@ -539,7 +562,7 @@ export default function EventDetailScreen() {
                                 <Star size={22} color={PINK} />
                                 <Text style={styles.outlineActionText} numberOfLines={1}>Write Review</Text>
                             </Pressable>
-                        )}
+                        ) : null}
                         <Pressable
                             onPress={() => void reportEvent()}
                             style={styles.outlineAction}

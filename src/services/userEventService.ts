@@ -121,6 +121,49 @@ export class UserEventService {
     };
   }
   /**
+   * Set the caller's RSVP on an event via the set_event_rsvp RPC, which owns the
+   * whole ladder (none -> interested -> going) atomically and is shared with
+   * mobile, so the two platforms cannot drift apart again.
+   *
+   * Target-state, not a toggle: pass what the row should become. null removes it.
+   *
+   * `force` overwrites a stronger existing RSVP. The heart leaves it false so
+   * that hearting an event you are already going to is a no-op rather than a
+   * demotion — and so it never has to read the row first. The Going control
+   * passes true when it deliberately steps back down to interested.
+   */
+  static async setEventRsvp(
+    userId: string,
+    jambaseEventId: string,
+    target: 'interested' | 'going' | null,
+    force = false
+  ): Promise<string | null> {
+    const { eventUuid } = await UserEventService.resolveEventIdentifiers(jambaseEventId);
+    if (!eventUuid) {
+      throw new Error(`Cannot set RSVP: event UUID not found for ${jambaseEventId}`);
+    }
+
+    const { data, error } = await supabase.rpc('set_event_rsvp', {
+      p_event_id: eventUuid,
+      p_target: target,
+      p_force: force,
+    });
+
+    if (error) {
+      console.error('set_event_rsvp failed:', error);
+      throw new Error(`Failed to set event RSVP: ${error.message || 'Unknown error'}`);
+    }
+
+    try {
+      trackInteraction.interest('event', jambaseEventId, target !== null, { rsvp: target }, eventUuid);
+    } catch (trackError) {
+      console.error('Error tracking RSVP interaction:', trackError);
+    }
+
+    return (data as string | null) ?? null;
+  }
+
+  /**
    * Add or update user interest in an event
    */
   static async setEventInterest(
@@ -131,88 +174,20 @@ export class UserEventService {
     try {
       console.log('🔍 setEventInterest called with:', { userId, jambaseEventId, interested });
       
-      const { eventUuid, jambaseEventId: resolvedJambaseId } =
-        await UserEventService.resolveEventIdentifiers(jambaseEventId);
+      // The heart means "saved": hearting ensures a row exists, un-hearting removes
+      // it whatever its type. The unforced 'interested' write leaves a stronger
+      // existing RSVP alone inside the RPC, so no read is needed here to avoid
+      // demoting a 'going' row.
+      await UserEventService.setEventRsvp(
+        userId,
+        jambaseEventId,
+        interested ? 'interested' : null
+      );
 
-      if (!eventUuid && !resolvedJambaseId) {
-        throw new Error(`Event not found: ${jambaseEventId}`);
-      }
-      
-      // Verify current authenticated user matches userId parameter
-      // The RPC uses auth.uid() which should match userId
-      const { data: authData1, error: authError1 } = await supabase.auth.getUser();
-      
-      // Check for auth errors
-      if (authError1) {
-        console.warn('⚠️ Error getting auth user:', authError1);
-      }
-      
-      const authUser = authData1?.user;
-      
-      if (authUser?.id !== userId) {
-        console.warn('⚠️ User ID mismatch: auth.uid() =', authUser?.id, 'but userId param =', userId);
-      }
-      
-      let writeSucceeded = false;
-      let primaryWriteError: any = null;
+      console.log('🔍 Relationship write completed:', { userId, jambaseEventId, interested });
 
-      if (eventUuid) {
-        if (interested) {
-          // ignoreDuplicates => ON CONFLICT DO NOTHING. The table's PK is
-          // (user_id, event_id), so a row already holding a stronger RSVP
-          // ('going'/'maybe') is left intact rather than downgraded to
-          // 'interested' — and it takes no extra read to know that.
-          const { error } = await supabase
-            .from('user_event_relationships')
-            .upsert(
-              {
-                user_id: userId,
-                event_id: eventUuid,
-                relationship_type: 'interested',
-              },
-              { onConflict: 'user_id,event_id', ignoreDuplicates: true }
-            );
-
-          if (!error) {
-            writeSucceeded = true;
-          } else {
-            primaryWriteError = error;
-          }
-        } else {
-          // No relationship_type filter. The heart reads as on for any saved row
-          // (interested/going/maybe), so un-hearting has to clear any saved row.
-          // Filtering on 'interested' made un-hearting a 'going' row match zero
-          // rows while still reporting success, so the UI flipped off and the
-          // next load flipped it back on.
-          const { error } = await supabase
-            .from('user_event_relationships')
-            .delete()
-            .eq('user_id', userId)
-            .eq('event_id', eventUuid);
-
-          if (!error) {
-            writeSucceeded = true;
-          } else {
-            primaryWriteError = error;
-          }
-        }
-      }
-
-      if (!writeSucceeded) {
-        if (primaryWriteError) {
-          console.error('Interested write failed on user_event_relationships:', primaryWriteError);
-          throw new Error(`Failed to set event interest: ${primaryWriteError.message || 'Unknown error'}`);
-        }
-        if (!eventUuid) {
-          throw new Error('Cannot set event interest: event UUID not found');
-        }
-      }
-      
-      console.log('🔍 Relationship write completed:', { userId, eventUuid, interested });
-
-      // No read-back. The write above is synchronous and its error is already
-      // handled, so the old 300ms sleep + re-select only added latency to every
-      // heart tap. No caller reads this return value.
+      // No read-back and no return value: no caller reads it. Verified with a
+      // repo-wide grep for `= await UserEventService.setEventInterest`.
       const data: any = null;
 
       // DISABLED: Auto-join event chat feature blocked per user request
@@ -242,14 +217,8 @@ export class UserEventService {
       //   }
       // }
       
-      try {
-        // Reuse the UUID resolved at the top of this function. This block used to
-        // re-resolve it with a second events lookup on every single heart tap.
-        trackInteraction.interest('event', jambaseEventId, interested, {}, eventUuid);
-        console.log('🎯 Tracked interest interaction:', { jambaseEventId, interested, eventUuid });
-      } catch (error) {
-        console.error('Error tracking interest interaction:', error);
-      }
+      // Analytics are emitted inside setEventRsvp, which is where the resolved
+      // event UUID lives now — no second resolve, no duplicate event.
       return (data as UserJamBaseEvent) || ({} as UserJamBaseEvent);
     } catch (error) {
       console.error('Error setting event interest:', error);
@@ -331,6 +300,7 @@ export class UserEventService {
     events: Array<{
       interest: UserJamBaseEvent;
       event: any; // JamBase event data
+      relationship_type: string; // 'interested' | 'going' | 'maybe'
     }>;
     total: number;
   }> {
@@ -506,6 +476,9 @@ export class UserEventService {
                 created_at: row.created_at,
               } as UserJamBaseEvent,
               event: event,
+              // Carried through so the profile can badge 'going'. The row already
+              // holds it — the select is `*` — it was just being discarded here.
+              relationship_type: (row.relationship_type as string) ?? 'interested',
             };
           })
           .filter(item => item.event !== null);

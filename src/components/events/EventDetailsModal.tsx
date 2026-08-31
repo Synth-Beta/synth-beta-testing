@@ -113,6 +113,9 @@ export function EventDetailsModal({
   const [loading, setLoading] = useState(false);
   // Local state for isInterested to allow immediate UI updates
   const [localIsInterested, setLocalIsInterested] = useState(isInterested);
+  // The caller's own RSVP on this event, so the Going control renders correctly.
+  // The heart only knows saved/not-saved; this knows which rung of the ladder.
+  const [localRsvp, setLocalRsvp] = useState<'interested' | 'going' | 'maybe' | null>(null);
 
   // Debug: Check if navigation handlers are provided
   const [interestedCount, setInterestedCount] = useState<number | null>(null);
@@ -870,6 +873,24 @@ export function EventDetailsModal({
     fetchInterestedCount();
   }, [actualEvent?.id, currentUserId]);
 
+  // Load the caller's own RSVP so the Going control opens in the right state.
+  useEffect(() => {
+    if (!actualEvent?.id || !currentUserId) return;
+    let cancelled = false;
+    void supabase
+      .from('user_event_relationships')
+      .select('relationship_type')
+      .eq('user_id', currentUserId)
+      .eq('event_id', actualEvent.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setLocalRsvp((data?.relationship_type as 'interested' | 'going' | 'maybe' | null) ?? null);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [actualEvent?.id, currentUserId]);
+
   // Keep guest list data in sync with the Interested Users popup (same query/data source).
   useEffect(() => {
     const shouldLoad = Boolean(actualEvent?.id) && (showBuddyFinder || interestedModalOpen);
@@ -1499,6 +1520,9 @@ export function EventDetailsModal({
 
                     // Immediate UI feedback
                     setLocalIsInterested(newInterestState);
+                    // Keep the Going control on the same rung: un-hearting clears any
+                    // RSVP including 'going', hearting lands on 'interested'.
+                    setLocalRsvp(newInterestState ? 'interested' : null);
 
                     // Tracking stays the same
                     try {
@@ -1566,6 +1590,72 @@ export function EventDetailsModal({
                     lineHeight: 'var(--typography-meta-line-height, 1.5)'
                   }}>
                     {localIsInterested ? 'Interested' : "I'm Interested"}
+                  </span>
+                </Button>
+              )}
+
+              {isUpcomingEvent && currentUserId && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  aria-pressed={localRsvp === 'going'}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Ladder: going steps back down to interested, never to nothing.
+                    // Stepping down is a deliberate demotion, so it must force.
+                    const steppingDown = localRsvp === 'going';
+                    const next = steppingDown ? 'interested' : 'going';
+
+                    const previousRsvp = localRsvp;
+                    setLocalRsvp(next);
+                    setLocalIsInterested(true);
+
+                    // PARITY: mobile writes through InterestedContext, so every card
+                    // re-renders on its own. Web has no such shared store — without
+                    // this the feed card behind the modal keeps a stale heart until
+                    // reload. Going implies saved, so tell the parent the same way
+                    // the heart does.
+                    onInterestToggle?.(actualEvent.id, true);
+
+                    try {
+                      await UserEventService.setEventRsvp(currentUserId, actualEvent.id, next, steppingDown);
+                    } catch (error) {
+                      console.error('Error setting going RSVP:', error);
+                      setLocalRsvp(previousRsvp);
+                    }
+                  }}
+                  style={{
+                    height: 'var(--size-button-height, 36px)',
+                    paddingLeft: 'var(--spacing-small, 12px)',
+                    paddingRight: 'var(--spacing-small, 12px)',
+                    borderRadius: 'var(--radius-corner, 10px)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-inline, 6px)',
+                    border: localRsvp === 'going' ? 'none' : '1.5px solid var(--brand-pink-500)',
+                    background: localRsvp === 'going' ? 'var(--brand-pink-500)' : 'rgba(255, 255, 255, 0.8)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: '0 4px 4px 0 var(--shadow-color)',
+                    transition: `all ${animations.standardDuration} ${animations.springTiming}`,
+                  }}
+                >
+                  <Calendar size={22} color={localRsvp === 'going' ? 'var(--neutral-0)' : 'var(--brand-pink-500)'} aria-hidden="true" />
+                  <span style={{
+                    color: localRsvp === 'going' ? 'var(--neutral-0)' : 'inherit',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--typography-meta-size, 16px)',
+                    fontWeight: 'var(--typography-meta-weight, 500)',
+                    lineHeight: 'var(--typography-meta-line-height, 1.5)'
+                  }}>
+                    {localRsvp === 'going' ? 'Going' : "I'm Going"}
                   </span>
                 </Button>
               )}

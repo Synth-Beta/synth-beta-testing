@@ -20,9 +20,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // The digest handler is the slowest of the three; the others finish well inside 10s.
 export const config = { maxDuration: 60 };
 
-type Job = 'sync-events' | 'seed-bot-messages' | 'slack-pm-digest';
+type Job = 'sync-events' | 'seed-bot-messages' | 'slack-pm-digest' | 'engagement-notifications';
 
-const JOBS: Job[] = ['sync-events', 'seed-bot-messages', 'slack-pm-digest'];
+const JOBS: Job[] = ['sync-events', 'seed-bot-messages', 'slack-pm-digest', 'engagement-notifications'];
 
 function queryJob(req: VercelRequest): string {
   const raw = req.query.job;
@@ -57,6 +57,7 @@ function resolveJob(req: VercelRequest): Job {
   if (path.includes('sync-events')) return 'sync-events';
   if (path.includes('seed-bot-messages')) return 'seed-bot-messages';
   if (path.includes('slack-pm-digest')) return 'slack-pm-digest';
+  if (path.includes('engagement-notifications')) return 'engagement-notifications';
 
   return jobFromHour();
 }
@@ -71,6 +72,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (job === 'seed-bot-messages') {
     const { default: seedBotMessages } = await import('../_lib/cron/seedBotMessages.js');
     return seedBotMessages(req, res);
+  }
+  if (job === 'engagement-notifications') {
+    const { default: engagementNotifications } = await import('../_lib/cron/engagementNotifications.js');
+    return engagementNotifications(req, res);
   }
 
   const { default: slackPmDigest } = await import('../_lib/cron/slackPmDigest.js');

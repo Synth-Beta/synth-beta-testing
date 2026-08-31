@@ -31,6 +31,7 @@ export default function PublicUserProfileScreen() {
     username: string | null;
     avatar_url: string | null;
     bio: string | null;
+    is_public_profile: boolean;
   } | null>(null);
   const [interestedEvents, setInterestedEvents] = useState<InterestedEventItem[]>([]);
   const [timeline, setTimeline] = useState<ProfileTimelineItem[]>([]);
@@ -51,7 +52,7 @@ export default function PublicUserProfileScreen() {
       setSelfId(user?.id ?? null);
       const { data } = await supabase
         .from('users')
-        .select('name, username, avatar_url, bio')
+        .select('name, username, avatar_url, bio, is_public_profile')
         .eq('user_id', id)
         .maybeSingle();
       if (data) {
@@ -60,6 +61,7 @@ export default function PublicUserProfileScreen() {
           username: (data as any).username ?? null,
           avatar_url: (data as any).avatar_url ?? null,
           bio: (data as any).bio ?? null,
+          is_public_profile: Boolean((data as any).is_public_profile),
         });
       } else {
         setProfile(null);
@@ -165,8 +167,11 @@ export default function PublicUserProfileScreen() {
   }, [id, selfId, friendStatus]);
 
   const isOwnProfile = !!selfId && !!id && id === selfId;
-  // Matches web ProfileView `canViewInterested`: only friends (or self) see the Interested tab.
-  const canViewInterested = isOwnProfile || friendStatus === 'friends';
+  // Matches web ProfileView `canViewInterested` and the rule
+  // UserEventService.getUserInterestedEvents enforces: self, friends, or a public
+  // profile. A PRIVATE profile stays hidden from non-friends.
+  const canViewInterested =
+    isOwnProfile || friendStatus === 'friends' || profile?.is_public_profile === true;
 
   return (
     <>
@@ -328,6 +333,7 @@ export default function PublicUserProfileScreen() {
                         event_date={ev.event_date}
                         image_url={ev.image_url}
                         initialInterested
+                        cornerLabel={ev.relationship_type === 'going' ? 'Going' : undefined}
                         ticket_url={ev.ticket_url}
                         currentUserId={selfId}
                         onPress={() => {

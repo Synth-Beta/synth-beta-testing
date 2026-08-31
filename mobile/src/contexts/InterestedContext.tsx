@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { supabase } from '../integrations/supabase/client';
 import { EventService } from '../services/eventService';
 
+type RsvpType = 'interested' | 'going' | 'maybe';
+
 interface InterestedContextValue {
     /** Returns true if the user has marked this event as interested. Accepts raw or canonical event ID. */
     isInterested: (rawId: string) => boolean;
@@ -11,6 +13,13 @@ interface InterestedContextValue {
     loading: boolean;
     /** Seed initial interested state from feed data (before DB load completes). */
     seedFromFeed: (events: Array<{ id: string; user_is_interested?: boolean }>) => void;
+    /** Current RSVP for an event, or null. Accepts raw or canonical event ID. */
+    rsvpOf: (rawId: string) => RsvpType | null;
+    /**
+     * Set the RSVP directly (target-state). Used by the Going control.
+     * Pass force when deliberately stepping DOWN from going to interested.
+     */
+    setRsvp: (rawId: string, target: 'interested' | 'going' | null, force?: boolean) => Promise<void>;
 }
 
 const InterestedContext = createContext<InterestedContextValue>({
@@ -18,11 +27,14 @@ const InterestedContext = createContext<InterestedContextValue>({
     toggle: async () => {},
     loading: false,
     seedFromFeed: () => {},
+    rsvpOf: () => null,
+    setRsvp: async () => {},
 });
 
 export function InterestedProvider({ children }: { children: React.ReactNode }) {
-    // canonical UUID set loaded from DB
-    const [canonicalSet, setCanonicalSet] = useState<Set<string>>(new Set());
+    // canonical UUID -> relationship_type, loaded from DB. Was a Set of ids; it
+    // carries the type now so the profile can badge 'going' without a second query.
+    const [rsvpMap, setRsvpMap] = useState<Map<string, string>>(new Map());
     const [loading, setLoading] = useState(true);
     // Seeded from feed data before DB load completes
     const feedSeed = useRef<Map<string, boolean>>(new Map());
@@ -34,7 +46,7 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
         // Align with web `UserEventService.isUserInterested`: interested + going + maybe all count as “saved” for the heart.
         const { data, error } = await supabase
             .from('user_event_relationships')
-            .select('event_id')
+            .select('event_id, relationship_type')
             .eq('user_id', userId)
             .in('relationship_type', ['interested', 'going', 'maybe']);
 
@@ -44,8 +56,11 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             return;
         }
 
-        const ids = new Set<string>((data || []).map((r: any) => r.event_id as string).filter(Boolean));
-        setCanonicalSet(ids);
+        const next = new Map<string, string>();
+        for (const r of (data || []) as Array<{ event_id: string; relationship_type: string }>) {
+            if (r.event_id) next.set(r.event_id, r.relationship_type);
+        }
+        setRsvpMap(next);
         setLoading(false);
     }, []);
 
@@ -67,7 +82,7 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
                 setLoading(true);
                 void load(uid);
             } else {
-                setCanonicalSet(new Set());
+                setRsvpMap(new Map());
                 rawToCanonical.current.clear();
                 setLoading(false);
             }
@@ -89,21 +104,32 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             rawToCanonical.current.set(rawId, canonical);
             return canonical;
         }
-        // rawId itself may be a valid UUID stored in the set
+        // rawId itself may be a valid UUID stored in the map
         return rawId;
     }, []);
 
     const isInterested = useCallback((rawId: string): boolean => {
-        if (canonicalSet.has(rawId)) return true;
+        if (rsvpMap.has(rawId)) return true;
         const cached = rawToCanonical.current.get(rawId);
-        if (cached && canonicalSet.has(cached)) return true;
+        if (cached && rsvpMap.has(cached)) return true;
         // Fall back to feed seed if DB hasn't loaded yet
         if (loading) {
             if (feedSeed.current.get(rawId) === true) return true;
             if (cached && feedSeed.current.get(cached) === true) return true;
         }
         return false;
-    }, [canonicalSet, loading]);
+    }, [rsvpMap, loading]);
+
+    const rsvpOf = useCallback((rawId: string): RsvpType | null => {
+        const direct = rsvpMap.get(rawId);
+        if (direct) return direct as RsvpType;
+        const cached = rawToCanonical.current.get(rawId);
+        if (cached) {
+            const viaCache = rsvpMap.get(cached);
+            if (viaCache) return viaCache as RsvpType;
+        }
+        return null;
+    }, [rsvpMap]);
 
     const seedFromFeed = useCallback((events: Array<{ id: string; user_is_interested?: boolean }>) => {
         for (const ev of events) {
@@ -118,15 +144,15 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
         const canonical = await resolve(rawId);
         if (!canonical) return;
 
-        const isCurrentlyInterested = canonicalSet.has(canonical);
+        const isCurrentlyInterested = rsvpMap.has(canonical);
 
         // Optimistic update
-        setCanonicalSet(prev => {
-            const next = new Set(prev);
+        setRsvpMap(prev => {
+            const next = new Map(prev);
             if (isCurrentlyInterested) {
                 next.delete(canonical);
             } else {
-                next.add(canonical);
+                next.set(canonical, 'interested');
             }
             return next;
         });
@@ -135,10 +161,10 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
 
         // Revert if the service errored OR returned 'noop' (e.g. user has going/maybe — heart stays on).
         if (action === null || action === 'noop') {
-            setCanonicalSet(prev => {
-                const next = new Set(prev);
+            setRsvpMap(prev => {
+                const next = new Map(prev);
                 if (isCurrentlyInterested) {
-                    next.add(canonical);
+                    next.set(canonical, 'interested');
                 } else {
                     next.delete(canonical);
                 }
@@ -146,10 +172,43 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             });
         }
         // 'added'/'removed' — optimistic update was correct, keep it.
-    }, [canonicalSet, resolve]);
+    }, [rsvpMap, resolve]);
+
+    const setRsvp = useCallback(async (
+        rawId: string,
+        target: 'interested' | 'going' | null,
+        force = false
+    ): Promise<void> => {
+        const userId = userIdRef.current;
+        if (!userId) return;
+
+        const canonical = await resolve(rawId);
+        if (!canonical) return;
+
+        const previous = rsvpMap.get(canonical) ?? null;
+
+        setRsvpMap(prev => {
+            const next = new Map(prev);
+            if (target === null) next.delete(canonical);
+            else next.set(canonical, target);
+            return next;
+        });
+
+        const result = await EventService.setRsvp(canonical, target, force);
+
+        // Roll back when the RPC disagrees with what we optimistically rendered.
+        if ((target === null && result !== null) || (target !== null && result !== target)) {
+            setRsvpMap(prev => {
+                const next = new Map(prev);
+                if (previous === null) next.delete(canonical);
+                else next.set(canonical, previous);
+                return next;
+            });
+        }
+    }, [rsvpMap, resolve]);
 
     return (
-        <InterestedContext.Provider value={{ isInterested, toggle, loading, seedFromFeed }}>
+        <InterestedContext.Provider value={{ isInterested, toggle, loading, seedFromFeed, rsvpOf, setRsvp }}>
             {children}
         </InterestedContext.Provider>
     );

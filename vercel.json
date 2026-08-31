@@ -170,6 +170,10 @@
     {
       "path": "/api/cron?job=slack-pm-digest",
       "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron?job=engagement-notifications",
+      "schedule": "0 16 * * *"
     }
   ]
 }

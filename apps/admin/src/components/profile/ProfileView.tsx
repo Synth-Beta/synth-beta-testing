@@ -188,14 +188,25 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
     if (user.id === currentUserId) { setCanViewInterested(true); return; }
     (async () => {
       try {
-        const { data } = await supabase
+        // NOTE: this .or() had one extra ')', making the filter malformed. PostgREST
+        // returned an error, `data` came back null, and Array.isArray(null) === false
+        // hid the Interested tab from every friend.
+        const { data, error } = await supabase
           .from('friends')
           .select('id')
-          .or(`and(user1_id.eq.${user.id},user2_id.eq.${currentUserId}),and(user1_id.eq.${currentUserId},user2_id.eq.${user.id}))`)
+          .or(`and(user1_id.eq.${user.id},user2_id.eq.${currentUserId}),and(user1_id.eq.${currentUserId},user2_id.eq.${user.id})`)
           .limit(1);
-        setCanViewInterested(Array.isArray(data) ? data.length > 0 : false);
-      } catch {
-        setCanViewInterested(true);
+
+        if (error) {
+          // Fail closed: a failed check must not expose a stranger's saved events.
+          console.error('Friendship check for Interested tab failed:', error);
+          setCanViewInterested(false);
+          return;
+        }
+        setCanViewInterested(Array.isArray(data) && data.length > 0);
+      } catch (err) {
+        console.error('Friendship check for Interested tab threw:', err);
+        setCanViewInterested(false);
       }
     })();
   }, [user, currentUserId]);

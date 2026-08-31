@@ -1,16 +1,16 @@
 # Graph Report - synth-beta-testing-1  (2026-08-30)
 
 ## Corpus Check
-- 1635 files · ~2,251,404 words
+- 1643 files · ~2,264,937 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 9951 nodes · 22589 edges · 581 communities (384 shown, 197 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 118 edges (avg confidence: 0.69)
+- 9992 nodes · 22631 edges · 583 communities (396 shown, 187 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 120 edges (avg confidence: 0.69)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6c0c8dcd`
+- Built from commit: `185a4afb`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -268,6 +268,7 @@
 - [[_COMMUNITY_data-batch-inserts|data-batch-inserts.md]]
 - [[_COMMUNITY_data-n-plus-one|data-n-plus-one.md]]
 - [[_COMMUNITY_data-pagination|data-pagination.md]]
+- [[_COMMUNITY_data-upsert|data-upsert.md]]
 - [[_COMMUNITY_lock-advisory|lock-advisory.md]]
 - [[_COMMUNITY_lock-deadlock-prevention|lock-deadlock-prevention.md]]
 - [[_COMMUNITY_lock-short-transactions|lock-short-transactions.md]]
@@ -527,7 +528,6 @@
 - [[_COMMUNITY_EmptyState.tsx|EmptyState.tsx]]
 - [[_COMMUNITY_Typography|Typography]]
 - [[_COMMUNITY_Core Features Overview|Core Features Overview]]
-- [[_COMMUNITY_UserJamBaseEvent|UserJamBaseEvent]]
 - [[_COMMUNITY_VIPAnalyticsService|VIPAnalyticsService]]
 - [[_COMMUNITY_Dark Mode|Dark Mode]]
 - [[_COMMUNITY_Quality Assurance|Quality Assurance]]
@@ -536,25 +536,27 @@
 - [[_COMMUNITY_EmptyState.tsx|EmptyState.tsx]]
 - [[_COMMUNITY_main.tsx|main.tsx]]
 - [[_COMMUNITY_ConcertApiService|ConcertApiService]]
-- [[_COMMUNITY_5. Cities API Integration|5. Cities API Integration]]
-- [[_COMMUNITY_PagesModal.tsx|PagesModal.tsx]]
-- [[_COMMUNITY_Security Considerations|Security Considerations]]
+- [[_COMMUNITY_Accessibility|Accessibility]]
+- [[_COMMUNITY_Brand Assets|Brand Assets]]
+- [[_COMMUNITY_Brand Voice & Tone|Brand Voice & Tone]]
 - [[_COMMUNITY_BottomNav.tsx|BottomNav.tsx]]
-- [[_COMMUNITY_FEATURES|FEATURES.md]]
+- [[_COMMUNITY_Monitoring & Maintenance|Monitoring & Maintenance]]
 - [[_COMMUNITY_AdminRedirect.tsx|AdminRedirect.tsx]]
 - [[_COMMUNITY_Core Features Overview|Core Features Overview]]
 - [[_COMMUNITY_🐛 Troubleshooting|🐛 Troubleshooting]]
 - [[_COMMUNITY_Expo  EAS (mobile build & submit service)|Expo / EAS (mobile build & submit service)]]
 - [[_COMMUNITY_Scaling Considerations|Scaling Considerations]]
-- [[_COMMUNITY_5. Location & Venue Features|5. Location & Venue Features]]
-- [[_COMMUNITY_6. Vercel Integration|6. Vercel Integration]]
-- [[_COMMUNITY_CacheService|CacheService]]
+- [[_COMMUNITY_🔒 Security & Privacy|🔒 Security & Privacy]]
+- [[_COMMUNITY_SynthButton.tsx|SynthButton.tsx]]
+- [[_COMMUNITY_PagesModal.tsx|PagesModal.tsx]]
 - [[_COMMUNITY_chatNotificationTypesFilter|chatNotificationTypesFilter]]
-- [[_COMMUNITY_emptyMetrics|emptyMetrics]]
+- [[_COMMUNITY_Dark Mode|Dark Mode]]
 - [[_COMMUNITY_package.json|package.json]]
-- [[_COMMUNITY_vercel.json|vercel.json]]
+- [[_COMMUNITY_Quality Assurance|Quality Assurance]]
 - [[_COMMUNITY_Future Enhancements|Future Enhancements]]
-- [[_COMMUNITY_.getFeed|.getFeed]]
+- [[_COMMUNITY_Layout Guidelines|Layout Guidelines]]
+- [[_COMMUNITY_Spacing System|Spacing System]]
+- [[_COMMUNITY_10. Mobile & Responsive Design|10. Mobile & Responsive Design]]
 - [[_COMMUNITY_Chat parity + features — 2026-08-25|Chat parity + features — 2026-08-25]]
 - [[_COMMUNITY_{ encryptMessage, decryptMessage, decryptChatMessage, deleteChatKey }|{ encryptMessage, decryptMessage, decryptChatMessage, deleteChatKey }]]
 - [[_COMMUNITY_{ encryptMessage, decryptMessage, decryptChatMessage, deleteChatKey }|{ encryptMessage, decryptMessage, decryptChatMessage, deleteChatKey }]]
@@ -591,8 +593,8 @@
   api/_lib/aiSceneGuides/handlers/slackInteractions.ts → ai-scene-guides/src/slack/blocks.ts
 
 ## Import Cycles
-- 1-file cycle: `src/components/ui/input-otp.tsx -> src/components/ui/input-otp.tsx`
-- 1-file cycle: `src/components/ui/sonner.tsx -> src/components/ui/sonner.tsx`
+- 1-file cycle: `apps/admin/src/components/ui/sonner.tsx -> apps/admin/src/components/ui/sonner.tsx`
+- 1-file cycle: `apps/admin/src/components/ui/input-otp.tsx -> apps/admin/src/components/ui/input-otp.tsx`
 - 1-file cycle: `mobile/app/+html.tsx -> mobile/app/+html.tsx`
 
 ## Hyperedges (group relationships)
@@ -603,11 +605,11 @@
 - **Production-only required backend environment variables** — env_supabase_service_role_key, env_cron_secret, env_jwt_secret [EXTRACTED 1.00]
 - **Synth SEO & structured-data bundle in index.html (meta tags + Organization JSON-LD + WebApplication JSON-LD)** — index_seo_meta, index_jsonld_organization, index_jsonld_webapplication [EXTRACTED 1.00]
 
-## Communities (581 total, 197 thin omitted)
+## Communities (583 total, 187 thin omitted)
 
 ### Community 0 - "Artist"
-Cohesion: 0.06
-Nodes (44): ReviewData, ReviewMessageCard(), ReviewMessageCardProps, EventReviewModalProps, EventReviewFormProps, EventReviewModal(), EventReviewModalProps, ReviewList() (+36 more)
+Cohesion: 0.03
+Nodes (50): ConcertSearchResults(), EventReviewModalProps, EventReviewFormProps, EventReviewModal(), EventReviewModalProps, EventReviewsSection(), EventReviewsSectionProps, formatEventDate() (+42 more)
 
 ### Community 1 - "Concert Event Components"
 Cohesion: 0.04
@@ -619,19 +621,19 @@ Nodes (9): CustomerSegmentationProps, RevenueTrendChartProps, AnalyticsErrorHand
 
 ### Community 3 - "Mobile Artist/Event Detail Screens"
 Cohesion: 0.04
-Nodes (83): EventRow, mapEventRow(), ReviewRow, styles, EventDetailScreen(), { height: SCREEN_HEIGHT }, mapSubtitleLine(), MeetUser (+75 more)
+Nodes (78): EventRow, mapEventRow(), ReviewRow, styles, EventDetailScreen(), { height: SCREEN_HEIGHT }, mapSubtitleLine(), MeetUser (+70 more)
 
 ### Community 4 - "Mobile Passport Feature"
 Cohesion: 0.04
-Nodes (36): PassportAchievementsTab(), styles, PassportBucketTab(), SearchHit, styles, PassportIdentityTab(), styles, EmptyState() (+28 more)
+Nodes (46): FriendStatus, styles, PassportAchievementsTab(), styles, PassportIdentityTab(), styles, EmptyState(), SectionError() (+38 more)
 
 ### Community 5 - "Chat Unread Badge & Promotion Tracking"
 Cohesion: 0.03
-Nodes (81): AboutPageProps, Chat, ChatMessage, ChatView(), ChatViewProps, ChatView(), ConcertEvents(), ConcertFeed() (+73 more)
+Nodes (77): ContentCalendarDashboard(), statusVariant(), ArtistCard(), ConcertEvents(), ConcertFeed(), EmailGate(), ConcertEvents(), ConcertFeed() (+69 more)
 
 ### Community 6 - "Search Results & Detail Modals"
-Cohesion: 0.09
-Nodes (41): AuditRow, bucketMatch(), hasHistory(), hasInterestSignals(), hasLocation(), hasMusic(), isBrandNew(), qualityFlagsForRow() (+33 more)
+Cohesion: 0.15
+Nodes (22): AuditRow, bucketMatch(), hasHistory(), hasInterestSignals(), hasLocation(), hasMusic(), isBrandNew(), qualityFlagsForRow() (+14 more)
 
 ### Community 7 - "Mobile App Menu & Auth Screens"
 Cohesion: 0.12
@@ -642,44 +644,44 @@ Cohesion: 0.03
 Nodes (69): dependencies, apn, canvas-confetti, class-variance-authority, clsx, cmdk, date-fns, dotenv (+61 more)
 
 ### Community 9 - "Event Search & JamBase Attribution"
-Cohesion: 0.09
-Nodes (28): ContentIdeaReservoir(), Level, CHANNEL_BUCKETS, ChannelBucket, ChannelBucketId, channelLabel(), CONTENT_IDEAS, ContentIdea (+20 more)
+Cohesion: 0.05
+Nodes (33): styles, ContactEmailContext, RootLayout(), styles, styles, GENDER_OPTIONS, ProfileSetupScreen(), styles (+25 more)
 
 ### Community 10 - "Mobile Review & Post Flow"
-Cohesion: 0.05
-Nodes (33): ChatPreview, CONNECTION_LABELS, ConnectionInterest, ConnectionProfile, ConnectView(), ConnectViewProps, RecommendedUser, OnboardingReminderBanner() (+25 more)
+Cohesion: 0.06
+Nodes (27): ChatPreview, CONNECTION_LABELS, ConnectionInterest, ConnectionProfile, ConnectView(), ConnectViewProps, RecommendedUser, OnboardingReminderBanner() (+19 more)
 
 ### Community 11 - "Mobile Friend Requests & Notifications"
 Cohesion: 0.03
-Nodes (128): ArtistSearchBox(), ConcertEvent, ConcertEventsProps, UserDetailModalProps, ConcertEvent, ConcertEventsProps, EventEditModalProps, EventPromotionModalProps (+120 more)
+Nodes (124): CityStatusCard(), CohortRetentionChart(), PhaseProgressCard(), ArtistSearchBox(), ArtistSearchBoxProps, ArtistSelectorProps, ChatIconWithUnreadProps, ConcertEvent (+116 more)
 
 ### Community 13 - "Event Recommendation Engine"
-Cohesion: 0.05
-Nodes (28): LocationSearchParams, SimpleEventRecommendationService, SimpleRecommendationParams, SimpleRecommendationResult, SimpleRecommendedEvent, SpotifyAuthenticateOptions, SpotifyService, TimeRange (+20 more)
+Cohesion: 0.18
+Nodes (13): SpotifyAuthenticateOptions, SpotifyAlbum, SpotifyAuthConfig, SpotifyAuthResponse, SpotifyCurrentlyPlayingResponse, SpotifyExternalUrls, SpotifyFollowers, SpotifyImage (+5 more)
 
 ### Community 14 - "Design System Buttons & Chat List"
-Cohesion: 0.04
-Nodes (69): formatValue(), ConversionFunnelChart(), EngagementScoreGauge(), RevenueAttributionChart(), SessionAnalyticsCard(), TrendLineChart(), PromotionComparisonTableProps, PromotionPerformanceChart() (+61 more)
+Cohesion: 0.06
+Nodes (31): PromotionComparisonTableProps, ArtistCardProps, ArtistFollowButton(), ArtistFollowButtonProps, VerifiedChatBadge(), VerifiedChatBadgeProps, ArtistWithEvents, VenueCard() (+23 more)
 
 ### Community 15 - "Apple Music Integration"
 Cohesion: 0.12
-Nodes (29): ARCHETYPES, BoundPersona, ContextualDecision, contextualDecisionsCsv(), ContextualSeedResult, DecisionAction, doorsFromClaim(), Draft (+21 more)
+Nodes (28): ARCHETYPES, BoundPersona, ContextualDecision, contextualDecisionsCsv(), ContextualSeedResult, DecisionAction, doorsFromClaim(), Draft (+20 more)
 
 ### Community 17 - "Onboarding Music Tags & Command Palette"
 Cohesion: 0.07
 Nodes (32): Joi, validateBody(), validateInput(), validateParams(), validateQuery(), { createRateLimiter }, { createSanitizationMiddleware }, express (+24 more)
 
 ### Community 18 - "Shared Notification & Acquisition Source Logic"
-Cohesion: 0.04
-Nodes (55): InterestedEventsScreen(), styles, styles, ProfileTab, styles, FriendStatus, styles, FriendSuggestionsRail() (+47 more)
+Cohesion: 0.07
+Nodes (28): InterestedEventsScreen(), styles, styles, PLACEHOLDER, ProfileMyEventsPanel, ProfileMyEventsPanelHandle, ProfileMyEventsViewMode, Props (+20 more)
 
 ### Community 19 - "Share Link & Bot Seeding Scripts"
-Cohesion: 0.08
-Nodes (32): config, handler(), Job, jobFromHour(), JOBS, pathOf(), queryJob(), resolveJob() (+24 more)
+Cohesion: 0.06
+Nodes (41): config, handler(), Job, jobFromHour(), JOBS, pathOf(), queryJob(), resolveJob() (+33 more)
 
 ### Community 20 - "Web Onboarding Flow"
 Cohesion: 0.06
-Nodes (37): FeedFilter, FilterPillsProps, filters, styles, FriendActivityCardProps, styles, FriendsEventCardProps, styles (+29 more)
+Nodes (38): FeedFilter, FilterPillsProps, filters, styles, FriendActivityCardProps, styles, FriendsEventCardProps, styles (+30 more)
 
 ### Community 21 - "Mobile Streaming Stats"
 Cohesion: 0.06
@@ -687,11 +689,23 @@ Nodes (29): assertRequiredEnv(), OPTIONAL_WARN, PRODUCTION_REQUIRED, REQUIRED, v
 
 ### Community 22 - "Feed Recommendation Cards"
 Cohesion: 0.03
-Nodes (73): ConcertEvent, ConcertEventsProps, eventIcon, EventMap(), EventMapProps, groupEventsByVenue(), VenueWithEvents, ConcertEvent (+65 more)
+Nodes (89): ConcertEvent, ConcertEventsProps, eventIcon, EventMap(), EventMapProps, groupEventsByVenue(), VenueWithEvents, EventReviewsSectionProps (+81 more)
+
+### Community 23 - "Mobile Onboarding Artists & Connect Screens"
+Cohesion: 0.21
+Nodes (3): StreamingSyncService, SyncState, SyncStatus
 
 ### Community 24 - "Mobile Chat List & Discover Calendar"
+Cohesion: 0.04
+Nodes (85): CalendarView, DRAFT_PLATFORMS, StreamKind, ArtistSearchBox(), EmailGateProps, Event, EventListProps, Event (+77 more)
+
+### Community 25 - "Mobile Search & Tour Tracker Map"
 Cohesion: 0.11
-Nodes (15): DraftToggle(), DraftToggleProps, PostSubmitRankingModal(), EventDetailsStep(), PrivacySubmitStep(), RatingStep(), ShowEntry, ShowRanking() (+7 more)
+Nodes (22): EventData, EventInterestCard(), EventInterestCardProps, EventData, EventInterestCard(), EventInterestCardProps, EventData, EventUsersViewProps (+14 more)
+
+### Community 26 - "Admin Analytics Dashboard"
+Cohesion: 0.11
+Nodes (17): MobileTourTracker(), styles, groupTourStops(), isFiniteNum(), Stop, stopCityLabel(), stopKey(), styles (+9 more)
 
 ### Community 27 - "Mobile My Events & Interested Events"
 Cohesion: 0.13
@@ -702,8 +716,8 @@ Cohesion: 0.07
 Nodes (23): MemoryCache, RateLimiter, FixtureSourceAdapter, listFixtureScenarios(), JamBaseEvent, JamBaseSourceAdapter, ApprovedRedditApiAdapter, hashKey() (+15 more)
 
 ### Community 29 - "Artist Profile Components"
-Cohesion: 0.27
-Nodes (9): Toast, ToastAction, ToastActionElement, ToastClose, ToastDescription, ToastProps, ToastTitle, toastVariants (+1 more)
+Cohesion: 0.11
+Nodes (24): Toast, ToastAction, ToastActionElement, ToastClose, ToastDescription, ToastProps, ToastTitle, toastVariants (+16 more)
 
 ### Community 30 - "Chat Encryption & Native Storage"
 Cohesion: 0.10
@@ -715,11 +729,11 @@ Nodes (46): backgroundColor, backgroundImage, foregroundImage, monochromeImage, 
 
 ### Community 32 - "Web Chat View & Followers"
 Cohesion: 0.06
-Nodes (31): createIssueFromTemplate(), LibrarySort, newId(), NewsletterBuilder(), normalizeSlug(), PersonalizationPreviewMode, PRESET_OPTIONS, PreviewPreset (+23 more)
+Nodes (33): createIssueFromTemplate(), LibrarySort, newId(), NewsletterBuilder(), normalizeSlug(), PersonalizationPreviewMode, PRESET_OPTIONS, PreviewPreset (+25 more)
 
 ### Community 33 - "DC Event Seeder & Analytics Types"
 Cohesion: 0.06
-Nodes (32): AnalyticsDaily, Artist, ArtistGenre, Chat, ChatMembersView, ChatParticipant, Comment, Engagement (+24 more)
+Nodes (38): AnalyticsDaily, Artist, ArtistGenre, Chat, ChatMembersView, ChatParticipant, Comment, Engagement (+30 more)
 
 ### Community 34 - "Mobile Expo Dependencies"
 Cohesion: 0.04
@@ -729,13 +743,9 @@ Nodes (45): dependencies, expo, expo-apple-authentication, expo-application, exp
 Cohesion: 0.11
 Nodes (19): getApiKey(), CITY_COORDINATES, { createClient }, { createRateLimiter }, { createSanitizationMiddleware }, express, fetchEventsFromJamBaseByLocation(), { getSupabaseConfig, getApiKey, reportKeyFailure } (+11 more)
 
-### Community 36 - "Mobile Chat Encryption"
-Cohesion: 0.10
-Nodes (16): NetworkAnalyticsView(), CITY_TARGETS, CityTarget, getCitiesForPhase(), getCurrentPhase(), MarketType, matchCityToTarget(), normalizeCityName() (+8 more)
-
 ### Community 37 - "Event Management Service"
-Cohesion: 0.05
-Nodes (12): EventManagementService, EntityType, MissingEntityRequest, MissingEntityRequestService, SubmitRequestData, MusicTagsService, supabase, Venue (+4 more)
+Cohesion: 0.13
+Nodes (6): supabase, Venue, VenueSearchResult, VenueService, VenueWithEvents, VenueWithStats
 
 ### Community 38 - "Mobile Event Review Comments"
 Cohesion: 0.07
@@ -746,32 +756,32 @@ Cohesion: 0.07
 Nodes (61): buildClaimLedger(), claimTypeFromSignal(), defaultForumRules(), FIRST_PARTY_SOURCES, isSearchResultsUrl(), parseSentimentMethod(), shortClaim(), SnippetRow (+53 more)
 
 ### Community 40 - "Mobile Src: Mobile Scenes Rail"
-Cohesion: 0.12
-Nodes (8): MobileScenesRailProps, styles, JamBaseEvent, Scene, SceneDetail, SceneParticipant, SceneService, UserSceneProgress
+Cohesion: 0.07
+Nodes (15): MobileScenesRailProps, styles, HomeFeedService, JamBaseEvent, Scene, SceneDetail, SceneParticipant, SceneService (+7 more)
 
 ### Community 41 - "Src Styles: Event Details Modal"
 Cohesion: 0.16
 Nodes (27): notesModalView(), notesProposalBlocks(), taskListMrkdwn(), syncChannelMembers(), upsertMember(), resolveAssigneeHint(), processNotesText(), cleanupDuplicateOpenTasks() (+19 more)
 
 ### Community 42 - "Src Services: Browse All Events Section"
-Cohesion: 0.10
-Nodes (36): CalendarView, ContentCalendarDashboard(), DRAFT_PLATFORMS, statusVariant(), StreamKind, approvePost(), assertBodyPublishable(), createManualCalendarPost() (+28 more)
+Cohesion: 0.07
+Nodes (42): approvePost(), assertBodyPublishable(), createManualCalendarPost(), db, DC_BBOX, DC_CENTER, DC_CITIES, DcStreamEvent (+34 more)
 
 ### Community 43 - "Scripts Sync Jambase Incremental 3Nf: Dirname"
 Cohesion: 0.07
 Nodes (33): CHECKPOINT_FILE, clearAttemptedForResweep(), __dirname, fetchNextBatch(), __filename, getSupabase(), loadCheckpoint(), loadEnv() (+25 more)
 
 ### Community 44 - "Src Services: Network Analytics View"
-Cohesion: 0.03
-Nodes (119): UpgradeRequest, UserNearVerification, VerificationManagementProps, AgeVerificationCard(), CityStatusCard(), CityStatusCardProps, CohortRetentionChart(), CohortRetentionChartProps (+111 more)
+Cohesion: 0.02
+Nodes (146): UpgradeRequest, UserNearVerification, VerificationManagementProps, AgeVerificationCard(), CityStatusCardProps, CohortRetentionChartProps, PhaseProgressCardProps, ConversionFunnelChartProps (+138 more)
 
 ### Community 45 - "Src Components: Onboarding Skip Modal"
-Cohesion: 0.11
-Nodes (16): MobileTourTracker(), styles, groupTourStops(), isFiniteNum(), Stop, stopCityLabel(), stopKey(), styles (+8 more)
+Cohesion: 0.05
+Nodes (20): PassportBucketTab(), SearchHit, styles, AllResults, SCOPES, SearchScope, SearchScreenProps, styles (+12 more)
 
 ### Community 46 - "Src Services: Concert Api"
-Cohesion: 0.23
-Nodes (16): clearNoServerSpotifyTokenCache(), disconnectStreamingAccount(), fetchSpotifyProfileData(), getProfileSyncCounts(), logSyncResult(), markNoServerSpotifyToken(), noServerTokenCacheKey(), parseApiErrorBody() (+8 more)
+Cohesion: 0.13
+Nodes (26): autoSyncThrottleKey(), clearAutoSyncThrottle(), markAutoSynced(), runStreamingAutoSync(), StreamingAutoSyncDecision, StreamingAutoSyncReason, wasRecentlyAutoSynced(), clearNoServerSpotifyTokenCache() (+18 more)
 
 ### Community 47 - "Src Hooks: Artist Detail Modal"
 Cohesion: 0.24
@@ -779,23 +789,19 @@ Nodes (3): DraftReviewService, isValidUuid(), sanitizeEntitySelection()
 
 ### Community 48 - "Src Components: Event Lists Carousel"
 Cohesion: 0.07
-Nodes (55): createLiveAdapters(), gatherFacts(), canWriteToSynthMessages(), envBool(), loadEnvSettings(), shadowCannotWrite(), hasReliableSetlist(), newPlanId() (+47 more)
+Nodes (50): createLiveAdapters(), gatherFacts(), canWriteToSynthMessages(), envBool(), loadEnvSettings(), hasReliableSetlist(), newPlanId(), pickObjective() (+42 more)
 
 ### Community 49 - "Packages Synth Shared: Index"
-Cohesion: 0.08
-Nodes (46): count, out, result, seed, ANCHOR, eventFact(), iso(), PILOT_EVENTS (+38 more)
-
-### Community 50 - "Mobile Src: Layout"
-Cohesion: 0.13
-Nodes (16): SocialAnalyticsDashboardProps, EdgeFunctionResponse, fetchInstagramSocialMediaAnalytics(), PlatformComparison, PlatformInsightCardProps, PlatformName, PlatformStat, RecentPostRow (+8 more)
+Cohesion: 0.09
+Nodes (40): count, out, result, seed, pilotFactsForGenre(), scheduleOne(), utcForLocalHour(), doorsLabelFromClaim() (+32 more)
 
 ### Community 51 - "Package: Scripts"
 Cohesion: 0.05
 Nodes (37): scripts, admin:build, admin:dev, admin:install, admin:preview, ai-guides:dry-run, ai-guides:install, ai-guides:seed (+29 more)
 
 ### Community 52 - "Src Services: Navigation"
-Cohesion: 0.03
-Nodes (149): ArtistCard(), MatchesViewProps, MatchWithChat, PendingInvitation, ClickableAvatarProps, ConcertSearchResults(), AllDetailModalProps, EventReviewModal() (+141 more)
+Cohesion: 0.02
+Nodes (118): EventMessageCardProps, CompactEventCard(), CompactEventCardProps, EventCard(), EventCardProps, GlobalModals(), GlobalModalsProps, CompactEventCard() (+110 more)
 
 ### Community 53 - "Src Utils: Event Card"
 Cohesion: 0.06
@@ -805,9 +811,17 @@ Nodes (22): AppleMusicService, AppleMusicAlbum, AppleMusicApiResponse, AppleMusi
 Cohesion: 0.10
 Nodes (16): createSanitizationMiddleware(), htmlEntityEncode(), sanitizeObject(), sanitizeString(), { concertSearchQuerySchema }, { createClient }, { createRateLimiter }, { createSanitizationMiddleware } (+8 more)
 
+### Community 55 - "Backend Streaming Profile Routes: Joi"
+Cohesion: 0.11
+Nodes (4): SpotifyService, SpotifyTimeRange, SpotifyTrack, SpotifyUser
+
 ### Community 57 - "Src Services: Preferences V4 Feed Section"
 Cohesion: 0.02
-Nodes (117): AdminModerationPanel(), ConcertEvents(), ConnectionDegreeBadge(), ConnectionDegreeBadgeProps, ConnectionDegreeCompactBadge(), ConnectionInfo, PreferencesDebugPanel(), ConcertFeed() (+109 more)
+Nodes (138): AdminModerationPanel(), ArtistCard(), ConnectionDegreeBadge(), ConnectionDegreeBadgeProps, ConnectionDegreeCompactBadge(), ConnectionInfo, PreferencesDebugPanel(), DiscoverView() (+130 more)
+
+### Community 58 - "Src Services: Friend Tagged Review Invite Modal Props"
+Cohesion: 0.04
+Nodes (46): EventReviewModalProps, EventReviewsSection(), PublicReviewCard(), PublicReviewCardProps, PublicReviewList(), PublicReviewListProps, ReviewCardProps, ReviewList() (+38 more)
 
 ### Community 59 - "Src Services: Use Promotion Impression"
 Cohesion: 0.08
@@ -822,28 +836,28 @@ Cohesion: 0.07
 Nodes (27): Sidebar, SidebarContent, SidebarContext, SidebarFooter, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel (+19 more)
 
 ### Community 62 - "Backend Server: Check Env"
-Cohesion: 0.07
-Nodes (32): activeValidation, draftSerialized, expectedZeroDataTypes, leakFailures, localDraftLeakChecks, lowConfidenceHtml, lowConfidenceInterestContext, lowConfidenceLeak (+24 more)
+Cohesion: 0.09
+Nodes (21): activeValidation, draftSerialized, expectedZeroDataTypes, leakFailures, localDraftLeakChecks, lowConfidenceHtml, lowConfidenceInterestContext, lowConfidenceLeak (+13 more)
 
 ### Community 63 - "Package: Dev Dependencies"
 Cohesion: 0.07
 Nodes (28): devDependencies, autoprefixer, @babel/generator, @babel/parser, @babel/traverse, @babel/types, concurrently, cross-env (+20 more)
 
 ### Community 64 - "Src Services: Review Service"
-Cohesion: 0.19
-Nodes (9): styles, getAppleSignInCredential(), persistAppleDisplayName(), AndroidGoogleSignInPlaceholder(), AndroidGoogleSignInRow(), Props, styles, AppleLogoGlyph() (+1 more)
+Cohesion: 0.21
+Nodes (19): canUseStorage(), getNewsletterBySlugRuntime(), getNewsletters(), getNewslettersNewestFirst(), getNewsletterVersions(), getPublishedNewsletters(), hasLocalDrafts(), normalizeNewsletters() (+11 more)
 
 ### Community 65 - "Src Components: Posts Grid"
-Cohesion: 0.06
-Nodes (28): GlobalModals(), GlobalModalsProps, CelebrationData, CelebrationEvent, initialsFromDisplayName(), NewFriendCelebrationModal(), NewFriendCelebrationModalProps, PILL_STYLE (+20 more)
+Cohesion: 0.08
+Nodes (12): NotificationItem(), NotificationItemProps, FriendTaggedReviewInviteModalProps, BadgeService, CacheService, NotificationService, Notification, NotificationData (+4 more)
 
 ### Community 66 - "Src Services: Review Service"
-Cohesion: 0.16
-Nodes (8): BottomNavAdapter(), BottomNavAdapterProps, GlobalHamburgerButtonProps, IconProps, WebDesktopRail(), WebDesktopRailProps, MobileNavigationProps, MainNavItem
+Cohesion: 0.83
+Nodes (3): friendMatchConfettiStorageKey(), hasSeenFriendMatchConfetti(), markFriendMatchConfettiSeen()
 
 ### Community 68 - "Src Services: Artist Profile Service"
-Cohesion: 0.11
-Nodes (8): ArtistProfileService, ArtistMember, ArtistProfile, ArtistProfileSummary, ExternalIdentifier, FoundingLocation, JamBaseArtistResponse, SameAsLink
+Cohesion: 0.17
+Nodes (18): getOpenAiConfig(), CallOpenAi, defaultCallOpenAi(), filterGenerated(), generateConversation(), heuristicGenerate(), normalizeGenerated(), buildGroundedConversation() (+10 more)
 
 ### Community 69 - "Src Services: Event Photo Service"
 Cohesion: 0.04
@@ -862,12 +876,12 @@ Cohesion: 0.16
 Nodes (13): styles, styles, EditScreenInfo(), styles, ExternalLink(), MonoText(), Text(), TextProps (+5 more)
 
 ### Community 73 - "Mobile Src: Streaming Account Settings"
-Cohesion: 0.04
-Nodes (46): ARTIST_SUGGESTIONS, CategoryConfig, EventReviewFlow(), EventReviewFlowProps, Flow, getStepLabels(), LOCATION_SUGGESTIONS, PRODUCTION_SUGGESTIONS (+38 more)
+Cohesion: 0.05
+Nodes (44): ARTIST_SUGGESTIONS, CategoryConfig, EventReviewFlow(), EventReviewFlowProps, Flow, getStepLabels(), LOCATION_SUGGESTIONS, PRODUCTION_SUGGESTIONS (+36 more)
 
 ### Community 74 - "Src Components: Connect View"
-Cohesion: 0.03
-Nodes (114): MetricCard(), PlatformInsightCard(), PlatformInsightCardProps, PlatformStatsCard(), TopPostCard(), ArtistEventPagination(), ArtistSearchBox(), ConcertSearchForm() (+106 more)
+Cohesion: 0.18
+Nodes (9): Command, CommandDialogProps, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator (+1 more)
 
 ### Community 75 - "Src Components: Promotion Comparison Table"
 Cohesion: 0.22
@@ -878,32 +892,36 @@ Cohesion: 0.11
 Nodes (16): reportKeyFailure(), axios, { createClient }, { createRateLimiter }, { createSanitizationMiddleware }, express, fetchFromJamBase(), Fuse (+8 more)
 
 ### Community 77 - "Mobile Src: [Id]"
-Cohesion: 0.06
-Nodes (35): AiSceneGuidesAdminPanel(), RecentPostRow, RecentPostsTableProps, ChartConfig, ChartContainer, ChartContext, ChartContextProps, ChartLegendContent (+27 more)
+Cohesion: 0.05
+Nodes (39): AiSceneGuidesAdminPanel(), RecentPostRow, RecentPostsTableProps, Alert, AlertDescription, AlertTitle, alertVariants, ChartConfig (+31 more)
 
 ### Community 78 - "Src Services: Review Message Card"
 Cohesion: 0.13
 Nodes (9): apn, { createClient }, fs, path, PushNotificationService, interval, processPushQueue(), pushNotificationService (+1 more)
 
 ### Community 79 - "Src Services: Share Service"
-Cohesion: 0.12
-Nodes (12): AdminRedirect, ArtistFollowingPage, ArtistPage, NotFound, queryClient, ResetPassword, SharePage, StreamingStatsPage (+4 more)
+Cohesion: 0.05
+Nodes (32): AdminRedirect, ArtistFollowingPage, ArtistPage, NotFound, queryClient, ResetPassword, SharePage, StreamingStatsPage (+24 more)
+
+### Community 80 - "Src Services: Supabase Service"
+Cohesion: 0.06
+Nodes (11): Chat, EventInterest, JamBaseEvent, Match, Message, Profile, SupabaseService, Tables (+3 more)
 
 ### Community 82 - "Src Services: Passport Service"
 Cohesion: 0.09
 Nodes (22): 1. Category definition, 2.1 Core insight, 2.2 Primary users (consumer), 2.3 Secondary users (B2B / distribution partners), 2.4 Geographic wedge, 2.5 Why now, 2.6 Positioning tests (use in briefs), 2. Niche depth: who we serve and why it hurts (+14 more)
 
 ### Community 83 - "Src Services: News Service"
-Cohesion: 0.08
-Nodes (29): getRarityStyles(), PassportBadge(), PassportBadgeProps, ArtistDetailModal, PassportModal(), PassportModalProps, ProcessedAchievement, VenueDetailModal (+21 more)
+Cohesion: 0.03
+Nodes (96): AllDetailModalProps, UserDetailModalProps, getRarityStyles(), PassportBadge(), PassportBadgeProps, ArtistDetailModal, PassportModal(), PassportModalProps (+88 more)
 
 ### Community 84 - "Src Services: Interaction Tracking Service"
 Cohesion: 0.14
 Nodes (17): { appleAuthSchema }, { authenticateUser, createSession }, authRateLimiter, { createRateLimiter }, { createSanitizationMiddleware }, express, router, sanitize (+9 more)
 
 ### Community 85 - "Backend Auth Routes"
-Cohesion: 0.05
-Nodes (87): MetricCardProps, PlatformStat, PlatformStatsCardProps, TopPostCardProps, ArtistProfileDemoProps, MatchesView(), MatchesViewProps, MatchWithChat (+79 more)
+Cohesion: 0.04
+Nodes (102): MetricCard(), MetricCardProps, PlatformInsightCard(), PlatformInsightCardProps, PlatformStat, PlatformStatsCard(), PlatformStatsCardProps, TopPostCard() (+94 more)
 
 ### Community 87 - "Src App"
 Cohesion: 0.20
@@ -911,7 +929,7 @@ Nodes (13): args, __dirname, fetchCandidates(), getSpotifyToken(), isLikelyTribu
 
 ### Community 88 - "Src Services: Customer Segmentation"
 Cohesion: 0.17
-Nodes (10): formatCount(), GenreCard(), GenreChatsSection(), Props, styles, GENRE_CONFIGS, GenreChatInfo, GenreChatMemberCountRow (+2 more)
+Nodes (15): ContentIdeaReservoir(), Level, CHANNEL_BUCKETS, ChannelBucket, ChannelBucketId, channelLabel(), CONTENT_IDEAS, ContentIdea (+7 more)
 
 ### Community 89 - "Src Utils: Use Verification"
 Cohesion: 0.18
@@ -935,7 +953,7 @@ Nodes (16): aliases, components, hooks, lib, ui, utils, rsc, $schema (+8 more)
 
 ### Community 97 - "Src Components: Redesigned Search Page"
 Cohesion: 0.03
-Nodes (51): ArtistEventPaginationProps, ArtistProfileIntegrationProps, ArtistSearchBoxProps, ArtistSearchWithProfile(), ArtistSearchWithProfileProps, ArtistSelector(), ArtistSelectorProps, SearchResult (+43 more)
+Nodes (45): ArtistCardProps, ArtistEventPaginationProps, ArtistProfileIntegrationProps, ArtistSearchBoxProps, ArtistSearchWithProfile(), ArtistSearchWithProfileProps, ArtistSelectorProps, SearchResult (+37 more)
 
 ### Community 98 - "Backend Search Routes"
 Cohesion: 0.09
@@ -950,24 +968,24 @@ Cohesion: 0.14
 Nodes (12): Carousel, CarouselApi, CarouselContent, CarouselContext, CarouselContextProps, CarouselItem, CarouselNext, CarouselOptions (+4 more)
 
 ### Community 101 - "Src Services: Venue Follow Service"
-Cohesion: 0.07
-Nodes (30): 5. Location & Venue Features, 6. Chat & Communication, 7. Event Management, 8. Search & Discovery, 9. Analytics & Insights, Chat Components, Chat System, Data Flow (+22 more)
+Cohesion: 0.29
+Nodes (7): 8. Search & Discovery, Detailed Feature Documentation, Features Guide, Related Documentation, Search Components, Support, Unified Search
 
 ### Community 102 - "Src Services: Hybrid Search Service"
 Cohesion: 0.17
 Nodes (8): CreateFriendRequestOutcome, getDiscoveryUsers(), getExcludedUserIds(), getRecommendedFriendsFallback(), getSimilarUsersToFriend(), rankFriendSuggestionsForRail(), SharedFriendSuggestion, FriendsService
 
 ### Community 104 - "Src Services: Personalized Feed Service"
-Cohesion: 0.08
-Nodes (34): count, outDir, outPath, { personas, warnings }, seed, getOpenAiConfig(), newId(), stableHex() (+26 more)
+Cohesion: 0.12
+Nodes (16): count, outDir, outPath, { personas, warnings }, seed, newId(), stableHex(), uuidFromSeed() (+8 more)
 
 ### Community 105 - "Src Utils: Username Service"
-Cohesion: 0.14
-Nodes (5): OnboardingService, ensurePublicUserProfile(), notifySlackSignupIfRecent(), PublicUserRecoveryResult, slackSignupWebhookUrl()
+Cohesion: 0.31
+Nodes (7): scoreCityCenterMatch(), areCitiesEqual(), findSimilarCities(), formatCityNameForDisplay(), formatCityStateForDisplay(), getCanonicalCityName(), normalizeCityName()
 
 ### Community 106 - "Src Utils: Tracking Helpers"
-Cohesion: 0.14
-Nodes (4): addUTMToURL(), buildUTMParameters(), extractTicketProvider(), getDaysUntilEvent()
+Cohesion: 0.16
+Nodes (16): buildDailyRandomSchedule(), buildMessage(), getGenreChat(), inQuietHours(), LAUNCH_GENRES, pick(), PublishResult, randInt() (+8 more)
 
 ### Community 107 - "Tsconfig Node"
 Cohesion: 0.12
@@ -979,15 +997,15 @@ Nodes (8): Gotchas, Known issue you may hit first: `backend/package.json` is mis
 
 ### Community 109 - "Backend Jambase Sync Service"
 Cohesion: 0.03
-Nodes (83): EventMessageCard(), EventMessageCardProps, BecauseYouLikeSection(), CompactEventCard(), CompactEventCardProps, COMMON_GENRES, DiscoverResultsView(), DiscoverResultsViewProps (+75 more)
+Nodes (82): BottomNavAdapter(), BottomNavAdapterProps, BecauseYouLikeSection(), BecauseYouLikeSectionProps, COMMON_GENRES, DiscoverResultsView(), DiscoverResultsViewProps, ArtistDetailModal (+74 more)
 
 ### Community 110 - "Backend Setlist Routes: Sanitize Input"
-Cohesion: 0.04
-Nodes (99): ArtistCardProps, EmailGateProps, EventReviewModalProps, EventReviewsSection(), EventReviewsSectionProps, EventCommentsModalProps, EventDetailsModalProps, EventLikersModalProps (+91 more)
+Cohesion: 0.05
+Nodes (68): AboutPageProps, Chat, ChatMessage, ChatView(), ChatViewProps, Chat, ChatMessage, ChatView() (+60 more)
 
 ### Community 111 - "Backend Spotify Artist Linker"
-Cohesion: 0.09
-Nodes (25): SceneScreen(), SceneRoomService, getOrCreateGenreChat(), applyOnboardingRoomJoins(), ApplyOnboardingRoomJoinsInput, ApplyOnboardingRoomJoinsResult, ensureSceneRoomChatId(), joinChatParticipant() (+17 more)
+Cohesion: 0.08
+Nodes (27): SceneScreen(), SceneRoomService, getOrCreateGenreChat(), applyOnboardingRoomJoins(), ApplyOnboardingRoomJoinsInput, ApplyOnboardingRoomJoinsResult, ensureSceneRoomChatId(), joinChatParticipant() (+19 more)
 
 ### Community 112 - "Packages Synth Shared: Stats Service"
 Cohesion: 0.06
@@ -1010,8 +1028,8 @@ Cohesion: 0.25
 Nodes (13): deactivateDeviceToken(), DeliveryLogRow, getApnProvider(), getPushWebhookSecret(), getSupabaseServerConfig(), handler(), isExpoPushToken(), isPermanentApnsFailure() (+5 more)
 
 ### Community 118 - "Backend Jambase Sync Service"
-Cohesion: 0.19
-Nodes (8): isReservedSceneRoomId(), formatCount(), GenreCard(), GenreChatsSection(), Props, GENRE_CONFIGS, GenreChatInfo, GenreChatService
+Cohesion: 0.40
+Nodes (5): formatCount(), GenreCard(), GenreChatsSection(), Props, GenreChatInfo
 
 ### Community 119 - "Src Components: Carousel"
 Cohesion: 0.27
@@ -1030,8 +1048,8 @@ Cohesion: 0.14
 Nodes (13): compilerOptions, isolatedModules, lib, module, moduleDetection, moduleResolution, noEmit, noImplicitAny (+5 more)
 
 ### Community 125 - "Backend Ticketmaster Transform: Genre Mapping"
-Cohesion: 0.04
-Nodes (59): styles, styles, styles, providerLabel(), StreamingStatsScreen(), styles, ShareWithFriendsBanner(), ShareWithFriendsBannerProps (+51 more)
+Cohesion: 0.06
+Nodes (52): providerLabel(), StreamingStatsScreen(), styles, StreamingAccountSettings(), medalColor(), StreamingArtistRow(), StreamingArtistRowProps, styles (+44 more)
 
 ### Community 126 - "Scripts Infra Setup"
 Cohesion: 0.20
@@ -1042,12 +1060,12 @@ Cohesion: 0.24
 Nodes (11): __dirname, flags, loadPushSecret(), MIGRATION_FILE, repoRoot, run(), runCapture(), stepSupabase() (+3 more)
 
 ### Community 128 - "Src Services: Content Moderation Service"
-Cohesion: 0.25
-Nodes (6): DrawerContent, DrawerDescription, DrawerFooter(), DrawerHeader(), DrawerOverlay, DrawerTitle
+Cohesion: 0.17
+Nodes (9): VerificationStatus, VerificationService, calculateProfileCompletionPercentage(), calculateUserTrustScore(), getCriterionDescription(), Profile, TrustScoreBreakdown, TrustScoreCriteria (+1 more)
 
 ### Community 129 - "InviteCodeModal.tsx"
-Cohesion: 0.18
-Nodes (10): input-otp, InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot, input-otp, InputOTP, InputOTPGroup (+2 more)
+Cohesion: 0.16
+Nodes (15): NetworkAnalyticsView(), CITY_TARGETS, CityTarget, getCitiesForPhase(), getCurrentPhase(), MarketType, matchCityToTarget(), normalizeCityName() (+7 more)
 
 ### Community 130 - "PhotoUploadProps"
 Cohesion: 0.17
@@ -1063,15 +1081,15 @@ Nodes (11): Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarLa
 
 ### Community 133 - "Src Components: Fan Engagement Chart"
 Cohesion: 0.21
-Nodes (11): VIBES, VibeSelectorModal(), VibeSelectorModalProps, SheetContent, SheetContentProps, SheetDescription, SheetFooter(), SheetHeader() (+3 more)
+Nodes (15): ADMIN_HELPER, FABRICATED_COMMUNITY, OUT_DIR, PRESETS, run(), run(), collectRecipientFacingText(), deriveApplicableStates() (+7 more)
 
 ### Community 135 - "Src Services: Share Link Bootstrap"
 Cohesion: 0.11
 Nodes (11): ArtistProfileService, JamBaseArtistSearchResult, JamBaseArtistSearchService, ArtistMember, ArtistProfile, ArtistProfileSummary, ExternalIdentifier, FoundingLocation (+3 more)
 
 ### Community 136 - "Src Components: Form"
-Cohesion: 0.23
-Nodes (7): FanEngagementChartProps, GeographicMapProps, ContentPerformance, CreatorAchievement, CreatorStats, FanInsight, GeographicInsight
+Cohesion: 0.15
+Nodes (12): StatsService, getEventsFromRankedArtists(), detectProviderFromProfileUrl(), getStreamingLinkStatus(), hasAnyStatsSnapshot(), EMPTY, estimateHours(), extractTopArtists() (+4 more)
 
 ### Community 137 - "Src Components: Menubar"
 Cohesion: 0.17
@@ -1082,8 +1100,8 @@ Cohesion: 0.14
 Nodes (13): Data Model Overview (for agents), Facts Agents Must Not Invent, Goals (product), History, Mission, Niche, acquisition & distribution, Platform Map (repo), Problem Narrative (from public LinkedIn) (+5 more)
 
 ### Community 139 - "Src Services: Revenue Estimation Service"
-Cohesion: 0.08
-Nodes (24): API Security, Build Configuration, Common Issues, Database Security, Database Setup, Debug Steps, Deployment Guide, Deployment Steps (+16 more)
+Cohesion: 0.07
+Nodes (28): Alternative Deployment Platforms, API Security, AWS S3 + CloudFront, Build Configuration, CDN Configuration, Common Issues, Database Scaling, Database Security (+20 more)
 
 ### Community 141 - "Backend Config: Api Keys"
 Cohesion: 0.17
@@ -1098,8 +1116,8 @@ Cohesion: 0.18
 Nodes (10): devDependencies, tsx, @types/node, name, private, scripts, hello, typecheck (+2 more)
 
 ### Community 145 - "Src Components: Review Share Modal"
-Cohesion: 0.11
-Nodes (29): buildMetricCards(), buildPlatformMetrics(), calculateBestPostScore(), calculateGrowthPercent(), DashboardMetric, estimateGainFromPercent(), formatMetricDisplay(), formatMetricNumber() (+21 more)
+Cohesion: 0.07
+Nodes (41): buildMetricCards(), buildPlatformMetrics(), calculateBestPostScore(), calculateGrowthPercent(), DashboardMetric, estimateGainFromPercent(), formatMetricDisplay(), formatMetricNumber() (+33 more)
 
 ### Community 146 - "Src Utils: Event Filters"
 Cohesion: 0.11
@@ -1118,8 +1136,8 @@ Cohesion: 0.14
 Nodes (13): Data Model Overview (for agents), Facts Agents Must Not Invent, Goals (product), History, Mission, Niche, acquisition & distribution, Platform Map (repo), Problem Narrative (from public LinkedIn) (+5 more)
 
 ### Community 150 - "Src Services: Supabase Service"
-Cohesion: 0.08
-Nodes (25): 1. Review Photo Upload, 2. Review Photo Display, 3. Profile Avatar Upload, 4. Avatar Display, Access Control, Best Practices, Caching, File Validation (+17 more)
+Cohesion: 0.07
+Nodes (26): 1. Review Photo Upload, 2. Review Photo Display, 3. Profile Avatar Upload, 4. Avatar Display, Best Practices, Caching, 🎯 Future Enhancements, Image Optimization (+18 more)
 
 ### Community 151 - "Src Services: User Visibility Service"
 Cohesion: 0.17
@@ -1127,7 +1145,7 @@ Nodes (12): Contributing, Development Guidelines, Features, License, Project Str
 
 ### Community 152 - "Readme: Brand Guide Md — Design System And Brand Guidelines"
 Cohesion: 0.03
-Nodes (61): styles, styles, ContactEmailContext, RootLayout(), styles, styles, GENDER_OPTIONS, ProfileSetupScreen() (+53 more)
+Nodes (40): styles, styles, styles, MUSIC_GENRES, styles, FollowingTab, styles, styles (+32 more)
 
 ### Community 153 - "Mobile Android: Bundle"
 Cohesion: 0.20
@@ -1142,8 +1160,8 @@ Cohesion: 0.07
 Nodes (9): TablesInsert, Chat, EventInterest, JamBaseEvent, Match, Message, Profile, SupabaseService (+1 more)
 
 ### Community 156 - "Src Services: Event Photo Service"
-Cohesion: 0.33
-Nodes (9): evaluateStreamingAutoSync(), runStreamingAutoSync(), StreamingAutoSyncDecision, StreamingAutoSyncReason, wasRecentlyAutoSynced(), profileHasTracks(), profileSyncComplete(), hasNonEmptyPerRangeData() (+1 more)
+Cohesion: 0.14
+Nodes (7): styles, styles, ShareWithFriendsBanner(), ShareWithFriendsBannerProps, styles, recordReferralShare(), ShareAppService
 
 ### Community 157 - "Github Workflows: Build Job (Checkout, Setup Node, Eas Cli B"
 Cohesion: 0.22
@@ -1158,16 +1176,20 @@ Cohesion: 0.18
 Nodes (10): exports, main, name, peerDependencies, @supabase/supabase-js, private, sideEffects, type (+2 more)
 
 ### Community 160 - "Src Services: Analytics Data Service"
-Cohesion: 0.43
-Nodes (4): IconText(), IconTextProps, MenuCategory(), MenuCategoryProps
+Cohesion: 0.11
+Nodes (11): LocationSearchParams, SimpleEventRecommendationService, SimpleRecommendationParams, SimpleRecommendationResult, SimpleRecommendedEvent, TimeRange, UserStreamingStatsInsert, UserStreamingStatsService (+3 more)
 
 ### Community 161 - "Src Services: Artist Venue Service"
 Cohesion: 0.18
 Nodes (4): ArtistVenueService, StoredArtist, StoredVenue, UserEvent
 
+### Community 162 - "Src Services: Event Likes Service"
+Cohesion: 0.12
+Nodes (15): 1. Data model, 2. Write path — one RPC, 3. Read path, 4. UI — five files, zero card components, 5. Notifications, 6. Pre-flight checks, 7. Testing, 8. Implementation order (+7 more)
+
 ### Community 163 - "Src Services: Setlist Service"
-Cohesion: 0.13
-Nodes (15): App(), queryClient, Toaster(), ToasterProps, Toast, ToastAction, ToastActionElement, ToastClose (+7 more)
+Cohesion: 0.27
+Nodes (12): getServiceSupabase(), loadScheduleSettings(), publishDueScheduledPosts(), config, handler(), secureEquals(), config, handler() (+4 more)
 
 ### Community 165 - "Mobile Android: Application"
 Cohesion: 0.25
@@ -1202,8 +1224,8 @@ Cohesion: 0.09
 Nodes (22): Analytics & Querying, Apply Migration, Count by Email Domain, Count Total Entries, Database Schema, Database Setup, Disabling the Email Gate, Email Gate Setup (+14 more)
 
 ### Community 173 - "Src Components: Error Boundary"
-Cohesion: 0.20
-Nodes (4): ErrorBoundary, Props, State, rootElement
+Cohesion: 0.14
+Nodes (13): Global Constraints, "I'm Going" RSVP Implementation Plan, Out of Scope, Post-Implementation Verification, Task 1: The `set_event_rsvp` RPC, Task 2: Web write path delegates to the RPC, Task 3: Mobile write path and RSVP state, Task 4: Going control in the web event detail modal (+5 more)
 
 ### Community 174 - "Src Components: Breadcrumb"
 Cohesion: 0.18
@@ -1223,19 +1245,19 @@ Nodes (11): canChangeUsername(), checkUsernameAvailability(), generateAvailableU
 
 ### Community 180 - "Src Services: Push Notification Service"
 Cohesion: 0.07
-Nodes (9): nativeStorage, chatCrypto, chatCore, ChatMessage, fetchChatMessages(), sendEncryptedMessage(), UserChat, InAppShareService (+1 more)
+Nodes (10): nativeStorage, chatCrypto, chatCore, ChatMessage, fetchChatMessages(), fetchUserChats(), sendEncryptedMessage(), UserChat (+2 more)
 
 ### Community 182 - "Src Services: User Settings Preferences Service"
-Cohesion: 0.29
-Nodes (4): AdminAction, ModerationFlag, PendingTask, sanitizeOrFilterTerm()
+Cohesion: 0.19
+Nodes (12): Vibe, VIBES, VibeSelectorModal(), VibeSelectorModalProps, SheetContent, SheetContentProps, SheetDescription, SheetFooter() (+4 more)
 
 ### Community 184 - "Api Spotify: Sync Profile"
 Cohesion: 0.32
 Nodes (10): backfillArtistGenresFromDb(), errorMessageFromResponse(), getAccessToken(), getAllTopItems(), handler(), nextPageToApiPath(), parseResponseJson(), PLACEHOLDER_GENRES (+2 more)
 
 ### Community 185 - "Mobile Readme: Migration 20260624140000 Disable Push Queue T"
-Cohesion: 0.13
-Nodes (11): NotificationBell(), NotificationBellProps, NotificationItem(), NotificationItemProps, NotificationService, Notification, NotificationData, NotificationFilters (+3 more)
+Cohesion: 0.12
+Nodes (15): NotificationBell(), NotificationBellProps, NotificationItem(), NotificationItemProps, NotificationsModal(), NotificationsModalProps, ScrollArea, ScrollBar (+7 more)
 
 ### Community 186 - "Index Html: Src/Main Tsx (Vite App Entry Module)"
 Cohesion: 0.33
@@ -1246,12 +1268,12 @@ Cohesion: 0.10
 Nodes (20): dependencies, axios, cors, express, fuse.js, joi, @supabase/supabase-js, description (+12 more)
 
 ### Community 190 - "ChartConfig"
-Cohesion: 0.46
-Nodes (7): createUserSettingsPreferences(), ensureUserSettingsPreferencesExist(), getCurrentUserSettingsPreferences(), getUserSettingsPreferences(), updateCurrentUserSettingsPreferences(), updateUserSettingsPreferences, UserSettingsPreferences
+Cohesion: 0.21
+Nodes (10): ChatListItem(), ChatListItemProps, formatTimestamp(), ProfilePicture(), ProfilePictureProps, ProfilePictureSize, ProfilePictureVariant, UserInfo() (+2 more)
 
 ### Community 191 - "Src Services: Creator Analytics Service"
-Cohesion: 0.06
-Nodes (51): buildDailyRandomSchedule(), buildMessage(), getGenreChat(), getServiceSupabase(), inQuietHours(), LAUNCH_GENRES, loadScheduleSettings(), pick() (+43 more)
+Cohesion: 0.13
+Nodes (23): ArtistRef, ArtistRow, BASE_URL, buildWebAppUrlFromShareCanonical(), esc(), EventRow, fetchArtist(), fetchEvent() (+15 more)
 
 ### Community 193 - "Src Services: Friends Service"
 Cohesion: 0.26
@@ -1285,6 +1307,10 @@ Nodes (5): formatVenueAddress(), formatVenueLocation(), formatVenueName(), getVe
 Cohesion: 0.60
 Nodes (5): formatDateForAPI(), handler(), parseSetlistSearchQuery(), sanitizeQueryString(), transformSetlist()
 
+### Community 203 - "Mobile App Config"
+Cohesion: 0.18
+Nodes (10): input-otp, InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot, input-otp, InputOTP, InputOTPGroup (+2 more)
+
 ### Community 204 - "Mobile Package: Scripts"
 Cohesion: 0.33
 Nodes (6): scripts, android, ios, postinstall, start, web
@@ -1294,32 +1320,36 @@ Cohesion: 0.33
 Nodes (5): description, name, private, type, version
 
 ### Community 207 - "Scripts Setup Push Webhook"
-Cohesion: 0.43
-Nodes (7): __dirname, __filename, getSupabaseClient(), main(), sendAttendanceReminders(), sendFriendInterestDigest(), ymd()
+Cohesion: 0.23
+Nodes (7): FanEngagementChartProps, GeographicMapProps, ContentPerformance, CreatorAchievement, CreatorStats, FanInsight, GeographicInsight
 
 ### Community 208 - "Src Services: Music Taste Service"
 Cohesion: 0.20
 Nodes (12): artistFocus(), AUDIENCE_SENTIMENT_ADAPTERS, _AudienceDiscovery, _AudienceEnrich, buildAudienceSearchTerms(), googleNewsRssUrl(), googleNewsSignals(), LOCAL_PRESS_FEEDS (+4 more)
 
+### Community 209 - "Src Services: Passport Achievement Service"
+Cohesion: 0.20
+Nodes (10): ButtonProps, buttonVariants, Pagination(), PaginationContent, PaginationEllipsis(), PaginationItem, PaginationLink(), PaginationLinkProps (+2 more)
+
 ### Community 210 - "Src Services: Preference Signals Service"
 Cohesion: 0.05
-Nodes (44): ChatListScreen(), styles, CalDaySelection, calStyles, DiscoverScreen(), styles, WEEKDAYS, ProfileScreen() (+36 more)
+Nodes (43): CalDaySelection, calStyles, DiscoverScreen(), styles, WEEKDAYS, ProfileScreen(), formatCount(), GenreCard() (+35 more)
 
 ### Community 211 - "Supabase Postgres Best Practices"
 Cohesion: 0.21
 Nodes (17): attrBetween(), extractJsonLd(), extractLikelyWebsite(), extractRssItems(), flattenJsonLd(), matchAttr(), signalsFromHtmlPage(), signalsFromJsonLdEvents() (+9 more)
 
 ### Community 212 - "Scripts Test Push Webhook"
-Cohesion: 0.11
-Nodes (29): MarketingFooter(), MarketingFooterProps, MarketingNavbar(), MarketingNavbarProps, Skeleton(), canUseStorage(), getNewsletterBySlugRuntime(), getNewsletters() (+21 more)
+Cohesion: 0.07
+Nodes (21): App(), queryClient, InAppBrowserFallbackModal(), InAppBrowserFallbackModalProps, JuicerEmbed(), JuicerEmbedProps, MarketingFooter(), MarketingFooterProps (+13 more)
 
 ### Community 214 - "Src Services: Badge Service"
 Cohesion: 0.12
 Nodes (6): supabase, Venue, VenueSearchResult, VenueService, VenueWithEvents, VenueWithStats
 
 ### Community 215 - "Database"
-Cohesion: 0.06
-Nodes (29): MessageReactions(), MessageReactionsProps, ReactionPicker(), ReactionPickerProps, ReplyQuote(), ReplyQuoteProps, GenreChatEventsButton(), MobileHeader() (+21 more)
+Cohesion: 0.04
+Nodes (43): Home(), BottomNav(), EventMessageCard(), MessageReactions(), MessageReactionsProps, ReactionPicker(), ReactionPickerProps, ReplyQuote() (+35 more)
 
 ### Community 216 - "Src Services: Right Now Service"
 Cohesion: 0.12
@@ -1346,16 +1376,16 @@ Cohesion: 0.29
 Nodes (7): 6.1 What good looks like, 6.2 Research selection, 6.3 Caption anatomy, 6.4 Finished 9:30 Club sample, 6.5 Why this works, 6.6 Reject examples, 6. Instagram
 
 ### Community 226 - "Api Cron: Sync Events"
-Cohesion: 0.06
-Nodes (22): AppleMusicService, AppleMusicAlbum, AppleMusicApiResponse, AppleMusicArtist, AppleMusicArtwork, AppleMusicChartResponse, AppleMusicChartsResponse, AppleMusicConfig (+14 more)
+Cohesion: 0.08
+Nodes (21): AppleMusicService, AppleMusicAlbum, AppleMusicApiResponse, AppleMusicArtist, AppleMusicArtwork, AppleMusicChartResponse, AppleMusicChartsResponse, AppleMusicConfig (+13 more)
 
 ### Community 228 - "Scripts Backfill Venue Fks"
 Cohesion: 0.29
 Nodes (7): 7.1 What good looks like, 7.2 Strong LinkedIn angles for Synth, 7.3 Post anatomy, 7.4 Finished 9:30 Club sample, 7.5 Why this works, 7.6 LinkedIn quality check, 7. LinkedIn
 
 ### Community 229 - "ArtistProfileIntegration.tsx"
-Cohesion: 0.07
-Nodes (27): OnboardingSkipModalProps, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter(), AlertDialogHeader(), AlertDialogOverlay (+19 more)
+Cohesion: 0.06
+Nodes (33): OnboardingSkipModalProps, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter(), AlertDialogHeader(), AlertDialogOverlay (+25 more)
 
 ### Community 232 - "EmptyState.tsx"
 Cohesion: 0.11
@@ -1394,8 +1424,8 @@ Cohesion: 0.19
 Nodes (6): ArtistVenueService, StoredArtist, StoredVenue, UserEvent, JamBaseArtist, JamBaseVenue
 
 ### Community 252 - "Src Vite Env D"
-Cohesion: 0.03
-Nodes (78): JamBaseAttribution(), JamBaseAttributionProps, JamBaseAttributionFooterProps, BrowseAllEventsSectionProps, GenreChatEventsButtonProps, GenreShowsModal(), GenreShowsModalProps, ArtistDetailModal() (+70 more)
+Cohesion: 0.02
+Nodes (129): JamBaseAttribution(), JamBaseAttributionProps, JamBaseAttributionFooterProps, BrowseAllEventsSectionProps, GenreChatEventsButtonProps, GenreShowsModal(), GenreShowsModalProps, ArtistDetailModal() (+121 more)
 
 ### Community 253 - "Tailwind Config"
 Cohesion: 0.33
@@ -1417,10 +1447,6 @@ Nodes (16): aliases, components, hooks, lib, ui, utils, rsc, $schema (+8 more)
 Cohesion: 0.12
 Nodes (14): Fix suggestion, Source, What happened, Skill Feedback, Steps, Core Principles, Making and Committing Schema Changes, Option A: Declarative schemas (+6 more)
 
-### Community 259 - "conn-prepared-statements.md"
-Cohesion: 0.47
-Nodes (4): Home(), BottomNav(), Navigation(), User
-
 ### Community 261 - "data-n-plus-one.md"
 Cohesion: 0.12
 Nodes (15): compilerOptions, allowImportingTsExtensions, isolatedModules, lib, module, moduleDetection, moduleResolution, noEmit (+7 more)
@@ -1428,6 +1454,10 @@ Nodes (15): compilerOptions, allowImportingTsExtensions, isolatedModules, lib, m
 ### Community 262 - "data-pagination.md"
 Cohesion: 0.12
 Nodes (15): 1. Concrete Transformation Patterns, 2. Error-First Structure, 3. Quantified Impact, 4. Self-Contained Examples, 5. Semantic Naming, Code Example Standards, Comments, Impact Level Guidelines (+7 more)
+
+### Community 263 - "data-upsert.md"
+Cohesion: 0.19
+Nodes (15): assertUtf8Document(), MOJIBAKE_PATTERNS, OUT_DIR, PRESETS, run(), SAM_OUT, scanMojibake(), writeUtf8Html() (+7 more)
 
 ### Community 264 - "lock-advisory.md"
 Cohesion: 0.14
@@ -1446,12 +1476,8 @@ Cohesion: 0.47
 Nodes (5): applyNotificationsPluginMode(), fs, getExpoConfig(), getNotificationsApnsMode(), path
 
 ### Community 270 - "monitor-vacuum-analyze.md"
-Cohesion: 0.23
-Nodes (5): ApproxLatLng, resolveApproxUserLocation(), buildCitySearchVariants(), RadiusSearchService, filterEventsByRadius()
-
-### Community 271 - "query-composite-indexes.md"
-Cohesion: 0.40
-Nodes (5): Font Family, Font Weights, Typography, Typography Guidelines, Typography Scale
+Cohesion: 0.24
+Nodes (7): EmptyState(), EmptyStateProps, BottomNavSelectedIconName, extractLucideName(), iconNameToLucide, kebabToPascal(), keepAsSvg
 
 ### Community 272 - "query-covering-indexes.md"
 Cohesion: 0.14
@@ -1469,9 +1495,9 @@ Nodes (5): __dirname, envLocalPath, repoRoot, SECRET, writeEnvLocal
 Cohesion: 0.20
 Nodes (9): adminClient, buildUnsubscribeUrl(), corsHeaders, json(), NewsletterSendAction, normalizeEmail(), resendSend(), signEmail() (+1 more)
 
-### Community 277 - "listEditorialRuns"
-Cohesion: 0.17
-Nodes (11): CalendarPlatform, CalendarPostStatus, ContentCalendarPost, EditorialPostMeta, EditorialRun, EditorialRunStatus, EditorialSnippet, EditorialSubject (+3 more)
+### Community 276 - "schema-constraints.md"
+Cohesion: 0.13
+Nodes (7): EventPhotoGallery(), EventPhotoGalleryProps, PhotoCommentsModalProps, EventPhoto, EventPhotoService, PhotoComment, UploadEventPhotoRequest
 
 ### Community 278 - "schema-foreign-key-indexes.md"
 Cohesion: 0.40
@@ -1505,9 +1531,9 @@ Nodes (5): 8.1 What good looks like, 8.2 Recommended Synth Substack formats, 8.3
 Cohesion: 0.40
 Nodes (5): Core Features Overview, 🎵 Event Discovery, 🎧 Music Integration, ⭐ Review System, 👥 Social Features
 
-### Community 289 - "chatEncryptionService.ts"
-Cohesion: 0.10
-Nodes (14): isUuid(), Notification, NotificationService, acceptFriendRequest(), declineFriendRequest(), deleteExpiredFriendAcceptedNotifications(), deleteFriendRequestNotificationsByRequestId(), friendIdFromFriendAcceptedData() (+6 more)
+### Community 288 - "EventCreationModal.tsx"
+Cohesion: 0.22
+Nodes (8): AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter(), AlertDialogHeader(), AlertDialogOverlay, AlertDialogTitle
 
 ### Community 290 - "GenerateResult"
 Cohesion: 0.50
@@ -1519,7 +1545,7 @@ Nodes (5): adminClient, corsHeaders, normalizeEmail(), signEmail(), toHex()
 
 ### Community 293 - "reviewTimelineCore.ts"
 Cohesion: 0.06
-Nodes (26): ArtistCard(), CompactSearchBar(), CompactSearchBarProps, SearchResult, ContentGroupProps, ContentTypeSearchResults(), ContentTypeSearchResultsProps, GroupedSearchResultsProps (+18 more)
+Nodes (19): CompactSearchBar(), CompactSearchBarProps, SearchResult, ContentGroupProps, ContentTypeSearchResults(), ContentTypeSearchResultsProps, GroupedSearchResultsProps, SearchGroupProps (+11 more)
 
 ### Community 294 - "EventMap.tsx"
 Cohesion: 0.50
@@ -1530,12 +1556,12 @@ Cohesion: 0.47
 Nodes (8): config, corsHeaders(), escapeSlack(), handler(), headerGet(), json(), readBody(), requireAdmin()
 
 ### Community 296 - "Monitoring & Analytics"
-Cohesion: 0.25
-Nodes (4): buildShareLandingUrl(), fireNativeShare(), isNativeIOS(), ShareService
+Cohesion: 0.31
+Nodes (3): InAppShareService, getOrCreateDirectChat(), createOrGetDirectChat()
 
 ### Community 297 - "drawer.tsx"
-Cohesion: 0.50
-Nodes (4): Brand Voice & Tone, Tone Guidelines, Voice Characteristics, Writing Style
+Cohesion: 0.31
+Nodes (5): MusicTasteCard(), MusicTasteCardProps, generateDescription(), musicTasteService, MusicTasteSummary
 
 ### Community 302 - "navigation-menu.tsx"
 Cohesion: 0.50
@@ -1543,7 +1569,7 @@ Nodes (3): apn, fs, path
 
 ### Community 303 - "EnhancedReviewService"
 Cohesion: 0.40
-Nodes (5): Images Too Large, Photos Not Displaying, Photos Not Uploading, 🐛 Troubleshooting, Upload Fails with 400/403
+Nodes (3): generateDescription(), musicTasteService, MusicTasteSummary
 
 ### Community 305 - "validateInput.js"
 Cohesion: 0.18
@@ -1574,8 +1600,8 @@ Cohesion: 0.18
 Nodes (11): Android (FCM), Environment, iOS (APNs) — reuse the same Apple key, Local development, Native Swift / Kotlin, Parity with web, Prerequisites, Production builds (App Store / Play Store) (+3 more)
 
 ### Community 312 - "BecauseYouLikeService"
-Cohesion: 0.28
-Nodes (7): ChatListItem(), ChatListItemProps, formatTimestamp(), ProfilePicture(), ProfilePictureProps, ProfilePictureSize, ProfilePictureVariant
+Cohesion: 0.25
+Nodes (7): Breadcrumb, BreadcrumbEllipsis(), BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator()
 
 ### Community 313 - "streamingAutoSyncService.ts"
 Cohesion: 0.67
@@ -1610,8 +1636,8 @@ Cohesion: 0.20
 Nodes (9): 1. Query Performance (query), 2. Connection Management (conn), 3. Security & RLS (security), 4. Schema Design (schema), 5. Concurrency & Locking (lock), 6. Data Access Patterns (data), 7. Monitoring & Diagnostics (monitor), 8. Advanced Features (advanced) (+1 more)
 
 ### Community 327 - "VenueFollowService"
-Cohesion: 0.28
-Nodes (4): VenueFollowService, VenueFollow, VenueFollowStats, VenueFollowWithDetails
+Cohesion: 0.25
+Nodes (5): VenueWithEvents, VenueFollowService, VenueFollow, VenueFollowStats, VenueFollowWithDetails
 
 ### Community 328 - "ops-alert.js"
 Cohesion: 0.47
@@ -1630,24 +1656,20 @@ Cohesion: 0.22
 Nodes (9): 1. Environment Variables, 2. API Key Setup, 3. Database Setup, 4. Testing Integrations, Apple Music API, Cities API, JamBase API, Setup Instructions (+1 more)
 
 ### Community 336 - "Integration Architecture"
-Cohesion: 0.50
-Nodes (4): Logo, Logo Usage Guidelines, Logo Variations, Primary Logo
+Cohesion: 0.25
+Nodes (6): DrawerContent, DrawerDescription, DrawerFooter(), DrawerHeader(), DrawerOverlay, DrawerTitle
 
 ### Community 338 - "Web (`MainApp`) vs Expo (`mobile/app`) parity"
 Cohesion: 0.22
 Nodes (9): A. `MainApp` `ViewType` → Expo routes, Acceptance checks per screen, B. Global surfaces (not a `ViewType`), Behavioral parity checks (global), C. Shared logic (`@synth/shared`), Manual QA checklist (iOS + Android), Ship gate, Splash / launch (Expo vs Capacitor) (+1 more)
-
-### Community 339 - "review-images-upload.tsx"
-Cohesion: 0.50
-Nodes (4): Accessibility, Color Contrast, Focus States, Screen Reader Support
 
 ### Community 340 - "Local Development Setup"
 Cohesion: 0.25
 Nodes (8): API Endpoints, Development Workflow, Environment Variables, Fixed Chrome Issues, Local Development Setup, Local URLs, Quick Start, Troubleshooting
 
 ### Community 341 - "Integrations Guide"
-Cohesion: 0.25
-Nodes (8): Content Calendar / Editorial (DC), Future Enhancements, Integrations Guide, Overview, Planned Integrations, Related Documentation, Support, Technical Improvements
+Cohesion: 0.08
+Nodes (24): 6. Vercel Integration, API Monitoring, API Rate Limiting, Caching Strategy, Configuration, Content Calendar / Editorial (DC), Data Synchronization, Deployment Features (+16 more)
 
 ### Community 343 - "ErrorBoundary"
 Cohesion: 0.25
@@ -1662,16 +1684,12 @@ Cohesion: 0.29
 Nodes (4): { createClient }, express, router, supabase
 
 ### Community 360 - "BottomNav.tsx"
-Cohesion: 0.50
-Nodes (3): sonner, sonner, ToasterProps
+Cohesion: 0.29
+Nodes (5): sonner, Toaster(), ToasterProps, sonner, ToasterProps
 
 ### Community 361 - "hybridSearchService.ts"
 Cohesion: 0.25
 Nodes (7): NavigationMenu, NavigationMenuContent, NavigationMenuIndicator, NavigationMenuList, NavigationMenuTrigger, navigationMenuTriggerStyle, NavigationMenuViewport
-
-### Community 362 - "4. Apple Music API Integration"
-Cohesion: 0.29
-Nodes (7): 4. Apple Music API Integration, Configuration, Data Processing, JWT Token Generation, MusicKit JS Integration, Overview, Services
 
 ### Community 363 - "7. Instagram Platform API (Edge Function)"
 Cohesion: 0.29
@@ -1687,7 +1705,7 @@ Nodes (7): 3. Spotify API Integration, API Endpoints Used, Configuration, Data S
 
 ### Community 366 - "JamBaseCitiesService"
 Cohesion: 0.50
-Nodes (4): Brand Assets, Color Swatches, Logo Files, Typography Samples
+Nodes (4): 5. Location & Venue Features, Location Components, Location Search, Venue Management
 
 ### Community 370 - "BucketListService"
 Cohesion: 0.33
@@ -1695,7 +1713,7 @@ Nodes (6): config, GETSYNTH_HOSTS, isGetsynthHost(), middleware(), STATIC_FILES,
 
 ### Community 371 - "🚀 Implementation Points"
 Cohesion: 0.11
-Nodes (16): clearPendingShareLink(), hasPendingShareLink(), loadPendingShareLink(), storePendingShareLink(), AppLoadingSkeleton(), styles, usePulse(), { width: SCREEN_W } (+8 more)
+Nodes (17): clearPendingShareLink(), hasPendingShareLink(), loadPendingShareLink(), storePendingShareLink(), AppLoadingSkeleton(), styles, usePulse(), { width: SCREEN_W } (+9 more)
 
 ### Community 372 - "1. Supabase Integration"
 Cohesion: 0.33
@@ -1705,9 +1723,21 @@ Nodes (6): 1. Supabase Integration, Configuration, Database Schema, Key Features
 Cohesion: 0.29
 Nodes (6): Apply order (small operations — the editor is fine this time), Event de-duplication — 2026-07-17, Expected result, Root cause & why it won't recur, Safety, What's a duplicate here (and what ISN'T)
 
+### Community 374 - "CityService"
+Cohesion: 0.19
+Nodes (4): SpotifyRecentlyPlayedResponse, SpotifyTimeRange, SpotifyTopArtistsResponse, SpotifyTopTracksResponse
+
 ### Community 375 - "4. Music Integration"
 Cohesion: 0.33
 Nodes (6): 4. Music Integration, Apple Music Integration, Music Profile Components, Recommendation Engine, Spotify Integration, Streaming Service Integration
+
+### Community 376 - "sanitizeOrFilterTerm"
+Cohesion: 0.50
+Nodes (4): Data Flow, Performance Optimizations, State Management, Technical Implementation
+
+### Community 377 - "2. JamBase API Integration"
+Cohesion: 0.29
+Nodes (7): 4. Apple Music API Integration, Configuration, Data Processing, JWT Token Generation, MusicKit JS Integration, Overview, Services
 
 ### Community 378 - "TourTrackerService"
 Cohesion: 0.10
@@ -1726,8 +1756,8 @@ Cohesion: 0.40
 Nodes (4): ConversionFunnel, RevenueAttribution, RevenueMetrics, RevenueTrend
 
 ### Community 382 - "3. User Profiles & Social Features"
-Cohesion: 0.22
-Nodes (18): answerBank(), buildEpisode(), buildOpener(), buildReply(), ContributionType, dateLabel(), doorsLabel(), end() (+10 more)
+Cohesion: 0.12
+Nodes (25): ANCHOR, eventFact(), iso(), PILOT_EVENTS, PILOT_SETLIST, answerBank(), buildEpisode(), buildOpener() (+17 more)
 
 ### Community 383 - "Supabase Postgres Best Practices"
 Cohesion: 0.33
@@ -1738,8 +1768,8 @@ Cohesion: 0.35
 Nodes (10): ensureWorkspace(), bufferIncomingMessage(), headerValue(), parseFormBody(), secureEquals(), verifySlackSignature(), config, handler() (+2 more)
 
 ### Community 385 - "Monitoring & Analytics"
-Cohesion: 0.18
-Nodes (17): ByRangeField, computeTopGenresForTimeRange(), computeTopGenresFromArtistList(), computeTopGenresFromArtists(), countGenresFromArtists(), enrichProfileDataWithGenres(), FlatField, formatTopGenresForDisplay() (+9 more)
+Cohesion: 0.33
+Nodes (5): ToggleGroup, ToggleGroupContext, ToggleGroupItem, Toggle, toggleVariants
 
 ### Community 386 - "seed-sample-events.js"
 Cohesion: 0.40
@@ -1762,12 +1792,12 @@ Cohesion: 0.25
 Nodes (7): Breadcrumb, BreadcrumbEllipsis(), BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator()
 
 ### Community 391 - "6. Chat & Communication"
-Cohesion: 0.50
-Nodes (4): Alternative Deployment Platforms, AWS S3 + CloudFront, GitHub Pages, Netlify
+Cohesion: 0.29
+Nodes (3): CreateFlagInput, ModerationFlag, ModerationService
 
 ### Community 392 - "storageService.ts"
-Cohesion: 0.24
-Nodes (8): API_BASE_URL, Concert, ConcertStats, SearchParams, SearchResponse, CAPACITOR_SCHEMES, getApiBaseUrl(), normalizeUrl()
+Cohesion: 0.21
+Nodes (6): API_BASE_URL, Concert, ConcertApiService, ConcertStats, SearchParams, SearchResponse
 
 ### Community 393 - "Synth Skills Bundle"
 Cohesion: 0.40
@@ -1794,36 +1824,40 @@ Cohesion: 0.20
 Nodes (17): handler(), kindFromScheduleHeader(), kindFromUtcHour(), getSupabaseService(), buildDigestMessage(), digestKey(), DigestKind, digestKindForLocalHour() (+9 more)
 
 ### Community 405 - "Admin.tsx"
-Cohesion: 0.08
-Nodes (20): StatsService, StreamingStats, BucketListFeedEvent, PassportUnlockEntry, fetchProfileStatsSummary(), ProfileStatsSummary, EventTimelineRow, fetchProfileReviewTimeline() (+12 more)
+Cohesion: 0.20
+Nodes (4): EventTimelineRow, fetchProfileReviewTimeline(), ProfileReviewTimelineItem, ReviewTimelineRow
 
 ### Community 406 - "Testing & Quality Assurance"
 Cohesion: 0.18
 Nodes (10): AI Scene Guides, Contextual seed (Take 5 — current), JamBase setlists, Kill switch, Modes, Mute, Quick start, Rollout (+2 more)
 
+### Community 409 - "main.tsx"
+Cohesion: 0.33
+Nodes (6): 5. Cities API Integration, API Endpoints Used, Configuration, Overview, Services, Use Cases
+
 ### Community 410 - "🔒 Security & Privacy"
-Cohesion: 0.20
-Nodes (19): autoSyncThrottleKey(), clearAutoSyncThrottle(), clearNoServerSpotifyTokenCache(), markAutoSynced(), markNoServerSpotifyToken(), noServerTokenCacheKey(), shouldSkipServerSpotifySync(), disconnectStreamingAccount() (+11 more)
+Cohesion: 0.09
+Nodes (45): StreamingAccountSettingsProps, styles, authenticateSpotifyInApp(), exchangeCodeForTokens(), formatAuthSessionError(), getSpotifyClientId(), getSpotifyExpoRedirectUri(), persistRefreshToken() (+37 more)
 
 ### Community 411 - "Admin.tsx"
 Cohesion: 0.67
 Nodes (3): 📚 Core Documentation, Documentation, 🔧 Specialized Guides
 
 ### Community 412 - "HomeFeedService"
-Cohesion: 0.50
-Nodes (4): CDN Configuration, Database Scaling, Performance Optimization, Scaling Considerations
+Cohesion: 0.67
+Nodes (3): 6. Chat & Communication, Chat Components, Chat System
 
 ### Community 413 - "pagination.tsx"
 Cohesion: 0.03
-Nodes (87): ArtistEventPagination(), ClickableAvatar(), VibeCard(), EventSearch(), EventListsCarousel(), EventListsCarouselProps, DateWindow, HomeFeedHeader() (+79 more)
+Nodes (87): ArtistEventPagination(), ClickableAvatar(), ClickableAvatarProps, EventSearch(), FriendSuggestion, FriendSuggestionsRail(), FriendSuggestionsRailProps, JamBaseHeaderAttribution() (+79 more)
 
 ### Community 414 - "Synth Admin Portal (`getsynth.app`)"
 Cohesion: 0.50
 Nodes (3): Deploy, Local, Synth Admin Portal (`getsynth.app`)
 
 ### Community 416 - "profile-following.tsx"
-Cohesion: 0.18
-Nodes (12): SynthButton(), SynthButtonProps, VibeCardProps, Vibe, EmptyState(), EmptyStateProps, BottomNavSelectedIconName, extractLucideName() (+4 more)
+Cohesion: 0.38
+Nodes (6): VibeCardProps, IconText(), IconTextProps, MenuCategory(), MenuCategoryProps, IconName
 
 ### Community 418 - "Quick Start"
 Cohesion: 0.50
@@ -1854,48 +1888,52 @@ Cohesion: 0.29
 Nodes (9): PM_STATUSES, PmTaskStatus, extractMention(), ParsedAssign, ParsedCommand, parseDue(), parseTaskCommand(), stripQuotes() (+1 more)
 
 ### Community 432 - "RadiusSearchService"
-Cohesion: 0.15
-Nodes (15): CITY_NAME_SUFFIXES, MapConfig, RadiusSearchParams, scoreCityCenterMatch(), areCitiesEqual(), findSimilarCities(), formatCityNameForDisplay(), formatCityStateForDisplay() (+7 more)
+Cohesion: 0.14
+Nodes (12): PreferencesV4FeedService, buildCitySearchVariants(), CITY_NAME_SUFFIXES, MapConfig, RadiusSearchParams, RadiusSearchService, calculateBounds(), calculateCenter() (+4 more)
 
 ### Community 434 - "extractNotes.ts"
 Cohesion: 0.27
 Nodes (8): applyAutoAssignees(), extractActionItemsFromNotes(), ExtractedActionItem, heuristicExtract(), inferAssigneeFromText(), MemberRow, nameTokens(), NotesExtraction
 
 ### Community 436 - "contentFilter.ts"
-Cohesion: 0.38
-Nodes (6): Event, EXPLICIT_GENRES, EXPLICIT_TAGS, getAgeRestriction(), hasExplicitContent(), shouldFilterContent()
+Cohesion: 0.67
+Nodes (3): 7. Event Management, Event Components, Event Interest System
 
 ### Community 437 - "contentFilter.ts"
-Cohesion: 0.04
-Nodes (63): EmptyState(), EmptyStateProps, Event, EventCard(), EventCardProps, EventListProps, EventCommentsModal(), EventDetailsModal() (+55 more)
+Cohesion: 0.08
+Nodes (29): EventCard(), EventCardProps, FollowersModal(), HolisticStatsCard(), HolisticStatsCardProps, MusicTasteCard(), PostsGrid(), ConcertReview (+21 more)
 
 ### Community 438 - "package.json"
+Cohesion: 0.47
+Nodes (4): areCitiesEqual(), findSimilarCities(), getCanonicalCityName(), normalizeCityName()
+
+### Community 473 - "musicTasteService.ts"
 Cohesion: 0.67
-Nodes (3): Dark Mode, Dark Mode Colors, Dark Mode Guidelines
+Nodes (3): 9. Analytics & Insights, User Analytics, Venue Analytics
 
 ### Community 475 - "Typography"
-Cohesion: 0.08
-Nodes (34): ACQUISITION_SOURCE_CANONICAL_ORDER, ChatAuthorType, ChatCore, ChatCoreDeps, ChatMessageType, ChatSenderProfile, FetchUserChatsOptions, looksLikeOpaquePreview() (+26 more)
+Cohesion: 0.06
+Nodes (52): Notification, ACQUISITION_SOURCE_CANONICAL_ORDER, BucketListFeedEvent, ChatAuthorType, ChatCore, ChatCoreDeps, ChatMessageType, ChatSenderProfile (+44 more)
 
 ### Community 477 - "vercel.json"
-Cohesion: 0.25
-Nodes (6): BrowseLocationContext, BrowseLocationContextValue, BrowseLocationProvider(), StoredBrowseLocation, LastKnownLocation, saveLastKnownLocation()
+Cohesion: 0.47
+Nodes (4): ensurePublicUserProfile(), notifySlackSignupIfRecent(), PublicUserRecoveryResult, slackSignupWebhookUrl()
 
 ### Community 534 - "Accessibility"
-Cohesion: 0.03
-Nodes (59): ChatIconWithUnreadProps, BecauseYouLikeSectionProps, EventCreationModalProps, DensityPreferenceStep(), DensityPreferenceStepProps, DensityPreferenceValue, FollowArtistOption, FollowArtistsModal() (+51 more)
+Cohesion: 0.07
+Nodes (34): formatValue(), ConversionFunnelChart(), EngagementScoreGauge(), RevenueAttributionChart(), SessionAnalyticsCard(), TrendLineChart(), PromotionPerformanceChart(), AchievementCard() (+26 more)
 
 ### Community 535 - "Brand Assets"
 Cohesion: 0.06
-Nodes (29): ChatImageBubble(), ChatThreadScreen(), ReviewCardInfo, styles, AI_PROFILE_COPY, AiBadge(), AiGuideMessageBubble(), AiSceneGuideRoomNotice() (+21 more)
+Nodes (30): ChatImageBubble(), ChatThreadScreen(), ReviewCardInfo, styles, ChatListScreen(), styles, AI_PROFILE_COPY, AiBadge() (+22 more)
 
 ### Community 536 - "emptyMetrics"
-Cohesion: 0.03
-Nodes (76): Event, EventCard(), EventCardProps, EventListProps, EventListProps, CompactEventCard(), EventReason, PreferencesV4FeedSection() (+68 more)
+Cohesion: 0.33
+Nodes (5): buildCommand, crons, headers, installCommand, rewrites
 
 ### Community 537 - "SynthButton.tsx"
-Cohesion: 0.19
-Nodes (14): interactionTracker, SpotifyAlbum, SpotifyAuthConfig, SpotifyAuthResponse, SpotifyCurrentlyPlayingResponse, SpotifyExternalUrls, SpotifyFollowers, SpotifyImage (+6 more)
+Cohesion: 0.22
+Nodes (7): SpotifyAlbum, SpotifyAuthConfig, SpotifyAuthResponse, SpotifyCurrentlyPlayingResponse, SpotifyExternalUrls, SpotifyFollowers, SpotifyImage
 
 ### Community 538 - "Implementation report — AI Scene Guides"
 Cohesion: 0.33
@@ -1905,57 +1943,65 @@ Nodes (5): Changed / added, Commands, Credential-dependent next steps, Implement
 Cohesion: 0.33
 Nodes (5): Endpoints, Install steps, Scopes (minimal), Synth AI Shadow Slack app, Uninstall
 
-### Community 543 - "UserJamBaseEvent"
-Cohesion: 0.30
-Nodes (8): UseShareDeepLinkOptions, autoFriendReferrer(), clearPendingLink(), loadPendingLink(), NavigationInstruction, processPendingShareLink(), resolveEventIdFromReview(), storePendingLink()
+### Community 540 - "EmptyState.tsx"
+Cohesion: 0.08
+Nodes (9): ArtistProfileService, UnifiedArtistSearchService, ArtistMember, ArtistProfile, ArtistProfileSummary, ExternalIdentifier, FoundingLocation, JamBaseArtistResponse (+1 more)
+
+### Community 541 - "Typography"
+Cohesion: 0.67
+Nodes (3): For Developers, For Users, Getting Started
+
+### Community 542 - "Core Features Overview"
+Cohesion: 0.67
+Nodes (3): Quality Metrics, Testing & Quality Assurance, Testing Strategy
 
 ### Community 545 - "Dark Mode"
 Cohesion: 0.25
 Nodes (7): buildOnboardingJoinPlan(), isDcCity(), killed, required, SCENE_ROOM_IDS, soft, withOptional
 
 ### Community 546 - "Quality Assurance"
-Cohesion: 0.31
-Nodes (8): autoSyncThrottleKey(), clearAutoSyncThrottle(), evaluateStreamingAutoSync(), markAutoSynced(), runStreamingAutoSync(), StreamingAutoSyncDecision, StreamingAutoSyncReason, wasRecentlyAutoSynced()
+Cohesion: 0.40
+Nodes (5): Font Family, Font Weights, Typography, Typography Guidelines, Typography Scale
+
+### Community 547 - "Layout Guidelines"
+Cohesion: 0.14
+Nodes (5): EventGroupCard(), EventGroupCardProps, CreateGroupRequest, EventGroup, EventGroupService
 
 ### Community 548 - "Spacing System"
-Cohesion: 0.18
-Nodes (10): Chat, EventInterest, JamBaseEvent, Match, Message, Profile, Tables, TablesInsert (+2 more)
-
-### Community 549 - "EmptyState.tsx"
-Cohesion: 0.50
-Nodes (4): 6. Vercel Integration, Configuration, Deployment Features, Overview
+Cohesion: 0.40
+Nodes (3): friendsOf, interestedByEvent, out
 
 ### Community 550 - "main.tsx"
 Cohesion: 0.29
 Nodes (7): 2. JamBase API Integration, API Endpoints Used, Configuration, Data Flow, Key Features, Overview, Services
 
 ### Community 551 - "ConcertApiService"
-Cohesion: 0.09
-Nodes (14): catStyles, cmtStyles, CommentRow, EventSummary, ReviewRow, styles, ShareToChatModalProps, styles (+6 more)
+Cohesion: 0.10
+Nodes (13): catStyles, cmtStyles, CommentRow, EventSummary, ReviewRow, styles, ShareToChatModal(), ShareToChatModalProps (+5 more)
 
-### Community 552 - "5. Cities API Integration"
-Cohesion: 0.33
-Nodes (6): 5. Cities API Integration, API Endpoints Used, Configuration, Overview, Services, Use Cases
-
-### Community 553 - "PagesModal.tsx"
+### Community 552 - "Accessibility"
 Cohesion: 0.50
-Nodes (4): API Monitoring, Monitoring & Analytics, Performance Metrics, User Analytics
+Nodes (4): Accessibility, Color Contrast, Focus States, Screen Reader Support
 
-### Community 554 - "Security Considerations"
+### Community 553 - "Brand Assets"
 Cohesion: 0.50
-Nodes (4): API Key Management, Authentication Security, Data Privacy, Security Considerations
+Nodes (4): Brand Assets, Color Swatches, Logo Files, Typography Samples
+
+### Community 554 - "Brand Voice & Tone"
+Cohesion: 0.50
+Nodes (4): Brand Voice & Tone, Tone Guidelines, Voice Characteristics, Writing Style
 
 ### Community 555 - "BottomNav.tsx"
 Cohesion: 0.50
-Nodes (4): API Rate Limiting, Data Synchronization, Error Recovery, Performance Considerations
+Nodes (4): Logo, Logo Usage Guidelines, Logo Variations, Primary Logo
 
-### Community 556 - "FEATURES.md"
-Cohesion: 0.67
-Nodes (3): Design Review Checklist, Quality Assurance, Testing
+### Community 556 - "Monitoring & Maintenance"
+Cohesion: 0.50
+Nodes (4): Error Tracking, Monitoring & Maintenance, Performance Monitoring, Regular Maintenance
 
 ### Community 558 - "Core Features Overview"
-Cohesion: 0.10
-Nodes (27): defaultPilotState(), getReviewHistory(), handleShadowCommand(), parseShadowCommand(), pilotState, recordReview(), resetPilotState(), reviewHistory (+19 more)
+Cohesion: 0.09
+Nodes (32): shadowCannotWrite(), defaultPilotState(), getReviewHistory(), handleShadowCommand(), parseShadowCommand(), pilotState, recordReview(), resetPilotState() (+24 more)
 
 ### Community 559 - "🐛 Troubleshooting"
 Cohesion: 0.33
@@ -1963,43 +2009,51 @@ Nodes (4): __dirname, env, ROOMS, sb
 
 ### Community 561 - "Scaling Considerations"
 Cohesion: 0.50
-Nodes (4): Caching Strategy, Error Handling, Integration Architecture, Service Layer Pattern
+Nodes (4): API Key Management, Authentication Security, Data Privacy, Security Considerations
 
-### Community 563 - "6. Vercel Integration"
-Cohesion: 0.67
-Nodes (3): Grid System, Layout Guidelines, Responsive Design
-
-### Community 564 - "CacheService"
-Cohesion: 0.67
-Nodes (3): Spacing Guidelines, Spacing Scale, Spacing System
+### Community 562 - "🔒 Security & Privacy"
+Cohesion: 0.50
+Nodes (4): Access Control, File Validation, 🔒 Security & Privacy, Storage Structure
 
 ### Community 565 - "chatNotificationTypesFilter"
 Cohesion: 0.06
-Nodes (39): MessageActionsSheet(), MessageReactions(), ReplyQuote(), styles, TypingIndicator(), useChatPresence(), useOwnDisplayName(), quotePreview() (+31 more)
+Nodes (40): MessageActionsSheet(), MessageReactions(), ReplyQuote(), styles, TypingIndicator(), useChatPresence(), useOwnDisplayName(), QuotedMessage (+32 more)
 
-### Community 566 - "emptyMetrics"
+### Community 566 - "Dark Mode"
 Cohesion: 0.67
-Nodes (3): 10. Mobile & Responsive Design, Mobile-First Design, Responsive Components
+Nodes (3): Dark Mode, Dark Mode Colors, Dark Mode Guidelines
 
 ### Community 567 - "package.json"
 Cohesion: 0.67
 Nodes (3): 1. Event Discovery & Search, Concert Search, Event Display
 
-### Community 568 - "vercel.json"
-Cohesion: 0.33
-Nodes (5): buildCommand, crons, headers, installCommand, rewrites
+### Community 568 - "Quality Assurance"
+Cohesion: 0.67
+Nodes (3): Design Review Checklist, Quality Assurance, Testing
 
 ### Community 569 - "Future Enhancements"
 Cohesion: 0.67
 Nodes (3): Future Enhancements, Planned Features, Technical Improvements
+
+### Community 570 - "Layout Guidelines"
+Cohesion: 0.67
+Nodes (3): Grid System, Layout Guidelines, Responsive Design
+
+### Community 571 - "Spacing System"
+Cohesion: 0.67
+Nodes (3): Spacing Guidelines, Spacing Scale, Spacing System
+
+### Community 572 - "10. Mobile & Responsive Design"
+Cohesion: 0.67
+Nodes (3): 10. Mobile & Responsive Design, Mobile-First Design, Responsive Components
 
 ### Community 573 - "Chat parity + features — 2026-08-25"
 Cohesion: 0.40
 Nodes (4): Chat parity + features — 2026-08-25, Editor caution, Order, Verify after applying
 
 ### Community 624 - "calculateBounds"
-Cohesion: 0.19
-Nodes (7): RadiusSearchService, calculateBounds(), calculateCenter(), calculateDistance(), calculateZoomLevel(), filterEventsByRadius(), toRadians()
+Cohesion: 0.17
+Nodes (10): EventWithDistance, MapConfig, RadiusSearchParams, RadiusSearchService, calculateBounds(), calculateCenter(), calculateDistance(), calculateZoomLevel() (+2 more)
 
 ### Community 670 - "toEditorialMeta"
 Cohesion: 0.10
@@ -2009,32 +2063,28 @@ Nodes (28): CalendarPost, captionFor(), igEnv(), markFailed(), markPublished(), 
 Cohesion: 0.14
 Nodes (21): VerificationManagement(), ACQUISITION_SOURCE_COLOR_MAP, AcquisitionOtherResponse, AcquisitionSourceCount, AcquisitionWeeklyBreakdownPoint, ActiveUserMetrics, AdminAchievement, ContentMetrics (+13 more)
 
-### Community 1434 - "EventSearchParams"
-Cohesion: 0.19
-Nodes (5): EventSelectionResult, HybridSearchResult, HybridSearchService, SearchSuggestion, EventSearchParams
-
 ### Community 1523 - "getAllFallbackEventImages"
 Cohesion: 0.27
 Nodes (10): fetchFeedForLocations(), filterUpcomingFeedItems(), ArtistAffinity, boostEventsByArtistAffinity(), cache, EMPTY_AFFINITY, fetchReviewedArtistIds(), fetchTopSpotifyArtistNames() (+2 more)
 
 ## Knowledge Gaps
-- **3206 isolated node(s):** `name`, `private`, `version`, `type`, `description` (+3201 more)
+- **3234 isolated node(s):** `name`, `private`, `version`, `type`, `description` (+3229 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **197 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **187 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `UnifiedChatView()` connect `Chat Unread Badge & Promotion Tracking` to `contentFilter.ts`, `Brand Assets`?**
-  _High betweenness centrality (0.096) - this node is a cross-community bridge._
-- **Why does `ChatService` connect `Brand Assets` to `Readme: Brand Guide Md — Design System And Brand Guidelines`, `Src Services: Preference Signals Service`, `Shared Notification & Acquisition Source Logic`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
-- **Why does `useToast()` connect `Chat Unread Badge & Promotion Tracking` to `Web Chat View & Followers`, `Src Services: Setlist Service`, `reviewTimelineCore.ts`, `Event Search & JamBase Attribution`, `Src Services: Browse All Events Section`, `Mobile Src: [Id]`, `Backend Setlist Routes: Sanitize Input`, `Backend Auth Routes`, `Feed Recommendation Cards`, `contentFilter.ts`, `Mobile Chat List & Discover Calendar`?**
-  _High betweenness centrality (0.060) - this node is a cross-community bridge._
+- **Why does `UnifiedChatView()` connect `Backend Setlist Routes: Sanitize Input` to `Chat Unread Badge & Promotion Tracking`, `Brand Assets`?**
+  _High betweenness centrality (0.093) - this node is a cross-community bridge._
+- **Why does `ChatService` connect `Brand Assets` to `Readme: Brand Guide Md — Design System And Brand Guidelines`, `Mobile Passport Feature`?**
+  _High betweenness centrality (0.089) - this node is a cross-community bridge._
+- **Why does `useToast()` connect `Chat Unread Badge & Promotion Tracking` to `Web Chat View & Followers`, `Mobile Readme: Migration 20260624140000 Disable Push Queue T`, `reviewTimelineCore.ts`, `Mobile Src: [Id]`, `Backend Setlist Routes: Sanitize Input`, `Scripts Test Push Webhook`, `Backend Auth Routes`, `Feed Recommendation Cards`, `contentFilter.ts`, `Mobile Chat List & Discover Calendar`, `Mobile Search & Tour Tracker Map`, `Src Services: Customer Segmentation`?**
+  _High betweenness centrality (0.064) - this node is a cross-community bridge._
 - **What connects `name`, `private`, `version` to the rest of the system?**
-  _3211 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _3239 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Artist` be split into smaller, more focused modules?**
-  _Cohesion score 0.06033182503770739 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.031055900621118012 - nodes in this community are weakly interconnected._
 - **Should `Concert Event Components` be split into smaller, more focused modules?**
   _Cohesion score 0.043478260869565216 - nodes in this community are weakly interconnected._
 - **Should `Matches & Detail Modals` be split into smaller, more focused modules?**

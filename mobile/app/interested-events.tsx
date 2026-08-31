@@ -129,7 +129,9 @@ export default function InterestedEventsScreen() {
             initialInterested={true}
             currentUserId={currentUserId}
             onPress={() => router.push(`/event/${item.event_id}`)}
-            cornerLabel={showPastSegment ? 'Past' : undefined}
+            cornerLabel={
+              showPastSegment ? 'Past' : item.relationship_type === 'going' ? 'Going' : undefined
+            }
           />
         )}
       />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -351,17 +352,52 @@ const { user, sessionExpired } = useAuth();
     if (user.id === currentUserId) { setCanViewInterested(true); return; }
     (async () => {
       try {
-        // Check if users are friends using user_relationships table
-        const { data } = await supabase
+        // Check if users are friends using user_relationships table.
+        // NOTE: this .or() previously had one extra ')' at the end, which made the
+        // filter malformed. PostgREST returned an error, `data` came back null, and
+        // Array.isArray(null) === false hid the Interested tab from every friend.
+        // The paren count must match the working sibling query in
+        // UserEventService.getUserInterestedEvents.
+        const { data, error } = await supabase
           .from('user_relationships')
           .select('id')
           .eq('relationship_type', 'friend')
           .eq('status', 'accepted')
-          .or(`and(user_id.eq.${user.id},related_user_id.eq.${currentUserId}),and(user_id.eq.${currentUserId},related_user_id.eq.${user.id}))`)
+          .or(`and(user_id.eq.${user.id},related_user_id.eq.${currentUserId}),and(user_id.eq.${currentUserId},related_user_id.eq.${user.id})`)
           .limit(1);
-        setCanViewInterested(Array.isArray(data) ? data.length > 0 : false);
-      } catch {
-        setCanViewInterested(true);
+
+        if (error) {
+          // Fail closed: a failed check must not expose a stranger's saved events.
+          // Logged rather than swallowed so this can't silently regress again.
+          console.error('Friendship check for Interested tab failed:', error);
+          setCanViewInterested(false);
+          return;
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+          setCanViewInterested(true);
+          return;
+        }
+
+        // Not friends. Public profiles are still viewable — this mirrors the rule
+        // UserEventService.getUserInterestedEvents already enforces, so the tab no
+        // longer hides events the service would happily return. A PRIVATE profile
+        // stays hidden from non-friends.
+        const { data: profile, error: profileError } = await supabase
+          .from('users')
+          .select('is_public_profile')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error('Public-profile check for Interested tab failed:', profileError);
+          setCanViewInterested(false);
+          return;
+        }
+        setCanViewInterested(Boolean(profile?.is_public_profile));
+      } catch (err) {
+        console.error('Friendship check for Interested tab threw:', err);
+        setCanViewInterested(false);
       }
     })();
   }, [user, currentUserId]);
@@ -483,8 +519,10 @@ const { user, sessionExpired } = useAuth();
 
       logger.debug('🔍 ProfileView: Fetching user events from database...');
       const interested = await UserEventService.getUserInterestedEvents(targetUserId);
+      // Stamp the RSVP type onto the event so the existing downstream mapping
+      // carries it to the card without restructuring this whole pipeline.
       let data: JamBaseEvent[] = interested.events
-        .map(item => item.event)
+        .map(item => (item.event ? { ...item.event, rsvp_type: item.relationship_type } : null))
         .filter(Boolean) as JamBaseEvent[];
       logger.debug('🔍 ProfileView: Database query returned:', data?.length, 'events');
       
@@ -548,6 +586,8 @@ const { user, sessionExpired } = useAuth();
           ticket_available: Boolean(jambaseEvent?.ticket_available),
           price_range: jambaseEvent?.price_range ?? null,
           ticket_urls: jambaseEvent?.ticket_urls || [],
+          // RSVP rung for the GOING badge, stamped on above.
+          rsvp_type: (rawItem as any)?.rsvp_type ?? null,
           // Preserve image fields for display - use rawItem to get all database fields
           poster_image_url: rawItem?.poster_image_url ?? null,
           event_media_url: rawItem?.event_media_url ?? null,
@@ -2877,7 +2917,14 @@ const { user, sessionExpired } = useAuth();
               ) : (
                 <div className="grid grid-cols-3 gap-2.5 w-full max-w-full">
                   {filteredUserEvents
-                    .sort((a,b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
+                    // Going first — it's the real commitment, so it leads the section.
+                    // Within each group, soonest first as before.
+                    .sort((a, b) => {
+                      const aGoing = (a as any).rsvp_type === 'going' ? 0 : 1;
+                      const bGoing = (b as any).rsvp_type === 'going' ? 0 : 1;
+                      if (aGoing !== bGoing) return aGoing - bGoing;
+                      return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
+                    })
                     .map((ev) => (
                       <div
                         key={ev.id}
@@ -2935,6 +2982,29 @@ const { user, sessionExpired } = useAuth();
                             className="h-2/3 w-full relative overflow-hidden rounded-t-xl"
                             style={{ background: 'var(--gradient-brand)' }}
                           >
+                            {/* GOING badge. This component renders other users' profiles too,
+                                so friends see the badge with no extra work. */}
+                            {(ev as any).rsvp_type === 'going' && (
+                              <span
+                                style={{
+                                  position: 'absolute',
+                                  top: 6,
+                                  left: 6,
+                                  zIndex: 2,
+                                  fontFamily: 'var(--font-family)',
+                                  fontSize: '0.6rem',
+                                  fontWeight: 700,
+                                  letterSpacing: '0.06em',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  background: 'var(--brand-pink-500)',
+                                  color: 'var(--neutral-0)',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                                }}
+                              >
+                                GOING
+                              </span>
+                            )}
                             {/* Event image - use same resolution logic as home feed (PreferencesV4FeedSection) */}
                             {(() => {
                               // Resolve image URL with same priority as PreferencesV4FeedSection
@@ -3187,8 +3257,10 @@ const { user, sessionExpired } = useAuth();
         />
       )}
 
-      {/* Event Details Modal - mount only when needed to avoid React static flag warning */}
-      {detailsOpen && selectedEvent && (
+      {/* Event Details Modal - mount only when needed to avoid React static flag warning.
+          Portalled to body so the fixed full-bleed overlay escapes ProfileView's
+          overflow-x-clip / main-column ancestors - same escape as HomeFeed and DiscoverView. */}
+      {detailsOpen && selectedEvent && createPortal(
       <EventDetailsModal
         event={(() => {
           logger.debug('🎵 ProfileView: Event data being passed to EventDetailsModal:', {
@@ -3239,7 +3311,8 @@ const { user, sessionExpired } = useAuth();
             fetchAttendedEvents()
           ]);
         }}
-      />
+      />,
+      document.body
       )}
 
       {/* Report Profile Modal */}
