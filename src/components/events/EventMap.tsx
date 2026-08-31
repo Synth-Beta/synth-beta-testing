@@ -53,6 +53,9 @@ const MapUpdater = ({ center, zoom, onCenterChange }: { center: [number, number]
     
     // Only update map if it's a programmatic change and user isn't currently interacting
     if ((centerChanged || zoomChanged) && !isUserInteracting.current) {
+      // Same guard as the modal map: Leaflet drops _mapPane on remove(), and setView()
+      // on a torn-down map throws "reading '_leaflet_pos'" from getPosition.
+      if (!map.getContainer()?.isConnected) return;
       lastProgrammaticCenter.current = center;
       lastProgrammaticZoom.current = zoom;
       map.setView(center, zoom, { animate: false });

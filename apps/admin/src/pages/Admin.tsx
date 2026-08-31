@@ -886,14 +886,18 @@ export default function Admin() {
       const endYesterdayISO = endOfYesterday.toISOString();
 
       // Fetch totals and day-over-day changes
+      // Unfiltered totals use 'estimated' (planner reltuples) instead of 'exact'.
+      // An exact count here seq-scans all 55k artists / 27k venues on every
+      // dashboard load — it was ~5.8% of total DB time. The day-over-day counts
+      // below stay 'exact': they're date-ranged and cheap.
       const [totalArtistsResult, totalEventsResult, totalVenuesResult] = await Promise.all([
         db
           .from('artists')
-          .select('*', { count: 'exact', head: true }),
+          .select('*', { count: 'estimated', head: true }),
         fetchEventsCount(),
         db
           .from('venues')
-          .select('*', { count: 'exact', head: true })
+          .select('*', { count: 'estimated', head: true })
       ]);
 
       // Fetch today's counts

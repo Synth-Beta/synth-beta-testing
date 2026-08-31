@@ -9,6 +9,7 @@ export interface UsersSignupRecord {
   name?: string | null;
   username?: string | null;
   email?: string | null;
+  contact_email?: string | null;
   account_type?: string | null;
   account_status?: string | null;
   acquisition_source?: string | null;
@@ -69,6 +70,7 @@ export function selectSignupFields(
     name: asTrimmedString(r.name),
     username: asTrimmedString(r.username),
     email: asTrimmedString(r.email),
+    contact_email: asTrimmedString(r.contact_email),
     account_type: asTrimmedString(r.account_type),
     account_status: asTrimmedString(r.account_status),
     acquisition_source: asTrimmedString(r.acquisition_source),
@@ -101,6 +103,12 @@ export function formatSignupMessage(record: UsersSignupRecord): string {
   if (record.name) lines.push(`Name: ${escapeSlackMrkdwn(record.name)}`);
   if (record.username) lines.push(`Username: \`${escapeSlackMrkdwn(record.username)}\``);
   if (record.email) lines.push(`Email: ${escapeSlackMrkdwn(record.email)}`);
+  // Apple Hide-My-Email users sign in with a relay address, so `email` alone is not
+  // reachable. The real address they typed lives in contact_email and stays separate
+  // from the auth identity - surface both rather than picking one.
+  if (record.contact_email) {
+    lines.push(`Contact email: ${escapeSlackMrkdwn(record.contact_email)}`);
+  }
 
   const userId = record.user_id || record.id;
   if (userId) lines.push(`Auth user ID: \`${userId}\``);
@@ -194,7 +202,7 @@ export async function alertSignupIfNeeded(
 }
 
 const SIGNUP_SELECT =
-  'user_id,name,username,email,account_type,account_status,acquisition_source,other_acquisition_source,referral_code,location_city,location_state,music_streaming_service,onboarding_completed,waitlist_signup_at,is_bot,created_at,permissions_metadata';
+  'user_id,name,username,email,contact_email,account_type,account_status,acquisition_source,other_acquisition_source,referral_code,location_city,location_state,music_streaming_service,onboarding_completed,waitlist_signup_at,is_bot,created_at,permissions_metadata';
 
 export async function loadUserSignupRecord(userId: string): Promise<UsersSignupRecord | null> {
   const supabase = getSupabaseService();

@@ -686,10 +686,12 @@ export class AdminAnalyticsService {
         venuesCount,
         reviewsCount
       ] = await Promise.all([
-        (supabase as any).from('events').select('*', { count: 'exact', head: true }),
-        (supabase as any).from('artists').select('*', { count: 'exact', head: true }),
-        (supabase as any).from('venues').select('*', { count: 'exact', head: true }),
-        (supabase as any).from('reviews').select('*', { count: 'exact', head: true }),
+        // 'estimated' = planner reltuples, instant. 'exact' seq-scanned all
+        // 282k events / 55k artists / 27k venues on every dashboard load.
+        (supabase as any).from('events').select('*', { count: 'estimated', head: true }),
+        (supabase as any).from('artists').select('*', { count: 'estimated', head: true }),
+        (supabase as any).from('venues').select('*', { count: 'estimated', head: true }),
+        (supabase as any).from('reviews').select('*', { count: 'estimated', head: true }),
       ]);
 
       // Get this month's events

@@ -18,6 +18,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import JambaseSyncService from '../backend/jambase-sync-service.mjs';
 import { fetchGenresForArtist, isEmptyGenres } from './fetch-artist-genres.mjs';
+import { isUnchanged, stripServerOwned } from './sync-helpers.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -551,9 +552,12 @@ class IncrementalSync3NF {
         // data drift left another row already holding this same identifier.
         const { jambase_artist_id, artist_data_source, identifier, genres: newGenres, ...artistData } = data;
 
+        // Selects every column, not just `genres`, so the no-op check below can
+        // compare each field the sync is about to write. Same single-row fetch,
+        // no extra round trip.
         const { data: existingArtist, error: fetchError } = await this.syncService.supabase
           .from('artists')
-          .select('genres')
+          .select('*')
           .eq('id', uuid)
           .single();
 
@@ -585,14 +589,26 @@ class IncrementalSync3NF {
         }
 
         const shouldUpdateGenres = mergedGenres.length > 0 || existingArray.length === 0;
-        const updateData = {
-          ...artistData,
-          updated_at: new Date().toISOString(),
-          last_synced_at: new Date().toISOString()
-        };
+        // stripServerOwned drops num_upcoming_events (hardcoded 0 in the payload,
+        // but maintained by the events counter trigger) and verified (hardcoded
+        // false, but set by admins) — writing either on update clobbered server
+        // state. It also drops last_synced_at, whose fresh timestamp would make
+        // every row look changed below.
+        const updateData = stripServerOwned(artistData);
         if (shouldUpdateGenres) {
           updateData.genres = mergedGenres.length > 0 ? mergedGenres : existingArray;
         }
+
+        // Skip the write when nothing actually changed. This loop previously
+        // stamped updated_at / last_synced_at unconditionally, rewriting ~70k
+        // artist rows per sync cycle whether or not JamBase sent anything new.
+        // Nothing reads last_synced_at (repo-wide grep: writes only, and its
+        // index had 0 lifetime scans), so the refresh bought nothing and the WAL
+        // it generated was a large share of total database time.
+        if (isUnchanged(existingArtist, updateData)) continue;
+
+        updateData.updated_at = new Date().toISOString();
+        updateData.last_synced_at = new Date().toISOString();
 
         const { error } = await this.syncService.supabase
           .from('artists')
@@ -824,8 +840,30 @@ class IncrementalSync3NF {
 
       // In catalog sync mode, skip updating existing venues — we only need their UUIDs.
       if (process.env.JAMBASE_UPCOMING_CATALOG !== '1') {
+        // One batched read so the loop below can skip venues whose fields have
+        // not changed. Every venue on every page used to be rewritten just to
+        // stamp updated_at / last_synced_at — nothing reads last_synced_at, and
+        // each rewrite re-fires the standardize_venue_name trigger, which is
+        // what produces the "key collision" skips handled below. If this read
+        // fails the map stays empty and every venue writes, i.e. the old
+        // behaviour, so a failure here degrades safely.
+        const existingById = new Map();
+        if (updateVenues.length > 0) {
+          const { data: existingRows } = await this.syncService.supabase
+            .from('venues')
+            .select('*')
+            .in('id', updateVenues.map((v) => v.uuid));
+          for (const row of existingRows || []) existingById.set(row.id, row);
+        }
+
         for (const { uuid, data } of updateVenues) {
-          const { jambase_venue_id, ...venueData } = data;
+          const { jambase_venue_id, ...rawVenueData } = data;
+          // See stripServerOwned: the payload hardcodes num_upcoming_events: 0,
+          // verified: false and typical_genres: null, all of which this loop was
+          // writing over live server state on every run.
+          const venueData = stripServerOwned(rawVenueData);
+
+          if (isUnchanged(existingById.get(uuid), venueData)) continue;
 
           const { error } = await this.syncService.supabase
             .from('venues')
@@ -959,25 +997,30 @@ class IncrementalSync3NF {
           updateData.longitude = parseFloat(venueDataClean.longitude);
         }
         
-        // Always update last_synced_at to track sync metadata, even if no other fields changed
         // Check if we have updates beyond just timestamps
         const hasFieldUpdates = Object.keys(updateData).length > 2; // More than just timestamps
-        
-        // Always perform update to refresh last_synced_at (important for sync tracking)
-        const { error: updateError } = await this.syncService.supabase
-          .from('venues')
-          .update(updateData)
-          .eq('id', existingVenue.id);
-        
-        if (updateError) {
-          console.warn(`  ⚠️  Error updating venue: ${updateError.message}`);
-        } else {
-          // Only increment stats if actual field updates occurred (not just timestamp refresh)
-          if (hasFieldUpdates) {
+
+        // Only write when a real field changed. This used to update
+        // unconditionally "to refresh last_synced_at" — ~75k venue row rewrites
+        // per sync cycle, each costing a new heap tuple, a rewrite of every
+        // venue index, a WAL record and a dead tuple. Nothing reads
+        // last_synced_at (repo-wide grep: writes only) and idx_venues_last_synced
+        // had 0 lifetime scans before it was dropped, so the refresh was pure
+        // cost. hasFieldUpdates was already computed here and only used for the
+        // stats counter; it now gates the write too.
+        if (hasFieldUpdates) {
+          const { error: updateError } = await this.syncService.supabase
+            .from('venues')
+            .update(updateData)
+            .eq('id', existingVenue.id);
+
+          if (updateError) {
+            console.warn(`  ⚠️  Error updating venue: ${updateError.message}`);
+          } else {
             this.stats.venuesUpdated++;
           }
         }
-        
+
         venueUuid = existingVenue.id;
       } else {
         // Insert new venue

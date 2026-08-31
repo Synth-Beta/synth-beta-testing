@@ -125,23 +125,53 @@ export const NotificationsPage = ({
   const unreadCount = notificationsData?.unreadCount ?? 0;
   const headerTitle = filter === 'friends_only' ? 'Friends' : 'Notifications';
 
+  const unreadQueryKey = ['notifications', 'unread', currentUserId];
+  const listQueryKey = ['notifications', 'list', currentUserId, filter];
+
+  // Read state is a local flag, so flip the cache before the network settles. Invalidating
+  // alone left the cards looking unread for seconds: the unread badge refetches one cached
+  // count, while this list's queryFn runs auth.getUser + two cleanup deletes + the select
+  // back to back. Same invalidation still runs after, so the server stays the source of
+  // truth and a failed write is corrected by the refetch.
+  const revalidateNotifications = () => {
+    queryClient.invalidateQueries({ queryKey: unreadQueryKey });
+    queryClient.invalidateQueries({ queryKey: listQueryKey });
+  };
+
   const markAsRead = async (notificationId: string) => {
+    queryClient.setQueryData<typeof notificationsData>(listQueryKey, (old) =>
+      old
+        ? {
+            ...old,
+            notifications: old.notifications.map((n) =>
+              n.id === notificationId ? { ...n, is_read: true } : n
+            ),
+            unreadCount: Math.max(0, old.unreadCount - (old.notifications.some((n) => n.id === notificationId && !n.is_read) ? 1 : 0)),
+          }
+        : old
+    );
     try {
       await NotificationService.markAsRead(notificationId);
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread', currentUserId] });
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'list', currentUserId, filter] });
     } catch (error) {
       console.error('Error marking notification as read:', error);
+    } finally {
+      revalidateNotifications();
     }
   };
 
   const markAllAsRead = async () => {
+    queryClient.setQueryData<typeof notificationsData>(listQueryKey, (old) =>
+      old
+        ? { ...old, notifications: old.notifications.map((n) => ({ ...n, is_read: true })), unreadCount: 0 }
+        : old
+    );
+    queryClient.setQueryData<number>(unreadQueryKey, 0);
     try {
       await NotificationService.markAllAsRead();
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'unread', currentUserId] });
-      queryClient.invalidateQueries({ queryKey: ['notifications', 'list', currentUserId, filter] });
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+    } finally {
+      revalidateNotifications();
     }
   };
 

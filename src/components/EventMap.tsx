@@ -93,10 +93,17 @@ interface EventMapProps {
 // Component to update map view when center/zoom changes
 const MapUpdater = ({ center, zoom }: { center: [number, number]; zoom: number }) => {
   const map = useMap();
-  
+  // Callers pass center as an inline [lat, lng] literal, so a new array identity every
+  // render re-fired this effect constantly. Depend on the numbers instead.
+  const [lat, lng] = center;
+
   useEffect(() => {
-    map.setView(center, zoom);
-  }, [map, center, zoom]);
+    // Leaflet drops _mapPane on remove(); setView() on a torn-down map then throws
+    // "Cannot read properties of undefined (reading '_leaflet_pos')" from getPosition.
+    // Happens when the modal hosting the map closes while this effect is still queued.
+    if (!map.getContainer()?.isConnected) return;
+    map.setView([lat, lng], zoom);
+  }, [map, lat, lng, zoom]);
   
   return null;
 };
