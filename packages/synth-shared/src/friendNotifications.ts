@@ -110,8 +110,11 @@ export async function pruneStaleFriendRequestNotifications<T extends MinimalFrie
   if (requestIds.length === 0) return notifications;
 
   try {
+    // Friend requests live in user_relationships (relationship_type 'friend'), not in a
+    // `friend_requests` table - that name 404s, and the `if (error) return notifications`
+    // below turned the 404 into a silent no-op, so this never pruned anything on mobile.
     const { data: existing, error } = await client
-      .from('friend_requests')
+      .from('user_relationships')
       .select('id, status')
       .in('id', requestIds);
 

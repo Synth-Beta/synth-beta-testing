@@ -227,6 +227,10 @@ export default function ProfileSetupScreen() {
     const showContactEmailField = needsContactEmail(authUser, null);
 
     const canContinue =
+        // Apple Sign In users who decline name sharing arrive with no name in their auth
+        // metadata, so this field starts blank. It used to be unvalidated, which sent an
+        // empty name into a NOT NULL column and hard-stopped them on this screen.
+        name.trim().length > 0 &&
         username.length >= 3 &&
         (usernameStatus === 'available' || usernameStatus === 'idle') &&
         !validateBirthday(birthday) &&

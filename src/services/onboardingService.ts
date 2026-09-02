@@ -82,7 +82,6 @@ export class OnboardingService {
 
       // Build update object with only fields that exist
       const updateData: any = {
-        user_id: userId,
         updated_at: new Date().toISOString(),
       };
 
@@ -136,9 +135,14 @@ export class OnboardingService {
         updateData.contact_email = data.contact_email;
       }
 
+      // UPDATE, not upsert. `upsert` compiles to INSERT ... ON CONFLICT DO UPDATE, and
+      // Postgres validates NOT NULL on the proposed insert tuple before it arbitrates the
+      // conflict - so a payload missing users.name or users.username failed 23502 even
+      // though the row always exists (ensureUserExists ran above).
       const { error } = await supabase
         .from('users')
-        .upsert(updateData, { onConflict: 'user_id' });
+        .update(updateData)
+        .eq('user_id', userId);
 
       if (error) {
         // Handle specific column errors gracefully
@@ -153,7 +157,8 @@ export class OnboardingService {
           delete updateWithoutOptional.contact_email;
           const { error: retryError } = await supabase
             .from('users')
-            .upsert(updateWithoutOptional, { onConflict: 'user_id' });
+            .update(updateWithoutOptional)
+            .eq('user_id', userId);
           
           if (retryError) {
             // If username column exists but there's a unique constraint violation
@@ -231,7 +236,8 @@ export class OnboardingService {
 
   /**
    * Mark onboarding as skipped
-   * Uses upsert to ensure the row exists even if it wasn't created by the trigger
+   * Row is guaranteed by ensureUserExists(); a plain UPDATE avoids the NOT NULL check
+   * that INSERT ... ON CONFLICT runs on the proposed tuple.
    */
   static async skipOnboarding(userId: string): Promise<boolean> {
     try {
@@ -261,13 +267,13 @@ export class OnboardingService {
 
       // Verify the write actually happened
       if (!data) {
-        console.error('skipOnboarding: No data returned from upsert');
+        console.error('skipOnboarding: No data returned from update');
         return false;
       }
 
       // Verify onboarding_skipped is actually true
       if (data.onboarding_skipped !== true) {
-        console.error('skipOnboarding: onboarding_skipped is not true after upsert', data);
+        console.error('skipOnboarding: onboarding_skipped is not true after update', data);
         return false;
       }
 
@@ -280,7 +286,8 @@ export class OnboardingService {
 
   /**
    * Mark onboarding as completed
-   * Uses upsert to ensure the row exists even if it wasn't created by the trigger
+   * Row is guaranteed by ensureUserExists(); a plain UPDATE avoids the NOT NULL check
+   * that INSERT ... ON CONFLICT runs on the proposed tuple.
    */
   static async completeOnboarding(userId: string): Promise<boolean> {
     try {
@@ -310,13 +317,13 @@ export class OnboardingService {
 
       // Verify the write actually happened
       if (!data) {
-        console.error('completeOnboarding: No data returned from upsert');
+        console.error('completeOnboarding: No data returned from update');
         return false;
       }
 
       // Verify onboarding_completed is actually true
       if (data.onboarding_completed !== true) {
-        console.error('completeOnboarding: onboarding_completed is not true after upsert', data);
+        console.error('completeOnboarding: onboarding_completed is not true after update', data);
         return false;
       }
 
