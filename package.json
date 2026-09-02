@@ -43,6 +43,8 @@
     "slack:setup-webhook": "node scripts/setup-slack-signup-webhook.mjs"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "@hookform/resolvers": "^3.10.0",
     "@noble/ciphers": "2.1.1",
     "@noble/hashes": "2.0.1",
@@ -120,6 +122,7 @@
     "@babel/parser": "^7.28.6",
     "@babel/traverse": "^7.28.6",
     "@babel/types": "^7.28.6",
+    "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^9.32.0",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/typography": "^0.5.16",

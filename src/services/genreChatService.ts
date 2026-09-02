@@ -40,51 +40,50 @@ export interface GenreChatInfo {
     isJoined: boolean;
 }
 
+interface GenreChatMemberCountRow {
+    entity_id: string | null;
+    chat_id: string | null;
+    member_count: number | null;
+}
+
 export class GenreChatService {
     static async getGenreChats(userId: string): Promise<GenreChatInfo[]> {
         try {
-            const { data: chats } = await supabase
-                .from('chats')
-                .select('id, entity_id')
-                .eq('entity_type', 'genre')
-                .eq('is_group_chat', true);
+            const { data: stats, error: statsError } = await supabase.rpc<GenreChatMemberCountRow[]>(
+                'get_genre_chat_member_counts'
+            );
+            if (statsError) throw statsError;
 
-            const chatByGenreId = new Map<string, string>();
-            const chatIds: string[] = [];
-            for (const c of chats || []) {
-                if (c.entity_id && !isReservedSceneRoomId(c.entity_id)) {
-                    chatByGenreId.set(c.entity_id, c.id);
-                    chatIds.push(c.id);
-                }
-            }
-
-            const memberCountByChatId = new Map<string, number>();
-            if (chatIds.length > 0) {
-                const { data: counts } = await supabase
-                    .from('chat_participants')
-                    .select('chat_id')
-                    .in('chat_id', chatIds);
-                for (const row of counts || []) {
-                    memberCountByChatId.set(row.chat_id, (memberCountByChatId.get(row.chat_id) ?? 0) + 1);
-                }
+            const chatStatsByGenre = new Map<string, { chatId: string; memberCount: number }>();
+            const chatIds = new Set<string>();
+            for (const stat of stats || []) {
+                if (!stat?.entity_id || !stat.chat_id) continue;
+                if (isReservedSceneRoomId(stat.entity_id)) continue;
+                const chatId = stat.chat_id;
+                chatStatsByGenre.set(stat.entity_id, {
+                    chatId,
+                    memberCount: Number(stat.member_count ?? 0),
+                });
+                chatIds.add(chatId);
             }
 
             const joinedChatIds = new Set<string>();
-            if (chatIds.length > 0) {
+            if (chatIds.size > 0) {
                 const { data: myParts } = await supabase
                     .from('chat_participants')
                     .select('chat_id')
                     .eq('user_id', userId)
-                    .in('chat_id', chatIds);
+                    .in('chat_id', Array.from(chatIds));
                 for (const row of myParts || []) joinedChatIds.add(row.chat_id);
             }
 
             return GENRE_CONFIGS.map(genre => {
-                const chatId = chatByGenreId.get(genre.id) ?? null;
+                const stats = chatStatsByGenre.get(genre.id);
+                const chatId = stats?.chatId ?? null;
                 return {
                     genre,
                     chatId,
-                    memberCount: chatId ? (memberCountByChatId.get(chatId) ?? 0) : 0,
+                    memberCount: stats ? stats.memberCount : 0,
                     isJoined: chatId ? joinedChatIds.has(chatId) : false,
                 };
             });

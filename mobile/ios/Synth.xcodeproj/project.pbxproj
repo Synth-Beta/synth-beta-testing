@@ -329,9 +329,7 @@
 			inputPaths = (
 				"$(SRCROOT)/.xcode.env",
 				"$(SRCROOT)/.xcode.env.local",
-				"$(SRCROOT)/.xcode.env.updates",
 				"$(SRCROOT)/Synth/Synth.entitlements",
-				"$(SRCROOT)/Synth/Synth.release.entitlements",
 				"$(SRCROOT)/Pods/Target Support Files/Pods-Synth/expo-configure-project.sh",
 			);
 			name = "[Expo] Configure project";
@@ -342,7 +340,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n# POSIX sh (/bin/sh) — no bash [[ ]] or source.\nif [ -f \"$SRCROOT/.xcode.env\" ]; then . \"$SRCROOT/.xcode.env\"; fi\nif [ -f \"$SRCROOT/.xcode.env.local\" ]; then . \"$SRCROOT/.xcode.env.local\"; fi\nif [ -f \"$SRCROOT/.xcode.env.updates\" ]; then . \"$SRCROOT/.xcode.env.updates\"; fi\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:${PATH}\"\nfor node_dir in \"$HOME\"/.xcode-cloud-node/node-v*-darwin-*/bin; do\n  if [ -d \"$node_dir\" ]; then export PATH=\"$node_dir:$PATH\"; fi\n done\nexport CI=false\nif [ -z \"${NODE_BINARY:-}\" ] || [ ! -x \"${NODE_BINARY}\" ]; then\n  echo \"error: [Expo] Configure project — NODE_BINARY missing. Check ci_post_clone / ci_pre_xcodebuild.\" >&2\n  exit 1\nfi\n\"$NODE_BINARY\" --version\ncd \"$SRCROOT\"\nexec bash \"./Pods/Target Support Files/Pods-Synth/expo-configure-project.sh\"\n";
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Synth/expo-configure-project.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

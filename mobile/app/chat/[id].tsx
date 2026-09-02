@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard, InteractionManager, DeviceEventEmitter } from 'react-native';
+import { StyleSheet, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform, Text, ActivityIndicator, Alert, Keyboard, InteractionManager, DeviceEventEmitter, Modal } from 'react-native';
 import { CHAT_READ_EVENT } from '../../src/hooks/useUnreadMessageCount';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText, Bell, BellOff } from 'lucide-react-native';
+import { ChevronLeft, Send, Image as ImageIcon, Star, MapPin, Calendar, Music, FileText, MoreVertical, Heart } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import * as Clipboard from 'expo-clipboard';
 import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
@@ -33,6 +34,7 @@ import { resolveChatImageDisplayUrl } from '../../src/utils/chatImageStorage';
 
 const PINK = SynthTokens.colors.brandPink500;
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const COPY_FEEDBACK_MS = 140;
 
 type ReviewCardInfo = {
     headline: string;
@@ -42,6 +44,26 @@ type ReviewCardInfo = {
     venue_name: string | null;
     venue_city: string | null;
     event_date: string | null;
+};
+
+type ChatParticipant = {
+    user_id: string;
+    name: string;
+    username: string | null;
+};
+
+type HeaderMenuAction = {
+    key: string;
+    label: string;
+    destructive?: boolean;
+    onPress: () => void | Promise<void>;
+};
+
+type MessageAction = {
+    key: string;
+    label: string;
+    destructive?: boolean;
+    onPress: () => void | Promise<void>;
 };
 
 function formatEventWhen(iso: string | undefined): string {
@@ -106,6 +128,22 @@ function resolveReviewId(m: Message): string | null {
     return id || null;
 }
 
+function getHeartUserIds(metadata: unknown): string[] {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return [];
+    const raw = (metadata as Record<string, unknown>).heart_user_ids;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((id): id is string => typeof id === 'string' && id.length > 0);
+}
+
+function setHeartUserIds(metadata: unknown, nextUserIds: string[]): Record<string, unknown> {
+    const base =
+        metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+            ? { ...(metadata as Record<string, unknown>) }
+            : {};
+    base.heart_user_ids = nextUserIds;
+    return base;
+}
+
 export default function ChatThreadScreen() {
     const { id, title: titleParam } = useLocalSearchParams<{ id: string; title?: string }>();
     const [messages, setMessages] = useState<Message[]>([]);
@@ -119,6 +157,13 @@ export default function ChatThreadScreen() {
     const [isGroupChat, setIsGroupChat] = useState(false);
     const [entityType, setEntityType] = useState<string | null>(null);
     const [entityId, setEntityId] = useState<string | null>(null);
+    const [chatParticipants, setChatParticipants] = useState<ChatParticipant[]>([]);
+    const [menuVisible, setMenuVisible] = useState(false);
+    const [messageMenuVisible, setMessageMenuVisible] = useState(false);
+    const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+    const [selectedMessageActionKey, setSelectedMessageActionKey] = useState<string | null>(null);
+    const [copyFeedbackActive, setCopyFeedbackActive] = useState(false);
+    const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
@@ -259,6 +304,54 @@ export default function ChatThreadScreen() {
             cancelled = true;
         };
     }, [id, userId, titleParam]);
+
+    useEffect(() => {
+        if (!id || !userId) return;
+        let cancelled = false;
+
+        void (async () => {
+            const { data: participants, error: participantsError } = await supabase
+                .from('chat_participants')
+                .select('user_id')
+                .eq('chat_id', id);
+
+            if (participantsError || cancelled) return;
+
+            const participantIds = (participants || []).map((p: { user_id: string }) => p.user_id).filter(Boolean);
+            if (participantIds.length === 0) {
+                setChatParticipants([]);
+                return;
+            }
+
+            const { data: userRows } = await supabase
+                .from('users')
+                .select('user_id, name, username')
+                .in('user_id', participantIds);
+
+            if (cancelled) return;
+
+            const byId = new Map((userRows || []).map((u: any) => [u.user_id, u]));
+            const normalized = participantIds.map((pid) => {
+                const row = byId.get(pid);
+                const displayName =
+                    (typeof row?.name === 'string' && row.name.trim()) ||
+                    (typeof row?.username === 'string' && row.username.trim()
+                        ? `@${row.username.trim()}`
+                        : 'User');
+
+                return {
+                    user_id: pid,
+                    name: displayName,
+                    username: typeof row?.username === 'string' ? row.username : null,
+                };
+            });
+            setChatParticipants(normalized);
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [id, userId]);
 
     // Open on the most recent messages (inverted list: offset 0 = newest at bottom).
     useEffect(() => {
@@ -475,6 +568,261 @@ export default function ChatThreadScreen() {
         router.push(`/event/${routeId}`);
     };
 
+    const otherParticipant = useMemo(() => {
+        if (!userId) return null;
+        return chatParticipants.find((p) => p.user_id !== userId) ?? null;
+    }, [chatParticipants, userId]);
+
+    const closeMenu = () => setMenuVisible(false);
+
+    const handleRemoveChat = () => {
+        Alert.alert('Remove chat', `Remove "${chatTitle || 'this chat'}" from your list?`, [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Remove',
+                style: 'destructive',
+                onPress: async () => {
+                    if (!userId) return;
+                    const ok = await ChatService.leaveChat(id, userId);
+                    if (ok) {
+                        router.replace('/(tabs)/chat');
+                    } else {
+                        Alert.alert('Could not remove chat', 'Please try again.');
+                    }
+                },
+            },
+        ]);
+    };
+
+    const handleReportChat = () => {
+        Alert.alert(
+            'Report',
+            isGroupChat
+                ? 'Thanks for reporting this chat. Our team will review it shortly.'
+                : 'Thanks for reporting this conversation. Our team will review it shortly.'
+        );
+    };
+
+    const handleBlockUser = () => {
+        if (!otherParticipant || !userId) return;
+        Alert.alert('Block User', `Block ${otherParticipant.name}?`, [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Block',
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await supabase.from('user_blocks').insert({
+                            blocker_id: userId,
+                            blocked_id: otherParticipant.user_id,
+                        });
+                        router.replace('/(tabs)/chat');
+                    } catch (err) {
+                        console.error('[chat] block user failed:', err);
+                        Alert.alert('Could not block user', 'Please try again.');
+                    }
+                },
+            },
+        ]);
+    };
+
+    const handleViewUsers = () => {
+        const list = chatParticipants
+            .map((p) => p.name)
+            .filter(Boolean)
+            .join('\n');
+        Alert.alert('Chat members', list || 'No members found.');
+    };
+
+    const handleHeaderMenuPress = (action: HeaderMenuAction) => {
+        closeMenu();
+        setTimeout(() => {
+            void action.onPress();
+        }, 0);
+    };
+
+    const closeMessageMenu = () => {
+        if (copyFeedbackTimerRef.current) {
+            clearTimeout(copyFeedbackTimerRef.current);
+            copyFeedbackTimerRef.current = null;
+        }
+        setMessageMenuVisible(false);
+        setSelectedMessageId(null);
+        setSelectedMessageActionKey(null);
+        setCopyFeedbackActive(false);
+    };
+
+    const openMessageMenu = (message: Message) => {
+        Keyboard.dismiss();
+        setSelectedMessageId(message.id);
+        setMessageMenuVisible(true);
+    };
+
+    const headerMenuActions = useMemo<HeaderMenuAction[]>(() => {
+        const actions: HeaderMenuAction[] = [];
+
+        if (isGroupChat) {
+            actions.push({
+                key: 'view-users',
+                label: 'View Users',
+                onPress: handleViewUsers,
+            });
+            if (entityType === 'event' && entityId) {
+                actions.push({
+                    key: 'view-event',
+                    label: 'View Event',
+                    onPress: () => void openEvent(entityId),
+                });
+            }
+        } else if (otherParticipant) {
+            actions.push({
+                key: 'view-profile',
+                label: 'View Profile',
+                onPress: () => {
+                    router.push(`/user/${otherParticipant.user_id}` as any);
+                },
+            });
+            actions.push({
+                key: 'block-user',
+                label: 'Block User',
+                destructive: true,
+                onPress: handleBlockUser,
+            });
+        }
+
+        actions.push({
+            key: 'toggle-mute',
+            label: muted ? 'Unmute Notifications' : 'Mute Notifications',
+            onPress: toggleMuted,
+        });
+        actions.push({
+            key: 'report',
+            label: 'Report',
+            onPress: handleReportChat,
+        });
+        actions.push({
+            key: 'remove-chat',
+            label: 'Remove Chat',
+            destructive: true,
+            onPress: handleRemoveChat,
+        });
+
+        return actions;
+    }, [isGroupChat, entityType, entityId, otherParticipant, muted, toggleMuted, router, openEvent]);
+
+    const selectedMessage = useMemo(
+        () => messages.find((m) => m.id === selectedMessageId) ?? null,
+        [messages, selectedMessageId]
+    );
+
+    const copyTextForMessage = useCallback((message: Message): string => {
+        if (message.message_type === 'image') return '[Image]';
+        if (message.message_type === 'review_share') return message.content?.trim() || '[Shared review]';
+        if (message.message_type === 'event_share') return message.content?.trim() || '[Shared event]';
+        return message.content?.trim() || '';
+    }, []);
+
+    const handleToggleHeart = useCallback(async () => {
+        if (!selectedMessage || !userId) return;
+        const existing = getHeartUserIds(selectedMessage.metadata);
+        const hasHeart = existing.includes(userId);
+        const nextHeartUserIds = hasHeart ? existing.filter((id) => id !== userId) : [...existing, userId];
+        const nextMetadata = setHeartUserIds(selectedMessage.metadata, nextHeartUserIds);
+        const messageId = selectedMessage.id;
+
+        setMessages((prev) =>
+            prev.map((m) => (m.id === messageId ? { ...m, metadata: nextMetadata } : m))
+        );
+        closeMessageMenu();
+
+        const { error } = await supabase
+            .from('messages')
+            .update({ metadata: nextMetadata as any })
+            .eq('id', messageId);
+
+        if (error) {
+            setMessages((prev) =>
+                prev.map((m) =>
+                    m.id === messageId
+                        ? { ...m, metadata: setHeartUserIds(m.metadata, existing) }
+                        : m
+                )
+            );
+            Alert.alert('Could not react', 'Please try again.');
+        }
+    }, [selectedMessage, userId]);
+
+    const handleCopyMessage = useCallback(async () => {
+        if (!selectedMessage) return;
+        const text = copyTextForMessage(selectedMessage);
+        if (!text) return;
+        setSelectedMessageActionKey('copy');
+        setCopyFeedbackActive(true);
+        try {
+            await Clipboard.setStringAsync(text);
+            copyFeedbackTimerRef.current = setTimeout(() => {
+                copyFeedbackTimerRef.current = null;
+                closeMessageMenu();
+                Alert.alert('Copied', 'Message copied to clipboard.');
+            }, COPY_FEEDBACK_MS);
+        } catch {
+            copyFeedbackTimerRef.current = setTimeout(() => {
+                copyFeedbackTimerRef.current = null;
+                closeMessageMenu();
+                Alert.alert('Copy failed', 'Could not copy this message.');
+            }, COPY_FEEDBACK_MS);
+        }
+    }, [selectedMessage, copyTextForMessage]);
+
+    const handleReportMessage = useCallback(() => {
+        closeMessageMenu();
+        Alert.alert('Reported', 'Thank you. We will review this message shortly.');
+    }, []);
+
+    const messageMenuActions = useMemo<MessageAction[]>(() => {
+        if (!selectedMessage || !userId) return [];
+        const hasHeart = getHeartUserIds(selectedMessage.metadata).includes(userId);
+        return [
+            {
+                key: 'heart',
+                label: hasHeart ? 'Remove Heart' : 'Heart',
+                onPress: handleToggleHeart,
+            },
+            {
+                key: 'copy',
+                label: 'Copy',
+                onPress: handleCopyMessage,
+            },
+            {
+                key: 'report',
+                label: 'Report',
+                destructive: true,
+                onPress: handleReportMessage,
+            },
+        ];
+    }, [selectedMessage, userId, handleToggleHeart, handleCopyMessage, handleReportMessage]);
+
+    const selectedMessageHasHeart = useMemo(() => {
+        if (!selectedMessage || !userId) return false;
+        return getHeartUserIds(selectedMessage.metadata).includes(userId);
+    }, [selectedMessage, userId]);
+
+    const runMessageAction = useCallback((action: MessageAction) => {
+        setSelectedMessageActionKey(action.key);
+        void action.onPress();
+    }, []);
+
+    const renderHeartBadge = useCallback((item: Message) => {
+        const hearts = getHeartUserIds(item.metadata);
+        if (hearts.length === 0) return null;
+        return (
+            <View style={styles.heartBadge}>
+                <Heart size={13} color="#fff" fill="#fff" />
+                {hearts.length > 1 ? <Text style={styles.heartBadgeCount}>{hearts.length}</Text> : null}
+            </View>
+        );
+    }, []);
+
     const renderStars = (rating: number) =>
         Array.from({ length: 5 }, (_, i) => (
             <Star
@@ -523,6 +871,12 @@ export default function ChatThreadScreen() {
         const senderHeader = showSender ? renderSenderHeader(item) : null;
         const meta = item.metadata ?? {};
         const reviewId = resolveReviewId(item);
+        const isSelected = selectedMessageId === item.id;
+        const wrapperStyle = [
+            styles.messageWrapper,
+            item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper,
+            isSelected && styles.messageWrapperSelected,
+        ];
 
         // ── IMAGE MESSAGE ─────────────────────────────────────────────────────
         const inlineMeta = (item.metadata ?? {}) as Record<string, unknown>;
@@ -534,11 +888,12 @@ export default function ChatThreadScreen() {
             (typeof inlineMeta.storage_path === 'string' && inlineMeta.storage_path.trim()) || null;
         if (item.message_type === 'image' && (imageUrl || storagePath)) {
             return (
-                <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                <Pressable style={wrapperStyle} onLongPress={() => openMessageMenu(item)} delayLongPress={260}>
                     {senderHeader}
                     <Pressable onLongPress={() => setActionsFor(item)} delayLongPress={300}>
                         <ChatImageBubble imageUrl={imageUrl} storagePath={storagePath} />
                     </Pressable>
+                    {renderHeartBadge(item)}
                     <MessageReactions
                         reactions={reactions.get(item.id) || []}
                         isMine={item.is_mine}
@@ -547,7 +902,7 @@ export default function ChatThreadScreen() {
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </SynthText>
-                </View>
+                </Pressable>
             );
         }
 
@@ -562,7 +917,7 @@ export default function ChatThreadScreen() {
             const headline = rc?.headline || 'Shared Review';
             const past = isPast(rc?.event_date);
             return (
-                <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                <Pressable style={wrapperStyle} onLongPress={() => openMessageMenu(item)} delayLongPress={260}>
                     {senderHeader}
                     <Pressable
                         onPress={() => router.push(`/review/${reviewId}`)}
@@ -633,6 +988,7 @@ export default function ChatThreadScreen() {
                             <Text style={styles.shareViewDetails}>View Full Review →</Text>
                         </View>
                     </Pressable>
+                    {renderHeartBadge(item)}
                     <MessageReactions
                         reactions={reactions.get(item.id) || []}
                         isMine={item.is_mine}
@@ -641,7 +997,7 @@ export default function ChatThreadScreen() {
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </SynthText>
-                </View>
+                </Pressable>
             );
         }
 
@@ -671,7 +1027,7 @@ export default function ChatThreadScreen() {
             const showHint =
                 (customNote || (!isPlaceholderContent(item.content) ? item.content : '')).trim() || null;
             return (
-                <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+                <Pressable style={wrapperStyle} onLongPress={() => openMessageMenu(item)} delayLongPress={260}>
                     {senderHeader}
                     <Pressable
                         onPress={() => void openEvent(eventId)}
@@ -730,6 +1086,7 @@ export default function ChatThreadScreen() {
                             <Text style={styles.shareViewDetails}>View Full Details →</Text>
                         </View>
                     </Pressable>
+                    {renderHeartBadge(item)}
                     <MessageReactions
                         reactions={reactions.get(item.id) || []}
                         isMine={item.is_mine}
@@ -738,30 +1095,31 @@ export default function ChatThreadScreen() {
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </SynthText>
-                </View>
+                </Pressable>
             );
         }
 
         // ── AI SCENE GUIDE ────────────────────────────────────────────────────
         if (isAiSceneGuideMessage(item)) {
             return (
-                <View style={[styles.messageWrapper, styles.theirMessageWrapper]}>
+                <Pressable style={[...wrapperStyle, styles.theirMessageWrapper]} onLongPress={() => openMessageMenu(item)} delayLongPress={260}>
                     {senderHeader}
                     <AiGuideMessageBubble
                         content={item.content}
                         containsSetlistSpoiler={Boolean(item.contains_setlist_spoiler)}
                         senderName={item.sender_name}
                     />
+                    {renderHeartBadge(item)}
                     <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                         {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </SynthText>
-                </View>
+                </Pressable>
             );
         }
 
         // ── PLAIN TEXT MESSAGE ────────────────────────────────────────────────
         return (
-            <View style={[styles.messageWrapper, item.is_mine ? styles.myMessageWrapper : styles.theirMessageWrapper]}>
+            <Pressable style={wrapperStyle} onLongPress={() => openMessageMenu(item)} delayLongPress={260}>
                 {senderHeader}
                 {/* Long press is the touch equivalent of the web's hover controls. */}
                 <Pressable
@@ -776,6 +1134,7 @@ export default function ChatThreadScreen() {
                         {item.content}
                     </SynthText>
                 </Pressable>
+                {renderHeartBadge(item)}
                 <MessageReactions
                     reactions={reactions.get(item.id) || []}
                     isMine={item.is_mine}
@@ -784,7 +1143,7 @@ export default function ChatThreadScreen() {
                 <SynthText variant="meta" color="secondary" style={styles.messageTime}>
                     {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </SynthText>
-            </View>
+            </Pressable>
         );
     };
 
@@ -802,7 +1161,7 @@ export default function ChatThreadScreen() {
                 <SynthText variant="h2" style={styles.headerTitle} numberOfLines={1}>
                     {chatTitle || 'Messages'}
                 </SynthText>
-                <View style={styles.headerActions}>
+                <View style={styles.headerRightActions}>
                     {entityType === 'genre' && entityId ? (
                         <Pressable
                             onPress={() => router.push(`/genre/${entityId}/events` as any)}
@@ -813,13 +1172,11 @@ export default function ChatThreadScreen() {
                         </Pressable>
                     ) : null}
                     <Pressable
-                        onPress={() => void toggleMuted()}
-                        style={styles.genreEventsButton}
-                        accessibilityLabel={muted ? 'Unmute notifications' : 'Mute notifications'}
+                        onPress={() => setMenuVisible(true)}
+                        style={styles.topActionBtn}
+                        accessibilityLabel="More options"
                     >
-                        {muted
-                            ? <BellOff size={22} color={PINK} />
-                            : <Bell size={22} color={SynthTokens.colors.neutral900} />}
+                        <MoreVertical size={22} color={SynthTokens.colors.neutral900} />
                     </Pressable>
                 </View>
             </View>
@@ -902,6 +1259,87 @@ export default function ChatThreadScreen() {
                 if (actionsFor) startReplyTo(actionsFor);
             }}
         />
+
+        <Modal
+            visible={menuVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={closeMenu}
+        >
+            <Pressable style={styles.menuBackdrop} onPress={closeMenu}>
+                <View />
+            </Pressable>
+            <View style={[styles.menuPanel, { top: insets.top + 52 }]}>
+                {headerMenuActions.map((action) => (
+                    <Pressable
+                        key={action.key}
+                        style={({ pressed }) => [
+                            styles.menuItem,
+                            pressed && styles.menuItemPressed,
+                        ]}
+                        onPress={() => handleHeaderMenuPress(action)}
+                    >
+                        <Text
+                            style={[
+                                styles.menuItemLabel,
+                                action.destructive && styles.menuItemLabelDestructive,
+                            ]}
+                        >
+                            {action.label}
+                        </Text>
+                    </Pressable>
+                ))}
+            </View>
+        </Modal>
+
+        <Modal
+            visible={messageMenuVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={closeMessageMenu}
+        >
+            <Pressable style={styles.menuBackdrop} onPress={closeMessageMenu}>
+                <View />
+            </Pressable>
+            <View style={styles.messageActionPanel}>
+                {messageMenuActions.map((action) => (
+                    <Pressable
+                        key={action.key}
+                        style={({ pressed }) => [
+                            styles.menuItem,
+                            selectedMessageActionKey === action.key && styles.menuItemSelected,
+                            pressed && styles.menuItemPressed,
+                            copyFeedbackActive && styles.menuItemCopyFeedback,
+                        ]}
+                        onPress={() => runMessageAction(action)}
+                    >
+                        {action.key === 'heart' ? (
+                            <View
+                                style={[
+                                    styles.heartMenuIconWrap,
+                                    selectedMessageHasHeart && styles.heartMenuIconWrapActive,
+                                ]}
+                            >
+                                <Heart
+                                    size={20}
+                                    color={selectedMessageHasHeart ? '#fff' : PINK}
+                                    fill={selectedMessageHasHeart ? '#fff' : 'transparent'}
+                                />
+                            </View>
+                        ) : (
+                            <Text
+                                style={[
+                                    styles.menuItemLabel,
+                                    action.destructive && styles.menuItemLabelDestructive,
+                                ]}
+                            >
+                                {action.label}
+                            </Text>
+                        )}
+                    </Pressable>
+                ))}
+            </View>
+        </Modal>
         </View>
     );
 }
@@ -927,6 +1365,18 @@ const styles = StyleSheet.create({
     backButton: {
         padding: 8,
     },
+    headerRightActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        minWidth: 40,
+    },
+    topActionBtn: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     genreEventsButton: {
         width: 40,
         height: 40,
@@ -946,6 +1396,16 @@ const styles = StyleSheet.create({
     messageWrapper: {
         marginBottom: SynthTokens.spacing.md,
         maxWidth: '88%',
+        position: 'relative',
+    },
+    messageWrapperSelected: {
+        transform: [{ scale: 1.03 }],
+        shadowColor: '#000',
+        shadowOpacity: 0.12,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 8,
+        zIndex: 2,
     },
     myMessageWrapper: {
         alignSelf: 'flex-end',
@@ -972,11 +1432,6 @@ const styles = StyleSheet.create({
         fontSize: 10,
         marginTop: 4,
     },
-    headerActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
     replyBar: {
         marginHorizontal: SynthTokens.spacing.md,
         marginBottom: 6,
@@ -984,6 +1439,34 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         borderRadius: SynthTokens.radius.small,
         backgroundColor: SynthTokens.colors.neutral100,
+    },
+    heartBadge: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: PINK,
+        borderWidth: 1.5,
+        borderColor: '#fff',
+    },
+    heartBadgeCount: {
+        position: 'absolute',
+        bottom: -6,
+        right: -6,
+        minWidth: 14,
+        height: 14,
+        borderRadius: 7,
+        paddingHorizontal: 2,
+        backgroundColor: SynthTokens.colors.neutral900,
+        color: '#fff',
+        textAlign: 'center',
+        fontSize: 9,
+        lineHeight: 14,
+        fontWeight: '700',
     },
     inputArea: {
         flexDirection: 'row',
@@ -1185,5 +1668,76 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '700',
         color: SynthTokens.colors.neutral900,
+    },
+    menuBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+    },
+    menuPanel: {
+        position: 'absolute',
+        right: SynthTokens.spacing.md,
+        width: 220,
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        shadowColor: '#000',
+        shadowOpacity: 0.14,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 12,
+        overflow: 'hidden',
+    },
+    messageActionPanel: {
+        position: 'absolute',
+        left: SynthTokens.spacing.md,
+        right: SynthTokens.spacing.md,
+        bottom: 120,
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        shadowColor: '#000',
+        shadowOpacity: 0.18,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 16,
+        overflow: 'hidden',
+    },
+    menuItem: {
+        minHeight: SynthTokens.layout.menuItemRowHeight,
+        justifyContent: 'center',
+        paddingHorizontal: SynthTokens.spacing.md,
+    },
+    menuItemPressed: {
+        backgroundColor: SynthTokens.colors.neutral50,
+    },
+    menuItemCopyFeedback: {
+        backgroundColor: '#9CA3AF',
+    },
+    menuItemSelected: {
+        backgroundColor: 'rgba(204,36,134,0.16)',
+    },
+    menuItemLabel: {
+        fontSize: 15,
+        color: SynthTokens.colors.neutral900,
+        fontWeight: '500',
+    },
+    menuItemLabelDestructive: {
+        color: '#DC2626',
+    },
+    heartMenuIconWrap: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'center',
+        borderWidth: 1,
+        borderColor: PINK,
+    },
+    heartMenuIconWrapActive: {
+        backgroundColor: PINK,
     },
 });

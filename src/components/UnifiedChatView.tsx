@@ -49,6 +49,7 @@ import { UserInfo } from '@/components/profile/UserInfo';
 import { SynthSLogo } from '@/components/SynthSLogo';
 import { EventMessageCard } from '@/components/chat/EventMessageCard';
 import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
+import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import {
   AiBadge,
   AiGuideMessageBubble,
@@ -197,6 +198,12 @@ interface Message {
   contains_setlist_spoiler?: boolean | null;
 }
 
+type MessageActionMenuState = {
+  messageId: string;
+  x: number;
+  y: number;
+};
+
 interface User {
   user_id: string;
   name: string;
@@ -215,6 +222,7 @@ interface UnifiedChatViewProps {
 }
 
 export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMenuClick, hideHeader = false, onChatSelected }: UnifiedChatViewProps) => {
+  const COPY_FEEDBACK_MS = 140;
   // Track chat view
   useViewTracking('view', 'chat', { source: 'messages' });
 
@@ -361,11 +369,17 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   const [linkedEvent, setLinkedEvent] = useState<any>(null);
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [messageActionMenu, setMessageActionMenu] = useState<MessageActionMenuState | null>(null);
+  const [selectedMessageActionKey, setSelectedMessageActionKey] = useState<string | null>(null);
+  const [copyFeedbackActive, setCopyFeedbackActive] = useState(false);
+  const [reportMessageTarget, setReportMessageTarget] = useState<{ id: string; title: string } | null>(null);
 
   // Auto-scroll ref for messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const messageLongPressTimerRef = useRef<number | null>(null);
+  const copyFeedbackTimerRef = useRef<number | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const horizontalSwipeTriggeredRef = useRef(false);
@@ -432,6 +446,150 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     setIsDeleteChatModalOpen(false);
     setChatPendingDeletion(null);
   };
+
+  const getHeartUserIds = useCallback((metadata: any): string[] => {
+    const raw = metadata?.heart_user_ids;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
+  }, []);
+
+  const setHeartUserIds = useCallback((metadata: any, nextUserIds: string[]) => {
+    const base = metadata && typeof metadata === 'object' ? { ...metadata } : {};
+    base.heart_user_ids = nextUserIds;
+    return base;
+  }, []);
+
+  const closeMessageActionMenu = useCallback(() => {
+    if (copyFeedbackTimerRef.current != null) {
+      window.clearTimeout(copyFeedbackTimerRef.current);
+      copyFeedbackTimerRef.current = null;
+    }
+    setMessageActionMenu(null);
+    setSelectedMessageActionKey(null);
+    setCopyFeedbackActive(false);
+  }, []);
+
+  const openMessageActionMenu = useCallback((messageId: string, x: number, y: number) => {
+    setMessageActionMenu({ messageId, x, y });
+  }, []);
+
+  const selectedActionMessage = messageActionMenu
+    ? messages.find((m) => m.id === messageActionMenu.messageId) ?? null
+    : null;
+  const selectedActionHasHeart = selectedActionMessage
+    ? getHeartUserIds(selectedActionMessage.metadata).includes(currentUserId)
+    : false;
+  const messageMenuLeft = messageActionMenu
+    ? Math.max(
+        12,
+        Math.min(
+          messageActionMenu.x,
+          (typeof window !== 'undefined' ? window.innerWidth : 320) - 232
+        )
+      )
+    : 12;
+  const messageMenuTop = messageActionMenu
+    ? Math.max(
+        12,
+        Math.min(
+          messageActionMenu.y,
+          (typeof window !== 'undefined' ? window.innerHeight : 640) - 188
+        )
+      )
+    : 12;
+
+  const copyTextForMessage = useCallback((message: Message): string => {
+    if (message.message_type === 'image') return '[Image]';
+    if (message.message_type === 'review_share') return message.content?.trim() || '[Shared review]';
+    if (message.message_type === 'event_share') return message.content?.trim() || '[Shared event]';
+    return message.content?.trim() || '';
+  }, []);
+
+  const handleToggleMessageHeart = useCallback(async () => {
+    if (!selectedActionMessage) return;
+    const existing = getHeartUserIds(selectedActionMessage.metadata);
+    const hasHearted = existing.includes(currentUserId);
+    const nextHeartUserIds = hasHearted
+      ? existing.filter((id) => id !== currentUserId)
+      : [...existing, currentUserId];
+    const nextMetadata = setHeartUserIds(selectedActionMessage.metadata, nextHeartUserIds);
+    const messageId = selectedActionMessage.id;
+
+    setMessages((prev) =>
+      prev.map((msg) => (msg.id === messageId ? { ...msg, metadata: nextMetadata } : msg))
+    );
+    closeMessageActionMenu();
+
+    const { error } = await supabase
+      .from('messages')
+      .update({ metadata: nextMetadata })
+      .eq('id', messageId);
+
+    if (error) {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, metadata: setHeartUserIds(msg.metadata, existing) }
+            : msg
+        )
+      );
+      toast({ title: 'Could not react', description: 'Please try again.', variant: 'destructive' });
+    }
+  }, [selectedActionMessage, getHeartUserIds, currentUserId, setHeartUserIds, closeMessageActionMenu]);
+
+  const handleCopyMessage = useCallback(async () => {
+    if (!selectedActionMessage) return;
+    const text = copyTextForMessage(selectedActionMessage);
+    if (!text) return;
+    setSelectedMessageActionKey('copy');
+    setCopyFeedbackActive(true);
+    try {
+      await navigator.clipboard.writeText(text);
+      copyFeedbackTimerRef.current = window.setTimeout(() => {
+        copyFeedbackTimerRef.current = null;
+        closeMessageActionMenu();
+        toast({ title: 'Copied', description: 'Message copied to clipboard.' });
+      }, COPY_FEEDBACK_MS);
+    } catch {
+      copyFeedbackTimerRef.current = window.setTimeout(() => {
+        copyFeedbackTimerRef.current = null;
+        closeMessageActionMenu();
+        toast({ title: 'Copy failed', description: 'Could not copy this message.', variant: 'destructive' });
+      }, COPY_FEEDBACK_MS);
+    }
+  }, [selectedActionMessage, copyTextForMessage, closeMessageActionMenu]);
+
+  const handleReportMessage = useCallback(() => {
+    const message = selectedActionMessage;
+    closeMessageActionMenu();
+    if (!message) return;
+
+    const title = message.message_type === 'image'
+      ? 'Image message'
+      : message.content?.trim()
+        ? message.content.trim().slice(0, 120)
+        : 'Chat message';
+    setReportMessageTarget({ id: message.id, title });
+  }, [closeMessageActionMenu, selectedActionMessage]);
+
+  const runMessageAction = useCallback((actionKey: string, action: () => void | Promise<void>) => {
+    setSelectedMessageActionKey(actionKey);
+    void action();
+  }, []);
+
+  useEffect(() => {
+    if (!messageActionMenu) return;
+    const onPointerDown = () => closeMessageActionMenu();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMessageActionMenu();
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [messageActionMenu, closeMessageActionMenu]);
 
   useEffect(() => {
     if (!isDeleteChatModalOpen) return;
@@ -2168,6 +2326,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 >
                   {group.map((message, msgIndex) => {
                     const isLastInGroup = msgIndex === group.length - 1;
+                    const heartUserIds = getHeartUserIds(message.metadata);
+                    const heartCount = heartUserIds.length;
+                    const hasHearted = heartUserIds.includes(currentUserId);
+                    const isMessageSelected = messageActionMenu?.messageId === message.id;
 
                     return (
                       <div
@@ -2177,6 +2339,37 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           gap: isLastInGroup ? 'var(--spacing-small, 12px)' : '0',
                           maxWidth: '100%',
                           alignItems: isSent ? 'flex-end' : 'flex-start',
+                          position: 'relative',
+                          transform: isMessageSelected ? 'scale(1.03)' : 'scale(1)',
+                          transformOrigin: isSent ? 'right bottom' : 'left bottom',
+                          transition: 'transform 140ms ease',
+                          filter: isMessageSelected ? 'drop-shadow(0 6px 14px rgba(0,0,0,0.14))' : 'none',
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          openMessageActionMenu(message.id, event.clientX, event.clientY);
+                        }}
+                        onTouchStart={(event) => {
+                          const touch = event.touches[0];
+                          if (!touch) return;
+                          if (messageLongPressTimerRef.current != null) {
+                            window.clearTimeout(messageLongPressTimerRef.current);
+                          }
+                          messageLongPressTimerRef.current = window.setTimeout(() => {
+                            openMessageActionMenu(message.id, touch.clientX, touch.clientY);
+                          }, 450);
+                        }}
+                        onTouchMove={() => {
+                          if (messageLongPressTimerRef.current != null) {
+                            window.clearTimeout(messageLongPressTimerRef.current);
+                            messageLongPressTimerRef.current = null;
+                          }
+                        }}
+                        onTouchEnd={() => {
+                          if (messageLongPressTimerRef.current != null) {
+                            window.clearTimeout(messageLongPressTimerRef.current);
+                            messageLongPressTimerRef.current = null;
+                          }
                         }}
                       >
                         {/* Determine what to render: review card, event card, or text - mutually exclusive */}
@@ -2281,6 +2474,49 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                             </div>
                           );
                         })()}
+
+                        {heartCount > 0 && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: -8,
+                              right: -8,
+                              width: 24,
+                              height: 24,
+                              borderRadius: 999,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: 'var(--brand-pink-500)',
+                              border: '1.5px solid var(--neutral-0)',
+                              zIndex: 2,
+                            }}
+                          >
+                            <Heart size={13} style={{ color: 'var(--neutral-0)' }} fill="currentColor" />
+                            {heartCount > 1 ? (
+                              <span
+                                style={{
+                                  position: 'absolute',
+                                  right: -6,
+                                  bottom: -6,
+                                  minWidth: 14,
+                                  height: 14,
+                                  borderRadius: 7,
+                                  padding: '0 2px',
+                                  backgroundColor: 'var(--neutral-900)',
+                                  color: 'var(--neutral-0)',
+                                  textAlign: 'center',
+                                  fontFamily: 'var(--font-family)',
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  lineHeight: '14px',
+                                }}
+                              >
+                                {heartCount}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
 
                         {/* Reactions and the reply / react controls. System messages get neither. */}
                         {message.message_type !== 'system' && (
@@ -3279,6 +3515,141 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         />,
         document.body
       )}
+
+      {/* Message actions (desktop right-click + touch long-press) */}
+      {messageActionMenu && selectedActionMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+          }}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <div
+            style={{
+              position: 'fixed',
+              left: messageMenuLeft,
+              top: messageMenuTop,
+              width: 220,
+              backgroundColor: 'var(--neutral-0)',
+              border: '1px solid var(--neutral-200)',
+              borderRadius: 12,
+              boxShadow: '0 10px 28px rgba(0,0,0,0.18)',
+              overflow: 'hidden',
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => runMessageAction('heart', handleToggleMessageHeart)}
+              style={{
+                width: '100%',
+                height: 46,
+                padding: '0 14px',
+                border: 'none',
+                textAlign: 'center',
+                background: 'transparent',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-family)',
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'var(--neutral-900)',
+                backgroundColor:
+                  copyFeedbackActive
+                    ? '#9CA3AF'
+                    : selectedMessageActionKey === 'heart'
+                      ? 'rgba(204,36,134,0.16)'
+                      : 'transparent',
+              }}
+              aria-label={selectedActionHasHeart ? 'Remove heart reaction' : 'Add heart reaction'}
+            >
+              <span
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: selectedActionHasHeart ? 'var(--brand-pink-500)' : 'var(--neutral-0)',
+                  border: '1px solid var(--brand-pink-500)',
+                }}
+              >
+                <Heart
+                  size={16}
+                  style={{ color: selectedActionHasHeart ? 'var(--neutral-0)' : 'var(--brand-pink-500)' }}
+                  fill={selectedActionHasHeart ? 'currentColor' : 'none'}
+                />
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => runMessageAction('copy', handleCopyMessage)}
+              style={{
+                width: '100%',
+                height: 46,
+                padding: '0 14px',
+                border: 'none',
+                textAlign: 'left',
+                background: 'transparent',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-family)',
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'var(--neutral-900)',
+                backgroundColor:
+                  copyFeedbackActive
+                    ? '#9CA3AF'
+                    : selectedMessageActionKey === 'copy'
+                      ? 'rgba(204,36,134,0.16)'
+                      : 'transparent',
+              }}
+            >
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={() => runMessageAction('report', handleReportMessage)}
+              style={{
+                width: '100%',
+                height: 46,
+                padding: '0 14px',
+                border: 'none',
+                textAlign: 'left',
+                background: 'transparent',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-family)',
+                fontSize: 15,
+                fontWeight: 600,
+                color: 'var(--status-error-500)',
+                backgroundColor:
+                  copyFeedbackActive
+                    ? '#9CA3AF'
+                    : selectedMessageActionKey === 'report'
+                      ? 'rgba(220,38,38,0.14)'
+                      : 'transparent',
+              }}
+            >
+              Report
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ReportContentModal
+        open={Boolean(reportMessageTarget)}
+        onClose={() => setReportMessageTarget(null)}
+        contentType="message"
+        contentId={reportMessageTarget?.id ?? ''}
+        contentTitle={reportMessageTarget?.title}
+        onReportSubmitted={() => {
+          toast({
+            title: 'Message reported',
+            description: 'Thanks for helping keep the community safe.',
+          });
+        }}
+      />
 
       {/* Chat Participants Modal - Group Chat Users */}
       {showUsersModal && selectedChat && selectedChat.is_group_chat && (
