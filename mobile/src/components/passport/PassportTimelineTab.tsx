@@ -112,6 +112,7 @@ export function PassportTimelineTab({
                             if (item.event_id) router.push(`/event/${item.event_id}`);
                         }}
                         accessibilityRole="button"
+                        disabled={!item.event_id}
                     >
                         <View style={styles.cardContent}>
                             {m?.significance ? (
