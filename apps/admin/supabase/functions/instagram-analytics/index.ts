@@ -709,6 +709,39 @@ const fetchSupabaseRest = async (path: string, init: RequestInit = {}) => {
   return text ? JSON.parse(text) : null;
 };
 
+/**
+ * Same admin gate as the sibling functions in this directory
+ * (editorial-generate, editorial-research, content-calendar-publish, ops-alert).
+ * This one was missing it: the handler read env tokens and returned analytics to
+ * any caller, and wrote snapshots back with the service role.
+ * Returns the admin's uid, or null for everyone else.
+ */
+const requireAdmin = async (authHeader: string | null): Promise<string | null> => {
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const token = authHeader.slice(7);
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !anon) return null;
+
+  const userRes = await fetch(`${supabaseUrl.replace(/\/+$/g, '')}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${token}`, apikey: anon },
+  });
+  if (!userRes.ok) return null;
+  const user = await userRes.json();
+  const uid = user?.id as string | undefined;
+  if (!uid) return null;
+
+  try {
+    const rows = (await fetchSupabaseRest(
+      `users?user_id=eq.${uid}&select=account_type&limit=1`
+    )) as Array<{ account_type: string }> | null;
+    if (rows?.[0]?.account_type !== 'admin') return null;
+    return uid;
+  } catch {
+    return null;
+  }
+};
+
 const platformResultHasData = (result: PlatformAnalyticsResult) => {
   const metricValues = Object.values(result.metrics ?? {});
   return (
@@ -1566,6 +1599,13 @@ serve(async req => {
     return preflightResponse();
   }
   logInfo('Incoming request', { method: req.method, url: req.url });
+
+  // Admin only — must run before any env token is read or upstream call is made.
+  const adminId = await requireAdmin(req.headers.get('Authorization'));
+  if (!adminId) {
+    logInfo('Rejected non-admin request');
+    return respondJSON({ error: 'Admin access required' }, 403);
+  }
 
   const userId = Deno.env.get('INSTAGRAM_USER_ID') ?? Deno.env.get('INSTAGRAM_GRAPH_USER_ID');
   const accessToken =
