@@ -118,13 +118,55 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Clear `genre_lookup_attempted_at` across the stuck backlog, in id-ordered
+ * pages.
+ *
+ * This was a single unbounded UPDATE over the whole `artists` table, which
+ * died on `canceling statement due to statement timeout` (live, 2026-09-01)
+ * — thousands of rows plus their index writes exceed the hosted statement
+ * timeout. Worse, it failed *silently in effect*: the reset aborted, the run
+ * exited, and the next plain run then reported "backlog is clear" after
+ * touching only the handful of newly-synced artists, because every artist in
+ * the real backlog still had the flag set and was filtered out.
+ *
+ * Paged reads + `in(ids)` writes keep each statement small and bounded. Same
+ * batched, re-runnable shape as the heavy SQL migrations in supabase/.
+ */
+const RESWEEP_PAGE_SIZE = 500;
+
 async function clearAttemptedForResweep(supabase) {
-  const { error } = await supabase
-    .from('artists')
-    .update({ genre_lookup_attempted_at: null })
-    .or(STUCK_FILTER)
-    .not('genre_lookup_attempted_at', 'is', null);
-  if (error) throw error;
+  let cursor = null;
+  let cleared = 0;
+
+  for (;;) {
+    let query = supabase
+      .from('artists')
+      .select('id')
+      .or(STUCK_FILTER)
+      .not('genre_lookup_attempted_at', 'is', null)
+      .order('id', { ascending: true })
+      .limit(RESWEEP_PAGE_SIZE);
+    if (cursor) query = query.gt('id', cursor);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    const ids = data.map(r => r.id);
+    const { error: updateError } = await supabase
+      .from('artists')
+      .update({ genre_lookup_attempted_at: null })
+      .in('id', ids);
+    if (updateError) throw updateError;
+
+    cleared += ids.length;
+    cursor = ids[ids.length - 1];
+    process.stdout.write(`\r   cleared ${cleared}...`);
+  }
+
+  console.log(`\r   cleared ${cleared} artist(s) for re-sweep.        `);
+  return cleared;
 }
 
 async function fetchNextBatch(supabase, checkpoint, limit) {

@@ -18,7 +18,6 @@ export interface UsersSignupRecord {
   location_city?: string | null;
   location_state?: string | null;
   music_streaming_service?: string | null;
-  onboarding_completed?: boolean | null;
   waitlist_signup_at?: string | null;
   is_bot?: boolean | null;
   created_at?: string | null;
@@ -79,7 +78,6 @@ export function selectSignupFields(
     location_city: asTrimmedString(r.location_city),
     location_state: asTrimmedString(r.location_state),
     music_streaming_service: asTrimmedString(r.music_streaming_service),
-    onboarding_completed: asBool(r.onboarding_completed),
     waitlist_signup_at: asTrimmedString(r.waitlist_signup_at),
     is_bot: asBool(r.is_bot),
     created_at: asTrimmedString(r.created_at),
@@ -129,9 +127,10 @@ export function formatSignupMessage(record: UsersSignupRecord): string {
   if (acquisition) lines.push(`Acquisition: ${escapeSlackMrkdwn(acquisition)}`);
   if (record.referral_code) lines.push(`Referral: \`${escapeSlackMrkdwn(record.referral_code)}\``);
 
-  if (record.onboarding_completed != null) {
-    lines.push(`Onboarding: ${record.onboarding_completed ? 'completed' : 'not completed'}`);
-  }
+  // No onboarding status here on purpose: this message is built from an AFTER INSERT
+  // trigger on public.users, so it always describes the row at millisecond zero -
+  // onboarding_completed is false for every signup that has ever existed. Printing it
+  // was noise that read like a bug report. Check the users table for real status.
   if (record.waitlist_signup_at) {
     lines.push(`Waitlist: ${escapeSlackMrkdwn(record.waitlist_signup_at)}`);
   }
@@ -202,7 +201,7 @@ export async function alertSignupIfNeeded(
 }
 
 const SIGNUP_SELECT =
-  'user_id,name,username,email,contact_email,account_type,account_status,acquisition_source,other_acquisition_source,referral_code,location_city,location_state,music_streaming_service,onboarding_completed,waitlist_signup_at,is_bot,created_at,permissions_metadata';
+  'user_id,name,username,email,contact_email,account_type,account_status,acquisition_source,other_acquisition_source,referral_code,location_city,location_state,music_streaming_service,waitlist_signup_at,is_bot,created_at,permissions_metadata';
 
 export async function loadUserSignupRecord(userId: string): Promise<UsersSignupRecord | null> {
   const supabase = getSupabaseService();

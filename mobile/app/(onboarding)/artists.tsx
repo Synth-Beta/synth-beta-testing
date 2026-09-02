@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Pressable, SafeAreaView, TextInput, FlatList } from 'react-native';
+import { StyleSheet, View, Pressable, SafeAreaView, TextInput, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,6 +21,7 @@ export default function ArtistsScreen() {
     const [artists, setArtists] = useState<Artist[]>([]);
     const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
     useEffect(() => {
         loadSuggestedArtists();
@@ -57,17 +58,32 @@ export default function ArtistsScreen() {
 
     const handleContinue = async () => {
         // Require a minimum so the personalized feed has real signal to work with.
-        if (!enoughArtists) return;
+        if (!enoughArtists || saving) return;
+        setSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 await OnboardingService.followArtists(user.id, selectedArtistIds);
-                // Final onboarding step — mark complete (local per-user flag + server).
-                await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
+                // Final onboarding step. Server write first — swallowing this is what left
+                // finished users with onboarding_completed = false server-side, so they got
+                // sent back through onboarding on any reinstall. Local flag only after it
+                // lands, so the two can never disagree.
                 await OnboardingService.completeOnboarding(user.id);
+                try {
+                    await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
+                } catch {
+                    // Server state is already correct; the boot gate reads it as a fallback.
+                }
             }
         } catch (error) {
             console.warn('Artist follow / onboarding-complete write failed:', error);
+            Alert.alert(
+                'Could not finish setting up',
+                'Check your connection and try again.'
+            );
+            return;
+        } finally {
+            setSaving(false);
         }
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -122,9 +138,15 @@ export default function ArtistsScreen() {
 
             <View style={styles.footer}>
                 <SynthButton
-                    title={enoughArtists ? `Follow ${selectedArtistIds.length} Artists` : `Pick at least 3 (${selectedArtistIds.length}/3)`}
+                    title={
+                        saving
+                            ? 'Finishing…'
+                            : enoughArtists
+                                ? `Follow ${selectedArtistIds.length} Artists`
+                                : `Pick at least 3 (${selectedArtistIds.length}/3)`
+                    }
                     onPress={handleContinue}
-                    disabled={!enoughArtists}
+                    disabled={!enoughArtists || saving}
                 />
             </View>
         </SafeAreaView>

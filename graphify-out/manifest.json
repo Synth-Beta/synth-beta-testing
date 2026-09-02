@@ -230,8 +230,8 @@
     "semantic_hash": "10ba2e79ce9eaf468733a8283a2a3e29"
   },
   "mobile/app/(onboarding)/artists.tsx": {
-    "mtime": 1787703637.7057154,
-    "ast_hash": "89600a19d211907ff17c4ea6038427cb",
+    "mtime": 1788289687.5468245,
+    "ast_hash": "6bc32eaa8c5d1795af1124bfd8a967f9",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/connect.tsx": {
@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/profile.tsx": {
-    "mtime": 1786208359.0617363,
-    "ast_hash": "8f30bb391eb5df6ef5cc76c3fc405a2f",
+    "mtime": 1788301668.0836995,
+    "ast_hash": "32e7f1b6a82164bba72690c58625a1cf",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/scene.tsx": {
@@ -900,8 +900,8 @@
     "semantic_hash": ""
   },
   "mobile/src/services/onboardingService.ts": {
-    "mtime": 1786208359.0858545,
-    "ast_hash": "a515cf257ed562761c00706c48bf5211",
+    "mtime": 1788301646.590453,
+    "ast_hash": "c639d54b816769822def90d82040b421",
     "semantic_hash": ""
   },
   "mobile/src/services/passportAchievementService.ts": {
@@ -1200,8 +1200,8 @@
     "semantic_hash": "9a47e0ba88096afe84ff72fbd742cb9a"
   },
   "scripts/fetch-artist-genres.mjs": {
-    "mtime": 1786743118.2396727,
-    "ast_hash": "83486c5e97d5782613fe716a7c4d7e49",
+    "mtime": 1788290677.550242,
+    "ast_hash": "0103606929fac9cddf7d38ef48170f0d",
     "semantic_hash": ""
   },
   "scripts/infra-setup.mjs": {
@@ -1235,8 +1235,8 @@
     "semantic_hash": "2f742026c2d6f531a41915fd3088f8bc"
   },
   "scripts/sync-jambase-incremental-3nf.mjs": {
-    "mtime": 1787757839.334528,
-    "ast_hash": "cba95997801a778ba5425f25e0f44f36",
+    "mtime": 1788217838.9617965,
+    "ast_hash": "1c8d959aeccf9e37cb7de6c2745b5302",
     "semantic_hash": ""
   },
   "scripts/test-push-webhook.mjs": {
@@ -4744,51 +4744,6 @@
     "ast_hash": "7d1c85c4f8b2853aadf0f289ca263457",
     "semantic_hash": ""
   },
-  "apps/admin/backend/check-data.js": {
-    "mtime": 1785263787.7899306,
-    "ast_hash": "d433779e553c67d28024e57e143e0a66",
-    "semantic_hash": ""
-  },
-  "apps/admin/backend/location-search-routes.js": {
-    "mtime": 1785263787.7913475,
-    "ast_hash": "1387922b945f0c3eed9f945b4bd45c2c",
-    "semantic_hash": ""
-  },
-  "apps/admin/backend/package.json": {
-    "mtime": 1785263787.7967434,
-    "ast_hash": "fbc6048a156a8af443fd678e184c4597",
-    "semantic_hash": ""
-  },
-  "apps/admin/backend/search-concerts.js": {
-    "mtime": 1785263787.7973936,
-    "ast_hash": "03cb670754bf07a7ab9732ab16795637",
-    "semantic_hash": ""
-  },
-  "apps/admin/backend/search-routes.js": {
-    "mtime": 1785263787.7986374,
-    "ast_hash": "edf577a283464e0919b4e6335a3099ec",
-    "semantic_hash": ""
-  },
-  "apps/admin/backend/seed-sample-events.js": {
-    "mtime": 1785263787.8000803,
-    "ast_hash": "6369b4c3894a1d77bb1f6fe82ace8957",
-    "semantic_hash": ""
-  },
-  "apps/admin/backend/server.js": {
-    "mtime": 1785263787.8010843,
-    "ast_hash": "b305bc304b7f50cef32a8ac3a47b9ef3",
-    "semantic_hash": ""
-  },
-  "apps/admin/backend/setlist-routes.js": {
-    "mtime": 1785263787.8020558,
-    "ast_hash": "57e8bcd33255b76abf370f98d6645573",
-    "semantic_hash": ""
-  },
-  "apps/admin/backend/streaming-profile-routes.js": {
-    "mtime": 1785263787.8031995,
-    "ast_hash": "57579b7f2f28cab188a63ffdf2fa3c75",
-    "semantic_hash": ""
-  },
   "apps/admin/components.json": {
     "mtime": 1785263787.810685,
     "ast_hash": "8374b74daf75bd47ef5e1123bccde4ad",
@@ -6565,8 +6520,8 @@
     "semantic_hash": ""
   },
   "apps/admin/supabase/functions/instagram-analytics/index.ts": {
-    "mtime": 1785263788.2476292,
-    "ast_hash": "d9636700c2b8d9554b76a66f9aab53df",
+    "mtime": 1788290848.7875702,
+    "ast_hash": "351fec8f6d6fc57ad5ef2201531a30d2",
     "semantic_hash": ""
   },
   "apps/admin/supabase/functions/ops-alert/index.ts": {
@@ -7970,8 +7925,8 @@
     "semantic_hash": ""
   },
   "scripts/enrich-artist-genres.mjs": {
-    "mtime": 1787757125.197595,
-    "ast_hash": "2a026fc8641ab944b4a17f41efc77d2d",
+    "mtime": 1788290569.4273312,
+    "ast_hash": "bde203d5dbf2e4ef3edd4e82903fdf8a",
     "semantic_hash": ""
   },
   "supabase/migrations/20260812120000_backfill_event_genres_from_artist.sql": {
@@ -8270,8 +8225,8 @@
     "semantic_hash": ""
   },
   "api/_lib/slackSignup.ts": {
-    "mtime": 1788191983.8653414,
-    "ast_hash": "17c50078569d864b6def21f428fbab46",
+    "mtime": 1788290207.7350082,
+    "ast_hash": "aac95c5ddaa1166ddb80015cf8d817aa",
     "semantic_hash": ""
   },
   "api/ai-scene-guides.ts": {
@@ -8947,6 +8902,96 @@
   "supabase/db-deep-scan-2026-08-31/02_index_cleanup.sql": {
     "mtime": 1788195973.8406565,
     "ast_hash": "1bc96640976db52d86b558368c0ca072",
+    "semantic_hash": ""
+  },
+  "scripts/sync-helpers.mjs": {
+    "mtime": 1788217819.2237744,
+    "ast_hash": "1d17b9618a96717d59f213177f8a2566",
+    "semantic_hash": ""
+  },
+  "scripts/test-sync-helpers.mjs": {
+    "mtime": 1788217862.1159506,
+    "ast_hash": "cd4cd29503e51978ec47aff1ab788149",
+    "semantic_hash": ""
+  },
+  "supabase/db-deep-scan-2026-08-31/03_fix_counter_triggers.sql": {
+    "mtime": 1788215641.6473136,
+    "ast_hash": "9b87e454feb2d9468215b475c7bd7328",
+    "semantic_hash": ""
+  },
+  "supabase/db-deep-scan-2026-08-31/04_security_scan.sql": {
+    "mtime": 1788216090.2070704,
+    "ast_hash": "28691ec90f1cc0e281030024e6d17c7a",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260831000000_feed_v5_genre_coverage.sql": {
+    "mtime": 1788215509.9024909,
+    "ast_hash": "6713e8fc98236f733b3411f62baabd78",
+    "semantic_hash": ""
+  },
+  "supabase/onboarding-complete-2026-09-01/01_diagnose.READONLY.sql": {
+    "mtime": 1788289267.2671323,
+    "ast_hash": "b1764ae3290a901aeb6b134850159ea1",
+    "semantic_hash": ""
+  },
+  "supabase/onboarding-complete-2026-09-01/02_backfill.REVIEW.sql": {
+    "mtime": 1788289772.5841396,
+    "ast_hash": "2bfe7fe30dc759b4f4befa4a097405e6",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/01_fix_username_email_disclosure.sql": {
+    "mtime": 1788301715.5898788,
+    "ast_hash": "f372ced713a0f7429eb689c98068d3e4",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/02_storage_bucket_hardening.sql": {
+    "mtime": 1788289751.731495,
+    "ast_hash": "2ce70c761a32812af0b0461384ffe6e9",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/03_security_event_log.sql": {
+    "mtime": 1788302571.0809572,
+    "ast_hash": "4f1c93e05b17d90330bb9313422fea7b",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/04_permissions_audit.sql": {
+    "mtime": 1788290030.9064748,
+    "ast_hash": "60d0033c9d131f9c4c8caa4c7256e8f5",
+    "semantic_hash": ""
+  },
+  "apps/admin/supabase/.temp/linked-project.json": {
+    "mtime": 1788310063.4341674,
+    "ast_hash": "95cf02429668f8b85bd8876a159aa32c",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/06_storage_followup.sql": {
+    "mtime": 1788302043.0713089,
+    "ast_hash": "cfa1c3a2d1834867abbe5094326b5ca0",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/07_followup_queries.sql": {
+    "mtime": 1788302550.506966,
+    "ast_hash": "f14db73e3dcb7934265fc382380a1d61",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/08_users_table_exposure.sql": {
+    "mtime": 1788307506.966516,
+    "ast_hash": "6998e31e34d2e9302d9033b335a61194",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/09_policy_and_cleanup.sql": {
+    "mtime": 1788302973.313087,
+    "ast_hash": "58763a45fbc7585ae41372f58a413ea0",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/10_one_shot_audit.sql": {
+    "mtime": 1788307821.723109,
+    "ast_hash": "f87ab688dd7fa7e6f2817424919f6108",
+    "semantic_hash": ""
+  },
+  "supabase/security-review-2026-09-01/11_remaining_fixes.sql": {
+    "mtime": 1788309145.0656786,
+    "ast_hash": "675d29745339d09bd1e8991f8a065c6f",
     "semantic_hash": ""
   }
 }

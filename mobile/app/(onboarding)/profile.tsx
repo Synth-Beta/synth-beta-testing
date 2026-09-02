@@ -57,6 +57,15 @@ function sanitizeUsername(text: string): string {
 }
 
 /** Suggest a username from display name (first + last initial, then random digits if needed) */
+/** Values the signup trigger seeds when it creates the row - not a user's own choice. */
+function isPlaceholderName(name: string | null | undefined): boolean {
+    return !name || name.trim() === 'Synth User';
+}
+
+function isPlaceholderUsername(username: string | null | undefined): boolean {
+    return !username || /^user_[0-9a-f]{8}$/.test(username);
+}
+
 function suggestUsername(displayName: string): string {
     const base = displayName
         .toLowerCase()
@@ -89,25 +98,60 @@ export default function ProfileSetupScreen() {
 
     const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Pre-fill name from auth metadata and capture userId for self-exclusion in username check
+    // Pre-fill from what's already stored, falling back to auth metadata, and capture
+    // userId for self-exclusion in the username check. Anyone who dropped out partway
+    // through onboarding and reopened the app used to land on a blank form and retype
+    // everything - the row already had their answers, nothing read them back.
     useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (!user) return;
+        let cancelled = false;
+
+        void (async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user || cancelled) return;
             setUserId(user.id);
             setAuthUser(user);
+
+            const draft = await OnboardingService.loadProfileDraft(user.id);
+            if (cancelled) return;
+
+            // The signup trigger seeds name/username when the row is created, so a
+            // stored value is only worth showing if a human actually chose it.
+            const storedName = isPlaceholderName(draft?.name) ? '' : (draft?.name ?? '');
+            const storedUsername = isPlaceholderUsername(draft?.username)
+                ? ''
+                : (draft?.username ?? '');
+
             const displayName: string =
+                storedName ||
                 user.user_metadata?.full_name ||
                 user.user_metadata?.name ||
                 '';
-            if (displayName) {
-                setName(displayName);
-                const suggested = suggestUsername(displayName);
-                if (suggested.length >= 3) {
-                    setUsername(suggested);
-                    scheduleUsernameCheck(suggested);
+            if (displayName) setName(displayName);
+
+            const resolvedUsername = storedUsername || suggestUsername(displayName);
+            if (resolvedUsername.length >= 3) {
+                setUsername(resolvedUsername);
+                scheduleUsernameCheck(resolvedUsername);
+            }
+
+            if (draft?.birthday) setBirthday(draft.birthday);
+            if (draft?.gender) setGender(draft.gender);
+            if (draft?.location_city) setCity(draft.location_city);
+            if (draft?.contact_email) setContactEmail(draft.contact_email);
+            if (
+                draft?.acquisition_source &&
+                (ACQUISITION_SOURCE_CANONICAL_ORDER as readonly string[]).includes(draft.acquisition_source)
+            ) {
+                setAcquisitionSource(draft.acquisition_source as AcquisitionSource);
+                if (draft.acquisition_source === 'Other' && draft.other_acquisition_source) {
+                    setAcquisitionSourceOther(draft.other_acquisition_source);
                 }
             }
-        });
+        })();
+
+        return () => {
+            cancelled = true;
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

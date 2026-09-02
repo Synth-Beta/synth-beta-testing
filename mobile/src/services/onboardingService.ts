@@ -52,23 +52,44 @@ export class OnboardingService {
     }
 
     /**
+     * What the profile step already stored, so someone who dropped out mid-onboarding
+     * and came back does not retype it. Returns null on any error - a prefill is a
+     * convenience, never a reason to block the screen.
+     */
+    static async loadProfileDraft(userId: string) {
+        const { data, error } = await supabase
+            .from('users')
+            .select('name,username,birthday,gender,location_city,acquisition_source,other_acquisition_source,contact_email')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (error) {
+            console.warn('Could not load profile draft:', error.message);
+            return null;
+        }
+        return data;
+    }
+
+    /**
      * Mark onboarding as complete in Supabase and AsyncStorage
      */
     static async completeOnboarding(userId: string): Promise<void> {
         await OnboardingService.ensureUserExists(userId);
 
         const now = new Date().toISOString();
+        // UPDATE, not upsert: `upsert` compiles to INSERT ... ON CONFLICT DO UPDATE, and
+        // Postgres validates NOT NULL on the proposed insert tuple *before* it arbitrates
+        // the conflict. users.name/username are NOT NULL and absent from this payload, so
+        // the upsert failed with 23502 on every call even though the row always exists.
+        // ensureUserExists() above guarantees the row, so plain UPDATE is enough.
         const { data, error } = await supabase
             .from('users')
-            .upsert(
-                {
-                    user_id: userId,
-                    onboarding_completed: true,
-                    onboarding_skipped: false,
-                    updated_at: now,
-                },
-                { onConflict: 'user_id' }
-            )
+            .update({
+                onboarding_completed: true,
+                onboarding_skipped: false,
+                updated_at: now,
+            })
+            .eq('user_id', userId)
             .select('onboarding_completed')
             .maybeSingle();
 
@@ -152,7 +173,6 @@ export class OnboardingService {
         }
 
         const update: Record<string, unknown> = {
-            user_id: userId,
             updated_at: new Date().toISOString(),
         };
         if (data.name !== undefined) update.name = data.name;
@@ -170,9 +190,13 @@ export class OnboardingService {
         if (data.other_acquisition_source !== undefined) update.other_acquisition_source = data.other_acquisition_source;
         if (data.contact_email !== undefined) update.contact_email = data.contact_email;
 
+        // UPDATE, not upsert — same NOT-NULL-on-proposed-tuple trap as completeOnboarding.
+        // This one only worked by accident because its payload usually carries name and
+        // username; it broke the moment either was left blank.
         const { error } = await supabase
             .from('users')
-            .upsert(update, { onConflict: 'user_id' });
+            .update(update)
+            .eq('user_id', userId);
 
         if (error) {
             throw error;
