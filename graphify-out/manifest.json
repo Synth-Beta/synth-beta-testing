@@ -210,8 +210,8 @@
     "semantic_hash": "d8d09d83028ac4b6c29d57b97cb36fe0"
   },
   "mobile/app.json": {
-    "mtime": 1787586626.840647,
-    "ast_hash": "2ab71865f4cb1697ed4d8ed52afbbacb",
+    "mtime": 1788358175.4467175,
+    "ast_hash": "eec295f9cdcf4a45bc3202f856becf77",
     "semantic_hash": ""
   },
   "mobile/app/(auth)/_layout.tsx": {
@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/profile.tsx": {
-    "mtime": 1788301668.0836995,
-    "ast_hash": "32e7f1b6a82164bba72690c58625a1cf",
+    "mtime": 1788358512.769358,
+    "ast_hash": "d5d5237c1f1fb27387b8884c7ca15213",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/scene.tsx": {
@@ -1115,9 +1115,9 @@
     "semantic_hash": "4b888ead60d4ac41134b86599c7aa7ce"
   },
   "packages/synth-shared/src/friendNotifications.ts": {
-    "mtime": 1782307083.1420355,
-    "ast_hash": "ffd9cdb22c2f9ce97b798839789bc3c5",
-    "semantic_hash": "ffd9cdb22c2f9ce97b798839789bc3c5"
+    "mtime": 1788360151.228968,
+    "ast_hash": "c30d154e4f55b75bb9693fc757ed0609",
+    "semantic_hash": ""
   },
   "packages/synth-shared/src/friendSuggestions.ts": {
     "mtime": 1783095848.7504401,
@@ -2745,8 +2745,8 @@
     "semantic_hash": ""
   },
   "src/services/onboardingService.ts": {
-    "mtime": 1786208359.1211696,
-    "ast_hash": "2011c08450f8915e8492d1fa93c736b8",
+    "mtime": 1788358601.7369537,
+    "ast_hash": "0461ef0e9a5481bbb83c3816fe25c763",
     "semantic_hash": ""
   },
   "src/services/passportAchievementService.ts": {
@@ -8992,6 +8992,11 @@
   "supabase/security-review-2026-09-01/11_remaining_fixes.sql": {
     "mtime": 1788309145.0656786,
     "ast_hash": "675d29745339d09bd1e8991f8a065c6f",
+    "semantic_hash": ""
+  },
+  "supabase/friend-system-2026-09-02/01_cleanup.REVIEW.sql": {
+    "mtime": 1788360652.2154267,
+    "ast_hash": "81c6a7c8d0d57a86faedfd30dfcc73b2",
     "semantic_hash": ""
   }
 }

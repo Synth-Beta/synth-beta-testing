@@ -520,10 +520,13 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     );
     closeMessageActionMenu();
 
-    const { error } = await supabase
-      .from('messages')
-      .update({ metadata: nextMetadata })
-      .eq('id', messageId);
+    // Must go through the RPC: messages_update_policy is sender_id = auth.uid(), so a
+    // direct update can only ever heart your own messages. The function checks chat
+    // participation and toggles atomically. See
+    // supabase/chat-hearts-2026-09-02/01_toggle_message_heart.REVIEW.sql
+    const { error } = await supabase.rpc('toggle_message_heart', {
+      p_message_id: messageId,
+    });
 
     if (error) {
       setMessages((prev) =>

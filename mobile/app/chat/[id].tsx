@@ -31,6 +31,10 @@ import { EventService, type EventDetail } from '../../src/services/eventService'
 import { supabase } from '../../src/integrations/supabase/client';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveChatImageDisplayUrl } from '../../src/utils/chatImageStorage';
+import {
+    ContentModerationService,
+    type MessageFlagReason,
+} from '../../src/services/contentModerationService';
 
 const PINK = SynthTokens.colors.brandPink500;
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
@@ -378,6 +382,16 @@ export default function ChatThreadScreen() {
                     stickToBottomRef.current = true;
                     void loadMessages();
                     setTimeout(() => scrollToLatest(true), 150);
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'messages', filter: `chat_id=eq.${id}` },
+                () => {
+                    // Hearts are stored on messages.metadata, so another person's reaction
+                    // arrives as an UPDATE. Refetch without touching scroll - reacting to an
+                    // older message must not yank the reader to the bottom.
+                    void loadMessages();
                 }
             )
             .subscribe();
@@ -735,10 +749,13 @@ export default function ChatThreadScreen() {
         );
         closeMessageMenu();
 
-        const { error } = await supabase
-            .from('messages')
-            .update({ metadata: nextMetadata as any })
-            .eq('id', messageId);
+        // Must go through the RPC: messages_update_policy is sender_id = auth.uid(), so a
+        // direct update can only ever heart your own messages. The function checks chat
+        // participation and toggles atomically. See
+        // supabase/chat-hearts-2026-09-02/01_toggle_message_heart.REVIEW.sql
+        const { error } = await supabase.rpc('toggle_message_heart', {
+            p_message_id: messageId,
+        });
 
         if (error) {
             setMessages((prev) =>
@@ -775,9 +792,34 @@ export default function ChatThreadScreen() {
     }, [selectedMessage, copyTextForMessage]);
 
     const handleReportMessage = useCallback(() => {
+        const message = selectedMessage;
         closeMessageMenu();
-        Alert.alert('Reported', 'Thank you. We will review this message shortly.');
-    }, []);
+        if (!message) return;
+
+        const submit = async (reason: MessageFlagReason) => {
+            try {
+                const outcome = await ContentModerationService.reportMessage(message.id, reason);
+                Alert.alert(
+                    outcome === 'already_reported' ? 'Already reported' : 'Reported',
+                    outcome === 'already_reported'
+                        ? 'You have already reported this message.'
+                        : 'Thank you. We will review this message shortly.'
+                );
+            } catch (err) {
+                console.warn('Report message failed:', err);
+                Alert.alert('Could not report', 'Please check your connection and try again.');
+            }
+        };
+
+        // Reason is required: the admin queue filters on flag_reason, and a report filed as
+        // 'other' with no detail is not actionable.
+        Alert.alert('Report message', 'Why are you reporting this?', [
+            { text: 'Spam', onPress: () => void submit('spam') },
+            { text: 'Harassment', onPress: () => void submit('harassment') },
+            { text: 'Inappropriate', onPress: () => void submit('inappropriate_content') },
+            { text: 'Cancel', style: 'cancel' },
+        ]);
+    }, [selectedMessage]);
 
     const messageMenuActions = useMemo<MessageAction[]>(() => {
         if (!selectedMessage || !userId) return [];
@@ -1705,7 +1747,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     menuItem: {
-        minHeight: SynthTokens.layout.menuItemRowHeight,
+        minHeight: SynthTokens.spacing.menuItemRowHeight,
         justifyContent: 'center',
         paddingHorizontal: SynthTokens.spacing.md,
     },
