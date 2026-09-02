@@ -43,6 +43,21 @@ const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PR
 const ONBOARDING_FLOW_ENTRY = '/(onboarding)/profile';
 /** If `useFonts` never resolves (no error), do not block app boot forever. */
 const FONT_LOAD_TIMEOUT_MS = 10_000;
+/** AsyncStorage can occasionally stall on iOS; never block boot on reads. */
+const STORAGE_READ_TIMEOUT_MS = 1500;
+
+async function getStorageItemWithTimeout(key: string): Promise<string | null> {
+  try {
+    return await Promise.race<string | null>([
+      AsyncStorage.getItem(key),
+      new Promise<string | null>((resolve) =>
+        setTimeout(() => resolve(null), STORAGE_READ_TIMEOUT_MS)
+      ),
+    ]);
+  } catch {
+    return null;
+  }
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -71,7 +86,7 @@ export default function RootLayout() {
 
   const refreshOnboardingFromStorage = useCallback(async (userId: string): Promise<boolean> => {
     try {
-      const value = await AsyncStorage.getItem(getOnboardingStorageKey(userId));
+      const value = await getStorageItemWithTimeout(getOnboardingStorageKey(userId));
       if (value === 'true') {
         setStorageOnboardingComplete(true);
         setIsOnboardingComplete(true);
@@ -98,7 +113,7 @@ export default function RootLayout() {
       }
 
       try {
-        const value = await AsyncStorage.getItem(getOnboardingStorageKey(sessionUserId));
+        const value = await getStorageItemWithTimeout(getOnboardingStorageKey(sessionUserId));
         if (!cancelled) setStorageOnboardingComplete(value === 'true');
       } catch {
         if (!cancelled) setStorageOnboardingComplete(false);

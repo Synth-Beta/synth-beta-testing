@@ -4,12 +4,27 @@ import {
   type PendingShareLink,
 } from '@synth/shared';
 
+const STORAGE_READ_TIMEOUT_MS = 1500;
+
+async function getItemWithTimeout(key: string): Promise<string | null> {
+  try {
+    return await Promise.race<string | null>([
+      AsyncStorage.getItem(key),
+      new Promise<string | null>((resolve) =>
+        setTimeout(() => resolve(null), STORAGE_READ_TIMEOUT_MS)
+      ),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
 export async function storePendingShareLink(link: PendingShareLink): Promise<void> {
   await AsyncStorage.setItem(PENDING_SHARE_STORAGE_KEY, JSON.stringify(link));
 }
 
 export async function loadPendingShareLink(): Promise<PendingShareLink | null> {
-  const raw = await AsyncStorage.getItem(PENDING_SHARE_STORAGE_KEY);
+  const raw = await getItemWithTimeout(PENDING_SHARE_STORAGE_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as PendingShareLink;

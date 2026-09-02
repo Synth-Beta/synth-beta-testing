@@ -93,6 +93,7 @@ interface User {
   name?: string;
   username?: string;
   avatar_url?: string;
+  acquisition_source?: string | null;
 }
 
 interface DaySignupUser {
@@ -210,6 +211,11 @@ const normalizeAcquisitionSource = (value?: string | null): string | null => {
 };
 
 const FULL_OTHER_RESPONSES_LIMIT = 500;
+const ACQUISITION_SOURCE_USER_FILTER_OPTIONS = [
+  { value: 'all', label: 'All Acquisition Sources' },
+  ...ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => ({ value: source, label: source })),
+  { value: 'unknown', label: 'Unknown' },
+] as const;
 
 function SignupNamesTooltip({
   active,
@@ -347,6 +353,7 @@ export default function Admin() {
   const [signupMethods, setSignupMethods] = useState<Record<string, SignupMethod>>({});
   const [signupMethodsError, setSignupMethodsError] = useState<string | null>(null);
   const [signupMethodFilter, setSignupMethodFilter] = useState<'all' | SignupMethod>('all');
+  const [acquisitionSourceFilter, setAcquisitionSourceFilter] = useState<string>('all');
   const [acquisitionSourceCounts, setAcquisitionSourceCounts] = useState<AcquisitionSourceCount[]>([]);
   const [acquisitionWeeklyBreakdown, setAcquisitionWeeklyBreakdown] = useState<AcquisitionWeeklyBreakdownPoint[]>([]);
   const [recentOtherAcquisitionResponses, setRecentOtherAcquisitionResponses] = useState<AcquisitionOtherResponse[]>([]);
@@ -525,7 +532,7 @@ export default function Admin() {
       // Fetch all users from users table for analytics
       const { data: usersData, error: usersError } = await db
         .from('users')
-        .select('id, user_id, name, username, avatar_url, account_type, created_at, last_active_at')
+        .select('id, user_id, name, username, avatar_url, account_type, created_at, last_active_at, acquisition_source')
         .order('created_at', { ascending: false });
 
       if (usersError) {
@@ -542,6 +549,7 @@ export default function Admin() {
         name: userRecord.name || undefined,
         username: userRecord.username || undefined,
         avatar_url: userRecord.avatar_url || undefined,
+        acquisition_source: userRecord.acquisition_source ?? null,
       }));
 
       setUsers(usersList);
@@ -2664,6 +2672,62 @@ export default function Admin() {
                                     <TableCell className="text-right py-2">
                                       <Badge variant={SIGNUP_METHOD_BADGE_VARIANT[method]} className="text-[10px]">
                                         {SIGNUP_METHOD_LABELS[method]}
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                  <CardHeader className="py-3 px-4">
+                    <CardTitle className="text-sm">Users · Acquisition Source</CardTitle>
+                    <CardDescription className="text-xs">Acquisition source, per user</CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 pt-0 space-y-3">
+                    <Select value={acquisitionSourceFilter} onValueChange={setAcquisitionSourceFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Filter by acquisition source" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ACQUISITION_SOURCE_USER_FILTER_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {loading ? (
+                      <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                    ) : (
+                      <div className="max-h-[280px] overflow-auto rounded-md border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Name</TableHead>
+                              <TableHead className="text-xs text-right">Source</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {users
+                              .filter(u => {
+                                if (acquisitionSourceFilter === 'all') return true;
+                                const source = normalizeAcquisitionSource(u.acquisition_source);
+                                return acquisitionSourceFilter === 'unknown'
+                                  ? !source
+                                  : source === acquisitionSourceFilter;
+                              })
+                              .map(u => {
+                                const source = normalizeAcquisitionSource(u.acquisition_source);
+                                return (
+                                  <TableRow key={u.id}>
+                                    <TableCell className="text-sm py-2">{u.name || u.id.slice(0, 8) || '—'}</TableCell>
+                                    <TableCell className="text-right py-2">
+                                      <Badge variant="secondary" className="text-[10px]">
+                                        {source ?? 'Unknown'}
                                       </Badge>
                                     </TableCell>
                                   </TableRow>

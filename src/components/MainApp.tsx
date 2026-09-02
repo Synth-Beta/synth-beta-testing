@@ -22,7 +22,6 @@ import { NotificationsPage } from './NotificationsPage';
 import { UnifiedChatView } from './UnifiedChatView';
 import { MyEventsManagementPanel } from './events/MyEventsManagementPanel';
 import { OnboardingReminderBanner } from './onboarding/OnboardingReminderBanner';
-import { ShareWithFriendsBanner, isShareBannerDismissed } from './share/ShareWithFriendsBanner';
 import { OnboardingTour } from './onboarding/OnboardingTour';
 import { OnboardingFlow } from './onboarding/OnboardingFlow';
 import { UsernameRequiredModal } from './onboarding/UsernameRequiredModal';
@@ -90,7 +89,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [showOnboardingReminder, setShowOnboardingReminder] = useState(false);
   const [usernameRequired, setUsernameRequired] = useState<string | null>(null);
   const [emailRequired, setEmailRequired] = useState(false);
-  const [showShareBanner, setShowShareBanner] = useState(() => !isShareBannerDismissed());
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareTarget, setShareTarget] = useState<{ type: 'artist' | 'venue'; id: string; name: string } | null>(null);
   const [runTour, setRunTour] = useState(false);
@@ -1042,9 +1040,9 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           ? 'max(5rem, calc(5rem + env(safe-area-inset-bottom, 0px)))'
           : 0,
         backgroundColor: 'var(--neutral-50)',
-        // Set CSS variable for top banner height (onboarding + share) so MobileHeader positions below it
+        // Set CSS variable for top banner height so MobileHeader positions below it
         '--onboarding-banner-height': !hideNavigation
-          ? `${(showOnboardingReminder ? 60 : 0) + (showShareBanner ? 56 : 0)}px`
+          ? `${showOnboardingReminder ? 60 : 0}px`
           : '0px',
         // Set CSS variable for header padding-top: when banner is visible, no safe area padding needed
         // (banner already accounts for it); when banner is not visible, header needs safe area padding
@@ -1058,13 +1056,6 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           onDismiss={() => setShowOnboardingReminder(false)}
         />
       )}
-      {/* Share with friends banner (dismissible, site-wide) */}
-      {showShareBanner && !hideNavigation && (
-        <div style={{ position: 'fixed', top: showOnboardingReminder ? 60 : 0, left: 0, right: 0, zIndex: 59 }}>
-          <ShareWithFriendsBanner onDismiss={() => setShowShareBanner(false)} />
-        </div>
-      )}
-
       {/* Global Discover-style header for artist/venue detail modals opened from anywhere */}
       {isGlobalArtistOrVenueOpen && (
         <MobileHeader

@@ -109,6 +109,8 @@ export class ContentModerationService {
           contentType = 'review'; // Treat comments as reviews for moderation
         } else if (contentType === 'profile') {
           contentType = 'artist'; // Treat profiles as artist content
+        } else if (contentType === 'message') {
+          contentType = 'review'; // Store chat-message flags in moderation_flags using review bucket
         } else {
           throw new Error(`Content type ${contentType} is not supported for moderation flags`);
         }
@@ -368,13 +370,21 @@ export class ContentModerationService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return false;
+      const normalizedType: ContentType =
+        contentType === 'comment'
+          ? 'review'
+          : contentType === 'profile'
+            ? 'artist'
+            : contentType === 'message'
+              ? 'review'
+              : contentType;
 
       // Check if user already reported this content
       const { data, error } = await supabase
         .from('moderation_flags')
         .select('id')
         .eq('flagged_by_user_id', user.id)
-        .eq('content_type', contentType)
+        .eq('content_type', normalizedType)
         .eq('content_id', contentId)
         .single();
 

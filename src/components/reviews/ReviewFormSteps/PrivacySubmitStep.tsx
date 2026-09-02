@@ -7,7 +7,6 @@ import { Star, Globe, Lock, Check, Info, Calendar, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
-import { ShareAppCTA } from '@/components/share/ShareAppCTA';
 import { useAuth } from '@/hooks/useAuth';
 
 interface CategorySummary {
@@ -237,9 +236,6 @@ export function PrivacySubmitStep({
               metOnSynth={formData.metOnSynth}
               onMetOnSynthChange={(metOnSynth) => onUpdateFormData({ metOnSynth })}
             />
-            <div className="mt-6 pt-6 border-t border-pink-200">
-              <ShareAppCTA source="review_flow" compact />
-            </div>
           </CardContent>
         </Card>
       )}

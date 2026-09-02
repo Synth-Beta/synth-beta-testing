@@ -10,7 +10,6 @@ import { SynthText } from '../../src/components/SynthText';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
 import { BucketListRail } from '../../src/components/Feed/BucketListRail';
 import { FeedListSkeleton } from '../../src/components/skeletons/FeedListSkeleton';
-import { ShareWithFriendsBanner } from '../../src/components/share/ShareWithFriendsBanner';
 import {
   BucketListFeedItem,
   FriendSuggestion,
@@ -44,7 +43,6 @@ export default function FeedScreen() {
   const [feedError, setFeedError] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const [bucketListEvents, setBucketListEvents] = useState<BucketListFeedItem[]>([]);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const retryAttemptRef = useRef(0);
   const { seedFromFeed } = useInterested();
@@ -67,7 +65,6 @@ export default function FeedScreen() {
       const loc = browseCoords;
       const user = session?.user ?? null;
       if (!user) {
-        setReferralCode(null);
         setViewerUserId(null);
         setEvents([]);
         setReviews([]);
@@ -77,29 +74,14 @@ export default function FeedScreen() {
       }
       setViewerUserId(user.id);
 
-      // Referral code / unread count / friend suggestions rail / main feed content are all
-      // independent of each other — run them together instead of one after another so the
-      // load time is the slowest of these, not the sum of all of them. The referral lookup
-      // is wrapped so a failure there can't wipe out an otherwise-successful feed fetch.
-      const referralCodePromise = (async (): Promise<string | null> => {
-        try {
-          const { data } = await supabase
-            .from('users')
-            .select('referral_code')
-            .eq('user_id', user.id)
-            .maybeSingle();
-          return (data as any)?.referral_code ?? null;
-        } catch {
-          return null;
-        }
-      })();
+      // Unread count / friend suggestions rail / main feed content are all independent
+      // of each other — run them together so total load time is the slowest request.
       const unreadPromise = NotificationService.getUnreadCount(user.id);
       const suggestionsPromise = HomeFeedService.getFriendSuggestionsForRail(user.id, 5);
       const bucketListEventsPromise = HomeFeedService.getBucketListEvents(user.id, 10);
 
       if (feedDisplayMode === 'events') {
-        const [referralCode, unread, suggestions, bucketEvents, unified, friendEvents] = await Promise.all([
-          referralCodePromise,
+        const [unread, suggestions, bucketEvents, unified, friendEvents] = await Promise.all([
           unreadPromise,
           suggestionsPromise,
           bucketListEventsPromise,
@@ -108,7 +90,6 @@ export default function FeedScreen() {
           ),
           HomeFeedService.getNetworkEvents(user.id, 20),
         ]);
-        setReferralCode(referralCode);
         setNotificationCount(unread);
         setFriendSuggestions(suggestions);
         setBucketListEvents(bucketEvents);
@@ -151,14 +132,12 @@ export default function FeedScreen() {
         setEvents(upcomingOnly);
         seedFromFeed(upcomingOnly);
       } else {
-        const [referralCode, unread, suggestions, bucketEvents, networkReviews] = await Promise.all([
-          referralCodePromise,
+        const [unread, suggestions, bucketEvents, networkReviews] = await Promise.all([
           unreadPromise,
           suggestionsPromise,
           bucketListEventsPromise,
           HomeFeedService.getNetworkReviews(user.id, 20),
         ]);
-        setReferralCode(referralCode);
         setNotificationCount(unread);
         setFriendSuggestions(suggestions);
         setBucketListEvents(bucketEvents);
@@ -167,7 +146,7 @@ export default function FeedScreen() {
       setFeedError(false);
       retryAttemptRef.current = 0;
     } catch (error) {
-      // Deliberately NOT clearing events/reviews/referralCode/viewerUserId here:
+      // Deliberately NOT clearing events/reviews/viewerUserId here:
       // a transient backend failure (e.g. an RPC timeout) must never present as
       // "no events" by wiping out whatever was last successfully loaded. Only
       // the "no session" branch above clears those, since that's a real reason
@@ -290,14 +269,13 @@ export default function FeedScreen() {
   const listHeader = useMemo(
     () => (
       <>
-        <ShareWithFriendsBanner referralCode={referralCode} source="home_feed" />
         <BucketListRail events={bucketListEvents} />
         {friendSuggestions.length > 0 ? (
           <FriendSuggestionsRail suggestions={friendSuggestions} />
         ) : null}
       </>
     ),
-    [referralCode, bucketListEvents, friendSuggestions]
+    [bucketListEvents, friendSuggestions]
   );
 
   return (
