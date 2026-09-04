@@ -26,13 +26,19 @@ export const getUpcomingEvents = <T extends { event_date?: string | null }>(even
 export const getPastEvents = <T extends { event_date?: string | null }>(events: T[]): T[] =>
     filterEventsByStatus(events, 'past');
 
-/** Matches web ProfileView interested list: ascending by date within Upcoming vs Past buckets. */
-export function filterInterestedRowsForSegment<T extends { event_date?: string | null }>(
-    rows: T[],
-    upcoming: boolean
-): T[] {
+/**
+ * Matches web ProfileView interested list: `going` first — it's the real
+ * commitment, so it leads the section — then ascending by date, within the
+ * Upcoming vs Past buckets.
+ */
+export function filterInterestedRowsForSegment<
+    T extends { event_date?: string | null; relationship_type?: string | null }
+>(rows: T[], upcoming: boolean): T[] {
     const filtered = upcoming ? getUpcomingEvents(rows) : getPastEvents(rows);
-    return [...filtered].sort(
-        (a, b) => new Date(String(a.event_date ?? 0)).getTime() - new Date(String(b.event_date ?? 0)).getTime()
-    );
+    return [...filtered].sort((a, b) => {
+        const aGoing = a.relationship_type === 'going' ? 0 : 1;
+        const bGoing = b.relationship_type === 'going' ? 0 : 1;
+        if (aGoing !== bGoing) return aGoing - bGoing;
+        return new Date(String(a.event_date ?? 0)).getTime() - new Date(String(b.event_date ?? 0)).getTime();
+    });
 }

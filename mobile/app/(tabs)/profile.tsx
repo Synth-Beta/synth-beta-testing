@@ -422,6 +422,7 @@ export default function ProfileScreen() {
                   ticket_url={ev.ticket_url}
                   initialInterested={true}
                   currentUserId={authUserId}
+                  cornerLabel={ev.relationship_type === 'going' ? 'Going' : undefined}
                   onPress={() => router.push(`/event/${ev.event_id}`)}
                 />
               ))

@@ -6,11 +6,16 @@
  * artist_id/venue_id are the only names available — while the list was ordered
  * by created_at but displayed Event_date.
  *
- * Run: node --experimental-strip-types packages/synth-shared/src/reviewTimelineCore.test.ts
+ * The select list is load-bearing too: `reviews.user_created_venue_id` only
+ * exists after supabase/user-created-venues-2026-09-04/02_*.sql, and asking a
+ * DB without it answers 42703 — which a caught error turns into a blank
+ * passport rather than a visible failure. So both DB shapes are tested here.
+ *
+ * Run: npx tsx packages/synth-shared/src/reviewTimelineCore.test.ts
  */
 
 import assert from 'node:assert/strict';
-import { fetchProfileReviewTimeline } from './reviewTimelineCore.ts';
+import { fetchProfileReviewTimeline } from './reviewTimelineCore';
 
 const REVIEWS = [
   // Reviewed most recently, but the oldest show.
@@ -27,7 +32,7 @@ const REVIEWS = [
     photos: null,
     events: null,
   },
-  // Newest show, reviewed first. User-created artist/venue.
+  // Newest show, reviewed first. Both sides user-created.
   {
     id: 'r2',
     rating: 4,
@@ -64,36 +69,70 @@ const NAMES: Record<string, Record<string, string>> = {
   user_created_venues: { uv1: "Dave's Garage" },
 };
 
-const client = {
-  from(table: string) {
-    if (table === 'reviews') {
-      const result = { data: REVIEWS, error: null };
-      return { select: () => ({ eq: () => ({ or: () => Promise.resolve(result) }) }) };
-    }
-    return {
-      select: () => ({
-        in: (_col: string, ids: string[]) =>
-          Promise.resolve({
-            data: ids.map((id) => ({ id, name: NAMES[table]?.[id] })).filter((r) => r.name),
-            error: null,
-          }),
-      }),
-    };
-  },
-};
+/** `hasVenueColumn: false` models a DB where 02_*.sql has not been applied. */
+function makeClient(hasVenueColumn: boolean) {
+  const selects: string[] = [];
+  const client = {
+    from(table: string) {
+      if (table === 'reviews') {
+        return {
+          select: (cols: string) => {
+            selects.push(cols);
+            const missing = !hasVenueColumn && cols.includes('user_created_venue_id');
+            const result = missing
+              ? { data: null, error: { code: '42703', message: 'column reviews.user_created_venue_id does not exist' } }
+              : {
+                  data: REVIEWS.map((r) =>
+                    hasVenueColumn ? r : Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'user_created_venue_id'))
+                  ),
+                  error: null,
+                };
+            return { eq: () => ({ or: () => Promise.resolve(result) }) };
+          },
+        };
+      }
+      return {
+        select: () => ({
+          in: (_col: string, ids: string[]) =>
+            Promise.resolve({
+              data: ids.map((id) => ({ id, name: NAMES[table]?.[id] })).filter((r) => r.name),
+              error: null,
+            }),
+        }),
+      };
+    },
+  };
+  return { client, selects };
+}
 
-const items = await fetchProfileReviewTimeline(client, 'user-1');
+// --- DB with the migration applied -----------------------------------------
+{
+  const { client, selects } = makeClient(true);
+  const items = await fetchProfileReviewTimeline(client, 'user-1');
 
-assert.deepEqual(
-  items.map((i) => i.id),
-  ['r2', 'r3', 'r1'],
-  'timeline must be newest-show-first, not newest-review-first'
-);
+  assert.equal(selects.length, 1, 'no retry needed when the column exists');
+  assert.deepEqual(
+    items.map((i) => i.id),
+    ['r2', 'r3', 'r1'],
+    'timeline must be newest-show-first, not newest-review-first'
+  );
+  assert.equal(items[2].title, 'Phoebe Bridgers at Red Rocks');
+  assert.equal(items[2].subtitle, '3.5 stars');
+  assert.equal(items[0].title, "Local Openers at Dave's Garage", 'user-created names must resolve');
+  assert.equal(items[0].image_url, 'https://example.com/p.jpg');
+  assert.equal(items[1].title, 'Concert', 'nameless review keeps the old fallback');
+}
 
-assert.equal(items[2].title, 'Phoebe Bridgers at Red Rocks');
-assert.equal(items[2].subtitle, '3.5 stars');
-assert.equal(items[0].title, "Local Openers at Dave's Garage", 'user-created names must resolve too');
-assert.equal(items[0].image_url, 'https://example.com/p.jpg');
-assert.equal(items[1].title, 'Concert', 'nameless review keeps the old fallback');
+// --- DB without the migration ----------------------------------------------
+{
+  const { client, selects } = makeClient(false);
+  const items = await fetchProfileReviewTimeline(client, 'user-1');
+
+  assert.equal(selects.length, 2, '42703 must trigger exactly one retry');
+  assert.ok(!selects[1].includes('user_created_venue_id'), 'the retry must drop the missing column');
+  assert.equal(items.length, 3, 'a DB without the column still renders a full timeline, not a blank one');
+  assert.equal(items[2].title, 'Phoebe Bridgers at Red Rocks');
+  assert.equal(items[0].title, 'Local Openers', 'venue unknown, artist still names the card');
+}
 
 console.log('reviewTimelineCore: OK');

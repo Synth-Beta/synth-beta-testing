@@ -25,6 +25,7 @@ type ReviewTimelineRow = Record<string, unknown> & {
   artist_id?: string | null;
   venue_id?: string | null;
   user_created_artist_id?: string | null;
+  /** Only present once the user-created-venues migration has been applied. */
   user_created_venue_id?: string | null;
   photos?: string[] | null;
   events?: EventTimelineRow | EventTimelineRow[] | null;
@@ -109,41 +110,53 @@ function subtitleFor(
   return pieces.length ? pieces.join(' • ') : 'Reviewed event';
 }
 
+const REVIEW_COLUMNS = [
+  'id',
+  'rating',
+  'review_text',
+  'created_at',
+  'Event_date',
+  'event_id',
+  'artist_id',
+  'venue_id',
+  'user_created_artist_id',
+  'photos',
+  'events:event_id (id, title, venue_city, venue_state, event_date, event_media_url, images)',
+];
+
+/**
+ * `reviews.user_created_venue_id` only exists once
+ * `supabase/user-created-venues-2026-09-04/02_*.sql` has been applied. Asking
+ * for it before then answers 42703 and takes the whole timeline down with it
+ * (a caught error renders as an empty passport, not as an error), so ask, then
+ * retry without it.
+ */
+const OPTIONAL_REVIEW_COLUMN = 'user_created_venue_id';
+const UNDEFINED_COLUMN = '42703';
+
+async function fetchReviewRows(client: SynthSupabaseClient, userId: string): Promise<ReviewTimelineRow[]> {
+  const run = (columns: string[]) =>
+    client
+      .from('reviews')
+      .select(columns.join(', '))
+      .eq('user_id', userId)
+      .or('is_draft.eq.false,is_draft.is.null');
+
+  const full = await run([...REVIEW_COLUMNS, OPTIONAL_REVIEW_COLUMN]);
+  if (!full.error) return (full.data || []) as ReviewTimelineRow[];
+  if (full.error.code !== UNDEFINED_COLUMN) throw full.error;
+
+  const base = await run(REVIEW_COLUMNS);
+  if (base.error) throw base.error;
+  return (base.data || []) as ReviewTimelineRow[];
+}
+
 export async function fetchProfileReviewTimeline(
   client: SynthSupabaseClient,
   userId: string
 ): Promise<ProfileReviewTimelineItem[]> {
   try {
-    const { data: reviews, error } = await client
-      .from('reviews')
-      .select(`
-          id,
-          rating,
-          review_text,
-          created_at,
-          Event_date,
-          event_id,
-          artist_id,
-          venue_id,
-          user_created_artist_id,
-          user_created_venue_id,
-          photos,
-          events:event_id (
-            id,
-            title,
-            venue_city,
-            venue_state,
-            event_date,
-            event_media_url,
-            images
-          )
-        `)
-      .eq('user_id', userId)
-      .or('is_draft.eq.false,is_draft.is.null');
-
-    if (error) throw error;
-
-    const rows = (reviews || []) as ReviewTimelineRow[];
+    const rows = await fetchReviewRows(client, userId);
 
     // The review flow stores artist_id + venue_id and leaves event_id null
     // (see web reviewService.setEventReview), so the `events` embed is null for

@@ -160,12 +160,15 @@ export class MyEventsService {
      * already deems it visible to this viewer.
      */
     static async getMyReviews(userId: string): Promise<GetMyReviewsResult> {
-        // Try full query first (includes user_created columns added in later migrations).
-        // If those columns don't exist in this DB, fall back to the base columns.
+        // `user_created_venue_id` only exists once
+        // supabase/user-created-venues-2026-09-04/02_*.sql has been applied;
+        // `user_created_artist_id` is already live. Ask for both, fall back to
+        // the artist side alone on 42703 — falling all the way back to neither
+        // would silently drop user-created artist names from every card.
         const FULL_SELECT =
             'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id, user_created_artist_id, user_created_venue_id';
         const BASE_SELECT =
-            'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id';
+            'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id, user_created_artist_id';
 
         let reviewsData: any[] | null = null;
         let reviewsError: any = null;
@@ -178,9 +181,9 @@ export class MyEventsService {
             ({ data: reviewsData, error: reviewsError } = await q.order('created_at', { ascending: false }));
         }
 
-        let hasUserCreatedCols = true;
+        let hasUserCreatedVenueCol = true;
         if (reviewsError) {
-            // Retry with base columns in case user_created columns don't exist yet.
+            // Retry without user_created_venue_id in case the migration hasn't run here.
             const fallbackQuery = supabase
                 .from('reviews')
                 .select(BASE_SELECT)
@@ -195,9 +198,9 @@ export class MyEventsService {
             }
             reviewsData = fallback.data;
             reviewsError = null;
-            hasUserCreatedCols = false;
+            hasUserCreatedVenueCol = false;
             if (__DEV__) {
-                console.debug('[myEvents] getMyReviews: fell back to base columns (user_created cols missing)');
+                console.debug('[myEvents] getMyReviews: fell back — reviews.user_created_venue_id not in this DB yet');
             }
         }
 
@@ -214,10 +217,10 @@ export class MyEventsService {
         const eventIds = [...new Set(filtered.map((r: any) => r.event_id).filter(Boolean))] as string[];
         const reviewArtistIds = [...new Set(filtered.map((r: any) => r.artist_id).filter(Boolean))] as string[];
         const reviewVenueIds = [...new Set(filtered.map((r: any) => r.venue_id).filter(Boolean))] as string[];
-        const reviewUserCreatedArtistIds = hasUserCreatedCols
-            ? ([...new Set(filtered.map((r: any) => r.user_created_artist_id).filter(Boolean))] as string[])
-            : [];
-        const reviewUserCreatedVenueIds = hasUserCreatedCols
+        const reviewUserCreatedArtistIds = [
+            ...new Set(filtered.map((r: any) => r.user_created_artist_id).filter(Boolean)),
+        ] as string[];
+        const reviewUserCreatedVenueIds = hasUserCreatedVenueCol
             ? ([...new Set(filtered.map((r: any) => r.user_created_venue_id).filter(Boolean))] as string[])
             : [];
 
