@@ -164,11 +164,11 @@ export class BecauseYouLikeService {
     try {
       // Already sorted by rank_order (nulls last), then added_at asc.
       const bucketList = await BucketListService.getBucketList(userId);
-      const rankedArtistNames = bucketList
-        .filter((item) => item.entity_type === 'artist')
-        .map((item) => item.entity_name);
+      const rankedArtists = bucketList
+        .filter((item) => item.entity_type === 'artist' && !!item.entity_id)
+        .map((item) => ({ id: item.entity_id, name: item.entity_name }));
 
-      const events = await getEventsFromRankedArtists(supabase, rankedArtistNames, limit);
+      const events = await getEventsFromRankedArtists(supabase, rankedArtists, { limit });
       return events.map((e) => ({
         ...e,
         reason: e.bucket_reason,

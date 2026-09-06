@@ -312,7 +312,12 @@ export const NotificationsPage = ({
       case 'review_comment':
         return <MessageCircle className="w-4 h-4" />;
       case 'event_reminder':
+      case 'event_reminder_1_week':
+      case 'event_reminder_3_days':
+      case 'event_reminder_1_day':
         return <Calendar className="w-4 h-4" />;
+      case 'event_reminder_day_after':
+        return <Star className="w-4 h-4" />;
       default:
         return <Bell className="w-4 h-4" />;
     }
@@ -329,7 +334,12 @@ export const NotificationsPage = ({
       case 'review_comment':
         return 'text-green-600';
       case 'event_reminder':
+      case 'event_reminder_1_week':
+      case 'event_reminder_3_days':
+      case 'event_reminder_1_day':
         return 'text-purple-600';
+      case 'event_reminder_day_after':
+        return 'text-yellow-600';
       default:
         return 'var(--neutral-600)';
     }
@@ -409,9 +419,45 @@ export const NotificationsPage = ({
         await markAsRead(notification.id);
         break;
 
+      case 'event_reminder_day_after': {
+        // Only sent to users who RSVP'd going. Open the review composer prefilled
+        // rather than the event page — the whole point is "how was it?".
+        if (data?.event_id) {
+          // send_event_reminders() COALESCEs venue_name down to 'Unknown Venue'
+          // and artist to ''. EventReviewForm turns any truthy name without an id
+          // into a `manual-` selection, so passing the sentinel through would
+          // prefill (and let the user submit) a venue literally named
+          // "Unknown Venue". Drop both placeholders instead.
+          const venueName = data.event_venue || notification.venue_name;
+          const artistName = data.event_artist || notification.artist_name;
+          window.dispatchEvent(
+            new CustomEvent('open-review-modal', {
+              detail: {
+                event: {
+                  id: data.event_id,
+                  title: data.event_title || notification.event_title,
+                  artist_id: data.artist_id,
+                  artist_name: artistName || undefined,
+                  venue_id: data.venue_id,
+                  venue_name:
+                    venueName && venueName !== 'Unknown Venue' ? venueName : undefined,
+                  event_date: data.event_date,
+                },
+              },
+            })
+          );
+        } else if (onNavigateToDiscover) {
+          onNavigateToDiscover();
+        }
+        break;
+      }
+
       case 'event_interest':
       case 'event_attendance_reminder':
       case 'event_reminder':
+      case 'event_reminder_1_week':
+      case 'event_reminder_3_days':
+      case 'event_reminder_1_day':
       case 'friend_rsvp_going':
       case 'friend_rsvp_changed':
       case 'friend_review_posted':

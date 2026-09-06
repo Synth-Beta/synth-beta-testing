@@ -183,6 +183,8 @@ export {
 } from './acquisitionSources';
 export {
   type BucketListFeedEvent,
+  type BucketListFeedOptions,
+  type RankedBucketArtist,
   getEventsFromRankedArtists,
 } from './bucketListFeed';
 export {

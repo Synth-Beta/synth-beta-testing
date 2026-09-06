@@ -9,7 +9,7 @@ import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { Ticket, ExternalLink } from 'lucide-react';
 import { ClickableImage } from '@/components/modals/FullScreenImageModal';
 
-export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following';
+export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following' | 'bucket_list';
 
 interface CompactEventCardProps {
   event: {
@@ -27,6 +27,8 @@ interface CompactEventCardProps {
   isInterested?: boolean;
   isCommunityPhoto?: boolean;
   reason?: EventReason;
+  /** Overrides the badge text for this card (e.g. "#1 on your bucket list"). */
+  reasonLabel?: string;
   distanceLabel?: string;
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
@@ -42,6 +44,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   isInterested = false,
   isCommunityPhoto = false,
   reason,
+  reasonLabel,
   distanceLabel,
   onInterestClick,
   onShareClick,
@@ -89,7 +92,9 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       trending: 'Trending',
       friend_interested: 'Friend Interested',
       following: 'Following',
+      bucket_list: 'Bucket List',
     };
+    const label = reasonLabel || labelMap[reason];
 
     return (
       <div
@@ -107,9 +112,9 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
           textTransform: 'uppercase',
           zIndex: 50,
         }}
-        aria-label={`Event shown because: ${labelMap[reason]}`}
+        aria-label={`Event shown because: ${label}`}
       >
-        {labelMap[reason]}
+        {label}
       </div>
     );
   };

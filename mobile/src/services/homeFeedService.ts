@@ -760,15 +760,19 @@ export class HomeFeedService {
     }
 
     /** Upcoming events for the user's ranked bucket-list artists — same logic as web. */
-    static async getBucketListEvents(userId: string, limit = 10): Promise<BucketListFeedItem[]> {
+    static async getBucketListEvents(
+        userId: string,
+        limit = 10,
+        near?: { lat: number; lng: number; radiusMiles?: number }
+    ): Promise<BucketListFeedItem[]> {
         try {
             // Already sorted by rank_order (nulls last), then added_at asc.
             const bucketList = await BucketListService.getBucketList(userId);
-            const rankedArtistNames = bucketList
-                .filter(item => item.entity_type === 'artist')
-                .map(item => item.entity_name);
+            const rankedArtists = bucketList
+                .filter(item => item.entity_type === 'artist' && !!item.entity_id)
+                .map(item => ({ id: item.entity_id, name: item.entity_name }));
 
-            const events = await getEventsFromRankedArtists(supabase, rankedArtistNames, limit);
+            const events = await getEventsFromRankedArtists(supabase, rankedArtists, { limit, near });
             return events.map((e: any) => ({
                 id: e.id,
                 title: e.title ?? e.artist_name ?? '',

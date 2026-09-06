@@ -158,6 +158,10 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
       case 'friend_attended_same_event':
       case 'event_attendance_reminder':
       case 'event_reminder':
+      case 'event_reminder_1_week':
+      case 'event_reminder_3_days':
+      case 'event_reminder_1_day':
+      case 'event_reminder_day_after':
         return <MapPin size={20} color={PINK} />;
       default:
         return <Bell size={20} color={SynthTokens.colors.neutral600} />;

@@ -78,7 +78,11 @@ export default function FeedScreen() {
       // of each other — run them together so total load time is the slowest request.
       const unreadPromise = NotificationService.getUnreadCount(user.id);
       const suggestionsPromise = HomeFeedService.getFriendSuggestionsForRail(user.id, 5);
-      const bucketListEventsPromise = HomeFeedService.getBucketListEvents(user.id, 10);
+      const bucketListEventsPromise = HomeFeedService.getBucketListEvents(
+        user.id,
+        10,
+        loc ? { lat: loc.latitude, lng: loc.longitude, radiusMiles: 50 } : undefined
+      );
 
       if (feedDisplayMode === 'events') {
         const [unread, suggestions, bucketEvents, unified, friendEvents] = await Promise.all([

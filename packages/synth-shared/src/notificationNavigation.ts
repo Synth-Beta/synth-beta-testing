@@ -19,6 +19,9 @@ const EVENT_SUMMARY_TYPES = new Set([
   'event_interest',
   'event_attendance_reminder',
   'event_reminder',
+  'event_reminder_1_week',
+  'event_reminder_3_days',
+  'event_reminder_1_day',
   'friend_rsvp_going',
   'friend_rsvp_changed',
   'friend_review_posted',
@@ -64,6 +67,20 @@ export function resolveNotificationExpoPath(
   }
 
   const eventId = str(d.event_id);
+
+  // "How was the show?" — only sent to users who RSVP'd going. The point is a
+  // review, so open the composer, not the event page.
+  if (type === 'event_reminder_day_after') {
+    if (eventId) return { path: `/review-compose?eventId=${encodeURIComponent(eventId)}` };
+    const artist = str(d.artist_id);
+    const venue = str(d.venue_id);
+    const q: string[] = [];
+    if (artist) q.push(`prefillArtistId=${encodeURIComponent(artist)}`);
+    if (venue) q.push(`prefillVenueId=${encodeURIComponent(venue)}`);
+    const eventDate = str(d.event_date);
+    if (eventDate) q.push(`prefillDate=${encodeURIComponent(eventDate)}`);
+    return { path: q.length ? `/review-compose?${q.join('&')}` : '/review-compose' };
+  }
 
   if (type === 'artist_new_event') {
     if (eventId) return { path: `/event/${eventId}` };

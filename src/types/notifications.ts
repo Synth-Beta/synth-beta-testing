@@ -24,6 +24,12 @@ export type NotificationType =
   | 'friends_event_interest_summary'
   | 'bucket_list_new_events_summary'
   | 'event_reminder'
+  // Emitted by public.send_event_reminders() (pg_cron 'event-reminders').
+  // day_after fires only for relationship_type='going' and opens the review composer.
+  | 'event_reminder_1_week'
+  | 'event_reminder_3_days'
+  | 'event_reminder_1_day'
+  | 'event_reminder_day_after'
   | 'group_chat_invite'
   | 'trending_in_network'
   | 'mutual_attendance'
@@ -103,6 +109,16 @@ export interface NotificationData {
     event_venue: string;
     event_date: string;
     artist_name?: string;
+  };
+  event_reminder_day_after: {
+    event_id: string;
+    event_title: string;
+    event_venue: string;
+    event_date: string;
+    event_artist?: string;
+    artist_id?: string;
+    venue_id?: string;
+    reminder_type: 'event_reminder_day_after';
   };
 }
 
