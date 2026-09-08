@@ -189,7 +189,6 @@ export {
 } from './bucketListFeed';
 export {
   getUpcomingEventsForGenreChat,
-  getUpcomingEventsForGenreUmbrella,
   type NearbyParams,
   type GenreChatEventRow,
 } from './genreEvents';

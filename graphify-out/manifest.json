@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "mobile/app/(tabs)/index.tsx": {
-    "mtime": 1788361376.666605,
-    "ast_hash": "67347110c86c4ced7bbdd48bb2f31f42",
+    "mtime": 1788724517.2671592,
+    "ast_hash": "0e804c60c35c1d195bee371b03f5e3a9",
     "semantic_hash": ""
   },
   "mobile/app/(tabs)/post.tsx": {
@@ -870,8 +870,8 @@
     "semantic_hash": ""
   },
   "mobile/src/services/homeFeedService.ts": {
-    "mtime": 1788724222.6202662,
-    "ast_hash": "36fb51fd17d2b0f0228586a54d079c21",
+    "mtime": 1788724517.2556849,
+    "ast_hash": "28fa1e623901191904fad7d113c28888",
     "semantic_hash": ""
   },
   "mobile/src/services/inAppShareService.ts": {
@@ -1385,8 +1385,8 @@
     "semantic_hash": "764dc20ce7369d3d9d54b650559fe71c"
   },
   "src/components/NotificationsPage.tsx": {
-    "mtime": 1788724069.809985,
-    "ast_hash": "6106c59d80e11a0dda183520b9e98cd5",
+    "mtime": 1788725851.9607134,
+    "ast_hash": "75ff94230f4ac7dc01ab100fd55ce6ad",
     "semantic_hash": ""
   },
   "src/components/OnboardingPreferencesSettings.tsx": {
@@ -7815,8 +7815,8 @@
     "semantic_hash": ""
   },
   "packages/synth-shared/src/bucketListFeed.ts": {
-    "mtime": 1788724197.6846273,
-    "ast_hash": "4de3f740fae1f03cebc9c7842cca578e",
+    "mtime": 1788724432.5822363,
+    "ast_hash": "cbc04a56747c4430e271f9104a405713",
     "semantic_hash": ""
   },
   "api/_lib/slackPm/digest.ts": {
@@ -9044,9 +9044,24 @@
     "ast_hash": "c901af2b2772317e2a0a290717880050",
     "semantic_hash": ""
   },
-  "supabase/day-after-going-only-2026-09-06/01_day_after_going_only.REVIEW.sql": {
-    "mtime": 1788724035.59189,
-    "ast_hash": "f96157c6b23b90dfc0c227e81dc336a3",
+  "packages/synth-shared/src/bucketListFeed.test.ts": {
+    "mtime": 1788724494.1090262,
+    "ast_hash": "0c4fe99841f084aefdf0af73dc1ae4fc",
+    "semantic_hash": ""
+  },
+  "supabase/day-after-going-only-2026-09-06/01_function.REVIEW.sql": {
+    "mtime": 1788725223.911673,
+    "ast_hash": "6dbd462aaee5e6ab9cf8b7fe11c0f0e1",
+    "semantic_hash": ""
+  },
+  "supabase/day-after-going-only-2026-09-06/02_cleanup.REVIEW.sql": {
+    "mtime": 1788725253.069259,
+    "ast_hash": "86782af66d4b452b7b69d26373338a39",
+    "semantic_hash": ""
+  },
+  "supabase/day-after-going-only-2026-09-06/03_verify.READONLY.sql": {
+    "mtime": 1788725239.0197093,
+    "ast_hash": "973f4e3885a948fce2a4acebc7336b9b",
     "semantic_hash": ""
   }
 }

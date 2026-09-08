@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAccountType } from '@/hooks/useAccountType';
-import AdminService from '@/services/adminService';
+import AdminService, { MODERATION_FLAG_SELECT } from '@/services/adminService';
 import ContentModerationService, { FLAG_REASONS } from '@/services/contentModerationService';
 import { supabase } from '@/integrations/supabase/client';
 import { Flag, Trash2, AlertTriangle, X, Loader2, ExternalLink, Eye } from 'lucide-react';
@@ -54,7 +54,7 @@ const [loading, setLoading] = useState(true);
       // First get all flags to see what statuses exist
       const { data: allFlags, error: allFlagsError } = await (supabase as any)
         .from('moderation_flags')
-        .select('id, flag_status, flag_reason, created_at')
+        .select('id, flag_status:status, flag_reason, created_at')
         .order('created_at', { ascending: false });
       
       console.log('🔍 AdminModerationPanel: All flags in database:', allFlags);
@@ -73,8 +73,8 @@ const [loading, setLoading] = useState(true);
       console.log('🔍 AdminModerationPanel: Trying direct pending flags query...');
       const { data: pendingFlags, error: pendingError } = await (supabase as any)
         .from('moderation_flags')
-        .select('*')
-        .eq('flag_status', 'pending')
+        .select(MODERATION_FLAG_SELECT)
+        .eq('status', 'pending')
         .order('created_at', { ascending: true });
       
       console.log('🔍 AdminModerationPanel: Direct pending flags query result:', pendingFlags);
@@ -103,9 +103,9 @@ const [loading, setLoading] = useState(true);
       // Get all non-pending flags (reviewed, dismissed, etc.) - without join first
       const { data: reviewedFlags, error: reviewedError } = await (supabase as any)
         .from('moderation_flags')
-        .select('*')
-        .neq('flag_status', 'pending')
-        .order('reviewed_at', { ascending: false });
+        .select(MODERATION_FLAG_SELECT)
+        .neq('status', 'pending')
+        .order('resolved_at', { ascending: false });
       
       console.log('🔍 AdminModerationPanel: Reviewed flags from DB:', reviewedFlags);
       console.log('🔍 AdminModerationPanel: Reviewed flags error:', reviewedError);

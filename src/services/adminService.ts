@@ -39,6 +39,22 @@ export interface ModerationFlag {
   updated_at: string;
 }
 
+/**
+ * `moderation_flags` was renamed at some point and the moderation UI was never
+ * updated: the table has status / additional_details / resolved_by_user_id /
+ * resolved_at / resolution_notes / resolution_action, while every consumer here
+ * still reads flag_status / flag_details / reviewed_by_admin_id / reviewed_at /
+ * review_notes / action_taken. Aliasing in the select keeps the UI's field names
+ * working against the real columns.
+ *
+ * NOTE: aliases apply to the SELECT only. `.eq()` / `.order()` must use the real
+ * column names (status, resolved_at).
+ */
+export const MODERATION_FLAG_SELECT =
+  'id, flagged_by_user_id, content_type, content_id, flag_reason, flag_category, created_at, updated_at, ' +
+  'flag_status:status, flag_details:additional_details, reviewed_by_admin_id:resolved_by_user_id, ' +
+  'reviewed_at:resolved_at, review_notes:resolution_notes, action_taken:resolution_action';
+
 export class AdminService {
   /**
    * Get counts of pending admin tasks
@@ -187,80 +203,36 @@ export class AdminService {
    */
   static async getPendingFlags(): Promise<any[]> {
     try {
-      console.log('🔍 AdminService: Fetching pending flags...');
-      const user = await supabase.auth.getUser();
-      console.log('🔍 AdminService: Current user ID:', user.data.user?.id);
-      console.log('🔍 AdminService: User session:', !!user.data.user);
-      
-      // First try using the dedicated function (with proper typing)
-      try {
-        const { data: flags, error } = await (supabase as any).rpc('get_pending_moderation_flags');
-        
-        if (!error && flags && Array.isArray(flags)) {
-          console.log('🔍 AdminService: Flags from function:', flags);
-          console.log('🔍 AdminService: Flags count from function:', flags.length);
-          return flags;
-        } else {
-          console.log('⚠️ AdminService: Function failed, trying simple function:', error);
-        }
-      } catch (functionError) {
-        console.log('⚠️ AdminService: Function not available, trying simple function:', functionError);
-      }
-      
-      // Try the simple function as fallback
-      try {
-        const { data: flags, error } = await (supabase as any).rpc('get_pending_flags_simple');
-        
-        if (!error && flags && Array.isArray(flags)) {
-          console.log('🔍 AdminService: Flags from simple function:', flags);
-          console.log('🔍 AdminService: Flags count from simple function:', flags.length);
-          return flags;
-        } else {
-          console.log('⚠️ AdminService: Simple function failed, falling back to direct query:', error);
-        }
-      } catch (functionError) {
-        console.log('⚠️ AdminService: Simple function not available, using direct query:', functionError);
-      }
-      
-      // Fallback to direct query
+      // Previously this tried get_pending_moderation_flags (does not exist,
+      // PGRST202) then get_pending_flags_simple (raises 42P01, it queries a
+      // public.profiles table that was removed) before falling through to this
+      // query -- which was itself filtering on the non-existent `flag_status`.
+      // All three layers failed, so the moderation queue was always empty.
       const { data: flags, error } = await (supabase as any)
         .from('moderation_flags')
-        .select('*')
-        .eq('flag_status', 'pending')
+        .select(MODERATION_FLAG_SELECT)
+        .eq('status', 'pending')
         .order('created_at', { ascending: true });
 
       if (error) {
         console.error('❌ AdminService: Error fetching flags:', error);
-        console.error('❌ AdminService: Error details:', JSON.stringify(error, null, 2));
         throw error;
       }
 
-      console.log('🔍 AdminService: Raw flags from DB:', flags);
-      console.log('🔍 AdminService: Flags count:', flags?.length || 0);
-      
-      // Fetch flagger profiles separately
-      if (flags && flags.length > 0) {
-        const userIds = flags.map((f: any) => f.flagged_by_user_id);
-        console.log('🔍 AdminService: Fetching profiles for user IDs:', userIds);
-        const { data: profiles } = await supabase
-          .from('users')
-          .select('user_id, name, avatar_url')
-          .in('user_id', userIds);
-        
-        console.log('🔍 AdminService: Profiles fetched:', profiles);
-        
-        // Merge profiles into flags
-        const mergedFlags = flags.map((flag: any) => ({
-          ...flag,
-          flagger: profiles?.find(p => p.user_id === flag.flagged_by_user_id)
-        }));
-        
-        console.log('🔍 AdminService: Merged flags:', mergedFlags);
-        return mergedFlags;
-      }
-      
-      console.log('🔍 AdminService: No flags found, returning empty array');
-      return flags || [];
+      if (!flags || flags.length === 0) return [];
+
+      // Attach the reporter's profile. `users` is the live table; the old
+      // public.profiles is gone.
+      const userIds = flags.map((f: any) => f.flagged_by_user_id).filter(Boolean);
+      const { data: profiles } = await supabase
+        .from('users')
+        .select('user_id, name, avatar_url')
+        .in('user_id', userIds);
+
+      return flags.map((flag: any) => ({
+        ...flag,
+        flagger: profiles?.find((p) => p.user_id === flag.flagged_by_user_id),
+      }));
     } catch (error) {
       console.error('❌ AdminService: Error fetching pending flags:', error);
       throw error;
@@ -274,11 +246,12 @@ export class AdminService {
     try {
       let query = (supabase as any)
         .from('moderation_flags')
-        .select('*')
+        .select(MODERATION_FLAG_SELECT)
         .order('created_at', { ascending: false });
 
       if (status) {
-        query = query.eq('flag_status', status);
+        // Real column name; only the SELECT is aliased.
+        query = query.eq('status', status);
       }
 
       const { data: flags, error } = await query;
@@ -326,12 +299,15 @@ export class AdminService {
     try {
       const { error } = await (supabase as any)
         .from('moderation_flags')
+        // Writes name the real columns -- PostgREST aliasing applies to SELECT
+        // only. Every key here used to be the pre-rename name, so actioning a
+        // flag failed with PGRST204 and the queue could never be cleared.
         .update({
-          flag_status: status,
-          reviewed_by_admin_id: (await supabase.auth.getUser()).data.user?.id,
-          reviewed_at: new Date().toISOString(),
-          review_notes: reviewNotes,
-          action_taken: actionTaken,
+          status,
+          resolved_by_user_id: (await supabase.auth.getUser()).data.user?.id,
+          resolved_at: new Date().toISOString(),
+          resolution_notes: reviewNotes,
+          resolution_action: actionTaken,
           updated_at: new Date().toISOString(),
         })
         .eq('id', flagId);

@@ -12,9 +12,10 @@
  * list, nearby + backfill together, is always ordered closest-to-farthest —
  * only WHICH farther events get picked is randomized, not the display order.
  *
- * getUpcomingEventsForGenreUmbrella walks the genre_parent/genre_paths taxonomy
- * graph via get_genres_under_umbrella. Kept for other potential uses, but it's
- * NOT reliable for "which events belong in this genre chat": that graph is a
+ * There was a second entry point here, getUpcomingEventsForGenreUmbrella, which
+ * walked the genre_parent/genre_paths taxonomy graph via get_genres_under_umbrella.
+ * It was removed on 2026-09-07 with zero callers in web, mobile, backend or api.
+ * Do not reintroduce it for genre-chat matching -- that graph is a
  * genre-similarity network (fed by genre_similarity_edges/genre_cooccurrence_pairs),
  * not a hierarchy — single genres can have a dozen+ materialized paths through
  * unrelated roots, and ~69% of all mapped genres route through "Pop" simply
@@ -181,44 +182,4 @@ async function fetchRandomInWindow(
     .map(flattenVenueArtistNames)
     .filter((row) => !excludeIds.has(row.id as string));
   return shuffle(pool).slice(0, count);
-}
-
-export async function getUpcomingEventsForGenreUmbrella(
-  client: SynthSupabaseClient,
-  umbrellaSlug: string,
-  limit: number = 20
-): Promise<Record<string, unknown>[]> {
-  const { data: genreIdRows, error: umbrellaError } = await client.rpc(
-    'get_genres_under_umbrella',
-    { p_slug: umbrellaSlug }
-  );
-  if (umbrellaError || !genreIdRows || genreIdRows.length === 0) return [];
-
-  const genreIds = (genreIdRows as unknown[])
-    .map((row) => (typeof row === 'string' ? row : Object.values(row as object)[0]))
-    .filter((id): id is string => typeof id === 'string' && id.length > 0);
-  if (genreIds.length === 0) return [];
-
-  // Overfetch: an event tagged with >1 genre under this umbrella produces one row
-  // per matching genre_id (inner join), so dedupe by event id after fetching.
-  const { data: rows, error } = await client
-    .from('events')
-    .select('*, events_genres!inner(genre_id)')
-    .in('events_genres.genre_id', genreIds)
-    .gte('event_date', new Date().toISOString())
-    .order('event_date', { ascending: true })
-    .limit(limit * 3);
-  if (error || !rows) return [];
-
-  const seen = new Set<string>();
-  const deduped: Record<string, unknown>[] = [];
-  for (const row of rows as Array<Record<string, unknown>>) {
-    const { events_genres: _eventsGenres, ...event } = row;
-    const id = event.id as string;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    deduped.push(event);
-    if (deduped.length >= limit) break;
-  }
-  return deduped;
 }
