@@ -114,9 +114,26 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     onExit();
   }, [beginExit, onExit]);
 
-  const finishOnboarding = useCallback(async () => {
+  const finishOnboarding = useCallback(async (bypassArtistMinimum = false) => {
     if (!user?.id || finishOnboardingRef.current) {
       return;
+    }
+
+    if (!bypassArtistMinimum) {
+      // Single choke point for the artist minimum. The modal's Done button, its X, and the
+      // dialog's own dismiss all funnel through here, so the rule is enforced once rather
+      // than re-implemented at each exit — which is how a requirement quietly gets a hole.
+      try {
+        const follows = await OnboardingService.countArtistFollows(user.id);
+        if (follows < OnboardingService.MIN_ARTIST_FOLLOWS) {
+          setShowFollowArtistsModal(true);
+          return;
+        }
+      } catch (error) {
+        // If the count cannot be verified, let them through. An unverifiable check must
+        // never be the reason someone is stuck in onboarding.
+        logger.warn('OnboardingFlow: could not verify artist follows, allowing finish:', error);
+      }
     }
 
     finishOnboardingRef.current = true;
@@ -124,7 +141,18 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     setFavoriteArtistOptions([]);
 
     try {
-      await OnboardingService.completeOnboarding(user.id);
+      // completeOnboarding catches its own errors and returns a boolean — it never
+      // throws, so `await` alone can't tell success from failure. Ignoring the return
+      // value sent people to the feed with onboarding_completed still false, and the
+      // next page load dropped them straight back into onboarding. Same defect the
+      // mobile flow had, reached a different way.
+      const completed = await OnboardingService.completeOnboarding(user.id);
+      if (!completed) {
+        finishOnboardingRef.current = false;
+        setCompletionError('Could not finish setting up your account. Please try again.');
+        return;
+      }
+      setCompletionError(null);
       trackInteraction.formSubmit('form', 'onboarding_complete', true, {
         completed: true,
         total_steps: 1,
@@ -133,6 +161,9 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       onComplete();
     } catch (error) {
       console.error('Error finishing onboarding:', error);
+      // Without this the ref stays latched and the user cannot retry in this session.
+      finishOnboardingRef.current = false;
+      setCompletionError('Could not finish setting up your account. Please try again.');
     }
   }, [user?.id, beginExit, onComplete]);
 
@@ -157,6 +188,36 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleExit]);
+
+  // Persist what has been typed so far. Web only wrote anything on final submit, so
+  // abandoning it halfway left nothing behind and the same person starting again on mobile
+  // retyped everything. Mobile's loadProfileDraft() already reads exactly these columns, so
+  // this makes cross-platform resume work with no mobile change. Debounced to one write
+  // after a pause rather than one per keystroke; username/name are excluded on purpose
+  // (see saveProfileDraft).
+  useEffect(() => {
+    if (!user?.id) return;
+    const timer = setTimeout(() => {
+      void OnboardingService.saveProfileDraft(user.id, {
+        location_city: profileData.location_city,
+        birthday: profileData.birthday,
+        gender: profileData.gender,
+        bio: profileData.bio,
+        acquisition_source: acquisitionSource,
+        other_acquisition_source:
+          acquisitionSource === 'Other' ? acquisitionSourceOther : undefined,
+        contact_email: showContactEmailField ? contactEmail : undefined,
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [
+    user?.id,
+    profileData,
+    acquisitionSource,
+    acquisitionSourceOther,
+    contactEmail,
+    showContactEmailField,
+  ]);
 
   const handleProfileDraftChange = useCallback((draft: {
     username: string;
@@ -534,11 +595,10 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         }
       }
       const dedupedArtists = dedupeFavoriteArtists(artistData);
-      //If there's no artists, don't show the pop-up
-      if (dedupedArtists.length === 0) {
-        await finishOnboarding();
-        return;
-      }
+      // Always open the follow step, even when nothing resolved from what they typed: the
+      // modal loads suggestions and offers search of its own, and the 3-follow minimum now
+      // applies on web exactly as it does on mobile. Skipping straight to finish here is
+      // what let web accounts complete onboarding with zero artist signal.
       setFavoriteArtistOptions(dedupedArtists);
       setShowFollowArtistsModal(true);
       return;

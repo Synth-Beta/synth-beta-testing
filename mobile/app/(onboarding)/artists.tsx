@@ -22,6 +22,7 @@ export default function ArtistsScreen() {
     const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [loadFailed, setLoadFailed] = useState(false);
 
     useEffect(() => {
         loadSuggestedArtists();
@@ -31,6 +32,13 @@ export default function ArtistsScreen() {
         setIsLoading(true);
         const data = await ArtistService.getSuggestedArtists();
         setArtists(data);
+        // getSuggestedArtists swallows its own error and returns [] (artistService.ts:23),
+        // and `artists` is never legitimately empty, so an empty suggested list means the
+        // query failed. This screen is the last step, has no skip and no back-out, and its
+        // button is gated on picking 3 — so a failed load used to lock the user out of the
+        // app permanently with a blank list. That shipped once already, when this query
+        // ordered by a `popularity` column that does not exist.
+        setLoadFailed(data.length === 0);
         setIsLoading(false);
     };
 
@@ -39,6 +47,7 @@ export default function ArtistsScreen() {
         if (text.length > 2) {
             const results = await ArtistService.searchArtists(text);
             setArtists(results);
+            if (results.length > 0) setLoadFailed(false);
         } else if (text.length === 0) {
             loadSuggestedArtists();
         }
@@ -55,25 +64,34 @@ export default function ArtistsScreen() {
 
     const MIN_ARTISTS = 3;
     const enoughArtists = selectedArtistIds.length >= MIN_ARTISTS;
+    // The 3-artist minimum holds whenever the list actually loaded. It is relaxed only
+    // when the app itself failed to produce artists to pick from — a weak first feed is
+    // recoverable from inside the app, being unable to reach the app at all is not.
+    const canContinue = enoughArtists || loadFailed;
 
     const handleContinue = async () => {
         // Require a minimum so the personalized feed has real signal to work with.
-        if (!enoughArtists || saving) return;
+        if (!canContinue || saving) return;
         setSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                await OnboardingService.followArtists(user.id, selectedArtistIds);
-                // Final onboarding step. Server write first — swallowing this is what left
-                // finished users with onboarding_completed = false server-side, so they got
-                // sent back through onboarding on any reinstall. Local flag only after it
-                // lands, so the two can never disagree.
-                await OnboardingService.completeOnboarding(user.id);
-                try {
-                    await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
-                } catch {
-                    // Server state is already correct; the boot gate reads it as a fallback.
-                }
+            // Was `if (user) { ... }` with no else: a null user (expired token) skipped the
+            // whole block silently and still fell through to router.replace('/(tabs)'),
+            // so onboarding never completed and routing bounced them back to the wizard
+            // with no error shown. Throw into the catch below instead.
+            if (!user) {
+                throw new Error('No authenticated user when finishing onboarding');
+            }
+            await OnboardingService.followArtists(user.id, selectedArtistIds);
+            // Final onboarding step. Server write first — swallowing this is what left
+            // finished users with onboarding_completed = false server-side, so they got
+            // sent back through onboarding on any reinstall. Local flag only after it
+            // lands, so the two can never disagree.
+            await OnboardingService.completeOnboarding(user.id);
+            try {
+                await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
+            } catch {
+                // Server state is already correct; the boot gate reads it as a fallback.
             }
         } catch (error) {
             console.warn('Artist follow / onboarding-complete write failed:', error);
@@ -134,6 +152,22 @@ export default function ArtistsScreen() {
                         </SynthText>
                     </View>
                 }
+                ListEmptyComponent={
+                    isLoading ? null : (
+                        <View style={styles.emptyState}>
+                            <SynthText variant="meta" color="secondary" style={styles.emptyText}>
+                                {searchQuery.length > 2
+                                    ? 'No artists matched that search.'
+                                    : "We couldn't load artists right now. You can retry, or continue and follow artists later from Discover."}
+                            </SynthText>
+                            {searchQuery.length > 2 ? null : (
+                                <Pressable onPress={loadSuggestedArtists} hitSlop={8}>
+                                    <SynthText variant="accent" style={styles.retryLink}>Retry</SynthText>
+                                </Pressable>
+                            )}
+                        </View>
+                    )
+                }
             />
 
             <View style={styles.footer}>
@@ -143,10 +177,12 @@ export default function ArtistsScreen() {
                             ? 'Finishing…'
                             : enoughArtists
                                 ? `Follow ${selectedArtistIds.length} Artists`
-                                : `Pick at least 3 (${selectedArtistIds.length}/3)`
+                                : loadFailed
+                                    ? 'Continue'
+                                    : `Pick at least 3 (${selectedArtistIds.length}/3)`
                     }
                     onPress={handleContinue}
-                    disabled={!enoughArtists || saving}
+                    disabled={!canContinue || saving}
                 />
             </View>
         </SafeAreaView>
@@ -222,6 +258,18 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         opacity: 0.8,
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 32,
+        gap: 12,
+    },
+    emptyText: {
+        textAlign: 'center',
+        opacity: 0.8,
+    },
+    retryLink: {
+        color: SynthTokens.colors.brandPink500,
     },
     artistRow: {
         flexDirection: 'row',

@@ -272,21 +272,25 @@ export default function ProfileSetupScreen() {
         setSaving(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                await OnboardingService.saveProfileSetup(user.id, {
-                    name: name.trim() || undefined,
-                    username: username.trim() || undefined,
-                    birthday: birthday.trim() || undefined,
-                    location_city: city.trim() || undefined,
-                    gender: gender || undefined,
-                    acquisition_source: acquisitionSource || undefined,
-                    other_acquisition_source:
-                        acquisitionSource === 'Other' ? trimmedOtherSource : null,
-                    contact_email: showContactEmailField ? trimmedContactEmail : undefined,
-                });
-                if (showContactEmailField) {
-                    markContactEmailSaved(trimmedContactEmail);
-                }
+            // A null user (expired token) used to skip the save silently and still advance
+            // to the next step, so the profile was never written and the wizard carried on
+            // as if it had been. Throw into the catch below instead.
+            if (!user) {
+                throw new Error('No authenticated user when saving profile setup');
+            }
+            await OnboardingService.saveProfileSetup(user.id, {
+                name: name.trim() || undefined,
+                username: username.trim() || undefined,
+                birthday: birthday.trim() || undefined,
+                location_city: city.trim() || undefined,
+                gender: gender || undefined,
+                acquisition_source: acquisitionSource || undefined,
+                other_acquisition_source:
+                    acquisitionSource === 'Other' ? trimmedOtherSource : null,
+                contact_email: showContactEmailField ? trimmedContactEmail : undefined,
+            });
+            if (showContactEmailField) {
+                markContactEmailSaved(trimmedContactEmail);
             }
         } catch (e) {
             console.warn('Profile setup write failed:', e);

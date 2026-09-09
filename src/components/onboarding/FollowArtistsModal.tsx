@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 import {
   Dialog,
@@ -15,14 +15,20 @@ import {
   AvatarImage,
 } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ArtistFollowService } from '@/services/artistFollowService';
+import { OnboardingService } from '@/services/onboardingService';
 
 interface FollowArtistsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
   artists: FollowArtistOption[];
-  onDone: () => Promise<void> | void;
+  /**
+   * `bypassArtistMinimum` is true only when the artist list itself failed to load, so the
+   * caller can tell "met the requirement" apart from "we could not offer anything to pick".
+   */
+  onDone: (bypassArtistMinimum?: boolean) => Promise<void> | void;
 }
 
 export interface FollowArtistOption {
@@ -38,12 +44,13 @@ export const FollowArtistsModal = ({
   artists,
   onDone,
 }: FollowArtistsModalProps) => {
+  const MIN_FOLLOWS = OnboardingService.MIN_ARTIST_FOLLOWS;
+
   const [visibleArtists, setVisibleArtists] = useState<FollowArtistOption[]>(artists);
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    setVisibleArtists(artists);
-  }, [artists]);
+  const [followedCount, setFollowedCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const getArtistKey = (artist: FollowArtistOption) => {
     if (artist.id) {
@@ -51,6 +58,69 @@ export const FollowArtistsModal = ({
     }
     return artist.name.trim().toLowerCase();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        // Seed from what is already on record so progress carries across platforms:
+        // someone who followed two artists on mobile only needs one more here.
+        const [existing, suggested] = await Promise.all([
+          OnboardingService.countArtistFollows(userId).catch(() => 0),
+          OnboardingService.getSuggestedArtists(),
+        ]);
+        if (cancelled) return;
+
+        setFollowedCount(existing);
+
+        // Artists resolved from what they typed come first, then suggestions fill the rest
+        // so there is always enough on screen to reach the minimum.
+        const merged: FollowArtistOption[] = [...artists];
+        const seen = new Set(merged.map(getArtistKey));
+        for (const artist of suggested) {
+          if (seen.has(artist.id)) continue;
+          seen.add(artist.id);
+          merged.push({ id: artist.id, name: artist.name, image_url: artist.image_url ?? undefined });
+        }
+        setVisibleArtists(merged);
+        setLoadFailed(false);
+      } catch (error) {
+        if (cancelled) return;
+        console.warn('FollowArtistsModal: could not load suggested artists:', error);
+        setVisibleArtists(artists);
+        // Same rule as the mobile artist step: a minimum may never become a wall when the
+        // app itself cannot offer anything to pick from.
+        setLoadFailed(artists.length === 0);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, userId, artists]);
+
+  const handleSearch = async (value: string) => {
+    setSearchQuery(value);
+    if (value.trim().length < 2) return;
+    try {
+      const results = await OnboardingService.searchArtists(value.trim());
+      setVisibleArtists(
+        results.map((artist) => ({
+          id: artist.id,
+          name: artist.name,
+          image_url: artist.image_url ?? undefined,
+        }))
+      );
+      if (results.length > 0) setLoadFailed(false);
+    } catch (error) {
+      console.warn('FollowArtistsModal: artist search failed:', error);
+    }
+  };
+
+  const remainingFollows = Math.max(0, MIN_FOLLOWS - followedCount);
+  const canFinish = remainingFollows === 0 || loadFailed;
 
   const handleFollowArtist = async (artist: FollowArtistOption) => {
     const key = getArtistKey(artist);
@@ -72,6 +142,7 @@ export const FollowArtistsModal = ({
       }
 
       setVisibleArtists((prev) => prev.filter((item) => getArtistKey(item) !== key));
+      setFollowedCount((prev) => prev + 1);
     } catch (error) {
       console.warn(`FollowArtistsModal: could not follow artist "${artist.name}":`, error);
     } finally {
@@ -125,6 +196,25 @@ export const FollowArtistsModal = ({
           </div>
 
           <DialogBody className="flex flex-1 flex-col gap-4 px-6 pb-6 pt-2">
+            <p className="text-center text-sm text-muted-foreground">
+              {loadFailed
+                ? "We couldn't load artists right now — you can continue and follow artists later."
+                : `Follow at least ${MIN_FOLLOWS} — this powers your personalized feed (${followedCount}/${MIN_FOLLOWS})`}
+            </p>
+
+            {!loadFailed && (
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => void handleSearch(event.target.value)}
+                  placeholder="Search artists..."
+                  className="pl-9"
+                  aria-label="Search artists"
+                />
+              </div>
+            )}
+
             <ScrollArea className="w-full">
               <div className="flex justify-center space-x-4 pb-4 pt-1">
                 {visibleArtists.map((artist) => {
@@ -172,12 +262,13 @@ export const FollowArtistsModal = ({
           <DialogFooter className="items-center justify-center sm:justify-center">
             <Button
               onClick={() => {
-                void onDone();
+                void onDone(loadFailed && remainingFollows > 0);
               }}
+              disabled={!canFinish}
               className="w-full max-w-xs"
               type="button"
             >
-              Done
+              {canFinish ? 'Done' : `Follow ${remainingFollows} more`}
             </Button>
           </DialogFooter>
         </div>

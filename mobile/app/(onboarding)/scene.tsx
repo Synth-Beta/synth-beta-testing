@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -44,6 +44,11 @@ export default function SceneScreen() {
   const [suggestedShow, setSuggestedShow] = useState<FeaturedShowCandidate | null>(null);
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // The DC room join is deliberately fail-closed so Home never loads without membership,
+  // but failing closed forever would strand a DC user in onboarding with no skip and no
+  // way into the app. One retry, then let them through — the room can be joined from
+  // inside the app, being locked out of the app cannot be fixed from anywhere.
+  const failedJoinAttemptsRef = useRef(0);
 
   const isDc = isDcCity(locationCity);
   const offerRoom2 = OPTIONAL_SCENE_ROOM_2_ENABLED && isDc && !!preference;
@@ -148,10 +153,16 @@ export default function SceneScreen() {
             markFeaturedInterested,
           });
           if (joinResult.requiredJoinFailed) {
-            setPreferenceError(
-              'Could not join This week in DC. Check your connection and try again.'
+            failedJoinAttemptsRef.current += 1;
+            if (failedJoinAttemptsRef.current < 2) {
+              setPreferenceError(
+                'Could not join This week in DC. Check your connection and try again.'
+              );
+              return;
+            }
+            console.warn(
+              '[onboarding/scene] room join failed twice; continuing without membership'
             );
-            return;
           }
           if (joinResult.errors.length > 0) {
             console.warn('[onboarding/scene] density room join warnings:', joinResult.errors);
@@ -160,10 +171,16 @@ export default function SceneScreen() {
           // Non-DC soft-gate: no forced joins, so hiccups do not block continue.
           if (isDc) {
             console.warn('[onboarding/scene] density room join failed:', joinErr);
-            setPreferenceError(
-              'Could not join This week in DC. Check your connection and try again.'
+            failedJoinAttemptsRef.current += 1;
+            if (failedJoinAttemptsRef.current < 2) {
+              setPreferenceError(
+                'Could not join This week in DC. Check your connection and try again.'
+              );
+              return;
+            }
+            console.warn(
+              '[onboarding/scene] room join threw twice; continuing without membership'
             );
-            return;
           }
           console.warn('[onboarding/scene] density room join failed (continuing):', joinErr);
         }

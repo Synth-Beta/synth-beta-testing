@@ -109,3 +109,46 @@ export async function getEventsFromRankedArtists(
     )
     .slice(0, limit);
 }
+
+/** Ranker events between each injected bucket-list event. */
+export const BUCKET_LIST_SPACING = 4;
+
+/**
+ * Weaves bucket-list events into a ranked feed instead of pinning them above it.
+ *
+ * Shared so web and Expo order the feed identically — the bucket list informs what gets
+ * recommended, it is not its own shelf, and "informs" has to mean the same thing on both.
+ *
+ * Events the ranker already returned are left exactly where it put them: its copy is
+ * enriched (image, interest counts) and it has already scored them through the
+ * bucket-list preference signals. Only the ones it missed are injected, spaced out, so a
+ * #1 bucket artist is reliably visible without the feed opening on a block of them.
+ */
+export function weaveBucketListIntoFeed<T extends { event_id: string }>(
+  events: T[],
+  bucketEvents: T[],
+  spacing: number = BUCKET_LIST_SPACING
+): T[] {
+  if (bucketEvents.length === 0) return events;
+
+  const present = new Set(events.map((e) => e.event_id));
+  const missing = bucketEvents.filter((b) => !present.has(b.event_id));
+  if (missing.length === 0) return events;
+
+  // A spacing of 0 or less would inject after every event; clamp so the feed stays mostly
+  // the ranker's.
+  const step = Math.max(1, spacing);
+
+  const merged: T[] = [];
+  let next = 0;
+  events.forEach((event, index) => {
+    merged.push(event);
+    if (next < missing.length && (index + 1) % step === 0) {
+      merged.push(missing[next]);
+      next += 1;
+    }
+  });
+
+  // Anything that did not fit still belongs in the feed rather than being dropped.
+  return [...merged, ...missing.slice(next)];
+}

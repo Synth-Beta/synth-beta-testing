@@ -15,7 +15,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { fetchProfileReviewTimeline } from './reviewTimelineCore';
+import { fetchProfileReviewTimeline } from './reviewTimelineCore.ts';
 
 const REVIEWS = [
   // Reviewed most recently, but the oldest show.

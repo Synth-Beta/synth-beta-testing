@@ -11,7 +11,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { getEventsFromRankedArtists } from './bucketListFeed.ts';
+import { getEventsFromRankedArtists, weaveBucketListIntoFeed } from './bucketListFeed.ts';
 
 const ARTIST_1 = 'a1111111-1111-4111-8111-111111111111';
 const ARTIST_2 = 'a2222222-2222-4222-8222-222222222222';
@@ -102,3 +102,39 @@ async function main() {
 }
 
 void main();
+
+// ---------------------------------------------------------------------------
+// weaveBucketListIntoFeed — bucket list is woven into the ranked feed, never pinned.
+// Run: node --experimental-strip-types packages/synth-shared/src/bucketListFeed.test.ts
+// ---------------------------------------------------------------------------
+{
+  const feed = (n: number) => Array.from({ length: n }, (_, i) => ({ event_id: `r${i}` }));
+
+  // Nothing to weave: feed is untouched.
+  assert.deepEqual(weaveBucketListIntoFeed(feed(3), []), feed(3));
+
+  // A bucket event the ranker already returned is NOT duplicated and NOT moved.
+  const already = [{ event_id: 'r1' }];
+  assert.deepEqual(weaveBucketListIntoFeed(feed(3), already), feed(3));
+
+  // The feed still opens on the ranker's top pick — never on a bucket event.
+  const woven = weaveBucketListIntoFeed(feed(8), [{ event_id: 'b0' }, { event_id: 'b1' }], 4);
+  assert.equal(woven[0].event_id, 'r0');
+  // Injected after every 4th ranker event.
+  assert.equal(woven[4].event_id, 'b0');
+  assert.equal(woven[9].event_id, 'b1');
+  assert.equal(woven.length, 10);
+
+  // Bucket events that do not fit are appended, never dropped.
+  const overflow = weaveBucketListIntoFeed(feed(2), [{ event_id: 'b0' }, { event_id: 'b1' }], 4);
+  assert.equal(overflow.length, 4);
+  assert.ok(overflow.some((e) => e.event_id === 'b0'));
+  assert.ok(overflow.some((e) => e.event_id === 'b1'));
+
+  // Degenerate spacing must not inject after every single event.
+  const clamped = weaveBucketListIntoFeed(feed(4), [{ event_id: 'b0' }], 0);
+  assert.equal(clamped[0].event_id, 'r0');
+  assert.equal(clamped.length, 5);
+
+  console.log('weaveBucketListIntoFeed: all checks passed');
+}

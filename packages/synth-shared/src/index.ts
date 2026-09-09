@@ -186,6 +186,8 @@ export {
   type BucketListFeedOptions,
   type RankedBucketArtist,
   getEventsFromRankedArtists,
+  weaveBucketListIntoFeed,
+  BUCKET_LIST_SPACING,
 } from './bucketListFeed';
 export {
   getUpcomingEventsForGenreChat,

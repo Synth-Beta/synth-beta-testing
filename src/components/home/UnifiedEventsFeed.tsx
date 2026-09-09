@@ -14,7 +14,7 @@ import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { VerifiedChatService } from '@/services/verifiedChatService';
 import { getUserArtistAffinity, boostEventsByArtistAffinity } from '@/services/artistAffinityService';
 import { BucketListService } from '@/services/bucketListService';
-import { getEventsFromRankedArtists } from '@synth/shared';
+import { getEventsFromRankedArtists, weaveBucketListIntoFeed } from '@synth/shared';
 import { toast } from '@/hooks/use-toast';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
 import { LocationService } from '@/services/locationService';
@@ -60,17 +60,21 @@ const PREFETCH_THRESHOLD = 60; // Start prefetching when 60 events are displayed
 const LOCATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const LOCATION_RELOAD_THRESHOLD_MILES = 50; // Only reload when location changes meaningfully
 const LOCATION_MATCH_THRESHOLD_MILES = 25; // Locations within 25mi are considered "same"
-const BUCKET_LIST_TOP_LIMIT = 5; // How many ranked bucket-list events get pinned above the feed
+const BUCKET_LIST_TOP_LIMIT = 5;   // How many ranked bucket-list events to pull in
 
 function filterUpcomingFeedItems(items: UnifiedEventItem[]): UnifiedEventItem[] {
   return items.filter((item) => isEventUpcomingForFeed(item.event_date));
 }
 
+
 /**
  * Upcoming nearby events for the user's top-ranked bucket-list artists, #1 first.
- * The feed RPC has no concept of the bucket list, so these are fetched separately —
- * otherwise a #1-ranked artist playing nearby only shows up if the RPC's candidate
- * sampling happened to pick it, which is exactly what it kept failing to do.
+ *
+ * Labelled 'recommended', not with a bucket badge: the bucket list is meant to inform what
+ * gets recommended, not to be its own shelf. It still needs a separate fetch because the
+ * feed RPC samples candidates and a #1-ranked artist playing nearby is not guaranteed to
+ * be sampled — the bucket-list preference signals raise its score, but only among
+ * candidates that were picked in the first place.
  */
 async function fetchBucketListTopEvents(
   userId: string,
@@ -98,8 +102,7 @@ async function fetchBucketListTopEvents(
       event_date: String(e.event_date),
       images: e.images,
       event_media_url: e.event_media_url ?? undefined,
-      reason: 'bucket_list' as EventReason,
-      reasonLabel: e.bucket_reason,
+      reason: 'recommended' as EventReason,
       interested_count: 0,
       friends_interested_count: 0,
       user_is_interested: false,
@@ -108,26 +111,6 @@ async function fetchBucketListTopEvents(
     console.error('Error loading bucket list events for feed:', error);
     return [];
   }
-}
-
-/**
- * Pins ranked bucket-list events to the top of the feed, #1 first. When the RPC already
- * returned one, its enriched copy (image, interest counts) is kept and only moved up.
- */
-function hoistBucketListEvents(
-  events: UnifiedEventItem[],
-  bucketTop: UnifiedEventItem[]
-): UnifiedEventItem[] {
-  const upcoming = filterUpcomingFeedItems(bucketTop);
-  if (upcoming.length === 0) return events;
-
-  const byId = new Map(events.map((e) => [e.event_id, e]));
-  const hoisted = upcoming.map((b) => {
-    const existing = byId.get(b.event_id);
-    return existing ? { ...existing, reason: b.reason, reasonLabel: b.reasonLabel } : b;
-  });
-  const pinned = new Set(hoisted.map((e) => e.event_id));
-  return [...hoisted, ...events.filter((e) => !pinned.has(e.event_id))];
 }
 
 /** Fetch feed for one or both locations when they don't match; merge and dedupe by event_id */
@@ -156,7 +139,7 @@ async function fetchFeedForLocations(
     const result = await PersonalizationEngineV5.getUnifiedFeed(userId, limit, 0, baseFilters);
     const boosted = boostEventsByArtistAffinity(result.events, affinity);
     return {
-      events: hoistBucketListEvents(
+      events: weaveBucketListIntoFeed(
         filterUpcomingFeedItems(boosted.map((e) => personalEventToItem(e, (e as any).event_type))),
         bucketTop
       ),
@@ -183,7 +166,7 @@ async function fetchFeedForLocations(
   const boostedMerged = boostEventsByArtistAffinity(mergedEvents, affinity);
   const merged = boostedMerged.map(e => personalEventToItem(e, (e as any).event_type));
   const hasMore = results.some(r => r.hasMore) || merged.length >= limit;
-  return { events: hoistBucketListEvents(filterUpcomingFeedItems(merged), bucketTop), hasMore };
+  return { events: weaveBucketListIntoFeed(filterUpcomingFeedItems(merged), bucketTop), hasMore };
 }
 
 function personalEventToItem(event: PersonalizedEvent, eventType?: string): UnifiedEventItem {

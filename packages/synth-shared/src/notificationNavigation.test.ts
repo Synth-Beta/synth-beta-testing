@@ -12,7 +12,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { resolveNotificationExpoPath } from './notificationNavigation';
+import { resolveNotificationExpoPath } from './notificationNavigation.ts';
 
 const EVENT_ID = 'aaaaaaaa-1111-4222-8333-444444444444';
 const ARTIST_ID = 'bbbbbbbb-1111-4222-8333-444444444444';

@@ -7,7 +7,7 @@ import { useWebLayoutMode } from '@/hooks/useWebLayoutMode';
 import { useMainNavItems, type MainNavCurrentView } from '@/hooks/useMainNavItems';
 import { getWebDesktopMainContentClass, type MainAppViewForLayout } from '@/utils/webMainContentClass';
 import { useMenuNotificationBadgeCount } from '@/hooks/useMenuNotificationBadgeCount';
-import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
+import { useLockBodyScroll, releaseScrollLockIfUnheld } from '@/hooks/useLockBodyScroll';
 import { ConcertFeed } from './events/ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
 import { SearchMap } from './SearchMap';
@@ -146,6 +146,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const { accountInfo } = useAccountType();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Whenever the route changes — in-app back arrow, browser back, any navigation — drop a
+  // scroll lock that nothing is holding any more. Overlays torn down by navigation rather
+  // than by their own close button are how a stuck `overflow: hidden` used to survive,
+  // which left the feed unscrollable with no visible cause. No-ops while an overlay is
+  // genuinely open.
+  useEffect(() => {
+    releaseScrollLockIfUnheld();
+  }, [location.pathname, location.search]);
 
   // Guard to prevent redirecting back into onboarding after skip/complete
   const onboardingExitInProgressRef = useRef(false);

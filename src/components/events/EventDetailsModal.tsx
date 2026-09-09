@@ -1,3 +1,4 @@
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import React, { useCallback, useEffect, useState, useRef, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -262,21 +263,11 @@ export function EventDetailsModal({
     setLocalIsInterested(isInterested);
   }, [isInterested]);
 
-  // Lock scroll while modal is open. Must target both body AND the web scroll container
-  // (#web-content-scroll) because the app scrolls inside that div, not the body.
-  useEffect(() => {
-    if (isOpen) {
-      const scrollEl = document.getElementById('web-content-scroll');
-      const prevBody = document.body.style.overflow;
-      const prevEl = scrollEl ? scrollEl.style.overflow : '';
-      document.body.style.overflow = 'hidden';
-      if (scrollEl) scrollEl.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prevBody;
-        if (scrollEl) scrollEl.style.overflow = prevEl;
-      };
-    }
-  }, [isOpen]);
+  // Lock scroll while modal is open, via the shared reference-counted lock. This used to
+  // save and restore body/#web-content-scroll overflow itself, which broke when another
+  // overlay was already open: it captured values that were already 'hidden' and wrote them
+  // back on close, leaving the page permanently unscrollable.
+  useLockBodyScroll(isOpen);
 
   useEffect(() => {
     if (!hasNativeEventHeader || !isOpen || !actualEvent?.id) {

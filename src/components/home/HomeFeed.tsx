@@ -1,3 +1,4 @@
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { PersonalizedFeedService, type PersonalizedEvent, type FeedItem } from '@/services/personalizedFeedService';
@@ -451,16 +452,10 @@ interface FriendEventInterest {
     }
   }, [currentUserId]);
 
-  // Lock #web-content-scroll when the review dialog is open (body lock alone doesn't stop it)
-  useEffect(() => {
-    const scrollEl = document.getElementById('web-content-scroll');
-    if (!scrollEl) return;
-    if (reviewDetailOpen) {
-      const prev = scrollEl.style.overflow;
-      scrollEl.style.overflow = 'hidden';
-      return () => { scrollEl.style.overflow = prev; };
-    }
-  }, [reviewDetailOpen]);
+  // Lock scrolling while the review dialog is open. Uses the shared reference-counted lock
+  // rather than saving/restoring #web-content-scroll here, so it composes with the other
+  // overlays instead of fighting them over the same style property.
+  useLockBodyScroll(reviewDetailOpen);
 
   // Check for selectedEvent in localStorage (from notification navigation)
   useEffect(() => {

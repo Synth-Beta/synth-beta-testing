@@ -17,6 +17,7 @@
     "build:verify": "npm run build && node scripts/security-check.mjs",
     "security:audit": "node scripts/security-check.mjs",
     "lint": "eslint .",
+    "test": "node --experimental-strip-types --no-warnings --test \"packages/synth-shared/src/**/*.test.ts\"",
     "preview": "vite preview",
     "setup": "npm install && npm run backend:install",
     "verify:photos": "node verify-photo-integration.js",

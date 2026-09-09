@@ -210,8 +210,8 @@
     "semantic_hash": "d8d09d83028ac4b6c29d57b97cb36fe0"
   },
   "mobile/app.json": {
-    "mtime": 1788358175.4467175,
-    "ast_hash": "eec295f9cdcf4a45bc3202f856becf77",
+    "mtime": 1788818169.5692623,
+    "ast_hash": "a0610c2d4fd7c0fc58eb3390ebf9e033",
     "semantic_hash": ""
   },
   "mobile/app/(auth)/_layout.tsx": {
@@ -230,8 +230,8 @@
     "semantic_hash": "10ba2e79ce9eaf468733a8283a2a3e29"
   },
   "mobile/app/(onboarding)/artists.tsx": {
-    "mtime": 1788289687.5468245,
-    "ast_hash": "6bc32eaa8c5d1795af1124bfd8a967f9",
+    "mtime": 1788967547.1247678,
+    "ast_hash": "a37905b9488d7ad90f476e58406cfa08",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/connect.tsx": {
@@ -245,8 +245,8 @@
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/scene.tsx": {
-    "mtime": 1787703298.721934,
-    "ast_hash": "16ef2291840f6f107a9f12dfa363b445",
+    "mtime": 1788967576.7631614,
+    "ast_hash": "f6ee750b935c538722f933a27d206eaf",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/welcome.tsx": {
@@ -300,8 +300,8 @@
     "semantic_hash": "38550dbc30757ea8dc43a4601c2b1d4f"
   },
   "mobile/app/_layout.tsx": {
-    "mtime": 1788361376.668602,
-    "ast_hash": "c6b89bb060cbe3a4ae6970710c17399c",
+    "mtime": 1788966541.0934389,
+    "ast_hash": "53d62d8254e22ee5837b9a1d0d8fcf44",
     "semantic_hash": ""
   },
   "mobile/app/app-menu.tsx": {
@@ -1130,8 +1130,8 @@
     "semantic_hash": "7f7e112bf630810fe28444b82fd0fb6c"
   },
   "packages/synth-shared/src/index.ts": {
-    "mtime": 1788724209.875345,
-    "ast_hash": "8be63491a70bbb07f11f3d4316d391b7",
+    "mtime": 1788829567.1965735,
+    "ast_hash": "29433171114a8ba04ee923a08a7a6300",
     "semantic_hash": ""
   },
   "packages/synth-shared/src/notificationNavigation.ts": {
@@ -1470,9 +1470,9 @@
     "semantic_hash": "de475df0a56319701580f6e2a31a2586"
   },
   "src/components/admin/AdminModerationPanel.tsx": {
-    "mtime": 1782243119.226033,
-    "ast_hash": "65d0c12ec512c572a7608ae81023809b",
-    "semantic_hash": "65d0c12ec512c572a7608ae81023809b"
+    "mtime": 1788832528.0532608,
+    "ast_hash": "b66e07e3974bd6bf8c22aa73aef8f79c",
+    "semantic_hash": ""
   },
   "src/components/admin/VerificationManagement.tsx": {
     "mtime": 1782243119.226033,
@@ -1810,8 +1810,8 @@
     "semantic_hash": "9d2b9b3720e42dad800e108bff393c07"
   },
   "src/components/onboarding/OnboardingFlow.tsx": {
-    "mtime": 1787703298.734442,
-    "ast_hash": "dc5c824ce57e807a44d577ceec92a6ca",
+    "mtime": 1788967644.9434104,
+    "ast_hash": "8d4feb2b7d411a614dad673d3cbc8b69",
     "semantic_hash": ""
   },
   "src/components/onboarding/OnboardingReminderBanner.tsx": {
@@ -2530,9 +2530,9 @@
     "semantic_hash": ""
   },
   "src/services/adminService.ts": {
-    "mtime": 1783705137.8703322,
-    "ast_hash": "46cf3a37a29379617339d0b94db4e61f",
-    "semantic_hash": "46cf3a37a29379617339d0b94db4e61f"
+    "mtime": 1788832497.850603,
+    "ast_hash": "d1fecb0310f8417176c75a9def92ffcd",
+    "semantic_hash": ""
   },
   "src/services/analyticsDataService.ts": {
     "mtime": 1782243119.4698787,
@@ -7845,8 +7845,8 @@
     "semantic_hash": ""
   },
   "packages/synth-shared/src/genreEvents.ts": {
-    "mtime": 1787152112.3422139,
-    "ast_hash": "28d9b02920cc946f6943d472d91fa724",
+    "mtime": 1788829567.3012774,
+    "ast_hash": "b3b53456ef5f68ec5be6c10c36c23f4d",
     "semantic_hash": ""
   },
   "scripts/setup-slack-signup-webhook.mjs": {
@@ -9062,6 +9062,76 @@
   "supabase/day-after-going-only-2026-09-06/03_verify.READONLY.sql": {
     "mtime": 1788725239.0197093,
     "ast_hash": "973f4e3885a948fce2a4acebc7336b9b",
+    "semantic_hash": ""
+  },
+  "supabase/genre-backfill-2026-09-07/01_rerun_event_genre_backfill.sql": {
+    "mtime": 1788818714.0023024,
+    "ast_hash": "503bfa95296df8ab63555233c6333b04",
+    "semantic_hash": ""
+  },
+  "supabase/genre-backfill-2026-09-07/02_schedule_genre_propagation.sql": {
+    "mtime": 1788821686.9778404,
+    "ast_hash": "8939dc6b7f16afba22f37f18b6f66c4a",
+    "semantic_hash": ""
+  },
+  "supabase/genre-backfill-2026-09-07/03_fix_propagation_timeout.sql": {
+    "mtime": 1788829201.5893312,
+    "ast_hash": "f4d040f064e8ed73c24d123fb800d35d",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/01_what_depends_on_the_taxonomy.sql": {
+    "mtime": 1788829542.096581,
+    "ast_hash": "45f655f3278c5160e8c5190cff179c15",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/02_resolve_cooc_subsystem.sql": {
+    "mtime": 1788829878.6511416,
+    "ast_hash": "89d70bfd4a17d4cdad5fd0c5399ea67b",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/03_fix_revoke_public_grant.sql": {
+    "mtime": 1788830312.854367,
+    "ast_hash": "cb38c21ffcd3815910e66c72e4b1174f",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/04_revoke_public_execute_security_definer.sql": {
+    "mtime": 1788830544.5731723,
+    "ast_hash": "2885f1f16f0aa81d6a64c25cbe0a665f",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/05_anon_execute_sweep.sql": {
+    "mtime": 1788830777.7397842,
+    "ast_hash": "19d577cc49c80005afe64aaa0db1317a",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/06_revoke_anon_all_security_definer.sql": {
+    "mtime": 1788831086.589256,
+    "ast_hash": "59fd5d51c6ec1b74b05d269d5ebf1298",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/07_dump_idor_candidates.sql": {
+    "mtime": 1788831653.9188125,
+    "ast_hash": "ab44c1ec2988937e46b2aec1041bb3ec",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/08_add_idor_guards.sql": {
+    "mtime": 1788832065.8325522,
+    "ast_hash": "37be454c79686783827badb4ea17bd4d",
+    "semantic_hash": ""
+  },
+  "supabase/genre-taxonomy-audit-2026-09-07/09_drop_dead_admin_functions.sql": {
+    "mtime": 1788832613.525735,
+    "ast_hash": "b4c8f90e0e637eb7fd699cbdf38aacdb",
+    "semantic_hash": ""
+  },
+  "supabase/onboarding-audit-2026-09-09/01_diagnose.READONLY.sql": {
+    "mtime": 1788966597.2001276,
+    "ast_hash": "fca83631704c89d730eba1c1c5b16f5b",
+    "semantic_hash": ""
+  },
+  "supabase/onboarding-audit-2026-09-09/02_backfill_stranded.REVIEW.sql": {
+    "mtime": 1788966615.0277169,
+    "ast_hash": "b2eece0ea0dca062de21cb87142125f2",
     "semantic_hash": ""
   }
 }

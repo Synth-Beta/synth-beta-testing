@@ -7,6 +7,12 @@ export interface OnboardingStatus {
   tour_completed: boolean;
 }
 
+export interface ArtistOption {
+  id: string;
+  name: string;
+  image_url?: string | null;
+}
+
 export interface ProfileSetupData {
   name?: string;
   username?: string;
@@ -21,6 +27,60 @@ export interface ProfileSetupData {
 }
 
 export class OnboardingService {
+  /**
+   * Minimum artist follows required to finish onboarding. Mirrors MIN_ARTISTS in
+   * mobile/app/(onboarding)/artists.tsx so the same account faces the same requirement
+   * whichever platform it signs up on — the two diverging is what produced completed
+   * users with zero artist signal.
+   */
+  static readonly MIN_ARTIST_FOLLOWS = 3;
+
+  /**
+   * Counts follows already on record, so progress carries across platforms and sessions:
+   * someone who followed two artists on mobile only needs one more on web.
+   */
+  static async countArtistFollows(userId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('artist_follows')
+      .select('artist_id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  /**
+   * Suggested artists for the follow step. Mirrors mobile's ArtistService.getSuggestedArtists:
+   * `artists` has no `popularity` column, and num_upcoming_events is the closest real
+   * signal for "worth suggesting" in a concert app.
+   *
+   * Throws rather than returning [] on error. An empty list and a failed query mean very
+   * different things once a minimum is enforced, and swallowing the difference is exactly
+   * what let a broken query lock users out of the mobile app.
+   */
+  static async getSuggestedArtists(limit = 24): Promise<ArtistOption[]> {
+    const { data, error } = await supabase
+      .from('artists')
+      .select('id, name, image_url')
+      .order('num_upcoming_events', { ascending: false, nullsFirst: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  static async searchArtists(query: string, limit = 24): Promise<ArtistOption[]> {
+    const { data, error } = await supabase
+      .from('artists')
+      .select('id, name, image_url')
+      .ilike('name', `%${query}%`)
+      .order('num_upcoming_events', { ascending: false, nullsFirst: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data ?? [];
+  }
+
   /**
    * Check the onboarding status for a user
    */
@@ -63,18 +123,54 @@ export class OnboardingService {
       };
     } catch (error) {
       console.error('Error checking onboarding status:', error);
-      // Return default values on any error
-      return {
-        onboarding_completed: false,
-        onboarding_skipped: false,
-        tour_completed: false,
-      };
+      // Return null, NOT a defaulted "not onboarded" status. Callers treat
+      // onboarding_completed:false as "send them through onboarding", so defaulting on a
+      // transient network error threw already-onboarded users back into the wizard.
+      // MainApp guards on `if (status)`, so null correctly means "unknown, change nothing".
+      return null;
     }
   }
 
   /**
    * Save profile setup data (Step 1)
    */
+  /**
+   * Best-effort partial save of what the user has typed so far, so abandoning web
+   * onboarding half-finished does not mean retyping everything on mobile. Mobile's
+   * loadProfileDraft() already reads exactly these columns, so a draft written here shows
+   * up prefilled there with no mobile change at all.
+   *
+   * Deliberately excludes `username` and `name`: username is unique across users, and
+   * persisting a half-typed one would let an abandoned session squat a name nobody ends
+   * up using. Those two stay cheap to retype and are written only on real submit.
+   *
+   * Never throws and never blocks the form — a failed draft save just means no prefill.
+   */
+  static async saveProfileDraft(
+    userId: string,
+    draft: Pick<
+      ProfileSetupData,
+      'location_city' | 'birthday' | 'gender' | 'bio' | 'acquisition_source' | 'other_acquisition_source' | 'contact_email'
+    >
+  ): Promise<void> {
+    const update: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(draft)) {
+      if (typeof value === 'string' && value.trim() !== '') {
+        update[key] = value.trim();
+      }
+    }
+    if (Object.keys(update).length === 0) return;
+
+    update.updated_at = new Date().toISOString();
+
+    try {
+      const { error } = await supabase.from('users').update(update).eq('user_id', userId);
+      if (error) console.warn('saveProfileDraft: could not persist draft:', error.message);
+    } catch (error) {
+      console.warn('saveProfileDraft: could not persist draft:', error);
+    }
+  }
+
   static async saveProfileSetup(userId: string, data: ProfileSetupData): Promise<boolean> {
     try {
       // Ensure user exists in public.users before updating (row may not exist for new users)

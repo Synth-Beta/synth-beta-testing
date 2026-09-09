@@ -194,19 +194,58 @@ export default function RootLayout() {
     }
 
     let cancelled = false;
+
+    // A server read that times out or throws means "unknown", never "not onboarded".
+    // When a late answer arrives saying they ARE onboarded, correct the decision: the
+    // routing effect re-runs on isOnboardingComplete, so anyone parked on the wizard by a
+    // slow or failed read is pulled back into the app instead of being made to redo it.
+    const applyLateAnswer = (pending: Promise<boolean>) => {
+      void pending
+        .then(async (late) => {
+          if (cancelled || !late) return;
+          setIsOnboardingComplete(true);
+          try {
+            await AsyncStorage.setItem(getOnboardingStorageKey(sessionUserId), 'true');
+          } catch {
+            /* ignore */
+          }
+        })
+        .catch(() => {
+          /* already booted on the local flag; nothing further to do */
+        });
+    };
+
     // Intentionally do NOT reset onboardingEffectiveReady to false on re-run — that
     // would drop the boot gate on every token refresh and hang the loading logo.
     void (async () => {
       try {
         // Never let a slow/hanging profile fetch block boot: fall back to the local
         // per-user flag after 4s so routingReady always resolves.
-        const fromServer = await Promise.race([
-          OnboardingService.isOnboardingCompletedInProfile(sessionUserId),
-          new Promise<boolean>((resolve) =>
-            setTimeout(() => resolve(storageOnboardingComplete === true), 4000)
-          ),
+        //
+        // The timeout resolves to a sentinel rather than `false`, because "the server did
+        // not answer" and "the server said this user has not onboarded" are different
+        // facts and only the second one justifies showing the wizard. Conflating them
+        // meant a slow network plus a wiped local flag (reinstall) sent a fully onboarded
+        // user back through onboarding — a transient failure causing permanent-looking
+        // rework, which is the exact class of problem being ruled out here.
+        const serverPromise = OnboardingService.isOnboardingCompletedInProfile(sessionUserId);
+        const UNKNOWN = 'unknown' as const;
+        const fromServer = await Promise.race<boolean | typeof UNKNOWN>([
+          serverPromise,
+          new Promise<typeof UNKNOWN>((resolve) => setTimeout(() => resolve(UNKNOWN), 4000)),
         ]);
         if (cancelled) return;
+
+        if (fromServer === UNKNOWN) {
+          // Boot on whatever the local flag says so routingReady resolves, but keep
+          // listening: when the server does answer, correct the decision. The routing
+          // effect re-runs on isOnboardingComplete, so someone parked on the wizard by a
+          // slow answer is pulled back out into the app once the truth arrives.
+          setIsOnboardingComplete(storageOnboardingComplete === true);
+          applyLateAnswer(serverPromise);
+          return;
+        }
+
         const effective = storageOnboardingComplete || fromServer;
         setIsOnboardingComplete(effective);
         if (fromServer) {
@@ -215,11 +254,24 @@ export default function RootLayout() {
           } catch {
             /* ignore */
           }
+        } else if (storageOnboardingComplete === true) {
+          // Local says onboarded, server disagrees. The only way to reach this state is a
+          // completion whose server write was lost — the `.upsert()` 23502 bug shipped
+          // 2026-07-26..2026-09-02 did exactly that, and left users looking fine until
+          // they reinstalled and the local flag went with the app. Repair the server here
+          // so the disagreement heals itself on the next launch instead of waiting for a
+          // manual backfill, and so gates keyed on the server flag stop being invisible.
+          OnboardingService.completeOnboarding(sessionUserId).catch((repairErr) => {
+            console.warn('[root] onboarding flag repair failed', repairErr);
+          });
         }
       } catch (err) {
         if (cancelled) return;
         console.warn('[root] onboarding profile fetch', err);
         setIsOnboardingComplete(storageOnboardingComplete);
+        // A failed read is "unknown" too. Retry once so a blip is not the reason an
+        // onboarded user is sent back through the wizard.
+        applyLateAnswer(OnboardingService.isOnboardingCompletedInProfile(sessionUserId));
       } finally {
         if (!cancelled) setOnboardingEffectiveReady(true);
       }
@@ -282,8 +334,14 @@ export default function RootLayout() {
     storageOnboardingComplete !== null &&
     onboardingEffectiveReady;
 
+  // Deliberately NOT gated on `isOnboardingComplete`. Whether we can reach someone by
+  // email has nothing to do with whether they finished the wizard, and coupling the two
+  // made the gate invisible to the exact people it exists for: anyone who onboarded
+  // before contact-email collection was added to the profile step (2026-08-07), plus
+  // anyone whose completion flag was lost. Onboarding still wins on every routing
+  // branch below, so an unfinished user is sent to the wizard, never here.
   const needsEmail = Boolean(
-    session?.user && isOnboardingComplete && needsContactEmail(session.user, contactEmail)
+    session?.user && needsContactEmail(session.user, contactEmail)
   );
 
   // SplashScreen is hidden immediately on JS mount (see top of file).
@@ -387,7 +445,9 @@ export default function RootLayout() {
       return;
     }
 
-    if (!isOnboardingComplete && needsAuth && session) {
+    // `inEmailRequired` is included so that now that `needsEmail` no longer implies a
+    // finished wizard, someone unfinished can never be parked on the email gate.
+    if (!isOnboardingComplete && (needsAuth || inEmailRequired) && session) {
       void (async () => {
         const reconciled = sessionUserId ? await refreshOnboardingFromStorage(sessionUserId) : false;
         if (!reconciled) {

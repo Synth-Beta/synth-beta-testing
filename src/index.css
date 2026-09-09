@@ -1697,3 +1697,16 @@ body,
     color: var(--neutral-600);
   }
 }
+/*
+ * Scroll lock for modals and overlays. Applied as a CLASS, never by writing inline styles.
+ *
+ * #web-content-scroll gets its scrollability from a React inline style
+ * (WebAppShell: style={{ overflowY: 'auto' }}). Code that saved and restored
+ * `element.style.overflow` was reading the shorthand — which returns '' when only
+ * overflowY is set — then writing 'hidden' over both axes and "restoring" ''. That wiped
+ * the inline overflowY for good, and React never re-applied it because its virtual DOM
+ * saw no change, so the container silently stopped scrolling. A class can't do that.
+ */
+.synth-scroll-locked {
+  overflow: hidden !important;
+}
