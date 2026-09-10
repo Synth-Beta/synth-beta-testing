@@ -188,7 +188,14 @@ export {
   getEventsFromRankedArtists,
   weaveBucketListIntoFeed,
   BUCKET_LIST_SPACING,
+  BUCKET_LIST_TOP_LIMIT,
 } from './bucketListFeed';
+export {
+  type ArtistAffinity,
+  getUserArtistAffinity,
+  boostEventsByArtistAffinity,
+  __resetArtistAffinityCache,
+} from './artistAffinity';
 export {
   getUpcomingEventsForGenreChat,
   type NearbyParams,

@@ -35,6 +35,13 @@ const MAX_RANKED_ARTISTS = 10;
 const MAX_EVENTS_PER_ARTIST = 5;
 
 /**
+ * How many bucket-list events get woven into the home feed. Shared so web and Expo pull
+ * the same number — they were 5 and 10, which made mobile's feed measurably more
+ * bucket-heavy than web's for the same user.
+ */
+export const BUCKET_LIST_TOP_LIMIT = 5;
+
+/**
  * Fetches upcoming events for artists already sorted by bucket-list priority
  * (rank_order asc, nulls last — callers resolve that ordering themselves since
  * entity enrichment differs slightly per platform's BucketListService).
@@ -124,15 +131,18 @@ export const BUCKET_LIST_SPACING = 4;
  * bucket-list preference signals. Only the ones it missed are injected, spaced out, so a
  * #1 bucket artist is reliably visible without the feed opening on a block of them.
  */
-export function weaveBucketListIntoFeed<T extends { event_id: string }>(
+export function weaveBucketListIntoFeed<T>(
   events: T[],
   bucketEvents: T[],
+  // Takes an id accessor rather than assuming a field name: web feed items key on
+  // `event_id`, Expo's on `id`, and the weaving must be identical on both.
+  getId: (item: T) => string,
   spacing: number = BUCKET_LIST_SPACING
 ): T[] {
   if (bucketEvents.length === 0) return events;
 
-  const present = new Set(events.map((e) => e.event_id));
-  const missing = bucketEvents.filter((b) => !present.has(b.event_id));
+  const present = new Set(events.map(getId));
+  const missing = bucketEvents.filter((b) => !present.has(getId(b)));
   if (missing.length === 0) return events;
 
   // A spacing of 0 or less would inject after every event; clamp so the feed stays mostly

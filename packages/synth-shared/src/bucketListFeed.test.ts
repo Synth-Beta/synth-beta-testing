@@ -108,17 +108,18 @@ void main();
 // Run: node --experimental-strip-types packages/synth-shared/src/bucketListFeed.test.ts
 // ---------------------------------------------------------------------------
 {
+  const byEventId = (e: { event_id: string }) => e.event_id;
   const feed = (n: number) => Array.from({ length: n }, (_, i) => ({ event_id: `r${i}` }));
 
   // Nothing to weave: feed is untouched.
-  assert.deepEqual(weaveBucketListIntoFeed(feed(3), []), feed(3));
+  assert.deepEqual(weaveBucketListIntoFeed(feed(3), [], byEventId), feed(3));
 
   // A bucket event the ranker already returned is NOT duplicated and NOT moved.
   const already = [{ event_id: 'r1' }];
-  assert.deepEqual(weaveBucketListIntoFeed(feed(3), already), feed(3));
+  assert.deepEqual(weaveBucketListIntoFeed(feed(3), already, byEventId), feed(3));
 
   // The feed still opens on the ranker's top pick — never on a bucket event.
-  const woven = weaveBucketListIntoFeed(feed(8), [{ event_id: 'b0' }, { event_id: 'b1' }], 4);
+  const woven = weaveBucketListIntoFeed(feed(8), [{ event_id: 'b0' }, { event_id: 'b1' }], byEventId, 4);
   assert.equal(woven[0].event_id, 'r0');
   // Injected after every 4th ranker event.
   assert.equal(woven[4].event_id, 'b0');
@@ -126,15 +127,26 @@ void main();
   assert.equal(woven.length, 10);
 
   // Bucket events that do not fit are appended, never dropped.
-  const overflow = weaveBucketListIntoFeed(feed(2), [{ event_id: 'b0' }, { event_id: 'b1' }], 4);
+  const overflow = weaveBucketListIntoFeed(feed(2), [{ event_id: 'b0' }, { event_id: 'b1' }], byEventId, 4);
   assert.equal(overflow.length, 4);
   assert.ok(overflow.some((e) => e.event_id === 'b0'));
   assert.ok(overflow.some((e) => e.event_id === 'b1'));
 
   // Degenerate spacing must not inject after every single event.
-  const clamped = weaveBucketListIntoFeed(feed(4), [{ event_id: 'b0' }], 0);
+  const clamped = weaveBucketListIntoFeed(feed(4), [{ event_id: 'b0' }], byEventId, 0);
   assert.equal(clamped[0].event_id, 'r0');
   assert.equal(clamped.length, 5);
+
+  // The accessor is what lets Expo (keyed on `id`) share this with web (`event_id`).
+  const byId = (e: { id: string }) => e.id;
+  const altKeyed = weaveBucketListIntoFeed(
+    [{ id: 'r0' }, { id: 'r1' }],
+    [{ id: 'r0' }, { id: 'b0' }],
+    byId,
+    4
+  );
+  assert.equal(altKeyed.filter((e) => e.id === 'r0').length, 1, 'must dedupe on the given key');
+  assert.ok(altKeyed.some((e) => e.id === 'b0'));
 
   console.log('weaveBucketListIntoFeed: all checks passed');
 }

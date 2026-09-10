@@ -14,7 +14,7 @@ import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { VerifiedChatService } from '@/services/verifiedChatService';
 import { getUserArtistAffinity, boostEventsByArtistAffinity } from '@/services/artistAffinityService';
 import { BucketListService } from '@/services/bucketListService';
-import { getEventsFromRankedArtists, weaveBucketListIntoFeed } from '@synth/shared';
+import { getEventsFromRankedArtists, weaveBucketListIntoFeed, BUCKET_LIST_TOP_LIMIT } from '@synth/shared';
 import { toast } from '@/hooks/use-toast';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
 import { LocationService } from '@/services/locationService';
@@ -60,7 +60,6 @@ const PREFETCH_THRESHOLD = 60; // Start prefetching when 60 events are displayed
 const LOCATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const LOCATION_RELOAD_THRESHOLD_MILES = 50; // Only reload when location changes meaningfully
 const LOCATION_MATCH_THRESHOLD_MILES = 25; // Locations within 25mi are considered "same"
-const BUCKET_LIST_TOP_LIMIT = 5;   // How many ranked bucket-list events to pull in
 
 function filterUpcomingFeedItems(items: UnifiedEventItem[]): UnifiedEventItem[] {
   return items.filter((item) => isEventUpcomingForFeed(item.event_date));
@@ -141,7 +140,8 @@ async function fetchFeedForLocations(
     return {
       events: weaveBucketListIntoFeed(
         filterUpcomingFeedItems(boosted.map((e) => personalEventToItem(e, (e as any).event_type))),
-        bucketTop
+        bucketTop,
+        (e) => e.event_id
       ),
       hasMore: result.hasMore,
     };
@@ -166,7 +166,7 @@ async function fetchFeedForLocations(
   const boostedMerged = boostEventsByArtistAffinity(mergedEvents, affinity);
   const merged = boostedMerged.map(e => personalEventToItem(e, (e as any).event_type));
   const hasMore = results.some(r => r.hasMore) || merged.length >= limit;
-  return { events: weaveBucketListIntoFeed(filterUpcomingFeedItems(merged), bucketTop), hasMore };
+  return { events: weaveBucketListIntoFeed(filterUpcomingFeedItems(merged), bucketTop, (e) => e.event_id), hasMore };
 }
 
 function personalEventToItem(event: PersonalizedEvent, eventType?: string): UnifiedEventItem {

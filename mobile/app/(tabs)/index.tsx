@@ -1,3 +1,9 @@
+import {
+  weaveBucketListIntoFeed,
+  boostEventsByArtistAffinity,
+  getUserArtistAffinity,
+  BUCKET_LIST_TOP_LIMIT,
+} from '@synth/shared';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, View, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -8,10 +14,8 @@ import { EventCard } from '../../src/components/Feed/EventCard';
 import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import { SynthText } from '../../src/components/SynthText';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
-import { BucketListRail } from '../../src/components/Feed/BucketListRail';
 import { FeedListSkeleton } from '../../src/components/skeletons/FeedListSkeleton';
 import {
-  BucketListFeedItem,
   FriendSuggestion,
   HomeFeedService,
   NetworkReview,
@@ -42,16 +46,23 @@ export default function FeedScreen() {
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState(false);
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
-  const [bucketListEvents, setBucketListEvents] = useState<BucketListFeedItem[]>([]);
+  const [bucketListEvents, setBucketListEvents] = useState<UnifiedPersonalizedEvent[]>([]);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const retryAttemptRef = useRef(0);
   const { seedFromFeed } = useInterested();
   const { coords: browseCoords } = useBrowseLocation();
 
+  // Bucket-list shows are woven into the ranked feed rather than shown on their own rail,
+  // matching web. Ones the ranker already returned keep its ordering and its enriched copy;
+  // only the ones it missed get injected, spaced out. Shared helper so both platforms
+  // order the feed identically.
   const listData: ListItem[] =
     feedDisplayMode === 'events'
-      ? events.map(data => ({ kind: 'event', data }))
-      : reviews.map(data => ({ kind: 'review', data }));
+      ? weaveBucketListIntoFeed(events, bucketListEvents, e => e.id).map(data => ({
+          kind: 'event' as const,
+          data,
+        }))
+      : reviews.map(data => ({ kind: 'review' as const, data }));
 
   const fetchFeed = useCallback(async () => {
     try {
@@ -80,15 +91,21 @@ export default function FeedScreen() {
       const suggestionsPromise = HomeFeedService.getFriendSuggestionsForRail(user.id, 5);
       const bucketListEventsPromise = HomeFeedService.getBucketListEvents(
         user.id,
-        10,
+        BUCKET_LIST_TOP_LIMIT,
         loc ? { lat: loc.latitude, lng: loc.longitude, radiusMiles: 50 } : undefined
       );
+      // Web has boosted the feed by streamed/reviewed artists since the affinity service
+      // was added; mobile never did, which is most of why the two home feeds ranked
+      // differently for the same account. Never rejects (it swallows its own errors), so
+      // the reviews branch below can leave it unawaited.
+      const affinityPromise = getUserArtistAffinity(supabase, user.id);
 
       if (feedDisplayMode === 'events') {
-        const [unread, suggestions, bucketEvents, unified, friendEvents] = await Promise.all([
+        const [unread, suggestions, bucketEvents, affinity, unified, friendEvents] = await Promise.all([
           unreadPromise,
           suggestionsPromise,
           bucketListEventsPromise,
+          affinityPromise,
           HomeFeedService.getUnifiedPersonalizedEvents(
             user.id, 50, loc?.latitude ?? null, loc?.longitude ?? null, 50
           ),
@@ -98,8 +115,13 @@ export default function FeedScreen() {
         setFriendSuggestions(suggestions);
         setBucketListEvents(bucketEvents);
 
+        // Artists the user actually streams or has reviewed move to the front, keeping the
+        // RPC's order within each group. Applied before the friend interleave so friend
+        // events keep their every-4th cadence.
+        const ranked = boostEventsByArtistAffinity(unified, affinity);
+
         // Convert friend network events → UnifiedPersonalizedEvent with FRIENDS label
-        const friendEventIds = new Set(unified.map(e => e.id));
+        const friendEventIds = new Set(ranked.map(e => e.id));
         const friendsAsUnified: UnifiedPersonalizedEvent[] = friendEvents
           .filter(ne => !friendEventIds.has(ne.id)) // deduplicate
           .map(ne => ({
@@ -122,8 +144,8 @@ export default function FeedScreen() {
         // Interleave: inject friend events every 4 personalized events
         const merged: UnifiedPersonalizedEvent[] = [];
         let fi = 0;
-        for (let i = 0; i < unified.length; i++) {
-          merged.push(unified[i]);
+        for (let i = 0; i < ranked.length; i++) {
+          merged.push(ranked[i]);
           if ((i + 1) % 4 === 0 && fi < friendsAsUnified.length) {
             merged.push(friendsAsUnified[fi++]);
           }
@@ -273,13 +295,12 @@ export default function FeedScreen() {
   const listHeader = useMemo(
     () => (
       <>
-        <BucketListRail events={bucketListEvents} />
         {friendSuggestions.length > 0 ? (
           <FriendSuggestionsRail suggestions={friendSuggestions} />
         ) : null}
       </>
     ),
-    [bucketListEvents, friendSuggestions]
+    [friendSuggestions]
   );
 
   return (

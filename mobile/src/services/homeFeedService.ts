@@ -98,15 +98,6 @@ export interface TrendingEvent {
 }
 
 /** One event surfaced because it matches a ranked bucket-list artist. */
-export interface BucketListFeedItem {
-    id: string;
-    title: string;
-    artist_name: string;
-    venue_name: string;
-    event_date: string;
-    bucket_rank: number;
-    bucket_reason: string;
-}
 
 /** Same shape as web + {@link @synth/shared#SharedFriendSuggestion}. */
 export interface FriendSuggestion {
@@ -764,7 +755,7 @@ export class HomeFeedService {
         userId: string,
         limit = 10,
         near?: { lat: number; lng: number; radiusMiles?: number }
-    ): Promise<BucketListFeedItem[]> {
+    ): Promise<UnifiedPersonalizedEvent[]> {
         try {
             // Already sorted by rank_order (nulls last), then added_at asc.
             const bucketList = await BucketListService.getBucketList(userId);
@@ -773,17 +764,22 @@ export class HomeFeedService {
                 .map(item => ({ id: item.entity_id, name: item.entity_name }));
 
             const events = await getEventsFromRankedArtists(supabase, rankedArtists, { limit, near });
+            // Shaped as ordinary feed events and labelled RECOMMENDED, not as a distinct
+            // rail item type. The bucket list informs what gets recommended; it is not its
+            // own shelf. Web weaves these into the feed the same way, via the same shared
+            // helper, so the two home pages stay in step.
             return events.map((e: any) => ({
-                id: e.id,
+                id: String(e.id),
                 title: e.title ?? e.artist_name ?? '',
                 artist_name: e.artist_name ?? '',
                 venue_name: e.venue_name ?? '',
                 event_date: e.event_date,
-                bucket_rank: e.bucket_rank,
-                bucket_reason: e.bucket_reason,
+                feedLabel: 'RECOMMENDED',
+                interested_count: 0,
+                user_is_interested: false,
             }));
         } catch (error) {
-            console.error('Error loading bucket list events for rail:', error);
+            console.error('Error loading bucket list events for feed:', error);
             return [];
         }
     }
