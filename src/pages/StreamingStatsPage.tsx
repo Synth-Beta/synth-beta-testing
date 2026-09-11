@@ -319,6 +319,12 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
   const handleSync = async () => {
     if (!serviceType || !user) return;
+    // Apple Music auth lives in this browser (MusicKit), so a fresh tab — e.g. opened from the
+    // app — has nothing to resync with. Sign in right here instead of dead-ending on a toast.
+    if (serviceType === 'apple-music' && !appleMusicService.checkStoredToken()) {
+      await handleConnectAppleMusic();
+      return;
+    }
     setSyncing(true);
     try {
       const result = await syncStreamingProfile(user.id, serviceType, { manual: true });
@@ -426,32 +432,26 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   };
 
   const handleConnectAppleMusic = async () => {
-    if (typeof (window as any).MusicKit === 'undefined') {
-      toast({
-        title: 'Apple Music unavailable',
-        description: 'Apple Music connection requires the native app build.',
-        variant: 'destructive',
-      });
-      return;
-    }
     setSyncing(true);
     try {
       await appleMusicService.authenticate();
       streamingSyncService.startSync('apple-music');
-      appleMusicService.syncProfileData().then(() => {
-        streamingSyncService.completeSync();
-        loadProfile();
-      }).catch(err => {
-        streamingSyncService.errorSync(err.message || 'Sync failed');
-      });
-      setNeedsConnection(false);
+      await appleMusicService.syncProfileData();
+      streamingSyncService.completeSync();
       await loadProfile();
+      const fromApp = new URLSearchParams(window.location.search).get('source') === 'expo';
+      toast({
+        title: 'Apple Music synced',
+        description: fromApp
+          ? 'You can close this tab and go back to Synth.'
+          : 'Your event feed will reflect your taste.',
+      });
     } catch (err) {
       console.error('Apple Music connect error:', err);
       streamingSyncService.errorSync(err instanceof Error ? err.message : 'Connection failed');
       toast({
-        title: 'Connection failed',
-        description: 'Could not connect to Apple Music. Please try again.',
+        title: 'Apple Music sync failed',
+        description: err instanceof Error ? err.message : 'Please try again.',
         variant: 'destructive',
       });
     } finally {

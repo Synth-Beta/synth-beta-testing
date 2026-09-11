@@ -75,15 +75,16 @@ export function StreamingAccountSettings({
   const handleConnectAppleMusic = async () => {
     try {
       await appleMusicService.authenticate();
+      await appleMusicService.syncProfileData();
       toast({
         title: 'Apple Music connected',
-        description: 'Your account is linked. Tap Resync to pull your latest stats.',
+        description: 'Your stats are synced. Your event feed will reflect your taste.',
       });
       await refreshStatus();
-    } catch {
+    } catch (err) {
       toast({
-        title: 'Apple Music not available',
-        description: 'Apple Music linking is not available right now.',
+        title: 'Apple Music not connected',
+        description: err instanceof Error ? err.message : 'Please try again.',
         variant: 'destructive',
       });
     }

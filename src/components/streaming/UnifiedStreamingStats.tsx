@@ -141,10 +141,7 @@ export const UnifiedStreamingStats = ({
         setLastSyncTime(now);
       } else {
         // Apple Music
-        const success = await appleMusicService.syncProfileData();
-        if (!success) throw new Error('Sync failed');
-        // Only mark completed after confirmed success
-        appleMusicService.markSyncCompleted();
+        await appleMusicService.syncProfileData();
         setSyncStatus('success');
         const now = new Date().toISOString();
         setLastSyncTime(now);

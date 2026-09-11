@@ -196,13 +196,9 @@ export default function StreamingStatsScreen() {
         'Apple Music resync opens in your browser once to refresh your stats.',
         [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Open web',
-            onPress: () => {
-              const url = `${getExpoSiteUrl()}/streaming-stats?connect=${encodeURIComponent('apple-music')}&source=expo`;
-              void WebBrowser.openBrowserAsync(url);
-            },
-          },
+          // openStreamingOnWeb bridges the session; the bare URL opened a logged-out page
+          // that gave up after 8s with "This link may have expired".
+          { text: 'Open web', onPress: () => openStreamingOnWeb('apple-music') },
         ]
       );
       return;

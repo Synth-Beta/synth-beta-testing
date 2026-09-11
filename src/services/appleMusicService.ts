@@ -1,5 +1,4 @@
 import {
-  AppleMusicUser,
   AppleMusicSong,
   AppleMusicArtist,
   AppleMusicAlbum,
@@ -8,28 +7,33 @@ import {
   AppleMusicTimeRange,
   AppleMusicListeningStats,
   AppleMusicStorefront,
-  AppleMusicLibraryStats,
-  AppleMusicProfileData,
-  AppleMusicPlaylist,
-  AppleMusicReplayData,
-  AppleMusicChartsResponse,
   MusicKitInstance
 } from '@/types/appleMusic';
-import { UserStreamingStatsService } from '@/services/userStreamingStatsService';
+import {
+  buildAppleMusicProfile,
+  computeTopGenresFromArtistList,
+  enrichProfileDataWithGenres,
+} from '@synth/shared';
+import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
 
 class AppleMusicService {
   private developerToken: string = import.meta.env.VITE_APPLE_MUSIC_DEVELOPER_TOKEN || '';
   private musicKit: MusicKitInstance | null = null;
-  private userToken: string | null = null;
   private storefront: string = 'us';
+  /** Resolves once musickit.js has loaded and been configured (or failed to). */
+  readonly ready: Promise<void>;
 
   constructor() {
-    this.init();
+    this.ready = this.loadMusicKit().catch((error) => {
+      logger.warn('MusicKit failed to load:', error);
+    });
   }
 
-  private async init() {
-    await this.loadMusicKit();
+  // MusicKit persists the user token across reloads; a copy kept in a field was lost on
+  // every refresh, so resync after a reload always failed with "User token required".
+  private get userToken(): string | null {
+    return this.musicKit?.isAuthorized ? this.musicKit.musicUserToken || null : null;
   }
 
   private async loadMusicKit(): Promise<void> {
@@ -81,32 +85,26 @@ class AppleMusicService {
 
   // Authentication
   async authenticate(): Promise<void> {
+    // Await only when MusicKit isn't configured yet: authorize() opens a popup, and Safari
+    // blocks popups that aren't opened in the same task as the user's tap.
+    if (!this.musicKit) await this.ready;
     if (!this.musicKit) {
-      throw new Error('MusicKit not initialized');
+      throw new Error('Apple Music is not available right now.');
     }
 
     await this.musicKit.authorize();
-    
-    if (this.musicKit.isAuthorized) {
-      this.userToken = this.musicKit.musicUserToken;
-      await this.getUserStorefront();
-      
-      // Auto-sync profile data after successful authentication
-      setTimeout(() => {
-        this.autoSync().catch(console.error);
-      }, 2000); // Wait 2 seconds to let UI update first
+    if (!this.musicKit.isAuthorized) {
+      throw new Error('Apple Music sign-in was not completed.');
     }
+    await this.getUserStorefront();
   }
 
   checkStoredToken(): boolean {
-    return this.musicKit?.isAuthorized || false;
+    return Boolean(this.userToken);
   }
 
   logout(): void {
-    if (this.musicKit) {
-      this.musicKit.unauthorize();
-    }
-    this.userToken = null;
+    this.musicKit?.unauthorize();
   }
 
   // API Calls
@@ -154,7 +152,7 @@ class AppleMusicService {
     }
   }
 
-  // Library Data
+  // Library Data. Apple rejects library pages above 100 and recent tracks above 30 with a 400.
   async getLibrarySongs(limit: number = 100): Promise<AppleMusicApiResponse<AppleMusicSong>> {
     return this.appleMusicApiCall<AppleMusicSong>(`/me/library/songs?limit=${limit}`);
   }
@@ -213,39 +211,6 @@ class AppleMusicService {
     }
   }
 
-  async getLibraryStats(): Promise<AppleMusicLibraryStats | null> {
-    try {
-      // Get comprehensive library statistics
-      const [songsResponse, artistsResponse, albumsResponse, playlistsResponse] = await Promise.allSettled([
-        this.getLibrarySongs(1000),
-        this.getLibraryArtists(1000), 
-        this.getLibraryAlbums(1000),
-        this.getLibraryPlaylist(1000)
-      ]);
-
-      const songs = songsResponse.status === 'fulfilled' ? songsResponse.value.data : [] as AppleMusicSong[];
-      const artists = artistsResponse.status === 'fulfilled' ? artistsResponse.value.data : [] as AppleMusicArtist[];
-      const albums = albumsResponse.status === 'fulfilled' ? albumsResponse.value.data : [] as AppleMusicAlbum[];
-      const playlists = playlistsResponse.status === 'fulfilled' ? playlistsResponse.value.data : [] as AppleMusicPlaylist[];
-
-      const libraryStats: AppleMusicLibraryStats = {
-        totalSongs: songs.length,
-        totalArtists: artists.length,
-        totalAlbums: albums.length,
-        totalPlaylists: playlists.length,
-        songs,
-        artists,
-        albums,
-        playlists
-      };
-
-      return libraryStats;
-    } catch (error) {
-      console.error('Error getting library stats:', error);
-      return null;
-    }
-  }
-
   // Process library data based on time period
   processLibraryData<T>(data: T[], period: AppleMusicTimeRange): T[] {
     if (!data || !Array.isArray(data)) return [];
@@ -276,7 +241,7 @@ class AppleMusicService {
   ): AppleMusicListeningStats {
     const totalTracks = songs.length;
     const uniqueArtists = artists.length;
-    
+
     // Calculate unique albums from songs
     const albumSet = new Set<string>();
     songs.forEach(song => {
@@ -349,203 +314,88 @@ class AppleMusicService {
   }
 
   // Profile Data Management
-  async generateProfileData(): Promise<AppleMusicProfileData | null> {
-    try {
-      if (!this.userToken) {
-        throw new Error('User not authenticated');
-      }
-
-      // Get comprehensive library stats
-      const libraryStats = await this.getLibraryStats();
-      if (!libraryStats) {
-        throw new Error('Failed to get library stats');
-      }
-
-      // Get additional data
-      const [recentResponse, storefrontResponse] = await Promise.allSettled([
-        this.getRecentlyPlayed(50),
-        this.getUserStorefront()
-      ]);
-
-      const recentTracks = recentResponse.status === 'fulfilled' ? recentResponse.value.data : [] as AppleMusicPlayHistoryObject[];
-      const storefront = storefrontResponse.status === 'fulfilled' ? storefrontResponse.value : null;
-
-      // Calculate listening statistics
-      const listeningStats = this.calculateListeningStats(libraryStats.songs, libraryStats.artists);
-
-      // Get top items based on library (since Apple Music doesn't provide play counts)
-      const topTracks = this.processLibraryData(libraryStats.songs, 'last-month').slice(0, 20) as AppleMusicSong[];
-      const topArtists = this.processLibraryData(libraryStats.artists, 'last-month').slice(0, 20) as AppleMusicArtist[];
-      const topAlbums = this.processLibraryData(libraryStats.albums, 'last-month').slice(0, 20) as AppleMusicAlbum[];
-
-      const profileData: AppleMusicProfileData = {
-        storefront: storefront?.id || 'us',
-        libraryStats,
-        topTracks,
-        topArtists,
-        topAlbums,
-        recentlyPlayed: recentTracks,
-        topGenres: listeningStats.topGenres,
-        listeningTime: listeningStats.totalHours,
-        lastUpdated: new Date().toISOString()
-      };
-
-      return profileData;
-    } catch (error) {
-      console.error('Error generating profile data:', error);
-      return null;
+  async generateProfileData(): Promise<Record<string, unknown>> {
+    if (!this.userToken) {
+      throw new Error('Connect Apple Music first.');
     }
-  }
 
-  // Upload profile data to backend
-  async uploadProfileData(profileData: AppleMusicProfileData): Promise<boolean> {
-    try {
-      // Get current user ID if available
-      const userId = await this.getCurrentUserId();
-      
-      const backendUrl =
-        import.meta.env.VITE_BACKEND_URL ||
-        import.meta.env.VITE_API_BASE_URL ||
-        (typeof window !== 'undefined' ? window.location.origin : '');
-      const response = await fetch(`${backendUrl}/api/user/streaming-profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          service: 'apple-music',
-          data: profileData,
-          userId: userId || 'anonymous'
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorData.error || 'Unknown error'}`);
-      }
-
-      const result = await response.json();
-      console.log('Profile data uploaded successfully:', result);
-
-      // Also store stats permanently in user_streaming_stats_summary
-      try {
-        const userId = await this.getCurrentUserId();
-        if (userId && profileData) {
-          const topArtists = profileData.topArtists || [];
-          const topGenres = profileData.topGenres || [];
-          
-          // Create stats summary
-          const statsInsert = {
-            user_id: userId,
-            service_type: 'apple-music' as const,
-            top_artists: topArtists.map((artist: any) => ({
-              name: artist.name || artist.attributes?.name || '',
-              popularity: artist.popularity || 0,
-              id: artist.id
-            })),
-            top_genres: topGenres.map((genre: any) => ({
-              genre: typeof genre === 'string' ? genre : genre.genre || '',
-              count: typeof genre === 'string' ? 1 : genre.count || 1
-            })),
-            total_tracks: profileData.topTracks?.length ?? 0,
-            unique_artists: topArtists.length,
-            total_listening_hours: profileData.listeningTime ?? 0
-          };
-
-          // Database table removed - stats are no longer persisted
-          console.log('⚠️ Stats table removed - stats not persisted');
-
-          // Notify sync service that sync completed (only if sync is being tracked)
-          try {
-            const { streamingSyncService } = await import('@/services/streamingSyncService');
-            if (streamingSyncService.isSyncing()) {
-              streamingSyncService.completeSync();
-            }
-          } catch (importError) {
-            console.warn('Could not notify sync service:', importError);
-          }
-        }
-      } catch (statsError) {
-        console.error('Error storing Apple Music stats:', statsError);
-        // Notify sync service of error
-        try {
-          const { streamingSyncService } = await import('@/services/streamingSyncService');
-          streamingSyncService.errorSync(statsError instanceof Error ? statsError.message : 'Unknown error');
-        } catch (importError) {
-          console.warn('Could not notify sync service of error:', importError);
-        }
-        // Don't fail the whole upload if stats storage fails
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error uploading profile data:', error);
-      return false;
+    const results = await Promise.allSettled([
+      this.getHeavyRotation(),
+      this.getRecentlyPlayed(30),
+      this.getLibrarySongs(100),
+    ]);
+    for (const r of results) {
+      if (r.status === 'rejected') logger.warn('Apple Music fetch failed:', r.reason);
     }
-  }
+    const [heavyRotation, recentlyPlayed, library] = results.map((r) =>
+      r.status === 'fulfilled' && Array.isArray(r.value?.data) ? r.value.data : []
+    );
 
-  // Get current user ID from Supabase auth
-  private async getCurrentUserId(): Promise<string | null> {
-    try {
-      // Import Supabase client dynamically to avoid circular dependencies
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { data: { user } } = await supabase.auth.getUser();
-      return user?.id || null;
-    } catch (error) {
-      console.error('Error getting current user:', error);
-      return null;
+    const { topArtists, topTracks } = buildAppleMusicProfile({ heavyRotation, recentlyPlayed, library });
+
+    if (topArtists.length === 0) {
+      // Never overwrite a saved profile with an empty one — the triggers would wipe the
+      // user's signals. Surface the real API error if there was one.
+      const failure = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+      throw failure?.reason instanceof Error
+        ? failure.reason
+        : new Error('No Apple Music listening history found yet. Play some music in Apple Music, then sync again.');
     }
+
+    return enrichProfileDataWithGenres({
+      storefront: this.storefront,
+      topArtists,
+      topTracks,
+      // Flat list for the apple-music genre trigger and older readers.
+      topGenres: computeTopGenresFromArtistList(topArtists).map((g) => g.genre),
+      lastUpdated: new Date().toISOString(),
+    });
   }
 
-  // Auto-sync profile data
-  async syncProfileData(): Promise<boolean> {
-    try {
-      const profileData = await this.generateProfileData();
-      if (!profileData) {
-        return false;
-      }
-
-      return await this.uploadProfileData(profileData);
-    } catch (error) {
-      console.error('Error syncing profile data:', error);
-      return false;
+  /**
+   * Writes straight to streaming_profiles (RLS: own row), same as the Spotify web sync.
+   * This used to POST to the Express backend, which prod never reached: no backend URL is
+   * set on Vercel (so it hit join.getsynth.app/api/user/streaming-profile → 404), the request
+   * had no bearer token (401 on the backend), and the backend capped payloads at 50KB.
+   */
+  async saveProfileData(profileData: Record<string, unknown>): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('Sign in to Synth to sync Apple Music.');
     }
+
+    const { error } = await supabase.from('streaming_profiles').upsert(
+      {
+        user_id: user.id,
+        service_type: 'apple-music',
+        profile_data: profileData,
+        sync_status: 'completed',
+        last_updated: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,service_type' }
+    );
+    if (error) {
+      logger.error('Apple Music profile save failed:', error.code, error.message);
+      throw new Error(
+        error.code === '57014'
+          ? 'Apple Music data loaded, but saving it timed out on our side. Try again in a minute.'
+          : `Could not save Apple Music data: ${error.message} (${error.code})`
+      );
+    }
+
+    // Dynamic import: streamingSyncActions imports this module.
+    const { refreshFeedAfterStreamingSync } = await import('@/services/streamingSyncActions');
+    await refreshFeedAfterStreamingSync(user.id);
   }
 
-  // Check if user should sync (e.g., daily)
-  shouldSync(): boolean {
-    const lastSync = localStorage.getItem('apple-music-last-sync');
-    if (!lastSync) return true;
-
-    const lastSyncDate = new Date(lastSync);
-    const now = new Date();
-    const hoursSinceSync = (now.getTime() - lastSyncDate.getTime()) / (1000 * 60 * 60);
-
-    // Sync every 24 hours
-    return hoursSinceSync >= 24;
+  /** Pull listening data from Apple Music and save it. Throws a user-facing message on failure. */
+  async syncProfileData(): Promise<void> {
+    await this.saveProfileData(await this.generateProfileData());
+    this.markSyncCompleted();
   }
 
-  // Mark sync as completed
   markSyncCompleted(): void {
     localStorage.setItem('apple-music-last-sync', new Date().toISOString());
-  }
-
-  // Auto-sync wrapper with throttling
-  async autoSync(): Promise<void> {
-    if (!this.shouldSync()) {
-      console.log('Apple Music profile sync not needed yet');
-      return;
-    }
-
-    console.log('Starting Apple Music profile sync...');
-    const success = await this.syncProfileData();
-    
-    if (success) {
-      this.markSyncCompleted();
-      console.log('Apple Music profile sync completed successfully');
-    } else {
-      console.log('Apple Music profile sync failed');
-    }
   }
 }
 

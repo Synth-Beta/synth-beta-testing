@@ -395,25 +395,20 @@ export async function syncStreamingProfile(
       };
     }
 
+    await appleMusicService.ready;
     if (!appleMusicService.checkStoredToken()) {
       streamingSyncService.errorSync('no-session');
       return {
         ok: false,
         skipped: 'no-session',
-        message: 'Connect Apple Music to refresh stats.',
+        message: 'Connect Apple Music in this browser to refresh stats.',
       };
     }
 
-    const data = await appleMusicService.generateProfileData();
-    if (!data || !(await appleMusicService.uploadProfileData(data))) {
-      streamingSyncService.errorSync('sync-failed');
-      return { ok: false, skipped: 'sync-failed', message: 'Apple Music sync failed' };
-    }
-
-    appleMusicService.markSyncCompleted();
+    // Throws with the real reason (API status, DB error); the catch below surfaces it.
+    await appleMusicService.syncProfileData();
     streamingSyncService.completeSync();
     markAutoSynced(userId);
-    await refreshFeedAfterStreamingSync(userId);
     return { ok: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Sync failed';

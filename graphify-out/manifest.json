@@ -420,8 +420,8 @@
     "semantic_hash": "2450de8c830b6f818172cd06bef5e751"
   },
   "mobile/app/stats.tsx": {
-    "mtime": 1787171104.1757207,
-    "ast_hash": "d9edf7bff61dd1c9d7803ac1b11d6ce0",
+    "mtime": 1789159929.213143,
+    "ast_hash": "1e776f3cf203bcfdcc7a5cfe0bf162c2",
     "semantic_hash": ""
   },
   "mobile/app/user/[id].tsx": {
@@ -1130,8 +1130,8 @@
     "semantic_hash": "7f7e112bf630810fe28444b82fd0fb6c"
   },
   "packages/synth-shared/src/index.ts": {
-    "mtime": 1789069226.9606037,
-    "ast_hash": "96d27b4487b9da3777a743d6e77ddfa0",
+    "mtime": 1789159982.309474,
+    "ast_hash": "b3710e6d5a0644e8ca6772a7ab46c617",
     "semantic_hash": ""
   },
   "packages/synth-shared/src/notificationNavigation.ts": {
@@ -1805,9 +1805,9 @@
     "semantic_hash": ""
   },
   "src/components/onboarding/MusicTagsStep.tsx": {
-    "mtime": 1782243119.3114574,
-    "ast_hash": "9d2b9b3720e42dad800e108bff393c07",
-    "semantic_hash": "9d2b9b3720e42dad800e108bff393c07"
+    "mtime": 1789159924.4265327,
+    "ast_hash": "ee654b473bc8f2aadaea7bcd10d9eb68",
+    "semantic_hash": ""
   },
   "src/components/onboarding/OnboardingFlow.tsx": {
     "mtime": 1788972211.4493573,
@@ -2120,14 +2120,14 @@
     "semantic_hash": "65087fed33f009a2a76a62b8a3b7b2b8"
   },
   "src/components/streaming/StreamingAccountSettings.tsx": {
-    "mtime": 1782907321.7080514,
-    "ast_hash": "329e24f127e965f8172cc6c2e32219e9",
-    "semantic_hash": "329e24f127e965f8172cc6c2e32219e9"
+    "mtime": 1789159921.5041444,
+    "ast_hash": "1621192f7b82fc860b57b84a682aa76c",
+    "semantic_hash": ""
   },
   "src/components/streaming/UnifiedStreamingStats.tsx": {
-    "mtime": 1782243119.3601916,
-    "ast_hash": "5c2b17576f0b192c6121232a8368a48f",
-    "semantic_hash": "5c2b17576f0b192c6121232a8368a48f"
+    "mtime": 1789159926.4898076,
+    "ast_hash": "6f8cde3fc339ffdde1a62315703bd938",
+    "semantic_hash": ""
   },
   "src/components/ui/ProgressiveImage.tsx": {
     "mtime": 1782243119.3601916,
@@ -2510,8 +2510,8 @@
     "semantic_hash": "be349c55f532c88b355c798e88a070b3"
   },
   "src/pages/StreamingStatsPage.tsx": {
-    "mtime": 1787257809.494852,
-    "ast_hash": "2ad72f616cc5284bb79c147fc4321330",
+    "mtime": 1789159972.6837666,
+    "ast_hash": "235ee110f3b0012109114495678a9f4f",
     "semantic_hash": ""
   },
   "src/pages/VenuePage.tsx": {
@@ -2545,9 +2545,9 @@
     "semantic_hash": "06b0c6813be4edd02d6a03aac700ebb6"
   },
   "src/services/appleMusicService.ts": {
-    "mtime": 1782243119.4698787,
-    "ast_hash": "e3a2ef262fa272e423ebb763eb5804fc",
-    "semantic_hash": "e3a2ef262fa272e423ebb763eb5804fc"
+    "mtime": 1789159905.7839684,
+    "ast_hash": "c8dbc73fc159d085a60c524b9c275b45",
+    "semantic_hash": ""
   },
   "src/services/artistAffinityService.ts": {
     "mtime": 1789069233.734381,
@@ -2865,9 +2865,9 @@
     "semantic_hash": "ba2f92051c15b63782bcaad63259c974"
   },
   "src/services/streamingSyncActions.ts": {
-    "mtime": 1782243119.5275307,
-    "ast_hash": "c980ee869d4157e6da6069e8fc4f4a26",
-    "semantic_hash": "c980ee869d4157e6da6069e8fc4f4a26"
+    "mtime": 1789159910.8893716,
+    "ast_hash": "696d46a974cba4b638ac45c25eecc93e",
+    "semantic_hash": ""
   },
   "src/services/streamingSyncService.ts": {
     "mtime": 1782243119.5275307,
@@ -9165,8 +9165,8 @@
     "semantic_hash": ""
   },
   "supabase/feed-affinity-2026-09-10/01_review_signals.REVIEW.sql": {
-    "mtime": 1789069392.2429562,
-    "ast_hash": "f5ce6141dda71d7c1db6f6dc24fe9e26",
+    "mtime": 1789071096.1618776,
+    "ast_hash": "d8ad462f2bfe23f77ff5b77fc027cee4",
     "semantic_hash": ""
   },
   "supabase/migrations/20260910000000_feed_v5_genre_floor_and_ranked_pages.sql": {
@@ -9177,6 +9177,31 @@
   "supabase/migrations/20260910010000_feed_v5_idf_weighted_genre_floor.sql": {
     "mtime": 1789069456.558027,
     "ast_hash": "d8804638d30fa09c7c9df1cb750096d8",
+    "semantic_hash": ""
+  },
+  "packages/synth-shared/src/appleMusicProfile.test.ts": {
+    "mtime": 1789159989.5030053,
+    "ast_hash": "f587187a85c686161ef596fe690d9213",
+    "semantic_hash": ""
+  },
+  "packages/synth-shared/src/appleMusicProfile.ts": {
+    "mtime": 1789159862.2213473,
+    "ast_hash": "b42a14fee5fb0e969a757124c84f54db",
+    "semantic_hash": ""
+  },
+  "supabase/apple-music-audit-2026-09-11/01_diagnose_readonly.sql": {
+    "mtime": 1789159936.4124446,
+    "ast_hash": "7911f5df38a7649796a8514b0bd1f926",
+    "semantic_hash": ""
+  },
+  "supabase/apple-music-audit-2026-09-11/02_apple_music_artist_signals.REVIEW.sql": {
+    "mtime": 1789159961.3641942,
+    "ast_hash": "f05512b984119e382d6d946141ce54c3",
+    "semantic_hash": ""
+  },
+  "supabase/onboarding-audit-2026-09-09/07_population_breakdown.READONLY.sql": {
+    "mtime": 1789159099.91784,
+    "ast_hash": "9a8ba43dce503468a28b04ca8a5c6c07",
     "semantic_hash": ""
   }
 }

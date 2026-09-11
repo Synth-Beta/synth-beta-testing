@@ -218,21 +218,12 @@ export const MusicTagsStep = ({
       await appleMusicService.authenticate();
       streamingSyncService.startSync('apple-music');
       syncStarted = true;
-      const success = await appleMusicService.syncProfileData();
-      if (success) {
-        streamingSyncService.completeSync();
-        toast({
-          title: 'Apple Music connected',
-          description: 'Your music preferences have been synced.',
-        });
-      } else {
-        streamingSyncService.errorSync('Sync failed');
-        toast({
-          title: 'Sync failed',
-          description: 'Could not sync Apple Music data.',
-          variant: 'destructive',
-        });
-      }
+      await appleMusicService.syncProfileData();
+      streamingSyncService.completeSync();
+      toast({
+        title: 'Apple Music connected',
+        description: 'Your music preferences have been synced.',
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Connection failed';
       if (syncStarted) {

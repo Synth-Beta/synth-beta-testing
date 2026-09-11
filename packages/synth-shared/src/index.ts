@@ -66,6 +66,11 @@ export {
   formatTopGenresForDisplay,
   SPOTIFY_TIME_RANGE_LABELS,
 } from './streamingProfileData';
+export {
+  buildAppleMusicProfile,
+  type AppleMusicProfileArtist,
+  type AppleMusicProfileTrack,
+} from './appleMusicProfile';
 export { expoPathForShareTarget } from './expoEntityRoutes';
 export {
   resolveNotificationExpoPath,
