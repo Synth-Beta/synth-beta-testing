@@ -94,6 +94,7 @@ interface User {
   username?: string;
   avatar_url?: string;
   acquisition_source?: string | null;
+  other_acquisition_source?: string | null;
 }
 
 interface DaySignupUser {
@@ -114,22 +115,6 @@ interface ChartDataPoint {
   users: number;
   mau?: number;
   names?: string[];
-}
-
-interface AcquisitionSourceCount {
-  source: string;
-  count: number;
-}
-
-interface AcquisitionWeeklyBreakdownPoint {
-  date: string;
-  [source: string]: number | string;
-}
-
-interface AcquisitionOtherResponse {
-  id: string;
-  created_at: string;
-  other_acquisition_source: string;
 }
 
 interface NewsItem {
@@ -183,21 +168,6 @@ const formatValue = (value: any): string => {
   return String(value);
 };
 
-const ACQUISITION_SOURCE_COLOR_MAP: Record<string, string> = {
-  'Friends or Family': '#f97316',
-  Instagram: '#ec4899',
-  TikTok: '#312e81',
-  Reddit: '#f87171',
-  LinkedIn: '#0ea5e9',
-  Facebook: '#2563eb',
-  'App Store': '#a855f7',
-  Artist: '#10b981',
-  Venue: '#f59e0b',
-  Other: '#6b7280',
-};
-
-const getAcquisitionSourceColor = (source: string) => ACQUISITION_SOURCE_COLOR_MAP[source] ?? '#94a3b8';
-
 const normalizeAcquisitionSource = (value?: string | null): string | null => {
   if (!value) return null;
   const trimmed = value.trim();
@@ -210,7 +180,6 @@ const normalizeAcquisitionSource = (value?: string | null): string | null => {
   return match || 'Other';
 };
 
-const FULL_OTHER_RESPONSES_LIMIT = 500;
 const ACQUISITION_SOURCE_USER_FILTER_OPTIONS = [
   { value: 'all', label: 'All Acquisition Sources' },
   ...ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => ({ value: source, label: source })),
@@ -344,7 +313,7 @@ export default function Admin() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [dailyUsersData, setDailyUsersData] = useState<ChartDataPoint[]>([]);
-  const [mauData, setMauData] = useState<ChartDataPoint[]>([]);
+  const [monthlySignupsData, setMonthlySignupsData] = useState<ChartDataPoint[]>([]);
   const [dayUsersDialogOpen, setDayUsersDialogOpen] = useState(false);
   const [selectedDayLabel, setSelectedDayLabel] = useState('');
   const [selectedDayKey, setSelectedDayKey] = useState('');
@@ -354,13 +323,6 @@ export default function Admin() {
   const [signupMethodsError, setSignupMethodsError] = useState<string | null>(null);
   const [signupMethodFilter, setSignupMethodFilter] = useState<'all' | SignupMethod>('all');
   const [acquisitionSourceFilter, setAcquisitionSourceFilter] = useState<string>('all');
-  const [acquisitionSourceCounts, setAcquisitionSourceCounts] = useState<AcquisitionSourceCount[]>([]);
-  const [acquisitionWeeklyBreakdown, setAcquisitionWeeklyBreakdown] = useState<AcquisitionWeeklyBreakdownPoint[]>([]);
-  const [recentOtherAcquisitionResponses, setRecentOtherAcquisitionResponses] = useState<AcquisitionOtherResponse[]>([]);
-  const [isOtherAcquisitionModalOpen, setIsOtherAcquisitionModalOpen] = useState(false);
-  const [otherAcquisitionModalResponses, setOtherAcquisitionModalResponses] = useState<AcquisitionOtherResponse[]>([]);
-  const [otherAcquisitionModalLoading, setOtherAcquisitionModalLoading] = useState(false);
-  const [otherAcquisitionModalError, setOtherAcquisitionModalError] = useState<string | null>(null);
 
   // Event Analytics state
   const [totalArtists, setTotalArtists] = useState(0);
@@ -437,12 +399,9 @@ export default function Admin() {
     count: number;
   }[]>([]);
   
-  // New User Signups (last 30 days)
-  const [newUserSignups, setNewUserSignups] = useState<
-    { date: string; dateKey: string; count: number; names: string[] }[]
-  >([]);
   // Referral/external shares: count per user (user_id -> count) from referral_shares table
   const [userShareCounts, setUserShareCounts] = useState<Record<string, number>>({});
+  const [referralSharesError, setReferralSharesError] = useState<string | null>(null);
   
   // Retention Metrics
   const [d1Retention, setD1Retention] = useState(0);
@@ -515,7 +474,6 @@ export default function Admin() {
       fetchUserAnalytics();
       fetchSocialMediaAnalytics();
       fetchSignupMethods();
-      fetchAcquisitionAnalytics();
     }
   }, [user, isAdmin, fetchSocialMediaAnalytics]);
 
@@ -532,7 +490,7 @@ export default function Admin() {
       // Fetch all users from users table for analytics
       const { data: usersData, error: usersError } = await db
         .from('users')
-        .select('id, user_id, name, username, avatar_url, account_type, created_at, last_active_at, acquisition_source')
+        .select('id, user_id, name, username, avatar_url, account_type, created_at, last_active_at, acquisition_source, other_acquisition_source')
         .order('created_at', { ascending: false });
 
       if (usersError) {
@@ -550,6 +508,7 @@ export default function Admin() {
         username: userRecord.username || undefined,
         avatar_url: userRecord.avatar_url || undefined,
         acquisition_source: userRecord.acquisition_source ?? null,
+        other_acquisition_source: userRecord.other_acquisition_source ?? null,
       }));
 
       setUsers(usersList);
@@ -557,8 +516,8 @@ export default function Admin() {
       // Calculate daily new users
       calculateDailyUsers(usersList);
       
-      // Calculate MAU (Monthly Active Users)
-      calculateMAU(usersList);
+      // New users per month (12-month chart)
+      calculateMonthlySignups(usersList);
     } catch (error: any) {
       console.error('Error fetching users:', error);
       
@@ -574,7 +533,7 @@ export default function Admin() {
       
       setUsers([]);
       setDailyUsersData([]);
-      setMauData([]);
+      setMonthlySignupsData([]);
     } finally {
       setLoading(false);
     }
@@ -597,120 +556,6 @@ export default function Admin() {
     setSignupMethods(map);
     setSignupMethodsError(null);
   };
-
-  const fetchAcquisitionAnalytics = async () => {
-    try {
-      const [countsResponse, weeklyResponse, otherResponse] = await Promise.all([
-        db.from('users').select('acquisition_source'),
-        db
-          .from('users')
-          .select('created_at, acquisition_source')
-          .gte('created_at', subDays(new Date(), 6).toISOString()),
-        db
-          .from('users')
-          .select('id, created_at, acquisition_source, other_acquisition_source')
-          .not('other_acquisition_source', 'is', null)
-          .neq('other_acquisition_source', '')
-          .ilike('acquisition_source', 'other')
-          .order('created_at', { ascending: false })
-          .limit(10),
-      ]);
-
-      if (countsResponse.error) throw countsResponse.error;
-      if (weeklyResponse.error) throw weeklyResponse.error;
-      if (otherResponse.error) throw otherResponse.error;
-
-      const counts = new Map<string, number>();
-      ACQUISITION_SOURCE_CANONICAL_ORDER.forEach((source) => counts.set(source, 0));
-      (countsResponse.data || []).forEach((row: { acquisition_source?: string | null }) => {
-        const normalized = normalizeAcquisitionSource(row.acquisition_source);
-        if (!normalized) return;
-        counts.set(normalized, (counts.get(normalized) || 0) + 1);
-      });
-      const sortedCounts = Array.from(counts.entries())
-        .map(([source, count]) => ({ source, count }))
-        .sort((a, b) => b.count - a.count);
-      setAcquisitionSourceCounts(sortedCounts);
-
-      const grouped: Record<string, Record<string, number>> = {};
-      (weeklyResponse.data || []).forEach((row: { created_at?: string | null; acquisition_source?: string | null }) => {
-        if (!row.created_at) return;
-        const dateKey = new Date(row.created_at).toISOString().split('T')[0];
-        const normalized = normalizeAcquisitionSource(row.acquisition_source);
-        if (!normalized) return;
-        if (!grouped[dateKey]) {
-          grouped[dateKey] = {};
-        }
-        grouped[dateKey][normalized] = (grouped[dateKey][normalized] || 0) + 1;
-      });
-
-      const startDate = startOfDay(subDays(new Date(), 6));
-      const weekly: AcquisitionWeeklyBreakdownPoint[] = [];
-      for (let i = 0; i < 7; i++) {
-        const currentDate = addDays(startDate, i);
-        const isoDate = currentDate.toISOString().split('T')[0];
-        const dayTotals = grouped[isoDate] || {};
-        const entry: AcquisitionWeeklyBreakdownPoint = { date: isoDate };
-        ACQUISITION_SOURCE_CANONICAL_ORDER.forEach((source) => {
-          entry[source] = dayTotals[source] || 0;
-        });
-        weekly.push(entry);
-      }
-      setAcquisitionWeeklyBreakdown(weekly);
-
-      const otherPreview = (otherResponse.data || [])
-        .filter((row: { acquisition_source?: string | null }) => normalizeAcquisitionSource(row.acquisition_source) === 'Other')
-        .slice(0, 5)
-        .map((row: { id: string; created_at: string; other_acquisition_source: string }) => ({
-          id: row.id,
-          created_at: row.created_at,
-          other_acquisition_source: row.other_acquisition_source,
-        }));
-      setRecentOtherAcquisitionResponses(otherPreview);
-    } catch (error) {
-      console.error('Error fetching acquisition analytics:', error);
-      setAcquisitionSourceCounts(ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => ({ source, count: 0 })));
-      setAcquisitionWeeklyBreakdown([]);
-      setRecentOtherAcquisitionResponses([]);
-    }
-  };
-
-  const fetchAllOtherAcquisitionResponses = async () => {
-    try {
-      setOtherAcquisitionModalLoading(true);
-      setOtherAcquisitionModalError(null);
-      const { data, error } = await db
-        .from('users')
-        .select('id, created_at, acquisition_source, other_acquisition_source')
-        .not('other_acquisition_source', 'is', null)
-        .neq('other_acquisition_source', '')
-        .ilike('acquisition_source', 'other')
-        .order('created_at', { ascending: false })
-        .limit(FULL_OTHER_RESPONSES_LIMIT);
-
-      if (error) throw error;
-
-      const rows = (data || [])
-        .filter((row: { acquisition_source?: string | null }) => normalizeAcquisitionSource(row.acquisition_source) === 'Other')
-        .map((row: { id: string; created_at: string; other_acquisition_source: string }) => ({
-          id: row.id,
-          created_at: row.created_at,
-          other_acquisition_source: row.other_acquisition_source,
-        }));
-      setOtherAcquisitionModalResponses(rows);
-    } catch (error: any) {
-      console.error('Error loading full other acquisition responses:', error);
-      setOtherAcquisitionModalResponses([]);
-      setOtherAcquisitionModalError(error?.message || 'Unable to load acquisition responses.');
-    } finally {
-      setOtherAcquisitionModalLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!isOtherAcquisitionModalOpen) return;
-    void fetchAllOtherAcquisitionResponses();
-  }, [isOtherAcquisitionModalOpen]);
 
   const calculateDailyUsers = (usersList: User[]) => {
     // Get the last 30 days
@@ -827,33 +672,29 @@ export default function Admin() {
     }
   };
 
-  const calculateMAU = (usersList: User[]) => {
-    // Calculate MAU for the last 12 months
+  const calculateMonthlySignups = (usersList: User[]) => {
+    // New users per month for the last 12 months, by signup date.
+    // This was labelled MAU and counted "created OR last active this month", but nothing in
+    // the app ever writes users.last_active_at, so it was only ever a signup count.
     const endDate = new Date();
     const months: ChartDataPoint[] = [];
 
     for (let i = 11; i >= 0; i--) {
       const monthStart = new Date(endDate.getFullYear(), endDate.getMonth() - i, 1);
       const monthEnd = new Date(endDate.getFullYear(), endDate.getMonth() - i + 1, 0);
-      
-      // Count users active in this month
-      // A user is considered active if they were created or last active in this month
-      const activeUsers = usersList.filter(user => {
+
+      const signups = usersList.filter(user => {
         const createdDate = new Date(user.created_at);
-        const lastActiveDate = user.last_active_at ? new Date(user.last_active_at) : createdDate;
-        const activeDate = lastActiveDate > createdDate ? lastActiveDate : createdDate;
-        
-        return activeDate >= monthStart && activeDate <= monthEnd;
+        return createdDate >= monthStart && createdDate <= monthEnd;
       }).length;
 
       months.push({
         date: format(monthStart, 'MMM yyyy'),
-        users: activeUsers,
-        mau: activeUsers,
+        users: signups,
       });
     }
 
-    setMauData(months);
+    setMonthlySignupsData(months);
   };
 
   // Helper function to fetch events count from the active events table
@@ -1550,6 +1391,10 @@ export default function Admin() {
       const thirtyDaysAgo = subDays(endDate, 30);
       const sevenDaysAgo = subDays(endDate, 7);
       const startISO = thirtyDaysAgo.toISOString();
+      // Retention looks for activity up to 30 days AFTER a signup that can itself be 60 days
+      // old, so the activity sources below are fetched over 60 days. DAU/WAU/MAU still filter
+      // to today / 7 days / 30 days in JS, so widening the fetch does not change them.
+      const activityStartISO = subDays(endDate, 60).toISOString();
       const endISO = endDate.toISOString();
       const todayISO = todayStart.toISOString();
 
@@ -1604,7 +1449,7 @@ export default function Admin() {
         const { data: page, error } = await db
           .from('interactions')
           .select('user_id, occurred_at, created_at')
-          .or(`occurred_at.gte.${startISO},created_at.gte.${startISO}`)
+          .or(`occurred_at.gte.${activityStartISO},created_at.gte.${activityStartISO}`)
           .range(from, from + PAGE_SIZE - 1)
           .order('created_at', { ascending: true });
         if (error) {
@@ -1626,7 +1471,7 @@ export default function Admin() {
           const { data: page, error } = await db
             .from('interactions')
             .select('user_id, occurred_at, created_at')
-            .gte('created_at', startISO)
+            .gte('created_at', activityStartISO)
             .range(from, from + PAGE_SIZE - 1)
             .order('created_at', { ascending: true });
           if (error) break;
@@ -1662,27 +1507,27 @@ export default function Admin() {
           .from('reviews')
           .select('user_id, created_at, event_id')
           .eq('is_draft', false)
-          .gte('created_at', startISO),
+          .gte('created_at', activityStartISO),
         // 3. Fetch user_event_relationships
         db
           .from('user_event_relationships')
           .select('user_id, created_at, updated_at, relationship_type, event_id')
-          .gte('created_at', startISO),
+          .gte('created_at', activityStartISO),
         // 4. Fetch messages
         db
           .from('messages')
           .select('sender_id, created_at')
-          .gte('created_at', startISO),
+          .gte('created_at', activityStartISO),
         // 5. Fetch comments
         db
           .from('comments')
           .select('user_id, created_at')
-          .gte('created_at', startISO),
+          .gte('created_at', activityStartISO),
         // 6. Fetch engagements
         db
           .from('engagements')
           .select('user_id, created_at')
-          .gte('created_at', startISO)
+          .gte('created_at', activityStartISO)
       ]);
       
       // Process reviews
@@ -1779,6 +1624,7 @@ export default function Admin() {
 
       // External/referral shares from referral_shares table (user_id, shared_at, source)
       const REFERRAL_PAGE_SIZE = 1000;
+      setReferralSharesError(null);
       let referralSharesList: { user_id: string; shared_at: string }[] = [];
       let refFrom = 0;
       let refHasMore = true;
@@ -1789,7 +1635,15 @@ export default function Admin() {
           .range(refFrom, refFrom + REFERRAL_PAGE_SIZE - 1)
           .order('shared_at', { ascending: true });
         if (refError) {
-          if (refError.code !== 'PGRST205') console.error('Error fetching referral_shares:', refError);
+          // Breaking silently made an RLS block look exactly like "nobody has shared yet".
+          if (refError.code !== 'PGRST205') {
+            console.error('Error fetching referral_shares:', refError);
+            setReferralSharesError(
+              refError.code === '42501' || /permission|policy/i.test(refError.message || '')
+                ? 'Share data is hidden by database permissions for this account.'
+                : refError.message || 'Could not load share counts.'
+            );
+          }
           break;
         }
         if (!refPage || refPage.length === 0) break;
@@ -2058,48 +1912,6 @@ export default function Admin() {
       
       setInteractionBreakdown(breakdown);
 
-      // Calculate new user signups (last 30 days)
-      const { data: newUsers, error: newUsersError } = await db
-        .from('users')
-        .select('user_id, name, username, created_at')
-        .gte('created_at', startISO)
-        .lte('created_at', endISO);
-
-      if (newUsersError && newUsersError.code !== 'PGRST205') {
-        console.error('Error fetching new users:', newUsersError);
-      }
-
-      const newUsersList = newUsers || [];
-      const signupsByDate: Record<string, number> = {};
-      const signupNamesByDate: Record<string, string[]> = {};
-      dateRange.forEach(date => {
-        const dateKey = format(startOfDay(date), 'yyyy-MM-dd');
-        signupsByDate[dateKey] = 0;
-        signupNamesByDate[dateKey] = [];
-      });
-
-      newUsersList.forEach((user: { user_id?: string; name?: string | null; username?: string | null; created_at: string }) => {
-        const dateKey = format(startOfDay(new Date(user.created_at)), 'yyyy-MM-dd');
-        if (signupsByDate[dateKey] !== undefined) {
-          signupsByDate[dateKey]++;
-          signupNamesByDate[dateKey]!.push(
-            user.name || user.username || (user.user_id ? user.user_id.slice(0, 8) : 'user'),
-          );
-        }
-      });
-
-      setNewUserSignups(
-        dateRange.map(date => {
-          const dateKey = format(startOfDay(date), 'yyyy-MM-dd');
-          return {
-            date: format(date, 'MMM dd'),
-            dateKey,
-            count: signupsByDate[dateKey] || 0,
-            names: signupNamesByDate[dateKey] || [],
-          };
-        })
-      );
-
       // Calculate Retention Metrics (D1, D7, D30)
       // Get all users with signup dates (going back 60 days to have enough data for D30)
       const sixtyDaysAgo = subDays(endDate, 60);
@@ -2196,38 +2008,34 @@ export default function Admin() {
       let d7Eligible = 0;
       let d30Eligible = 0;
 
+      // "Retained" = came back at least once WITHIN N days of signing up. This used to demand
+      // activity on the exact calendar day (signup + 1/7/30), which almost nobody lands on,
+      // so all three cards sat at 0.0%.
+      const cameBackWithin = (userId: string, signupDate: Date, days: number): boolean => {
+        for (let day = 1; day <= days; day++) {
+          const dateKey = format(addDays(signupDate, day), 'yyyy-MM-dd');
+          if (activeUsersByDate[dateKey]?.has(userId)) return true;
+        }
+        return false;
+      };
+
       usersForRetention.forEach(user => {
         const signupDate = new Date(user.created_at);
-        const d1Date = addDays(signupDate, 1);
-        const d7Date = addDays(signupDate, 7);
-        const d30Date = addDays(signupDate, 30);
-        
-        const d1DateKey = format(d1Date, 'yyyy-MM-dd');
-        const d7DateKey = format(d7Date, 'yyyy-MM-dd');
-        const d30DateKey = format(d30Date, 'yyyy-MM-dd');
-        
-        // Check D1 retention (user must have signed up at least 1 day ago)
-        if (d1Date <= endDate) {
+
+        // Only count a user once their window has actually elapsed.
+        if (addDays(signupDate, 1) <= endDate) {
           d1Eligible++;
-          if (activeUsersByDate[d1DateKey]?.has(user.user_id)) {
-            d1Retained++;
-          }
+          if (cameBackWithin(user.user_id, signupDate, 1)) d1Retained++;
         }
-        
-        // Check D7 retention (user must have signed up at least 7 days ago)
-        if (d7Date <= endDate) {
+
+        if (addDays(signupDate, 7) <= endDate) {
           d7Eligible++;
-          if (activeUsersByDate[d7DateKey]?.has(user.user_id)) {
-            d7Retained++;
-          }
+          if (cameBackWithin(user.user_id, signupDate, 7)) d7Retained++;
         }
-        
-        // Check D30 retention (user must have signed up at least 30 days ago)
-        if (d30Date <= endDate) {
+
+        if (addDays(signupDate, 30) <= endDate) {
           d30Eligible++;
-          if (activeUsersByDate[d30DateKey]?.has(user.user_id)) {
-            d30Retained++;
-          }
+          if (cameBackWithin(user.user_id, signupDate, 30)) d30Retained++;
         }
       });
 
@@ -2270,8 +2078,10 @@ export default function Admin() {
       const allEventIds = [...new Set([...topReviewed.map(e => e.event_id), ...topInterested.map(e => e.event_id)])];
       
       if (allEventIds.length > 0) {
+        // Titles live in `events`. This read `jambase_events`, which has 0 rows, so every
+        // row rendered as "Unknown Event".
         const { data: eventTitles } = await db
-          .from('jambase_events')
+          .from('events')
           .select('id, title')
           .in('id', allEventIds);
         
@@ -2324,7 +2134,6 @@ export default function Admin() {
       setD30Retention(0);
       setEngagementRate(0);
       setEciTrend([]);
-      setNewUserSignups([]);
       setTopReviewedEvents([]);
       setTopInterestedEvents([]);
     } finally {
@@ -2509,21 +2318,13 @@ export default function Admin() {
               {/* Left: Users section — stats, user list with shares, then charts */}
               <div className="w-full xl:max-w-[420px] xl:shrink-0 space-y-4">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">Users</h3>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <Card className="shadow-sm">
                     <CardHeader className="p-3 pb-1">
                       <CardTitle className="text-xs font-medium text-muted-foreground">Total</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 pt-0">
                       <div className="text-xl font-bold">{users.length}</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="shadow-sm">
-                    <CardHeader className="p-3 pb-1">
-                      <CardTitle className="text-xs font-medium text-muted-foreground">MAU</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0">
-                      <div className="text-xl font-bold">{mauData.length > 0 ? mauData[mauData.length - 1]?.mau ?? 0 : 0}</div>
                     </CardContent>
                   </Card>
                   <Card className="shadow-sm">
@@ -2604,8 +2405,12 @@ export default function Admin() {
                     <CardDescription className="text-xs">Name and external share count (#)</CardDescription>
                   </CardHeader>
                   <CardContent className="px-4 pb-4 pt-0">
-                    {loading ? (
+                    {referralSharesError ? (
+                      <p className="text-sm text-destructive py-4 text-center">{referralSharesError}</p>
+                    ) : loading ? (
                       <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                    ) : users.filter(u => (userShareCounts[u.id] ?? 0) > 0).length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4 text-center">No external shares recorded yet</p>
                     ) : (
                       <div className="max-h-[280px] overflow-auto rounded-md border">
                         <Table>
@@ -2722,6 +2527,9 @@ export default function Admin() {
                               })
                               .map(u => {
                                 const source = normalizeAcquisitionSource(u.acquisition_source);
+                                // The typed "Other" answers used to live only in the removed
+                                // "How Users Found Synth" card — show them here instead.
+                                const typedAnswer = u.other_acquisition_source?.trim();
                                 return (
                                   <TableRow key={u.id}>
                                     <TableCell className="text-sm py-2">{u.name || u.id.slice(0, 8) || '—'}</TableCell>
@@ -2729,6 +2537,11 @@ export default function Admin() {
                                       <Badge variant="secondary" className="text-[10px]">
                                         {source ?? 'Unknown'}
                                       </Badge>
+                                      {source === 'Other' && typedAnswer ? (
+                                        <p className="mt-1 text-[10px] text-muted-foreground whitespace-pre-line">
+                                          {typedAnswer}
+                                        </p>
+                                      ) : null}
                                     </TableCell>
                                   </TableRow>
                                 );
@@ -2777,23 +2590,23 @@ export default function Admin() {
 
                 <Card className="shadow-sm">
                   <CardHeader className="py-3 px-4">
-                    <CardTitle className="text-sm">Monthly Active Users</CardTitle>
-                    <CardDescription className="text-xs">Last 12 months</CardDescription>
+                    <CardTitle className="text-sm">New Users per Month</CardTitle>
+                    <CardDescription className="text-xs">Last 12 months · by signup date</CardDescription>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
                     {loading ? (
                       <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
                     ) : (
                       <ChartContainer
-                        config={{ mau: { label: "MAU", color: "#3b82f6" } }}
+                        config={{ users: { label: "New Users", color: "#3b82f6" } }}
                         className="h-[220px] w-full"
                       >
-                        <LineChart data={mauData} margin={{ top: 5, right: 8, left: 0, bottom: 50 }}>
+                        <LineChart data={monthlySignupsData} margin={{ top: 5, right: 8, left: 0, bottom: 50 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                           <XAxis dataKey="date" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} stroke="#9ca3af" />
                           <YAxis tick={{ fontSize: 10 }} stroke="#9ca3af" />
                           <ChartTooltip content={<ChartTooltipContent />} />
-                          <Line type="monotone" dataKey="mau" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                          <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                         </LineChart>
                       </ChartContainer>
                     )}
@@ -2885,6 +2698,7 @@ export default function Admin() {
                       </CardHeader>
                       <CardContent className="p-3 pt-0">
                         <div className="text-lg font-bold">{d1Retention.toFixed(1)}%</div>
+                        <p className="text-xs text-muted-foreground">Back within 1 day</p>
                       </CardContent>
                     </Card>
                     <Card className="shadow-sm">
@@ -2893,6 +2707,7 @@ export default function Admin() {
                       </CardHeader>
                       <CardContent className="p-3 pt-0">
                         <div className="text-lg font-bold">{d7Retention.toFixed(1)}%</div>
+                        <p className="text-xs text-muted-foreground">Back within 7 days</p>
                       </CardContent>
                     </Card>
                     <Card className="shadow-sm">
@@ -2901,6 +2716,7 @@ export default function Admin() {
                       </CardHeader>
                       <CardContent className="p-3 pt-0">
                         <div className="text-lg font-bold">{d30Retention.toFixed(1)}%</div>
+                        <p className="text-xs text-muted-foreground">Back within 30 days</p>
                       </CardContent>
                     </Card>
                     <Card className="shadow-sm">
@@ -3051,60 +2867,6 @@ export default function Admin() {
             </Card>
 
 
-            {/* New User Signups */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  New User Signups
-                </CardTitle>
-                <CardDescription>
-                  New user registrations over the last 30 days · hover a bar for names · click for socials
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {analyticsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
-                ) : (
-                  <ChartContainer
-                    config={{
-                      count: {
-                        label: "Signups",
-                        color: "hsl(var(--chart-3))",
-                      },
-                    }}
-                    className="h-[300px] w-full"
-                  >
-                    <BarChart data={newUserSignups} margin={{ top: 5, right: 10, left: 0, bottom: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="date" 
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <ChartTooltip content={<SignupNamesTooltip />} />
-                      <Bar 
-                        dataKey="count" 
-                        fill="hsl(var(--chart-3))"
-                        radius={[4, 4, 0, 0]}
-                        cursor="pointer"
-                        onClick={(data) => {
-                          const payload = (data as { payload?: { dateKey?: string; date?: string } })?.payload;
-                          if (!payload?.dateKey) return;
-                          void openDailyUsersForDay(payload.dateKey, payload.date ?? payload.dateKey);
-                        }}
-                      />
-                    </BarChart>
-                  </ChartContainer>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Top Content Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
@@ -3144,129 +2906,6 @@ export default function Admin() {
                       ))}
                     </div>
                   )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    How Users Found Synth
-                  </CardTitle>
-                  <CardDescription>
-                    Acquisition source mix plus recent custom &quot;Other&quot; responses
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                    <div className="rounded-xl border bg-muted/20 p-4">
-                      <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold">Source Count</h4>
-                        <span className="text-xs text-muted-foreground">Totals</span>
-                      </div>
-                      {acquisitionSourceCounts.length > 0 ? (
-                        <ChartContainer
-                          config={{ count: { label: 'Signups', color: '#6366f1' } }}
-                          className="h-[260px] w-full"
-                        >
-                          <BarChart data={acquisitionSourceCounts} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="source" interval={0} height={60} tick={{ fontSize: 12 }} />
-                            <YAxis allowDecimals={false} />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                            <Bar dataKey="count" radius={[8, 8, 0, 0]} fill="#6366f1" />
-                          </BarChart>
-                        </ChartContainer>
-                      ) : (
-                        <div className="py-10 text-center text-sm text-muted-foreground">
-                          No acquisition source data yet
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="rounded-xl border bg-muted/20 p-4">
-                      <div className="mb-2 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold">Weekly Breakdown</h4>
-                        <span className="text-xs text-muted-foreground">Last 7 days</span>
-                      </div>
-                      {acquisitionWeeklyBreakdown.length > 0 ? (
-                        <ChartContainer
-                          config={Object.fromEntries(
-                            ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => [
-                              source,
-                              { label: source, color: getAcquisitionSourceColor(source) },
-                            ]),
-                          )}
-                          className="h-[260px] w-full"
-                        >
-                          <BarChart data={acquisitionWeeklyBreakdown} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis
-                              dataKey="date"
-                              tick={{ fontSize: 12 }}
-                              tickFormatter={(value) => format(new Date(value), 'M/d')}
-                            />
-                            <YAxis allowDecimals={false} />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                            <Legend verticalAlign="top" align="left" height={28} />
-                            {ACQUISITION_SOURCE_CANONICAL_ORDER.map((source) => (
-                              <Bar
-                                key={source}
-                                dataKey={source}
-                                stackId="acquisition"
-                                fill={getAcquisitionSourceColor(source)}
-                                radius={[4, 4, 0, 0]}
-                              />
-                            ))}
-                          </BarChart>
-                        </ChartContainer>
-                      ) : (
-                        <div className="py-10 text-center text-sm text-muted-foreground">
-                          No weekly acquisition data yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border bg-muted/20 p-4">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-semibold">Other Responses Preview</h4>
-                        <p className="text-xs text-muted-foreground">Latest custom answers</p>
-                      </div>
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    </div>
-
-                    {recentOtherAcquisitionResponses.length > 0 ? (
-                      <div className="space-y-3">
-                        {recentOtherAcquisitionResponses.map((response) => (
-                          <div key={response.id} className="rounded-lg border bg-background p-3">
-                            <p className="text-sm font-semibold">
-                              {new Date(response.created_at).toLocaleDateString()}
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {response.other_acquisition_source}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="py-10 text-center text-sm text-muted-foreground">
-                        No recent custom responses yet
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="text-sm font-semibold"
-                        onClick={() => setIsOtherAcquisitionModalOpen(true)}
-                      >
-                        View Full Detail
-                      </Button>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
 
@@ -3435,49 +3074,6 @@ export default function Admin() {
                           <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Signup Method Distribution Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Signup Method Distribution
-                  </CardTitle>
-                  <CardDescription>
-                    Apple (iOS), Android (Google), or email signups
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {signupMethodsError ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      Signup method data unavailable
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {(['apple', 'android', 'email', 'unknown'] as SignupMethod[])
-                        .map(method => ({
-                          method,
-                          label: SIGNUP_METHOD_LABELS[method],
-                          count: users.filter(u => (signupMethods[u.id] ?? 'unknown') === method).length,
-                        }))
-                        .filter(entry => entry.count > 0)
-                        .map(entry => (
-                          <Card key={entry.method} className="shadow-sm">
-                            <CardHeader className="p-3 pb-1">
-                              <CardTitle className="text-xs font-medium text-muted-foreground">
-                                {entry.label}
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-3 pt-0">
-                              <div className="text-xl font-bold">{entry.count.toLocaleString()}</div>
-                              <p className="text-xs text-muted-foreground">Users signed up</p>
-                            </CardContent>
-                          </Card>
-                        ))}
                     </div>
                   )}
                 </CardContent>
@@ -4657,59 +4253,6 @@ export default function Admin() {
             </div>
             <DialogFooter className="shrink-0 border-t px-4 py-3 sm:px-6">
               <Button type="button" variant="outline" onClick={() => setDayUsersDialogOpen(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isOtherAcquisitionModalOpen} onOpenChange={setIsOtherAcquisitionModalOpen}>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Other Acquisition Responses</DialogTitle>
-              <DialogDescription>
-                Full list of entries where users selected &quot;Other&quot;. Newest responses appear first.
-              </DialogDescription>
-            </DialogHeader>
-
-            {otherAcquisitionModalLoading ? (
-              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Loading responses...
-              </div>
-            ) : otherAcquisitionModalError ? (
-              <div className="py-6 text-sm text-destructive text-center">{otherAcquisitionModalError}</div>
-            ) : otherAcquisitionModalResponses.length === 0 ? (
-              <div className="py-8 text-sm text-muted-foreground text-center">
-                No &quot;Other&quot; responses recorded yet.
-              </div>
-            ) : (
-              <div className="rounded-lg border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-48">Created</TableHead>
-                      <TableHead>Custom Response</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {otherAcquisitionModalResponses.map((response) => (
-                      <TableRow key={response.id}>
-                        <TableCell className="font-semibold">
-                          {new Date(response.created_at).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="whitespace-pre-line text-muted-foreground">
-                          {response.other_acquisition_source}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsOtherAcquisitionModalOpen(false)}>
                 Close
               </Button>
             </DialogFooter>
