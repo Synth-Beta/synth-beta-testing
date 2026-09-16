@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Pressable, SafeAreaView, Text, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -13,11 +13,16 @@ import { getStreamingLinkStatus } from '../../src/services/streamingConnectionSe
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
 import { authenticateSpotifyInApp } from '../../src/services/spotifyAuthService';
 import { syncStreamingProfile, withSessionHash } from '../../src/services/streamingSyncActions';
+import { trackOnboardingStep } from '../../src/services/onboardingTelemetry';
 
 export default function ConnectScreen() {
     const router = useRouter();
     const [isLinked, setIsLinked] = useState(false);
     const [checking, setChecking] = useState(false);
+
+    useEffect(() => {
+        trackOnboardingStep('connect');
+    }, []);
 
     const openConnectAppleMusic = useCallback(async () => {
         const url = `${getExpoSiteUrl()}/streaming-stats?connect=apple-music&source=expo`;

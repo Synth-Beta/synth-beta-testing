@@ -95,7 +95,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
         isGeneratingRef.current = true; // Mark as generating to prevent reset
         try {
           const { generateAvailableUsername } = await import('@/services/usernameService');
-          const suggested = await generateAvailableUsername(user.user_metadata.name);
+          const suggested = await generateAvailableUsername(user.user_metadata.name, user.id);
           if (suggested) {
             hasSuggestedRef.current = true; // Mark as suggested
             setFormData(prev => ({ ...prev, username: suggested }));
@@ -121,7 +121,11 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
     try {
       // Use the shared username service for consistency
       const { checkUsernameAvailability: checkAvailability } = await import('@/services/usernameService');
-      const result = await checkAvailability(username);
+      // Exclude this user's own row. The signup trigger writes a username into public.users
+      // before onboarding ever runs, and OnboardingFlow prefills it into this field - so
+      // without the exclusion every new user is told the username they were just given is
+      // "already taken", and validateAndGetData blocks the only submit button there is.
+      const result = await checkAvailability(username, user?.id);
       return result;
     } catch (error) {
       logger.error('Error checking username availability:', error);
@@ -135,11 +139,15 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
           return { available: false, error: 'Invalid username after sanitization' };
         }
         
-      const { data, error } = await supabase
+      let fallbackQuery = supabase
         .from('users')
         .select('username')
-          .eq('username', sanitized) // Use sanitized username to match primary path behavior
-        .limit(1);
+          .eq('username', sanitized); // Use sanitized username to match primary path behavior
+      // Same self-exclusion as the primary path above.
+      if (user?.id) {
+        fallbackQuery = fallbackQuery.neq('user_id', user.id);
+      }
+      const { data, error } = await fallbackQuery.limit(1);
 
       if (error && error.code !== 'PGRST116') {
         logger.warn('Error checking username:', error);

@@ -11,6 +11,7 @@ import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { ArtistService, Artist } from '../../src/services/artistService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
+import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
 
 const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
 const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
@@ -25,6 +26,7 @@ export default function ArtistsScreen() {
     const [loadFailed, setLoadFailed] = useState(false);
 
     useEffect(() => {
+        trackOnboardingStep('artists');
         loadSuggestedArtists();
     }, []);
 
@@ -38,6 +40,11 @@ export default function ArtistsScreen() {
         // button is gated on picking 3 — so a failed load used to lock the user out of the
         // app permanently with a blank list. That shipped once already, when this query
         // ordered by a `popularity` column that does not exist.
+        if (data.length === 0) {
+            // Not a block (the minimum is relaxed below when this happens), but it means
+            // the last step offered nothing to pick - worth seeing in the data.
+            trackOnboardingBlock('artists_load_failed_nonfatal');
+        }
         setLoadFailed(data.length === 0);
         setIsLoading(false);
     };
@@ -94,6 +101,9 @@ export default function ArtistsScreen() {
                 // Server state is already correct; the boot gate reads it as a fallback.
             }
         } catch (error) {
+            // The last gate. Anyone here did EVERYTHING and still has no account - the
+            // most expensive failure in the funnel, and previously invisible on mobile.
+            trackOnboardingBlock('completion_write');
             console.warn('Artist follow / onboarding-complete write failed:', error);
             Alert.alert(
                 'Could not finish setting up',

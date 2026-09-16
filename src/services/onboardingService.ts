@@ -241,29 +241,14 @@ export class OnboardingService {
         .eq('user_id', userId);
 
       if (error) {
-        // Handle specific column errors gracefully
+        // There used to be a retry here that re-ran the update WITHOUT username,
+        // location_city, acquisition_source, other_acquisition_source and contact_email,
+        // and then returned true. Every one of those columns exists in production, so the
+        // retry could only ever fire on an unrelated error - and when it did, it silently
+        // discarded mandatory answers, wrote a half-filled row, and reported success to a
+        // caller that had no way to know. Fail loudly instead.
         if (error.code === 'PGRST204' || error.message?.includes('does not exist')) {
-          console.warn('Some columns not found, trying without them:', error.message);
-          // Remove potentially missing columns and retry
-          const updateWithoutOptional = { ...updateData };
-          delete updateWithoutOptional.username;
-          delete updateWithoutOptional.location_city;
-          delete updateWithoutOptional.acquisition_source;
-          delete updateWithoutOptional.other_acquisition_source;
-          delete updateWithoutOptional.contact_email;
-          const { error: retryError } = await supabase
-            .from('users')
-            .update(updateWithoutOptional)
-            .eq('user_id', userId);
-          
-          if (retryError) {
-            // If username column exists but there's a unique constraint violation
-            if (retryError.code === '23505' && retryError.message?.includes('username')) {
-              throw new Error('Username is already taken');
-            }
-            throw retryError;
-          }
-          return true;
+          throw new Error(`Could not save your profile (${error.message}). Please try again.`);
         }
         
         // Handle unique constraint violation for username

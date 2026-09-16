@@ -86,6 +86,20 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const [showFollowArtistsModal, setShowFollowArtistsModal] = useState(false);
   const [favoriteArtistOptions, setFavoriteArtistOptions] = useState<FollowArtistOption[]>([]);
   const finishOnboardingRef = useRef(false);
+  // The DC room join fails closed so Home never loads without membership, but failing
+  // closed FOREVER strands a DC user in onboarding with no way into the app at all.
+  // One retry, then let them through: the room can be joined from inside the app,
+  // being locked out of the app cannot be fixed from anywhere. Mirrors mobile's
+  // scene.tsx, which already had this fix; web never got it.
+  const densityJoinAttemptsRef = useRef(0);
+
+  // Onboarding only ever recorded SUCCESS (`onboarding_complete`), and the `interactions`
+  // table has no metadata column - so a blocked submit left no trace anywhere and every
+  // drop-off had to be reconstructed from signup timestamps. The reason goes in entity_id,
+  // which IS persisted, so "where are people getting stuck" becomes one query.
+  const trackBlock = useCallback((reason: string) => {
+    trackInteraction.formSubmit('form', `onboarding_blocked_${reason}`, false);
+  }, []);
 
   const [profileData, setProfileData] = useState<ProfileSetupData>({});
   const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSource | null>(null);
@@ -148,6 +162,9 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       // mobile flow had, reached a different way.
       const completed = await OnboardingService.completeOnboarding(user.id);
       if (!completed) {
+        // The last gate. Anyone landing here did EVERYTHING and still has no account -
+        // the most expensive failure in the funnel, and previously invisible.
+        trackBlock('completion_write');
         finishOnboardingRef.current = false;
         setCompletionError('Could not finish setting up your account. Please try again.');
         return;
@@ -177,17 +194,9 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     [finishOnboarding]
   );
 
-  // Close onboarding on ESC
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      handleExit();
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleExit]);
+  // No ESC-to-exit. Exiting onboarding now signs the user out (it previously dumped them
+  // on a sign-in screen while still signed in, with no way back), and that is far too
+  // destructive to hang off a stray keypress. The Back button is the deliberate way out.
 
   // Persist what has been typed so far. Web only wrote anything on final submit, so
   // abandoning it halfway left nothing behind and the same person starting again on mobile
@@ -399,6 +408,10 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     // Validate profile via ref
     const profileResult = await profileStepRef.current?.validateAndGetData();
     if (!profileResult?.valid || !profileResult.data) {
+      // Distinguish the username case: it is the field users cannot self-diagnose, since
+      // it is prefilled for them and was until now reported as "already taken" on their
+      // own row. If that ever regresses, this shows up in the data instead of in support.
+      trackBlock(profileResult?.errors?.username ? 'username' : 'profile_fields');
       if (profileResult?.errors && Object.keys(profileResult.errors).length > 0) {
         const firstError = Object.values(profileResult.errors)[0] as string;
         setCompletionError(firstError);
@@ -410,11 +423,13 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     const trimmedOtherSource = acquisitionSourceOther.trim();
     setAcquisitionSourceError(null);
     if (acquisitionSource === null) {
+      trackBlock('acquisition_source');
       setAcquisitionSourceError('Please select where you heard about Synth');
       completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
     }
     if (acquisitionSource === 'Other' && !trimmedOtherSource) {
+      trackBlock('acquisition_other_detail');
       setAcquisitionSourceError('Please describe where you heard about Synth');
       completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
@@ -424,11 +439,16 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     setContactEmailError(null);
     if (showContactEmailField) {
       if (!trimmedContactEmail) {
+        // Only Apple Hide My Email users ever see this field. If they pile up here, the
+        // same trap mobile had (demanding an address from people who just hid theirs) is
+        // costing signups on web too, and the fix is to defer to the post-onboarding gate.
+        trackBlock('contact_email_missing');
         setContactEmailError('Please enter your email');
         completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
       }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedContactEmail)) {
+        trackBlock('contact_email_invalid');
         setContactEmailError('Please enter a valid email');
         completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
@@ -438,6 +458,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     const cityForDensity = profileResult.data.location_city;
     setDensityPreferenceError(null);
     if (isDcCity(cityForDensity) && !densityPreference.preference) {
+      trackBlock('density_preference');
       setDensityPreferenceError('Pick one preference to land in the right room');
       completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
@@ -467,12 +488,14 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       try {
         profileSuccess = await OnboardingService.saveProfileSetup(user.id, profilePayload);
       } catch (profileErr: any) {
+        trackBlock('profile_save_threw');
         const msg = profileErr?.message || 'Failed to save profile. Please try again.';
         setCompletionError(msg);
         completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
       }
       if (!profileSuccess) {
+        trackBlock('profile_save_failed');
         setCompletionError('Failed to save profile. Please try again.');
         completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
@@ -498,22 +521,32 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
           required_join_failed: joinResult.requiredJoinFailed,
         });
         if (joinResult.requiredJoinFailed) {
-          setCompletionError(
-            'Could not join This week in DC. Check your connection and try again.'
+          densityJoinAttemptsRef.current += 1;
+          if (densityJoinAttemptsRef.current < 2) {
+            setCompletionError(
+              'Could not join This week in DC. Check your connection and try again.'
+            );
+            completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            return;
+          }
+          logger.warn(
+            'OnboardingFlow: room join failed twice; continuing without membership'
           );
-          completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          return;
         }
         if (joinResult.errors.length > 0) {
           logger.warn('OnboardingFlow: density room join warnings:', joinResult.errors);
         }
       } catch (joinErr) {
         logger.error('OnboardingFlow: density room join failed:', joinErr);
-        setCompletionError(
-          'Could not join This week in DC. Check your connection and try again.'
-        );
-        completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        return;
+        densityJoinAttemptsRef.current += 1;
+        if (densityJoinAttemptsRef.current < 2) {
+          setCompletionError(
+            'Could not join This week in DC. Check your connection and try again.'
+          );
+          completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          return;
+        }
+        logger.warn('OnboardingFlow: room join threw twice; continuing without membership');
       }
 
       // Save music preferences (optional; same logic as former handleMusicTags)
@@ -563,15 +596,12 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       try {
         await OnboardingService.saveMusicPreferences(user.id, musicData.genres, artistData);
       } catch (error: any) {
-        logger.error('Error saving music preferences:', error);
-        if (error?.message?.includes('already exist') || error?.code === '23505') {
-          logger.warn('Some preferences already exist, continuing...');
-        } else {
-          const errorMessage = error?.message || 'Failed to save music preferences. Please try again.';
-          setCompletionError(errorMessage);
-          completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          return;
-        }
+        // Music taste is OPTIONAL - the section carries no asterisk and nothing downstream
+        // requires it. This used to abort the whole submit on any non-duplicate failure,
+        // so a transient error saving data the user never had to enter locked them out of
+        // an account they had otherwise finished setting up. Log and carry on.
+        logger.error('Error saving music preferences (continuing anyway):', error);
+        trackBlock('music_prefs_failed_nonfatal');
       }
 
       const genreTags: MusicTagInput[] = musicData.genres.map((genre) => ({

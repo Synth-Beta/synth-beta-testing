@@ -27,6 +27,7 @@ import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { SceneRoomService } from '../../src/services/sceneRoomService';
+import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -49,6 +50,10 @@ export default function SceneScreen() {
   // way into the app. One retry, then let them through — the room can be joined from
   // inside the app, being locked out of the app cannot be fixed from anywhere.
   const failedJoinAttemptsRef = useRef(0);
+
+  useEffect(() => {
+    trackOnboardingStep('scene');
+  }, []);
 
   const isDc = isDcCity(locationCity);
   const offerRoom2 = OPTIONAL_SCENE_ROOM_2_ENABLED && isDc && !!preference;
@@ -133,6 +138,7 @@ export default function SceneScreen() {
 
   const handleContinue = async () => {
     if (isDc && !preference) {
+      trackOnboardingBlock('density_preference');
       setPreferenceError('Pick one preference to land in the right room');
       return;
     }
@@ -154,6 +160,7 @@ export default function SceneScreen() {
           });
           if (joinResult.requiredJoinFailed) {
             failedJoinAttemptsRef.current += 1;
+            trackOnboardingBlock('room_join');
             if (failedJoinAttemptsRef.current < 2) {
               setPreferenceError(
                 'Could not join This week in DC. Check your connection and try again.'

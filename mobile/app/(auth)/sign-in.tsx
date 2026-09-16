@@ -240,11 +240,16 @@ export default function SignInScreen() {
             <AndroidGoogleSignInPlaceholder />
           )}
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {/* Only draw the "or" divider when a social button actually rendered above it.
+              AndroidGoogleSignInPlaceholder renders null, so an Android build without the
+              Google client IDs showed an empty slot above a dangling "or". */}
+          {Platform.OS === 'ios' || googleAndroidReady ? (
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+          ) : null}
 
           {mode === 'signup' ? (
             <TextInput

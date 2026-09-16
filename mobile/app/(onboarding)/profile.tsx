@@ -23,6 +23,7 @@ import { getCurrentLatLng, reverseGeocode } from '../../src/services/locationSer
 import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail } from '@synth/shared';
 import type { User } from '@supabase/supabase-js';
 import { ContactEmailContext } from '../_layout';
+import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -155,6 +156,12 @@ export default function ProfileSetupScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Record that this screen was reached, so per-step drop-off is visible instead of
+    // being reconstructed from signup timestamps after the fact.
+    useEffect(() => {
+        trackOnboardingStep('profile');
+    }, []);
+
     const checkUsernameAvailability = useCallback(async (uname: string) => {
         if (!USERNAME_RE.test(uname)) {
             setUsernameStatus('invalid');
@@ -226,6 +233,13 @@ export default function ProfileSetupScreen() {
 
     const showContactEmailField = needsContactEmail(authUser, null);
 
+    // Contact email is deliberately NOT part of this gate. This is step 1 of 5, and
+    // showContactEmailField is true for exactly one group: Apple Hide My Email users. So
+    // requiring it here demanded a real address from the very people who had just chosen
+    // to hide theirs, on the first screen they ever saw, before anything had earned that
+    // trust. Every Apple private-relay user who stalled in onboarding stalled on THIS
+    // screen. The /email-required gate in _layout.tsx already asks for it immediately
+    // after onboarding, which is a fairer moment and loses nothing.
     const canContinue =
         // Apple Sign In users who decline name sharing arrive with no name in their auth
         // metadata, so this field starts blank. It used to be unvalidated, which sent an
@@ -234,8 +248,7 @@ export default function ProfileSetupScreen() {
         username.length >= 3 &&
         (usernameStatus === 'available' || usernameStatus === 'idle') &&
         !validateBirthday(birthday) &&
-        !!acquisitionSource &&
-        (!showContactEmailField || EMAIL_RE.test(contactEmail.trim()));
+        !!acquisitionSource;
 
     const handleContinue = async () => {
         // Final birthday validation
@@ -248,6 +261,9 @@ export default function ProfileSetupScreen() {
             if (userId) freshQuery = freshQuery.neq('user_id', userId);
             const fresh = await freshQuery.maybeSingle();
             if (fresh.data) {
+                // Mobile already excludes the user's own row here, so this is a genuine
+                // collision - unlike the web bug where it was the user's own username.
+                trackOnboardingBlock('username');
                 setUsernameStatus('taken');
                 return;
             }
@@ -255,16 +271,22 @@ export default function ProfileSetupScreen() {
 
         const trimmedOtherSource = acquisitionSourceOther.trim();
         if (!acquisitionSource) {
+            trackOnboardingBlock('acquisition_source');
             setAcquisitionSourceError('Please select where you heard about Synth');
             return;
         }
         if (acquisitionSource === 'Other' && !trimmedOtherSource) {
+            trackOnboardingBlock('acquisition_other_detail');
             setAcquisitionSourceError('Please describe where you heard about Synth');
             return;
         }
 
         const trimmedContactEmail = contactEmail.trim();
-        if (showContactEmailField && !EMAIL_RE.test(trimmedContactEmail)) {
+        // Validate only what they actually typed: a blank passes through (the
+        // /email-required gate asks again right after onboarding), a typo is still caught
+        // here rather than being saved as an unreachable address.
+        if (showContactEmailField && trimmedContactEmail && !EMAIL_RE.test(trimmedContactEmail)) {
+            trackOnboardingBlock('contact_email_invalid');
             setContactEmailError('Please enter a valid email');
             return;
         }
@@ -287,12 +309,17 @@ export default function ProfileSetupScreen() {
                 acquisition_source: acquisitionSource || undefined,
                 other_acquisition_source:
                     acquisitionSource === 'Other' ? trimmedOtherSource : null,
-                contact_email: showContactEmailField ? trimmedContactEmail : undefined,
+                contact_email:
+                    showContactEmailField && trimmedContactEmail ? trimmedContactEmail : undefined,
             });
-            if (showContactEmailField) {
+            // Only report the gate satisfied when a real address was actually saved. A
+            // blank marked as "saved" would suppress the /email-required screen that is
+            // now responsible for collecting it - trading this bug for a quieter one.
+            if (showContactEmailField && trimmedContactEmail) {
                 markContactEmailSaved(trimmedContactEmail);
             }
         } catch (e) {
+            trackOnboardingBlock('profile_save_threw');
             console.warn('Profile setup write failed:', e);
             setSaving(false);
             Alert.alert('Something went wrong', 'Could not save your profile. Please try again.');
@@ -469,7 +496,7 @@ export default function ProfileSetupScreen() {
 
                     {showContactEmailField && (
                         <View style={styles.fieldBlock}>
-                            <Text style={styles.label}>Contact Email <Text style={styles.required}>*</Text></Text>
+                            <Text style={styles.label}>Contact Email</Text>
                             <TextInput
                                 style={[styles.input, contactEmailError ? styles.inputError : null]}
                                 value={contactEmail}
@@ -483,7 +510,7 @@ export default function ProfileSetupScreen() {
                             {contactEmailError ? (
                                 <Text style={[styles.hint, { color: '#dc2626' }]}>{contactEmailError}</Text>
                             ) : (
-                                <Text style={styles.hint}>We need a real contact email on file so we can reach you about your account and about reports of harassment or abuse.</Text>
+                                <Text style={styles.hint}>Optional here — we'll ask again once you're set up. We use it to reach you about your account and about reports of harassment or abuse.</Text>
                             )}
                         </View>
                     )}
