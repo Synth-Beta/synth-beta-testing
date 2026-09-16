@@ -13,6 +13,7 @@ export interface UnifiedPersonalizedEvent {
     artist_name: string;
     venue_name: string;
     venue_city?: string;
+    venue_state?: string;
     event_date: string;
     image_url?: string;
     /** Short label for corner badge (e.g. RECOMMENDED) derived from RPC context */
@@ -75,6 +76,7 @@ export interface NetworkEvent {
     artist_id?: string;
     venue_name: string;
     venue_city?: string;
+    venue_state?: string;
     event_date: string;
     image_url?: string;
     friend_id: string;
@@ -155,6 +157,7 @@ export class HomeFeedService {
             artist_name,
             venue_name,
             venue_city: p.venue_city != null && String(p.venue_city).trim() ? String(p.venue_city).trim() : undefined,
+            venue_state: p.venue_state != null && String(p.venue_state).trim() ? String(p.venue_state).trim() : undefined,
             event_date: p.event_date != null ? String(p.event_date) : '',
             image_url,
             feedLabel: this.getFeedLabelFromContext({
@@ -209,6 +212,33 @@ export class HomeFeedService {
             if (hasUsableFeedImageUrl(event.image_url)) return event;
             const artistImage = event.artist_id ? imageByArtist.get(event.artist_id) : undefined;
             return { ...event, image_url: artistImage };
+        });
+    }
+
+    private static async enrichUnifiedEventsWithVenueLocations(
+        events: UnifiedPersonalizedEvent[]
+    ): Promise<UnifiedPersonalizedEvent[]> {
+        const missing = events.filter((e) => e.venue_id && !String(e.venue_city || '').trim());
+        if (missing.length === 0) return events;
+
+        const venueIds = [...new Set(missing.map((e) => e.venue_id).filter(Boolean))] as string[];
+        const { data: venues } = await supabase
+            .from('venues')
+            .select('id, city, state')
+            .in('id', venueIds);
+
+        const byId = new Map(
+            (venues || []).map((v: { id: string; city?: string | null; state?: string | null }) => [v.id, v])
+        );
+        return events.map((event) => {
+            if (String(event.venue_city || '').trim()) return event;
+            const venue = event.venue_id ? byId.get(event.venue_id) : undefined;
+            if (!venue) return event;
+            return {
+                ...event,
+                venue_city: venue.city || event.venue_city,
+                venue_state: event.venue_state || venue.state || undefined,
+            };
         });
     }
 
@@ -324,6 +354,7 @@ export class HomeFeedService {
                 .filter(e => e.id.length > 0 && isEventUpcomingForFeed(e.event_date));
 
             mapped = await this.enrichUnifiedEventsWithArtistImages(mapped);
+            mapped = await this.enrichUnifiedEventsWithVenueLocations(mapped);
 
             if (mapped.length === 0) {
                 const fallback = await this.getFallbackUpcomingEvents(limit);
@@ -350,7 +381,7 @@ export class HomeFeedService {
         // events table is normalized — no artist_name/venue_name columns
         const { data, error } = await supabase
             .from('events')
-            .select('id, title, artist_id, venue_id, venue_city, event_date, images, ticket_urls')
+            .select('id, title, artist_id, venue_id, venue_city, venue_state, event_date, images, ticket_urls')
             .gte('event_date', today)
             .order('event_date', { ascending: true })
             .limit(limit);
@@ -397,6 +428,7 @@ export class HomeFeedService {
                 artist_name: (event.artist_id ? artistMap.get(event.artist_id) : null) || '',
                 venue_name: (event.venue_id ? venueMap.get(event.venue_id) : null) || '',
                 venue_city: event.venue_city || undefined,
+                venue_state: event.venue_state || undefined,
                 event_date: event.event_date || '',
                 image_url,
                 feedLabel: undefined,
@@ -414,7 +446,7 @@ export class HomeFeedService {
         const today = todayLocalYmd();
         const { data, error } = await supabase
             .from('events_with_artist_venue')
-            .select('id, title, artist_name, venue_name, venue_city, event_date, images, ticket_urls, artist_id, venue_id')
+            .select('id, title, artist_name, venue_name, venue_city, venue_state, event_date, images, ticket_urls, artist_id, venue_id')
             .gte('event_date', today)
             .order('event_date', { ascending: true })
             .limit(limit);
@@ -435,6 +467,7 @@ export class HomeFeedService {
                     artist_name: event.artist_name || '',
                     venue_name: event.venue_name || '',
                     venue_city: event.venue_city || undefined,
+                    venue_state: event.venue_state || undefined,
                     event_date: event.event_date || '',
                     image_url,
                     feedLabel: undefined,
@@ -639,7 +672,7 @@ export class HomeFeedService {
                     user_id,
                     users:user_id ( user_id, name, avatar_url ),
                     events:event_id (
-                        id, title, artist_name, artist_id, venue_name, venue_city,
+                        id, title, artist_name, artist_id, venue_name, venue_city, venue_state,
                         event_date, images, event_media_url, media_urls
                     )
                 `)
@@ -682,6 +715,7 @@ export class HomeFeedService {
                     artist_id: ev.artist_id != null ? String(ev.artist_id) : undefined,
                     venue_name: ev.venue_name || '',
                     venue_city: ev.venue_city || undefined,
+                    venue_state: ev.venue_state || undefined,
                     event_date: ev.event_date || '',
                     image_url,
                     friend_id: user?.user_id || primary.user_id,
@@ -740,7 +774,7 @@ export class HomeFeedService {
     /**
      * Friend suggestions rail — same pool + ranking as web HomeFeed (via @synth/shared).
      */
-    static async getFriendSuggestionsForRail(userId: string, maxCards = 5): Promise<FriendSuggestion[]> {
+    static async getFriendSuggestionsForRail(userId: string, maxCards = 20): Promise<FriendSuggestion[]> {
         try {
             const pool = await getSimilarUsersToFriend(supabase, userId, 20);
             return rankFriendSuggestionsForRail(pool, maxCards) as FriendSuggestion[];
@@ -773,6 +807,8 @@ export class HomeFeedService {
                 title: e.title ?? e.artist_name ?? '',
                 artist_name: e.artist_name ?? '',
                 venue_name: e.venue_name ?? '',
+                venue_city: e.venue_city || undefined,
+                venue_state: e.venue_state || undefined,
                 event_date: e.event_date,
                 feedLabel: 'RECOMMENDED',
                 interested_count: 0,

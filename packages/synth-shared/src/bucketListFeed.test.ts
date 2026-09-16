@@ -51,8 +51,8 @@ const later = new Date(Date.now() + 30 * 86400000).toISOString();
 
 // #1's show is a month out, #2's is in two days. Rank must still win.
 const rows = [
-  { id: 'e-2', artist_id: ARTIST_2, event_date: soon, artists: { name: 'Second' }, venues: { name: 'Club B' } },
-  { id: 'e-1', artist_id: ARTIST_1, event_date: later, artists: { name: 'First' }, venues: { name: 'Club A' } },
+  { id: 'e-2', artist_id: ARTIST_2, event_date: soon, artists: { name: 'Second' }, venues: { name: 'Club B', city: 'Baltimore', state: 'MD' } },
+  { id: 'e-1', artist_id: ARTIST_1, event_date: later, artists: { name: 'First' }, venues: { name: 'Club A', city: 'Washington', state: 'DC' } },
 ];
 
 async function main() {
@@ -78,6 +78,8 @@ async function main() {
   assert.equal(ranked[0].bucket_reason, '#1 on your bucket list');
   assert.equal(ranked[0].artist_name, 'First');
   assert.equal(ranked[0].venue_name, 'Club A');
+  assert.equal(ranked[0].venue_city, 'Washington');
+  assert.equal(ranked[0].venue_state, 'DC');
   assert.equal(ranked[1].bucket_reason, '#2 on your bucket list');
 
   // 3. `near` adds a lat/lng bounding box; without it there is none.

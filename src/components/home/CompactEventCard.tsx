@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Calendar, MapPin, Send, Check, Heart, Users, MessageCircle } from 'lucide-react';
+import { Calendar, MapPin, Send, Check, Heart, Users, MessageCircle, Building2 as BuildingComplex } from 'lucide-react';
 import { replaceJambasePlaceholder, getFallbackEventImage, getSynthPlaceholderImage } from '@/utils/eventImageFallbacks';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
@@ -19,6 +19,7 @@ interface CompactEventCardProps {
     venue_name?: string;
     event_date?: string;
     venue_city?: string;
+    venue_state?: string;
     image_url?: string;
     poster_image_url?: string;
   };
@@ -59,6 +60,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
   }, [event.id, event.image_url, event.poster_image_url]);
 
   const eventDate = event.event_date ? new Date(event.event_date) : null;
+  const cityState = [event.venue_city, event.venue_state].filter(Boolean).join(', ');
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.currentTarget;
@@ -196,12 +198,19 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
     }
   };
 
+  const metaStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-family)',
+    fontSize: 'var(--typography-meta-size, 16px)',
+    fontWeight: 'var(--typography-meta-weight, 500)',
+    lineHeight: 'var(--typography-meta-line-height, 1.5)',
+    color: 'var(--neutral-700)',
+  };
+
   return (
     <div
       className={cn(
         'swift-ui-card flex flex-col overflow-hidden',
-        'relative group cursor-pointer',
-        'w-full h-full max-h-[85vh]',
+        'relative group cursor-pointer w-full',
         className
       )}
       onClick={handleClick}
@@ -215,8 +224,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       role="button"
       aria-label={`View event: ${event.title}`}
     >
-      {/* Event image — full-bleed cover (original layout); fallback URL prevents blank black hero */}
-      <div className="relative w-full flex-1 min-h-[60vh] max-h-[70vh] overflow-hidden bg-black">
+      <div className="relative w-full overflow-hidden bg-black" style={{ height: 'min(42vh, 360px)', minHeight: 220 }}>
         <ClickableImage
           imageUrl={resolvedImageUrl}
           alt={
@@ -244,13 +252,6 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
             />
           </div>
         </ClickableImage>
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              'linear-gradient(to top, rgba(14, 14, 14, 0.8) 0%, rgba(14, 14, 14, 0.4) 50%, transparent 100%)',
-          }}
-        />
         {reason && getReasonBadge()}
         {isCommunityPhoto && (
           <div className="absolute top-4 right-4 swift-ui-badge z-50" aria-hidden="true">
@@ -259,25 +260,15 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
         )}
       </div>
 
-      {/* Content Overlay */}
       <div
-        className="absolute left-0 right-0 bottom-0 w-full swift-ui-card-content !p-0 !m-0"
-        style={{ zIndex: 40 }}
-      >
-      <div
-          className="absolute inset-0"
+        className="relative flex flex-col"
         style={{
-            background:
-              'linear-gradient(to top, color-mix(in srgb, var(--neutral-0) 96%, transparent) 0%, color-mix(in srgb, var(--neutral-0) 90%, transparent) 60%, color-mix(in srgb, var(--neutral-0) 70%, transparent) 100%)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-          }}
-        />
-
-        <div
-          className="relative flex flex-col"
-          style={{ padding: 'var(--spacing-grouped, 24px)', gap: 'var(--spacing-small, 12px)' }}
-        >
+          zIndex: 2,
+          backgroundColor: 'var(--neutral-0)',
+          padding: 'var(--spacing-grouped, 24px)',
+          gap: 'var(--spacing-small, 12px)',
+        }}
+      >
           <h2
             className="line-clamp-2"
             style={{
@@ -292,38 +283,26 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
           </h2>
 
           <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-            {(event.venue_name || event.venue_city || distanceLabel) && (
+            {(cityState || distanceLabel) && (
               <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                <MapPin size={20} style={{ color: 'var(--brand-pink-500)' }} />
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-meta-size, 16px)',
-                    fontWeight: 'var(--typography-meta-weight, 500)',
-                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    color: 'var(--neutral-700)',
-                  }}
-                >
-                  {[event.venue_name, event.venue_city, distanceLabel].filter(Boolean).join(' · ')}
+                <MapPin size={20} style={{ color: 'var(--brand-pink-500)', flexShrink: 0 }} />
+                <span style={metaStyle}>
+                  {[cityState, distanceLabel].filter(Boolean).join(' · ')}
                 </span>
               </div>
             )}
-            {eventDate && (
-              <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                <Calendar size={20} style={{ color: 'var(--brand-pink-500)' }} />
-                <span
-                  style={{
-          fontFamily: 'var(--font-family)',
-          fontSize: 'var(--typography-meta-size, 16px)',
-          fontWeight: 'var(--typography-meta-weight, 500)',
-          lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    color: 'var(--neutral-700)',
-                  }}
-                >
-                  {formatDate(eventDate)}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+              <BuildingComplex size={20} style={{ color: 'var(--brand-pink-500)', flexShrink: 0 }} />
+              <span style={metaStyle}>
+                {event.venue_name?.trim() || 'Venue TBA'}
+              </span>
+            </div>
+            <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
+              <Calendar size={20} style={{ color: 'var(--brand-pink-500)', flexShrink: 0 }} />
+              <span style={metaStyle}>
+                {eventDate ? formatDate(eventDate) : 'Date TBA'}
+              </span>
+            </div>
         </div>
 
           {friendsInterestedCount > 0 && (
@@ -440,9 +419,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
               );
             })()}
           </div>
-
         </div>
-      </div>
     </div>
   );
 };

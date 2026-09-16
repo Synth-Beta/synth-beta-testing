@@ -11,6 +11,7 @@ import { Loader2, Music, Users, Calendar, MapPin, Search, Grid3x3 } from 'lucide
 import { supabase } from '@/integrations/supabase/client';
 import { UnifiedArtistSearchService, ArtistSearchResult } from '@/services/unifiedArtistSearchService';
 import { UnifiedVenueSearchService, VenueSearchResult } from '@/services/unifiedVenueSearchService';
+import { searchEventsFuzzy, searchUsersFuzzy } from '@synth/shared';
 import { format, parseISO } from 'date-fns';
 import { EventMap } from '@/components/events/EventMap';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -713,33 +714,19 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
 
 const fetchUsers = async (query: string, currentUserId: string, limit: number = 25, offset: number = 0): Promise<UserSearchResult[]> => {
   try {
-    // Use trigram index: prefix match for single words (faster), full wildcard for multi-word (uses trigram index)
-    const trimmedQuery = query.trim();
-    const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
-    const searchPattern = isSingleWord && trimmedQuery.length > 0
-      ? `${trimmedQuery}%`  // Prefix match for single words (faster)
-      : `%${trimmedQuery}%`; // Full wildcard for multi-word queries (uses trigram index)
-    
-    const { data, error } = await supabase
-      .from('users')
-      .select('user_id, name, avatar_url, bio, account_type')
-      .ilike('name', searchPattern)
-      .neq('user_id', currentUserId)
-      .order('name', { ascending: true })
-      .range(offset, offset + limit - 1);
+    const rows = await searchUsersFuzzy(supabase, query, {
+      limit,
+      offset,
+      excludeUserId: currentUserId,
+    });
 
-    if (error) {
-      console.error('Error searching users:', error);
-      return [];
-    }
-
-    return (data || []).map((profile) => ({
+    return rows.map((profile) => ({
       id: profile.user_id,
       name: profile.name,
-      username: profile.name, // Use name as username since username column doesn't exist
+      username: profile.username || profile.name,
       avatar_url: profile.avatar_url,
       bio: profile.bio,
-      verified: false, // Verification status is stored in user_verifications table, not users table
+      verified: false,
       account_type: profile.account_type,
     }));
   } catch (error) {
@@ -750,69 +737,20 @@ const fetchUsers = async (query: string, currentUserId: string, limit: number = 
 
 const fetchEvents = async (query: string, limit: number = 25, offset: number = 0): Promise<EventSearchResult[]> => {
   try {
-    // Use trigram pattern: prefix match for single words (faster), full wildcard for multi-word
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery) {
-      return [];
-    }
-    
-    const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
-    const searchPattern = isSingleWord && trimmedQuery.length > 0
-      ? `${trimmedQuery}%`  // Prefix match for single words (faster)
-      : `%${trimmedQuery}%`; // Full wildcard for multi-word queries
-    
-    // Events table uses artist_id and venue_id (FKs), not artist_name/venue_name
-    // Join with artists and venues to get names
-    // Filter out null titles to reduce scan overhead
-    const { data, error } = await supabase
-      .from('events')
-      .select(`
-        id,
-        title,
-        event_date,
-        images,
-        event_media_url,
-        media_urls,
-        artist_id,
-        venue_id,
-        artists(id, name),
-        venues(id, name)
-      `)
-      .not('title', 'is', null) // Exclude null titles to reduce scan overhead
-      .ilike('title', searchPattern)
-      .order('event_date', { ascending: true })
-      .range(offset, offset + limit - 1)
-      .limit(limit); // Explicit limit as safety net
+    const rows = await searchEventsFuzzy(supabase, query, { limit, offset });
 
-    if (error) {
-      console.error('Error searching events:', error);
-      // Don't throw - return empty array to prevent UI breakage
-      return [];
-    }
-
-    return (data || []).map((event: any) => {
-      // Use event's own image columns (populated by trigger from artist images)
-      // Priority: event_media_url -> media_urls[0] -> images array
-      let imageUrl: string | null = null;
-      
-      if (event.event_media_url) {
-        imageUrl = event.event_media_url;
-      } else if (Array.isArray(event.media_urls) && event.media_urls.length > 0) {
-        imageUrl = event.media_urls[0];
-      } else if (Array.isArray(event.images) && event.images.length > 0) {
+    return rows.map((event) => {
+      let imageUrl: string | null = event.event_media_url;
+      if (!imageUrl && Array.isArray(event.images) && event.images.length > 0) {
         const firstImage = event.images.find((img: any) => img?.url);
         imageUrl = firstImage?.url ?? null;
       }
 
-      // Extract artist and venue names from joined data
-      const artistName = event.artists?.name || null;
-      const venueName = event.venues?.name || null;
-
       return {
         id: event.id,
         title: event.title,
-        artistName,
-        venueName,
+        artistName: event.artist_name,
+        venueName: event.venue_name,
         eventDate: event.event_date,
         imageUrl,
       };

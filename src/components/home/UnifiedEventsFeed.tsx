@@ -27,6 +27,7 @@ interface UnifiedEventItem {
   artist_name?: string;
   venue_name?: string;
   venue_city?: string;
+  venue_state?: string;
   event_date: string;
   image_url?: string;
   poster_image_url?: string;
@@ -98,6 +99,7 @@ async function fetchBucketListTopEvents(
       artist_name: e.artist_name || undefined,
       venue_name: e.venue_name || undefined,
       venue_city: e.venue_city || undefined,
+      venue_state: e.venue_state || undefined,
       event_date: String(e.event_date),
       images: e.images,
       event_media_url: e.event_media_url ?? undefined,
@@ -181,6 +183,7 @@ function personalEventToItem(event: PersonalizedEvent, eventType?: string): Unif
     artist_name: event.artist_name ?? undefined,
     venue_name: event.venue_name ?? undefined,
     venue_city: event.venue_city ?? undefined,
+    venue_state: event.venue_state ?? undefined,
     event_date: event.event_date,
     poster_image_url: event.poster_image_url ?? undefined,
     images: event.images,
@@ -1067,6 +1070,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                       venue_name: event.venue_name,
                       event_date: event.event_date,
                       venue_city: event.venue_city,
+                      venue_state: event.venue_state,
                       image_url: imageUrl,
                       poster_image_url: event.poster_image_url,
                     }}

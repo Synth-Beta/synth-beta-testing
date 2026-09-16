@@ -62,6 +62,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [vibeModalOpen, setVibeModalOpen] = useState(false);
   const [selectedVibe, setSelectedVibe] = useState<VibeType | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -374,6 +375,28 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   };
 
   const hasActiveLocation = Boolean(filters.latitude && filters.longitude);
+  const isSearchMode = isSearchFocused || isSearchActive;
+
+  const dismissSearch = () => {
+    setSearchQuery('');
+    setIsSearchActive(false);
+    setIsSearchFocused(false);
+  };
+
+  const discoverSearchBar = (
+    <SearchBar
+      value={searchQuery}
+      onChange={(value) => {
+        setSearchQuery(value);
+        setIsSearchActive(value.trim().length >= 2);
+      }}
+      onFocus={() => setIsSearchFocused(true)}
+      showClear={isSearchMode}
+      onClear={dismissSearch}
+      placeholder='Try "Radiohead"'
+      widthVariant="flex"
+    />
+  );
 
   // If a vibe is selected, show results view
   if (selectedVibe) {
@@ -393,7 +416,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   // (see ArtistDetailModal/VenueDetailModal isWebDesktop handling) instead of this
   // mobile-style header, so it doesn't double up with — or get hidden behind — the
   // portaled detail modal.
-  const discoverHeader = !hideHeader && !webDesktopChrome
+  const discoverHeader = !hideHeader && !webDesktopChrome && !eventDetailsOpen
     ? detailView
       ? (
         <MobileHeader
@@ -434,15 +457,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             width: '100%',
             maxWidth: '100%',
           }}>
-            <SearchBar
-              value={searchQuery}
-              onChange={(value) => {
-                setSearchQuery(value);
-                setIsSearchActive(value.trim().length >= 2);
-              }}
-              placeholder='Try "Radiohead"'
-              widthVariant="flex"
-            />
+            {discoverSearchBar}
           </div>
         </MobileHeader>
       )
@@ -450,7 +465,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
 
   return (
     <PageShell header={discoverHeader}>
-      {!hideHeader && !detailView && webDesktopChrome && (
+      {!hideHeader && !detailView && !eventDetailsOpen && webDesktopChrome && (
         <header
           className="sticky z-30 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
           style={{
@@ -459,15 +474,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
             marginBottom: 'var(--spacing-small, 12px)',
           }}
         >
-          <SearchBar
-            value={searchQuery}
-            onChange={(value) => {
-              setSearchQuery(value);
-              setIsSearchActive(value.trim().length >= 2);
-            }}
-            placeholder='Try "Radiohead"'
-            widthVariant="flex"
-          />
+          {discoverSearchBar}
         </header>
       )}
       {/* Glass backdrop context - blobs and noise */}
@@ -805,31 +812,48 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
           )}
         </div>
 
-        {/* Search Results - Below Filters when searching */}
-        {isSearchActive && (
-          <div className="mt-4">
-          <RedesignedSearchPage
-            userId={currentUserId}
-              allowedTabs={['artists', 'venues', 'users', 'events']}
-            showMap={false}
-            layout="compact"
-            mode="embedded"
-            headerTitle=""
-            headerDescription=""
-            showHelperText={false}
-              initialSearchQuery={searchQuery}
-            hideSearchInput={true}
-              showResults={true}
-            onNavigateToProfile={onNavigateToProfile}
-            onNavigateToChat={onNavigateToChat}
-            onArtistClick={(artistId, artistName) => setDetailView({ type: 'artist', id: artistId, name: artistName })}
-            onVenueClick={(venueId, venueName) => setDetailView({ type: 'venue', id: venueId, name: venueName })}
-          />
-        </div>
+        {/* Search overlay — results when typing, tappable blank when empty */}
+        {isSearchMode && (
+          isSearchActive ? (
+            <div className="mt-4">
+              <RedesignedSearchPage
+                userId={currentUserId}
+                allowedTabs={['artists', 'venues', 'users', 'events']}
+                showMap={false}
+                layout="compact"
+                mode="embedded"
+                headerTitle=""
+                headerDescription=""
+                showHelperText={false}
+                initialSearchQuery={searchQuery}
+                hideSearchInput={true}
+                showResults={true}
+                onNavigateToProfile={onNavigateToProfile}
+                onNavigateToChat={onNavigateToChat}
+                onArtistClick={(artistId, artistName) => setDetailView({ type: 'artist', id: artistId, name: artistName })}
+                onVenueClick={(venueId, venueName) => setDetailView({ type: 'venue', id: venueId, name: venueName })}
+              />
+            </div>
+          ) : (
+            <div
+              className="mt-4"
+              style={{ minHeight: '50vh' }}
+              onClick={dismissSearch}
+              role="button"
+              tabIndex={0}
+              aria-label="Dismiss search"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+                  e.preventDefault();
+                  dismissSearch();
+                }
+              }}
+            />
+          )
         )}
 
       {/* Main Content */}
-      {!isSearchActive && (
+      {!isSearchMode && (
           <>
             {/* Section 1: Because You Like ___ */}
             <div style={{ marginBottom: '32px' }}>
@@ -847,6 +871,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
               filters={filters}
             onNavigateToProfile={onNavigateToProfile}
             onNavigateToChat={onNavigateToChat}
+            onOpenEvent={(event) => {
+              void handleEventClickFromVenue(event.id);
+            }}
           />
             </div>
 

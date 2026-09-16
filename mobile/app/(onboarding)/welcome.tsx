@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, Image } from 'react-native';
+import React, { useCallback, useEffect } from 'react';
+import { Pressable, SafeAreaView, StyleSheet, View, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ChevronLeft } from 'lucide-react-native';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -12,6 +13,7 @@ import Animated, {
 import { SynthText } from '../../src/components/SynthText';
 import { SynthButton } from '../../src/components/SynthButton';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
+import { supabase } from '../../src/integrations/supabase/client';
 
 export default function WelcomeScreen() {
     const router = useRouter();
@@ -39,6 +41,25 @@ export default function WelcomeScreen() {
         router.push('/(onboarding)/profile');
     };
 
+    const handleBack = useCallback(async () => {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+
+        // Signed-in users get bounced from auth back into onboarding, so drop
+        // the accidental signup session before returning to sign in / sign up.
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await supabase.auth.signOut();
+            }
+        } catch {
+            // Still leave the welcome screen even if sign-out fails.
+        }
+        router.replace('/(auth)/sign-in');
+    }, [router]);
+
     return (
         <View style={styles.container}>
             <LinearGradient
@@ -47,6 +68,12 @@ export default function WelcomeScreen() {
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
             />
+
+            <SafeAreaView style={styles.header}>
+                <Pressable onPress={handleBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Back">
+                    <ChevronLeft color={SynthTokens.colors.neutral0} size={28} />
+                </Pressable>
+            </SafeAreaView>
 
             <View style={styles.centerContent}>
                 <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
@@ -77,7 +104,7 @@ export default function WelcomeScreen() {
                 <SynthButton
                     title="I already have an account"
                     variant="ghost"
-                    onPress={() => router.push('/(auth)/sign-in')}
+                    onPress={handleBack}
                     style={styles.secondaryButton}
                 />
             </View>
@@ -88,7 +115,16 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: SynthTokens.spacing.xl,
+        paddingHorizontal: SynthTokens.spacing.xl,
+        paddingBottom: SynthTokens.spacing.xl,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    backButton: {
+        padding: 8,
+        marginLeft: -8,
     },
     centerContent: {
         flex: 1,

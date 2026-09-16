@@ -24,6 +24,8 @@ import {
     MessageCircle,
     X,
     Star,
+    MapPin,
+    Building2 as BuildingComplex,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventDetailsSkeleton } from '../../src/components/skeletons/EventDetailsSkeleton';
@@ -38,6 +40,7 @@ import {
     formatDoorsTimeShort,
     formatEventDetailPrice,
     venueAddressPrimaryLine,
+    formatCityState,
 } from '../../src/utils/eventDetailFormat';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -589,6 +592,22 @@ export default function EventDetailScreen() {
                                 {doorsShort ? <Text style={styles.infoRowTextMuted}> Doors: {doorsShort}</Text> : null}
                             </Text>
                         </View>
+                        {formatCityState(event) ? (
+                            <View style={styles.infoRow}>
+                                <View style={styles.infoIconWrap}><MapPin size={22} color={PINK} /></View>
+                                <SynthText variant="body" color="primary" style={styles.infoRowText}>
+                                    {formatCityState(event)}
+                                </SynthText>
+                            </View>
+                        ) : null}
+                        {event.venue_name?.trim() ? (
+                            <View style={styles.infoRow}>
+                                <View style={styles.infoIconWrap}><BuildingComplex size={22} color={PINK} /></View>
+                                <SynthText variant="body" color="primary" style={styles.infoRowText}>
+                                    {event.venue_name.trim()}
+                                </SynthText>
+                            </View>
+                        ) : null}
                         {event.tour_name?.trim() ? (
                             <View style={styles.infoRow}>
                                 <View style={styles.infoIconWrap}><Music size={22} color={PINK} /></View>

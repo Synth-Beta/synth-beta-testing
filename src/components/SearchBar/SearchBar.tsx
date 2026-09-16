@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Icon } from '@/components/Icon';
 import './SearchBar.css';
 
@@ -23,6 +23,18 @@ export interface SearchBarProps {
    * Callback when user submits search (Enter key)
    */
   onSubmit?: (value: string) => void;
+
+  /**
+   * Force the clear (X) button to show even when the field is empty.
+   * Used for dismissible search overlays (e.g. Discover).
+   */
+  showClear?: boolean;
+
+  /**
+   * Called when the clear (X) button is pressed, after the value is cleared.
+   * When provided, the input blurs instead of refocusing so the parent can dismiss search.
+   */
+  onClear?: () => void;
   
   /**
    * Width variant
@@ -84,7 +96,7 @@ export interface SearchBarProps {
  * - 10px border radius
  * - Off-white background with 2px inside stroke light grey border
  * - Search icon on left (dark grey, 24px)
- * - Clear (X) icon on right when typing (off-black, 19px in 44x44 touch target, turns pink on hover)
+ * - Clear (X) icon on right when typing, or whenever showClear is set (off-black, 19px in 44x44 touch target, turns pink on hover)
  * - Placeholder: "Search…" (meta typography, dark grey)
  * - Text color: dark grey (placeholder) → off-black (typing)
  * 
@@ -112,6 +124,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   onFocus,
   onBlur,
   spellCheck = true,
+  showClear = false,
+  onClear,
 }) => {
   const [internalValue, setInternalValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -133,16 +147,27 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       setInternalValue('');
     }
     onChange?.('');
-    inputRef.current?.focus();
+    onClear?.();
+    if (onClear) {
+      inputRef.current?.blur();
+    } else {
+      inputRef.current?.focus();
+    }
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape' && onClear) {
+      e.preventDefault();
+      handleClear();
+      return;
+    }
     if (e.key === 'Enter' && onSubmit) {
       onSubmit(value);
     }
   };
   
   const hasValue = value.length > 0;
+  const showClearButton = hasValue || showClear;
   
   // Build class names
   const baseClasses = 'synth-search-bar';
@@ -175,16 +200,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         name={name}
         className="synth-search-bar__input"
         aria-label={placeholder || 'Search'}
-        aria-describedby={hasValue ? `${id || 'search-input'}-clear-button` : undefined}
+        aria-describedby={showClearButton ? `${id || 'search-input'}-clear-button` : undefined}
       />
       
-      {/* Clear (X) icon (only visible when typing) - ACCESSIBILITY: Has aria-label ✅ */}
-      {hasValue && (
+      {/* Clear (X) icon — when typing, or forced via showClear for dismissible overlays */}
+      {showClearButton && (
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={handleClear}
           className="synth-search-bar__clear"
-          aria-label="Clear search"
+          aria-label={hasValue ? 'Clear search' : 'Close search'}
           id={`${id || 'search-input'}-clear-button`}
         >
           <Icon name="x" size={19} alt="" aria-hidden="true" />

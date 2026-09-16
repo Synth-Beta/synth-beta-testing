@@ -18,7 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { VibeFilters } from '@/services/discoverVibeService';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { CompactEventCard } from '@/components/home/CompactEventCard';
-import { MapPin, Calendar as CalendarIcon, Building2 } from 'lucide-react';
+import { MapPin, Calendar as CalendarIcon, Building2 as BuildingComplex } from 'lucide-react';
 import { LocationService } from '@/services/locationService';
 import { UserEventService } from '@/services/userEventService';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
@@ -36,16 +36,17 @@ const MAPBOX_TOKEN = getMapboxToken();
 const POSTGREST_MAX_ROWS = 1000;
 
 // Create numbered marker icon factory
-const createNumberedIcon = (number: number) => {
+const createNumberedIcon = (number: number, selected = false) => {
+  const size = selected ? 36 : 32;
   return divIcon({
     className: 'numbered-marker',
     html: `<div style="
-      background-color: var(--brand-pink-500);
+      background-color: ${selected ? 'var(--brand-pink-600, var(--brand-pink-500))' : 'var(--brand-pink-500)'};
       color: white;
       border: 2px solid white;
       border-radius: 50%;
-      width: 32px;
-      height: 32px;
+      width: ${size}px;
+      height: ${size}px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -53,8 +54,8 @@ const createNumberedIcon = (number: number) => {
       font-size: 14px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     ">${number}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
 });
 };
 
@@ -63,6 +64,8 @@ interface MapCalendarTourSectionProps {
   filters?: VibeFilters;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
+  /** Opens the shared Discover event page (hides the search header). */
+  onOpenEvent?: (event: JamBaseEvent) => void;
 }
 
 // Map Updater component for center/zoom
@@ -97,6 +100,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   filters,
   onNavigateToProfile,
   onNavigateToChat,
+  onOpenEvent,
 }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'calendar' | 'tour'>('calendar');
@@ -296,6 +300,8 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
       // Use artist UUID (id) instead of name for precise filtering
       const events = await TourTrackerService.getArtistTourEvents(selectedArtist.id);
       setTourEvents(events);
+      setSelectedEvent(null);
+      setEventDetailsOpen(false);
       
       const route = TourTrackerService.calculateTourRoute(events);
       setTourRoute(route.route);
@@ -357,9 +363,26 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     return calendarEvents.get(dateKey) || [];
   };
 
-  const handleEventClick = (event: JamBaseEvent) => {
+  const openEventPage = (event: JamBaseEvent) => {
+    if (onOpenEvent) {
+      onOpenEvent(event);
+      return;
+    }
     setSelectedEvent(event);
     setEventDetailsOpen(true);
+  };
+
+  const handleEventClick = (event: JamBaseEvent) => {
+    openEventPage(event);
+  };
+
+  const handleTourEventClick = (event: JamBaseEvent) => {
+    if (selectedEvent?.id === event.id) {
+      openEventPage(event);
+      return;
+    }
+    setSelectedEvent(event);
+    setEventDetailsOpen(false);
   };
 
   // Get sorted events for display (sorted by date)
@@ -735,6 +758,8 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                             setTourEvents([]);
                             setTourRoute([]);
                             setGroupChats([]);
+                            setSelectedEvent(null);
+                            setEventDetailsOpen(false);
                           }}
                           aria-label="Clear selected artist"
                           className="flex-shrink-0 text-muted-foreground hover:text-foreground"
@@ -851,13 +876,17 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                       <Marker
                         key={`${venueGroup.venueKey}-${venueGroup.number}`}
                         position={[venueGroup.latitude, venueGroup.longitude]}
-                        icon={createNumberedIcon(venueGroup.number)}
+                        icon={createNumberedIcon(
+                          venueGroup.number,
+                          Boolean(selectedEvent && venueGroup.events.some(e => e.id === selectedEvent.id))
+                        )}
                         eventHandlers={{
                           click: () => {
-                            // Click first event in this venue group
-                            if (venueGroup.events.length > 0) {
-                              handleEventClick(venueGroup.events[0]);
-                            }
+                            if (venueGroup.events.length === 0) return;
+                            const alreadySelected = selectedEvent
+                              ? venueGroup.events.find(e => e.id === selectedEvent.id)
+                              : undefined;
+                            handleTourEventClick(alreadySelected ?? venueGroup.events[0]);
                           },
                         }}
                       />
@@ -880,26 +909,30 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                       const venueLocation = event.venue_city 
                         ? (event.venue_state ? `${event.venue_city}, ${event.venue_state}` : event.venue_city)
                         : event.venue_state || '';
+                      const isSelected = selectedEvent?.id === event.id;
                       
                       return (
                         <div
                           key={event.id}
-                          onClick={() => handleEventClick(event)}
+                          onClick={() => handleTourEventClick(event)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              handleEventClick(event);
+                              handleTourEventClick(event);
                             }
                           }}
                           tabIndex={0}
                           role="button"
-                          aria-label={`View event: ${selectedArtist?.name || event.artist_name || 'Artist'} at ${event.venue_name || 'venue'}`}
+                          aria-pressed={isSelected}
+                          aria-label={`${isSelected ? 'Open' : 'Select'} event: ${selectedArtist?.name || event.artist_name || 'Artist'} at ${event.venue_name || 'venue'}`}
                           className="cursor-pointer transition-colors"
                           style={{
                             paddingTop: 'var(--spacing-grouped, 24px)',
                             paddingBottom: 'var(--spacing-grouped, 24px)',
+                            paddingLeft: isSelected ? '10px' : undefined,
                             borderBottom: '1px solid var(--neutral-200)',
-                            backgroundColor: 'transparent',
+                            borderLeft: isSelected ? '3px solid var(--brand-pink-500)' : undefined,
+                            backgroundColor: isSelected ? 'rgba(204, 36, 134, 0.06)' : 'transparent',
                           }}
                         >
                           <div className="flex flex-col w-full">
@@ -944,7 +977,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
                                   {/* Venue with building icon */}
                                   {event.venue_name && (
                                     <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                                      <Building2 size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                                      <BuildingComplex size={24} style={{ color: 'var(--brand-pink-500)' }} />
                                       <p 
                                         className="text-sm truncate" 
                                         style={{
@@ -1047,16 +1080,18 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
         </TabsContent>
       </Tabs>
 
-      {/* Event Details Modal */}
-      <EventDetailsModal
-        event={selectedEvent}
-        currentUserId={currentUserId}
-        isOpen={eventDetailsOpen}
-        onClose={() => setEventDetailsOpen(false)}
-        isInterested={selectedEvent ? interestedEvents.has(selectedEvent.id) : false}
-        onNavigateToProfile={onNavigateToProfile}
-        onNavigateToChat={onNavigateToChat}
-      />
+      {/* Event Details Modal (fallback when Discover is not handling open) */}
+      {!onOpenEvent && (
+        <EventDetailsModal
+          event={selectedEvent}
+          currentUserId={currentUserId}
+          isOpen={eventDetailsOpen}
+          onClose={() => setEventDetailsOpen(false)}
+          isInterested={selectedEvent ? interestedEvents.has(selectedEvent.id) : false}
+          onNavigateToProfile={onNavigateToProfile}
+          onNavigateToChat={onNavigateToChat}
+        />
+      )}
     </div>
   );
 };

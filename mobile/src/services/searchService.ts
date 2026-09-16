@@ -6,7 +6,12 @@ import {
 } from '../utils/localYmd';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../utils/eventImages';
 import { getCompliantEventLinkFromPayload } from '../utils/eventTicketUrl';
-import { sanitizeOrFilterTerm } from '../utils/postgrestSanitize';
+import {
+    searchArtistsFuzzy,
+    searchEventsFuzzy,
+    searchUsersFuzzy,
+    searchVenuesFuzzy,
+} from '@synth/shared';
 
 export interface SearchResult {
     id: string;
@@ -14,6 +19,7 @@ export interface SearchResult {
     artist_name: string;
     venue_name: string;
     venue_city?: string;
+    venue_state?: string;
     event_date: string;
     image_url?: string;
     artist_id?: string;
@@ -37,6 +43,7 @@ function mapCalendarRpcRowToSearchResult(event: Record<string, unknown>): Search
         artist_name: String(event.artist_name ?? ''),
         venue_name: String(event.venue_name ?? ''),
         venue_city: event.venue_city != null ? String(event.venue_city) : undefined,
+        venue_state: event.venue_state != null ? String(event.venue_state) : undefined,
         event_date: String(event.event_date ?? ''),
         image_url: resolveFeedImageUri(rawImg) ?? undefined,
         artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
@@ -69,32 +76,24 @@ export interface UserSearchRow {
 export class SearchService {
     static async searchEvents(keyword: string): Promise<SearchResult[]> {
         try {
-            const term = sanitizeOrFilterTerm(keyword || '');
-            if (!term) return [];
-
-            const { data, error } = await supabase
-                .from('events')
-                .select('*')
-                .or(`artist_name.ilike.%${term}%,title.ilike.%${term}%,venue_name.ilike.%${term}%`)
-                .order('event_date', { ascending: false })
-                .limit(40);
-
-            if (error) throw error;
-
-            return (data || []).map(event => {
+            const rows = await searchEventsFuzzy(supabase, keyword, { limit: 40 });
+            return rows.map(event => {
+                const payload = event as unknown as Record<string, unknown>;
                 const rawImg =
-                    pickFeedImageUrlFromPayload(event) ?? event.images?.[0]?.url ?? undefined;
+                    pickFeedImageUrlFromPayload(payload) ??
+                    (Array.isArray(event.images) ? (event.images as Array<{ url?: string }>)[0]?.url : undefined);
                 return {
                     id: event.id,
-                    title: event.title,
-                    artist_name: event.artist_name,
-                    venue_name: event.venue_name,
+                    title: event.title ?? '',
+                    artist_name: event.artist_name ?? '',
+                    venue_name: event.venue_name ?? '',
                     venue_city: event.venue_city ?? undefined,
-                    event_date: event.event_date,
-                    image_url: resolveFeedImageUri(rawImg) ?? undefined,
-                    artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
-                    venue_id: event.venue_id != null ? String(event.venue_id) : undefined,
-                    ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
+                    venue_state: typeof payload.venue_state === 'string' ? payload.venue_state : undefined,
+                    event_date: event.event_date ?? '',
+                    image_url: resolveFeedImageUri(rawImg ?? event.event_media_url ?? undefined) ?? undefined,
+                    artist_id: event.artist_id ?? undefined,
+                    venue_id: event.venue_id ?? undefined,
+                    ticket_url: getCompliantEventLinkFromPayload(payload) ?? undefined,
                 };
             });
         } catch (error) {
@@ -217,7 +216,7 @@ export class SearchService {
             let fallbackQuery = supabase
                 .from('events')
                 .select(
-                    'id, title, artist_id, venue_id, event_date, venue_city, event_media_url, images, ticket_urls, latitude, longitude, artists:artist_id ( name ), venues:venue_id ( name )'
+                    'id, title, artist_id, venue_id, event_date, venue_city, venue_state, event_media_url, images, ticket_urls, latitude, longitude, artists:artist_id ( name ), venues:venue_id ( name )'
                 )
                 .gte('event_date', p_min_date);
 
@@ -316,14 +315,12 @@ export class SearchService {
     static async searchArtists(keyword: string, limit = 20): Promise<ArtistSearchRow[]> {
         if (!keyword.trim()) return [];
         try {
-            const q = keyword.trim();
-            const { data, error } = await supabase
-                .from('artists')
-                .select('id, name, image_url')
-                .ilike('name', `%${q}%`)
-                .limit(limit);
-            if (error) throw error;
-            return (data || []) as ArtistSearchRow[];
+            const rows = await searchArtistsFuzzy(supabase, keyword, limit);
+            return rows.map(row => ({
+                id: row.id,
+                name: row.name,
+                image_url: row.image_url ?? undefined,
+            }));
         } catch (e) {
             console.error('searchArtists', e);
             return [];
@@ -333,14 +330,12 @@ export class SearchService {
     static async searchVenues(keyword: string, limit = 20): Promise<VenueSearchRow[]> {
         if (!keyword.trim()) return [];
         try {
-            const q = keyword.trim();
-            const { data, error } = await supabase
-                .from('venues')
-                .select('id, name, city')
-                .ilike('name', `%${q}%`)
-                .limit(limit);
-            if (error) throw error;
-            return (data || []) as VenueSearchRow[];
+            const rows = await searchVenuesFuzzy(supabase, keyword, limit);
+            return rows.map(row => ({
+                id: row.id,
+                name: row.name,
+                city: row.city,
+            }));
         } catch (e) {
             console.error('searchVenues', e);
             return [];
@@ -348,16 +343,15 @@ export class SearchService {
     }
 
     static async searchUsers(keyword: string, limit = 20): Promise<UserSearchRow[]> {
-        const q = sanitizeOrFilterTerm(keyword || '');
-        if (!q) return [];
+        if (!keyword.trim()) return [];
         try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('user_id, name, username, avatar_url')
-                .or(`name.ilike.%${q}%,username.ilike.%${q}%`)
-                .limit(limit);
-            if (error) throw error;
-            return (data || []) as UserSearchRow[];
+            const rows = await searchUsersFuzzy(supabase, keyword, { limit });
+            return rows.map(row => ({
+                user_id: row.user_id,
+                name: row.name,
+                username: row.username,
+                avatar_url: row.avatar_url,
+            }));
         } catch (e) {
             console.error('searchUsers', e);
             return [];

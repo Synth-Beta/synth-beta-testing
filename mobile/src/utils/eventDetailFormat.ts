@@ -37,6 +37,11 @@ export function formatDoorsTimeShort(doorsTime: string | null | undefined): stri
     });
 }
 
+/** City + state code, e.g. "Washington, DC" */
+export function formatCityState(e: { venue_city?: string | null; venue_state?: string | null }): string {
+    return [e.venue_city, e.venue_state].filter(Boolean).join(', ');
+}
+
 /** Match web getVenueAddress: street, else city/state TBD */
 export function venueAddressPrimaryLine(e: EventDetail): string {
     const street = e.venue_address?.trim();

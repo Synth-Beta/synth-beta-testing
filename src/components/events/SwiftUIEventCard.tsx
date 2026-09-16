@@ -11,7 +11,8 @@ import {
   MessageCircle,
   Music,
   ExternalLink,
-  Users
+  Users,
+  Building2 as BuildingComplex,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -518,7 +519,7 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
           )}
         </div>
 
-        {/* Venue */}
+        {/* Location & Venue */}
         {(venueName || getLocationString()) && (
           <div
             style={{
@@ -530,9 +531,25 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
               marginBottom: 12,
             }}
           >
-            {venueName && (
+            {getLocationString() && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <MapPin size={16} style={{ color: 'var(--brand-pink-500)', flexShrink: 0 }} />
+                <span
+                  style={{
+                    ...textStyles.subhead,
+                    color: 'var(--neutral-700)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {getLocationString()}
+                </span>
+              </div>
+            )}
+            {venueName && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <BuildingComplex size={16} style={{ color: 'var(--brand-pink-500)', flexShrink: 0 }} />
                 <span
                   style={{
                     ...textStyles.subhead,
@@ -545,16 +562,6 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
                   {venueName}
                 </span>
               </div>
-            )}
-            {getLocationString() && (
-              <span
-                style={{
-                  ...textStyles.footnote,
-                  paddingLeft: 24,
-                }}
-              >
-                {getLocationString()}
-              </span>
             )}
           </div>
         )}

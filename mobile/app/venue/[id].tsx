@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -31,6 +31,8 @@ import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl
 import { todayLocalYmd } from '../../src/utils/localYmd';
 
 const PINK = SynthTokens.colors.brandPink500;
+const INITIAL_UPCOMING_LIMIT = 20;
+const UPCOMING_PAGE_SIZE = 1000;
 
 interface EventRow {
   id: string;
@@ -38,6 +40,7 @@ interface EventRow {
   artist_name: string;
   venue_name: string;
   venue_city?: string;
+  venue_state?: string;
   event_date: string;
   image_url?: string;
   artist_id?: string;
@@ -79,12 +82,33 @@ function mapEventRow(e: any, venueName: string): EventRow {
     artist_name: e.artist_name || '',
     venue_name: e.venue_name || venueName,
     venue_city: e.venue_city ?? undefined,
+    venue_state: e.venue_state ?? undefined,
     event_date: e.event_date,
     image_url: resolveFeedImageUri(rawImg) ?? undefined,
     artist_id: e.artist_id != null ? String(e.artist_id) : undefined,
     venue_id: e.venue_id != null ? String(e.venue_id) : undefined,
     ticket_url: getCompliantEventLinkFromPayload(e) ?? undefined,
   };
+}
+
+async function fetchUpcomingEventPages(venueIds: string[], offset: number): Promise<any[]> {
+  const rows: any[] = [];
+  let from = offset;
+  const todayYmd = todayLocalYmd();
+  while (true) {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .in('venue_id', venueIds)
+      .gte('event_date', todayYmd)
+      .order('event_date', { ascending: true })
+      .range(from, from + UPCOMING_PAGE_SIZE - 1);
+    if (error || !data?.length) break;
+    rows.push(...data);
+    if (data.length < UPCOMING_PAGE_SIZE) break;
+    from += UPCOMING_PAGE_SIZE;
+  }
+  return rows;
 }
 
 
@@ -107,12 +131,17 @@ export default function VenueDetailScreen() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [showAllPast, setShowAllPast] = useState(false);
+  const [hasMoreUpcoming, setHasMoreUpcoming] = useState(false);
+  const [loadingAllUpcoming, setLoadingAllUpcoming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const upcomingQueryRef = useRef<{ ids: string[]; name: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
+    setHasMoreUpcoming(false);
+    upcomingQueryRef.current = null;
     try {
       const raw = String(id);
       let resolvedId: string | null = null;
@@ -205,7 +234,7 @@ export default function VenueDetailScreen() {
             .in('venue_id', venueUuidsToSearch)
             .gte('event_date', todayYmd)
             .order('event_date', { ascending: true })
-            .limit(20),
+            .limit(INITIAL_UPCOMING_LIMIT),
           supabase.from('events').select('*')
             .in('venue_id', venueUuidsToSearch)
             .lt('event_date', todayYmd)
@@ -221,6 +250,8 @@ export default function VenueDetailScreen() {
           venueName = (allEventsData[0] as any).venue_name || 'Venue';
         }
         setName(venueName || 'Venue');
+        upcomingQueryRef.current = { ids: venueUuidsToSearch, name: venueName };
+        setHasMoreUpcoming(upcomingData.length >= INITIAL_UPCOMING_LIMIT);
         setUpcomingEvents(upcomingData.map(e => mapEventRow(e, venueName)));
         setPastEvents(pastData.map(e => mapEventRow(e, venueName)));
 
@@ -311,11 +342,37 @@ export default function VenueDetailScreen() {
             setIsFollowing(following);
           }
         }
+      } else {
+        upcomingQueryRef.current = null;
+        setHasMoreUpcoming(false);
+        setUpcomingEvents([]);
+        setPastEvents([]);
       }
     } finally {
       setLoading(false);
     }
   }, [id]);
+
+  const loadAllUpcoming = useCallback(async () => {
+    const query = upcomingQueryRef.current;
+    if (!query?.ids.length || loadingAllUpcoming) return;
+    setLoadingAllUpcoming(true);
+    try {
+      const extra = await fetchUpcomingEventPages(query.ids, upcomingEvents.length);
+      if (extra.length > 0) {
+        setUpcomingEvents(prev => {
+          const seen = new Set(prev.map(e => e.id));
+          const mapped = extra
+            .filter(e => e?.id && !seen.has(e.id))
+            .map(e => mapEventRow(e, query.name));
+          return [...prev, ...mapped];
+        });
+      }
+      setHasMoreUpcoming(false);
+    } finally {
+      setLoadingAllUpcoming(false);
+    }
+  }, [upcomingEvents.length, loadingAllUpcoming]);
 
   useEffect(() => {
     void load();
@@ -476,23 +533,40 @@ export default function VenueDetailScreen() {
                 No upcoming events at this venue.
               </SynthText>
             ) : (
-              <View style={styles.cardsNegMargin}>
-                {upcomingEvents.map(e => (
-                  <EventCard
-                    key={e.id}
-                    id={e.id}
-                    title={e.title}
-                    artist_name={e.artist_name}
-                    venue_name={e.venue_name}
-                    venue_city={e.venue_city}
-                    event_date={e.event_date}
-                    image_url={e.image_url}
-                    ticket_url={e.ticket_url}
-                    artist_id={e.artist_id}
-                    venue_id={e.venue_id}
-                  />
-                ))}
-              </View>
+              <>
+                <View style={styles.cardsNegMargin}>
+                  {upcomingEvents.map(e => (
+                    <EventCard
+                      key={e.id}
+                      id={e.id}
+                      title={e.title}
+                      artist_name={e.artist_name}
+                      venue_name={e.venue_name}
+                      venue_city={e.venue_city}
+                      venue_state={e.venue_state}
+                      event_date={e.event_date}
+                      image_url={e.image_url}
+                      ticket_url={e.ticket_url}
+                      artist_id={e.artist_id}
+                      venue_id={e.venue_id}
+                    />
+                  ))}
+                </View>
+                {hasMoreUpcoming ? (
+                  <Pressable
+                    onPress={() => void loadAllUpcoming()}
+                    disabled={loadingAllUpcoming}
+                    style={styles.showMoreBtn}
+                    accessibilityLabel="Load all upcoming shows"
+                  >
+                    {loadingAllUpcoming ? (
+                      <ActivityIndicator color={PINK} />
+                    ) : (
+                      <Text style={styles.showMoreTxt}>Load all</Text>
+                    )}
+                  </Pressable>
+                ) : null}
+              </>
             )}
 
             {/* Past shows */}
@@ -510,6 +584,7 @@ export default function VenueDetailScreen() {
                       artist_name={e.artist_name}
                       venue_name={e.venue_name}
                       venue_city={e.venue_city}
+                      venue_state={e.venue_state}
                       event_date={e.event_date}
                       image_url={e.image_url}
                       ticket_url={e.ticket_url}

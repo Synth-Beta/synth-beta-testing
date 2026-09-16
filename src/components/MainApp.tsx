@@ -838,14 +838,17 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
           <OnboardingFlow
             onComplete={handleOnboardingComplete}
             onExit={() => {
-              // Sign out, don't just swap the view. This used to set the guard and render
-              // <Auth/> to a user who was still signed in - and the ONLY things that clear
-              // that guard are a successful sign-in or completing onboarding, neither
-              // reachable from that screen. They were stranded until a page reload.
+              // Exiting onboarding must sign out, or <Auth/> renders to a user who is
+              // still signed in and the ONLY things that clear the guard below are a
+              // successful sign-in or completing onboarding - neither reachable from
+              // that screen, so they were stranded until a page reload.
+              //
+              // The sign-out itself lives in OnboardingFlow.handleExit, which runs before
+              // calling this. Doing it here too fired two sign-out round-trips on one
+              // Back press. Keeping it in the component means it holds for every caller,
+              // not just this one.
               onboardingExitInProgressRef.current = true;
-              void supabase.auth.signOut().finally(() => {
-                setCurrentView('auth');
-              });
+              setCurrentView('auth');
             }}
           />
         );

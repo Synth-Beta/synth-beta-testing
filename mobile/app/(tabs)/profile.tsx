@@ -87,7 +87,7 @@ export default function ProfileScreen() {
     try {
       const [timelineData, suggestions, streamingStatus] = await Promise.all([
         PassportService.getTimeline(userId),
-        HomeFeedService.getFriendSuggestionsForRail(userId, 5),
+        HomeFeedService.getFriendSuggestionsForRail(userId, 20),
         getStreamingLinkStatus(userId),
       ]);
       setTimeline(timelineData);
@@ -419,6 +419,7 @@ export default function ProfileScreen() {
                   event_date={ev.event_date}
                   image_url={ev.image_url}
                   venue_city={ev.venue_city}
+                  venue_state={ev.venue_state}
                   ticket_url={ev.ticket_url}
                   initialInterested={true}
                   currentUserId={authUserId}

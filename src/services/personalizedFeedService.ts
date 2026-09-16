@@ -327,6 +327,7 @@ export class PersonalizationEngineV5 {
       });
 
       events = await PersonalizationEngineV5.enrichEventsWithArtistImages(events);
+      events = await PersonalizationEngineV5.enrichEventsWithVenueLocations(events);
 
       if (!normalizedFilters.includePast) {
         events = events.filter((event) => isEventUpcomingForFeed(event.event_date));
@@ -529,6 +530,34 @@ export class PersonalizationEngineV5 {
       const artistImage = imageByArtist.get(event.artist_id);
       if (!artistImage) return event;
       return { ...event, event_media_url: artistImage };
+    });
+  }
+
+  /** Fill city/state from the venues table when the feed payload left them blank. */
+  private static async enrichEventsWithVenueLocations<T extends PersonalizedEvent>(
+    events: T[]
+  ): Promise<T[]> {
+    const missing = events.filter(
+      (e) => e.venue_id && !String(e.venue_city || '').trim()
+    );
+    if (missing.length === 0) return events;
+
+    const venueIds = [...new Set(missing.map((e) => e.venue_id).filter(Boolean))] as string[];
+    const { data: venues } = await supabase
+      .from('venues')
+      .select('id, city, state')
+      .in('id', venueIds);
+
+    const byId = new Map((venues || []).map((v: { id: string; city?: string | null; state?: string | null }) => [v.id, v]));
+    return events.map((event) => {
+      if (String(event.venue_city || '').trim()) return event;
+      const venue = event.venue_id ? byId.get(event.venue_id) : undefined;
+      if (!venue) return event;
+      return {
+        ...event,
+        venue_city: venue.city || event.venue_city,
+        venue_state: event.venue_state || venue.state || null,
+      };
     });
   }
 

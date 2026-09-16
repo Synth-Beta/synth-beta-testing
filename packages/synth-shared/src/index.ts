@@ -219,3 +219,15 @@ export {
   type TravelPinLocation,
   type TravelLocationGroup,
 } from './travelMapGrouping';
+export {
+  searchArtistsFuzzy,
+  searchVenuesFuzzy,
+  searchUsersFuzzy,
+  searchEventsFuzzy,
+  scoreNameMatch,
+  forgivingIlikePatterns,
+  type FuzzyArtistRow,
+  type FuzzyVenueRow,
+  type FuzzyUserRow,
+  type FuzzyEventRow,
+} from './forgivingNameSearch';

@@ -88,7 +88,7 @@ export default function FeedScreen() {
       // Unread count / friend suggestions rail / main feed content are all independent
       // of each other — run them together so total load time is the slowest request.
       const unreadPromise = NotificationService.getUnreadCount(user.id);
-      const suggestionsPromise = HomeFeedService.getFriendSuggestionsForRail(user.id, 5);
+      const suggestionsPromise = HomeFeedService.getFriendSuggestionsForRail(user.id, 20);
       const bucketListEventsPromise = HomeFeedService.getBucketListEvents(
         user.id,
         BUCKET_LIST_TOP_LIMIT,
@@ -130,6 +130,7 @@ export default function FeedScreen() {
             artist_name: ne.artist_name,
             venue_name: ne.venue_name,
             venue_city: ne.venue_city,
+            venue_state: ne.venue_state,
             event_date: ne.event_date,
             image_url: resolveFeedImageUri(ne.image_url) ?? undefined,
             feedLabel: 'FRIENDS' as const,
@@ -264,6 +265,7 @@ export default function FeedScreen() {
         artist_name={item.data.artist_name}
         venue_name={item.data.venue_name}
         venue_city={item.data.venue_city}
+        venue_state={item.data.venue_state}
         event_date={item.data.event_date}
         image_url={item.data.image_url}
         cornerLabel={item.data.feedLabel}

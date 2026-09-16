@@ -13,6 +13,7 @@ import {
     Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthButton } from '../../src/components/SynthButton';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -331,6 +332,23 @@ export default function ProfileSetupScreen() {
         router.push('/(onboarding)/connect');
     };
 
+    const handleBack = useCallback(async () => {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+
+        // Root layout enters here via replace() after signup, so there is no
+        // previous screen. Sign out first — a still-authenticated visit to
+        // sign-in is immediately sent back to this profile step.
+        try {
+            await supabase.auth.signOut();
+        } catch {
+            // Still return to auth even if sign-out fails.
+        }
+        router.replace('/(auth)/sign-in');
+    }, [router]);
+
     const usernameHint = (() => {
         switch (usernameStatus) {
             case 'checking': return { text: 'Checking…', color: SynthTokens.colors.neutral600 };
@@ -344,11 +362,9 @@ export default function ProfileSetupScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                {/* No back button — this is the real entry point post-signup. The
-                    root layout enters onboarding via router.replace(), which wipes
-                    the sign-up screen from history, so router.back() here had
-                    nothing to pop to and silently did nothing. */}
-                <View style={styles.backButton} />
+                <Pressable onPress={handleBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Back">
+                    <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
+                </Pressable>
                 <OnboardingProgress totalSteps={5} currentStep={2} />
                 <View style={styles.skipButton} />
             </View>
