@@ -7,13 +7,16 @@ import {
     FlatList,
     ActivityIndicator,
     Text,
+    ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Music } from 'lucide-react-native';
+import { Music, MapPin, Calendar, Building2 as BuildingComplex } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
+import { useRouter } from 'expo-router';
 import { SearchService, type ArtistSearchRow } from '../../services/searchService';
 import { TourTrackerService, type TourEvent } from '../../services/tourTrackerService';
+import { EventService } from '../../services/eventService';
 import { TourTrackerMap, groupTourStops } from './TourTrackerMap';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -26,32 +29,65 @@ export function MobileTourTracker() {
     const [tourEvents, setTourEvents] = useState<TourEvent[]>([]);
     const [tourLoading, setTourLoading] = useState(false);
     const [selectedStopNumber, setSelectedStopNumber] = useState<number | null>(null);
+    const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [resultsOpen, setResultsOpen] = useState(false);
     const tourLoadSeqRef = useRef(0);
+    const searchSeqRef = useRef(0);
+    const skipSearchRef = useRef(false);
     const listRef = useRef<FlatList<TourEvent> | null>(null);
+    const router = useRouter();
+
+    const openEventPage = useCallback((eventId: string) => {
+        void EventService.toEventRouteId(eventId).then((routeId) => {
+            router.push(`/event/${routeId}` as any);
+        });
+    }, [router]);
+
+    const runSearch = useCallback((q: string) => {
+        const seq = ++searchSeqRef.current;
+        setArtistsLoading(true);
+        return SearchService.searchArtists(q, 24).then(rows => {
+            if (seq !== searchSeqRef.current) return;
+            setArtists(rows);
+            setResultsOpen(true);
+        }).finally(() => {
+            if (seq === searchSeqRef.current) {
+                setArtistsLoading(false);
+            }
+        });
+    }, []);
 
     useEffect(() => {
-        const q = query.trim();
-        if (q.length < 2) {
-            setArtists([]);
+        if (skipSearchRef.current) {
+            skipSearchRef.current = false;
             return;
         }
-        let cancelled = false;
-        setArtistsLoading(true);
+        const q = query.trim();
+        if (q.length < 2) {
+            searchSeqRef.current += 1;
+            setArtists([]);
+            setResultsOpen(false);
+            setArtistsLoading(false);
+            return;
+        }
         const t = setTimeout(() => {
-            void SearchService.searchArtists(q, 24).then(rows => {
-                if (!cancelled) setArtists(rows);
-            }).finally(() => {
-                if (!cancelled) setArtistsLoading(false);
-            });
+            void runSearch(q);
         }, 350);
         return () => {
-            cancelled = true;
             clearTimeout(t);
         };
-    }, [query]);
+    }, [query, runSearch]);
 
     const loadTour = useCallback(async (artist: ArtistSearchRow) => {
         const seq = ++tourLoadSeqRef.current;
+        searchSeqRef.current += 1;
+        if (query !== artist.name) {
+            skipSearchRef.current = true;
+            setQuery(artist.name);
+        }
+        setResultsOpen(false);
+        setArtists([]);
+        setArtistsLoading(false);
         setSelected(artist);
         setTourLoading(true);
         try {
@@ -59,12 +95,13 @@ export function MobileTourTracker() {
             if (seq !== tourLoadSeqRef.current) return;
             setTourEvents(events);
             setSelectedStopNumber(null);
+            setSelectedEventId(null);
         } finally {
             if (seq === tourLoadSeqRef.current) {
                 setTourLoading(false);
             }
         }
-    }, []);
+    }, [query]);
 
     const route = useMemo(() => TourTrackerService.calculateTourRoute(tourEvents), [tourEvents]);
     const { eventIdToStopNumber } = useMemo(() => groupTourStops(tourEvents), [tourEvents]);
@@ -89,30 +126,39 @@ export function MobileTourTracker() {
                 onChangeText={setQuery}
                 autoCorrect={false}
                 autoCapitalize="words"
+                selectTextOnFocus
+                onFocus={() => {
+                    const q = query.trim();
+                    if (q.length >= 2) {
+                        void runSearch(q);
+                    }
+                }}
             />
-            {artistsLoading ? (
-                <ActivityIndicator color={PINK} style={styles.loader} />
-            ) : artists.length > 0 && !selected ? (
-                <FlatList
-                    data={artists}
-                    keyExtractor={a => a.id}
-                    style={styles.list}
-                    keyboardShouldPersistTaps="handled"
-                    renderItem={({ item }) => (
-                        <Pressable style={styles.artistRow} onPress={() => void loadTour(item)}>
-                            {item.image_url ? (
-                                <Image source={{ uri: item.image_url }} style={styles.avatar} />
-                            ) : (
-                                <View style={[styles.avatar, styles.avatarPh]}>
-                                    <Music size={20} color={SynthTokens.colors.neutral400} />
-                                </View>
-                            )}
-                            <SynthText variant="meta" style={styles.artistName} numberOfLines={1}>
-                                {item.name}
-                            </SynthText>
-                        </Pressable>
+            {resultsOpen && (artistsLoading || artists.length > 0) ? (
+                <ScrollView
+                    style={styles.dropdown}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="always"
+                >
+                    {artistsLoading && artists.length === 0 ? (
+                        <ActivityIndicator color={PINK} style={styles.loader} />
+                    ) : (
+                        artists.map(item => (
+                            <Pressable key={item.id} style={styles.artistRow} onPress={() => void loadTour(item)}>
+                                {item.image_url ? (
+                                    <Image source={{ uri: item.image_url }} style={styles.avatar} />
+                                ) : (
+                                    <View style={[styles.avatar, styles.avatarPh]}>
+                                        <Music size={20} color={SynthTokens.colors.neutral400} />
+                                    </View>
+                                )}
+                                <SynthText variant="meta" style={styles.artistName} numberOfLines={1}>
+                                    {item.name}
+                                </SynthText>
+                            </Pressable>
+                        ))
                     )}
-                />
+                </ScrollView>
             ) : null}
 
             {selected ? (
@@ -124,10 +170,16 @@ export function MobileTourTracker() {
                         <Pressable
                             onPress={() => {
                                 tourLoadSeqRef.current += 1;
+                                searchSeqRef.current += 1;
+                                skipSearchRef.current = true;
                                 setSelected(null);
                                 setTourEvents([]);
                                 setSelectedStopNumber(null);
+                                setSelectedEventId(null);
                                 setQuery('');
+                                setArtists([]);
+                                setResultsOpen(false);
+                                setArtistsLoading(false);
                             }}
                         >
                             <SynthText variant="meta" style={styles.clear}>
@@ -147,9 +199,19 @@ export function MobileTourTracker() {
                                 events={tourEvents}
                                 selectedStopNumber={selectedStopNumber}
                                 onSelectStopNumber={(n) => {
+                                    if (selectedStopNumber === n) {
+                                        const alreadySelected = selectedEventId
+                                            ? route.events.find(e => e.id === selectedEventId && eventIdToStopNumber[e.id] === n)
+                                            : undefined;
+                                        const fallback = route.events.find(e => eventIdToStopNumber[e.id] === n);
+                                        const toOpen = alreadySelected ?? fallback;
+                                        if (toOpen) openEventPage(toOpen.id);
+                                        return;
+                                    }
                                     setSelectedStopNumber(n);
                                     const idx = route.events.findIndex(e => eventIdToStopNumber[e.id] === n);
                                     if (idx >= 0) {
+                                        setSelectedEventId(route.events[idx].id);
                                         listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.2 });
                                     }
                                 }}
@@ -181,24 +243,54 @@ export function MobileTourTracker() {
                                 renderItem={({ item }) => (
                                     <Pressable
                                         onPress={() => {
-                                            const n = eventIdToStopNumber[item.id] ?? null;
-                                            setSelectedStopNumber(n);
+                                            if (selectedEventId === item.id) {
+                                                openEventPage(item.id);
+                                                return;
+                                            }
+                                            setSelectedEventId(item.id);
+                                            setSelectedStopNumber(eventIdToStopNumber[item.id] ?? null);
                                         }}
+                                        accessibilityHint="Tap again to open this event"
                                         style={({ pressed }) => [
                                             styles.eventRow,
                                             pressed ? styles.pressedRow : null,
-                                            selectedStopNumber != null && eventIdToStopNumber[item.id] === selectedStopNumber
+                                            selectedEventId === item.id
                                                 ? styles.selectedRow
                                                 : null,
                                         ]}
                                     >
-                                        <SynthText variant="meta" style={styles.eventDate}>
-                                            {formatEventDate(item.event_date)}
-                                        </SynthText>
-                                        <SynthText variant="meta" numberOfLines={2}>
-                                            {(item.venue_name || 'Venue').trim()}
-                                            {item.venue_city ? ` · ${item.venue_city}` : ''}
-                                        </SynthText>
+                                        {(() => {
+                                            const cityState = [item.venue_city?.trim(), item.venue_state?.trim()]
+                                                .filter(Boolean)
+                                                .join(', ');
+                                            const venueName = (item.venue_name || '').trim();
+                                            return (
+                                                <>
+                                                    <View style={styles.eventMetaRow}>
+                                                        <Calendar size={16} color={PINK} />
+                                                        <SynthText variant="meta" style={styles.eventDate}>
+                                                            {formatEventDate(item.event_date)}
+                                                        </SynthText>
+                                                    </View>
+                                                    {cityState ? (
+                                                        <View style={styles.eventMetaRow}>
+                                                            <MapPin size={16} color={PINK} />
+                                                            <SynthText variant="meta" numberOfLines={1} style={styles.eventMetaTxt}>
+                                                                {cityState}
+                                                            </SynthText>
+                                                        </View>
+                                                    ) : null}
+                                                    {venueName ? (
+                                                        <View style={styles.eventMetaRow}>
+                                                            <BuildingComplex size={16} color={PINK} />
+                                                            <SynthText variant="meta" numberOfLines={1} style={styles.eventMetaTxt}>
+                                                                {venueName}
+                                                            </SynthText>
+                                                        </View>
+                                                    ) : null}
+                                                </>
+                                            );
+                                        })()}
                                     </Pressable>
                                 )}
                             />
@@ -224,7 +316,14 @@ const styles = StyleSheet.create({
         backgroundColor: SynthTokens.colors.neutral0,
     },
     loader: { marginVertical: 8 },
-    list: { maxHeight: 220 },
+    dropdown: {
+        maxHeight: 280,
+        backgroundColor: SynthTokens.colors.neutral0,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        borderRadius: 14,
+        paddingHorizontal: 10,
+    },
     artistRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -267,5 +366,11 @@ const styles = StyleSheet.create({
         paddingLeft: 10,
         backgroundColor: 'rgba(204, 36, 134, 0.06)',
     },
-    eventDate: { fontWeight: '700', color: PINK },
+    eventDate: { fontWeight: '700', color: PINK, flex: 1 },
+    eventMetaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    eventMetaTxt: { flex: 1, color: SynthTokens.colors.neutral700 },
 });

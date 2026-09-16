@@ -656,6 +656,7 @@ const feedRef = useRef<HTMLDivElement>(null);
                   venue_name: event.venue_name,
                   event_date: event.event_date,
                   venue_city: event.venue_city || undefined,
+                  venue_state: event.venue_state || undefined,
                   image_url: imageUrl,
                   poster_image_url: event.poster_image_url || undefined,
                 }}

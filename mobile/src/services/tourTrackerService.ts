@@ -47,7 +47,7 @@ export class TourTrackerService {
 
             const { data, error } = await supabase
                 .from('events')
-                .select('*, venues(name)')
+                .select('*, venues(name, city, state)')
                 .eq('artist_id', artist.id)
                 .gte('event_date', new Date().toISOString())
                 .not('latitude', 'is', null)
@@ -58,14 +58,21 @@ export class TourTrackerService {
                 throw error;
             }
 
-            return (data || []).map((event: Record<string, unknown> & { venues?: { name?: string } }) => ({
+            return (data || []).map((event: Record<string, unknown> & {
+                venues?: { name?: string; city?: string; state?: string };
+            }) => {
+                const venue = event.venues;
+                const city = String(event.venue_city || venue?.city || '').trim();
+                const state = String(event.venue_state || venue?.state || '').trim();
+                return {
                 ...event,
                 latitude: Number(event.latitude),
                 longitude: Number(event.longitude),
-                venue_city: String(event.venue_city ?? ''),
-                venue_state: event.venue_state != null ? String(event.venue_state) : undefined,
-                venue_name: event.venues?.name || event.venue_name || '',
-            })) as TourEvent[];
+                venue_city: city,
+                venue_state: state || undefined,
+                venue_name: venue?.name || event.venue_name || '',
+                };
+            }) as TourEvent[];
         } catch {
             return [];
         }

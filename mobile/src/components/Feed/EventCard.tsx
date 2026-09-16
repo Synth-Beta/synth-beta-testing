@@ -4,7 +4,7 @@ import { SafeImage } from '../SafeImage';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
-import { Heart, MapPin, Calendar, Share2, Ticket, Music, Star } from 'lucide-react-native';
+import { Heart, MapPin, Calendar, Share2, Ticket, Music, Star, Building2 as BuildingComplex } from 'lucide-react-native';
 import { EventService } from '../../services/eventService';
 import { isEventPast } from '../../utils/eventStatusUtils';
 import { useInterested } from '../../contexts/InterestedContext';
@@ -25,8 +25,10 @@ export interface EventCardProps {
   venue_name: string;
   event_date: string;
   image_url?: string;
-  /** City/region for subtitle, e.g. "Washington" */
+  /** City/region for location row, e.g. "Washington" */
   venue_city?: string;
+  /** State code for location row, e.g. "DC" */
+  venue_state?: string;
   cornerLabel?: string;
   /** Navigate to event detail */
   onPress?: () => void;
@@ -50,6 +52,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   event_date,
   image_url,
   venue_city,
+  venue_state,
   cornerLabel,
   onPress,
   initialInterested = false,
@@ -85,7 +88,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   })();
 
   const venueName = venue_name?.trim();
-  const venueCity = venue_city?.trim();
+  const cityState = [venue_city?.trim(), venue_state?.trim()].filter(Boolean).join(', ');
 
   const artistLine = artist_name?.trim() || '';
 
@@ -175,8 +178,22 @@ export const EventCard: React.FC<EventCardProps> = ({
               </View>
             ) : null}
 
+            {cityState ? (
+              <View style={styles.metaRow}>
+                <MapPin size={16} color={PINK} />
+                <SynthText
+                  variant="meta"
+                  color="secondary"
+                  numberOfLines={1}
+                  style={styles.metaTxt}
+                >
+                  {cityState}
+                </SynthText>
+              </View>
+            ) : null}
+
             <View style={styles.metaRow}>
-              <MapPin size={16} color={PINK} />
+              <BuildingComplex size={16} color={PINK} />
               <SynthText
                 variant="meta"
                 color="secondary"

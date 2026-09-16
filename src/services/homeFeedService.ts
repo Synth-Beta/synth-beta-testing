@@ -8,6 +8,7 @@ export interface NetworkEvent {
   artist_name: string;
   venue_name: string;
   venue_city?: string;
+  venue_state?: string;
   event_date: string;
   friend_id: string;
   friend_name: string;
@@ -38,6 +39,7 @@ export interface TrendingEvent {
   artist_name: string;
   venue_name: string;
   venue_city?: string;
+  venue_state?: string;
   event_date: string;
   trending_score: number;
   save_velocity: number;
@@ -131,7 +133,7 @@ export class HomeFeedService {
       // Note: Query events table directly with JOINs since view may be missing some columns
       const { data: events, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, venue_city, event_date, images, event_media_url, media_urls, artist_id, venue_id, artists(name), venues(name)')
+        .select('id, title, venue_city, venue_state, event_date, images, event_media_url, media_urls, artist_id, venue_id, artists(name), venues(name, city, state)')
         .in('id', eventIds);
 
       if (eventsError) throw eventsError;
@@ -175,7 +177,8 @@ export class HomeFeedService {
           title: event.title || (event.artists?.name) || 'Event',
           artist_name: (event.artists?.name) || 'Unknown Artist',
           venue_name: (event.venues?.name) || 'Unknown Venue',
-          venue_city: event.venue_city || undefined,
+          venue_city: event.venue_city || event.venues?.city || undefined,
+          venue_state: event.venue_state || event.venues?.state || undefined,
           event_date: event.event_date,
           friend_id: user?.user_id || primaryFriend.user_id,
           friend_name: user?.name || 'Friend',
@@ -261,7 +264,7 @@ export class HomeFeedService {
       // Query events table directly with JOINs since view may be missing some columns
       const { data: events, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, venue_city, event_date, images, event_media_url, media_urls, artist_id, artists(name), venue_id, venues(name)')
+        .select('id, title, venue_city, venue_state, event_date, images, event_media_url, media_urls, artist_id, artists(name), venue_id, venues(name, city, state)')
         .in('id', topEventIds);
 
       if (eventsError) throw eventsError;
@@ -290,7 +293,8 @@ export class HomeFeedService {
           title: event.title || (event.artists?.name) || 'Event',
           artist_name: (event.artists?.name) || 'Unknown Artist',
           venue_name: (event.venues?.name) || 'Unknown Venue',
-          venue_city: event.venue_city || undefined,
+          venue_city: event.venue_city || event.venues?.city || undefined,
+          venue_state: event.venue_state || event.venues?.state || undefined,
           event_date: event.event_date,
           friend_id: primaryUser?.user_id || '',
           friend_name: primaryUser?.name || 'Friend',
@@ -454,7 +458,7 @@ export class HomeFeedService {
         // Query events table directly with JOINs since view may be missing some columns
         let fallbackQuery = supabase
           .from('events')
-          .select('id, title, venue_city, venue_state, event_date, event_media_url, latitude, longitude, genres, artist_id, artists(name), venue_id, venues(name)')
+          .select('id, title, venue_city, venue_state, event_date, event_media_url, latitude, longitude, genres, artist_id, artists(name), venue_id, venues(name, city, state)')
           .gte('event_date', new Date().toISOString())
           .order('event_date', { ascending: true });
         
@@ -511,7 +515,8 @@ export class HomeFeedService {
           title: event.title || (event.artists?.name) || 'Event',
           artist_name: (event.artists?.name) || 'Unknown Artist',
           venue_name: (event.venues?.name) || 'Unknown Venue',
-          venue_city: event.venue_city || undefined,
+          venue_city: event.venue_city || event.venues?.city || undefined,
+          venue_state: event.venue_state || event.venues?.state || undefined,
           event_date: event.event_date,
           trending_score: 0,
           save_velocity: 0,
@@ -530,7 +535,7 @@ export class HomeFeedService {
       // Query events table directly with JOINs since view may be missing some columns
       let eventsQuery = supabase
         .from('events')
-        .select('id, title, venue_city, venue_state, event_date, event_media_url, latitude, longitude, genres, artist_id, artists(name), venue_id, venues(name)')
+        .select('id, title, venue_city, venue_state, event_date, event_media_url, latitude, longitude, genres, artist_id, artists(name), venue_id, venues(name, city, state)')
         .in('id', allEventIds)
         .gte('event_date', now);
       
@@ -661,7 +666,8 @@ export class HomeFeedService {
             title: event.title || artistName || 'Event',
             artist_name: artistName,
             venue_name: (event.venues?.name) || 'Unknown Venue',
-            venue_city: event.venue_city || undefined,
+            venue_city: event.venue_city || event.venues?.city || undefined,
+            venue_state: event.venue_state || event.venues?.state || undefined,
             event_date: event.event_date,
             trending_score: trendingScore,
             save_velocity: interestedCount,

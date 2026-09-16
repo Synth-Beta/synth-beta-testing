@@ -8,7 +8,7 @@ import type { JamBaseEvent } from '@/types/eventTypes';
 import { replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
 import { JamBaseAttribution } from '@/components/attribution';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
-import { Ticket, ExternalLink } from 'lucide-react';
+import { Ticket, ExternalLink, Building2 as BuildingComplex } from 'lucide-react';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { getEventUuid } from '@/utils/entityUuidResolver';
 
@@ -77,6 +77,12 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
                   ? (event.venue_state ? `${event.venue_city}, ${event.venue_state}` : event.venue_city)
                   : event.venue_state || ''}
               </span>
+            </div>
+          )}
+          {event.venue_name && (
+            <div className="flex items-center gap-1">
+              <BuildingComplex size={16} />
+              <span className="line-clamp-1">{event.venue_name}</span>
             </div>
           )}
           {(event.price_min || event.price_max || event.price_range) && (

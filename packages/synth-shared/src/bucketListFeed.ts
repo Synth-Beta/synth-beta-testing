@@ -17,6 +17,8 @@ export interface BucketListFeedEvent {
   event_date: string;
   artist_name: string;
   venue_name: string;
+  venue_city?: string;
+  venue_state?: string;
   /** 0-based priority from the caller's ranked artist list (lower = higher priority). */
   bucket_rank: number;
   bucket_reason: string;
@@ -60,7 +62,7 @@ export async function getEventsFromRankedArtists(
     // events has NO artist_name / venue_name column — the JamBase sync destructures
     // both out of the row before insert. Matching on artist_id and reading the names
     // off the joined rows is the only thing that works here.
-    .select('*, artists(name), venues(name)')
+    .select('*, artists(name), venues(name, city, state)')
     .in(
       'artist_id',
       top.map((a) => a.id)
@@ -101,6 +103,8 @@ export async function getEventsFromRankedArtists(
         ...e,
         artist_name: e.artists?.name || sourceArtist,
         venue_name: e.venues?.name || '',
+        venue_city: e.venue_city || e.venues?.city || '',
+        venue_state: e.venue_state || e.venues?.state || '',
         bucket_rank: rank,
         bucket_reason: `#${rank + 1} on your bucket list`,
         bucket_source_artist: sourceArtist,

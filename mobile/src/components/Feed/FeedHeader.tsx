@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     Modal,
     TouchableWithoutFeedback,
+    Text,
 } from 'react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
@@ -83,13 +84,22 @@ export const FeedHeader: React.FC<FeedHeaderProps> = ({
             </View>
 
             <View style={styles.rightSlot}>
-                <Pressable onPress={onMenuPress} style={styles.iconButton}>
+                <Pressable
+                    onPress={onMenuPress}
+                    style={styles.iconButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                        notificationsCount > 0
+                            ? `Open menu, ${notificationsCount} notifications`
+                            : 'Open menu'
+                    }
+                >
                     <Menu size={24} color={SynthTokens.colors.neutral900} />
                     {notificationsCount > 0 && (
-                        <View style={styles.badge}>
-                            <SynthText variant="meta" color="white" style={styles.badgeText}>
+                        <View style={styles.badge} pointerEvents="none">
+                            <Text style={styles.badgeText} allowFontScaling={false}>
                                 {notificationsCount > 9 ? '9+' : notificationsCount}
-                            </SynthText>
+                            </Text>
                         </View>
                     )}
                 </Pressable>
@@ -122,6 +132,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         justifyContent: 'center',
         zIndex: 2,
+        overflow: 'visible',
     },
     centerSlot: {
         flex: 1,
@@ -143,26 +154,35 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     iconButton: {
-        padding: SynthTokens.spacing.xs,
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
         position: 'relative',
+        overflow: 'visible',
     },
     badge: {
         position: 'absolute',
-        top: 4,
-        right: 4,
+        top: -4,
+        right: -4,
+        minWidth: 20,
+        height: 20,
+        borderRadius: 10,
         backgroundColor: SynthTokens.colors.brandPink500,
-        minWidth: 16,
-        height: 16,
-        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 2,
-        borderWidth: 1.5,
+        paddingHorizontal: 5,
+        borderWidth: 2,
         borderColor: SynthTokens.colors.neutral50,
     },
     badgeText: {
-        fontSize: 8,
-        fontWeight: 'bold',
+        color: SynthTokens.colors.neutral0,
+        fontSize: 11,
+        fontWeight: '700',
+        lineHeight: 12,
+        textAlign: 'center',
+        includeFontPadding: false,
+        textAlignVertical: 'center',
     },
     modalBackdrop: {
         ...StyleSheet.absoluteFillObject,

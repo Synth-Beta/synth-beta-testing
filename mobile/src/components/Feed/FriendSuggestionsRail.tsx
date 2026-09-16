@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,7 +9,8 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Check, UserPlus } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Check, UserPlus, X } from 'lucide-react-native';
 import { createFriendRequest } from '@synth/shared';
 import { supabase } from '../../integrations/supabase/client';
 import { SynthTokens } from '../../tokens/SynthTokens';
@@ -18,11 +20,16 @@ interface FriendSuggestionsRailProps {
   suggestions: FriendSuggestion[];
 }
 
+/** How many suggestion cards to show at once; extras fill in when one is dismissed. */
+const VISIBLE_SUGGESTION_COUNT = 5;
+
 export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ suggestions }) => {
+  const router = useRouter();
   const [exclusionsLoaded, setExclusionsLoaded] = useState(false);
   const [excludedUserIds, setExcludedUserIds] = useState<Set<string>>(new Set());
   const [sentUserIds, setSentUserIds] = useState<Set<string>>(new Set());
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [dismissedUserIds, setDismissedUserIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (suggestions.length === 0) {
@@ -73,7 +80,20 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ su
     void run();
   }, [suggestions]);
 
-  const visible = suggestions.filter(s => !excludedUserIds.has(s.user_id));
+  const visible = suggestions
+    .filter(s => !excludedUserIds.has(s.user_id) && !dismissedUserIds.has(s.user_id))
+    .slice(0, VISIBLE_SUGGESTION_COUNT);
+
+  const onDismissSuggestion = useCallback((userId: string) => {
+    setDismissedUserIds(prev => {
+      if (prev.has(userId)) return prev;
+      return new Set(prev).add(userId);
+    });
+  }, []);
+
+  const onOpenProfile = useCallback((userId: string) => {
+    router.push(`/user/${userId}` as any);
+  }, [router]);
 
   const onAddFriend = useCallback(
     async (userId: string) => {
@@ -136,35 +156,43 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ su
           const sent = sentUserIds.has(s.user_id);
           return (
             <View key={s.user_id} style={styles.card}>
-              <View style={styles.avatarWrap}>
-                {s.avatar_url ? (
-                  <Image source={{ uri: s.avatar_url }} style={styles.avatar} contentFit="cover" />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarFallback]}>
-                    <Text style={styles.avatarInitials}>{initials(s.name)}</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.name} numberOfLines={1}>
-                {s.name}
-              </Text>
-              <Text style={styles.meta} numberOfLines={1}>
-                {s.mutual_friends_count > 0
-                  ? `${s.mutual_friends_count} mutual friend${s.mutual_friends_count !== 1 ? 's' : ''}`
-                  : ' '}
-              </Text>
-              <Text style={styles.meta} numberOfLines={1}>
-                {(s.shared_genres_count ?? 0) > 0
-                  ? `${s.shared_genres_count} shared genre${(s.shared_genres_count ?? 0) !== 1 ? 's' : ''}`
-                  : ' '}
-              </Text>
+              <Pressable
+                onPress={() => onOpenProfile(s.user_id)}
+                style={styles.cardBody}
+                accessibilityRole="link"
+                accessibilityLabel={`Open ${s.name}'s profile`}
+              >
+                <View style={styles.avatarWrap}>
+                  {s.avatar_url ? (
+                    <Image source={{ uri: s.avatar_url }} style={styles.avatar} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarFallback]}>
+                      <Text style={styles.avatarInitials}>{initials(s.name)}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.name} numberOfLines={1}>
+                  {s.name}
+                </Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {s.mutual_friends_count > 0
+                    ? `${s.mutual_friends_count} mutual friend${s.mutual_friends_count !== 1 ? 's' : ''}`
+                    : ' '}
+                </Text>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {(s.shared_genres_count ?? 0) > 0
+                    ? `${s.shared_genres_count} shared genre${(s.shared_genres_count ?? 0) !== 1 ? 's' : ''}`
+                    : ' '}
+                </Text>
+              </Pressable>
               <TouchableOpacity
                 style={[styles.addBtn, sent && styles.addBtnSent]}
-                onPress={e => {
-                  e.stopPropagation();
+                onPress={() => {
                   void onAddFriend(s.user_id);
                 }}
                 disabled={sent || sendingId === s.user_id}
+                accessibilityRole="button"
+                accessibilityLabel={sent ? 'Friend request sent' : `Add ${s.name}`}
               >
                 {sendingId === s.user_id ? (
                   <ActivityIndicator size="small" color={SynthTokens.colors.brandPink500} />
@@ -180,6 +208,14 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({ su
                   </>
                 )}
               </TouchableOpacity>
+              <Pressable
+                onPress={() => onDismissSuggestion(s.user_id)}
+                style={styles.dismissBtn}
+                accessibilityRole="button"
+                accessibilityLabel={`Dismiss ${s.name}`}
+              >
+                <X size={16} color={SynthTokens.colors.neutral400} strokeWidth={2.25} />
+              </Pressable>
             </View>
           );
         })}
@@ -242,6 +278,20 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+  },
+  cardBody: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  dismissBtn: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   avatarWrap: {
     marginBottom: 8,

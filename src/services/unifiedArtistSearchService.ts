@@ -1,7 +1,7 @@
 import { supabase } from '../integrations/supabase/client';
-import { sanitizeOrFilterTerm } from '../utils/postgrestSanitize';
 import { getCanonicalSiteUrl } from '../utils/canonicalSiteUrl';
 import { ArtistProfile, JamBaseArtistResponse, transformJamBaseArtistToProfile } from '../types/artistProfile';
+import { searchArtistsFuzzy, searchEventsFuzzy, searchUsersFuzzy, scoreNameMatch } from '@synth/shared';
 
 export interface ArtistSearchResult {
   id: string;
@@ -557,52 +557,15 @@ export class UnifiedArtistSearchService {
    */
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<ArtistSearchResult[]> {
     try {
-      // Query artists from database with name filtering first (more efficient)
-      // Contains-match on both single- and multi-word queries (idx_artists_name_trgm
-      // backs this) so "sm" finds "Smashing Pumpkins" as well as "The Smiths" — not
-      // just names that start with the typed letters.
-      const trimmedQuery = query.trim();
-      const searchPattern = `%${trimmedQuery}%`;
-      
-      const { data: artistsFromTable, error: artistsError } = await supabase
-        .from('artists')
-        .select('id, name, identifier, image_url, genres, num_upcoming_events')
-        .ilike('name', searchPattern)
-        .limit(Math.max(limit * 5, 100)); // Get more results than needed for better fuzzy matching
-
-      if (artistsError) {
-        console.warn(`⚠️  Database error getting artists: ${artistsError.message}`);
-        return [];
-      }
-
-      if (!artistsFromTable || artistsFromTable.length === 0) {
+      const artists = await searchArtistsFuzzy(supabase, query, limit);
+      if (artists.length === 0) {
         console.log('📭 No artists found in database for artist search');
         return [];
       }
 
-      // Filter out any rows that are not valid artist objects
-      const artists = (artistsFromTable as Array<any>).filter(
-        (artist): artist is {
-          id: string;
-          name: string;
-          identifier: string | null;
-          image_url: string | null;
-          genres: string[] | null;
-          num_upcoming_events: number | null;
-        } =>
-          typeof artist === 'object' &&
-          artist !== null &&
-          typeof artist.id === 'string' &&
-          typeof artist.name === 'string'
-      );
-
-      // Get artist IDs to calculate upcoming events count if needed
-      const artistIds = artists.map(a => a.id);
-      
-      // Calculate upcoming events count for artists where num_upcoming_events is null or 0
-      const artistsNeedingCount = artists.filter(a => !a.num_upcoming_events || a.num_upcoming_events === 0);
+      const artistsNeedingCount = artists.filter(a => !a.num_upcoming_events);
       const upcomingCountsMap = new Map<string, number>();
-      
+
       if (artistsNeedingCount.length > 0) {
         const now = new Date().toISOString();
         const { data: upcomingEvents, error: eventsError } = await supabase
@@ -610,7 +573,7 @@ export class UnifiedArtistSearchService {
           .select('artist_id')
           .in('artist_id', artistsNeedingCount.map(a => a.id))
           .gte('event_date', now);
-        
+
         if (!eventsError && upcomingEvents) {
           upcomingEvents.forEach((event: any) => {
             if (event.artist_id) {
@@ -621,33 +584,24 @@ export class UnifiedArtistSearchService {
         }
       }
 
-      // Calculate fuzzy match scores for all artists
-      const scoredArtists = artists.map(artist => {
-        // Use num_upcoming_events from database, or calculate if missing
+      return artists.map(artist => {
         let numUpcoming = artist.num_upcoming_events || 0;
         if (numUpcoming === 0 && upcomingCountsMap.has(artist.id)) {
           numUpcoming = upcomingCountsMap.get(artist.id) || 0;
         }
-        
+
         return {
-          id: artist.id, // Use UUID from artists table
+          id: artist.id,
           name: artist.name,
           identifier: artist.identifier || `manual:${artist.id}`,
           image_url: artist.image_url || undefined,
           genres: artist.genres || [],
           band_or_musician: 'band' as 'band' | 'musician',
           num_upcoming_events: numUpcoming,
-          match_score: this.calculateFuzzyMatchScore(query, artist.name),
+          match_score: artist.match_score,
           is_from_database: true,
         };
       });
-
-      // Sort by match score (higher is better) and filter out very low matches
-      // Lower threshold (5%) to catch more partial matches like "oe russo's" matching "Joe Russo's Almost Dead"
-      return scoredArtists
-        .filter(artist => artist.match_score > 5) // Lower threshold to catch partial matches
-        .sort((a, b) => b.match_score - a.match_score)
-        .slice(0, limit);
     } catch (error) {
       console.error('❌ Error getting fuzzy matched results:', error);
       return [];
@@ -659,78 +613,7 @@ export class UnifiedArtistSearchService {
    * Enhanced algorithm to handle band names with apostrophes and special cases
    */
   static calculateFuzzyMatchScore(query: string, artistName: string): number {
-    const queryLower = query.toLowerCase().trim();
-    const nameLower = artistName.toLowerCase().trim();
-    
-    // Exact match
-    if (nameLower === queryLower) {
-      return 100;
-    }
-    
-    // Starts with query (high priority)
-    if (nameLower.startsWith(queryLower)) {
-      return 95;
-    }
-    
-    // Contains query as substring (boosted priority for band names)
-    if (nameLower.includes(queryLower)) {
-      const coverage = queryLower.length / nameLower.length;
-      // Higher score when query is contained in artist name (like "Joe Russo" in "Joe Russo's Almost Dead")
-      if (coverage >= 0.3) {
-        return 85 + Math.round(coverage * 10);
-      } else {
-        return 70 + Math.round(coverage * 15);
-      }
-    }
-    
-    // Handle word-based matching with special characters
-    const queryWords = queryLower.split(/[\s']+/).filter(w => w.length > 0);
-    const nameWords = nameLower.split(/[\s']+/).filter(w => w.length > 0);
-    
-    if (queryWords.length > 1) {
-      let wordMatches = 0;
-      for (const queryWord of queryWords) {
-        if (nameWords.includes(queryWord)) {
-          wordMatches++;
-        }
-      }
-      
-      // For multi-word queries, require at least 50% word match
-      if (wordMatches >= Math.ceil(queryWords.length * 0.5)) {
-        return 80 + (wordMatches / queryWords.length) * 15;
-      }
-    }
-    
-    // Single word exact match in multi-word artist name
-    if (queryWords.length === 1 && nameWords.includes(queryWords[0])) {
-      return 85;
-    }
-    
-    // Partial word matches (more permissive)
-    let partialMatches = 0;
-    for (const queryWord of queryWords) {
-      for (const nameWord of nameWords) {
-        if (nameWord.includes(queryWord) || queryWord.includes(nameWord)) {
-          partialMatches++;
-          break;
-        }
-      }
-    }
-    
-    if (partialMatches > 0) {
-      return 50 + (partialMatches / queryWords.length) * 30;
-    }
-    
-    // Levenshtein distance (more permissive)
-    const distance = this.levenshteinDistance(queryLower, nameLower);
-    const maxLength = Math.max(queryLower.length, nameLower.length);
-    const similarity = 1 - (distance / maxLength);
-    
-    if (similarity > 0.5) {
-      return Math.round(similarity * 60);
-    }
-    
-    return 0;
+    return scoreNameMatch(query, artistName);
   }
 
   /**
@@ -775,23 +658,9 @@ export class UnifiedArtistSearchService {
   private static async searchEvents(query: string, limit: number): Promise<any[]> {
     try {
       console.log(`🎵 Searching events for: "${query}" with limit: ${limit}`);
-      
-      const eventTerm = sanitizeOrFilterTerm(query);
-      if (!eventTerm) return [];
-      const { data: events, error } = await (supabase as any)
-        .from('events')
-        .select('*')
-        .or(`artist_name.ilike.%${eventTerm}%,venue_name.ilike.%${eventTerm}%,title.ilike.%${eventTerm}%`)
-        .order('event_date', { ascending: true })
-        .limit(limit);
-
-      if (error) {
-        console.warn('⚠️  Error searching events:', error);
-        return [];
-      }
-
-      console.log(`🎵 Found ${events?.length || 0} events:`, events?.map(e => e.title || e.artist_name));
-      return events || [];
+      const events = await searchEventsFuzzy(supabase, query, { limit });
+      console.log(`🎵 Found ${events.length} events:`, events.map(e => e.title || e.artist_name));
+      return events;
     } catch (error) {
       console.error('❌ Error searching events:', error);
       return [];
@@ -799,60 +668,18 @@ export class UnifiedArtistSearchService {
   }
 
   /**
-   * Search for users by name or bio
+   * Search for users by name or username
    */
   private static async searchUsers(query: string, limit: number): Promise<any[]> {
     try {
       console.log(`👤 Searching users for: "${query}" with limit: ${limit}`);
-      
-      const userTerm = sanitizeOrFilterTerm(query);
-      if (!userTerm) return [];
-      const { data: users, error } = await supabase
-        .from('users')
-        .select('user_id, name, bio, avatar_url, instagram_handle')
-        .or(`name.ilike.%${userTerm}%,bio.ilike.%${userTerm}%,instagram_handle.ilike.%${userTerm}%`)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        console.warn('⚠️  Error searching users:', error);
-        return [];
-      }
-
-      console.log(`👤 Found ${users?.length || 0} users:`, users?.map(u => u.name));
-      return users || [];
+      const users = await searchUsersFuzzy(supabase, query, { limit });
+      console.log(`👤 Found ${users.length} users:`, users.map(u => u.name));
+      return users;
     } catch (error) {
       console.error('❌ Error searching users:', error);
       return [];
     }
-  }
-
-  /**
-   * Calculate Levenshtein distance between two strings
-   */
-  private static levenshteinDistance(str1: string, str2: string): number {
-    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-    
-    for (let i = 0; i <= str1.length; i++) {
-      matrix[0][i] = i;
-    }
-    
-    for (let j = 0; j <= str2.length; j++) {
-      matrix[j][0] = j;
-    }
-    
-    for (let j = 1; j <= str2.length; j++) {
-      for (let i = 1; i <= str1.length; i++) {
-        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1,     // deletion
-          matrix[j - 1][i] + 1,     // insertion
-          matrix[j - 1][i - 1] + indicator // substitution
-        );
-      }
-    }
-    
-    return matrix[str2.length][str1.length];
   }
 
   /**

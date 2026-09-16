@@ -6,6 +6,7 @@ import {
   ScrollView,
   TextInput,
   Text,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../../src/components/SynthText';
@@ -227,6 +228,7 @@ export default function DiscoverScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [searchQ, setSearchQ] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
   const {
     coords,
     label: locationLabel,
@@ -383,6 +385,7 @@ export default function DiscoverScreen() {
         <View style={styles.searchBar}>
           <Search size={20} color={SynthTokens.colors.neutral400} />
           <TextInput
+            ref={searchInputRef}
             placeholder='Try "Radiohead"'
             placeholderTextColor={SynthTokens.colors.neutral400}
             style={styles.searchInput}
@@ -393,7 +396,9 @@ export default function DiscoverScreen() {
               router.push(q ? (`/(tabs)/search?q=${encodeURIComponent(q)}` as any) : '/(tabs)/search');
             }}
             onFocus={() => {
-              // Navigate to full search screen immediately on tap, carrying any typed text
+              // Blur first so returning from search doesn't immediately re-open it.
+              searchInputRef.current?.blur();
+              Keyboard.dismiss();
               const q = searchQ.trim();
               if (q) {
                 router.push(`/(tabs)/search?q=${encodeURIComponent(q)}` as any);
@@ -543,6 +548,7 @@ export default function DiscoverScreen() {
                       artist_name={ev.artist_name}
                       venue_name={ev.venue_name}
                       venue_city={ev.venue_city}
+                      venue_state={ev.venue_state}
                       event_date={ev.event_date}
                       image_url={ev.image_url}
                       ticket_url={ev.ticket_url}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconText } from '@/components/IconText';
+import { Icon } from '@/components/Icon';
 import { type IconName } from '@/config/iconMapping';
 import './MenuCategory.css';
 
@@ -32,15 +32,15 @@ export interface MenuCategoryProps {
 
 /**
  * MenuCategory Component
- * 
- * A clickable row component that composes IconText for use in menu lists.
- * 
+ *
+ * A clickable row component for use in menu lists.
+ *
  * Features:
  * - Fixed height (48px) matching menu item row height
  * - Specific padding and spacing matching Figma design
- * - IconText indented an additional 20px from container left padding
+ * - Optional count badge anchored to the row icon
  * - Uses design tokens for all spacing, colors, and typography
- * 
+ *
  * Usage:
  *   <MenuCategory label="Activity" icon="bell" onPress={handleActivity} />
  *   <MenuCategory label="Settings" icon="settings" onPress={handleSettings} />
@@ -63,45 +63,16 @@ export const MenuCategory: React.FC<MenuCategoryProps> = ({
     .join(' ');
 
   const content = (
-    <div className="menu-category__content" style={{ position: 'relative', overflow: 'visible' }}>
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', overflow: 'visible' }}>
-        <div style={{ position: 'relative', display: 'inline-flex' }}>
-          <IconText
-            text={label}
-            icon={icon}
-            iconPosition="left"
-            className="menu-category__icon-text"
-          />
-          {typeof badgeCount === 'number' && badgeCount > 0 && (
-            <div
-              style={{
-                position: 'absolute',
-                top: -6,
-                left: 20,
-                backgroundColor: '#EF4444',
-                color: '#fff',
-                borderRadius: 10,
-                minWidth: 20,
-                height: 20,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 11,
-                fontWeight: 600,
-                paddingLeft: 6,
-                paddingRight: 6,
-                boxSizing: 'border-box',
-                zIndex: 1000,
-                border: '2px solid #fff',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
-                pointerEvents: 'none',
-              }}
-            >
-              {badgeCount > 99 ? '99+' : badgeCount}
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="menu-category__content">
+      <span className="menu-category__icon-wrap">
+        <Icon name={icon} size={24} alt="" className="icon-text__icon" />
+        {typeof badgeCount === 'number' && badgeCount > 0 && (
+          <span className="menu-category__badge" aria-hidden="true">
+            {badgeCount > 99 ? '99+' : badgeCount}
+          </span>
+        )}
+      </span>
+      <span className="menu-category__label">{label}</span>
     </div>
   );
 

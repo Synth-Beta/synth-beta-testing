@@ -23,6 +23,7 @@ import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
 import { useDetailModalLayout, DETAIL_MODAL_Z } from '@/hooks/useDetailModalLayout';
+import { todayLocalYmd } from '@/utils/localYmd';
 
 interface VenueDetailModalProps {
   isOpen: boolean;
@@ -37,6 +38,27 @@ interface VenueDetailModalProps {
 const INITIAL_UPCOMING_COUNT = 5;
 const INITIAL_PAST_COUNT = 3;
 const LOAD_MORE_COUNT = 10;
+const UPCOMING_PAGE_SIZE = 1000;
+
+async function fetchUpcomingEventPages(venueId: string, offset: number): Promise<any[]> {
+  const rows: any[] = [];
+  let from = offset;
+  const todayYmd = todayLocalYmd();
+  while (true) {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('venue_id', venueId)
+      .gte('event_date', todayYmd)
+      .order('event_date', { ascending: true })
+      .range(from, from + UPCOMING_PAGE_SIZE - 1);
+    if (error || !data?.length) break;
+    rows.push(...data);
+    if (data.length < UPCOMING_PAGE_SIZE) break;
+    from += UPCOMING_PAGE_SIZE;
+  }
+  return rows;
+}
 
 export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   isOpen,
@@ -60,6 +82,8 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
   const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
   const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
   const [reviewsShown, setReviewsShown] = useState(3);
+  const [hasMoreUpcomingToFetch, setHasMoreUpcomingToFetch] = useState(false);
+  const [loadingAllUpcoming, setLoadingAllUpcoming] = useState(false);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [hasOuterMobileHeader, setHasOuterMobileHeader] = useState(true);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -73,6 +97,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
       // Reset pagination when modal opens
       setUpcomingShown(INITIAL_UPCOMING_COUNT);
       setPastShown(INITIAL_PAST_COUNT);
+      setHasMoreUpcomingToFetch(false);
     }
   }, [isOpen, venueId, venueName]);
 
@@ -165,15 +190,21 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
     try {
       setLoading(true);
 
-      // Wave 1: events, venue details, direct reviews in parallel
-      const [eventsRes, venueRes, directReviewsRes] = await Promise.all([
-        supabase.from('events').select('*').eq('venue_id', venueId).order('event_date', { ascending: true }),
+      // Wave 1: upcoming events, past events, venue details, direct reviews in parallel.
+      // Upcoming is queried separately so a large past-events backlog cannot
+      // push far-future dates past PostgREST's default row cap.
+      const todayYmd = todayLocalYmd();
+      const [upcomingRes, pastRes, venueRes, directReviewsRes] = await Promise.all([
+        supabase.from('events').select('*').eq('venue_id', venueId).gte('event_date', todayYmd).order('event_date', { ascending: true }).limit(UPCOMING_PAGE_SIZE),
+        supabase.from('events').select('*').eq('venue_id', venueId).lt('event_date', todayYmd).order('event_date', { ascending: false }),
         supabase.from('venues').select('id, name, state, latitude, longitude, street_address, zip, country').eq('id', venueId).maybeSingle(),
         supabase.from('reviews').select(reviewSelect).eq('venue_id', venueId).eq('is_public', true).eq('is_draft', false).order('created_at', { ascending: false })
       ]);
 
-      const eventsData = eventsRes.data || [];
-      const eventsError = eventsRes.error;
+      const upcomingData = upcomingRes.data || [];
+      const pastData = pastRes.data || [];
+      const eventsData = [...upcomingData, ...pastData];
+      const eventsError = upcomingRes.error || pastRes.error;
       const venueData = venueRes.data;
 
       if (eventsError) console.warn('Error fetching venue events:', eventsError);
@@ -183,8 +214,9 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
         if (venueData.longitude != null) setLongitude(Number(venueData.longitude));
       }
 
+      setHasMoreUpcomingToFetch(upcomingData.length >= UPCOMING_PAGE_SIZE);
+      setEvents(eventsData);
       if (eventsData.length > 0) {
-        setEvents(eventsData);
         const firstEvent = eventsData[0];
         if (firstEvent.venue_city) setVenueCity(firstEvent.venue_city);
         if (firstEvent.venue_state) setVenueState(firstEvent.venue_state);
@@ -303,6 +335,28 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
       console.error('Error loading venue data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAllUpcoming = async () => {
+    if (loadingAllUpcoming) return;
+    if (!hasMoreUpcomingToFetch) {
+      setUpcomingShown(Number.MAX_SAFE_INTEGER);
+      return;
+    }
+    setLoadingAllUpcoming(true);
+    try {
+      const extra = await fetchUpcomingEventPages(venueId, events.filter(e => new Date(e.event_date) >= new Date()).length);
+      if (extra.length > 0) {
+        setEvents(prev => {
+          const seen = new Set(prev.map(e => e.id));
+          return [...prev, ...extra.filter(e => e?.id && !seen.has(e.id))];
+        });
+      }
+      setHasMoreUpcomingToFetch(false);
+      setUpcomingShown(Number.MAX_SAFE_INTEGER);
+    } finally {
+      setLoadingAllUpcoming(false);
     }
   };
 
@@ -779,13 +833,18 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                       />
                     ))}
               </div>
-                  {hasMoreUpcoming && (
+                  {(hasMoreUpcoming || hasMoreUpcomingToFetch) && (
                     <button
-                      onClick={() => setUpcomingShown(prev => prev + LOAD_MORE_COUNT)}
-                      style={loadMoreButtonStyle}
+                      onClick={() => void loadAllUpcoming()}
+                      disabled={loadingAllUpcoming}
+                      style={{
+                        ...loadMoreButtonStyle,
+                        opacity: loadingAllUpcoming ? 0.7 : 1,
+                        cursor: loadingAllUpcoming ? 'wait' : 'pointer',
+                      }}
                     >
                       <ChevronDown size={18} />
-                      Load More ({upcomingEvents.length - upcomingShown} remaining)
+                      {loadingAllUpcoming ? 'Loading…' : 'Load all'}
                     </button>
                   )}
             </div>

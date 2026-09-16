@@ -28,6 +28,7 @@ export default function SceneDetailScreen() {
       event_date: string;
       image_url?: string;
       venue_city?: string;
+      venue_state?: string;
       artist_id?: string;
       venue_id?: string;
       ticket_url?: string;
@@ -59,6 +60,7 @@ export default function SceneDetailScreen() {
           artist_name: e.artist_name || '',
           venue_name: e.venue_name || '',
           venue_city: e.venue_city ?? undefined,
+          venue_state: e.venue_state ?? undefined,
           event_date: e.event_date,
           image_url: resolveFeedImageUri(rawImg) ?? undefined,
           artist_id: e.artist_id != null ? String(e.artist_id) : undefined,
@@ -116,6 +118,7 @@ export default function SceneDetailScreen() {
                   artist_name={e.artist_name}
                   venue_name={e.venue_name}
                   venue_city={e.venue_city}
+                  venue_state={e.venue_state}
                   event_date={e.event_date}
                   image_url={e.image_url}
                   ticket_url={e.ticket_url}

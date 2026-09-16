@@ -25,7 +25,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Share2,
-  Building2
+  Building2,
+  Building2 as BuildingComplex,
 } from 'lucide-react';
 import { EventCommentsModal } from './EventCommentsModal';
 import { UniversalShareModal } from '@/components/share/UniversalShareModal';
@@ -1736,6 +1737,54 @@ export function EventDetailsModal({
                     </span>
                   </div>
                 </div>
+
+                {/* Location */}
+                {(() => {
+                  const cityState = [actualEvent.venue_city, actualEvent.venue_state].filter(Boolean).join(', ');
+                  if (!cityState) return null;
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: 'rgba(204, 36, 134, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        <MapPin size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                      </div>
+                      <div>
+                        <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
+                          {cityState}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Venue */}
+                {actualEvent.venue_name && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 10,
+                      background: 'rgba(204, 36, 134, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <BuildingComplex size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                    </div>
+                    <div>
+                      <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
+                        {actualEvent.venue_name}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Price */}
                 {(() => {

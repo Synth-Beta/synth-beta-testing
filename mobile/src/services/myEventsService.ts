@@ -24,6 +24,7 @@ export interface InterestedEventItem {
     event_date: string;
     image_url?: string;
     venue_city?: string;
+    venue_state?: string;
     ticket_url?: string;
     /** 'interested' | 'going' | 'maybe' — drives the Going label on the card. */
     relationship_type: string;
@@ -434,7 +435,7 @@ export class MyEventsService {
             const slice = idsToFetch.slice(i, i + EVENTS_IN_CHUNK);
             const { data: chunk, error: eventsError } = await supabase
                 .from('events')
-                .select('id, title, event_date, images, artist_id, venue_id, venue_city, ticket_urls')
+                .select('id, title, event_date, images, artist_id, venue_id, venue_city, venue_state, ticket_urls')
                 .in('id', slice);
             if (eventsError) {
                 console.warn('[myEvents] getInterestedEvents events', eventsError);
@@ -492,6 +493,7 @@ export class MyEventsService {
                 event_date: ev.event_date || '',
                 image_url: imageUrl,
                 venue_city: ev.venue_city || undefined,
+                venue_state: ev.venue_state || undefined,
                 ticket_url: (ev.ticket_urls as string[] | null)?.[0] || undefined,
                 relationship_type: typeByEventId.get(ev.id) ?? 'interested',
             });

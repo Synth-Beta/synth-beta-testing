@@ -266,6 +266,15 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
     // cancelled ref so stale fetches don't overwrite newer results
     const cancelRef = useRef(false);
 
+    const dismissSearch = useCallback(() => {
+        Keyboard.dismiss();
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)/discover' as any);
+        }
+    }, [router]);
+
     // Sync with initialQuery when it changes (e.g. deep link or back navigation)
     useEffect(() => {
         if (initialQuery && initialQuery !== keyword) {
@@ -364,7 +373,18 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
     // ─── "All" tab render ─────────────────────────────────────────────────────
 
     function renderAllTab() {
-        if (!hasQuery) return <EmptySearch query={keyword} scope="all" />;
+        if (!hasQuery) {
+            return (
+                <Pressable
+                    style={styles.dismissFill}
+                    onPress={dismissSearch}
+                    accessibilityRole="button"
+                    accessibilityLabel="Dismiss search"
+                >
+                    <EmptySearch query={keyword} scope="all" />
+                </Pressable>
+            );
+        }
         if (loading) return <SearchResultsSkeleton />;
         if (isEmpty) return <EmptySearch query={keyword} scope="all" />;
 
@@ -493,20 +513,18 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
                         value={keyword}
                         onChangeText={setKeyword}
                         autoCorrect={false}
+                        autoFocus
                         returnKeyType="search"
                         onSubmitEditing={() => Keyboard.dismiss()}
                     />
-                    {keyword.length > 0 ? (
-                        <Pressable
-                            onPress={() => {
-                                setKeyword('');
-                                setResults({ events: [], artists: [], venues: [], users: [] });
-                            }}
-                            hitSlop={8}
-                        >
-                            <X size={20} color={SynthTokens.colors.neutral400} />
-                        </Pressable>
-                    ) : null}
+                    <Pressable
+                        onPress={dismissSearch}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Close search"
+                    >
+                        <X size={20} color={SynthTokens.colors.neutral400} />
+                    </Pressable>
                 </View>
             </View>
 
@@ -563,14 +581,24 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
                     }
                     contentContainerStyle={[
                         styles.listContent,
+                        !hasQuery ? styles.dismissFill : null,
                         { paddingBottom: bottomSafeContentPadding(insets.bottom) },
                     ]}
                     onScrollBeginDrag={Keyboard.dismiss}
                     ListEmptyComponent={
                         loading && hasQuery ? (
                             <SearchResultsSkeleton />
-                        ) : (
+                        ) : hasQuery ? (
                             <EmptySearch query={keyword} scope={scope} />
+                        ) : (
+                            <Pressable
+                                style={styles.dismissFill}
+                                onPress={dismissSearch}
+                                accessibilityRole="button"
+                                accessibilityLabel="Dismiss search"
+                            >
+                                <EmptySearch query={keyword} scope={scope} />
+                            </Pressable>
                         )
                     }
                 />
@@ -585,6 +613,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: SynthTokens.colors.neutral50,
+    },
+    dismissFill: {
+        flex: 1,
+        flexGrow: 1,
     },
     header: {
         flexDirection: 'row',

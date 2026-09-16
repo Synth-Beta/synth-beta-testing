@@ -56,7 +56,7 @@ export class TourTrackerService {
       // Join with venues table to get normalized venue_name
       const { data, error } = await supabase
         .from('events')
-        .select('*, venues(name)')
+        .select('*, venues(name, city, state)')
         .eq('artist_id', artist.id) // Filter by UUID FK to artists table
         .gte('event_date', new Date().toISOString())
         .not('latitude', 'is', null)
@@ -70,15 +70,18 @@ export class TourTrackerService {
 
       console.log(`🎵 [TOUR_TRACKER] Found ${data?.length || 0} upcoming events for ${artist.name}`);
 
-      return (data || []).map(event => ({
+      return (data || []).map(event => {
+        const venue = event.venues as { name?: string; city?: string; state?: string } | null;
+        return {
         ...event,
         latitude: Number(event.latitude),
         longitude: Number(event.longitude),
-        venue_city: event.venue_city || '',
-        venue_state: event.venue_state || undefined,
+        venue_city: event.venue_city || venue?.city || '',
+        venue_state: event.venue_state || venue?.state || undefined,
         // Use venue_name from venues table join if available, otherwise fallback to event.venue_name
-        venue_name: (event.venues?.name) || event.venue_name || '',
-      })) as TourEvent[];
+        venue_name: venue?.name || event.venue_name || '',
+        };
+      }) as TourEvent[];
     } catch (error) {
       console.error('Error fetching artist tour events:', error);
       return [];

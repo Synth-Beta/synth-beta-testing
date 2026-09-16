@@ -111,7 +111,11 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const handleExit = useCallback(() => {
     if (exitInProgressRef.current) return;
     beginExit();
-    onExit();
+    // Sign out so "I accidentally signed up" can actually reach the sign-in
+    // form. Staying authenticated would bounce them back into onboarding.
+    void supabase.auth.signOut().finally(() => {
+      onExit();
+    });
   }, [beginExit, onExit]);
 
   const finishOnboarding = useCallback(async (bypassArtistMinimum = false) => {

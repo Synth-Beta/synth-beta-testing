@@ -26,6 +26,9 @@ interface FriendSuggestionsRailProps {
   onAddFriend?: (userId: string) => Promise<void>;
 }
 
+/** How many suggestion cards to show at once; extras fill in when one is dismissed. */
+const VISIBLE_SUGGESTION_COUNT = 5;
+
 export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   suggestions,
   onUserClick,
@@ -41,6 +44,8 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   const [sentUserIds, setSentUserIds] = useState<Set<string>>(new Set());
   // Track cards currently playing their fade-out animation before DOM removal
   const [removingUserIds, setRemovingUserIds] = useState<Set<string>>(new Set());
+  // Dismissed via the card X — kept separate so a suggestions refresh doesn't bring them back
+  const [dismissedUserIds, setDismissedUserIds] = useState<Set<string>>(new Set());
 
   // Check for existing relationships (pending or accepted) on mount and when suggestions change
   useEffect(() => {
@@ -125,7 +130,19 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
     }, 1200);
   };
 
-  const visibleSuggestions = suggestions.filter(s => !excludedUserIds.has(s.user_id));
+  const handleDismissSuggestion = (userId: string) => {
+    if (dismissedUserIds.has(userId) || removingUserIds.has(userId)) return;
+
+    hapticLight();
+    setRemovingUserIds(prev => new Set(prev).add(userId));
+    setTimeout(() => {
+      setDismissedUserIds(prev => new Set(prev).add(userId));
+    }, 300);
+  };
+
+  const visibleSuggestions = suggestions
+    .filter(s => !excludedUserIds.has(s.user_id) && !dismissedUserIds.has(s.user_id))
+    .slice(0, VISIBLE_SUGGESTION_COUNT);
 
   // While loading exclusions, show skeleton placeholders
   if (!exclusionsLoaded) {
@@ -198,7 +215,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                 key={suggestion.user_id}
                 className={cn(
                   // Layout
-                  "flex flex-col items-center min-w-[148px] max-w-[148px]",
+                  "relative flex flex-col items-center min-w-[148px] max-w-[148px]",
                   // Card styling
                   "rounded-2xl bg-gradient-to-b from-white to-pink-50/40",
                   "border border-pink-100/50 shadow-sm px-3 pt-3 pb-2",
@@ -209,7 +226,26 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                   isRemoving && "opacity-0 scale-95 pointer-events-none"
                 )}
                 onClick={() => onUserClick?.(suggestion.user_id)}
+                role="link"
               >
+                <button
+                  type="button"
+                  aria-label={`Dismiss ${suggestion.name}`}
+                  className="absolute top-0 right-0 z-10 flex items-center justify-center rounded-full"
+                  style={{
+                    width: 44,
+                    height: 44,
+                    color: 'var(--neutral-400)',
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDismissSuggestion(suggestion.user_id);
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <X className="h-4 w-4" strokeWidth={2.25} />
+                </button>
+
                 {/* Avatar */}
                 <div className="relative mb-2 mt-1">
                   <Avatar className={cn(

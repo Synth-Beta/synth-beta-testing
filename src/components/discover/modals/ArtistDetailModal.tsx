@@ -12,6 +12,7 @@ import { UniversalShareModal } from '@/components/share/UniversalShareModal';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
 import { useDetailModalLayout, DETAIL_MODAL_Z } from '@/hooks/useDetailModalLayout';
+import { todayLocalYmd } from '@/utils/localYmd';
 import {
   iosModalBackdrop,
   iosHeader,
@@ -35,6 +36,27 @@ interface ArtistDetailModalProps {
 const INITIAL_UPCOMING_COUNT = 5;
 const INITIAL_PAST_COUNT = 3;
 const LOAD_MORE_COUNT = 10;
+const UPCOMING_PAGE_SIZE = 1000;
+
+async function fetchUpcomingEventPages(artistId: string, offset: number): Promise<any[]> {
+  const rows: any[] = [];
+  let from = offset;
+  const todayYmd = todayLocalYmd();
+  while (true) {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .eq('artist_id', artistId)
+      .gte('event_date', todayYmd)
+      .order('event_date', { ascending: true })
+      .range(from, from + UPCOMING_PAGE_SIZE - 1);
+    if (error || !data?.length) break;
+    rows.push(...data);
+    if (data.length < UPCOMING_PAGE_SIZE) break;
+    from += UPCOMING_PAGE_SIZE;
+  }
+  return rows;
+}
 
 export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   isOpen,
@@ -55,6 +77,8 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
   const [upcomingShown, setUpcomingShown] = useState(INITIAL_UPCOMING_COUNT);
   const [pastShown, setPastShown] = useState(INITIAL_PAST_COUNT);
   const [reviewsShown, setReviewsShown] = useState(3);
+  const [hasMoreUpcomingToFetch, setHasMoreUpcomingToFetch] = useState(false);
+  const [loadingAllUpcoming, setLoadingAllUpcoming] = useState(false);
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [hasOuterMobileHeader, setHasOuterMobileHeader] = useState(true);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -68,6 +92,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
       // Reset pagination when modal opens
       setUpcomingShown(INITIAL_UPCOMING_COUNT);
       setPastShown(INITIAL_PAST_COUNT);
+      setHasMoreUpcomingToFetch(false);
     }
   }, [isOpen, artistId]);
 
@@ -160,18 +185,26 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
     try {
       setLoading(true);
 
-      // Wave 1: artist, events, direct reviews in parallel
-      const [artistRes, eventsRes, directReviewsRes] = await Promise.all([
+      // Wave 1: artist, upcoming events, past events, direct reviews in parallel.
+      // Upcoming is queried separately so a large past-events backlog cannot
+      // push far-future dates past PostgREST's default row cap (the same events
+      // still appear in Tour Tracker, which only fetches upcoming rows).
+      const todayYmd = todayLocalYmd();
+      const [artistRes, upcomingRes, pastRes, directReviewsRes] = await Promise.all([
         supabase.from('artists').select('id, name, image_url').eq('id', artistId).maybeSingle(),
-        supabase.from('events').select('*').eq('artist_id', artistId).order('event_date', { ascending: true }),
+        supabase.from('events').select('*').eq('artist_id', artistId).gte('event_date', todayYmd).order('event_date', { ascending: true }).limit(UPCOMING_PAGE_SIZE),
+        supabase.from('events').select('*').eq('artist_id', artistId).lt('event_date', todayYmd).order('event_date', { ascending: false }),
         supabase.from('reviews').select(reviewSelect).eq('artist_id', artistId).eq('is_public', true).eq('is_draft', false).order('created_at', { ascending: false })
       ]);
 
       const artistData = artistRes.data;
-      const eventsData = eventsRes.data || [];
+      const upcomingData = upcomingRes.data || [];
+      const pastData = pastRes.data || [];
+      const eventsData = [...upcomingData, ...pastData];
       const directReviews = directReviewsRes.data || [];
 
       if (artistData?.image_url) setArtistImage(artistData.image_url);
+      setHasMoreUpcomingToFetch(upcomingData.length >= UPCOMING_PAGE_SIZE);
       setEvents(eventsData);
 
       const eventIds = eventsData.map(e => e.id);
@@ -294,6 +327,28 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
       console.error('Error loading artist data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAllUpcoming = async () => {
+    if (loadingAllUpcoming) return;
+    if (!hasMoreUpcomingToFetch) {
+      setUpcomingShown(Number.MAX_SAFE_INTEGER);
+      return;
+    }
+    setLoadingAllUpcoming(true);
+    try {
+      const extra = await fetchUpcomingEventPages(artistId, events.filter(e => new Date(e.event_date) >= new Date()).length);
+      if (extra.length > 0) {
+        setEvents(prev => {
+          const seen = new Set(prev.map(e => e.id));
+          return [...prev, ...extra.filter(e => e?.id && !seen.has(e.id))];
+        });
+      }
+      setHasMoreUpcomingToFetch(false);
+      setUpcomingShown(Number.MAX_SAFE_INTEGER);
+    } finally {
+      setLoadingAllUpcoming(false);
     }
   };
 
@@ -729,13 +784,18 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                       />
                     ))}
                   </div>
-                  {hasMoreUpcoming && (
+                  {(hasMoreUpcoming || hasMoreUpcomingToFetch) && (
                     <button
-                      onClick={() => setUpcomingShown(prev => prev + LOAD_MORE_COUNT)}
-                      style={loadMoreButtonStyle}
+                      onClick={() => void loadAllUpcoming()}
+                      disabled={loadingAllUpcoming}
+                      style={{
+                        ...loadMoreButtonStyle,
+                        opacity: loadingAllUpcoming ? 0.7 : 1,
+                        cursor: loadingAllUpcoming ? 'wait' : 'pointer',
+                      }}
                     >
                       <ChevronDown size={18} />
-                      Load More ({upcomingEvents.length - upcomingShown} remaining)
+                      {loadingAllUpcoming ? 'Loading…' : 'Load all'}
                     </button>
                   )}
                 </div>

@@ -66,6 +66,7 @@ export function FriendsEventCard({ event, currentUserId, onPress }: FriendsEvent
                 artist_name={event.artist_name}
                 venue_name={event.venue_name}
                 venue_city={event.venue_city}
+                venue_state={event.venue_state}
                 event_date={event.event_date}
                 image_url={event.image_url}
                 cornerLabel="FRIENDS"

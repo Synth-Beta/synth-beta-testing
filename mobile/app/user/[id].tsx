@@ -330,6 +330,7 @@ export default function PublicUserProfileScreen() {
                         artist_name={ev.artist_name}
                         venue_name={ev.venue_name}
                         venue_city={ev.venue_city}
+                        venue_state={ev.venue_state}
                         event_date={ev.event_date}
                         image_url={ev.image_url}
                         initialInterested

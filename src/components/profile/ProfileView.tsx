@@ -907,7 +907,7 @@ const { user, sessionExpired } = useAuth();
   const loadProfileFriendSuggestions = async () => {
     try {
       const pool = await FriendsService.getSimilarUsersToFriend(currentUserId, 20);
-      setProfileFriendSuggestions(rankFriendSuggestionsForRail(pool, 5));
+      setProfileFriendSuggestions(rankFriendSuggestionsForRail(pool, 20));
     } catch (error) {
       logger.warn('Error loading profile friend suggestions:', error);
       setProfileFriendSuggestions([]);

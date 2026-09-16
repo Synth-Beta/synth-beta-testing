@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ensurePublicUserProfile } from '@/services/publicUserRecoveryService';
+import { searchArtistsFuzzy } from '@synth/shared';
 
 export interface OnboardingStatus {
   onboarding_completed: boolean;
@@ -70,15 +71,12 @@ export class OnboardingService {
   }
 
   static async searchArtists(query: string, limit = 24): Promise<ArtistOption[]> {
-    const { data, error } = await supabase
-      .from('artists')
-      .select('id, name, image_url')
-      .ilike('name', `%${query}%`)
-      .order('num_upcoming_events', { ascending: false, nullsFirst: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data ?? [];
+    const rows = await searchArtistsFuzzy(supabase, query, limit);
+    return rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      image_url: row.image_url,
+    }));
   }
 
   /**

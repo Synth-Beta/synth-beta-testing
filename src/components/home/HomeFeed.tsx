@@ -199,6 +199,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     artist_name: ne.artist_name,
     venue_name: ne.venue_name,
     venue_city: ne.venue_city,
+    venue_state: (ne as { venue_state?: string }).venue_state,
     event_date: ne.event_date,
     event_media_url: ne.event_media_url,
     images: ne.images,
@@ -1243,7 +1244,7 @@ interface FriendEventInterest {
   const loadFriendSuggestionsForRail = async () => {
     try {
       const pool = await FriendsService.getSimilarUsersToFriend(currentUserId, 20);
-      setFriendSuggestionsForRail(rankFriendSuggestionsForRail(pool, 5));
+      setFriendSuggestionsForRail(rankFriendSuggestionsForRail(pool, 20));
     } catch (error) {
       console.error('Error loading friend suggestions for rail:', error);
       setFriendSuggestionsForRail([]);
@@ -2100,6 +2101,7 @@ interface FriendEventInterest {
                           venue_name: event.venue_name,
                           event_date: event.event_date,
                           venue_city: event.venue_city || undefined,
+                          venue_state: (event as { venue_state?: string }).venue_state || undefined,
                           image_url: replaceJambasePlaceholder(event.event_media_url) || undefined,
                         }}
                         onClick={() => handleEventClick(event.event_id)}
@@ -2157,6 +2159,7 @@ interface FriendEventInterest {
                         venue_name: event.venue_name,
                           event_date: event.event_date,
                         venue_city: event.venue_city || undefined,
+                        venue_state: (event as { venue_state?: string }).venue_state || undefined,
                         }}
                         onClick={() => handleEventClick(event.event_id)}
                       />

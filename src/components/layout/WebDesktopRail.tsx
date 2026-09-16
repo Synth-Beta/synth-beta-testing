@@ -27,11 +27,12 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
           className="relative mb-4 flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[var(--neutral-100)]"
           aria-label="Open menu"
         >
-          <span className="relative inline-flex">
+          <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-visible">
             <Icon name="hamburgerMenu" size={24} alt="" ariaHidden />
             {menuBadgeCount > 0 ? (
               <span
-                className="absolute -right-2 -top-1.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white ring-2 ring-[var(--neutral-50)]"
+                className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none text-white ring-2 ring-[var(--neutral-50)]"
+                style={{ backgroundColor: 'var(--brand-pink-500)' }}
                 aria-hidden
               >
                 {menuBadgeCount > 99 ? '99+' : menuBadgeCount}

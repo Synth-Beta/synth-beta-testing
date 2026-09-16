@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { searchArtistsFuzzy } from '@synth/shared';
 
 export interface Artist {
     id: string;
@@ -29,23 +30,17 @@ export class ArtistService {
     }
 
     static async searchArtists(query: string, limit = 20): Promise<Artist[]> {
-        const { data, error } = await supabase
-            .from('artists')
-            .select('id, name, image_url, genres')
-            .ilike('name', `%${query}%`)
-            // `artists` has no `popularity` column — ordering by it made every
-            // call here fail silently (caught below, returns []), which is why
-            // onboarding's artist search showed no results for anything.
-            // num_upcoming_events is the closest real signal for "worth
-            // suggesting" in a concert app.
-            .order('num_upcoming_events', { ascending: false, nullsFirst: false })
-            .limit(limit);
-
-        if (error) {
+        try {
+            const rows = await searchArtistsFuzzy(supabase, query, limit);
+            return rows.map(row => ({
+                id: row.id,
+                name: row.name,
+                image_url: row.image_url ?? undefined,
+                genres: row.genres ?? undefined,
+            }));
+        } catch (error) {
             console.error('Error searching artists:', error);
             return [];
         }
-
-        return data || [];
     }
 }

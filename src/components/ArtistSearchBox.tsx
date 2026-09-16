@@ -171,9 +171,17 @@ export function ArtistSearchBox({
     setQuery(e.target.value);
   };
 
-  const handleInputFocus = () => {
+  const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     // Don't reopen if we just selected an artist
     if (isSelectingRef.current) {
+      return;
+    }
+    // Selecting the current query lets the user type another artist without hitting clear,
+    // even when a tour is already open.
+    e.target.select();
+    const q = query.trim();
+    if (q.length > 0) {
+      void performSearch(q);
       return;
     }
     if (searchResults && searchResults.artists.length > 0) {

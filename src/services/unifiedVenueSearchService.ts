@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { searchVenuesFuzzy, scoreNameMatch } from '@synth/shared';
 
 export interface VenueSearchResult {
   id: string;
@@ -498,131 +499,30 @@ export class UnifiedVenueSearchService {
    */
   private static async getFuzzyMatchedResults(query: string, limit: number): Promise<VenueSearchResult[]> {
     try {
-      // Query venues from database with name filtering first (more efficient than fetching all)
-      // Use prefix matching for single-word queries (faster, can use regular index)
-      // Use full wildcard for multi-word queries (requires trigram index but matches better)
-      const trimmedQuery = query.trim();
-      const isSingleWord = trimmedQuery.split(/\s+/).length === 1;
-      const searchPattern = isSingleWord && trimmedQuery.length > 0
-        ? `${trimmedQuery}%`  // Prefix match for single words (faster)
-        : `%${trimmedQuery}%`; // Full wildcard for multi-word queries (uses trigram index)
-      
-      const { data: allVenues, error } = await supabase
-        .from('venues' as any)
-        .select('*')
-        .ilike('name', searchPattern)
-        .order('num_upcoming_events', { ascending: false, nullsFirst: false })
-        .limit(Math.max(limit * 5, 100)); // Get more results than needed for better fuzzy matching
-
-      if (error) {
-        // Handle table not existing or other database errors
-        if (error.code === 'PGRST116' || error.code === '42P01') {
-          console.warn(`⚠️  venues table doesn't exist yet. Returning empty results for fuzzy matching.`);
-        } else {
-          console.warn(`⚠️  Database error getting venues: ${error.message}`);
-        }
-        return [];
-      }
-
-      if (!allVenues || allVenues.length === 0) {
+      const venues = await searchVenuesFuzzy(supabase, query, limit);
+      if (venues.length === 0) {
         console.log('📭 No venues found in database');
         return [];
       }
 
-      // Ensure we have valid venue data before processing
-      if (!Array.isArray(allVenues)) {
-        console.warn('⚠️  Invalid venue data received from database');
-        return [];
-      }
-
-      // Filter out any rows that are not valid venue objects
-      const venues = (allVenues as Array<any>).filter(
-        (venue): venue is {
-          id: string;
-          name: string;
-          identifier: string | null;
-          image_url: string | null;
-          street_address: string | null;
-          state: string | null;
-          zip: string | null;
-          country: string | null;
-          latitude: number | null;
-          longitude: number | null;
-          geo: any; // JSONB object or null
-          maximum_attendee_capacity: number | null;
-          num_upcoming_events: number | null;
-        } =>
-          typeof venue === 'object' &&
-          venue !== null &&
-          typeof venue.id === 'string' &&
-          typeof venue.name === 'string'
-      );
-
-      // Calculate fuzzy match scores for all venues
-      // Transform flat columns to JSONB format for consistency with interface
-      const scoredVenues = venues.map(venue => ({
-        id: venue.id, // Use UUID from venues table
+      return venues.map(venue => ({
+        id: venue.id,
         name: venue.name,
         identifier: venue.identifier || `manual:${venue.id}`,
         image_url: venue.image_url || undefined,
         address: {
           streetAddress: venue.street_address || undefined,
-          addressLocality: undefined, // city column not in schema
+          addressLocality: venue.city || undefined,
           addressRegion: venue.state || undefined,
-          postalCode: venue.zip || undefined,
-          addressCountry: venue.country || undefined
         },
-        geo: (() => {
-          // Handle geo field - can be JSONB object or we can construct from lat/lng columns
-          if (venue.geo) {
-            try {
-              // If it's already an object, use it
-              if (typeof venue.geo === 'object' && venue.geo !== null) {
-                return {
-                  latitude: venue.geo.latitude || venue.latitude,
-                  longitude: venue.geo.longitude || venue.longitude
-                };
-              }
-              // If it's a string, try to parse it
-              if (typeof venue.geo === 'string') {
-                const parsed = JSON.parse(venue.geo);
-                return {
-                  latitude: parsed.latitude || venue.latitude,
-                  longitude: parsed.longitude || venue.longitude
-                };
-              }
-            } catch (e) {
-              // If parsing fails, fall back to lat/lng columns
-            }
-          }
-          // Fall back to lat/lng columns if geo field is not available
-          if (venue.latitude && venue.longitude) {
-            return {
-              latitude: venue.latitude,
-              longitude: venue.longitude
-            };
-          }
-          return undefined;
-        })(),
-        maximumAttendeeCapacity: venue.maximum_attendee_capacity || undefined,
+        geo:
+          venue.latitude != null && venue.longitude != null
+            ? { latitude: venue.latitude, longitude: venue.longitude }
+            : undefined,
         num_upcoming_events: venue.num_upcoming_events || 0,
-        match_score: this.calculateFuzzyMatchScore(query, venue.name),
+        match_score: venue.match_score,
         is_from_database: true,
       }));
-
-      // Sort by match score (higher is better) and then by num_upcoming_events
-      // Lower threshold (5%) to catch more partial matches
-      return scoredVenues
-        .filter(venue => venue.match_score > 5) // Lower threshold to catch partial matches
-        .sort((a, b) => {
-          // First sort by match score (higher is better)
-          if (b.match_score !== a.match_score) {
-            return b.match_score - a.match_score;
-          }
-          // Then by num_upcoming_events (more events = more relevant)
-          return (b.num_upcoming_events || 0) - (a.num_upcoming_events || 0);
-        })
-        .slice(0, limit);
     } catch (error) {
       console.error('❌ Error getting fuzzy matched results:', error);
       return [];
@@ -633,88 +533,7 @@ export class UnifiedVenueSearchService {
    * Calculate fuzzy match score between query and venue name
    */
   static calculateFuzzyMatchScore(query: string, venueName: string): number {
-    const queryLower = query.toLowerCase().trim();
-    const nameLower = venueName.toLowerCase().trim();
-    
-    // Exact match
-    if (nameLower === queryLower) {
-      return 100;
-    }
-    
-    // Starts with query
-    if (nameLower.startsWith(queryLower)) {
-      return 95;
-    }
-    
-    // Contains query as whole word
-    const queryWords = queryLower.split(/\s+/);
-    const nameWords = nameLower.split(/\s+/);
-    
-    let wholeWordMatches = 0;
-    for (const queryWord of queryWords) {
-      if (nameWords.includes(queryWord)) {
-        wholeWordMatches++;
-      }
-    }
-    
-    if (wholeWordMatches > 0) {
-      return 85 + (wholeWordMatches / queryWords.length) * 10;
-    }
-    
-    // Contains query as substring
-    if (nameLower.includes(queryLower)) {
-      return 75;
-    }
-    
-    // Partial word matches
-    let partialWordMatches = 0;
-    for (const queryWord of queryWords) {
-      for (const nameWord of nameWords) {
-        if (nameWord.includes(queryWord) || queryWord.includes(nameWord)) {
-          partialWordMatches++;
-          break;
-        }
-      }
-    }
-    
-    if (partialWordMatches > 0) {
-      return 60 + (partialWordMatches / queryWords.length) * 15;
-    }
-    
-    // Levenshtein distance-based scoring
-    const distance = this.levenshteinDistance(queryLower, nameLower);
-    const maxLength = Math.max(queryLower.length, nameLower.length);
-    const similarity = 1 - (distance / maxLength);
-    
-    return Math.round(similarity * 50);
-  }
-
-  /**
-   * Calculate Levenshtein distance between two strings
-   */
-  private static levenshteinDistance(str1: string, str2: string): number {
-    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-    
-    for (let i = 0; i <= str1.length; i++) {
-      matrix[0][i] = i;
-    }
-    
-    for (let j = 0; j <= str2.length; j++) {
-      matrix[j][0] = j;
-    }
-    
-    for (let j = 1; j <= str2.length; j++) {
-      for (let i = 1; i <= str1.length; i++) {
-        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        matrix[j][i] = Math.min(
-          matrix[j][i - 1] + 1,     // deletion
-          matrix[j - 1][i] + 1,     // insertion
-          matrix[j - 1][i - 1] + indicator // substitution
-        );
-      }
-    }
-    
-    return matrix[str2.length][str1.length];
+    return scoreNameMatch(query, venueName);
   }
 
   /**

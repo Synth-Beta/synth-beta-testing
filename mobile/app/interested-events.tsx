@@ -125,6 +125,7 @@ export default function InterestedEventsScreen() {
             event_date={item.event_date}
             image_url={item.image_url}
             venue_city={item.venue_city}
+            venue_state={item.venue_state}
             ticket_url={item.ticket_url}
             initialInterested={true}
             currentUserId={currentUserId}
