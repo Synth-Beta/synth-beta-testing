@@ -210,8 +210,8 @@
     "semantic_hash": "d8d09d83028ac4b6c29d57b97cb36fe0"
   },
   "mobile/app.json": {
-    "mtime": 1788818169.5692623,
-    "ast_hash": "a0610c2d4fd7c0fc58eb3390ebf9e033",
+    "mtime": 1789656699.413066,
+    "ast_hash": "8fb05eb2985e49ec73719ed45d9d88d0",
     "semantic_hash": ""
   },
   "mobile/app/(auth)/_layout.tsx": {
