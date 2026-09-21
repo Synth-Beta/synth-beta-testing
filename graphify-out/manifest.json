@@ -530,9 +530,9 @@
     "semantic_hash": "98e539b142dfb9bef9402343d30787ea"
   },
   "mobile/scripts/patch-expo-ios-swift.mjs": {
-    "mtime": 1781053730.914282,
-    "ast_hash": "238214fed7737d592feecfcceb273724",
-    "semantic_hash": "238214fed7737d592feecfcceb273724"
+    "mtime": 1789840057.6425173,
+    "ast_hash": "b2a372a2f9013d039431d79cc89d8460",
+    "semantic_hash": ""
   },
   "mobile/scripts/patch-expo-notifications-badge.mjs": {
     "mtime": 1780975568.3492587,
