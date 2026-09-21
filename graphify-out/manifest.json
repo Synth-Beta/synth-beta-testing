@@ -9243,5 +9243,30 @@
     "mtime": 1789593295.4845426,
     "ast_hash": "3960b3fcda5449cf3750d4d37ab9d886",
     "semantic_hash": ""
+  },
+  "supabase/onboarding-danielle-2026-09-20/01_diagnose.READONLY.sql": {
+    "mtime": 1789929548.0730705,
+    "ast_hash": "a18d31921cdaf61d77b3fe622f3fa1c3",
+    "semantic_hash": ""
+  },
+  "supabase/onboarding-danielle-2026-09-20/02_find_danielle.READONLY.sql": {
+    "mtime": 1789930044.1962993,
+    "ast_hash": "2d3f07dd46b4d1890256835ccab33665",
+    "semantic_hash": ""
+  },
+  "supabase/onboarding-danielle-2026-09-20/03_audit_log.READONLY.sql": {
+    "mtime": 1789930984.0146434,
+    "ast_hash": "dd96b154f6aeeb38b2236bbee4b82688",
+    "semantic_hash": ""
+  },
+  "supabase/onboarding-danielle-2026-09-20/04_residue.READONLY.sql": {
+    "mtime": 1789931717.5157995,
+    "ast_hash": "f1d122db6a1221a3232eca1a4e183e1a",
+    "semantic_hash": ""
+  },
+  "apps/admin/public/googlec63ec87350ccdf47.html": {
+    "mtime": 1790004588.6574507,
+    "ast_hash": "b30b9327d84165c027dd1267ee784890",
+    "semantic_hash": ""
   }
 }

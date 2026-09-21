@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://synthapp.io/sitemap.xml
+Sitemap: https://join.getsynth.app/sitemap.xml

@@ -17,4 +17,5 @@ Disallow: /admin
 User-agent: *
 Allow: /
 Disallow: /admin
-Sitemap: https://synth.app/sitemap.xml
+
+Sitemap: https://getsynth.app/sitemap.xml

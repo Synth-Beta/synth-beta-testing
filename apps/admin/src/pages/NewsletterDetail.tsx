@@ -46,10 +46,10 @@ export default function NewsletterDetail() {
       <Helmet>
         <title>{newsletter.title} | The Synth Setlist</title>
         <meta name="description" content={newsletter.description} />
-        <link rel="canonical" href={`https://synth.app/newsletter/${newsletter.slug}`} />
+        <link rel="canonical" href={`https://getsynth.app/newsletter/${newsletter.slug}`} />
         <meta property="og:title" content={`${newsletter.title} | The Synth Setlist`} />
         <meta property="og:description" content={newsletter.description} />
-        <meta property="og:url" content={`https://synth.app/newsletter/${newsletter.slug}`} />
+        <meta property="og:url" content={`https://getsynth.app/newsletter/${newsletter.slug}`} />
         <meta property="og:type" content="article" />
       </Helmet>
 

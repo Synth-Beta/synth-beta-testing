@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Consumer app (join.getsynth.app), served from dist/.
+  Only the root is listed: everything else is auth-gated, and the public /share
+  pages are query-string URLs (/share?event=<uuid>) generated per share, so they
+  cannot be meaningfully enumerated here. Marketing/brand SEO lives on
+  getsynth.app - see apps/admin/public/sitemap.xml.
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://synthapp.io/</loc>
+    <loc>https://join.getsynth.app/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>

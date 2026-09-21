@@ -28,13 +28,13 @@ export default function NewsletterArchive() {
           name="description"
           content="The Synth Setlist is a weekly newsletter for live music fans featuring show recommendations, artist spotlights, and product updates from Synth."
         />
-        <link rel="canonical" href="https://synth.app/newsletter" />
+        <link rel="canonical" href="https://getsynth.app/newsletter" />
         <meta property="og:title" content="The Synth Setlist | Synth Newsletter" />
         <meta
           property="og:description"
           content="Get weekly stories from the world of live music with The Synth Setlist."
         />
-        <meta property="og:url" content="https://synth.app/newsletter" />
+        <meta property="og:url" content="https://getsynth.app/newsletter" />
         <meta property="og:type" content="website" />
       </Helmet>
 

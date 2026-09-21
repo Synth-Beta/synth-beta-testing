@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -103,6 +104,26 @@ export const ModernLandingPage = () => {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
+      {/* The homepage had no per-route meta at all, so it silently inherited the
+          tags in apps/admin/index.html. Note these only reach Google (which runs
+          JS); social scrapers like iMessage/Slack/Facebook do not execute JS and
+          will keep reading index.html, so both have to stay correct. */}
+      <Helmet>
+        <title>Synth — Find People to Go to Concerts With</title>
+        <meta
+          name="description"
+          content="Synth helps you discover concerts and live shows near you, then find people going to the same ones. Track the shows you've seen and never go alone again."
+        />
+        <link rel="canonical" href="https://getsynth.app/" />
+        <meta property="og:title" content="Synth — Find People to Go to Concerts With" />
+        <meta
+          property="og:description"
+          content="Discover concerts and live shows near you, then find people going to the same ones. Track the shows you've seen and never go alone again."
+        />
+        <meta property="og:url" content="https://getsynth.app/" />
+        <meta property="og:type" content="website" />
+      </Helmet>
+
       {/* Glassy White Marble Background - let body background show through */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Pink marble accent clouds */}

@@ -110,13 +110,13 @@ export default function Media() {
           name="description"
           content="Discover Synth in the press: live music discovery, concert tracking, and the app for finding shows near you. Read stories, Substack, and updates — then try Synth."
         />
-        <link rel="canonical" href="https://synth.app/pr" />
+        <link rel="canonical" href="https://getsynth.app/pr" />
         <meta property="og:title" content="Media & Press | Synth - Live Music Discovery & Concert Tracking" />
         <meta
           property="og:description"
           content="Stories, press, and updates about Synth — the live music discovery and concert tracking app. Discover shows, track what you've seen, see what friends are attending."
         />
-        <meta property="og:url" content="https://synth.app/pr" />
+        <meta property="og:url" content="https://getsynth.app/pr" />
         <meta property="og:type" content="website" />
       </Helmet>
 
