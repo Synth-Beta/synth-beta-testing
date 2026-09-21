@@ -55,7 +55,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip } from 'recharts';
+// Aliased: recharts and @/components/ui/tooltip both export a `Tooltip`, and
+// two bindings of that name in one module scope is a SyntaxError. esbuild
+// dedupes it while bundling so `npm run admin:build` passes, but dev serves
+// real ESM and the browser rejects the whole module — which took down every
+// route, the marketing homepage included.
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -2791,7 +2796,7 @@ export default function Admin() {
                           />
                           <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
                           <Legend verticalAlign="top" height={36} />
-                          <Tooltip 
+                          <RechartsTooltip 
                             content={({ active, payload }) => {
                               if (active && payload && payload.length) {
                                 return (
@@ -3056,7 +3061,7 @@ export default function Admin() {
                             height={80}
                           />
                           <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip
+                          <RechartsTooltip
                             content={({ active, payload }) => {
                               if (active && payload && payload.length) {
                                 return (

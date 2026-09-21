@@ -1021,3 +1021,97 @@
     @apply p-0;
   }
 }
+
+/* ============================================================================
+   Homepage motion — "the count-in"
+   ----------------------------------------------------------------------------
+   One tempo for the whole page: 120 BPM, so a beat is 500ms and a sixteenth is
+   125ms. Hero elements enter on beats 1/3/5/7 rather than arbitrary delays.
+
+   Deliberately only two moments of non-user-triggered motion on the homepage:
+   the hero count-in on load, and the demo screenshots dealing in on scroll.
+   Everything else stays still — reveal-on-every-section is noise, not design.
+
+   Plain CSS (not @layer) so these win over Tailwind utilities without
+   !important. Scroll-driven reveals are native; no JS, no observer, no library.
+   ========================================================================== */
+
+:root {
+  --synth-beat: 125ms;              /* sixteenth note at 120 BPM */
+  --synth-settle: 620ms;
+  --synth-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --synth-ease-soft: cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+@keyframes synth-count-in {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+.count-in {
+  animation: synth-count-in var(--synth-settle) var(--synth-ease) both;
+  animation-delay: calc(var(--beat, 0) * var(--synth-beat));
+}
+.count-in.beat-1 { --beat: 1; }
+.count-in.beat-3 { --beat: 3; }
+.count-in.beat-5 { --beat: 5; }
+.count-in.beat-7 { --beat: 7; }
+
+/* Logo halo. Slow enough to read as a stage light holding, not a UI spinner.
+   Starts after the count-in resolves on beat 7. */
+@keyframes synth-halo {
+  from { opacity: 0.22; transform: scale(1); }
+  to   { opacity: 0.40; transform: scale(1.07); }
+}
+.halo-breathe {
+  animation: synth-halo 6s var(--synth-ease-soft) 1.5s infinite alternate;
+}
+
+/* Ambient marble clouds. Was `animate-pulse` (2s, and all five in lockstep —
+   Tailwind's delay-* sets transition-delay, not animation-delay, so the
+   staggering never applied). Coprime durations so they never resync. */
+@keyframes synth-marble-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(2.5rem, -1.75rem, 0) scale(1.09); }
+}
+.marble-drift {
+  /* No will-change: an infinite transform animation is composited anyway, and
+     pinning five 28rem blurred layers costs real memory on mobile. */
+  animation: synth-marble-drift 41s var(--synth-ease-soft) infinite alternate;
+}
+.marble-drift.drift-a { animation-duration: 37s; }
+.marble-drift.drift-b { animation-duration: 43s; animation-delay: -12s; }
+.marble-drift.drift-c { animation-duration: 51s; animation-delay: -25s; }
+
+/* Demo screenshots deal in as they enter the viewport, left to right.
+   Each child has its own view() timeline; on desktop they share a row, so the
+   left-to-right stagger comes from offsetting animation-range per child.
+   @supports gate matters: without it, browsers lacking scroll-driven
+   animations (Firefox) would hold the `from` state and render blank phones. */
+@supports (animation-timeline: view()) {
+  @keyframes synth-deal-in {
+    from { opacity: 0; transform: translate3d(0, 26px, 0) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+  .deal-in > * {
+    animation: synth-deal-in linear both;
+    animation-timeline: view();
+    animation-range: cover 2% cover 26%;
+  }
+  .deal-in > *:nth-child(2) { animation-range: cover 5%  cover 29%; }
+  .deal-in > *:nth-child(3) { animation-range: cover 8%  cover 32%; }
+  .deal-in > *:nth-child(4) { animation-range: cover 11% cover 35%; }
+  .deal-in > *:nth-child(5) { animation-range: cover 14% cover 38%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .count-in,
+  .deal-in > *,
+  .marble-drift,
+  .halo-breathe {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .halo-breathe { opacity: 0.3 !important; }
+}

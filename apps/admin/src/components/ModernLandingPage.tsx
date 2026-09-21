@@ -102,8 +102,12 @@ export const ModernLandingPage = () => {
     document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // overflow-x-clip, not overflow-hidden: `hidden` makes this wrapper a scroll
+  // container, so the CSS `view()` timelines on the demo strip bind to it instead
+  // of the document and never advance (they report "finished" at load). `clip`
+  // clips identically without creating a scrollport.
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-x-clip">
       {/* The homepage had no per-route meta at all, so it silently inherited the
           tags in apps/admin/index.html. Note these only reach Google (which runs
           JS); social scrapers like iMessage/Slack/Facebook do not execute JS and
@@ -127,9 +131,9 @@ export const ModernLandingPage = () => {
       {/* Glassy White Marble Background - let body background show through */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Pink marble accent clouds */}
-        <div className="absolute -top-32 -right-24 w-[28rem] h-[28rem] bg-pink-500/15 rounded-[50%_50%_60%_40%] blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-24 w-[30rem] h-[30rem] bg-pink-400/12 rounded-[60%_40%_50%_50%] blur-3xl animate-pulse delay-300"></div>
-        <div className="absolute top-1/3 left-1/3 w-[22rem] h-[22rem] bg-pink-300/10 rounded-[40%_60%_50%_50%] blur-3xl animate-pulse delay-700"></div>
+        <div className="absolute -top-32 -right-24 w-[28rem] h-[28rem] bg-pink-500/15 rounded-[50%_50%_60%_40%] blur-3xl marble-drift drift-a"></div>
+        <div className="absolute -bottom-40 -left-24 w-[30rem] h-[30rem] bg-pink-400/12 rounded-[60%_40%_50%_50%] blur-3xl marble-drift drift-b"></div>
+        <div className="absolute top-1/3 left-1/3 w-[22rem] h-[22rem] bg-pink-300/10 rounded-[40%_60%_50%_50%] blur-3xl marble-drift drift-c"></div>
       </div>
 
       <main className="pb-32 md:pb-0">
@@ -248,7 +252,7 @@ export const ModernLandingPage = () => {
       <section className="relative z-10 px-6 py-20">
         <div className="max-w-7xl mx-auto text-center">
           <div className="mb-8">
-            <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold mb-6 leading-tight font-display">
+            <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold mb-6 leading-tight font-display count-in beat-1">
               <span className="bg-gradient-to-r from-pink-500 via-pink-600 to-pink-700 bg-clip-text text-transparent">
                 Discover, Connect,
               </span>
@@ -257,13 +261,13 @@ export const ModernLandingPage = () => {
                 Share
               </span>
             </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto leading-relaxed px-4">
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto leading-relaxed px-4 count-in beat-3">
               Going to shows just got easier. Find concerts, connect with peers, and share your live music experiences all in one place.
             </p>
           </div>
 
           {/* Primary CTAs — web beta + App Store */}
-          <div className="mb-16 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="mb-16 flex flex-col sm:flex-row items-center justify-center gap-4 count-in beat-5">
             <Button
               onClick={openWebBeta}
               className="bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white px-8 py-4 text-lg font-semibold shadow-2xl shadow-pink-500/30 hover:shadow-pink-500/40 transition-all duration-300 transform hover:scale-105 rounded-full w-full sm:w-auto"
@@ -283,16 +287,16 @@ export const ModernLandingPage = () => {
 
           {/* Hero Visual */}
           <div className="relative">
-            <div className="w-32 h-32 mx-auto mb-8 relative">
+            <div className="w-32 h-32 mx-auto mb-8 relative count-in beat-7">
               <img
                 src="/Logos/Main logo black background.png"
                 alt="Synth Logo"
                 className="w-full h-full object-contain filter drop-shadow-2xl"
                 width={128}
                 height={128}
-                fetchPriority="high"
+                fetchpriority="high"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-pink-700 rounded-full blur-xl opacity-30 animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-pink-700 rounded-full blur-xl halo-breathe"></div>
             </div>
           </div>
         </div>
@@ -310,7 +314,7 @@ export const ModernLandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 deal-in">
             {DEMO_IMAGES.map((img, i) => (
               <img
                 key={i}
@@ -329,8 +333,8 @@ export const ModernLandingPage = () => {
       <section id="about" className="relative z-10 px-6 py-20">
         {/* Pink marble swooshes for About section */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -right-32 w-96 h-96 bg-pink-400/12 rounded-[60%_40%_50%_50%] blur-3xl animate-pulse delay-200"></div>
-          <div className="absolute bottom-1/4 -left-32 w-80 h-80 bg-pink-300/10 rounded-[40%_60%_50%_50%] blur-3xl animate-pulse delay-500"></div>
+          <div className="absolute top-1/4 -right-32 w-96 h-96 bg-pink-400/12 rounded-[60%_40%_50%_50%] blur-3xl marble-drift drift-b"></div>
+          <div className="absolute bottom-1/4 -left-32 w-80 h-80 bg-pink-300/10 rounded-[40%_60%_50%_50%] blur-3xl marble-drift drift-c"></div>
         </div>
 
         <div className="max-w-7xl mx-auto relative">
