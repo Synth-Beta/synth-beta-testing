@@ -1,7 +1,7 @@
 # Graph Report - synth-beta-testing-1  (2026-09-21)
 
 ## Corpus Check
-- 1554 files · ~2,232,156 words
+- 1554 files · ~2,232,270 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `32df1170`
+- Built from commit: `c4b1df4c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2143,7 +2143,7 @@ Cohesion: 0.10
 Nodes (28): CalendarPost, captionFor(), igEnv(), markFailed(), markPublished(), markPublishing(), publishInstagram(), publishOne() (+20 more)
 
 ## Knowledge Gaps
-- **3136 isolated node(s):** `DEMO_IMAGES`, `NewsItem`, `mobileRoot`, `nodeModules`, `knownFiles` (+3131 more)
+- **3136 isolated node(s):** `DEMO_IMAGES`, `db`, `User`, `DaySignupUser`, `ChartDataPoint` (+3131 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **196 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -2156,7 +2156,7 @@ _Questions this graph is uniquely positioned to answer:_
   _High betweenness centrality (0.133) - this node is a cross-community bridge._
 - **Why does `useToast()` connect `Mobile Chat List & Discover Calendar` to `Web Chat View & Followers`, `Artist`, `Src Services: Review Service`, `generate-design-previews.ts`, `ArtistProfileIntegration.tsx`, `Src Services: Browse All Events Section`, `Scripts Sync Jambase Incremental 3Nf: Dirname`, `Mobile Src: [Id]`, `Backend Setlist Routes: Sanitize Input`, `Src Hooks: Artist Detail Modal`, `Src Services: Email Preferences Service`, `Mobile Readme: Migration 20260624140000 Disable Push Queue T`, `Src Services: Preferences V4 Feed Section`?**
   _High betweenness centrality (0.077) - this node is a cross-community bridge._
-- **What connects `DEMO_IMAGES`, `NewsItem`, `mobileRoot` to the rest of the system?**
+- **What connects `DEMO_IMAGES`, `db`, `User` to the rest of the system?**
   _3141 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Artist` be split into smaller, more focused modules?**
   _Cohesion score 0.04381846635367762 - nodes in this community are weakly interconnected._

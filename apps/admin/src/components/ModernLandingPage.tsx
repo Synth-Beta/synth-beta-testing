@@ -253,13 +253,9 @@ export const ModernLandingPage = () => {
         <div className="max-w-7xl mx-auto text-center">
           <div className="mb-8">
             <h1 className="text-4xl sm:text-6xl md:text-8xl font-bold mb-6 leading-tight font-display count-in beat-1">
-              <span className="bg-gradient-to-r from-pink-500 via-pink-600 to-pink-700 bg-clip-text text-transparent">
-                Discover, Connect,
-              </span>
+              <span className="text-gray-900">Discover, Connect,</span>
               <br />
-              <span className="text-gray-900">
-                Share
-              </span>
+              <span className="text-gray-900">Share</span>
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto leading-relaxed px-4 count-in beat-3">
               Going to shows just got easier. Find concerts, connect with peers, and share your live music experiences all in one place.
@@ -277,8 +273,8 @@ export const ModernLandingPage = () => {
             </Button>
             <Button
               onClick={openAppStore}
-              variant="outline"
-              className="border-2 border-pink-400 text-pink-700 hover:bg-pink-50 px-8 py-4 text-lg font-semibold rounded-full w-full sm:w-auto"
+              variant="ghost"
+              className="text-pink-700 hover:bg-pink-50 hover:text-pink-800 px-6 py-4 text-lg font-medium rounded-full w-full sm:w-auto"
             >
               Download on the App Store
               <ArrowRight className="ml-2 h-5 w-5" />
@@ -286,8 +282,8 @@ export const ModernLandingPage = () => {
           </div>
 
           {/* Hero Visual */}
-          <div className="relative">
-            <div className="w-32 h-32 mx-auto mb-8 relative count-in beat-7">
+          <div className="relative count-in beat-7">
+            <div className="w-32 h-32 mx-auto mb-8 relative">
               <img
                 src="/Logos/Main logo black background.png"
                 alt="Synth Logo"
@@ -349,7 +345,7 @@ export const ModernLandingPage = () => {
 
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
-              <div className="glass-card p-8 hover:shadow-2xl hover:shadow-pink-500/20 transition-all duration-300 border-pink-200/30">
+              <div className="border-l-2 border-pink-300/70 pl-8 py-2">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4 font-display">Our Mission</h3>
                 <p className="text-gray-700 leading-relaxed">
                   We believe that music is better when shared. Synth was born from our own experiences
@@ -358,7 +354,7 @@ export const ModernLandingPage = () => {
                 </p>
               </div>
 
-              <div className="glass-card p-8 hover:shadow-2xl hover:shadow-pink-500/20 transition-all duration-300 border-pink-200/30">
+              <div className="border-l-2 border-pink-300/70 pl-8 py-2">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4 font-display">The Vision</h3>
                 <p className="text-gray-700 leading-relaxed">
                   A world where every music lover can find their people and every show sparks lasting connections powered by community.

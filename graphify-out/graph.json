@@ -119,14 +119,154 @@
       "norm_label": "modernlandingpage()"
     },
     {
+      "label": "Admin.tsx",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin",
+      "community": 230,
+      "norm_label": "admin.tsx"
+    },
+    {
+      "label": "db",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_db",
+      "community": 230,
+      "norm_label": "db"
+    },
+    {
+      "label": "User",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L92",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_user",
+      "community": 230,
+      "norm_label": "user"
+    },
+    {
+      "label": "DaySignupUser",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L105",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_daysignupuser",
+      "community": 230,
+      "norm_label": "daysignupuser"
+    },
+    {
+      "label": "ChartDataPoint",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L117",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_chartdatapoint",
+      "community": 230,
+      "norm_label": "chartdatapoint"
+    },
+    {
+      "label": "NewsItem",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L125",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_newsitem",
+      "community": 230,
+      "norm_label": "newsitem"
+    },
+    {
+      "label": "ModerationFlag",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L140",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_moderationflag",
+      "community": 230,
+      "norm_label": "moderationflag"
+    },
+    {
+      "label": "isFieldMissing()",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L158",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_isfieldmissing",
+      "community": 230,
+      "norm_label": "isfieldmissing()"
+    },
+    {
+      "label": "formatValue()",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L167",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_formatvalue",
+      "community": 156,
+      "norm_label": "formatvalue()"
+    },
+    {
+      "label": "normalizeAcquisitionSource()",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L176",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_normalizeacquisitionsource",
+      "community": 230,
+      "norm_label": "normalizeacquisitionsource()"
+    },
+    {
+      "label": "ACQUISITION_SOURCE_USER_FILTER_OPTIONS",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L188",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_acquisition_source_user_filter_options",
+      "community": 230,
+      "norm_label": "acquisition_source_user_filter_options"
+    },
+    {
+      "label": "SignupNamesTooltip()",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L194",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_signupnamestooltip",
+      "community": 230,
+      "norm_label": "signupnamestooltip()"
+    },
+    {
+      "label": "getMissingFields()",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L226",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_getmissingfields",
+      "community": 230,
+      "norm_label": "getmissingfields()"
+    },
+    {
+      "label": "Admin()",
+      "file_type": "code",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L285",
+      "_origin": "ast",
+      "id": "apps_admin_src_pages_admin_admin",
+      "community": 230,
+      "norm_label": "admin()"
+    },
+    {
       "label": "Media.tsx",
       "file_type": "code",
       "source_file": "apps/admin/src/pages/Media.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_media",
       "community": 263,
-      "norm_label": "media.tsx"
+      "norm_label": "media.tsx",
+      "id": "apps_admin_src_pages_media"
     },
     {
       "label": "NewsItem",
@@ -134,9 +274,9 @@
       "source_file": "apps/admin/src/pages/Media.tsx",
       "source_location": "L15",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_media_newsitem",
       "community": 263,
-      "norm_label": "newsitem"
+      "norm_label": "newsitem",
+      "id": "apps_admin_src_pages_media_newsitem"
     },
     {
       "label": "Media()",
@@ -144,9 +284,9 @@
       "source_file": "apps/admin/src/pages/Media.tsx",
       "source_location": "L30",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_media_media",
       "community": 263,
-      "norm_label": "media()"
+      "norm_label": "media()",
+      "id": "apps_admin_src_pages_media_media"
     },
     {
       "label": "NewsletterArchive.tsx",
@@ -154,9 +294,9 @@
       "source_file": "apps/admin/src/pages/NewsletterArchive.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_newsletterarchive",
       "community": 600,
-      "norm_label": "newsletterarchive.tsx"
+      "norm_label": "newsletterarchive.tsx",
+      "id": "apps_admin_src_pages_newsletterarchive"
     },
     {
       "label": "formatPublishDate()",
@@ -164,9 +304,9 @@
       "source_file": "apps/admin/src/pages/NewsletterArchive.tsx",
       "source_location": "L10",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_newsletterarchive_formatpublishdate",
       "community": 600,
-      "norm_label": "formatpublishdate()"
+      "norm_label": "formatpublishdate()",
+      "id": "apps_admin_src_pages_newsletterarchive_formatpublishdate"
     },
     {
       "label": "NewsletterArchive()",
@@ -174,9 +314,9 @@
       "source_file": "apps/admin/src/pages/NewsletterArchive.tsx",
       "source_location": "L17",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_newsletterarchive_newsletterarchive",
       "community": 600,
-      "norm_label": "newsletterarchive()"
+      "norm_label": "newsletterarchive()",
+      "id": "apps_admin_src_pages_newsletterarchive_newsletterarchive"
     },
     {
       "label": "NewsletterDetail.tsx",
@@ -184,9 +324,9 @@
       "source_file": "apps/admin/src/pages/NewsletterDetail.tsx",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_newsletterdetail",
       "community": 263,
-      "norm_label": "newsletterdetail.tsx"
+      "norm_label": "newsletterdetail.tsx",
+      "id": "apps_admin_src_pages_newsletterdetail"
     },
     {
       "label": "formatPublishDate()",
@@ -194,9 +334,9 @@
       "source_file": "apps/admin/src/pages/NewsletterDetail.tsx",
       "source_location": "L10",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_newsletterdetail_formatpublishdate",
       "community": 263,
-      "norm_label": "formatpublishdate()"
+      "norm_label": "formatpublishdate()",
+      "id": "apps_admin_src_pages_newsletterdetail_formatpublishdate"
     },
     {
       "label": "NewsletterDetail()",
@@ -204,9 +344,9 @@
       "source_file": "apps/admin/src/pages/NewsletterDetail.tsx",
       "source_location": "L17",
       "_origin": "ast",
-      "id": "apps_admin_src_pages_newsletterdetail_newsletterdetail",
       "community": 263,
-      "norm_label": "newsletterdetail()"
+      "norm_label": "newsletterdetail()",
+      "id": "apps_admin_src_pages_newsletterdetail_newsletterdetail"
     },
     {
       "label": "patch-expo-ios-swift.mjs",
@@ -4807,146 +4947,6 @@
       "community": 410,
       "norm_label": "profilesetupstep",
       "id": "src_components_onboarding_profilesetupstep_profilesetupstep"
-    },
-    {
-      "label": "Admin.tsx",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L1",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "admin.tsx",
-      "id": "apps_admin_src_pages_admin"
-    },
-    {
-      "label": "db",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L9",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "db",
-      "id": "apps_admin_src_pages_admin_db"
-    },
-    {
-      "label": "User",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L87",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "user",
-      "id": "apps_admin_src_pages_admin_user"
-    },
-    {
-      "label": "DaySignupUser",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L100",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "daysignupuser",
-      "id": "apps_admin_src_pages_admin_daysignupuser"
-    },
-    {
-      "label": "ChartDataPoint",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L112",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "chartdatapoint",
-      "id": "apps_admin_src_pages_admin_chartdatapoint"
-    },
-    {
-      "label": "NewsItem",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L120",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "newsitem",
-      "id": "apps_admin_src_pages_admin_newsitem"
-    },
-    {
-      "label": "ModerationFlag",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L135",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "moderationflag",
-      "id": "apps_admin_src_pages_admin_moderationflag"
-    },
-    {
-      "label": "isFieldMissing()",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L153",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "isfieldmissing()",
-      "id": "apps_admin_src_pages_admin_isfieldmissing"
-    },
-    {
-      "label": "formatValue()",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L162",
-      "_origin": "ast",
-      "community": 156,
-      "norm_label": "formatvalue()",
-      "id": "apps_admin_src_pages_admin_formatvalue"
-    },
-    {
-      "label": "normalizeAcquisitionSource()",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L171",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "normalizeacquisitionsource()",
-      "id": "apps_admin_src_pages_admin_normalizeacquisitionsource"
-    },
-    {
-      "label": "ACQUISITION_SOURCE_USER_FILTER_OPTIONS",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L183",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "acquisition_source_user_filter_options",
-      "id": "apps_admin_src_pages_admin_acquisition_source_user_filter_options"
-    },
-    {
-      "label": "SignupNamesTooltip()",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L189",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "signupnamestooltip()",
-      "id": "apps_admin_src_pages_admin_signupnamestooltip"
-    },
-    {
-      "label": "getMissingFields()",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L221",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "getmissingfields()",
-      "id": "apps_admin_src_pages_admin_getmissingfields"
-    },
-    {
-      "label": "Admin()",
-      "file_type": "code",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L280",
-      "_origin": "ast",
-      "community": 230,
-      "norm_label": "admin()",
-      "id": "apps_admin_src_pages_admin_admin"
     },
     {
       "label": "stats.tsx",
@@ -93315,6 +93315,169 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/admin/src/App.tsx",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "apps_admin_src_app",
+      "target": "apps_admin_src_pages_admin"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L188",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_acquisition_source_user_filter_options",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L285",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_admin",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L117",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_chartdatapoint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L105",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_daysignupuser",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L167",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_formatvalue",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L226",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_getmissingfields",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L158",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_isfieldmissing",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L140",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_moderationflag",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L125",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_newsitem",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L176",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_normalizeacquisitionsource",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L194",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_signupnamestooltip",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/pages/Admin.tsx",
+      "source_location": "L92",
+      "weight": 1.0,
+      "source": "apps_admin_src_pages_admin",
+      "target": "apps_admin_src_pages_admin_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "src/components/analytics/enhanced/TrendLineChart.tsx",
+      "source_location": "L169",
+      "weight": 1.0,
+      "source": "src_components_analytics_enhanced_trendlinechart_trendlinechart",
+      "target": "apps_admin_src_pages_admin_formatvalue"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "src/components/analytics/shared/MetricCard.tsx",
+      "source_location": "L68",
+      "weight": 1.0,
+      "source": "src_components_analytics_shared_metriccard_metriccard",
+      "target": "apps_admin_src_pages_admin_formatvalue"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/admin/src/App.tsx",
       "source_location": "L9",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -93327,9 +93490,9 @@
       "source_file": "apps/admin/src/pages/Media.tsx",
       "source_location": "L30",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "apps_admin_src_pages_media",
-      "target": "apps_admin_src_pages_media_media",
-      "confidence_score": 1.0
+      "target": "apps_admin_src_pages_media_media"
     },
     {
       "relation": "contains",
@@ -93337,9 +93500,9 @@
       "source_file": "apps/admin/src/pages/Media.tsx",
       "source_location": "L15",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "apps_admin_src_pages_media",
-      "target": "apps_admin_src_pages_media_newsitem",
-      "confidence_score": 1.0
+      "target": "apps_admin_src_pages_media_newsitem"
     },
     {
       "relation": "imports_from",
@@ -93358,9 +93521,9 @@
       "source_file": "apps/admin/src/pages/NewsletterArchive.tsx",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "apps_admin_src_pages_newsletterarchive",
-      "target": "apps_admin_src_pages_newsletterarchive_formatpublishdate",
-      "confidence_score": 1.0
+      "target": "apps_admin_src_pages_newsletterarchive_formatpublishdate"
     },
     {
       "relation": "contains",
@@ -93368,9 +93531,9 @@
       "source_file": "apps/admin/src/pages/NewsletterArchive.tsx",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "apps_admin_src_pages_newsletterarchive",
-      "target": "apps_admin_src_pages_newsletterarchive_newsletterarchive",
-      "confidence_score": 1.0
+      "target": "apps_admin_src_pages_newsletterarchive_newsletterarchive"
     },
     {
       "relation": "calls",
@@ -93379,9 +93542,9 @@
       "source_file": "apps/admin/src/pages/NewsletterArchive.tsx",
       "source_location": "L122",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "apps_admin_src_pages_newsletterarchive_newsletterarchive",
-      "target": "apps_admin_src_pages_newsletterarchive_formatpublishdate",
-      "confidence_score": 1.0
+      "target": "apps_admin_src_pages_newsletterarchive_formatpublishdate"
     },
     {
       "relation": "imports_from",
@@ -93400,9 +93563,9 @@
       "source_file": "apps/admin/src/pages/NewsletterDetail.tsx",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "apps_admin_src_pages_newsletterdetail",
-      "target": "apps_admin_src_pages_newsletterdetail_formatpublishdate",
-      "confidence_score": 1.0
+      "target": "apps_admin_src_pages_newsletterdetail_formatpublishdate"
     },
     {
       "relation": "contains",
@@ -93410,9 +93573,9 @@
       "source_file": "apps/admin/src/pages/NewsletterDetail.tsx",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "apps_admin_src_pages_newsletterdetail",
-      "target": "apps_admin_src_pages_newsletterdetail_newsletterdetail",
-      "confidence_score": 1.0
+      "target": "apps_admin_src_pages_newsletterdetail_newsletterdetail"
     },
     {
       "relation": "calls",
@@ -93421,9 +93584,9 @@
       "source_file": "apps/admin/src/pages/NewsletterDetail.tsx",
       "source_location": "L88",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "apps_admin_src_pages_newsletterdetail_newsletterdetail",
-      "target": "apps_admin_src_pages_newsletterdetail_formatpublishdate",
-      "confidence_score": 1.0
+      "target": "apps_admin_src_pages_newsletterdetail_formatpublishdate"
     },
     {
       "relation": "contains",
@@ -101344,169 +101507,6 @@
       "confidence_score": 1.0,
       "source": "src_components_onboarding_profilesetupstep",
       "target": "src_components_onboarding_profilesetupstep_profilesetupstepref"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/App.tsx",
-      "source_location": "L8",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_app",
-      "target": "apps_admin_src_pages_admin"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L183",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_acquisition_source_user_filter_options"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L280",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_admin"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L112",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_chartdatapoint"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L100",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_daysignupuser"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L9",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_db"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L162",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_formatvalue"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L221",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_getmissingfields"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L153",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_isfieldmissing"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L135",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_moderationflag"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L120",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_newsitem"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L171",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_normalizeacquisitionsource"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L189",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_signupnamestooltip"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "apps/admin/src/pages/Admin.tsx",
-      "source_location": "L87",
-      "weight": 1.0,
-      "confidence_score": 1.0,
-      "source": "apps_admin_src_pages_admin",
-      "target": "apps_admin_src_pages_admin_user"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "src/components/analytics/enhanced/TrendLineChart.tsx",
-      "source_location": "L169",
-      "weight": 1.0,
-      "source": "src_components_analytics_enhanced_trendlinechart_trendlinechart",
-      "target": "apps_admin_src_pages_admin_formatvalue"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "src/components/analytics/shared/MetricCard.tsx",
-      "source_location": "L68",
-      "weight": 1.0,
-      "source": "src_components_analytics_shared_metriccard_metriccard",
-      "target": "apps_admin_src_pages_admin_formatvalue"
     },
     {
       "relation": "contains",
@@ -292488,5 +292488,5 @@
       "source_file": "index.html"
     }
   ],
-  "built_at_commit": "32df117099e459899c9f356aa5a0825a7aecc31d"
+  "built_at_commit": "c4b1df4ccba7f3fe452ab21f898fb1697ef1568f"
 }
