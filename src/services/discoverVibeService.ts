@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { JamBaseEvent } from '@/types/eventTypes';
+import { withEventNamesList } from '@/lib/eventNames';
 
 export interface VibeResult {
   events: JamBaseEvent[];
@@ -127,8 +128,8 @@ export class DiscoverVibeService {
       // Get events by artists the user has seen live
       let query = supabase
         .from('events')
-        .select('*')
-        .in('artist_name', Array.from(artistNames));
+        .select('*, artists!inner(name), venues(name)')
+        .in('artists.name', Array.from(artistNames));
       
       query = DiscoverVibeService.applyFilters(query, filters);
       
@@ -139,7 +140,7 @@ export class DiscoverVibeService {
       console.log(`🎵 [VIBE] getSimilarArtists - Found ${events?.length || 0} events, returning results`);
 
       return {
-        events: (events || []) as JamBaseEvent[],
+        events: withEventNamesList(events) as unknown as JamBaseEvent[],
         title: 'Similar to Artists You Love',
         description: `Events by artists you've seen live`,
         totalCount: events?.length || 0,
@@ -433,11 +434,11 @@ export class DiscoverVibeService {
       const smallVenueIds = smallVenues.map(v => v.id);
 
       // Now get events at these small venues
-      // venue_jambase_id is the FK that references venues.id
+      // venue_id is the FK that references venues.id
       let query = supabase
         .from('events')
         .select('*')
-        .in('venue_jambase_id', smallVenueIds);
+        .in('venue_id', smallVenueIds);
       
       query = DiscoverVibeService.applyFilters(query, filters);
       
@@ -571,8 +572,8 @@ export class DiscoverVibeService {
 
       let query = supabase
         .from('events')
-        .select('*')
-        .in('artist_name', upAndComingArtists.slice(0, 50));
+        .select('*, artists!inner(name), venues(name)')
+        .in('artists.name', upAndComingArtists.slice(0, 50));
       
       query = DiscoverVibeService.applyFilters(query, filters);
       
@@ -582,7 +583,7 @@ export class DiscoverVibeService {
 
       console.log(`🎵 [VIBE] getUpAndComing - Found ${events?.length || 0} events for up-and-coming artists`);
       return {
-        events: (events || []) as JamBaseEvent[],
+        events: withEventNamesList(events) as unknown as JamBaseEvent[],
         title: 'Up-and-Coming Artists',
         description: 'Artists with fewer than 10 reviews - discover them early',
         totalCount: events?.length || 0,
@@ -802,7 +803,7 @@ export class DiscoverVibeService {
       
       const { data: eventsData } = await supabase
         .from('events')
-        .select('id, venue_jambase_id, venue_name')
+        .select('id, venue_id, venues(name)')
         .in('id', eventIds);
 
       console.log(`🎵 [VIBE] getBestVenues - Fetched ${eventsData?.length || 0} event details`);
@@ -814,8 +815,8 @@ export class DiscoverVibeService {
         const event = eventsMap.get(r.event_id);
         if (!event) return;
         
-        const venueId = event.venue_jambase_id;
-        const venueName = event.venue_name;
+        const venueId = event.venue_id;
+        const venueName = (event as any).venues?.name;
         const rating = r.venue_rating_new || r.venue_rating;
         
         if (venueId && venueName && rating) {
@@ -843,7 +844,7 @@ export class DiscoverVibeService {
       let query = supabase
         .from('events')
         .select('*')
-        .in('venue_jambase_id', topVenueIds);
+        .in('venue_id', topVenueIds);
       
       query = DiscoverVibeService.applyFilters(query, filters);
       

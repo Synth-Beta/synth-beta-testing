@@ -656,7 +656,6 @@ export class ReviewService {
         .eq('user_id', userId)
         .eq('is_draft', false) // Only show published reviews, not drafts
         .order('rating', { ascending: false })
-        .order('rank_order', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       console.log('🔍 ReviewService: Raw query result:', { data, error });
@@ -670,7 +669,6 @@ export class ReviewService {
             user_id: item.user_id,
             event_id: item.event_id,
             rating: item.rating,
-                rank_order: (item as any).rank_order,
             performance_rating: item.performance_rating,
             venue_rating_new: item.venue_rating_new,
             overall_experience_rating: item.overall_experience_rating,
@@ -703,58 +701,6 @@ export class ReviewService {
     } catch (error) {
       console.error('❌ ReviewService: Error getting user review history:', error);
       throw new Error(`Failed to get user review history: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Persist ordered ranks for a single rating group
-   */
-  static async setRankOrderForRatingGroup(
-    userId: string,
-    rating: number,
-    orderedReviewIds: string[]
-  ): Promise<void> {
-    console.log('💾 Saving rank order:', { userId, rating, count: orderedReviewIds.length });
-    
-    // Defensive: ensure dense 1..N ranks
-    const updates = orderedReviewIds.map((id, idx) => ({ id, rank_order: idx + 1 }));
-    
-    try {
-      for (const u of updates) {
-        console.log(`  Updating review ${u.id.slice(0, 8)}... → rank_order = ${u.rank_order}`);
-
-        // Use 'as any' to bypass type error since 'rank_order' exists in DB but not in generated types
-        const { error } = await (supabase as any)
-          .from('user_reviews')
-          .update({ rank_order: u.rank_order })
-          .eq('id', u.id)
-          .eq('user_id', userId);
-
-        if (error) {
-          console.error(`❌ Error updating review ${u.id}:`, error);
-          throw error;
-        }
-      }
-      
-      console.log('✅ All rankings saved successfully');
-    } catch (e) {
-      console.error('❌ Error updating rank order group:', e);
-      throw new Error(`Failed to update ranking: ${e instanceof Error ? e.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Clear rank when rating changes (so item drops to bottom of its new group)
-   */
-  static async clearRankOnRatingChange(reviewId: string): Promise<void> {
-    try {
-      const { error } = await (supabase as any)
-        .from('user_reviews')
-        .update({ rank_order: null })
-        .eq('id', reviewId);
-      if (error) throw error;
-    } catch (e) {
-      console.warn('Failed to clear rank_order on rating change', e);
     }
   }
 

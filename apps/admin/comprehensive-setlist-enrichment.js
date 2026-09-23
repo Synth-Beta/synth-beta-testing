@@ -1,10 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Configuration
-const SETLIST_FM_API_KEY = 'QxGjjwxk0MUyxyCJa2FADnFRwEqFUy__7wpt';
+const SETLIST_FM_API_KEY = process.env.SETLIST_FM_API_KEY || '';
 const SETLIST_FM_BASE_URL = 'https://api.setlist.fm/rest/1.0';
 const SUPABASE_URL = 'https://glpiolbrafqikqhnseto.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+
+if (!SETLIST_FM_API_KEY) {
+  console.error('Missing SETLIST_FM_API_KEY. Set it in .env.local before running this script.');
+  process.exit(1);
+}
+
+if (!SUPABASE_KEY) {
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY.');
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 

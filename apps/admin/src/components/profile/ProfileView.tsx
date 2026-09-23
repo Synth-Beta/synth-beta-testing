@@ -96,7 +96,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
   const [friends, setFriends] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('my-events');
-  const [rankingMode, setRankingMode] = useState<boolean | 'unreviewed'>(false);
+  const [eventsViewMode, setEventsViewMode] = useState<false | 'unreviewed'>(false);
   const [attendedEvents, setAttendedEvents] = useState<any[]>([]);
   const [attendedEventsLoading, setAttendedEventsLoading] = useState(false);
   const [draftReviews, setDraftReviews] = useState<any[]>([]);
@@ -460,7 +460,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
       
       console.log('🔍 ProfileView: Raw review data:', result);
       
-      // Transform to match the expected interface for display (include rank_order and category ratings for display)
+      // Transform to match the expected interface for display (include category ratings for display)
       // Filter reviews based on privacy: show all reviews for own profile, only public reviews for others
       const transformedReviews = result.reviews
         .filter((item: any) => isViewingOwnProfile || item.review.is_public)
@@ -469,7 +469,6 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
           user_id: item.review.user_id,
           event_id: item.review.event_id,
           rating: item.review.rating,
-          rank_order: (item.review as any).rank_order,
           performance_rating: (item.review as any).performance_rating,
           venue_rating: (item.review as any).venue_rating_new ?? (item.review as any).venue_rating,
           overall_experience_rating: (item.review as any).overall_experience_rating,
@@ -1186,9 +1185,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                   <span className="text-sm text-gray-600">View mode:</span>
                   <div className="bg-gray-100 rounded-lg p-1 flex">
                     <button
-                      onClick={() => setRankingMode(false)}
+                      onClick={() => setEventsViewMode(false)}
                       className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        !rankingMode
+                        !eventsViewMode
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
@@ -1196,19 +1195,9 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
                       Reviews
                     </button>
                     <button
-                      onClick={() => setRankingMode(true)}
+                      onClick={() => setEventsViewMode('unreviewed')}
                       className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        rankingMode
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      Rankings
-                    </button>
-                    <button
-                      onClick={() => setRankingMode('unreviewed')}
-                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                        rankingMode === 'unreviewed'
+                        eventsViewMode === 'unreviewed'
                           ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-600 hover:text-gray-900'
                       }`}
@@ -1220,7 +1209,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               )}
             </div>
 
-            {rankingMode === false && (
+            {eventsViewMode === false && (
             <PostsGrid 
               posts={[
                   // Transform reviews into posts (exclude attendance-only records)
@@ -1284,83 +1273,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
               />
             )}
 
-            {rankingMode === true && isViewingOwnProfile && (
-              <div className="space-y-6">
-                {[5,4.5,4,3.5,3,2.5,2,1.5,1].map(ratingGroup => {
-                  const group = reviews.filter(r => (r as any).review_text !== 'ATTENDANCE_ONLY' && getDisplayRating(r) === ratingGroup); // Exclude attendance-only records
-                  if (group.length === 0) return null as any;
-                  return (
-                    <div key={ratingGroup}>
-                      <div className="text-xs font-semibold text-muted-foreground mb-2">{ratingGroup}★</div>
-                      <ul className="glass-card inner-glow divide-y rounded-lg border p-2 floating-shadow">
-                        {group
-                          .sort((a, b) => {
-                            const ao = (a as any).rank_order ?? 9999;
-                            const bo = (b as any).rank_order ?? 9999;
-                            if (ao !== bo) return ao - bo;
-                            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                          })
-                          .map((item, idx) => (
-                          <li
-                            key={item.id}
-                            className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50"
-                            onClick={() => { setSelectedReview(item as any); setViewReviewOpen(true); }}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="h-6 w-6 rounded-full bg-gray-100 text-xs flex items-center justify-center border">{idx + 1}</div>
-                              <div>
-                                <div className="text-sm font-medium">{item.event.event_name}</div>
-                                <div className="text-xs text-muted-foreground">{new Date(item.event.event_date).toLocaleDateString()}</div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {idx > 0 && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
-                                  const i = arr.findIndex(x => x.id === item.id);
-                                  if (i > 0) {
-                                    const [moved] = arr.splice(i,1);
-                                    arr.splice(i-1,0,moved);
-                                    (async () => {
-                                      await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
-                                      fetchReviews();
-                                    })();
-                                  }
-                                }}
-                              >↑</Button>)}
-                              {idx < group.length - 1 && (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const arr = group.slice().sort((a,b)=>((a as any).rank_order||9999)-((b as any).rank_order||9999));
-                                  const i = arr.findIndex(x => x.id === item.id);
-                                  if (i !== -1 && i < arr.length - 1) {
-                                    const [moved] = arr.splice(i,1);
-                                    arr.splice(i+1,0,moved);
-                                    (async () => {
-                                      await ReviewService.setRankOrderForRatingGroup(currentUserId, ratingGroup, arr.map(x => x.id));
-                                      fetchReviews();
-                                    })();
-                                  }
-                                }}
-                              >↓</Button>)}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            
-            {rankingMode === 'unreviewed' && isViewingOwnProfile && (
+            {eventsViewMode === 'unreviewed' && isViewingOwnProfile && (
               <div className="space-y-4">
                 {(attendedEventsLoading || draftReviewsLoading) ? (
                   <div className="text-center py-8">
@@ -1614,7 +1527,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
             )}
             
             {/* Floating Add Button - only show for own profile in reviews mode */}
-            {rankingMode === false && isViewingOwnProfile && (
+            {eventsViewMode === false && isViewingOwnProfile && (
             <div className="fixed bottom-20 right-4 z-10">
               <Button 
                 onClick={handleOpenReviewModal} 

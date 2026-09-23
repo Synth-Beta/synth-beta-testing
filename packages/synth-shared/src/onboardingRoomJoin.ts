@@ -103,14 +103,19 @@ async function loadFeaturedCandidates(
   const { data, error } = await supabase
     .from('events')
     .select(
-      'id, title, artist_name, venue_name, venue_city, event_date, is_promoted, promotion_tier'
+      'id, title, venue_city, event_date, is_promoted, promotion_tier, artists(name), venues(name)'
     )
     .gte('event_date', now)
     .order('event_date', { ascending: true })
     .limit(80);
 
   if (error || !data) return [];
-  return data as FeaturedShowCandidate[];
+  // events has no artist_name/venue_name column; flatten the embedded relations.
+  return data.map((r: any) => ({
+    ...r,
+    artist_name: r?.artists?.name ?? null,
+    venue_name: r?.venues?.name ?? null,
+  })) as unknown as FeaturedShowCandidate[];
 }
 
 async function markEventInterested(

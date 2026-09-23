@@ -432,13 +432,13 @@ export class ArtistFollowService {
             // Method 1: Try to find artist name from events table
             const { data: eventData } = await supabase
               .from('events')
-              .select('artist_name, artist_id')
+              .select('artist_id, artists(name)')
               .eq('artist_id', missingId)
               .limit(1)
               .maybeSingle();
             
-            if (eventData?.artist_name) {
-              foundName = eventData.artist_name;
+            if ((eventData as any)?.artists?.name) {
+              foundName = (eventData as any).artists.name;
             }
             
             // Method 2: If not found, try events_with_artist_venue view

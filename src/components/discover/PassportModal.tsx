@@ -554,25 +554,6 @@ export const PassportModal: React.FC<PassportModalProps> = ({
     return (
       <>
         <div className="w-full">{content}</div>
-        {/* Artist Dialog */}
-        <Dialog open={artistDialog.open} onOpenChange={(open) => setArtistDialog({ open, artist: null, events: undefined, totalEvents: undefined })}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogTitle className="sr-only">Artist Profile</DialogTitle>
-            <DialogDescription className="sr-only">Artist profile for {artistDialog.artist?.name || 'artist'}</DialogDescription>
-            {artistDialog.artist && (
-              <ArtistCard
-                artist={artistDialog.artist}
-                events={artistDialog.events || []}
-                totalEvents={artistDialog.totalEvents || 0}
-                source={artistDialog.events && artistDialog.events.length > 0 ? 'api' : 'database'}
-                userId={userId}
-                onBack={() => setArtistDialog({ open: false, artist: null, events: undefined, totalEvents: undefined })}
-                showAllEvents={true}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
-
       <Suspense fallback={null}>
         {artistDialog.artistId && (
           <ArtistDetailModal

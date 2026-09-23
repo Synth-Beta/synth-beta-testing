@@ -10,6 +10,7 @@ import { JamBaseEventResponse } from '@/types/eventTypes';
 import { formatPrice } from '@/utils/currencyUtils';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { getEventUuid } from '@/utils/entityUuidResolver';
 import { getMapboxToken } from '@/utils/mapboxToken';
 
 // Fix for default markers in React Leaflet

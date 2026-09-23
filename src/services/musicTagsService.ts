@@ -51,10 +51,11 @@ export class MusicTagsService {
       let artists: MusicTag[] = [];
       
       if (artistUuids.length > 0) {
-        const { data: artistData } = await supabase
+        const { data: artistData, error: artistDataError } = await supabase
           .from('artists')
           .select('id, name')
           .in('id', artistUuids);
+        if (artistDataError) console.warn('[musicTagsService] artistData query failed', artistDataError);
         
         if (artistData) {
           artists = artistData.map((artist: any) => ({
@@ -102,11 +103,12 @@ export class MusicTagsService {
   ): Promise<MusicTag | null> {
     try {
       // Get existing preferences
-      const { data: existingPrefs } = await supabase
+      const { data: existingPrefs, error: existingPrefsError } = await supabase
         .from('user_preferences')
         .select('preferred_genres, preferred_artists, id')
         .eq('user_id', userId)
         .maybeSingle();
+      if (existingPrefsError) console.warn('[musicTagsService] existingPrefs query failed', existingPrefsError);
 
       const genres = existingPrefs?.preferred_genres || [];
       const existingArtistUuids = existingPrefs?.preferred_artists || [];
@@ -247,11 +249,12 @@ export class MusicTagsService {
   ): Promise<boolean> {
     try {
       // Get existing preferences
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from('user_preferences')
         .select('preferred_genres, preferred_artists')
         .eq('user_id', userId)
         .maybeSingle();
+      if (existingError) console.warn('[musicTagsService] existing query failed', existingError);
 
       if (!existing) return true;
 
@@ -263,11 +266,12 @@ export class MusicTagsService {
         genres = genres.filter((g: string) => g !== tagValue);
       } else {
         // For artists, find UUID for the artist name, then remove it
-        const { data: artist } = await supabase
+        const { data: artist, error: artistError } = await supabase
           .from('artists')
           .select('id')
           .eq('name', tagValue)
           .maybeSingle();
+        if (artistError) console.warn('[musicTagsService] artist query failed', artistError);
         
         if (artist) {
           artistUuids = artistUuids.filter((uuid: string) => uuid !== artist.id);
@@ -442,11 +446,12 @@ export class MusicTagsService {
   ): Promise<boolean> {
     try {
       // Get existing preferences
-      const { data: existingPrefs } = await supabase
+      const { data: existingPrefs, error: existingPrefsError2 } = await supabase
         .from('user_preferences')
         .select('preferred_genres, preferred_artists, music_preference_signals, id')
         .eq('user_id', userId)
         .maybeSingle();
+      if (existingPrefsError2) console.warn('[musicTagsService] existingPrefs query failed', existingPrefsError2);
 
       let genres = existingPrefs?.preferred_genres || [];
       let existingArtistUuids = existingPrefs?.preferred_artists || [];
@@ -577,11 +582,12 @@ export class MusicTagsService {
       const tagValue = parts.slice(2).join('-');
 
       // Get existing signals
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError2 } = await supabase
         .from('user_preferences')
         .select('music_preference_signals')
         .eq('user_id', userId)
         .single();
+      if (existingError2) console.warn('[musicTagsService] existing query failed', existingError2);
 
       const signals = existing?.music_preference_signals || {};
       const key = `${tagType}_${tagValue}`;
@@ -629,10 +635,11 @@ export class MusicTagsService {
       // Convert artist UUIDs to names
       let artistNames: string[] = [];
       if (artistUuids.length > 0) {
-        const { data: artistData } = await supabase
+        const { data: artistData, error: artistDataError2 } = await supabase
           .from('artists')
           .select('name')
           .in('id', artistUuids);
+        if (artistDataError2) console.warn('[musicTagsService] artistData query failed', artistDataError2);
         
         if (artistData) {
           artistNames = artistData.map(a => a.name);

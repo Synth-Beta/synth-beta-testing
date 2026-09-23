@@ -8,7 +8,6 @@ export interface MyReviewListItem {
     was_there?: boolean | null;
     created_at: string;
     event_id: string | null;
-    rank_order: number | null;
     title: string;
     artist_name: string;
     venue_name: string;
@@ -140,7 +139,6 @@ function mapFilteredReviewToListItem(
         was_there: (item.was_there as boolean | null | undefined) ?? null,
         created_at: String(item.created_at ?? ''),
         event_id: (eventId as string | null) ?? null,
-        rank_order: (item.rank_order as number | null | undefined) ?? null,
         title,
         artist_name: artistNameStr,
         venue_name: venueNameStr,
@@ -167,9 +165,9 @@ export class MyEventsService {
         // the artist side alone on 42703 — falling all the way back to neither
         // would silently drop user-created artist names from every card.
         const FULL_SELECT =
-            'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id, user_created_artist_id, user_created_venue_id';
+            'id, rating, review_text, was_there, created_at, event_id, artist_id, venue_id, user_created_artist_id, user_created_venue_id';
         const BASE_SELECT =
-            'id, rating, review_text, was_there, created_at, event_id, rank_order, artist_id, venue_id, user_created_artist_id';
+            'id, rating, review_text, was_there, created_at, event_id, artist_id, venue_id, user_created_artist_id';
 
         let reviewsData: any[] | null = null;
         let reviewsError: any = null;

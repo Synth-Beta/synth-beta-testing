@@ -109,15 +109,17 @@ function randomSampleTime(horizonDays = SAMPLE_HORIZON_DAYS): Date {
 }
 
 async function loadSenderPool(): Promise<string[]> {
-  const { data: sendersAi } = await supabase
+  const { data: sendersAi, error: sendersAiError } = await supabase
     .from('users')
     .select('user_id')
     .eq('is_ai_scene_guide', true)
     .limit(200);
+  if (sendersAiError) console.warn('[aiSceneGuidesCron] sendersAi query failed', sendersAiError);
 
   let senders = (sendersAi ?? []).map((u) => u.user_id as string);
   if (!senders.length) {
-    const { data: bots } = await supabase.from('users').select('user_id').eq('is_bot', true).limit(200);
+    const { data: bots, error: botsError } = await supabase.from('users').select('user_id').eq('is_bot', true).limit(200);
+    if (botsError) console.warn('[aiSceneGuidesCron] bots query failed', botsError);
     senders = (bots ?? []).map((u) => u.user_id as string);
   }
   if (!senders.length) {
@@ -131,24 +133,26 @@ type GenreChat = { genreId: string; roomId: string; chatName: string | null };
 async function loadGenreChats(genres: string[]): Promise<GenreChat[]> {
   const out: GenreChat[] = [];
   for (const genreId of genres) {
-    const { data: chat } = await supabase
+    const { data: chat, error: chatError } = await supabase
       .from('chats')
       .select('id, chat_name')
       .eq('entity_type', 'genre')
       .eq('entity_id', genreId)
       .eq('is_group_chat', true)
       .maybeSingle();
+    if (chatError) console.warn('[aiSceneGuidesCron] chat query failed', chatError);
     if (chat) out.push({ genreId, roomId: chat.id, chatName: chat.chat_name });
   }
   return out;
 }
 
 export async function fetchCronSettings(): Promise<CronSettings> {
-  const { data } = await supabase
+  const { data, error: queryError } = await supabase
     .from('ai_scene_guides_settings')
     .select('*')
     .eq('id', 'global')
     .maybeSingle();
+  if (queryError) console.warn('[aiSceneGuidesCron] data query failed', queryError);
 
   return {
     enabled: Boolean(data?.enabled),
@@ -225,18 +229,21 @@ export async function fetchScheduledPosts(limit = 5000): Promise<ScheduledPost[]
   };
 
   for (const ids of chunk(senderIds, 200)) {
-    const { data: users } = await supabase.from('users').select('user_id, name').in('user_id', ids);
+    const { data: users, error: usersError } = await supabase.from('users').select('user_id, name').in('user_id', ids);
+    if (usersError) console.warn('[aiSceneGuidesCron] users query failed', usersError);
     for (const u of users ?? []) userMap.set(u.user_id, u.name);
   }
   for (const ids of chunk(personaIds as string[], 200)) {
-    const { data: personas } = await supabase
+    const { data: personas, error: personasError } = await supabase
       .from('ai_guide_personas')
       .select('id, display_name')
       .in('id', ids);
+    if (personasError) console.warn('[aiSceneGuidesCron] personas query failed', personasError);
     for (const p of personas ?? []) personaMap.set(p.id, p.display_name);
   }
   for (const ids of chunk(roomIds, 200)) {
-    const { data: chats } = await supabase.from('chats').select('id, chat_name').in('id', ids);
+    const { data: chats, error: chatsError } = await supabase.from('chats').select('id, chat_name').in('id', ids);
+    if (chatsError) console.warn('[aiSceneGuidesCron] chats query failed', chatsError);
     for (const c of chats ?? []) chatMap.set(c.id, c.chat_name);
   }
 
@@ -385,13 +392,14 @@ export async function rebuildTodaySchedule(settings: CronSettings): Promise<{ sc
   const detail: string[] = [];
 
   for (const genreId of settings.cron_genres) {
-    const { data: chat } = await supabase
+    const { data: chat, error: chatError2 } = await supabase
       .from('chats')
       .select('id, chat_name')
       .eq('entity_type', 'genre')
       .eq('entity_id', genreId)
       .eq('is_group_chat', true)
       .maybeSingle();
+    if (chatError2) console.warn('[aiSceneGuidesCron] chat query failed', chatError2);
 
     if (!chat) {
       detail.push(`${genreId}: no genre chat`);
@@ -416,12 +424,13 @@ export async function rebuildTodaySchedule(settings: CronSettings): Promise<{ sc
       continue;
     }
 
-    const { data: personas } = await supabase
+    const { data: personas, error: personasError2 } = await supabase
       .from('ai_guide_personas')
       .select('id, display_name, sender_user_id')
       .eq('genre_id', genreId)
       .eq('is_active', true)
       .limit(50);
+    if (personasError2) console.warn('[aiSceneGuidesCron] personas query failed', personasError2);
 
     for (let i = 0; i < remaining; i++) {
       const when = randomTimeToday();
@@ -512,12 +521,13 @@ export async function seedSampleMessages(
     const senderId = senders[p.senderSlot % senders.length]!;
     const key = `${p.genreId}::${p.displayName}`;
 
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('ai_guide_personas')
       .select('id, sender_user_id')
       .eq('genre_id', p.genreId)
       .eq('display_name', p.displayName)
       .maybeSingle();
+    if (existingError) console.warn('[aiSceneGuidesCron] existing query failed', existingError);
 
     if (existing?.id) {
       personaIdRemap.set(p.id, existing.id);
@@ -549,12 +559,13 @@ export async function seedSampleMessages(
       if (pErr) {
         detail.push(`persona ${key}: ${pErr.message}`);
         // Resolve by name if race/collision
-        const { data: again } = await supabase
+        const { data: again, error: againError } = await supabase
           .from('ai_guide_personas')
           .select('id')
           .eq('genre_id', p.genreId)
           .eq('display_name', p.displayName)
           .maybeSingle();
+        if (againError) console.warn('[aiSceneGuidesCron] again query failed', againError);
         if (again?.id) {
           personaIdRemap.set(p.id, again.id);
           senderByPersona.set(again.id, senderId);

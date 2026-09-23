@@ -10,7 +10,6 @@ import { useMenuNotificationBadgeCount } from '@/hooks/useMenuNotificationBadgeC
 import { useLockBodyScroll, releaseScrollLockIfUnheld } from '@/hooks/useLockBodyScroll';
 import { ConcertFeed } from './events/ConcertFeed';
 import { UnifiedFeed } from './UnifiedFeed';
-import { SearchMap } from './SearchMap';
 import { ProfileView } from './profile/ProfileView';
 import { ProfileEdit } from './profile/ProfileEdit';
 import { ConcertEvents } from './ConcertEvents';

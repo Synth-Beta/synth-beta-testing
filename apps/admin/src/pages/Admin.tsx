@@ -1265,7 +1265,10 @@ export default function Admin() {
     
     switch (flag.content_type) {
       case 'review':
-        tableName = 'user_reviews';
+        // `reviews` — matches the view/edit handlers above. The old
+        // `user_reviews` name does not exist, so removing a flagged review
+        // always threw.
+        tableName = 'reviews';
         break;
       case 'event':
         tableName = 'jambase_events';

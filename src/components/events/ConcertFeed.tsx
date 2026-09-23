@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { SearchBar } from '@/components/SearchBar/SearchBar';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -325,17 +326,19 @@ const { sessionExpired } = useAuth();
       }
 
       // Get user details for email notification
-      const { data: receiverData } = await supabase
+      const { data: receiverData, error: receiverDataError } = await supabase
         .from('users')
         .select('name, user_id')
         .eq('user_id', userId)
         .single();
+      if (receiverDataError) console.warn('[ConcertFeed] receiverData query failed', receiverDataError);
 
-      const { data: senderData } = await supabase
+      const { data: senderData, error: senderDataError } = await supabase
         .from('users')
         .select('name')
         .eq('user_id', currentUserId)
         .single();
+      if (senderDataError) console.warn('[ConcertFeed] senderData query failed', senderDataError);
 
       // Send email notification (in background, don't wait for it)
       if (receiverData?.name && senderData?.name) {

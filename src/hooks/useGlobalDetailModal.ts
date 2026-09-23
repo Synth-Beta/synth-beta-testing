@@ -30,7 +30,8 @@ export function useGlobalDetailModal(
 
       if (artistId && !artistName) {
         try {
-          const { data } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+          const { data, error: queryError } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+          if (queryError) console.warn('[useGlobalDetailModal] data query failed', queryError);
           if (data?.name) artistName = data.name;
         } catch {
           // Non-fatal; modal can still open with fallback name
@@ -39,7 +40,8 @@ export function useGlobalDetailModal(
 
       if (!artistId && artistName) {
         try {
-          const { data } = await supabase.from('artists').select('id, name').ilike('name', artistName).limit(1).maybeSingle();
+          const { data, error: queryError2 } = await supabase.from('artists').select('id, name').ilike('name', artistName).limit(1).maybeSingle();
+          if (queryError2) console.warn('[useGlobalDetailModal] data query failed', queryError2);
           if (data?.id) artistId = data.id;
           if (data?.name) artistName = data.name;
         } catch {
@@ -49,11 +51,12 @@ export function useGlobalDetailModal(
 
       if (artistId) {
         try {
-          const { data: artistRow } = await supabase
+          const { data: artistRow, error: artistRowError } = await supabase
             .from('artists')
             .select('id, name, identifier')
             .eq('id', artistId)
             .maybeSingle();
+          if (artistRowError) console.warn('[useGlobalDetailModal] artistRow query failed', artistRowError);
 
           if (artistRow?.identifier?.startsWith('manual:')) {
             if (!userId) return;
@@ -87,7 +90,8 @@ export function useGlobalDetailModal(
 
       if (venueId && !venueName) {
         try {
-          const { data } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+          const { data, error: queryError3 } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+          if (queryError3) console.warn('[useGlobalDetailModal] data query failed', queryError3);
           if (data?.name) venueName = data.name;
         } catch {
           // Non-fatal
@@ -96,7 +100,8 @@ export function useGlobalDetailModal(
 
       if (!venueId && venueName) {
         try {
-          const { data } = await supabase.from('venues').select('id, name').ilike('name', venueName).limit(1).maybeSingle();
+          const { data, error: queryError4 } = await supabase.from('venues').select('id, name').ilike('name', venueName).limit(1).maybeSingle();
+          if (queryError4) console.warn('[useGlobalDetailModal] data query failed', queryError4);
           if (data?.id) venueId = data.id;
           if (data?.name) venueName = data.name;
         } catch {

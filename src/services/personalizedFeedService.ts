@@ -511,10 +511,11 @@ export class PersonalizationEngineV5 {
     if (needsImage.length === 0) return events;
 
     const artistIds = [...new Set(needsImage.map((e) => e.artist_id).filter(Boolean))] as string[];
-    const { data: artists } = await supabase
+    const { data: artists, error: artistsError } = await supabase
       .from('artists')
       .select('id, image_url')
       .in('id', artistIds);
+    if (artistsError) console.warn('[personalizedFeedService] artists query failed', artistsError);
 
     const imageByArtist = new Map(
       (artists || [])
@@ -543,10 +544,11 @@ export class PersonalizationEngineV5 {
     if (missing.length === 0) return events;
 
     const venueIds = [...new Set(missing.map((e) => e.venue_id).filter(Boolean))] as string[];
-    const { data: venues } = await supabase
+    const { data: venues, error: venuesError } = await supabase
       .from('venues')
       .select('id, city, state')
       .in('id', venueIds);
+    if (venuesError) console.warn('[personalizedFeedService] venues query failed', venuesError);
 
     const byId = new Map((venues || []).map((v: { id: string; city?: string | null; state?: string | null }) => [v.id, v]));
     return events.map((event) => {

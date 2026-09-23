@@ -60,7 +60,7 @@ export const useSetlist = (eventId: string): UseSetlistResult => {
 
         const { data, error: fetchError } = await supabase
           .from('events')
-          .select('setlist, setlist_enriched, setlist_song_count, setlist_fm_id')
+          .select('setlist')
           .eq('id', eventId)
           .single();
 

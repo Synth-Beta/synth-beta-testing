@@ -15,7 +15,6 @@ import { ReviewContentStep } from './ReviewFormSteps/ReviewContentStep';
 import { QuickReviewStep } from './ReviewFormSteps/QuickReviewStep';
 import { PrivacySubmitStep } from './ReviewFormSteps/PrivacySubmitStep';
 import { supabase } from '@/integrations/supabase/client';
-import type { ShowEntry } from './ShowRanking';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { DraftReviewService, DraftReviewData, DraftReview } from '@/services/draftReviewService';
@@ -111,7 +110,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   } = useReviewForm();
 
   const [existingReview, setExistingReview] = useState<UserReview | null>(null);
-  const [shows] = useState<ShowEntry[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [isReviewSubmitted, setIsReviewSubmitted] = useState(false); // Track if review has been submitted
@@ -322,9 +320,9 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         // First, check if an event with similar details already exists
         const { data: existingEvent } = await (supabase as any)
           .from('events')
-          .select('id')
-          .eq('artist_name', formData.selectedArtist.name)
-          .eq('venue_name', formData.selectedVenue.name)
+          .select('id, artists!inner(name), venues!inner(name)')
+          .eq('artists.name', formData.selectedArtist.name)
+          .eq('venues.name', formData.selectedVenue.name)
           .eq('event_date', eventDateTime.toISOString())
           .maybeSingle();
         
@@ -803,15 +801,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       // Individual category feedback fields are saved to their own columns
       // Do NOT combine them into review_text - they go to production_feedback, venue_feedback, etc.
 
-      const showsRankingBlock = shows.length
-        ? `\n\nShow rankings:\n${shows
-            .slice()
-            .sort((a, b) => (b.rating - a.rating) || (a.order - b.order))
-            .map((s, idx) => `${idx + 1}. ${s.show_name || 'Show'}${s.show_date ? ` (${s.show_date})` : ''}${s.venue_name ? ` @ ${s.venue_name}` : ''} — ${s.rating}/5${(shows.filter(x => x.rating === s.rating).length > 1) ? ` [tie #${s.order}]` : ''}`)
-            .join('\n')}
-        `
-        : '';
-
       // Calculate decimal average based on flow
       const flow = currentFlow || 'detailed';
       let decimalAverage: number;
@@ -883,7 +872,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         location_feedback: locationFeedback,
         value_feedback: valueFeedback,
         ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
-        review_text: (formData.reviewText.trim() + showsRankingBlock).trim() || undefined,
+        review_text: formData.reviewText.trim() || undefined,
         photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
         videos: formData.videos && formData.videos.length > 0 ? formData.videos : undefined,
         // Preserve existing setlist when editing if not explicitly changed
@@ -1218,7 +1207,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     }
   };
 
-  // Calculate effective rating for the ranking modal
+  // Decimal average across whichever category ratings the flow collected.
   const getEffectiveRating = () => {
     const parts = [
       formData.artistPerformanceRating,

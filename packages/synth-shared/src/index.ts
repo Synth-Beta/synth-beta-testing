@@ -224,10 +224,12 @@ export {
   searchVenuesFuzzy,
   searchUsersFuzzy,
   searchEventsFuzzy,
+  searchPastEventsForReview,
   scoreNameMatch,
   forgivingIlikePatterns,
   type FuzzyArtistRow,
   type FuzzyVenueRow,
   type FuzzyUserRow,
   type FuzzyEventRow,
+  type ReviewEventSearchRow,
 } from './forgivingNameSearch';

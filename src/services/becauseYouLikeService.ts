@@ -17,6 +17,10 @@ export interface BecauseYouLikeCarousel {
   type: 'artist' | 'venue' | 'genre';
 }
 
+// `events` has no artist_name/venue_name column (PostgREST 42703): the live
+// JamBase sync strips both. Filter through the embedded artists/venues
+// relation instead, and flatten the name back onto each row so the shape this
+// service returns is unchanged for its consumers.
 export class BecauseYouLikeService {
   /**
    * Get events because user likes a specific artist
@@ -39,14 +43,16 @@ export class BecauseYouLikeService {
         // Get events by this artist
         const { data: events } = await supabase
           .from('events')
-          .select('*')
-          .ilike('artist_name', `%${artistName}%`)
+          .select('*, artists!inner(name), venues(name)')
+          .ilike('artists.name', `%${artistName}%`)
           .gte('event_date', new Date().toISOString())
           .order('event_date', { ascending: true })
           .limit(limit);
 
         return (events || []).map(e => ({
           ...e,
+          artist_name: (e as any).artists?.name ?? null,
+          venue_name: (e as any).venues?.name ?? null,
           reason: `Because you like ${artistName}`,
           sourceArtist: artistName,
         })) as BecauseYouLikeEvent[];
@@ -61,14 +67,16 @@ export class BecauseYouLikeService {
         // Fallback: just get events by this artist
         const { data: events } = await supabase
           .from('events')
-          .select('*')
-          .ilike('artist_name', `%${artistName}%`)
+          .select('*, artists!inner(name), venues(name)')
+          .ilike('artists.name', `%${artistName}%`)
           .gte('event_date', new Date().toISOString())
           .order('event_date', { ascending: true })
           .limit(limit);
 
         return (events || []).map(e => ({
           ...e,
+          artist_name: (e as any).artists?.name ?? null,
+          venue_name: (e as any).venues?.name ?? null,
           reason: `Because you like ${artistName}`,
           sourceArtist: artistName,
         })) as BecauseYouLikeEvent[];
@@ -77,15 +85,17 @@ export class BecauseYouLikeService {
       // Get events with similar genres, excluding the original artist
       const { data: events } = await supabase
         .from('events')
-        .select('*')
+        .select('*, artists!inner(name), venues(name)')
         .gte('event_date', new Date().toISOString())
         .overlaps('genres', artistGenres)
-        .not('artist_name', 'ilike', `%${artistName}%`)
+        .not('artists.name', 'ilike', `%${artistName}%`)
         .order('event_date', { ascending: true })
         .limit(limit);
 
       return (events || []).map(e => ({
         ...e,
+        artist_name: (e as any).artists?.name ?? null,
+        venue_name: (e as any).venues?.name ?? null,
         reason: `Similar to ${artistName}`,
         sourceArtist: artistName,
       })) as BecauseYouLikeEvent[];
@@ -107,14 +117,16 @@ export class BecauseYouLikeService {
       // Get events at this venue
       const { data: events } = await supabase
         .from('events')
-        .select('*')
-        .ilike('venue_name', `%${venueName}%`)
+        .select('*, artists(name), venues!inner(name)')
+        .ilike('venues.name', `%${venueName}%`)
         .gte('event_date', new Date().toISOString())
         .order('event_date', { ascending: true })
         .limit(limit);
 
       return (events || []).map(e => ({
         ...e,
+        artist_name: (e as any).artists?.name ?? null,
+        venue_name: (e as any).venues?.name ?? null,
         reason: `At ${venueName} (you rated this venue highly)`,
         sourceVenue: venueName,
       })) as BecauseYouLikeEvent[];
@@ -136,7 +148,7 @@ export class BecauseYouLikeService {
       // Get events with this genre
       const { data: events } = await supabase
         .from('events')
-        .select('*')
+        .select('*, artists(name), venues(name)')
         .gte('event_date', new Date().toISOString())
         .contains('genres', [genre])
         .order('event_date', { ascending: true })
@@ -144,6 +156,8 @@ export class BecauseYouLikeService {
 
       return (events || []).map(e => ({
         ...e,
+        artist_name: (e as any).artists?.name ?? null,
+        venue_name: (e as any).venues?.name ?? null,
         reason: `Because you attend ${genre} shows`,
         sourceGenre: genre,
       })) as BecauseYouLikeEvent[];
@@ -187,16 +201,6 @@ export class BecauseYouLikeService {
     try {
       const carousels: BecauseYouLikeCarousel[] = [];
 
-      // Bucket list is explicit intent, not an inferred signal - surface it first.
-      const bucketListEvents = await this.getEventsFromBucketList(userId, 10);
-      if (bucketListEvents.length > 0) {
-        carousels.push({
-          title: 'From your bucket list',
-          events: bucketListEvents,
-          type: 'artist',
-        });
-      }
-
       // Get user's top artists
       const topArtists = await PersonalizedFeedService.getUserTopArtists(userId, 5);
       for (const artist of topArtists.slice(0, 3)) {
@@ -237,12 +241,13 @@ export class BecauseYouLikeService {
       if (eventIds.length > 0) {
         const { data: events } = await supabase
           .from('events')
-          .select('id, venue_name')
+          .select('id, venues(name)')
           .in('id', eventIds);
         
         (events || []).forEach((e: any) => {
-          if (e.venue_name) {
-            eventMap.set(e.id, e.venue_name);
+          const venueName = e.venues?.name;
+          if (venueName) {
+            eventMap.set(e.id, venueName);
           }
         });
       }

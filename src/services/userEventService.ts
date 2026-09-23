@@ -882,8 +882,7 @@ export class UserEventService {
           venue_recommendation: null,
           location_recommendation: null,
           value_recommendation: null,
-          ticket_price_paid: null,
-          rank_order: 0
+          ticket_price_paid: null
         };
         
         console.log('🎯 ATTENDANCE_ONLY record data:', attendanceRecord);

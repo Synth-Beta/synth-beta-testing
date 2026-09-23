@@ -83,11 +83,12 @@ export class EventReviewSubmitService {
     // Prefer artist first, then venue (both can be updated if present).
     const tryUpdateArtist = async () => {
       if (!artistId || !isValidUuid(artistId)) return;
-      const { data } = await supabase
+      const { data, error: queryError } = await supabase
         .from('artists')
         .select('image_url')
         .eq('id', artistId)
         .maybeSingle();
+      if (queryError) console.warn('[eventReviewSubmitService] data query failed', queryError);
       if (!EventReviewSubmitService.isPlaceholderEntityImage((data as any)?.image_url)) return;
       await supabase
         .from('artists')
@@ -97,11 +98,12 @@ export class EventReviewSubmitService {
 
     const tryUpdateVenue = async () => {
       if (!venueId || !isValidUuid(venueId)) return;
-      const { data } = await supabase
+      const { data, error: queryError2 } = await supabase
         .from('venues')
         .select('image_url')
         .eq('id', venueId)
         .maybeSingle();
+      if (queryError2) console.warn('[eventReviewSubmitService] data query failed', queryError2);
       if (!EventReviewSubmitService.isPlaceholderEntityImage((data as any)?.image_url)) return;
       await supabase
         .from('venues')
@@ -144,11 +146,12 @@ export class EventReviewSubmitService {
     // Fetch actor (reviewer) name
     let actorName = 'Someone';
     try {
-      const { data: actor } = await supabase
+      const { data: actor, error: actorError } = await supabase
         .from('users')
         .select('name')
         .eq('user_id', actorUserId)
         .maybeSingle();
+      if (actorError) console.warn('[eventReviewSubmitService] actor query failed', actorError);
       if (actor?.name) actorName = actor.name;
     } catch {
       // Non-fatal
@@ -159,11 +162,13 @@ export class EventReviewSubmitService {
     let venueName = '';
     try {
       if (artistId) {
-        const { data: a } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+        const { data: a, error: aError } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+        if (aError) console.warn('[eventReviewSubmitService] a query failed', aError);
         artistName = (a as any)?.name ?? '';
       }
       if (venueId) {
-        const { data: v } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+        const { data: v, error: vError } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+        if (vError) console.warn('[eventReviewSubmitService] v query failed', vError);
         venueName = (v as any)?.name ?? '';
       }
     } catch {

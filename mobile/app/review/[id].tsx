@@ -286,23 +286,25 @@ function CommentsSheet({
         setLoadingComments(true);
         try {
             // Get entity_id for this review
-            const { data: entityData } = await supabase
+            const { data: entityData, error: entityDataError } = await supabase
                 .from('entities')
                 .select('id')
                 .eq('entity_type', 'review')
                 .eq('entity_uuid', reviewId)
                 .maybeSingle();
+            if (entityDataError) console.warn('[[id]] entityData query failed', entityDataError);
 
             if (!entityData?.id) {
                 setComments([]);
                 return;
             }
 
-            const { data: commentsData } = await supabase
+            const { data: commentsData, error: commentsDataError } = await supabase
                 .from('comments')
                 .select('id, user_id, comment_text, created_at')
                 .eq('entity_id', entityData.id)
                 .order('created_at', { ascending: true });
+            if (commentsDataError) console.warn('[[id]] commentsData query failed', commentsDataError);
 
             if (!commentsData?.length) {
                 setComments([]);
@@ -310,10 +312,11 @@ function CommentsSheet({
             }
 
             const userIds = [...new Set(commentsData.map(c => c.user_id))];
-            const { data: profiles } = await supabase
+            const { data: profiles, error: profilesError } = await supabase
                 .from('users')
                 .select('user_id, name, avatar_url')
                 .in('user_id', userIds);
+            if (profilesError) console.warn('[[id]] profiles query failed', profilesError);
 
             const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
 
@@ -339,11 +342,12 @@ function CommentsSheet({
         setNewComment('');
         try {
             // Get or create entity
-            const { data: entityId } = await supabase.rpc('get_or_create_entity', {
+            const { data: entityId, error: entityIdError } = await supabase.rpc('get_or_create_entity', {
                 p_entity_type: 'review',
                 p_entity_uuid: reviewId,
                 p_entity_text_id: null,
             });
+            if (entityIdError) console.warn('[[id]] entityId query failed', entityIdError);
 
             await supabase
                 .from('comments')
@@ -631,7 +635,8 @@ export default function ReviewDetailScreen() {
                 // RLS sees an authenticated request and doesn't hide public reviews.
                 let { data: { session } } = await supabase.auth.getSession();
                 if (!session) {
-                    const { data: refreshed } = await supabase.auth.refreshSession();
+                    const { data: refreshed, error: refreshedError } = await supabase.auth.refreshSession();
+                    if (refreshedError) console.warn('[[id]] refreshed query failed', refreshedError);
                     session = refreshed.session;
                 }
                 const user = session?.user ?? null;
@@ -690,11 +695,12 @@ export default function ReviewDetailScreen() {
                 // Fetch author separately (avoids inner-join exclusion if user row missing)
                 let author: ReviewRow['author'] = null;
                 try {
-                    const { data: authorData } = await supabase
+                    const { data: authorData, error: authorDataError } = await supabase
                         .from('users')
                         .select('user_id, name, avatar_url')
                         .eq('user_id', String(row.user_id))
                         .maybeSingle();
+                    if (authorDataError) console.warn('[[id]] authorData query failed', authorDataError);
                     if (authorData) author = authorData as ReviewRow['author'];
                 } catch { /* non-fatal */ }
 
@@ -702,11 +708,12 @@ export default function ReviewDetailScreen() {
                 let evOne: EventSummary | null = null;
                 if (row.event_id != null) {
                     try {
-                        const { data: evData } = await supabase
+                        const { data: evData, error: evDataError } = await supabase
                             .from('events')
                             .select('id, title, event_date, artist_id, venue_id, images')
                             .eq('id', String(row.event_id))
                             .maybeSingle();
+                        if (evDataError) console.warn('[[id]] evData query failed', evDataError);
                         if (evData) evOne = evData as EventSummary;
                     } catch { /* non-fatal */ }
                 }
@@ -732,13 +739,15 @@ export default function ReviewDetailScreen() {
                 const directVenueId = row.venue_id != null ? String(row.venue_id) : evOne?.venue_id ?? null;
                 if (!resolvedArtistName && directArtistId) {
                     try {
-                        const { data: a } = await supabase.from('artists').select('name').eq('id', directArtistId).maybeSingle();
+                        const { data: a, error: aError } = await supabase.from('artists').select('name').eq('id', directArtistId).maybeSingle();
+                        if (aError) console.warn('[[id]] a query failed', aError);
                         if (a?.name) resolvedArtistName = a.name;
                     } catch { /* non-fatal */ }
                 }
                 if (!resolvedVenueName && directVenueId) {
                     try {
-                        const { data: v } = await supabase.from('venues').select('name').eq('id', directVenueId).maybeSingle();
+                        const { data: v, error: vError } = await supabase.from('venues').select('name').eq('id', directVenueId).maybeSingle();
+                        if (vError) console.warn('[[id]] v query failed', vError);
                         if (v?.name) resolvedVenueName = v.name;
                     } catch { /* non-fatal */ }
                 }

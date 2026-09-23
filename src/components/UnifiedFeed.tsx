@@ -72,6 +72,7 @@ import { FriendActivityFeed } from '@/components/social/FriendActivityFeed';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import { extractEventMetadata } from '@/utils/trackingHelpers';
 import { useIntersectionTrackingList } from '@/hooks/useIntersectionTracking';
+import { withEventNamesList } from '@/lib/eventNames';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -373,8 +374,8 @@ export const UnifiedFeed = ({
         // Fetch from database only
         const { data: dbEventsData, error } = await supabase
           .from('events')
-          .select('*')
-          .ilike('artist_name', `%${artistName}%`)
+          .select('*, artists!inner(name), venues(name)')
+          .ilike('artists.name', `%${artistName}%`)
           .order('event_date', { ascending: true })
           .limit(200);
 
@@ -383,7 +384,7 @@ export const UnifiedFeed = ({
           return;
         }
 
-        const dbEvents: JamBaseEvent[] = (dbEventsData || []).map(event => ({
+        const dbEvents: JamBaseEvent[] = withEventNamesList(dbEventsData).map(event => ({
           ...event,
           source: 'manual'
         }));
@@ -1925,8 +1926,8 @@ export const UnifiedFeed = ({
           // Query events first, then find reviews for those events
           const { data: matchingEvents } = await supabase
             .from('events')
-            .select('id')
-            .ilike('artist_name', `%${artistName}%`)
+            .select('id, artists!inner(name)')
+            .ilike('artists.name', `%${artistName}%`)
             .limit(20);
           
           if (matchingEvents && matchingEvents.length > 0) {

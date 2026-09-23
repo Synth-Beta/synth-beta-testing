@@ -326,16 +326,18 @@ export class AdminAnalyticsService {
       startDate.setDate(startDate.getDate() - days);
 
       // Get user registrations by date
-      const { data: userRegistrations } = await (supabase as any)
+      const { data: userRegistrations, error: userRegistrationsError } = await (supabase as any)
         .from('users')
         .select('created_at')
         .gte('created_at', startDate.toISOString());
+      if (userRegistrationsError) console.warn('[adminAnalyticsService] userRegistrations query failed', userRegistrationsError);
 
       // Get daily active users
-      const { data: dailyActiveUsers } = await (supabase as any)
+      const { data: dailyActiveUsers, error: dailyActiveUsersError } = await (supabase as any)
         .from('interactions')
         .select('user_id, created_at')
         .gte('created_at', startDate.toISOString());
+      if (dailyActiveUsersError) console.warn('[adminAnalyticsService] dailyActiveUsers query failed', dailyActiveUsersError);
 
       // Group by date
       const dailyStats = new Map<string, {
@@ -401,9 +403,10 @@ export class AdminAnalyticsService {
   static async getEngagementMetrics(): Promise<EngagementMetrics> {
     try {
       // Get total interactions
-      const { data: interactions } = await (supabase as any)
+      const { data: interactions, error: interactionsError } = await (supabase as any)
         .from('interactions')
         .select('*');
+      if (interactionsError) console.warn('[adminAnalyticsService] interactions query failed', interactionsError);
 
       // Categorize interactions
       const pageViews = interactions?.filter((i: any) => i.event_type === 'view').length || 0;
@@ -510,10 +513,11 @@ export class AdminAnalyticsService {
         : 0;
 
       // Get geographic distribution for active users
-      const { data: activeUserProfiles } = await (supabase as any)
+      const { data: activeUserProfiles, error: activeUserProfilesError } = await (supabase as any)
         .from('users')
         .select('user_id, location_city, created_at')
         .in('user_id', activeUserIds);
+      if (activeUserProfilesError) console.warn('[adminAnalyticsService] activeUserProfiles query failed', activeUserProfilesError);
 
       const cityMap = new Map<string, { users: number; newUsers: number }>();
       activeUserProfiles?.forEach((profile: any) => {
@@ -545,10 +549,11 @@ export class AdminAnalyticsService {
         .slice(0, 20);
 
       // Get verification stats for active users
-      const { data: activeUserVerification } = await (supabase as any)
+      const { data: activeUserVerification, error: activeUserVerificationError } = await (supabase as any)
         .from('users')
         .select('user_id, verified, trust_score, verification_criteria_met')
         .in('user_id', activeUserIds);
+      if (activeUserVerificationError) console.warn('[adminAnalyticsService] activeUserVerification query failed', activeUserVerificationError);
 
       const verifiedCount = activeUserVerification?.filter((p: any) => p.verified).length || 0;
       const totalTrustScores = activeUserVerification?.reduce((sum: number, p: any) => sum + (p.trust_score || 0), 0) || 0;
@@ -638,10 +643,11 @@ export class AdminAnalyticsService {
       startDate.setDate(startDate.getDate() - (weeks * 7));
       startDate.setHours(0, 0, 0, 0);
 
-      const { data: interactions } = await (supabase as any)
+      const { data: interactions, error: interactionsError2 } = await (supabase as any)
         .from('interactions')
         .select('user_id, occurred_at')
         .gte('occurred_at', startDate.toISOString());
+      if (interactionsError2) console.warn('[adminAnalyticsService] interactions query failed', interactionsError2);
 
       // Group by week and count unique users
       const weeklyActiveUsers = new Map<string, Set<string>>();
@@ -703,10 +709,11 @@ export class AdminAnalyticsService {
         .gte('created_at', startOfMonth.toISOString());
 
       // Get average rating
-      const { data: reviews } = await (supabase as any)
+      const { data: reviews, error: reviewsError } = await (supabase as any)
         .from('reviews')
         .select('rating')
         .not('rating', 'is', null);
+      if (reviewsError) console.warn('[adminAnalyticsService] reviews query failed', reviewsError);
 
       const averageRating = reviews?.length > 0 
         ? reviews.reduce((sum: number, review: any) => sum + (review.rating || 0), 0) / reviews.length 
@@ -871,14 +878,16 @@ export class AdminAnalyticsService {
   static async getUserSegments(): Promise<UserSegment[]> {
     try {
       // Get all users with their activity
-      const { data: users } = await (supabase as any)
+      const { data: users, error: usersError } = await (supabase as any)
         .from('users')
         .select('user_id, created_at');
+      if (usersError) console.warn('[adminAnalyticsService] users query failed', usersError);
 
       // Get user interactions for segmentation
-      const { data: interactions } = await (supabase as any)
+      const { data: interactions, error: interactionsError3 } = await (supabase as any)
         .from('interactions')
         .select('user_id, created_at');
+      if (interactionsError3) console.warn('[adminAnalyticsService] interactions query failed', interactionsError3);
 
       // Segment users based on activity
       const userActivity = new Map<string, {
@@ -945,9 +954,10 @@ export class AdminAnalyticsService {
   static async getGeographicDistribution(): Promise<GeographicDistribution[]> {
     try {
       // Get users with their location cities
-      const { data: profiles } = await (supabase as any)
+      const { data: profiles, error: profilesError } = await (supabase as any)
         .from('users')
         .select('user_id, location_city, created_at');
+      if (profilesError) console.warn('[adminAnalyticsService] profiles query failed', profilesError);
 
       if (!profiles || profiles.length === 0) {
         return [];
@@ -1032,10 +1042,11 @@ export class AdminAnalyticsService {
       startDate.setHours(0, 0, 0, 0);
 
       // Get all user interactions grouped by date
-      const { data: interactions } = await (supabase as any)
+      const { data: interactions, error: interactionsError4 } = await (supabase as any)
         .from('interactions')
         .select('user_id, occurred_at')
         .gte('occurred_at', startDate.toISOString());
+      if (interactionsError4) console.warn('[adminAnalyticsService] interactions query failed', interactionsError4);
 
       // Group by date and count unique users per day
       const dailyActiveUsers = new Map<string, Set<string>>();
@@ -1049,11 +1060,12 @@ export class AdminAnalyticsService {
       });
 
       // Also check profiles.last_active_at for users who haven't interacted but were active
-      const { data: profiles } = await (supabase as any)
+      const { data: profiles, error: profilesError2 } = await (supabase as any)
         .from('users')
         .select('user_id, last_active_at')
         .not('last_active_at', 'is', null)
         .gte('last_active_at', startDate.toISOString());
+      if (profilesError2) console.warn('[adminAnalyticsService] profiles query failed', profilesError2);
 
       profiles?.forEach((profile: any) => {
         const date = new Date(profile.last_active_at).toISOString().split('T')[0];
@@ -1097,17 +1109,19 @@ export class AdminAnalyticsService {
       startDate.setHours(0, 0, 0, 0);
 
       // Get all user interactions
-      const { data: interactions } = await (supabase as any)
+      const { data: interactions, error: interactionsError5 } = await (supabase as any)
         .from('interactions')
         .select('user_id, occurred_at')
         .gte('occurred_at', startDate.toISOString());
+      if (interactionsError5) console.warn('[adminAnalyticsService] interactions query failed', interactionsError5);
 
       // Get profiles with last_active_at
-      const { data: profiles } = await (supabase as any)
+      const { data: profiles, error: profilesError3 } = await (supabase as any)
         .from('users')
         .select('user_id, last_active_at')
         .not('last_active_at', 'is', null)
         .gte('last_active_at', startDate.toISOString());
+      if (profilesError3) console.warn('[adminAnalyticsService] profiles query failed', profilesError3);
 
       // Group by month and count unique users
       const monthlyActiveUsers = new Map<string, Set<string>>();
@@ -1163,10 +1177,11 @@ export class AdminAnalyticsService {
       startDate.setHours(0, 0, 0, 0);
 
       // Get user registrations by date
-      const { data: userRegistrations } = await (supabase as any)
+      const { data: userRegistrations, error: userRegistrationsError2 } = await (supabase as any)
         .from('users')
         .select('created_at')
         .gte('created_at', startDate.toISOString());
+      if (userRegistrationsError2) console.warn('[adminAnalyticsService] userRegistrations query failed', userRegistrationsError2);
 
       // Group by date
       const dailyNewUsers = new Map<string, number>();
@@ -1245,9 +1260,10 @@ export class AdminAnalyticsService {
         .gte('created_at', thirtyDaysAgo.toISOString());
 
       // Get average account age
-      const { data: allUsers } = await (supabase as any)
+      const { data: allUsers, error: allUsersError } = await (supabase as any)
         .from('users')
         .select('created_at');
+      if (allUsersError) console.warn('[adminAnalyticsService] allUsers query failed', allUsersError);
 
       const avgAccountAge = allUsers && allUsers.length > 0
         ? allUsers.reduce((sum: number, user: any) => {
@@ -1257,19 +1273,21 @@ export class AdminAnalyticsService {
         : 0;
 
       // Get users with reviews
-      const { data: reviews } = await (supabase as any)
+      const { data: reviews, error: reviewsError2 } = await (supabase as any)
         .from('reviews')
         .select('user_id')
         .eq('is_draft', false);
+      if (reviewsError2) console.warn('[adminAnalyticsService] reviews query failed', reviewsError2);
       
       const usersWithReviews = new Set(reviews?.map((r: any) => r.user_id) || []).size;
 
       // Get users with friends
-      const { data: friends } = await (supabase as any)
+      const { data: friends, error: friendsError } = await (supabase as any)
         .from('user_relationships')
           .eq('relationship_type', 'friend')
           .eq('status', 'accepted')
         .select('user_id, related_user_id');
+      if (friendsError) console.warn('[adminAnalyticsService] friends query failed', friendsError);
       
       const usersWithFriends = new Set([
         ...(friends?.map((f: any) => f.user_id) || []),
@@ -1405,36 +1423,40 @@ export class AdminAnalyticsService {
 
       // Get concert intent interactions for current month
       // This includes: event interest (saves/RSVPs), shares, and attendance marking
-      const { data: currentMonthInteractions } = await (supabase as any)
+      const { data: currentMonthInteractions, error: currentMonthInteractionsError } = await (supabase as any)
         .from('interactions')
         .select('user_id, event_type, entity_type, entity_id, metadata')
         .gte('occurred_at', startOfMonth.toISOString())
         .in('event_type', ['interest', 'share', 'attendance'])
         .eq('entity_type', 'event');
+      if (currentMonthInteractionsError) console.warn('[adminAnalyticsService] currentMonthInteractions query failed', currentMonthInteractionsError);
 
       // Get last month's interactions for growth calculation
-      const { data: lastMonthInteractions } = await (supabase as any)
+      const { data: lastMonthInteractions, error: lastMonthInteractionsError } = await (supabase as any)
         .from('interactions')
         .select('user_id, event_type, entity_type, entity_id, metadata')
         .gte('occurred_at', startOfLastMonth.toISOString())
         .lt('occurred_at', endOfLastMonth.toISOString())
         .in('event_type', ['interest', 'share', 'attendance'])
         .eq('entity_type', 'event');
+      if (lastMonthInteractionsError) console.warn('[adminAnalyticsService] lastMonthInteractions query failed', lastMonthInteractionsError);
 
       // Also get event RSVPs from user_event_relationships table (3NF compliant)
       // Only include 'going' and 'maybe' - 'interest' is not an RSVP, just a bookmark
-      const { data: currentMonthRSVPs } = await (supabase as any)
+      const { data: currentMonthRSVPs, error: currentMonthRSVPsError } = await (supabase as any)
         .from('user_event_relationships')
           .in('relationship_type', ['going', 'maybe'])
         .select('user_id, event_id, relationship_type')
         .gte('created_at', startOfMonth.toISOString());
+      if (currentMonthRSVPsError) console.warn('[adminAnalyticsService] currentMonthRSVPs query failed', currentMonthRSVPsError);
 
-      const { data: lastMonthRSVPs } = await (supabase as any)
+      const { data: lastMonthRSVPs, error: lastMonthRSVPsError } = await (supabase as any)
         .from('user_event_relationships')
           .in('relationship_type', ['going', 'maybe'])
         .select('user_id, event_id, relationship_type')
         .gte('created_at', startOfLastMonth.toISOString())
         .lt('created_at', endOfLastMonth.toISOString());
+      if (lastMonthRSVPsError) console.warn('[adminAnalyticsService] lastMonthRSVPs query failed', lastMonthRSVPsError);
 
       const normalizeEventId = (interaction: any): string | null => {
         return (
@@ -1538,10 +1560,11 @@ export class AdminAnalyticsService {
       // Get actual user names for top users
       if (topEngagedUsers.length > 0) {
         const userIds = topEngagedUsers.map(u => u.user_id);
-        const { data: profiles } = await (supabase as any)
+        const { data: profiles, error: profilesError4 } = await (supabase as any)
           .from('users')
           .select('user_id, name')
           .in('user_id', userIds);
+        if (profilesError4) console.warn('[adminAnalyticsService] profiles query failed', profilesError4);
 
         profiles?.forEach((profile: any) => {
           const user = topEngagedUsers.find(u => u.user_id === profile.user_id);
@@ -1784,11 +1807,12 @@ export class AdminAnalyticsService {
   static async getSocialGraphMetrics(): Promise<SocialGraphMetrics> {
     try {
       // Get all friendships from user_relationships table (3NF compliant)
-      const { data: friendships } = await (supabase as any)
+      const { data: friendships, error: friendshipsError } = await (supabase as any)
         .from('user_relationships')
           .eq('relationship_type', 'friend')
           .eq('status', 'accepted')
         .select('user_id, related_user_id, created_at');
+      if (friendshipsError) console.warn('[adminAnalyticsService] friendships query failed', friendshipsError);
 
       // Get total users
       const { count: totalUsers } = await (supabase as any)
@@ -1877,9 +1901,10 @@ export class AdminAnalyticsService {
    */
   static async getAcquisitionSourceCounts(): Promise<AcquisitionSourceCount[]> {
     try {
-      const { data } = await (supabase as any)
+      const { data, error: queryError } = await (supabase as any)
         .from('users')
         .select('acquisition_source');
+      if (queryError) console.warn('[adminAnalyticsService] data query failed', queryError);
 
       const counts = new Map<string, number>();
       ACQUISITION_SOURCE_CANONICAL_ORDER.forEach((source) => counts.set(source, 0));
@@ -1914,10 +1939,11 @@ export class AdminAnalyticsService {
       startDate.setDate(startDate.getDate() - (days - 1));
       startDate.setHours(0, 0, 0, 0);
 
-      const { data } = await (supabase as any)
+      const { data, error: queryError2 } = await (supabase as any)
         .from('users')
         .select('created_at, acquisition_source')
         .gte('created_at', startDate.toISOString());
+      if (queryError2) console.warn('[adminAnalyticsService] data query failed', queryError2);
 
       const grouped: Record<string, Record<string, number>> = {};
 
@@ -1972,7 +1998,7 @@ export class AdminAnalyticsService {
   static async getOtherAcquisitionResponses(limit: number = 5): Promise<AcquisitionOtherResponse[]> {
     try {
       const responseLimit = Math.max(limit, 5);
-      const { data } = await (supabase as any)
+      const { data, error: queryError3 } = await (supabase as any)
         .from('users')
         .select('id, created_at, acquisition_source, other_acquisition_source')
         .not('other_acquisition_source', 'is', null)
@@ -1980,6 +2006,7 @@ export class AdminAnalyticsService {
         .ilike('acquisition_source', 'other')
         .order('created_at', { ascending: false })
         .limit(responseLimit * 2);
+      if (queryError3) console.warn('[adminAnalyticsService] data query failed', queryError3);
 
       const filtered = (data || []).filter((row: any) => normalizeAcquisitionSource(row.acquisition_source) === 'Other');
 

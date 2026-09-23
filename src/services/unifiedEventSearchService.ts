@@ -1,5 +1,6 @@
 // Unified Event Search Service - Database only (no external APIs)
 import { supabase } from '@/integrations/supabase/client';
+import { withEventNamesList } from '@/lib/eventNames';
 
 export interface UnifiedEventSearchParams {
   // Search criteria
@@ -259,8 +260,8 @@ export class UnifiedEventSearchService {
 
     let query = supabase
       .from('events')
-      .select('*')
-      .ilike('artist_name', `%${params.artistName}%`);
+      .select('*, artists!inner(name), venues(name)')
+      .ilike('artists.name', `%${params.artistName}%`);
 
     if (!params.includePastEvents) {
       query = query.gte('event_date', now.toISOString());
@@ -281,7 +282,7 @@ export class UnifiedEventSearchService {
       return [];
     }
 
-    return (data || []).map(event => ({
+    return withEventNamesList(data).map(event => ({
       id: event.id,
       source: 'manual' as const,
       title: event.title || event.artist_name || 'Event',
@@ -333,8 +334,8 @@ export class UnifiedEventSearchService {
 
     let query = supabase
       .from('events')
-      .select('*')
-      .ilike('venue_name', `%${params.venueName}%`);
+      .select('*, artists(name), venues!inner(name)')
+      .ilike('venues.name', `%${params.venueName}%`);
 
     if (params.venueCity) {
       query = query.ilike('venue_city', `%${params.venueCity}%`);
@@ -363,7 +364,7 @@ export class UnifiedEventSearchService {
       return [];
     }
 
-    return (data || []).map(event => ({
+    return withEventNamesList(data).map(event => ({
       id: event.id,
       source: 'manual' as const,
       title: event.title || event.artist_name || 'Event',

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import * as JoyrideModule from 'react-joyride';
 // @ts-ignore
-const Joyride = JoyrideModule.default || JoyrideModule;
+const Joyride = ((JoyrideModule as any).default || JoyrideModule) as React.ComponentType<any>;
 import type { Step, CallBackProps } from 'react-joyride';
 // @ts-ignore
 const { STATUS, ACTIONS, EVENTS } = JoyrideModule;

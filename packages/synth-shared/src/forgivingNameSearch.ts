@@ -539,3 +539,78 @@ function normalizeEventRow(row: Record<string, unknown> | FuzzyEventRow): FuzzyE
     match_score: Number(row.match_score) || 0,
   };
 }
+
+export interface ReviewEventSearchRow {
+  id: string;
+  title: string | null;
+  artist_name_normalized: string | null;
+  venue_name_normalized: string | null;
+  event_date: string;
+  artist_id: string | null;
+  venue_id: string | null;
+}
+
+function toLocalYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Same local-calendar-day rule as each app's `isEventPast`. */
+function isPastLocalDay(raw: unknown, now: Date): boolean {
+  const s = String(raw ?? '').trim();
+  if (!s) return false;
+  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : (() => {
+    const d = new Date(s);
+    return Number.isFinite(d.getTime()) ? toLocalYmd(d) : null;
+  })();
+  if (!ymd) return false;
+  return ymd < toLocalYmd(now);
+}
+
+/**
+ * Past shows matching a free-text artist / venue / title query, newest first.
+ *
+ * The cutoff has to live in the query: ordering by date DESC and filtering to
+ * past rows client-side returns nothing, because the newest N rows for any
+ * popular artist are all upcoming shows. The cutoff is deliberately one day
+ * loose (event_date is timestamptz, the rule is local-calendar-day) and
+ * `isPastLocalDay` does the exact gate afterwards.
+ */
+export async function searchPastEventsForReview(
+  client: SynthSupabaseClient,
+  query: string,
+  opts?: { limit?: number; now?: Date }
+): Promise<ReviewEventSearchRow[]> {
+  const q = sanitizeSearchTerm(query);
+  if (q.length < 2) return [];
+
+  const now = opts?.now ?? new Date();
+  const limit = Math.max(1, Math.min(50, opts?.limit ?? 20));
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const pattern = `%${escapeIlikePattern(q)}%`;
+
+  const { data, error } = await client
+    .from('events_with_artist_venue')
+    .select('id, title, artist_name_normalized, venue_name_normalized, event_date, artist_id, venue_id')
+    .or(
+      `artist_name_normalized.ilike.${pattern},title.ilike.${pattern},venue_name_normalized.ilike.${pattern}`
+    )
+    .lt('event_date', toLocalYmd(tomorrow))
+    .order('event_date', { ascending: false })
+    .limit(limit * 4);
+  if (error || !data) return [];
+
+  // The view is known to emit some events twice; dedupe before slicing.
+  const seen = new Set<string>();
+  const rows: ReviewEventSearchRow[] = [];
+  for (const row of data as ReviewEventSearchRow[]) {
+    if (!isPastLocalDay(row.event_date, now)) continue;
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    rows.push(row);
+    if (rows.length >= limit) break;
+  }
+  return rows;
+}

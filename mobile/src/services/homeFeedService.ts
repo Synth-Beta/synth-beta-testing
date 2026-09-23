@@ -197,10 +197,11 @@ export class HomeFeedService {
         const artistIds = [...new Set(withoutUsable.map((e) => e.artist_id).filter(Boolean))] as string[];
         const imageByArtist = new Map<string, string>();
         if (artistIds.length > 0) {
-            const { data: artists } = await supabase
+            const { data: artists, error: artistsError } = await supabase
                 .from('artists')
                 .select('id, image_url')
                 .in('id', artistIds);
+            if (artistsError) console.warn('[homeFeedService] artists query failed', artistsError);
 
             for (const a of artists || []) {
                 const uri = resolveFeedImageUri(a.image_url);
@@ -222,10 +223,11 @@ export class HomeFeedService {
         if (missing.length === 0) return events;
 
         const venueIds = [...new Set(missing.map((e) => e.venue_id).filter(Boolean))] as string[];
-        const { data: venues } = await supabase
+        const { data: venues, error: venuesError } = await supabase
             .from('venues')
             .select('id, city, state')
             .in('id', venueIds);
+        if (venuesError) console.warn('[homeFeedService] venues query failed', venuesError);
 
         const byId = new Map(
             (venues || []).map((v: { id: string; city?: string | null; state?: string | null }) => [v.id, v])
@@ -404,11 +406,13 @@ export class HomeFeedService {
         const venueMap = new Map<string, string>();
 
         if (artistIds.length > 0) {
-            const { data: artists } = await supabase.from('artists').select('id, name').in('id', artistIds);
+            const { data: artists, error: artistsError2 } = await supabase.from('artists').select('id, name').in('id', artistIds);
+            if (artistsError2) console.warn('[homeFeedService] artists query failed', artistsError2);
             (artists || []).forEach((a: any) => artistMap.set(a.id, a.name));
         }
         if (venueIds.length > 0) {
-            const { data: venues } = await supabase.from('venues').select('id, name').in('id', venueIds);
+            const { data: venues, error: venuesError2 } = await supabase.from('venues').select('id, name').in('id', venueIds);
+            if (venuesError2) console.warn('[homeFeedService] venues query failed', venuesError2);
             (venues || []).forEach((v: any) => venueMap.set(v.id, v.name));
         }
 
@@ -446,7 +450,7 @@ export class HomeFeedService {
         const today = todayLocalYmd();
         const { data, error } = await supabase
             .from('events_with_artist_venue')
-            .select('id, title, artist_name, venue_name, venue_city, venue_state, event_date, images, ticket_urls, artist_id, venue_id')
+            .select('id, title, artist_name_normalized, venue_name_normalized, venue_city, venue_state, event_date, images, ticket_urls, artist_id, venue_id')
             .gte('event_date', today)
             .order('event_date', { ascending: true })
             .limit(limit);
@@ -464,8 +468,8 @@ export class HomeFeedService {
                 return {
                     id: event.id,
                     title: event.title || 'Event',
-                    artist_name: event.artist_name || '',
-                    venue_name: event.venue_name || '',
+                    artist_name: event.artist_name_normalized || '',
+                    venue_name: event.venue_name_normalized || '',
                     venue_city: event.venue_city || undefined,
                     venue_state: event.venue_state || undefined,
                     event_date: event.event_date || '',
@@ -575,18 +579,20 @@ export class HomeFeedService {
             const venuesMap = new Map<string, string>();
 
             if (artistIds.size > 0) {
-                const { data: artists } = await supabase
+                const { data: artists, error: artistsError3 } = await supabase
                     .from('artists')
                     .select('id, name, image_url')
                     .in('id', Array.from(artistIds));
+                if (artistsError3) console.warn('[homeFeedService] artists query failed', artistsError3);
                 artists?.forEach(a => artistsMap.set(a.id, { name: a.name, image_url: a.image_url }));
             }
 
             if (venueIds.size > 0) {
-                const { data: venues } = await supabase
+                const { data: venues, error: venuesError3 } = await supabase
                     .from('venues')
                     .select('id, name')
                     .in('id', Array.from(venueIds));
+                if (venuesError3) console.warn('[homeFeedService] venues query failed', venuesError3);
                 venues?.forEach(v => venuesMap.set(v.id, v.name));
             }
 
@@ -651,12 +657,13 @@ export class HomeFeedService {
     static async getNetworkEvents(userId: string, limit = 30): Promise<NetworkEvent[]> {
         try {
             // Bidirectional friends query (relationship can be stored either direction)
-            const { data: rels } = await supabase
+            const { data: rels, error: relsError } = await supabase
                 .from('user_relationships')
                 .select('user_id, related_user_id')
                 .eq('status', 'accepted')
                 .eq('relationship_type', 'friend')
                 .or(`user_id.eq.${userId},related_user_id.eq.${userId}`);
+            if (relsError) console.warn('[homeFeedService] rels query failed', relsError);
 
             if (!rels || rels.length === 0) return [];
 

@@ -484,8 +484,7 @@ export class UserEventService {
           review_type: 'event', // Use valid enum value
           performance_rating: null, // No specific rating for attendance-only records
           venue_rating_new: null, // No specific rating for attendance-only records
-          overall_experience_rating: null, // No specific rating for attendance-only records
-          rank_order: 0
+          overall_experience_rating: null // No specific rating for attendance-only records
         };
         
         console.log('🎯 ATTENDANCE_ONLY record data:', attendanceRecord);

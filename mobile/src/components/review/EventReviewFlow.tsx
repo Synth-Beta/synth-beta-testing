@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { mobileReviewDraftStorageKey } from '@synth/shared';
+import { mobileReviewDraftStorageKey, searchPastEventsForReview } from '@synth/shared';
 import {
     View,
     StyleSheet,
@@ -32,8 +32,6 @@ import { MobileAttendeeSelector } from './MobileAttendeeSelector';
 import { MobileImageCropper, type CropResult } from './MobileImageCropper';
 import { Image } from 'expo-image';
 import { EventService } from '../../services/eventService';
-import { isEventPast } from '../../utils/eventStatusUtils';
-import { sanitizeOrFilterTerm } from '../../utils/postgrestSanitize';
 import { submitEventReviewFromForm } from '../../review/submitEventReviewFromForm';
 import { uploadReviewPhotoFromUri } from '../../services/reviewPhotoUpload';
 import type { UserReview } from '../../services/eventReviewSubmitService';
@@ -125,7 +123,19 @@ function getStepLabels(flow: Flow): string[] {
     }
 }
 
-const STAR_VALUES = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] as const;
+/** "Mar 1, 2025" — shorter than a raw ISO date in a one-line result row. */
+function formatRowDate(raw: unknown): string {
+    const s = String(raw ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+}
+
+const STAR_SIZE = 34;
 
 function StarPicker({
     value,
@@ -134,16 +144,41 @@ function StarPicker({
     value: number;
     onChange: (v: number) => void;
 }) {
+    const rounded = Math.floor(value * 2) / 2;
     return (
-        <View style={styles.starRow}>
-            {STAR_VALUES.map((v) => {
-                const active = value >= v - 0.01;
+        <View style={styles.starRow} accessibilityRole="adjustable" accessibilityLabel={`Rating: ${rounded} out of 5 stars`}>
+            {[1, 2, 3, 4, 5].map((i) => {
+                const full = rounded >= i;
+                const half = !full && rounded >= i - 0.5;
                 return (
-                    <Pressable key={v} onPress={() => onChange(v)} style={styles.starHit}>
-                        <SynthText variant="body" style={{ color: active ? '#EAB308' : SynthTokens.colors.neutral400 }}>
+                    <View key={i} style={styles.starSlot}>
+                        <SynthText
+                            variant="body"
+                            style={[styles.starGlyph, { color: SynthTokens.colors.neutral400 }]}
+                            maxFontSizeMultiplier={1.2}
+                        >
                             ★
                         </SynthText>
-                    </Pressable>
+                        {full || half ? (
+                            <View style={[styles.starFill, half && styles.starFillHalf]}>
+                                <SynthText variant="body" style={styles.starGlyph} maxFontSizeMultiplier={1.2}>
+                                    ★
+                                </SynthText>
+                            </View>
+                        ) : null}
+                        <Pressable
+                            style={[styles.starHit, { left: 0 }]}
+                            onPress={() => onChange(i - 0.5)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${i - 0.5} stars`}
+                        />
+                        <Pressable
+                            style={[styles.starHit, { right: 0 }]}
+                            onPress={() => onChange(i)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${i} stars`}
+                        />
+                    </View>
                 );
             })}
         </View>
@@ -188,6 +223,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
     const [previousVenueReview, setPreviousVenueReview] = useState<UserReview | null>(null);
     const [eventQuery, setEventQuery] = useState('');
     const [eventRows, setEventRows] = useState<any[]>([]);
+    const [eventSearching, setEventSearching] = useState(false);
     const [artistQ, setArtistQ] = useState('');
     const [artistRows, setArtistRows] = useState<ReviewArtist[]>([]);
     const [venueQ, setVenueQ] = useState('');
@@ -355,32 +391,23 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
     }, [userId, formData.selectedVenue?.id, formData.selectedVenue?.is_from_database]);
 
     useEffect(() => {
+        let cancelled = false;
         const t = setTimeout(async () => {
-            const q = sanitizeOrFilterTerm(eventQuery);
-            if (q.length < 2) {
+            if (eventQuery.trim().length < 2) {
+                setEventSearching(false);
                 setEventRows([]);
                 return;
             }
-            const { data, error } = await supabase
-                .from('events_with_artist_venue')
-                .select(
-                    'id, title, artist_name_normalized, venue_name_normalized, event_date, artist_id, venue_id'
-                )
-                .or(`artist_name_normalized.ilike.%${q}%,title.ilike.%${q}%,venue_name_normalized.ilike.%${q}%`)
-                .order('event_date', { ascending: false })
-                .limit(50);
-            if (error) {
-                setEventRows([]);
-                return;
-            }
-            const past = (data || []).filter((e: any) => isEventPast(e.event_date));
-            past.sort(
-                (a: any, b: any) =>
-                    new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
-            );
-            setEventRows(past);
+            setEventSearching(true);
+            const rows = await searchPastEventsForReview(supabase, eventQuery, { limit: 12 });
+            if (cancelled) return;
+            setEventRows(rows);
+            setEventSearching(false);
         }, 320);
-        return () => clearTimeout(t);
+        return () => {
+            cancelled = true;
+            clearTimeout(t);
+        };
     }, [eventQuery]);
 
     useEffect(() => {
@@ -406,6 +433,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         id: r.id,
                         name: r.name,
                         is_from_database: true,
+                        address: r.city ? { addressLocality: r.city } : undefined,
                     }))
                 );
             });
@@ -775,17 +803,28 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 value={eventQuery}
                 onChangeText={setEventQuery}
             />
+            {eventSearching ? (
+                <SynthText variant="meta" color="secondary" style={styles.listNote}>
+                    Searching…
+                </SynthText>
+            ) : eventQuery.trim().length >= 2 && eventRows.length === 0 ? (
+                <SynthText variant="meta" color="secondary" style={styles.listNote}>
+                    No past shows found — add the artist and venue below instead.
+                </SynthText>
+            ) : null}
             <FlatList
                 data={eventRows.slice(0, 8)}
                 keyExtractor={(it) => it.id}
                 scrollEnabled={false}
                 renderItem={({ item }) => (
                     <Pressable style={styles.listRow} onPress={() => void applyPastEvent(item)}>
-                        <SynthText variant="body" numberOfLines={2}>
-                            {(item.artist_name_normalized || '') +
-                                ' @ ' +
-                                (item.venue_name_normalized || '')}{' '}
-                            · {String(item.event_date).split('T')[0]}
+                        <SynthText variant="meta" style={styles.rowTitle} numberOfLines={1}>
+                            {item.artist_name_normalized || item.title || 'Unknown artist'}
+                        </SynthText>
+                        <SynthText variant="meta" color="secondary" style={styles.rowSub} numberOfLines={1}>
+                            {[item.venue_name_normalized, formatRowDate(item.event_date)]
+                                .filter(Boolean)
+                                .join(' · ')}
                         </SynthText>
                     </Pressable>
                 )}
@@ -812,7 +851,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     />
                     {artistRows.slice(0, 6).map((a) => (
                         <Pressable key={a.id} style={styles.listRow} onPress={() => selectArtist(a)}>
-                            <SynthText variant="body">{a.name}</SynthText>
+                            <SynthText variant="meta" style={styles.rowTitle} numberOfLines={1}>
+                                {a.name}
+                            </SynthText>
                         </Pressable>
                     ))}
                 </>
@@ -839,7 +880,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     />
                     {venueRows.slice(0, 6).map((v) => (
                         <Pressable key={v.id} style={styles.listRow} onPress={() => selectVenue(v)}>
-                            <SynthText variant="body">{v.name}</SynthText>
+                            <SynthText variant="meta" style={styles.rowTitle} numberOfLines={1}>
+                                {v.name}
+                            </SynthText>
+                            {v.address?.addressLocality ? (
+                                <SynthText variant="meta" color="secondary" style={styles.rowSub} numberOfLines={1}>
+                                    {v.address.addressLocality}
+                                </SynthText>
+                            ) : null}
                         </Pressable>
                     ))}
                 </>
@@ -1377,12 +1425,20 @@ const styles = StyleSheet.create({
         color: SynthTokens.colors.neutral900,
     },
     listRow: {
-        paddingVertical: 10,
+        paddingVertical: 9,
+        paddingHorizontal: 2,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: SynthTokens.colors.neutral200,
     },
-    starRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
-    starHit: { padding: 4, marginRight: 2 },
+    listNote: { marginTop: 8 },
+    rowTitle: { fontSize: 14, lineHeight: 18, fontWeight: '700' },
+    rowSub: { fontSize: 12, lineHeight: 16, marginTop: 1 },
+    starRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+    starSlot: { width: STAR_SIZE, height: STAR_SIZE, position: 'relative', marginRight: 2 },
+    starGlyph: { fontSize: STAR_SIZE - 6, lineHeight: STAR_SIZE, color: '#EAB308', textAlign: 'center', width: STAR_SIZE },
+    starFill: { position: 'absolute', left: 0, top: 0, width: STAR_SIZE, height: STAR_SIZE, overflow: 'hidden' },
+    starFillHalf: { width: STAR_SIZE / 2 },
+    starHit: { position: 'absolute', top: 0, bottom: 0, width: STAR_SIZE / 2 },
     chipScroll: { marginTop: 8, maxHeight: 44 },
     chip: {
         borderWidth: 1,

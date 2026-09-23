@@ -8,7 +8,7 @@ import './SideMenu.css';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountType } from '@/hooks/useAccountType';
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables } from '@/types/database.types';
+import type { User } from '@/types/database';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { notificationService } from '@/services/notificationService';
@@ -85,7 +85,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { accountInfo } = useAccountType();
-  const [userProfile, setUserProfile] = useState<Tables<'users'> | null>(null);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [pendingFriendRequestsCount, setPendingFriendRequestsCount] = useState(0);
 

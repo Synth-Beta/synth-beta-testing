@@ -28,9 +28,9 @@ export class EventCommentsService {
     const { data } = await supabase
       .from('events')
       .select('id')
-      .eq('jambase_event_id', eventId)
+      .eq('jambase_id', eventId)
       .limit(1)
-      .single();
+      .maybeSingle();
     return data?.id || eventId;
   }
   static async getEventComments(eventId: string, limit: number = 20, offset: number = 0): Promise<{ comments: EventCommentWithUser[]; total: number; hasMore: boolean }> {

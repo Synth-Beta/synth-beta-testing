@@ -9,7 +9,7 @@ import type { Artist } from '@/types/concertSearch';
 import type { VenueSearchResult } from '@/services/unifiedVenueSearchService';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeOrFilterTerm } from '@/utils/postgrestSanitize';
+import { searchPastEventsForReview } from '@synth/shared';
 import { isEventPast, getEventStatus } from '@/utils/eventStatusUtils';
 
 interface EventDetailsStepProps {
@@ -28,48 +28,20 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
   const [openerSearchKey, setOpenerSearchKey] = React.useState(0);
 
   React.useEffect(() => {
+    let cancelled = false;
     const handler = setTimeout(async () => {
-      const q = sanitizeOrFilterTerm(eventQuery);
-      if (q.length < 2) { setEventResults([]); return; }
+      if (eventQuery.trim().length < 2) { setEventResults([]); setShowEventResults(false); return; }
       try {
         setEventLoading(true);
-        // Search by artist, title, or venue with OR conditions
-        // Prioritize past events for reviews by ordering past events first
-        // Use helper view for normalized schema (artist_name and venue_name columns removed)
-        const { data, error } = await supabase
-          .from('events_with_artist_venue')
-          .select('id, title, artist_name_normalized, venue_name_normalized, event_date, artist_id, venue_id')
-          .or(`artist_name_normalized.ilike.%${q}%,title.ilike.%${q}%,venue_name_normalized.ilike.%${q}%`)
-          .order('event_date', { ascending: false })
-          .limit(50); // Increased limit to get more results
-        
-        if (error) {
-          // Log error but don't spam console - view might not exist or have issues
-          if (error.code !== 'PGRST116') { // PGRST116 = relation does not exist (expected in some cases)
-            console.warn('⚠️ Event search error:', error.message);
-          }
-          setEventResults([]);
-          setShowEventResults(false);
-        } else if (data) {
-          // Filter to ONLY show past events for reviews
-          const pastEventsOnly = data.filter(event => isEventPast(event.event_date));
-          
-          // Sort past events by date (most recent first)
-          const sortedResults = pastEventsOnly.sort((a, b) => 
-            new Date(b.event_date).getTime() - new Date(a.event_date).getTime()
-          );
-          
-          setEventResults(sortedResults);
-          setShowEventResults(true);
-        } else {
-          setEventResults([]);
-          setShowEventResults(false);
-        }
+        const rows = await searchPastEventsForReview(supabase, eventQuery, { limit: 12 });
+        if (cancelled) return;
+        setEventResults(rows);
+        setShowEventResults(true);
       } finally {
-        setEventLoading(false);
+        if (!cancelled) setEventLoading(false);
       }
     }, 300);
-    return () => clearTimeout(handler);
+    return () => { cancelled = true; clearTimeout(handler); };
   }, [eventQuery]);
 
   const applyEventSelection = async (ev: any) => {
@@ -240,10 +212,15 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
             onChange={(e) => setEventQuery(e.target.value)}
             onFocus={() => { if (eventResults.length > 0) setShowEventResults(true); }}
           />
-          {showEventResults && (eventResults.length > 0 || eventLoading) && (
+          {showEventResults && (eventResults.length > 0 || eventLoading || eventQuery.trim().length >= 2) && (
             <div className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded-md border bg-white shadow">
               {eventLoading && (
                 <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
+              )}
+              {!eventLoading && eventResults.length === 0 && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  No past shows found — add the artist and venue below instead.
+                </div>
               )}
               {!eventLoading && eventResults.map(ev => {
                 const eventStatus = getEventStatus(ev.event_date);

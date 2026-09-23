@@ -62,7 +62,7 @@ export class DraftReviewService {
     try {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
-        .select('id, artist_id, artist_name')
+        .select('id, artist_id, artists(name)')
         .eq('id', eventId)
         .maybeSingle();
 
@@ -133,7 +133,7 @@ export class DraftReviewService {
           try {
             const { UnifiedArtistSearchService } = await import('@/services/unifiedArtistSearchService');
             await UnifiedArtistSearchService.searchArtists(
-              selectedArtist?.name || eventData?.artist_name || '',
+              selectedArtist?.name || (eventData as any)?.artists?.name || '',
               20,
               false
             );

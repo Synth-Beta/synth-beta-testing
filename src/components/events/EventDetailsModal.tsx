@@ -626,7 +626,7 @@ export function EventDetailsModal({
 
         // Fetch artist reviews if we have artist_id
         if (actualEvent.artist_id) {
-          const { data: artistReviews } = await supabase
+          const { data: artistReviews, error: artistReviewsError } = await supabase
             .from('reviews')
             .select(`
               id, user_id, event_id, artist_id, venue_id, rating, review_text,
@@ -640,6 +640,7 @@ export function EventDetailsModal({
             .eq('is_draft', false)
             .order('created_at', { ascending: false })
             .limit(10);
+          if (artistReviewsError) console.warn('[EventDetailsModal] artistReviews query failed', artistReviewsError);
 
           if (artistReviews) {
             artistReviews.forEach(r => {
@@ -660,7 +661,7 @@ export function EventDetailsModal({
 
         // Fetch venue reviews if we have venue_id
         if (actualEvent.venue_id) {
-          const { data: venueReviews } = await supabase
+          const { data: venueReviews, error: venueReviewsError } = await supabase
             .from('reviews')
             .select(`
               id, user_id, event_id, artist_id, venue_id, rating, review_text,
@@ -674,6 +675,7 @@ export function EventDetailsModal({
             .eq('is_draft', false)
             .order('created_at', { ascending: false })
             .limit(10);
+          if (venueReviewsError) console.warn('[EventDetailsModal] venueReviews query failed', venueReviewsError);
 
           if (venueReviews) {
             venueReviews.forEach(r => {
@@ -700,10 +702,11 @@ export function EventDetailsModal({
         // Fetch user profiles for all reviews
         const userIds = [...new Set(finalReviews.map(r => r.user_id).filter(Boolean))];
         if (userIds.length > 0) {
-          const { data: profiles } = await supabase
+          const { data: profiles, error: profilesError2 } = await supabase
             .from('users')
             .select('user_id, name, avatar_url')
             .in('user_id', userIds);
+          if (profilesError2) console.warn('[EventDetailsModal] profiles query failed', profilesError2);
 
           if (profiles) {
             const profileMap: Record<string, { name: string; avatar_url?: string }> = {};
@@ -895,12 +898,13 @@ export function EventDetailsModal({
         setGuestListLoading(true);
         setGuestListError(null);
 
-        const { data: friendsData } = await supabase
+        const { data: friendsData, error: friendsDataError } = await supabase
           .from('user_relationships')
           .select('user_id, related_user_id')
           .eq('relationship_type', 'friend')
           .eq('status', 'accepted')
           .or(`user_id.eq.${currentUserId},related_user_id.eq.${currentUserId}`);
+        if (friendsDataError) console.warn('[EventDetailsModal] friendsData query failed', friendsDataError);
 
         const friendIds = (friendsData || [])
           .map((f) => (f.user_id === currentUserId ? f.related_user_id : f.user_id))
@@ -1079,11 +1083,12 @@ export function EventDetailsModal({
 
     if (!artistName && artistId) {
       try {
-        const { data: artistData } = await supabase
+        const { data: artistData, error: artistDataError } = await supabase
           .from('artists')
           .select('id, name')
           .eq('id', artistId)
           .single();
+        if (artistDataError) console.warn('[EventDetailsModal] artistData query failed', artistDataError);
 
         if (artistData) {
           artistName = artistData.name;
@@ -1145,11 +1150,12 @@ export function EventDetailsModal({
 
     if (!venueName && venueId) {
       try {
-        const { data: venueData } = await supabase
+        const { data: venueData, error: venueDataError } = await supabase
           .from('venues')
           .select('id, name')
           .eq('id', venueId)
           .single();
+        if (venueDataError) console.warn('[EventDetailsModal] venueData query failed', venueDataError);
 
         if (venueData) {
           venueName = venueData.name;

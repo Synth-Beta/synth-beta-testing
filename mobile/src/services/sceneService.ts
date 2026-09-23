@@ -122,7 +122,7 @@ export class SceneService {
 
       // Fetch participants for all scenes
       const sceneIds = scenes.map(s => s.id);
-      const { data: participantsData } = await supabase
+      const { data: participantsData, error: participantsDataError } = await supabase
         .from('scene_participants')
         .select(`
           id,
@@ -133,6 +133,7 @@ export class SceneService {
           text_value
         `)
         .in('scene_id', sceneIds);
+      if (participantsDataError) console.warn('[sceneService] participantsData query failed', participantsDataError);
 
       // Get artist and venue IDs to fetch names
       const artistIds = [...new Set(participantsData?.filter(p => p.artist_id).map(p => p.artist_id) || [])];
@@ -141,20 +142,22 @@ export class SceneService {
       // Fetch artist names
       const artistMap = new Map<string, string>();
       if (artistIds.length > 0) {
-        const { data: artists } = await supabase
+        const { data: artists, error: artistsError } = await supabase
           .from('artists')
           .select('id, name')
           .in('id', artistIds);
+        if (artistsError) console.warn('[sceneService] artists query failed', artistsError);
         artists?.forEach(a => artistMap.set(a.id, a.name));
       }
 
       // Fetch venue names
       const venueMap = new Map<string, string>();
       if (venueIds.length > 0) {
-        const { data: venues } = await supabase
+        const { data: venues, error: venuesError } = await supabase
           .from('venues')
           .select('id, name')
           .in('id', venueIds);
+        if (venuesError) console.warn('[sceneService] venues query failed', venuesError);
         venues?.forEach(v => venueMap.set(v.id, v.name));
       }
 
@@ -233,11 +236,12 @@ export class SceneService {
   private static async getActiveReviewersCount(sceneId: string, genres: string[]): Promise<number> {
     try {
       // Get scene to access its criteria
-      const { data: scene } = await supabase
+      const { data: scene, error: sceneError2 } = await supabase
         .from('scenes')
         .select('*')
         .eq('id', sceneId)
         .single();
+      if (sceneError2) console.warn('[sceneService] scene query failed', sceneError2);
 
       if (!scene) return 0;
 
@@ -364,10 +368,11 @@ export class SceneService {
    */
   static async refreshAllSceneProgress(userId: string): Promise<void> {
     try {
-      const { data: scenes } = await supabase
+      const { data: scenes, error: scenesError } = await supabase
         .from('scenes')
         .select('id')
         .eq('is_active', true);
+      if (scenesError) console.warn('[sceneService] scenes query failed', scenesError);
       if (!scenes?.length) return;
       await Promise.all(
         scenes.map((s) =>
@@ -490,7 +495,7 @@ export class SceneService {
       }
 
       // Fetch participants from normalized table
-      const { data: participantsData } = await supabase
+      const { data: participantsData, error: participantsDataError2 } = await supabase
         .from('scene_participants')
         .select(`
           id,
@@ -500,6 +505,7 @@ export class SceneService {
           text_value
         `)
         .eq('scene_id', sceneId);
+      if (participantsDataError2) console.warn('[sceneService] participantsData query failed', participantsDataError2);
 
       // Get artist and venue IDs to fetch names
       const artistIds = [...new Set(participantsData?.filter(p => p.artist_id).map(p => p.artist_id) || [])];
@@ -508,20 +514,22 @@ export class SceneService {
       // Fetch artist names and identifiers
       const artistMap = new Map<string, { name: string; identifier: string }>();
       if (artistIds.length > 0) {
-        const { data: artists } = await supabase
+        const { data: artists, error: artistsError2 } = await supabase
           .from('artists')
           .select('id, name, identifier')
           .in('id', artistIds);
+        if (artistsError2) console.warn('[sceneService] artists query failed', artistsError2);
         artists?.forEach(a => artistMap.set(a.id, { name: a.name, identifier: a.identifier }));
       }
 
       // Fetch venue names and identifiers
       const venueMap = new Map<string, { name: string; identifier: string }>();
       if (venueIds.length > 0) {
-        const { data: venues } = await supabase
+        const { data: venues, error: venuesError2 } = await supabase
           .from('venues')
           .select('id, name, identifier')
           .in('id', venueIds);
+        if (venuesError2) console.warn('[sceneService] venues query failed', venuesError2);
         venues?.forEach(v => venueMap.set(v.id, { name: v.name, identifier: v.identifier }));
       }
 
@@ -745,10 +753,11 @@ export class SceneService {
 
       // Get user profiles
       const userIds = [...new Set((reviewers || []).map(r => r.user_id))];
-      const { data: userProfiles } = await supabase
+      const { data: userProfiles, error: userProfilesError } = await supabase
         .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', userIds.length > 0 ? userIds : ['']);
+      if (userProfilesError) console.warn('[sceneService] userProfiles query failed', userProfilesError);
 
       const reviewerMap = new Map<string, {
         user_id: string;

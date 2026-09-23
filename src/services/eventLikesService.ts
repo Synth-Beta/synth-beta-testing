@@ -21,9 +21,9 @@ export class EventLikesService {
     const { data } = await supabase
       .from('events')
       .select('id')
-      .eq('jambase_event_id', eventId)
+      .eq('jambase_id', eventId)
       .limit(1)
-      .single();
+      .maybeSingle();
     return data?.id || eventId;
   }
 

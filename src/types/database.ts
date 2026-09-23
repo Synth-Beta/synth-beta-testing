@@ -362,7 +362,6 @@ export interface Review {
   is_public: boolean;
   is_draft: boolean;
   attendees: string[] | null;
-  rank_order: number | null;
   was_there: boolean;
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ

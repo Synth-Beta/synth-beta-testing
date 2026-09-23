@@ -146,7 +146,7 @@ interface VenueRef  { name: string; city: string; state: string }
 
 interface EventRow {
   id: string; title: string | null; event_date: string | null;
-  image_url: string | null; poster_image_url: string | null;
+  event_media_url: string | null;
   images: Record<string, string> | null; genres: string[] | null;
   artists: ArtistRef | ArtistRef[] | null;
   venues:  VenueRef  | VenueRef[]  | null;
@@ -196,9 +196,11 @@ function formatDate(dateStr: string | null | undefined): string {
   }
 }
 
+// events store their image in event_media_url; artists and venues use image_url.
+// Keep both so this stays usable for all three row shapes.
 function pickImage(row: Record<string, any>): string {
   return (
-    row.poster_image_url ||
+    row.event_media_url ||
     row.image_url ||
     row.images?.portrait_url ||
     row.images?.square_url ||
@@ -472,7 +474,7 @@ async function fetchEvent(supabase: SB, id: string): Promise<EventRow | null> {
   const { data } = await supabase
     .from('events')
     .select(`
-      id, title, event_date, image_url, poster_image_url, images, genres,
+      id, title, event_date, event_media_url, images, genres,
       artists ( name ),
       venues ( name, city, state )
     `)
@@ -486,7 +488,7 @@ async function fetchReview(supabase: SB, id: string): Promise<ReviewRow | null> 
     .from('reviews')
     .select(`
       id, overall_rating, created_at,
-      events ( title, event_date, image_url, poster_image_url, images,
+      events ( title, event_date, event_media_url, images,
         artists ( name ),
         venues ( name, city, state )
       ),

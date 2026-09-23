@@ -17,6 +17,7 @@ import { UnifiedEventSearchService } from '@/services/unifiedEventSearchService'
 // JamBaseEventsService removed - using database queries directly
 import { Loader2 } from 'lucide-react';
 import { ReviewMobileShell } from './ReviewMobileShell';
+import { withEventNamesList } from '@/lib/eventNames';
 
 interface EventReviewsSectionProps {
   event: JamBaseEvent;
@@ -65,8 +66,8 @@ export function EventReviewsSection({
         // Fetch from database
         const { data: eventsData, error } = await supabase
           .from('events')
-          .select('*')
-          .ilike('artist_name', `%${artistName}%`)
+          .select('*, artists!inner(name), venues(name)')
+          .ilike('artists.name', `%${artistName}%`)
           .order('event_date', { ascending: true })
           .limit(50);
 
@@ -76,7 +77,7 @@ export function EventReviewsSection({
         }
 
         // Use only database events
-        const dbEvents: JamBaseEvent[] = (eventsData || []).map(event => ({
+        const dbEvents: JamBaseEvent[] = withEventNamesList(eventsData).map(event => ({
           ...event,
           source: event.source || 'jambase'
         }));

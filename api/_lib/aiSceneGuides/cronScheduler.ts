@@ -179,16 +179,16 @@ async function recentEventContext(
   try {
     const { data } = await supabase
       .from('events')
-      .select('title, name, venue_name, city, start_time, event_date')
-      .order('start_time', { ascending: true, nullsFirst: false })
+      .select('title, venue_city, event_date, venues(name)')
+      .order('event_date', { ascending: true, nullsFirst: false })
       .limit(30);
     const row = (data ?? []).find(() => Math.random() > 0.5) ?? data?.[0];
     if (row) {
       return {
         genreLabel,
-        artist: (row.title || row.name || undefined) as string | undefined,
-        venue: (row.venue_name || undefined) as string | undefined,
-        city: (row.city || undefined) as string | undefined,
+        artist: (row.title || undefined) as string | undefined,
+        venue: ((row as any).venues?.name || undefined) as string | undefined,
+        city: (row.venue_city || undefined) as string | undefined,
       };
     }
   } catch {

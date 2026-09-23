@@ -3,6 +3,7 @@ import { ReviewService } from './reviewService';
 import { JamBaseEventResponse } from '@/types/eventTypes';
 import { PersonalizedFeedService, PersonalizedEvent } from './personalizedFeedService';
 import { FriendsReviewService } from './friendsReviewService';
+import { withEventNamesList } from '@/lib/eventNames';
 
 export interface UnifiedFeedItem {
   id: string;
@@ -265,7 +266,7 @@ export class UnifiedFeedService {
     try {
       const { data, error } = await supabase
         .from('events')
-        .select('id, title, artist_name, artist_id, venue_name, venue_id, event_date, venue_city, venue_state, setlist')
+        .select('id, title, artist_id, venue_id, event_date, venue_city, venue_state, setlist, artists(name), venues(name)')
         .in('id', uniqueIds);
 
       if (error) {
@@ -273,7 +274,7 @@ export class UnifiedFeedService {
         return eventMap;
       }
 
-      for (const event of data ?? []) {
+      for (const event of withEventNamesList(data)) {
         if (event.id) {
           eventMap.set(event.id, event);
         }

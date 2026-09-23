@@ -100,7 +100,7 @@ export default function SceneScreen() {
         const { data, error } = await supabase
           .from('events')
           .select(
-            'id, title, artist_name, venue_name, venue_city, event_date, is_promoted, promotion_tier'
+            'id, title, venue_city, event_date, is_promoted, promotion_tier, artists(name), venues(name)'
           )
           .gte('event_date', now)
           .order('event_date', { ascending: true })
@@ -112,7 +112,15 @@ export default function SceneScreen() {
           return;
         }
         setSuggestedShow(
-          pickFeaturedShowForPreference(preference, (data || []) as FeaturedShowCandidate[])
+          pickFeaturedShowForPreference(
+            preference,
+            // events has no artist_name/venue_name column; flatten the embeds.
+            (data || []).map((r: any) => ({
+              ...r,
+              artist_name: r?.artists?.name ?? null,
+              venue_name: r?.venues?.name ?? null,
+            })) as unknown as FeaturedShowCandidate[]
+          )
         );
       } catch (err) {
         if (!cancelled) {

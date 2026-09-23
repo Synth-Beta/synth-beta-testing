@@ -676,7 +676,7 @@ const { user, sessionExpired } = useAuth();
         return;
       }
       
-      // Transform to match the expected interface for display (include rank_order and category ratings for display)
+      // Transform to match the expected interface for display (include category ratings for display)
       // Privacy is enforced by the reviews_select RLS policy (own reviews, public
       // reviews, or private reviews from a direct friend) - the query already only
       // returns rows this viewer is allowed to see, so no client-side is_public
@@ -720,7 +720,6 @@ const { user, sessionExpired } = useAuth();
           artist_id: item.review.artist_id,
           venue_id: item.review.venue_id,
           rating: item.review.rating,
-          rank_order: (item.review as any).rank_order,
           artist_performance_rating: (item.review as any).artist_performance_rating,
           production_rating: (item.review as any).production_rating,
           venue_rating: (item.review as any).venue_rating,

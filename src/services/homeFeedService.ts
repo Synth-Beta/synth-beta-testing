@@ -712,12 +712,13 @@ export class HomeFeedService {
 
       if (!reviewsError && topReviews && topReviews.length > 0) {
         const eventIds = topReviews.map((r: any) => r.event_id);
-        const { data: events } = await supabase
+        const { data: events, error: eventsError2 } = await supabase
           .from('events')
             .select('id, title, venue_city, event_date, images, genres, artist_id, artists(name), venue_id, venues(name)')
           .in('id', eventIds)
           .gte('event_date', new Date().toISOString())
           .limit(10);
+        if (eventsError2) console.warn('[homeFeedService] events query failed', eventsError2);
 
         if (events && events.length > 0) {
           lists.push({
@@ -741,23 +742,25 @@ export class HomeFeedService {
       // Get network top rated for "Top Rated This Weekend in Your Network"
       const friendIds = await this.getFriendIds(userId);
       if (friendIds.length > 0) {
-        const { data: networkReviews } = await supabase
+        const { data: networkReviews, error: networkReviewsError } = await supabase
           .from('reviews')
           .select('event_id, rating')
           .in('user_id', friendIds)
           .gte('rating', 4)
           .order('rating', { ascending: false })
           .limit(10);
+        if (networkReviewsError) console.warn('[homeFeedService] networkReviews query failed', networkReviewsError);
 
         if (networkReviews && networkReviews.length > 0) {
           const eventIds = networkReviews.map((r: any) => r.event_id);
-          const { data: events } = await supabase
+          const { data: events, error: eventsError3 } = await supabase
             .from('events')
             .select('id, title, venue_city, event_date, images, genres, artist_id, artists(name), venue_id, venues(name)')
             .in('id', eventIds)
             .gte('event_date', new Date().toISOString())
             .lte('event_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
             .limit(10);
+          if (eventsError3) console.warn('[homeFeedService] events query failed', eventsError3);
 
           if (events && events.length > 0) {
             lists.push({
@@ -895,18 +898,20 @@ export class HomeFeedService {
       const venuesMap = new Map<string, string>();
       
       if (artistIds.size > 0) {
-        const { data: artists } = await supabase
+        const { data: artists, error: artistsError } = await supabase
           .from('artists')
           .select('id, name, image_url')
           .in('id', Array.from(artistIds));
+        if (artistsError) console.warn('[homeFeedService] artists query failed', artistsError);
         artists?.forEach(a => artistsMap.set(a.id, { name: a.name, image_url: a.image_url }));
       }
       
       if (venueIds.size > 0) {
-        const { data: venues } = await supabase
+        const { data: venues, error: venuesError } = await supabase
           .from('venues')
           .select('id, name')
           .in('id', Array.from(venueIds));
+        if (venuesError) console.warn('[homeFeedService] venues query failed', venuesError);
         venues?.forEach(v => venuesMap.set(v.id, v.name));
       }
 

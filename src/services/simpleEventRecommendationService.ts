@@ -3,6 +3,7 @@ import { LocationService, LocationSearchParams } from './locationService';
 import { spotifyService } from './spotifyService';
 import { UserStreamingStatsService, UserTopArtist } from './userStreamingStatsService';
 import { SpotifyArtist, SpotifyTimeRange } from '@/types/spotify';
+import { withEventNamesList } from '@/lib/eventNames';
 
 export interface SimpleRecommendedEvent {
   id: string;
@@ -232,12 +233,12 @@ export class SimpleEventRecommendationService {
           // Search for events by artist name from database
           const { data: artistEventsData } = await supabase
             .from('events')
-            .select('*')
-            .ilike('artist_name', `%${artist.name}%`)
+            .select('*, artists!inner(name), venues(name)')
+            .ilike('artists.name', `%${artist.name}%`)
             .gte('event_date', new Date().toISOString())
             .order('event_date', { ascending: true })
             .limit(10);
-          const artistEvents = artistEventsData || [];
+          const artistEvents = withEventNamesList(artistEventsData);
           
           // Filter to upcoming events only
           const upcomingEvents = artistEvents.filter(event => {

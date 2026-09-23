@@ -368,21 +368,21 @@ export class PassportService {
           let venueId: string | null = null;
 
           if (review.event_id) {
-            // Get event to find artist_uuid and venue_uuid (UUID foreign keys)
+            // Get event to find its artist_id / venue_id foreign keys
             const { data: event } = await supabase
               .from('events')
-              .select('artist_uuid, venue_uuid, artist_name, venue_name')
+              .select('artist_id, venue_id, artists(name), venues(name)')
               .eq('id', review.event_id)
-              .single();
+              .maybeSingle();
             
             // Use UUID from event if available, otherwise use from review
-            artistId = event?.artist_uuid || review.artist_id;
-            venueId = event?.venue_uuid || review.venue_id;
+            artistId = event?.artist_id || review.artist_id;
+            venueId = event?.venue_id || review.venue_id;
             
             // Try to get names from event first
-            if (event?.artist_name && event?.venue_name) {
-              artistName = event.artist_name;
-              venueName = event.venue_name;
+            if ((event as any)?.artists?.name && (event as any)?.venues?.name) {
+              artistName = (event as any).artists.name;
+              venueName = (event as any).venues.name;
               eventName = `${artistName} @ ${venueName}`;
             }
           } else {
@@ -675,16 +675,16 @@ export class PassportService {
           let venueId: string | null = null;
 
           if (review.event_id) {
-            // Get event to find artist_uuid and venue_uuid (UUID foreign keys)
+            // Get event to find its artist_id / venue_id foreign keys
             const { data: event } = await supabase
               .from('events')
-              .select('artist_uuid, venue_uuid')
+              .select('artist_id, venue_id')
               .eq('id', review.event_id)
-              .single();
+              .maybeSingle();
             
             // Use UUID from event if available, otherwise use from review
-            artistId = event?.artist_uuid || review.artist_id;
-            venueId = event?.venue_uuid || review.venue_id;
+            artistId = event?.artist_id || review.artist_id;
+            venueId = event?.venue_id || review.venue_id;
           } else {
             artistId = review.artist_id;
             venueId = review.venue_id;

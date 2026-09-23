@@ -340,7 +340,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
           eventIds.length > 0
             ? supabase
                 .from('events_with_artist_venue')
-                .select('id, title, artist_name_normalized, venue_name_normalized, event_date, poster_image_url, images')
+                .select('id, title, artist_name_normalized, venue_name_normalized, event_date, event_media_url, images')
                 .in('id', eventIds)
             : Promise.resolve({ data: [], error: null })
         ]);
@@ -370,7 +370,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
           const eventData = eventMap.get(row.event_id) || {};
           const images = Array.isArray(eventData.images) ? eventData.images : [];
           const fallbackImage =
-            eventData.poster_image_url ||
+            eventData.event_media_url ||
             (images.length > 0 ? images.find((img: any) => img?.url)?.url : undefined);
 
           return {

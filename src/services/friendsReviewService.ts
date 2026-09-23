@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { UnifiedFeedItem } from './unifiedFeedService';
 import { cacheService, CacheKeys, CacheTTL } from './cacheService';
+import { withEventNamesList } from '@/lib/eventNames';
 
 export class FriendsReviewService {
   /**
@@ -561,7 +562,7 @@ export class FriendsReviewService {
     try {
       const { data, error } = await supabase
         .from('events')
-        .select('id, title, artist_name, artist_id, venue_name, venue_id, event_date, venue_city, venue_state')
+        .select('id, title, artist_id, venue_id, event_date, venue_city, venue_state, artists(name), venues(name)')
         .in('id', uniqueIds);
 
       if (error) {
@@ -569,7 +570,7 @@ export class FriendsReviewService {
         return eventMap;
       }
 
-      for (const event of data ?? []) {
+      for (const event of withEventNamesList(data)) {
         if (event.id) {
           eventMap.set(event.id, event);
         }

@@ -10,9 +10,7 @@ import { RatingStep } from './ReviewFormSteps/RatingStep';
 import { ReviewContentStep } from './ReviewFormSteps/ReviewContentStep';
 import { PrivacySubmitStep } from './ReviewFormSteps/PrivacySubmitStep';
 import { supabase } from '@/integrations/supabase/client';
-import { ShowRanking, type ShowEntry } from './ShowRanking';
 import { trackInteraction } from '@/services/interactionTrackingService';
-import { PostSubmitRankingModal } from './PostSubmitRankingModal';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { DraftReviewService, DraftReviewData, DraftReview } from '@/services/draftReviewService';
 import { DraftToggle } from './DraftToggle';
@@ -38,9 +36,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
   } = useReviewForm();
 
   const [existingReview, setExistingReview] = useState<UserReview | null>(null);
-  const [shows, setShows] = useState<ShowEntry[]>([]);
-  const [showRankingModal, setShowRankingModal] = useState(false);
-  const [submittedReview, setSubmittedReview] = useState<UserReview | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [actualEventId, setActualEventId] = useState<string>(event.id);
@@ -458,15 +453,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         formData.artistReviewText.trim() ? `Artist: ${formData.artistReviewText.trim()}` : ''
       ].filter(Boolean).join('\n\n');
 
-      const showsRankingBlock = shows.length
-        ? `\n\nShow rankings:\n${shows
-            .slice()
-            .sort((a, b) => (b.rating - a.rating) || (a.order - b.order))
-            .map((s, idx) => `${idx + 1}. ${s.show_name || 'Show'}${s.show_date ? ` (${s.show_date})` : ''}${s.venue_name ? ` @ ${s.venue_name}` : ''} — ${s.rating}/5${(shows.filter(x => x.rating === s.rating).length > 1) ? ` [tie #${s.order}]` : ''}`)
-            .join('\n')}
-        `
-        : '';
-
       // Ensure overall rating is saved on a 1..5 integer scale without halving
       const integerOverall = Math.max(1, Math.min(5, Math.round(formData.rating))) as any;
       const reviewData: ReviewData = {
@@ -479,7 +465,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         performance_review_text: formData.performanceReviewText || undefined,
         venue_review_text: formData.venueReviewText || undefined,
         overall_experience_review_text: formData.overallExperienceReviewText || undefined,
-        review_text: (combinedReviewText + showsRankingBlock).trim() || undefined,
+        review_text: combinedReviewText.trim() || undefined,
         reaction_emoji: formData.reactionEmoji || undefined,
         photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
         videos: formData.videos && formData.videos.length > 0 ? formData.videos : undefined,
@@ -639,39 +625,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       } catch {}
       toast({ title: existingReview ? 'Review Updated' : 'Review Submitted! 🎉', description: existingReview ? 'Your review has been updated.' : 'Thanks for sharing your concert experience!' });
       
-      // Check if we should show ranking modal (only for new reviews, not edits)
+      // New reviews start the form over; edits leave it as the user left it.
       if (!existingReview) {
-        console.log('🎯 New review submitted, checking if we should show ranking modal');
-        console.log('  Review data:', {
-          id: review.id,
-          rating: review.rating,
-          performance_rating: review.performance_rating,
-          venue_rating: (review as any).venue_rating_new || review.venue_rating,
-          overall_experience_rating: review.overall_experience_rating,
-        });
-        
-        // Calculate the effective rating from the saved review (use decimal values if available)
-        const effectiveRating = review.performance_rating && (review as any).venue_rating_new && review.overall_experience_rating
-          ? (review.performance_rating + (review as any).venue_rating_new + review.overall_experience_rating) / 3
-          : review.rating;
-        
-        console.log('  Effective rating for modal:', effectiveRating);
-        console.log('  Opening ranking modal with review ID:', review.id);
-        console.log('  ⚠️ DELAYING onSubmitted callback until modal closes');
-        
-        // Small delay to ensure review is fully saved before opening modal
-        setTimeout(() => {
-          setSubmittedReview(review);
-          setShowRankingModal(true);
-          console.log('  ✅ Modal state updated:', { showRankingModal: true, submittedReview: review.id });
-        }, 100);
-        
-        // Don't reset form yet - wait until after ranking modal closes
-        // DON'T call onSubmitted yet - will be called when modal closes
-      } else {
-        // For edits, call onSubmitted immediately
-        if (onSubmitted) onSubmitted(review);
+        resetForm();
       }
+      if (onSubmitted) onSubmitted(review);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('Error submitting review:', e);
@@ -679,28 +637,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRankingModalClose = () => {
-    console.log('🚪 Ranking modal closing');
-    setShowRankingModal(false);
-    const reviewToSubmit = submittedReview;
-    setSubmittedReview(null);
-    resetForm();
-    
-    // NOW call the onSubmitted callback (which triggers navigation)
-    if (onSubmitted && reviewToSubmit) {
-      console.log('📞 Calling onSubmitted callback after modal close');
-      onSubmitted(reviewToSubmit);
-    }
-  };
-
-  // Calculate effective rating for the ranking modal
-  const getEffectiveRating = () => {
-    if (formData.performanceRating && formData.venueRating && formData.overallExperienceRating) {
-      return (formData.performanceRating + formData.venueRating + formData.overallExperienceRating) / 3;
-    }
-    return formData.rating;
   };
 
   // Debug component state
@@ -838,24 +774,6 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         </CardContent>
       </Card>
 
-      {/* Post-submit ranking modal */}
-      {submittedReview && (() => {
-        console.log('📺 Rendering PostSubmitRankingModal:', {
-          submittedReview: submittedReview.id,
-          showRankingModal,
-          userId: userId?.slice(0, 8),
-          effectiveRating: getEffectiveRating(),
-        });
-        return (
-          <PostSubmitRankingModal
-            isOpen={showRankingModal}
-            onClose={handleRankingModalClose}
-            userId={userId}
-            newReview={submittedReview}
-            rating={getEffectiveRating()}
-          />
-        );
-      })()}
     </>
   );
 }

@@ -1562,7 +1562,7 @@ export const buildPersonalizationContextForUser = async (
     const result = await (supabase as any)
       .from("reviews")
       .select(
-        "id, user_id, event_id, artist_id, venue_id, user_created_artist_id, rating, review_text, photos, videos, created_at, is_public, is_draft, was_there, Event_date, setlist"
+        "id, user_id, event_id, artist_id, venue_id, user_created_artist_id, rating, review_text, photos, videos, created_at, is_public, is_draft, was_there, \"Event_date\", setlist"
       )
       .eq("user_id", userId)
       .eq("is_draft", false)

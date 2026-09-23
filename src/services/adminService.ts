@@ -97,10 +97,11 @@ export class AdminService {
       // Fetch claimer profiles separately
       if (claims && claims.length > 0) {
         const userIds = claims.map((c: any) => c.claimed_by_user_id);
-        const { data: profiles } = await (supabase as any)
+        const { data: profiles, error: profilesError } = await (supabase as any)
           .from('users')
           .select('user_id, name, avatar_url, account_type')
           .in('user_id', userIds);
+        if (profilesError) console.warn('[adminService] profiles query failed', profilesError);
         
         // Merge profiles into claims
         return claims.map((claim: any) => ({
@@ -150,10 +151,11 @@ export class AdminService {
           ...claims.filter((c: any) => c.reviewed_by_admin_id).map((c: any) => c.reviewed_by_admin_id)
         ])];
         
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesError2 } = await supabase
           .from('users')
           .select('user_id, name, avatar_url')
           .in('user_id', userIds);
+        if (profilesError2) console.warn('[adminService] profiles query failed', profilesError2);
         
         // Merge profiles into claims
         return claims.map((claim: any) => ({
@@ -224,10 +226,11 @@ export class AdminService {
       // Attach the reporter's profile. `users` is the live table; the old
       // public.profiles is gone.
       const userIds = flags.map((f: any) => f.flagged_by_user_id).filter(Boolean);
-      const { data: profiles } = await supabase
+      const { data: profiles, error: profilesError3 } = await supabase
         .from('users')
         .select('user_id, name, avatar_url')
         .in('user_id', userIds);
+      if (profilesError3) console.warn('[adminService] profiles query failed', profilesError3);
 
       return flags.map((flag: any) => ({
         ...flag,
@@ -265,10 +268,11 @@ export class AdminService {
           ...flags.filter((f: any) => f.reviewed_by_admin_id).map((f: any) => f.reviewed_by_admin_id)
         ])];
         
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesError4 } = await supabase
           .from('users')
           .select('user_id, name, avatar_url')
           .in('user_id', userIds);
+        if (profilesError4) console.warn('[adminService] profiles query failed', profilesError4);
         
         // Merge profiles into flags
         return flags.map((flag: any) => ({

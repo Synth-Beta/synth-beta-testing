@@ -337,7 +337,7 @@ export class SetlistService {
     try {
       const { data, error } = await supabase
         .from('events')
-        .select('setlist, setlist_enriched, setlist_song_count, setlist_fm_id, event_date')
+        .select('setlist, event_date')
         .eq('id', eventId)
         .single();
 

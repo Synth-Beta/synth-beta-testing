@@ -552,10 +552,11 @@ interface FriendEventInterest {
   useEffect(() => {
     const loadCities = async () => {
       try {
-        const { data } = await supabase.rpc('get_available_cities_for_filter', {
+        const { data, error: queryError } = await supabase.rpc('get_available_cities_for_filter', {
           min_event_count: 1,
           limit_count: 500
         });
+        if (queryError) console.warn('[HomeFeed] data query failed', queryError);
         if (data) {
           setAvailableCities(data.map((row: any) => row.city_name));
         }
@@ -1185,12 +1186,13 @@ interface FriendEventInterest {
     try {
       // First, fetch existing friend relationships to filter them out
       // Only exclude users with 'pending' or 'accepted' status, not 'declined'
-      const { data: existingRelationships } = await supabase
+      const { data: existingRelationships, error: existingRelationshipsError } = await supabase
         .from('user_relationships')
         .select('user_id, related_user_id, status')
         .eq('relationship_type', 'friend')
         .in('status', ['pending', 'accepted'])
         .or(`user_id.eq.${currentUserId},related_user_id.eq.${currentUserId}`);
+      if (existingRelationshipsError) console.warn('[HomeFeed] existingRelationships query failed', existingRelationshipsError);
 
       // Create a set of user IDs we already have relationships with (pending or accepted)
       // Users with 'declined' status are NOT excluded and remain eligible for recommendations
@@ -1370,10 +1372,11 @@ interface FriendEventInterest {
 
       if (artistIds.length > 0) {
         // Stage 1: artists.image_url (skip generic JamBase placeholder)
-        const { data: artistRows } = await supabase
+        const { data: artistRows, error: artistRowsError } = await supabase
           .from('artists')
           .select('id, image_url')
           .in('id', artistIds);
+        if (artistRowsError) console.warn('[HomeFeed] artistRows query failed', artistRowsError);
         (artistRows || []).forEach((a: any) => {
           if (a.image_url && !a.image_url.includes('jambase-default-band-image')) {
             imageMap[a.id] = a.image_url;
@@ -1384,13 +1387,14 @@ interface FriendEventInterest {
         // (same images shown in the home/discovery event cards)
         const stillMissing = artistIds.filter(id => !imageMap[id]);
         if (stillMissing.length > 0) {
-          const { data: eventRows } = await supabase
+          const { data: eventRows, error: eventRowsError } = await supabase
             .from('events')
             .select('artist_id, images, event_media_url, media_urls')
             .in('artist_id', stillMissing)
             .not('images', 'is', null)
             .order('event_date', { ascending: false })
             .limit(stillMissing.length * 5);
+          if (eventRowsError) console.warn('[HomeFeed] eventRows query failed', eventRowsError);
           (eventRows || []).forEach((e: any) => {
             if (imageMap[e.artist_id]) return;
             let url: string | null = null;
@@ -1411,10 +1415,11 @@ interface FriendEventInterest {
       }
 
       if (venueIds.length > 0) {
-        const { data: venueRows } = await supabase
+        const { data: venueRows, error: venueRowsError } = await supabase
           .from('venues')
           .select('id, image_url')
           .in('id', venueIds);
+        if (venueRowsError) console.warn('[HomeFeed] venueRows query failed', venueRowsError);
         (venueRows || []).forEach((v: any) => { if (v.image_url) imageMap[v.id] = v.image_url; });
       }
 

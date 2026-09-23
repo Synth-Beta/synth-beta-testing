@@ -3,7 +3,7 @@
  *
  * Backfills artists.external_identifiers with a Spotify artist ID for artists
  * that don't have one yet. Every existing Spotify link in the DB came from
- * Jambase's own feed (jambase-sync-service.js passes through whatever Jambase
+ * Jambase's own feed (jambase-sync-service.mjs passes through whatever Jambase
  * already had) -- there was previously no independent matching system. This
  * script builds one, using Spotify's Client Credentials flow (app-level auth,
  * no user login needed) against the existing SPOTIFY_CLIENT_ID/SECRET.

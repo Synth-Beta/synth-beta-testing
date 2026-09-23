@@ -26,6 +26,7 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { withEventNamesList } from '@/lib/eventNames';
 import {
   ACQUISITION_SOURCE_CANONICAL_ORDER,
   isDcCity,
@@ -275,7 +276,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         const { data, error } = await supabase
           .from('events')
           .select(
-            'id, title, artist_name, venue_name, venue_city, event_date, is_promoted, promotion_tier'
+            'id, title, venue_city, event_date, is_promoted, promotion_tier, artists(name), venues(name)'
           )
           .gte('event_date', now)
           .order('event_date', { ascending: true })
@@ -288,7 +289,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         }
         const picked = pickFeaturedShowForPreference(
           preference,
-          (data || []) as FeaturedShowCandidate[]
+          withEventNamesList(data) as unknown as FeaturedShowCandidate[]
         );
         setSuggestedShow(picked);
       } catch (err) {

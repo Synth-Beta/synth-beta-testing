@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Music, Calendar, MapPin, ExternalLink, Loader2, User, Filter, SortAsc, SortDesc, Star, Building2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VenueFollowService } from '@/services/venueFollowService';
 import { UnifiedEventSearchService } from '@/services/unifiedEventSearchService';
@@ -19,6 +20,7 @@ import { format } from 'date-fns';
 import { ArtistCard } from '@/components/ArtistCard';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
 import { useAuth } from '@/hooks/useAuth';
+import { withEventNamesList } from '@/lib/eventNames';
 
 interface ArtistWithEvents extends ArtistFollowWithDetails {
   upcomingEvents: JamBaseEvent[];
@@ -79,14 +81,14 @@ export function ArtistFollowingPage() {
             // Query database for upcoming events
               const { data: dbEvents } = await supabase
                 .from('events')
-                .select('*')
-                .ilike('artist_name', `%${artist.artist_name}%`)
+                .select('*, artists!inner(name), venues(name)')
+                .ilike('artists.name', `%${artist.artist_name}%`)
                 .gte('event_date', new Date().toISOString())
                 .order('event_date', { ascending: true })
                 .limit(50);
               
             // Convert to JamBaseEvent format
-            const events: JamBaseEvent[] = (dbEvents || []).map(event => ({
+            const events: JamBaseEvent[] = withEventNamesList(dbEvents).map(event => ({
                 id: event.id,
               title: event.title,
               artist_name: event.artist_name || artist.artist_name,
@@ -177,14 +179,14 @@ export function ArtistFollowingPage() {
             // Query database for upcoming events at this venue
             const { data: dbEvents } = await supabase
               .from('events')
-              .select('*')
-              .ilike('venue_name', `%${venue.venue_name}%`)
+              .select('*, artists(name), venues!inner(name)')
+              .ilike('venues.name', `%${venue.venue_name}%`)
               .gte('event_date', new Date().toISOString())
               .order('event_date', { ascending: true })
               .limit(50);
 
             // Convert to JamBaseEvent format
-            const events: JamBaseEvent[] = (dbEvents || []).map(event => ({
+            const events: JamBaseEvent[] = withEventNamesList(dbEvents).map(event => ({
                 id: event.id,
               title: event.title,
               artist_name: event.artist_name || 'Unknown Artist',

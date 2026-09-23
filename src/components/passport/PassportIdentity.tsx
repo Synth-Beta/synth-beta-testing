@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Music, MapPin, Calendar, Sparkles } from 'lucide-react';
-import { PassportIdentityService, type PassportIdentity } from '@/services/passportIdentityService';
+import { PassportIdentityService, type PassportIdentity as PassportIdentityData } from '@/services/passportIdentityService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PassportTravelTracker } from './PassportTravelTracker';
 
@@ -12,7 +12,7 @@ interface PassportIdentityProps {
 }
 
 export const PassportIdentity: React.FC<PassportIdentityProps> = ({ userId, userName }) => {
-  const [identity, setIdentity] = useState<PassportIdentity | null>(null);
+  const [identity, setIdentity] = useState<PassportIdentityData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -342,7 +342,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
       setMapLoading(true);
       const { data, error } = await supabase
         .from('events')
-        .select('venue_id, venue_name, venue_city, venue_state, latitude, longitude')
+        .select('venue_id, venue_city, venue_state, latitude, longitude, venues(name)')
         .not('latitude', 'is', null)
         .not('longitude', 'is', null)
         .limit(1000);
@@ -360,7 +360,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
           const lng = typeof row.longitude === 'number' ? row.longitude : Number(row.longitude);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-          const key = (row.venue_id as string | null) ?? row.venue_name ?? `venue-${lat}-${lng}`;
+          const key = (row.venue_id as string | null) ?? (row as any).venues?.name ?? `venue-${lat}-${lng}`;
           const existing = venueMap.get(key);
           if (existing) {
             existing.count += 1;
@@ -369,7 +369,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
 
           venueMap.set(key, {
             id: key,
-            name: (row.venue_name as string) ?? 'Unknown Venue',
+            name: ((row as any).venues?.name as string) ?? 'Unknown Venue',
             city: row.venue_city as string | null,
             state: row.venue_state as string | null,
             latitude: lat,
@@ -590,7 +590,7 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
                       )}
                       {key === 'users' && (
                         <>
-                          <UserResults results={results.users} onNavigateToProfile={_onNavigateToProfile} />
+                          <UserResults results={results.users} onNavigateToProfile={_onNavigateToProfile} debouncedQuery={debouncedQuery} />
                           {pagination.users.hasMore && (
                             <div className="flex justify-center pt-4">
                               <Button
@@ -764,7 +764,8 @@ const fetchEvents = async (query: string, limit: number = 25, offset: number = 0
 const UserResults: React.FC<{ 
   results: UserSearchResult[];
   onNavigateToProfile?: (userId: string) => void;
-}> = ({ results, onNavigateToProfile }) => (
+  debouncedQuery?: string;
+}> = ({ results, onNavigateToProfile, debouncedQuery = '' }) => (
   <>
     {results.map((user) => (
       <Card 

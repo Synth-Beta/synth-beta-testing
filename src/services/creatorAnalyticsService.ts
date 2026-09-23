@@ -65,7 +65,7 @@ export class CreatorAnalyticsService {
       
       const { data: creatorEvents, error: eventsError } = await supabase
         .from('events')
-        .select('id, title, artist_name, venue_name, event_date, created_by_user_id')
+        .select('id, title, event_date, created_by_user_id, artists(name), venues(name)')
         .eq('created_by_user_id', creatorId);
 
       if (eventsError) {
@@ -85,7 +85,7 @@ export class CreatorAnalyticsService {
         // Debug: Check all events to see what's in the database
         const { data: allEvents, error: allEventsError } = await supabase
           .from('events')
-          .select('id, title, artist_name, created_by_user_id')
+          .select('id, title, created_by_user_id, artists(name)')
           .limit(10);
         
         if (allEventsError) {
@@ -131,13 +131,14 @@ export class CreatorAnalyticsService {
       }
 
       // Get reviews for this creator's events
-      const { data: reviews } = await supabase
+      const { data: reviews, error: reviewsError } = await supabase
         .from('reviews')
         .select(`
           *,
           event:events!inner(id, artist_name)
         `)
         .in('event_id', eventIds);
+      if (reviewsError) console.warn('[creatorAnalyticsService] reviews query failed', reviewsError);
 
       console.log('🔍 CreatorAnalyticsService: Found reviews for events:', reviews?.length || 0);
 
@@ -192,10 +193,11 @@ export class CreatorAnalyticsService {
   static async getFanInsights(creatorId: string): Promise<FanInsight[]> {
     try {
       // Get events created by this creator
-      const { data: events } = await supabase
+      const { data: events, error: eventsError2 } = await supabase
         .from('events')
         .select('*')
         .eq('created_by_user_id', creatorId);
+      if (eventsError2) console.warn('[creatorAnalyticsService] events query failed', eventsError2);
 
       if (!events || events.length === 0) {
         return [];
@@ -270,10 +272,11 @@ export class CreatorAnalyticsService {
   static async getGeographicInsights(creatorId: string): Promise<GeographicInsight[]> {
     try {
       // Get events created by this creator
-      const { data: events } = await supabase
+      const { data: events, error: eventsError3 } = await supabase
         .from('events')
         .select('*')
         .eq('created_by_user_id', creatorId);
+      if (eventsError3) console.warn('[creatorAnalyticsService] events query failed', eventsError3);
 
       if (!events || events.length === 0) {
         return [];
@@ -352,10 +355,11 @@ export class CreatorAnalyticsService {
       startDate.setDate(startDate.getDate() - days);
 
       // Get events created by this creator
-      const { data: events } = await supabase
+      const { data: events, error: eventsError4 } = await supabase
         .from('events')
         .select('id')
         .eq('created_by_user_id', creatorId);
+      if (eventsError4) console.warn('[creatorAnalyticsService] events query failed', eventsError4);
 
       if (!events || events.length === 0) {
         return [];
@@ -363,12 +367,13 @@ export class CreatorAnalyticsService {
 
       // Get interactions for this creator's events
       const eventIds = events.map((e: any) => e.id);
-      const { data: interactions } = await (supabase as any)
+      const { data: interactions, error: interactionsError } = await (supabase as any)
         .from('interactions')
         .select('*')
         .eq('entity_type', 'event')
         .in('entity_id', eventIds)
         .gte('occurred_at', startDate.toISOString());
+      if (interactionsError) console.warn('[creatorAnalyticsService] interactions query failed', interactionsError);
 
       // Group by date
       const dailyStats = new Map<string, {

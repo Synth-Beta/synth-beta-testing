@@ -241,11 +241,12 @@ export class ReviewService {
     // Prefer artist first, then venue (both can be updated if present).
     const tryUpdateArtist = async () => {
       if (!artistId || !isValidUuid(artistId)) return;
-      const { data } = await supabase
+      const { data, error: queryError } = await supabase
         .from('artists')
         .select('image_url')
         .eq('id', artistId)
         .maybeSingle();
+      if (queryError) console.warn('[reviewService] data query failed', queryError);
       if (!this.isPlaceholderEntityImage((data as any)?.image_url)) return;
       await supabase
         .from('artists')
@@ -255,11 +256,12 @@ export class ReviewService {
 
     const tryUpdateVenue = async () => {
       if (!venueId || !isValidUuid(venueId)) return;
-      const { data } = await supabase
+      const { data, error: queryError2 } = await supabase
         .from('venues')
         .select('image_url')
         .eq('id', venueId)
         .maybeSingle();
+      if (queryError2) console.warn('[reviewService] data query failed', queryError2);
       if (!this.isPlaceholderEntityImage((data as any)?.image_url)) return;
       await supabase
         .from('venues')
@@ -302,11 +304,12 @@ export class ReviewService {
     // Fetch actor (reviewer) name
     let actorName = 'Someone';
     try {
-      const { data: actor } = await supabase
+      const { data: actor, error: actorError } = await supabase
         .from('users')
         .select('name')
         .eq('user_id', actorUserId)
         .maybeSingle();
+      if (actorError) console.warn('[reviewService] actor query failed', actorError);
       if (actor?.name) actorName = actor.name;
     } catch {
       // Non-fatal
@@ -317,11 +320,13 @@ export class ReviewService {
     let venueName = '';
     try {
       if (artistId) {
-        const { data: a } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+        const { data: a, error: aError } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
+        if (aError) console.warn('[reviewService] a query failed', aError);
         artistName = (a as any)?.name ?? '';
       }
       if (venueId) {
-        const { data: v } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+        const { data: v, error: vError } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
+        if (vError) console.warn('[reviewService] v query failed', vError);
         venueName = (v as any)?.name ?? '';
       }
     } catch {
@@ -1263,12 +1268,13 @@ export class ReviewService {
         } else if (entities && entities.length > 0) {
           const entityIds = entities.map(e => e.id);
           // Now query engagements using entity_ids (FK to entities.id)
-          const { data: likes } = await supabase
+          const { data: likes, error: likesError } = await supabase
             .from('engagements')
             .select('entity_id')
             .eq('user_id', userId)
             .eq('engagement_type', 'like')
             .in('entity_id', entityIds);
+          if (likesError) console.warn('[reviewService] likes query failed', likesError);
           
           // Map entity_ids back to review IDs for matching
           const entityIdToReviewId = new Map(entities.map(e => [e.id, e.entity_uuid]));
@@ -1365,14 +1371,7 @@ export class ReviewService {
           // Primary sort: by rating (descending)
           if (ratingB !== ratingA) return ratingB - ratingA;
           
-          // Secondary sort: by rank_order (ascending, nulls last)
-          if (a.rank_order != null && b.rank_order != null) {
-            return a.rank_order - b.rank_order;
-          }
-          if (a.rank_order != null) return -1;
-          if (b.rank_order != null) return 1;
-          
-          // Tertiary sort: by created_at (descending)
+          // Secondary sort: by created_at (descending)
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
       }
@@ -1424,7 +1423,7 @@ export class ReviewService {
         // Query events table
         const { data: eventsData, error: eventsError } = await supabase
           .from('events')
-          .select('id, title, artist_name, venue_name, artist_id, venue_id, event_date, doors_time, venue_city, venue_state, venue_zip')
+          .select('id, title, artist_id, venue_id, event_date, doors_time, venue_city, venue_state, venue_zip, artists(name), venues(name)')
           .in('id', eventIds);
         
         console.log('🔍 ReviewService: Events query result:', {
@@ -1445,10 +1444,11 @@ export class ReviewService {
           // Fetch artist names from artists table
           let artistsMap: Record<string, any> = {};
           if (allArtistIds.length > 0) {
-            const { data: artistsData } = await supabase
+            const { data: artistsData, error: artistsDataError } = await supabase
               .from('artists')
               .select('id, name, image_url')
               .in('id', allArtistIds);
+            if (artistsDataError) console.warn('[reviewService] artistsData query failed', artistsDataError);
             
             if (artistsData) {
               artistsMap = artistsData.reduce((acc: Record<string, any>, artist: any) => {
@@ -1461,10 +1461,11 @@ export class ReviewService {
           // Fetch venue names from venues table
           let venuesMap: Record<string, any> = {};
           if (allVenueIds.length > 0) {
-            const { data: venuesData } = await supabase
+            const { data: venuesData, error: venuesDataError } = await supabase
               .from('venues')
               .select('id, name, image_url')
               .in('id', allVenueIds);
+            if (venuesDataError) console.warn('[reviewService] venuesData query failed', venuesDataError);
             
             if (venuesData) {
               venuesMap = venuesData.reduce((acc: Record<string, any>, venue: any) => {
@@ -1474,12 +1475,12 @@ export class ReviewService {
             }
           }
           
-          // Build events map with normalized names from artists/venues tables, fallback to event.artist_name/venue_name
+          // Build events map with normalized names from artists/venues tables, fallback to the embedded artists(name)/venues(name)
           eventsMap = eventsData.reduce((acc: Record<string, any>, event: any) => {
             acc[event.id] = {
               ...event,
-              artist_name: artistsMap[event.artist_id]?.name || event.artist_name,
-              venue_name: venuesMap[event.venue_id]?.name || event.venue_name,
+              artist_name: artistsMap[event.artist_id]?.name || event.artists?.name,
+              venue_name: venuesMap[event.venue_id]?.name || event.venues?.name,
               artist_id: event.artist_id,
               venue_id: event.venue_id,
             };
@@ -1500,10 +1501,11 @@ export class ReviewService {
       let venuesMap: Record<string, any> = {};
       
       if (reviewArtistIds.length > 0) {
-        const { data: artistsData } = await supabase
+        const { data: artistsData, error: artistsDataError2 } = await supabase
           .from('artists')
           .select('id, name, image_url')
           .in('id', reviewArtistIds);
+        if (artistsDataError2) console.warn('[reviewService] artistsData query failed', artistsDataError2);
         
         if (artistsData) {
           artistsMap = artistsData.reduce((acc: Record<string, any>, artist: any) => {
@@ -1514,10 +1516,11 @@ export class ReviewService {
       }
       
       if (reviewVenueIds.length > 0) {
-        const { data: venuesData } = await supabase
+        const { data: venuesData, error: venuesDataError2 } = await supabase
           .from('venues')
           .select('id, name, image_url')
           .in('id', reviewVenueIds);
+        if (venuesDataError2) console.warn('[reviewService] venuesData query failed', venuesDataError2);
         
         if (venuesData) {
           venuesMap = venuesData.reduce((acc: Record<string, any>, venue: any) => {
@@ -1531,10 +1534,11 @@ export class ReviewService {
       let userCreatedArtistsMap: Record<string, any> = {};
       let userCreatedVenuesMap: Record<string, any> = {};
       if (reviewUserCreatedArtistIds.length > 0) {
-        const { data: ucaData } = await supabase
+        const { data: ucaData, error: ucaDataError } = await supabase
           .from('user_created_artists')
           .select('id, name, image_url')
           .in('id', reviewUserCreatedArtistIds);
+        if (ucaDataError) console.warn('[reviewService] ucaData query failed', ucaDataError);
         if (ucaData) {
           userCreatedArtistsMap = ucaData.reduce((acc: Record<string, any>, row: any) => {
             acc[row.id] = row;
@@ -1543,10 +1547,11 @@ export class ReviewService {
         }
       }
       if (reviewUserCreatedVenueIds.length > 0) {
-        const { data: ucvData } = await supabase
+        const { data: ucvData, error: ucvDataError } = await supabase
           .from('user_created_venues')
           .select('id, name, image_url')
           .in('id', reviewUserCreatedVenueIds);
+        if (ucvDataError) console.warn('[reviewService] ucvData query failed', ucvDataError);
         if (ucvData) {
           userCreatedVenuesMap = ucvData.reduce((acc: Record<string, any>, row: any) => {
             acc[row.id] = row;
@@ -1648,7 +1653,6 @@ export class ReviewService {
               artist_id: item.artist_id,
               venue_id: item.venue_id,
               rating: item.rating,
-              rank_order: (item as any).rank_order,
               review_type: item.review_type,
               review_text: item.review_text,
               photos: item.photos,
@@ -2106,10 +2110,11 @@ export class ReviewService {
       const verificationMap = new Map<string, boolean>();
       
       if (reviewerUserIds.length > 0) {
-        const { data: verifications } = await supabase
+        const { data: verifications, error: verificationsError } = await supabase
           .from('user_verifications')
           .select('user_id, verified')
           .in('user_id', reviewerUserIds);
+        if (verificationsError) console.warn('[reviewService] verifications query failed', verificationsError);
         
         verifications?.forEach((v: any) => {
           verificationMap.set(v.user_id, v.verified || false);
@@ -2354,11 +2359,12 @@ export class ReviewService {
       
       if (isUUID) {
         // Look up JamBase ID from venues table (using helper view for normalized schema)
-        const { data: venue } = await supabase
+        const { data: venue, error: venueError } = await supabase
           .from('venues_with_external_ids')
           .select('jambase_venue_id')
           .eq('id', venueId)
           .maybeSingle();
+        if (venueError) console.warn('[reviewService] venue query failed', venueError);
         
         if (venue?.jambase_venue_id) {
           jambaseVenueId = venue.jambase_venue_id;
@@ -2400,11 +2406,12 @@ export class ReviewService {
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(venueId);
         
         if (isUUID) {
-          const { data: venue } = await supabase
+          const { data: venue, error: venueError2 } = await supabase
             .from('venues_with_external_ids')
             .select('jambase_venue_id')
             .eq('id', venueId)
             .maybeSingle();
+          if (venueError2) console.warn('[reviewService] venue query failed', venueError2);
           
           if (venue?.jambase_venue_id) {
             jambaseVenueId = venue.jambase_venue_id;
@@ -2466,12 +2473,13 @@ export class ReviewService {
         } else if (entities && entities.length > 0) {
           const entityIds = entities.map(e => e.id);
           // Now query engagements using entity_ids (FK to entities.id)
-          const { data: likes } = await supabase
+          const { data: likes, error: likesError2 } = await supabase
             .from('engagements')
             .select('entity_id')
             .eq('user_id', userId)
             .eq('engagement_type', 'like')
             .in('entity_id', entityIds);
+          if (likesError2) console.warn('[reviewService] likes query failed', likesError2);
           
           // Map entity_ids back to review IDs for matching
           const entityIdToReviewId = new Map(entities.map(e => [e.id, e.entity_uuid]));
@@ -2548,12 +2556,13 @@ export class ReviewService {
         } else if (entities && entities.length > 0) {
           const entityIds = entities.map(e => e.id);
           // Now query engagements using entity_ids (FK to entities.id)
-          const { data: likes } = await supabase
+          const { data: likes, error: likesError3 } = await supabase
             .from('engagements')
             .select('entity_id')
             .eq('user_id', userId)
             .eq('engagement_type', 'like')
             .in('entity_id', entityIds);
+          if (likesError3) console.warn('[reviewService] likes query failed', likesError3);
           
           // Map entity_ids back to review IDs for matching
           const entityIdToReviewId = new Map(entities.map(e => [e.id, e.entity_uuid]));
@@ -2610,11 +2619,12 @@ export class ReviewService {
       
       if (isUUID) {
         // Look up JamBase ID from artists table
-        const { data: artist } = await supabase
+        const { data: artist, error: artistError } = await supabase
           .from('artists')
           .select('jambase_artist_id')
           .eq('id', artistId)
           .single();
+        if (artistError) console.warn('[reviewService] artist query failed', artistError);
         
         if (artist?.jambase_artist_id) {
           jambaseArtistId = artist.jambase_artist_id;

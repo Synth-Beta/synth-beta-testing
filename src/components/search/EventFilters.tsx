@@ -111,20 +111,20 @@ export const EventFilters: React.FC<EventFiltersProps> = ({
 
       if (error) {
         console.warn('Error loading cities from database function, falling back to direct query:', error);
-        // Fallback to direct query using display_city
+        // Fallback to direct query using venue_city
         const { data: eventsData, error: eventsError } = await supabase
           .from('events')
-          .select('display_city, venue_state')
-          .not('display_city', 'is', null)
+          .select('venue_city, venue_state')
+          .not('venue_city', 'is', null)
           .gte('event_date', new Date().toISOString());
 
         if (eventsError) throw eventsError;
 
-        // Group by display_city and state
+        // Group by venue_city and state
         const cityMap = new Map<string, { state: string; count: number }>();
         
         (eventsData || []).forEach((event: any) => {
-          const city = event.display_city?.trim();
+          const city = event.venue_city?.trim();
           const state = event.venue_state?.trim() || '';
           const key = `${city}|${state}`;
           
