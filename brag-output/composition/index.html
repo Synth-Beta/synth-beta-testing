@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Synth — brag</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script src="assets/music/audio-data.js"></script>
+    <style>
+      @font-face {
+        font-family: "Inter";
+        src: url("assets/fonts/inter-latin.woff2") format("woff2");
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: block;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #0e0e0e;
+      }
+
+      /* ---- Synth brand tokens (styleguide/src/components/Guide.tsx) ---- */
+      :root {
+        --pink: #cc2486;
+        --pink-deep: #951a6d;
+        --purple: #8d1ff4;
+        --on-dark: #fcfcfc;
+        --on-dark-2: #a8aeb8;
+        --brand-grad: linear-gradient(135deg, #cc2486, #8d1ff4);
+      }
+
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0e0e0e, #1a1a1a);
+        font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+        color: var(--on-dark);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Untimed stage layers need their own positioning. */
+      #stage-glow {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 1700px;
+        height: 1700px;
+        margin-left: -850px;
+        margin-top: -850px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(204, 36, 134, 0.3) 0%,
+          rgba(141, 31, 244, 0.14) 38%,
+          rgba(14, 14, 14, 0) 68%
+        );
+        pointer-events: none;
+      }
+
+      #stage-vignette {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse at center, rgba(14, 14, 14, 0) 45%, rgba(0, 0, 0, 0.62) 100%);
+        pointer-events: none;
+      }
+
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* ---------- Scene 1: the hook ---------- */
+      #s1-wrap {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+      }
+
+      .hook-line {
+        display: block;
+        font-size: 150px;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        line-height: 1.05;
+        color: var(--on-dark);
+        text-align: center;
+      }
+
+      #s1-rule {
+        display: block;
+        width: 900px;
+        height: 12px;
+        border-radius: 6px;
+        background-color: #cc2486;
+        background-image: var(--brand-grad);
+        transform-origin: left center;
+        margin-top: 16px;
+      }
+
+      /* ---------- Scenes 2 + 6: brand lockups ---------- */
+      .lockup {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+      }
+
+      .mark {
+        display: block;
+        width: 190px;
+        height: 190px;
+        object-fit: contain;
+      }
+
+      .wordmark {
+        display: block;
+        font-size: 124px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.14;
+        color: var(--on-dark);
+      }
+
+      .claim {
+        display: block;
+        font-size: 54px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: var(--on-dark-2);
+      }
+
+      .lockup-rule {
+        display: block;
+        width: 420px;
+        height: 8px;
+        border-radius: 4px;
+        background-color: #cc2486;
+        background-image: var(--brand-grad);
+        transform-origin: center;
+      }
+
+      .url {
+        display: block;
+        font-size: 34px;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        color: var(--on-dark-2);
+      }
+
+      /* ---------- Feature scenes: copy column ---------- */
+      .copy {
+        position: absolute;
+        top: 336px;
+        width: 760px;
+      }
+
+      .chapter {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 34px;
+      }
+
+      .chapter-dot {
+        display: block;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background-color: #cc2486;
+        background-image: var(--brand-grad);
+        flex: none;
+      }
+
+      .chapter-text {
+        display: block;
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--on-dark);
+      }
+
+      .headline {
+        display: block;
+        font-size: 80px;
+        font-weight: 800;
+        letter-spacing: -0.032em;
+        line-height: 1.14;
+        color: var(--on-dark);
+      }
+
+      .copy-rule {
+        display: block;
+        width: 200px;
+        height: 8px;
+        border-radius: 4px;
+        margin-top: 42px;
+        background-color: #cc2486;
+        background-image: var(--brand-grad);
+        transform-origin: left center;
+      }
+
+      /* ---------- Real app screens (apps/admin/public/demos) ---------- */
+      .panel {
+        position: absolute;
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 40px 90px -16px rgba(0, 0, 0, 0.72), 0 16px 48px -8px rgba(204, 36, 134, 0.3);
+        border: 2px solid rgba(252, 252, 252, 0.14);
+      }
+
+      .panel img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+      }
+
+      /* ---------------------------------------------------------------
+       * Scene 3 — the Discover screen, rebuilt 1:1 from the shipping
+       * component rather than screenshotted:
+       *   mobile/src/components/Feed/EventCard.tsx
+       *   mobile/src/tokens/SynthTokens.ts
+       * Every value below is that component's own, scaled 1.5x from
+       * device points so the proportions stay exact at 1080p.
+       * --------------------------------------------------------------- */
+      #phone-discover {
+        position: absolute;
+        left: 1142px;
+        top: 96px;
+        width: 620px;
+        height: 888px;
+        padding: 14px;
+        border-radius: 46px;
+        background: #0e0e0e;
+        border: 2px solid rgba(252, 252, 252, 0.16);
+        box-shadow: 0 40px 90px -16px rgba(0, 0, 0, 0.75), 0 16px 48px -8px rgba(204, 36, 134, 0.32);
+      }
+
+      .phone-screen {
+        width: 100%;
+        height: 100%;
+        border-radius: 34px;
+        overflow: hidden;
+        /* SynthTokens.colors.neutral50 — the app page ground */
+        background: #fcfcfc;
+      }
+
+      .app-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 22px 30px 10px;
+      }
+
+      .events-pill {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 20px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 2px solid #e6e6e6;
+        font-size: 25px;
+        font-weight: 700;
+        color: #0e0e0e;
+      }
+
+      .burger {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .burger span {
+        display: block;
+        width: 34px;
+        height: 4px;
+        border-radius: 2px;
+        background: #0e0e0e;
+      }
+
+      .radius-row {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 6px 30px 14px;
+      }
+
+      .radius-label {
+        display: block;
+        font-size: 22px;
+        font-weight: 700;
+        color: #0e0e0e;
+      }
+
+      .radius-select {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 16px;
+        border-radius: 10px;
+        background: #ffffff;
+        border: 2px solid #e6e6e6;
+        font-size: 22px;
+        font-weight: 500;
+        color: #0e0e0e;
+      }
+
+      /* ---- EventCard.tsx at 1.5x ---- */
+      .event-card {
+        /* styles.shadowShell: marginHorizontal = spacing.screenMarginX (20) */
+        margin: 0 30px;
+        /* styles.cardFace */
+        background: #ffffff;
+        border-radius: 15px; /* radius.corner 10 */
+        border: 2px solid #e6e6e6; /* neutral200 */
+        overflow: hidden;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .card-image-wrap {
+        position: relative;
+        width: 100%;
+        height: 331px; /* CARD_WIDTH / (16/10) */
+        background: #f5f5f5; /* neutral100 */
+        overflow: hidden;
+      }
+
+      .card-image-wrap img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* styles.cornerLabelWrap / cornerLabelText */
+      .corner-label {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        padding: 8px 15px;
+        border-radius: 12px;
+        background: #cc2486; /* brandPink500 */
+        color: #fcfcfc; /* neutral50 */
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.9px;
+      }
+
+      /* styles.heroTextPad + styles.headline */
+      .card-hero {
+        padding: 24px 24px 12px;
+      }
+
+      .card-headline {
+        display: block;
+        font-size: 27px;
+        font-weight: 700;
+        line-height: 1.22;
+        color: #0e0e0e; /* neutral900 */
+      }
+
+      /* styles.detailsPad */
+      .card-details {
+        padding: 0 24px 12px;
+      }
+
+      /* styles.metaRow */
+      .meta-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 9px;
+      }
+
+      .meta-row svg {
+        display: block;
+        width: 24px;
+        height: 24px;
+        flex: none;
+      }
+
+      /* styles.metaTxt — SynthText variant meta, color secondary */
+      .meta-txt {
+        display: block;
+        font-size: 23px;
+        font-weight: 400;
+        color: #5d646f; /* neutral600 */
+      }
+
+      /* styles.interestedLine */
+      .interested-line {
+        display: block;
+        margin-top: 6px;
+        font-size: 21px;
+        color: #5d646f;
+      }
+
+      /* styles.actions */
+      .card-actions {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 3px 24px 24px;
+      }
+
+      /* styles.interestedBtn */
+      .btn-interested {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 18px 0;
+        border-radius: 15px;
+        border: 3px solid #cc2486;
+        background: #ffffff;
+      }
+
+      .btn-interested span {
+        display: block;
+        font-size: 24px;
+        font-weight: 700;
+        color: #cc2486;
+      }
+
+      .btn-interested svg {
+        display: block;
+        width: 27px;
+        height: 27px;
+        flex: none;
+      }
+
+      /* styles.ticketBtn / styles.shareBtn — 48pt squares */
+      .btn-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 72px;
+        height: 72px;
+        border-radius: 15px;
+        border: 3px solid #cc2486;
+        background: #ffffff;
+        flex: none;
+      }
+
+      .btn-icon svg {
+        display: block;
+        width: 30px;
+        height: 30px;
+      }
+
+      /* Scene 4 — Connect (1242x2038) at 880 tall */
+      #p-connect {
+        left: 176px;
+        top: 100px;
+        width: 536px;
+        height: 880px;
+      }
+
+      /* Scene 5 — Memories (1242x2108) + Share (1242x2028) at 700 tall */
+      #p-memories {
+        left: 962px;
+        top: 214px;
+        width: 412px;
+        height: 700px;
+      }
+
+      #p-share {
+        left: 1414px;
+        top: 214px;
+        width: 428px;
+        height: 700px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20.02"
+      data-width="1920"
+      data-height="1080"
+      data-fps="30"
+    >
+      <!-- Untimed stage layers: audio-reactive glow + vignette -->
+      <div id="stage-glow"></div>
+      <div id="stage-vignette"></div>
+
+      <!-- ============ Scene 1 — the hook ============ -->
+      <section id="s1" class="clip" data-start="0" data-duration="3.52" data-track-index="0">
+        <div id="s1-wrap">
+          <span id="s1-l1" class="hook-line">You wanted to go.</span>
+          <span id="s1-l2" class="hook-line">Just not alone.</span>
+          <span id="s1-rule"></span>
+        </div>
+      </section>
+
+      <!-- ============ Scene 2 — the promise ============ -->
+      <section id="s2" class="clip" data-start="3.52" data-duration="3" data-track-index="1">
+        <div id="s2-lockup" class="lockup">
+          <img id="s2-mark" class="mark" src="assets/synth-mark.png" alt="Synth" />
+          <span id="s2-word" class="wordmark">Synth</span>
+          <span id="s2-rule" class="lockup-rule"></span>
+          <span id="s2-claim" class="claim">Live music for everyone.</span>
+        </div>
+      </section>
+
+      <!-- ============ Scene 3 — Discover (real app screen) ============ -->
+      <section id="s3" class="clip" data-start="6.52" data-duration="3.5" data-track-index="2">
+        <div id="s3-copy" class="copy" style="left: 150px">
+          <div id="s3-chap" class="chapter">
+            <span class="chapter-dot"></span>
+            <span class="chapter-text">Discover</span>
+          </div>
+          <span id="s3-head" class="headline">Shows near you, ranked by your taste.</span>
+          <span id="s3-rule" class="copy-rule"></span>
+        </div>
+        <div id="phone-discover">
+          <div class="phone-screen">
+            <div class="app-bar">
+              <span class="events-pill">
+                Events
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="#0E0E0E" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </span>
+              <span class="burger"><span></span><span></span><span></span></span>
+            </div>
+
+            <div class="radius-row">
+              <span class="radius-label">Radius:</span>
+              <span class="radius-select">
+                50 mi
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="#0E0E0E" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </span>
+            </div>
+
+            <div class="event-card">
+              <div class="card-image-wrap">
+                <img src="assets/event-image.jpg" alt="Live show" />
+                <span class="corner-label">TRENDING</span>
+              </div>
+
+              <div class="card-hero">
+                <span class="card-headline">Shakedown Citi at The Hamilton</span>
+              </div>
+
+              <div class="card-details">
+                <div class="meta-row">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13" stroke="#CC2486" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" /><circle cx="6" cy="18" r="3" stroke="#CC2486" stroke-width="2" fill="none" /><circle cx="18" cy="16" r="3" stroke="#CC2486" stroke-width="2" fill="none" /></svg>
+                  <span class="meta-txt">Shakedown Citi</span>
+                </div>
+                <div class="meta-row">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" stroke="#CC2486" stroke-width="2" fill="none" stroke-linejoin="round" /><circle cx="12" cy="10" r="3" stroke="#CC2486" stroke-width="2" fill="none" /></svg>
+                  <span class="meta-txt">Washington, DC</span>
+                </div>
+                <div class="meta-row">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V7l7-4v18M11 21h9V11h-9" stroke="#CC2486" stroke-width="2" fill="none" stroke-linejoin="round" /><path d="M7 8v.01M7 12v.01M7 16v.01M15 15v.01M15 19v.01" stroke="#CC2486" stroke-width="2" stroke-linecap="round" /></svg>
+                  <span class="meta-txt">The Hamilton</span>
+                </div>
+                <div class="meta-row">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2.5" stroke="#CC2486" stroke-width="2" fill="none" /><path d="M3 10h18M8 3v4M16 3v4" stroke="#CC2486" stroke-width="2" stroke-linecap="round" /></svg>
+                  <span class="meta-txt">Wed, Jan 21, 2026</span>
+                </div>
+                <span class="interested-line">281 people interested</span>
+              </div>
+
+              <div class="card-actions">
+                <span class="btn-interested">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5l-1.5-1.36C5.4 14.53 2.5 11.9 2.5 8.7 2.5 6.1 4.54 4 7.1 4c1.44 0 2.83.67 3.72 1.73L12 6.9l1.18-1.17A4.93 4.93 0 0116.9 4c2.56 0 4.6 2.1 4.6 4.7 0 3.2-2.9 5.83-8 10.44z" stroke="#CC2486" stroke-width="2" fill="none" /></svg>
+                  <span>Interested</span>
+                </span>
+                <span class="btn-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5a2.5 2.5 0 0 0 0 5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3.5a2.5 2.5 0 0 1 0-5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3.5z" stroke="#CC2486" stroke-width="2" fill="none" stroke-linejoin="round" /><path d="M14 4v16" stroke="#CC2486" stroke-width="2" stroke-dasharray="2 3" /></svg>
+                </span>
+                <span class="btn-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3" stroke="#CC2486" stroke-width="2" fill="none" /><circle cx="6" cy="12" r="3" stroke="#CC2486" stroke-width="2" fill="none" /><circle cx="18" cy="19" r="3" stroke="#CC2486" stroke-width="2" fill="none" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" stroke="#CC2486" stroke-width="2" stroke-linecap="round" /></svg>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Scene 4 — Connect (real chat, pays off the hook) ============ -->
+      <section id="s4" class="clip" data-start="10.02" data-duration="3.49" data-track-index="3">
+        <div id="p-connect" class="panel">
+          <img src="assets/screens/connect.png" alt="Synth chat between two people going to the same show" />
+        </div>
+        <div id="s4-copy" class="copy" style="left: 862px">
+          <div id="s4-chap" class="chapter">
+            <span class="chapter-dot"></span>
+            <span class="chapter-text">Connect</span>
+          </div>
+          <span id="s4-head" class="headline">Find the people already going.</span>
+          <span id="s4-rule" class="copy-rule"></span>
+        </div>
+      </section>
+
+      <!-- ============ Scene 5 — Share (two real screens) ============ -->
+      <section id="s5" class="clip" data-start="13.51" data-duration="4.51" data-track-index="4">
+        <div id="s5-copy" class="copy" style="left: 150px; width: 700px">
+          <div id="s5-chap" class="chapter">
+            <span class="chapter-dot"></span>
+            <span class="chapter-text">Share</span>
+          </div>
+          <span id="s5-head" class="headline">Rate the night. Keep the record.</span>
+          <span id="s5-rule" class="copy-rule"></span>
+        </div>
+        <div id="p-memories" class="panel">
+          <img src="assets/screens/memories.png" alt="Synth passport timeline of past shows" />
+        </div>
+        <div id="p-share" class="panel">
+          <img src="assets/screens/share.png" alt="Synth concert reviews grouped by star rating" />
+        </div>
+      </section>
+
+      <!-- ============ Scene 6 — outro ============ -->
+      <section id="s6" class="clip" data-start="18.02" data-duration="2" data-track-index="5">
+        <div id="s6-lockup" class="lockup">
+          <img id="s6-mark" class="mark" src="assets/synth-mark-outro.png" alt="Synth" />
+          <span id="s6-word" class="wordmark">Synth</span>
+          <span id="s6-rule" class="lockup-rule"></span>
+          <span id="s6-url" class="url">getsynth.app</span>
+        </div>
+      </section>
+
+      <!-- ============ Audio ============ -->
+      <audio
+        id="bed"
+        src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3"
+        data-start="0"
+        data-duration="20.02"
+        data-track-index="10"
+        data-volume="0.33"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0},{"t":0.3,"v":0.33},{"t":19.1,"v":0.33},{"t":20.02,"v":0}]}]}'
+      ></audio>
+
+      <!-- Scene 1: weight under the first line. Line two is silent by design. -->
+      <audio
+        id="sfx-hook"
+        src="assets/sfx/impact/impactSoft_medium_001.ogg"
+        data-start="0.22"
+        data-duration="0.18"
+        data-track-index="11"
+        data-volume="0.7"
+      ></audio>
+
+      <!-- Scene 2: soft bell as the mark lands -->
+      <audio
+        id="sfx-mark"
+        src="assets/sfx/interface/bong_001.ogg"
+        data-start="3.56"
+        data-duration="0.12"
+        data-track-index="12"
+        data-volume="0.55"
+      ></audio>
+
+      <!-- Feature scenes: one sound family for every screen arrival -->
+      <audio
+        id="sfx-discover"
+        src="assets/sfx/casino/card-slide-3.ogg"
+        data-start="6.55"
+        data-duration="0.6"
+        data-track-index="13"
+        data-volume="0.68"
+      ></audio>
+      <audio
+        id="sfx-connect"
+        src="assets/sfx/casino/card-slide-3.ogg"
+        data-start="10.05"
+        data-duration="0.6"
+        data-track-index="14"
+        data-volume="0.68"
+      ></audio>
+      <audio
+        id="sfx-memories"
+        src="assets/sfx/casino/card-place-1.ogg"
+        data-start="13.6"
+        data-duration="0.69"
+        data-track-index="15"
+        data-volume="0.66"
+      ></audio>
+      <audio
+        id="sfx-share"
+        src="assets/sfx/casino/card-place-1.ogg"
+        data-start="14.52"
+        data-duration="0.69"
+        data-track-index="16"
+        data-volume="0.66"
+      ></audio>
+
+      <!-- The lift, then the wordmark — kept apart so the two don't muddy -->
+      <audio
+        id="sfx-lift"
+        src="assets/sfx/interface/drop_001.ogg"
+        data-start="17.52"
+        data-duration="0.11"
+        data-track-index="17"
+        data-volume="0.6"
+      ></audio>
+      <audio
+        id="sfx-outro"
+        src="assets/sfx/impact/impactBell_heavy_000.ogg"
+        data-start="18.02"
+        data-duration="1.48"
+        data-track-index="18"
+        data-volume="0.75"
+      ></audio>
+    </div>
+
+    <script>
+      /* ------------------------------------------------------------------
+       * Synth brag video — 20.02s, 6 scenes, app-store tone.
+       * Framing: "Live music for everyone."
+       * Every product scene shows a REAL app screen from
+       * apps/admin/public/demos, cropped free of its marketing heading.
+       * Scene slots: 0 / 3.52 / 6.52 / 10.02 / 13.51 / 18.02 / 20.02
+       * Music: happy-beats-business-moves vol-1, 120.19 BPM, grid starts 3.02s.
+       * ------------------------------------------------------------------ */
+      var tl = gsap.timeline({ paused: true });
+
+      var EASE_IN = "power3.out";
+      var EASE_SLAM = "expo.out";
+
+      /* ================= Scene 1 — hook (0 → 3.52) ================= */
+      tl.fromTo("#s1-l1", { y: 56, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE_SLAM }, 0.22);
+      tl.fromTo("#s1-l2", { y: 56, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE_SLAM }, 1.35);
+      // The gradient sweep is the event under line two — no SFX on it.
+      tl.fromTo("#s1-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.72, ease: "power2.inOut" }, 1.55);
+      tl.to("#s1-wrap", { opacity: 0, duration: 0.24, ease: "power1.in" }, 3.3);
+
+      /* ================= Scene 2 — the promise (3.52 → 6.52) ================= */
+      // beat-grid: 3.52s
+      tl.fromTo("#s2-mark", { scale: 0.94, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: EASE_SLAM }, 3.56);
+      tl.fromTo("#s2-word", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.48, ease: EASE_IN }, 3.78);
+      tl.fromTo("#s2-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.48, ease: "power2.out" }, 4.0);
+      // 4-word claim settles by 4.72s and holds 1.5s+ — clears the reading floor.
+      tl.fromTo("#s2-claim", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.44, ease: EASE_IN }, 4.28);
+      tl.to("#s2-lockup", { opacity: 0, duration: 0.24, ease: "power1.in" }, 6.3);
+
+      /* ============ Feature scenes — each is one real app screen ============
+       * The screen enters from its own side and the copy follows a beat later,
+       * so the eye lands on the product first and reads second.
+       */
+      function featureScene(cfg) {
+        tl.fromTo(
+          cfg.panel,
+          { x: cfg.from, opacity: 0, scale: 0.97 },
+          { x: 0, opacity: 1, scale: 1, duration: 0.7, ease: EASE_SLAM },
+          cfg.at,
+        );
+        tl.fromTo(cfg.chapter, { x: -22, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: EASE_IN }, cfg.at + 0.1);
+        tl.fromTo(cfg.head, { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE_IN }, cfg.at + 0.34);
+        tl.fromTo(cfg.rule, { scaleX: 0 }, { scaleX: 1, duration: 0.44, ease: "power2.out" }, cfg.at + 0.62);
+      }
+
+      /* ---- Scene 3 — Discover (6.52 → 10.02) ---- */
+      // beat-grid: 6.52s
+      featureScene({
+        panel: "#phone-discover",
+        from: 90,
+        chapter: "#s3-chap",
+        head: "#s3-head",
+        rule: "#s3-rule",
+        at: 6.55,
+        until: 10.02,
+      });
+
+      /* ---- Scene 4 — Connect (10.02 → 13.51) ----
+       * The real chat on this screen reads "didn't want to go alone" — the
+       * opening hook, in the product's own words. That's why it gets this slot.
+       */
+      // beat-grid: 10.02s
+      featureScene({
+        panel: "#p-connect",
+        from: -90,
+        chapter: "#s4-chap",
+        head: "#s4-head",
+        rule: "#s4-rule",
+        at: 10.05,
+        until: 13.51,
+      });
+
+      /* ---- Scene 5 — Share (13.51 → 18.02), two real screens ---- */
+      // beat-grid: 13.51s
+      tl.fromTo("#s5-chap", { x: -22, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: EASE_IN }, 13.6);
+      tl.fromTo("#s5-head", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: EASE_IN }, 13.86);
+      tl.fromTo("#s5-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.44, ease: "power2.out" }, 14.12);
+      tl.fromTo(
+        "#p-memories",
+        { x: 70, opacity: 0, scale: 0.97 },
+        { x: 0, opacity: 1, scale: 1, duration: 0.66, ease: EASE_SLAM },
+        13.6,
+      );
+      // beat-grid: 14.52s — one beat behind the first screen, so the pair reads
+      // as one-two instead of two separate arrivals.
+      tl.fromTo(
+        "#p-share",
+        { x: 70, opacity: 0, scale: 0.97 },
+        { x: 0, opacity: 1, scale: 1, duration: 0.62, ease: EASE_SLAM },
+        14.52,
+      );
+      // beat-locked: 17.52s (strongCue, intensity 1.00) — both screens lift together
+      tl.to("#p-memories", { y: -22, duration: 0.42, ease: "power2.out" }, 17.52);
+      tl.to("#p-share", { y: -22, duration: 0.42, ease: "power2.out" }, 17.56);
+
+      /* ================= Scene 6 — outro (18.02 → 20.02) ================= */
+      // beat-locked: 18.02s (strongCue, intensity 1.00) — the wordmark slams here
+      tl.fromTo("#s6-mark", { scale: 0.9, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.48, ease: EASE_SLAM }, 18.02);
+      tl.fromTo("#s6-word", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.44, ease: EASE_SLAM }, 18.12);
+      tl.fromTo("#s6-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.46, ease: "power2.out" }, 18.32);
+      tl.fromTo("#s6-url", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: EASE_IN }, 18.56);
+
+      /* ================= Audio-reactive stage glow =================
+       * Subtle only: the pink/purple stage light behind the screens breathes
+       * with the bass. No waveform bars, no equalizer, no text scaling.
+       */
+      var AD = window.AUDIO_DATA;
+      if (AD && AD.bass && AD.bass.length) {
+        var glow = document.getElementById("stage-glow");
+        var makeSetter = function (bass, energy) {
+          return function () {
+            glow.style.transform = "scale(" + (0.92 + bass * 0.16).toFixed(4) + ")";
+            glow.style.opacity = (0.5 + energy * 0.45).toFixed(4);
+          };
+        };
+        for (var f = 0; f < AD.totalFrames; f++) {
+          tl.call(makeSetter(AD.bass[f], AD.energy[f]), [], f / AD.fps);
+        }
+      }
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>
