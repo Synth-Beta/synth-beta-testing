@@ -36,14 +36,19 @@ export class PassportService {
     return fetchPassportUnlockProgress(supabase, userId);
   }
 
-  /** Full stamp rows from `passport_entries` (same as web `getStampsByRarity`). */
+  /**
+   * Full stamp rows (same as web `getStampsByRarity`). Reads
+   * `passport_entries_with_rarity`, which joins the computed entity_rarity
+   * table — the base table's `rarity` column defaults to 'common' and is
+   * never written.
+   */
   static async getStampsByRarity(
     userId: string,
     rarity?: 'common' | 'uncommon' | 'legendary'
   ): Promise<PassportEntry[]> {
     try {
       let query = supabase
-        .from('passport_entries')
+        .from('passport_entries_with_rarity')
         .select('*')
         .eq('user_id', userId)
         .order('unlocked_at', { ascending: false });

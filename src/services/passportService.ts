@@ -279,8 +279,11 @@ export class PassportService {
     try {
       console.log('PassportService.getStampsByRarity: Fetching stamps for userId:', userId, 'rarity:', rarity);
       
+      // `passport_entries_with_rarity` joins the nightly-computed
+      // entity_rarity table. Reading the base table returns the stored
+      // rarity column, which defaults to 'common' and is never written.
       let query = supabase
-        .from('passport_entries')
+        .from('passport_entries_with_rarity')
         .select('*')
         .eq('user_id', userId)
         .order('unlocked_at', { ascending: false });
