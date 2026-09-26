@@ -910,9 +910,9 @@
     "semantic_hash": "6ab61c93b2d59ad5fcfca3eff47dd55c"
   },
   "mobile/src/services/passportService.ts": {
-    "mtime": 1774973952.2723155,
-    "ast_hash": "446564dd48669ffcba3ebd2d7b1e24b4",
-    "semantic_hash": "446564dd48669ffcba3ebd2d7b1e24b4"
+    "mtime": 1790272431.4674037,
+    "ast_hash": "4bf32c6605cffb8f0a13d5911ae22378",
+    "semantic_hash": ""
   },
   "mobile/src/services/profileAvatarUpload.ts": {
     "mtime": 1779992795.4460335,
@@ -2745,8 +2745,8 @@
     "semantic_hash": "b16d246349fd759d0e1de43792a2365f"
   },
   "src/services/passportService.ts": {
-    "mtime": 1790179564.8334596,
-    "ast_hash": "00d18f9ed3710e96e4ff393c96721f10",
+    "mtime": 1790272431.4477074,
+    "ast_hash": "4b3b567831a79a9d817215bfc60e8d8c",
     "semantic_hash": ""
   },
   "src/services/personalizedFeedService.ts": {
@@ -9412,6 +9412,36 @@
   "brag-output/composition/assets/event-image.jpg": {
     "mtime": 1790198023.3558617,
     "ast_hash": "3feccd3bdc21b5deb548ed47bb17d9bd",
+    "semantic_hash": ""
+  },
+  "supabase/passport-rarity-2026-09-24/01_diagnose.sql": {
+    "mtime": 1790271805.6676223,
+    "ast_hash": "48256dbb468f8679b2115c0bc013ccad",
+    "semantic_hash": ""
+  },
+  "supabase/passport-rarity-2026-09-24/02_inspect_functions.sql": {
+    "mtime": 1790272093.6936297,
+    "ast_hash": "2917b21e71aee03dd29dbe9d8173fd49",
+    "semantic_hash": ""
+  },
+  "supabase/passport-rarity-2026-09-24/03_fix_stamp_trigger.sql": {
+    "mtime": 1790272368.0944726,
+    "ast_hash": "f459420a6c44ee5f53b38e6f26e629ce",
+    "semantic_hash": ""
+  },
+  "supabase/passport-rarity-2026-09-24/04_entity_rarity.sql": {
+    "mtime": 1790272396.7923882,
+    "ast_hash": "9de2c06767a7ddaf76a163c9d2464cb9",
+    "semantic_hash": ""
+  },
+  "supabase/passport-rarity-2026-09-24/05_backfill_stamps.sql": {
+    "mtime": 1790272414.593796,
+    "ast_hash": "4e10e3c185f844fad158420609253d29",
+    "semantic_hash": ""
+  },
+  "supabase/passport-rarity-2026-09-24/06_state_check_and_run.sql": {
+    "mtime": 1790342396.5844345,
+    "ast_hash": "1243508672b26a483752e283abb6f43e",
     "semantic_hash": ""
   }
 }
