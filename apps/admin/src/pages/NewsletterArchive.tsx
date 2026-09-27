@@ -1,25 +1,9 @@
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
-import { useMemo } from "react";
 import { MarketingNavbar } from "@/components/marketing/MarketingNavbar";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { NewsletterSignupForm } from "@/components/marketing/NewsletterSignupForm";
-import { getNewslettersNewestFirst } from "@/lib/newsletterStore";
-
-const formatPublishDate = (dateString: string) =>
-  new Date(dateString).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
 
 export default function NewsletterArchive() {
-  const sampleIssue = useMemo(
-    () => getNewslettersNewestFirst().find((issue) => issue.isPublicSample) ?? getNewslettersNewestFirst()[0],
-    []
-  );
-
   return (
     <div className="min-h-screen relative overflow-hidden">
       <Helmet>
@@ -101,41 +85,6 @@ export default function NewsletterArchive() {
                 </article>
               </div>
             </div>
-
-            {sampleIssue && (
-              <div className="glass-card border-pink-200/30 overflow-hidden group transition-all duration-300 hover:shadow-2xl hover:shadow-pink-500/20">
-                <div className="p-3 border-b border-pink-100/70 bg-pink-50/50">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase text-pink-700 bg-pink-100">
-                    Public Sample Issue
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr]">
-                  <img
-                    src={sampleIssue.coverImage}
-                    alt={`${sampleIssue.title} cover`}
-                    className="w-full h-full object-cover bg-pink-50 min-h-[220px]"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div className="p-6 md:p-8">
-                    <p className="text-sm text-gray-500 mb-2">
-                      {formatPublishDate(sampleIssue.publishDate)}
-                    </p>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-3 font-display">
-                      {sampleIssue.title}
-                    </h3>
-                    <p className="text-gray-700 leading-relaxed mb-6">{sampleIssue.description}</p>
-                    <Link
-                      to={`/newsletter/${sampleIssue.slug}`}
-                      className="inline-flex items-center gap-2 text-pink-600 font-semibold hover:text-pink-700"
-                    >
-                      View sample issue
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </section>
 
