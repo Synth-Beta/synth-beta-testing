@@ -30,6 +30,7 @@ import {
 import { SearchService } from '../../services/searchService';
 import { MobileAttendeeSelector } from './MobileAttendeeSelector';
 import { MobileImageCropper, type CropResult } from './MobileImageCropper';
+import { PastDatePicker, formatEventDateLabel } from './PastDatePicker';
 import { Image } from 'expo-image';
 import { EventService } from '../../services/eventService';
 import { submitEventReviewFromForm } from '../../review/submitEventReviewFromForm';
@@ -135,7 +136,7 @@ function formatRowDate(raw: unknown): string {
     });
 }
 
-const STAR_SIZE = 34;
+const STAR_SIZE = 46;
 
 function StarPicker({
     value,
@@ -146,7 +147,8 @@ function StarPicker({
 }) {
     const rounded = Math.floor(value * 2) / 2;
     return (
-        <View style={styles.starRow} accessibilityRole="adjustable" accessibilityLabel={`Rating: ${rounded} out of 5 stars`}>
+        <View accessibilityRole="adjustable" accessibilityLabel={`Rating: ${rounded} out of 5 stars`}>
+        <View style={styles.starRow}>
             {[1, 2, 3, 4, 5].map((i) => {
                 const full = rounded >= i;
                 const half = !full && rounded >= i - 0.5;
@@ -181,6 +183,10 @@ function StarPicker({
                     </View>
                 );
             })}
+            </View>
+            <SynthText variant="meta" color="secondary" style={styles.starValue}>
+                {rounded > 0 ? `${rounded.toFixed(1)} of 5` : 'Tap a star — left half for a half star'}
+            </SynthText>
         </View>
     );
 }
@@ -231,6 +237,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [cropperVisible, setCropperVisible] = useState(false);
     const [cropPhotoIndex, setCropPhotoIndex] = useState(0);
+    const [datePickerOpen, setDatePickerOpen] = useState(false);
 
     const selectArtist = useCallback((a: ReviewArtist) => {
         updateFormData({ selectedArtist: a });
@@ -893,13 +900,29 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 </>
             )}
 
-            <SynthText variant="meta" style={styles.mt12}>Date (YYYY-MM-DD)</SynthText>
-            <TextInput
+            <SynthText variant="meta" style={styles.mt12}>Date</SynthText>
+            <Pressable
                 style={styles.input}
+                onPress={() => setDatePickerOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                    formData.eventDate
+                        ? `Show date: ${formatEventDateLabel(formData.eventDate)}. Tap to change.`
+                        : 'Pick the show date'
+                }
+            >
+                <SynthText
+                    variant="body"
+                    style={formData.eventDate ? undefined : styles.inputPlaceholder}
+                >
+                    {formData.eventDate ? formatEventDateLabel(formData.eventDate) : 'Pick a date'}
+                </SynthText>
+            </Pressable>
+            <PastDatePicker
+                visible={datePickerOpen}
                 value={formData.eventDate}
-                onChangeText={(t) => updateFormData({ eventDate: t })}
-                placeholder="2025-03-01"
-                placeholderTextColor={SynthTokens.colors.neutral600}
+                onSelect={(d) => updateFormData({ eventDate: d })}
+                onClose={() => setDatePickerOpen(false)}
             />
             {!!errors.selectedArtist && (
                 <SynthText variant="meta" style={styles.err}>{errors.selectedArtist}</SynthText>
@@ -1403,12 +1426,16 @@ const styles = StyleSheet.create({
     mt8: { marginTop: 8 },
     mt12: { marginTop: 12 },
     mb8: { marginBottom: 8 },
+    inputPlaceholder: { color: SynthTokens.colors.neutral600 },
+    starValue: { marginTop: 6, fontSize: 13 },
     input: {
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 12,
+        minHeight: 48,
+        justifyContent: 'center',
         fontSize: 16,
         backgroundColor: '#fff',
         color: SynthTokens.colors.neutral900,
