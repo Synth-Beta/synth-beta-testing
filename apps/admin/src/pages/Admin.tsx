@@ -85,6 +85,7 @@ import {
   RecentPostRow,
   SocialInsightsMap,
   SocialOverviewMetric,
+  SocialPlatformMetricsMap,
   TopPostCardProps,
 } from '@/services/socialMediaAnalytics/types';
 import { fetchInstagramSocialMediaAnalytics } from '@/services/socialMediaAnalytics/socialMediaAnalyticsService';
@@ -430,7 +431,10 @@ export default function Admin() {
   });
   const [socialLoading, setSocialLoading] = useState(true);
   const [socialWarnings, setSocialWarnings] = useState<string[]>([]);
-  
+  // The metrics the edge function computed. Without them the dashboard re-derives
+  // everything by parsing the display strings in platformComparisons.
+  const [socialPlatformMetrics, setSocialPlatformMetrics] = useState<SocialPlatformMetricsMap>();
+
   const { toast } = useToast();
 
   const fetchSocialMediaAnalytics = useCallback(async () => {
@@ -445,15 +449,25 @@ export default function Admin() {
       TikTok: [],
     });
     setSocialWarnings([]);
+    setSocialPlatformMetrics(undefined);
 
     try {
-      const { data, warnings } = await fetchInstagramSocialMediaAnalytics();
+      const { data, warnings, warning, usedFallback } = await fetchInstagramSocialMediaAnalytics();
       setSocialOverviewMetrics(data.overview);
       setPlatformComparisons(data.platformComparisons);
       setContentPerformanceCards(data.contentPerformance);
       setRecentSocialPosts(data.recentPosts);
       setPlatformInsights(data.insights);
-      setSocialWarnings(warnings ?? []);
+      setSocialPlatformMetrics(data.platformMetrics);
+      // metricReasons is the only place the Graph status and Meta's error code
+      // appear; the plain warnings just say "unavailable". Dropping both it and
+      // `warning`/`usedFallback` is why a six-week Instagram outage looked like
+      // an empty dashboard with no stated cause.
+      setSocialWarnings([
+        ...(usedFallback && warning ? [warning] : []),
+        ...(warnings ?? []),
+        ...new Set(Object.values(data.metricReasons ?? {})),
+      ]);
     } catch (error: any) {
       console.error('Error loading social analytics:', error);
       setSocialWarnings([
@@ -3337,6 +3351,7 @@ export default function Admin() {
                     contentPerformance: contentPerformanceCards,
                     recentPosts: recentSocialPosts,
                     insights: platformInsights,
+                    platformMetrics: socialPlatformMetrics,
                   }}
                   warnings={socialWarnings}
                 />

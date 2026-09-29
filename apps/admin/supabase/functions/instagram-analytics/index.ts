@@ -1,4 +1,8 @@
 import { serve } from 'https://deno.land/std@0.201.0/http/server.ts';
+import {
+  describeGraphError,
+  platformResultHasData,
+} from '../_shared/platformData.ts';
 
 const DEFAULT_API_VERSION = 'v24.0';
 const INSTAGRAM_API_VERSION = (
@@ -742,15 +746,8 @@ const requireAdmin = async (authHeader: string | null): Promise<string | null> =
   }
 };
 
-const platformResultHasData = (result: PlatformAnalyticsResult) => {
-  const metricValues = Object.values(result.metrics ?? {});
-  return (
-    metricValues.some(value => typeof value === 'number' && value > 0) ||
-    result.contentPerformance.some(card => card.metricValue != null) ||
-    result.recentPosts.length > 0 ||
-    result.platformComparison.stats.some(stat => stat.value != null)
-  );
-};
+// platformResultHasData lives in ../_shared/platformData.ts so its predicate can
+// be checked without a Deno runtime (node platformData.check.mjs).
 
 const formatSnapshotDate = (capturedAt: string) =>
   new Date(capturedAt).toLocaleString('en-US', {
@@ -784,10 +781,29 @@ const savePlatformSnapshot = async (platform: PlatformName, result: PlatformAnal
 
 const loadLatestPlatformSnapshot = async (platform: PlatformName) => {
   try {
-    const rows = await fetchSupabaseRest(
-      `social_media_analytics_snapshots?platform=eq.${encodeURIComponent(platform)}&select=payload,captured_at&order=captured_at.desc&limit=1`
-    ) as Array<{ payload: PlatformAnalyticsResult; captured_at: string }>;
-    return rows?.[0] ?? null;
+    // Newest row that actually HAS data, not simply the newest row. The old
+    // has-data check let ~1,000 empty Instagram snapshots into this table before
+    // 2026-09-28 and they are still there, so row 1 is one of those and the
+    // fallback would stay useless.
+    //
+    // Skipping them server-side first, because the last good Instagram row sits
+    // under ~771 empty ones and paging through those payloads on every page load
+    // would be absurd. `->>` (text), not `->`: a JSON null is not a SQL NULL, so
+    // `payload->metrics->followers=not.is.null` matches the empty rows too.
+    const encoded = encodeURIComponent(platform);
+    const select = 'select=payload,captured_at&order=captured_at.desc';
+    const withFollowers = (await fetchSupabaseRest(
+      `social_media_analytics_snapshots?platform=eq.${encoded}&${select}&payload->metrics->>followers=not.is.null&limit=5`
+    )) as Array<{ payload: PlatformAnalyticsResult; captured_at: string }>;
+    const found = withFollowers?.find(row => row.payload && platformResultHasData(row.payload));
+    if (found) return found;
+
+    // A platform can have posts but no follower count, so still check the most
+    // recent rows unfiltered before giving up.
+    const recent = (await fetchSupabaseRest(
+      `social_media_analytics_snapshots?platform=eq.${encoded}&${select}&limit=25`
+    )) as Array<{ payload: PlatformAnalyticsResult; captured_at: string }>;
+    return recent?.find(row => row.payload && platformResultHasData(row.payload)) ?? null;
   } catch (error) {
     logWarn('Social analytics snapshot load failed', {
       platform,
@@ -930,7 +946,15 @@ const fetchGraph = async (url: string, token: string) => {
   const response = await fetch(requestUrl.toString());
   const text = await response.text();
   if (!response.ok) {
-    const error: GraphApiError = new Error(`Graph API error ${response.status}`);
+    // Without the detail this threw a bare "Graph API error 400", and that bare
+    // string is what metricReasons and the admin UI show. Instagram failed for
+    // six weeks (2026-08-15 -> 2026-09-28) reading exactly that, while the real
+    // cause — expired token is code 190, bad id/field is code 100 — sat in the
+    // function log only.
+    const detail = describeGraphError(text);
+    const error: GraphApiError = new Error(
+      `Graph API error ${response.status}${detail ? `: ${detail}` : ''}`
+    );
     error.status = response.status;
     error.body = sanitizeLogValue(text);
     throw error;

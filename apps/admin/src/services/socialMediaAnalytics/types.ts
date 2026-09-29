@@ -84,6 +84,9 @@ export interface SocialAnalyticsPayload {
   recentPosts: RecentPostRow[];
   insights: SocialInsightsMap;
   platformMetrics?: SocialPlatformMetricsMap;
+  /** Why a metric is missing, keyed "<Platform>.<metric>" — carries the Graph
+   *  status and Meta's own error code, which the plain warnings do not. */
+  metricReasons?: Record<string, string>;
 }
 
 export interface SocialAnalyticsResponse {
