@@ -123,7 +123,18 @@ export const listNewsletterDrafts = async (editionDate: string) => {
   return (data.drafts ?? []) as NewsletterDraftRow[];
 };
 
-export const loadNewsletterSource = async () => invokeNewsletter({ action: "source_edition" });
+export const loadNewsletterSource = async () => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Sign in again before creating an edition.");
+  const response = await fetch("/api/newsletter-source", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body?.ok) throw new Error(body?.error || "Could not load newsletter data.");
+  return body;
+};
 
 export const saveNewsletterDrafts = async (
   editionDate: string,

@@ -120,6 +120,9 @@
     },
     "api/spotify/sync-profile.ts": {
       "maxDuration": 30
+    },
+    "api/newsletter-source.ts": {
+      "maxDuration": 120
     }
   },
   "crons": [

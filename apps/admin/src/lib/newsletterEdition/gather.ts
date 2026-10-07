@@ -1,6 +1,6 @@
 import { loadEventsNearPlaces, placeKey, type EventQuery } from "../../../../../supabase/functions/newsletter-send/nearby";
 import { fetchMusicNews } from "../../../../../supabase/functions/newsletter-send/news";
-import { readAll, requireRows, enrichReviewArtists } from "../../../../../supabase/functions/newsletter-send/queries";
+import { readAll, requireRows, enrichReviewArtists, loadListeningStats } from "../../../../../supabase/functions/newsletter-send/queries";
 import { composeEdition } from "./compose";
 import { renderEditionHtml } from "./render";
 import { contentHash } from "./gate";
@@ -237,7 +237,7 @@ export const generateDraftsFromSource = async (
   return { editionDate, retrievedAt, drafts, held };
 };
 
-export const generateEditionDrafts = async (db: Db, now = new Date()) => {
+export const loadEditionSource = async (db: Db, now = new Date()) => {
   const users = await readAll(() => db.from("users")
     .select("user_id, email, name, username, location_city, location_state, account_status, is_bot")
     .eq("account_status", "active").or("is_bot.is.false,is_bot.is.null")
@@ -260,17 +260,14 @@ export const generateEditionDrafts = async (db: Db, now = new Date()) => {
 
   const userIds = recipients.map((user: any) => user.user_id);
   const reviews: any[] = [];
-  const stats: any[] = [];
   for (const ids of chunk(userIds, 40)) {
     if (!ids.length) continue;
     reviews.push(...await readAll(() => db.from("reviews")
       .select("id, user_id, rating, review_text, Event_date, setlist, user_created_artist_id, artists(name), venues(name)")
       .in("user_id", ids).eq("is_draft", false)
       .order("Event_date", { ascending: false }).order("id"), "Load review history"));
-    stats.push(...await readAll(() => db.from("user_streaming_stats_summary")
-      .select("user_id, top_artists, top_genres, service_type")
-      .in("user_id", ids).order("user_id").order("service_type"), "Load listening history"));
   }
+  const stats = await loadListeningStats(db, userIds);
 
   const enrichedReviews = await enrichReviewArtists(db, reviews);
   const artistNames = [...new Set(userIds.flatMap((id: string) => {
@@ -319,5 +316,15 @@ export const generateEditionDrafts = async (db: Db, now = new Date()) => {
     .gte("rating", 5)
     .limit(300);
 
-  return generateDraftsFromSource({ users: usersWithLocation, news, reviews: enrichedReviews, stats, events, publicFives: requireRows(publicFives, "Load community reviews") }, now);
+  return {
+    users: usersWithLocation,
+    news,
+    reviews: enrichedReviews,
+    stats,
+    events,
+    publicFives: requireRows(publicFives, "Load community reviews"),
+  };
 };
+
+export const generateEditionDrafts = async (db: Db, now = new Date()) =>
+  generateDraftsFromSource(await loadEditionSource(db, now), now);

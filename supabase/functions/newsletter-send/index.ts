@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { loadEventsNearPlaces, placeKey, type EventQuery } from "./nearby.ts";
 import { fetchMusicNews } from "./news.ts";
-import { readAll, requireRows, enrichReviewArtists } from "./queries.ts";
+import { readAll, requireRows, enrichReviewArtists, loadListeningStats } from "./queries.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -354,17 +354,14 @@ serve(async (req) => {
       const news = [...rss, ...requireRows(storedNews, "Load stored news")];
       const userIds = recipients.map((user) => user.user_id);
       const reviews: unknown[] = [];
-      const stats: unknown[] = [];
       for (let index = 0; index < userIds.length; index += 40) {
         const ids = userIds.slice(index, index + 40);
         reviews.push(...await readAll(() => adminClient.from("reviews")
           .select("id, user_id, rating, review_text, Event_date, setlist, user_created_artist_id, artists(name), venues(name)")
           .in("user_id", ids).eq("is_draft", false)
           .order("Event_date", { ascending: false }).order("id"), "Load review history"));
-        stats.push(...await readAll(() => adminClient.from("user_streaming_stats_summary")
-          .select("user_id, top_artists, top_genres, service_type")
-          .in("user_id", ids).order("user_id").order("service_type"), "Load listening history"));
       }
+      const stats = await loadListeningStats(adminClient, userIds);
       const enrichedReviews = await enrichReviewArtists(adminClient, reviews);
       const artistNames = [...new Set(userIds.flatMap((id) => {
         const fromReviews = enrichedReviews.filter((row: any) => row.user_id === id).slice(0, 2).map((row: any) => (row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name)).filter(Boolean);
