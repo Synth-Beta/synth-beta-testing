@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { generateDraftsFromSource } from "@/lib/newsletterEdition/gather";
-import { nextEditionDate } from "@/lib/newsletterEdition/time";
+import { centralCalendarDate } from "@/lib/newsletterEdition/time";
 import {
   approveDrafts,
   listNewsletterDrafts,
@@ -29,12 +29,12 @@ const statusLabel = (status: NewsletterDraftRow["status"]) => {
 
 export default function NewsletterProofreader() {
   const { toast } = useToast();
-  const [editionDate, setEditionDate] = useState(() => nextEditionDate(new Date()));
+  const [editionDate, setEditionDate] = useState(() => centralCalendarDate(new Date()));
   const [drafts, setDrafts] = useState<NewsletterDraftRow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("pending");
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -85,17 +85,27 @@ export default function NewsletterProofreader() {
       const source = await loadNewsletterSource();
       const generated = await generateDraftsFromSource(source, new Date(), editionDate);
       setEligibleCount(generated.drafts.length + generated.held);
+      const existing = await listNewsletterDrafts(editionDate);
+      const freshIds = new Set(generated.drafts.map((draft) => draft.userId));
+      const unlock = existing.filter((draft) => freshIds.has(draft.user_id) && draft.status === "approved" && !draft.sent_at);
+      for (let index = 0; index < unlock.length; index += 5) {
+        setProgress(`Returning ${index + 1}–${Math.min(index + 5, unlock.length)} of ${unlock.length} approved drafts to review…`);
+        await Promise.all(unlock.slice(index, index + 5).map((draft) => setDraftApproval(draft.id, "needs_approval")));
+      }
       let replaced = 0;
       let kept = 0;
-      for (let index = 0; index < generated.drafts.length; index += 15) {
-        setProgress(`Saving ${index + 1}–${Math.min(index + 15, generated.drafts.length)} of ${generated.drafts.length} drafts…`);
-        const result = await saveNewsletterDrafts(generated.editionDate, generated.drafts.slice(index, index + 15));
+      for (let index = 0; index < generated.drafts.length; index += 5) {
+        setProgress(`Saving ${index + 1}–${Math.min(index + 5, generated.drafts.length)} of ${generated.drafts.length} drafts…`);
+        const result = await saveNewsletterDrafts(editionDate, generated.drafts.slice(index, index + 5));
         replaced += Number(result.replaced ?? 0);
         kept += Number(result.kept ?? 0);
       }
+      if (generated.drafts.length > 0 && replaced === 0) {
+        throw new Error(`Built ${generated.drafts.length} drafts for ${editionDate}, but the server wrote 0. ${kept} existing copies were left unchanged.`);
+      }
       toast({
         title: "Drafts regenerated",
-        description: `${replaced} drafts saved for review. ${kept} sent copies preserved. ${generated.held} held.`,
+        description: `${replaced} drafts saved for ${editionDate} and need approval. ${kept} sent copies were left unchanged. ${generated.held} accounts were held.`,
       });
       setCheckedIds([]);
       setReviewFilter("all");
