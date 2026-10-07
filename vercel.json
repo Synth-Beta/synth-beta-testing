@@ -122,7 +122,8 @@
       "maxDuration": 30
     },
     "api/newsletter-source.ts": {
-      "maxDuration": 120
+      "maxDuration": 120,
+      "includeFiles": "{apps/admin/src/lib/newsletterEdition/**,supabase/functions/newsletter-send/**}"
     }
   },
   "crons": [
