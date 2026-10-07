@@ -140,10 +140,15 @@ assert.equal(laurenEdition.shows.some((show) => show.title === "Jon Batiste"), f
 assert.ok(laurenEdition.shows.some((show) => show.title === "Sylvan Esso" || show.title === "Glass Animals"));
 assert.ok(laurenEdition.updates.some((update) => update.title.includes("Jon Batiste")));
 assert.ok(laurenEdition.yourSynth?.body.includes("Wolf Trap"));
+assert.ok(laurenEdition.yourSynth?.body.includes("Fur Elise"));
 assert.equal(laurenEdition.yourSynth?.body.includes("this week"), false);
-assert.equal(laurenEdition.yourSynth?.body.includes("Fur Elise"), false);
+assert.equal(laurenEdition.shows.some((show) => /Fur Elise/.test(show.body)), false);
+assert.equal(laurenEdition.updates.some((update) => /Fur Elise/.test(update.body)), false);
+assert.equal(/Fur Elise/.test(laurenEdition.listen?.body ?? ""), false);
+assert.equal(/Fur Elise/.test(laurenEdition.connect.body), false);
 assert.equal(laurenEdition.updates.every((update) => /show history|your listening/i.test(update.body)), false);
 assert.equal(laurenEdition.connect.title.includes("Jon Batiste"), false);
+assert.ok(laurenEdition.shows.length >= 2);
 
 assert.equal(chicagoEdition.shows.some((show) => show.title === "Wilco"), false, "the last concert is not recommended again");
 assert.equal(chicagoEdition.shows.some((show) => show.title === "Sylvan Esso"), false);
@@ -223,7 +228,10 @@ const jungleEdition = composeEdition({
 });
 assert.equal(jungleEdition.shows.some((show) => show.title === "Jungle"), false, "the last concert is not recommended again");
 assert.ok(jungleEdition.shows.some((show) => show.title === "Sylvan Esso"));
-assert.equal(/not a promise you’ll love it|Sample Jungle|did not sit down|show history|your latest log/i.test(renderEditionHtml(jungleEdition)), false);
+assert.ok(jungleEdition.yourSynth?.body.includes("did not sit down"));
+assert.equal(jungleEdition.shows.some((show) => /did not sit down/.test(show.body)), false);
+assert.equal(/did not sit down/.test(jungleEdition.listen?.body ?? ""), false);
+assert.equal(/not a promise you’ll love it|Sample Jungle|show history|your latest log/i.test(renderEditionHtml(jungleEdition)), false);
 assert.equal(jungleEdition.connect.title.includes("Jungle"), false);
 assert.equal(jungleEdition.updates.every((update) => update.title.includes("Jungle")), false);
 assert.match(jungleEdition.listen?.body ?? "", /Coffee/);

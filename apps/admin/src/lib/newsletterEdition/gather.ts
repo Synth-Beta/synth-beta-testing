@@ -124,6 +124,7 @@ export const generateDraftsFromSource = async (
       url: String(row.url),
       source: row.source ?? null,
       publishedAt: String(row.publishedAt ?? row.created_at),
+      summary: row.summary ?? null,
     }));
   const reviewsByUser = new Map<string, EditionReview[]>();
   for (const row of source.reviews ?? []) {

@@ -24,6 +24,8 @@ export interface EditionNews {
   url: string;
   source?: string | null;
   publishedAt: string;
+  /** First sentence from the feed, when the source included one. */
+  summary?: string | null;
 }
 
 export interface EditionReview {

@@ -13,6 +13,7 @@ export interface RssStory {
   url: string;
   source: string;
   publishedAt: string;
+  summary?: string | null;
 }
 
 const decode = (value: string) =>
@@ -30,6 +31,14 @@ const decode = (value: string) =>
 const tag = (block: string, name: string) => {
   const match = block.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, "i"));
   return match ? decode(match[1]) : "";
+};
+
+const summaryOf = (block: string) => {
+  const raw = tag(block, "description") || tag(block, "content:encoded");
+  const text = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (text.length < 40) return null;
+  const sentence = text.match(/^.{40,220}?[.!](\s|$)/);
+  return (sentence ? sentence[0] : text.slice(0, 180)).trim();
 };
 
 const httpUrl = (value: string) => {
@@ -59,6 +68,7 @@ export const parseRssItems = (xml: string, source: string, now = new Date()): Rs
       url: link,
       source,
       publishedAt: new Date(published).toISOString(),
+      summary: summaryOf(block),
     });
   }
   return stories;
