@@ -141,6 +141,9 @@ assert.ok(laurenEdition.shows.some((show) => show.title === "Sylvan Esso" || sho
 assert.ok(laurenEdition.updates.some((update) => update.title.includes("Jon Batiste")));
 assert.ok(laurenEdition.yourSynth?.body.includes("Wolf Trap"));
 assert.equal(laurenEdition.yourSynth?.body.includes("this week"), false);
+assert.equal(laurenEdition.yourSynth?.body.includes("Fur Elise"), false);
+assert.equal(laurenEdition.updates.every((update) => /show history|your listening/i.test(update.body)), false);
+assert.equal(laurenEdition.connect.title.includes("Jon Batiste"), false);
 
 assert.equal(chicagoEdition.shows.some((show) => show.title === "Wilco"), false, "the last concert is not recommended again");
 assert.equal(chicagoEdition.shows.some((show) => show.title === "Sylvan Esso"), false);
@@ -220,7 +223,9 @@ const jungleEdition = composeEdition({
 });
 assert.equal(jungleEdition.shows.some((show) => show.title === "Jungle"), false, "the last concert is not recommended again");
 assert.ok(jungleEdition.shows.some((show) => show.title === "Sylvan Esso"));
-assert.equal(/not a promise you’ll love it|Sample Jungle/i.test(renderEditionHtml(jungleEdition)), false);
+assert.equal(/not a promise you’ll love it|Sample Jungle|did not sit down|show history|your latest log/i.test(renderEditionHtml(jungleEdition)), false);
+assert.equal(jungleEdition.connect.title.includes("Jungle"), false);
+assert.equal(jungleEdition.updates.every((update) => update.title.includes("Jungle")), false);
 assert.match(jungleEdition.listen?.body ?? "", /Coffee/);
 assert.equal(/Jungle/.test(jungleEdition.listen?.body ?? ""), false);
 

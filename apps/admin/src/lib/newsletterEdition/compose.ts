@@ -52,12 +52,6 @@ const joinList = (items: string[]) => {
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 };
 
-const firstSentence = (text: string) => {
-  const cleaned = text.replace(/\s+/g, " ").trim();
-  const match = cleaned.match(/^.{12,160}?[.!](\s|$)/);
-  return (match ? match[0] : cleaned.slice(0, 140)).trim();
-};
-
 const knownArtists = (reader: EditionReader) => {
   const names = [
     ...reader.topArtists,
@@ -72,19 +66,11 @@ const knownArtists = (reader: EditionReader) => {
   });
 };
 
-const latestReview = (reader: EditionReader) =>
-  [...reader.reviews].sort((left, right) => String(right.eventDate ?? "").localeCompare(String(left.eventDate ?? "")))[0];
-
 const alreadyLogged = (reader: EditionReader, artistName: string) =>
   reader.reviews.some((review) => sameName(review.artistName, artistName));
 
 const reasonFor = (event: EditionEvent, reader: EditionReader) => {
-  const latest = latestReview(reader);
-  const review = reader.reviews.find((item) => sameName(item.artistName, event.artistName));
-  if (review && latest && !sameName(review.artistName, latest.artistName)) {
-    return `A return date for ${event.artistName}, separate from your latest log.`;
-  }
-  if (reader.topArtists.some((artist) => sameName(artist, event.artistName))) {
+  if (reader.topArtists.some((artist) => sameName(artist, event.artistName) && !alreadyLogged(reader, artist))) {
     return `${event.artistName} is in your listening, and this is a listed date.`;
   }
   const genre = (event.genres ?? []).find((item) =>
@@ -111,8 +97,6 @@ const pickShows = (events: EditionEvent[], reader: EditionReader, sendAt: Date) 
   const ranked = [...upcoming].sort((left, right) => {
     const score = (event: EditionEvent) => {
       const inCity = Boolean(reader.city && sameName(event.city, reader.city));
-      if (reader.reviews.some((review) => sameName(review.artistName, event.artistName)) && inCity) return 0;
-      if (reader.reviews.some((review) => sameName(review.artistName, event.artistName))) return 1;
       if (reader.topArtists.some((artist) => sameName(artist, event.artistName)) && inCity) return 2;
       if (reader.topArtists.some((artist) => sameName(artist, event.artistName))) return 3;
       if (genreMatch(event) && inCity) return 4;
@@ -122,12 +106,14 @@ const pickShows = (events: EditionEvent[], reader: EditionReader, sendAt: Date) 
     };
     return score(left) - score(right) || left.eventDate.localeCompare(right.eventDate);
   });
-  const latest = latestReview(reader);
-  const notTheLatestShow = (event: EditionEvent) => !latest || !sameName(event.artistName, latest.artistName);
   const taste = ranked.filter(
-    (event) => artists.some((artist) => sameName(artist, event.artistName)) || genreMatch(event)
+    (event) =>
+      (artists.some((artist) => sameName(artist, event.artistName)) || genreMatch(event)) &&
+      !alreadyLogged(reader, event.artistName)
   );
-  const pool = (reader.latitude != null || reader.city ? ranked : taste).filter(notTheLatestShow);
+  const pool = (reader.latitude != null || reader.city ? ranked : taste).filter(
+    (event) => !alreadyLogged(reader, event.artistName)
+  );
   const chosen: EditionEvent[] = [];
   for (const event of pool) {
     if (chosen.some((item) => sameName(item.artistName, event.artistName))) continue;
@@ -144,19 +130,14 @@ const titleMentionsArtist = (title: string, artist: string) => {
   return new RegExp(`\\b${escaped}\\b`, "i").test(title);
 };
 
-const pickNews = (news: EditionNews[], reader: EditionReader, sendAt: Date) => {
-  const artists = knownArtists(reader);
-  return news
+const recentNews = (news: EditionNews[], sendAt: Date) =>
+  news
     .filter((item) => httpUrl(item.url))
     .filter((item) => {
-      const published = new Date(item.publishedAt).getTime();
-      return !Number.isNaN(published) && sendAt.getTime() - published <= NEWS_WINDOW_MS && published <= sendAt.getTime();
+      const published = Date.parse(item.publishedAt);
+      return Number.isFinite(published) && published <= sendAt.getTime() && sendAt.getTime() - published <= NEWS_WINDOW_MS;
     })
-    .filter((item) =>
-      artists.some((artist) => titleMentionsArtist(item.title, artist))
-    )
-    .slice(0, 2);
-};
+    .filter((item, index, items) => items.findIndex((other) => other.url === item.url) === index);
 
 const pickListens = (listens: EditionListen[], shows: EditionEvent[], reader: EditionReader) => {
   const fromShows = shows
@@ -198,16 +179,11 @@ export const composeEdition = ({
 }): ComposedEdition | null => {
   const sources: EditionSource[] = [];
   const shows = pickShows(events, reader, sendAt);
-  const personalizedNews = pickNews(news, reader, sendAt);
-  // A sourced general edition also serves readers without taste/history data.
-  const updates = personalizedNews.length ? personalizedNews : news
-    .filter((item) => httpUrl(item.url))
-    .filter((item) => {
-      const published = Date.parse(item.publishedAt);
-      return Number.isFinite(published) && published <= sendAt.getTime() && sendAt.getTime() - published <= NEWS_WINDOW_MS;
-    })
-    .filter((item, index, items) => items.findIndex((other) => other.url === item.url) === index)
-    .slice(0, 2);
+  const freshNews = recentNews(news, sendAt);
+  const notFromReviews = freshNews.filter(
+    (item) => !reader.reviews.some((review) => titleMentionsArtist(item.title, review.artistName))
+  );
+  const updates = (notFromReviews.length ? notFromReviews : freshNews).slice(0, 2);
   const listenPicks = pickListens(listens, shows, reader);
 
 
@@ -240,14 +216,11 @@ export const composeEdition = ({
 
   const updateCards: StoryCard[] = updates.map((item) => {
     const url = httpUrl(item.url)!;
-    const artist = knownArtists(reader).find((name) => titleMentionsArtist(item.title, name));
     sources.push({ kind: "news", url, retrievedAt, label: item.title });
     return {
       eyebrow: item.source ? `${item.source} · recent` : "Live music update",
       title: item.title,
-      body: artist
-        ? `${artist} is part of your listening or your show history, and this listing is new enough to be worth a look.`
-        : "A recent music story to explore this week.",
+      body: "A recent music story to explore this week.",
       ctaLabel: "Read the source",
       ctaUrl: url,
       tone: "white",
@@ -286,14 +259,13 @@ export const composeEdition = ({
   let yourSynth: ComposedEdition["yourSynth"];
   if (latest?.artistName && latest.eventDate && !isUpcoming(latest.eventDate, sendAt, reader.state)) {
     const when = formatEventWhen(latest.eventDate, reader.state);
-    const detail = latest.text ? ` ${firstSentence(latest.text)}` : "";
     const headline =
       reader.lifetimeShowCount > 0 && reader.fiveStarCount > 0
         ? `${reader.lifetimeShowCount} show${reader.lifetimeShowCount === 1 ? "" : "s"} logged. ${reader.fiveStarCount} five-star night${reader.fiveStarCount === 1 ? "" : "s"}.`
         : `Your latest: ${latest.artistName}.`;
     yourSynth = {
       headline,
-      body: `Your latest was ${latest.artistName}${latest.venueName ? ` at ${latest.venueName}` : ""} on ${when}.${detail}`,
+      body: `Your latest was ${latest.artistName}${latest.venueName ? ` at ${latest.venueName}` : ""} on ${when}.`,
     };
     sources.push({
       kind: "account",
@@ -303,47 +275,27 @@ export const composeEdition = ({
     });
   }
 
-  const latestName = latest?.artistName;
-  const connectArtist = reader.otherFiveStarArtists.find((artist) => !latestName || !sameName(artist, latestName));
-  const connect: StoryCard = connectArtist
+  const connect: StoryCard = shows.length
     ? {
         eyebrow: "Connect",
-        title: `Who else gave ${connectArtist} a 5?`,
-        body: `Other people on Synth rated ${connectArtist} a five. Open the reviews and see who else wrote about that show.`,
+        title: "See the dates on Synth.",
+        body: "Open Synth to look through shows and write a review after you go.",
         ctaLabel: "Explore Synth",
         ctaUrl: APP_URL,
         tone: "yellow",
       }
-    : latest
-      ? {
-          eyebrow: "Connect",
-          title: "Who else is going?",
-          body: "Your latest show is already in the recap. Explore reviews of other artists and see whose plans overlap with yours.",
-          ctaLabel: "Explore Synth",
-          ctaUrl: APP_URL,
-          tone: "yellow",
-        }
-      : shows.length
-        ? {
-            eyebrow: "Connect",
-            title: "See the dates on Synth.",
-            body: "Open Synth to look through shows and write a review after you go.",
-            ctaLabel: "Explore Synth",
-            ctaUrl: APP_URL,
-            tone: "yellow",
-          }
-        : {
-            eyebrow: "Make your next show count",
-            title: "Build your live music timeline.",
-            body: "Log a concert you remember, add your review, and explore what other fans are sharing on Synth.",
-            ctaLabel: "Explore Synth",
-            ctaUrl: APP_URL,
-            tone: "yellow",
-          };
+    : {
+        eyebrow: "Make your next show count",
+        title: "Build your live music timeline.",
+        body: "Log a concert you remember, add your review, and explore what other fans are sharing on Synth.",
+        ctaLabel: "Explore Synth",
+        ctaUrl: APP_URL,
+        tone: "yellow",
+      };
 
   const headline = name ? `${name}, let’s find your next great night.` : "Let’s find your next great night.";
   const introBits = [
-    showCards.length && place ? `a few ${place} shows to put on your radar` : showCards.length ? "a few dates tied to artists you already know" : "",
+    showCards.length && place ? `a few ${place} shows to put on your radar` : showCards.length ? "a few dates to put on your radar" : "",
     updateCards.length ? "a current artist update" : "",
     listen ? "a listen from someone you have not logged yet" : "",
   ].filter(Boolean);
