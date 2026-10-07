@@ -11,6 +11,37 @@ export interface SendTestNewsletterInput {
 
 const newRequestId = () => crypto.randomUUID();
 
+const readInvokeError = async (error: unknown, data: unknown) => {
+  if (data && typeof data === "object" && "error" in data && (data as { error?: unknown }).error) {
+    return String((data as { error: unknown }).error);
+  }
+  const context = error && typeof error === "object" && "context" in error
+    ? (error as { context?: { clone?: () => { json: () => Promise<unknown>; text: () => Promise<string> } } }).context
+    : undefined;
+  if (context && typeof context.clone === "function") {
+    try {
+      const body = await context.clone().json() as { error?: unknown; message?: unknown; msg?: unknown };
+      const message = body?.error || body?.message || body?.msg;
+      if (message) return String(message);
+    } catch {
+      try {
+        const text = (await context.clone().text()).trim();
+        if (text) return text.slice(0, 300);
+      } catch {
+        // The status body was already consumed.
+      }
+    }
+  }
+  return error instanceof Error ? error.message : "Newsletter request failed.";
+};
+
+const invokeNewsletter = async (body: Record<string, unknown>) => {
+  const { data, error } = await supabase.functions.invoke("newsletter-send", { body });
+  if (error) throw new Error(await readInvokeError(error, data));
+  if (!data?.ok) throw new Error(data?.error || "Newsletter request failed.");
+  return data;
+};
+
 export interface NewsletterApprovalRecipient {
   userId: string;
   email: string;
@@ -20,14 +51,10 @@ export interface NewsletterApprovalRecipient {
 }
 
 export const listNewsletterApprovals = async (newsletterSlug: string) => {
-  const { data, error } = await supabase.functions.invoke("newsletter-send", {
-    body: {
-      action: "list_approvals",
-      newsletterSlug,
-    },
+  const data = await invokeNewsletter({
+    action: "list_approvals",
+    newsletterSlug,
   });
-  if (error) throw new Error(error.message || "Unable to load newsletters to proof.");
-  if (!data?.ok) throw new Error(data?.error || "Unable to load newsletters to proof.");
   return (data.recipients ?? []) as NewsletterApprovalRecipient[];
 };
 
@@ -40,27 +67,19 @@ export const setNewsletterApproval = async ({
   userId: string;
   status: "approved" | "revoked";
 }) => {
-  const { data, error } = await supabase.functions.invoke("newsletter-send", {
-    body: {
-      action: "set_approval",
-      newsletterSlug,
-      userId,
-      status,
-    },
+  return invokeNewsletter({
+    action: "set_approval",
+    newsletterSlug,
+    userId,
+    status,
   });
-  if (error) throw new Error(error.message || "Unable to update approval.");
-  if (!data?.ok) throw new Error(data?.error || "Unable to update approval.");
-  return data;
 };
 
 export const getEligibleRecipientCount = async () => {
-  const { data, error } = await supabase.functions.invoke("newsletter-send", {
-    body: {
-      action: "get_recipients",
-      includeRecipients: false,
-    },
+  const data = await invokeNewsletter({
+    action: "get_recipients",
+    includeRecipients: false,
   });
-  if (error) throw new Error(error.message || "Unable to fetch recipient eligibility.");
   return Number(data?.eligibleCount ?? 0);
 };
 
@@ -72,27 +91,15 @@ export const sendTestNewsletter = async ({ newsletter, previewUserId, toEmail }:
     absoluteBaseUrl: "https://getsynth.app",
   });
 
-  const { data, error } = await supabase.functions.invoke("newsletter-send", {
-    body: {
-      action: "send_test",
-      requestId: newRequestId(),
-      newsletterSlug: newsletter.slug,
-      subject: newsletter.subjectLine,
-      toEmail,
-      html,
-      recipientUserId: previewUserId,
-    },
+  return invokeNewsletter({
+    action: "send_test",
+    requestId: newRequestId(),
+    newsletterSlug: newsletter.slug,
+    subject: newsletter.subjectLine,
+    toEmail,
+    html,
+    recipientUserId: previewUserId,
   });
-  if (error) throw new Error(error.message || "Test send failed.");
-  if (!data?.ok) throw new Error(data?.error || "Test send failed.");
-  return data;
-};
-
-const invokeNewsletter = async (body: Record<string, unknown>) => {
-  const { data, error } = await supabase.functions.invoke("newsletter-send", { body });
-  if (error) throw new Error(error.message || "Newsletter request failed.");
-  if (!data?.ok) throw new Error(data?.error || "Newsletter request failed.");
-  return data;
 };
 
 export interface NewsletterDraftRow {

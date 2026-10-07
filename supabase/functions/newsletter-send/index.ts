@@ -79,28 +79,42 @@ const injectUnsubscribeLink = (html: string, unsubscribeUrl: string) => {
   return `${html}\n${fallbackSnippet}`;
 };
 
-const authenticateAdmin = async (authorizationHeader: string | null) => {
+const authenticateAdmin = async (req: Request) => {
+  const authorizationHeader = req.headers.get("Authorization");
   if (!authorizationHeader?.startsWith("Bearer ")) {
     return { error: "Missing authorization token." };
   }
 
-  const token = authorizationHeader.replace("Bearer ", "").trim();
-  const { data: authData, error: authError } = await adminClient.auth.getUser(token);
-  if (authError || !authData.user) {
-    return { error: "Invalid session." };
+  const apikey = req.headers.get("apikey") || Deno.env.get("SUPABASE_ANON_KEY") || serviceRoleKey;
+  const userClient = createClient(supabaseUrl, apikey, {
+    global: { headers: { Authorization: authorizationHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  let authResult = await userClient.auth.getUser();
+  if (authResult.error || !authResult.data.user) {
+    const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
+    authResult = await adminClient.auth.getUser(token);
+  }
+  if (authResult.error || !authResult.data.user) {
+    const detail = authResult.error?.message ? ` (${authResult.error.message})` : "";
+    return { error: `Invalid session${detail}.` };
   }
 
+  const authUser = authResult.data.user;
   const { data: userRecord, error: userError } = await adminClient
     .from("users")
     .select("user_id, account_type, name")
-    .eq("user_id", authData.user.id)
+    .eq("user_id", authUser.id)
     .maybeSingle();
 
-  if (userError || !userRecord || userRecord.account_type !== "admin") {
-    return { error: "Admin access required." };
+  const metadataType = authUser.app_metadata?.account_type ?? authUser.user_metadata?.account_type;
+  const isAdmin = userRecord?.account_type === "admin" || metadataType === "admin";
+  if (!isAdmin) {
+    const detail = userError?.message ? ` (${userError.message})` : "";
+    return { error: `Admin access required${detail}.` };
   }
 
-  return { userId: authData.user.id, userName: userRecord.name ?? "Admin" };
+  return { userId: authUser.id, userName: userRecord?.name ?? "Admin" };
 };
 
 const getEligibleRecipients = async () => {
@@ -166,7 +180,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { ok: false, error: "Method not allowed." });
 
-  const auth = await authenticateAdmin(req.headers.get("Authorization"));
+  const auth = await authenticateAdmin(req);
   if ("error" in auth) return json(403, { ok: false, error: auth.error });
 
   try {
