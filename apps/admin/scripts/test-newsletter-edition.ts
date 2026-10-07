@@ -142,7 +142,7 @@ assert.ok(laurenEdition.updates.some((update) => update.title.includes("Jon Bati
 assert.ok(laurenEdition.yourSynth?.body.includes("Wolf Trap"));
 assert.equal(laurenEdition.yourSynth?.body.includes("this week"), false);
 
-assert.ok(chicagoEdition.shows.some((show) => show.title === "Wilco"));
+assert.equal(chicagoEdition.shows.some((show) => show.title === "Wilco"), false, "the last concert is not recommended again");
 assert.equal(chicagoEdition.shows.some((show) => show.title === "Sylvan Esso"), false);
 const chicagoPoint = { latitude: 41.8781, longitude: -87.6298 };
 const evanston = event({
@@ -184,6 +184,45 @@ assert.equal(noLocationEdition.showsHeading, "On your radar");
 assert.equal(/nearby|near you/i.test(noLocationEdition.intro + (noLocationEdition.showsDek ?? "")), false);
 assert.ok(noLocationEdition.shows.some((show) => show.title === "Phoebe Bridgers"));
 assert.equal(noLocationEdition.shows.some((show) => show.title === "Sylvan Esso"), false);
+
+const jungleReader: EditionReader = {
+  ...sparse,
+  userId: "sam",
+  email: "sam@example.com",
+  firstName: "Sam",
+  city: "Washington",
+  state: "DC",
+  lifetimeShowCount: 4,
+  fiveStarCount: 1,
+  topArtists: ["Jungle"],
+  otherFiveStarArtists: ["Jungle"],
+  reviews: [
+    {
+      artistName: "Jungle",
+      venueName: "The Anthem",
+      eventDate: "2026-06-01T00:00:00.000Z",
+      rating: 5,
+      text: "The room did not sit down once.",
+    },
+  ],
+};
+const jungleEdition = composeEdition({
+  ...base,
+  reader: jungleReader,
+  events: [
+    event({ id: "jungle-show", artistName: "Jungle", city: "Washington", ticketUrl: "https://tickets.example.com/jungle" }),
+    event({ id: "sylvan-show", artistName: "Sylvan Esso", city: "Washington", genres: ["pop"], ticketUrl: "https://impconcerts.com/event/sylvan-esso-2/" }),
+  ],
+  listens: [
+    { artistName: "Jungle" },
+    { artistName: "Sylvan Esso", trackName: "Coffee", url: "https://open.spotify.com/search/Sylvan%20Esso%20Coffee" },
+  ],
+});
+assert.equal(jungleEdition.shows.some((show) => show.title === "Jungle"), false, "the last concert is not recommended again");
+assert.ok(jungleEdition.shows.some((show) => show.title === "Sylvan Esso"));
+assert.equal(/not a promise you’ll love it|Sample Jungle/i.test(renderEditionHtml(jungleEdition)), false);
+assert.match(jungleEdition.listen?.body ?? "", /Coffee/);
+assert.equal(/Jungle/.test(jungleEdition.listen?.body ?? ""), false);
 
 const soldOut = laurenEdition.shows.find((show) => show.title === "Glass Animals");
 if (soldOut) {
