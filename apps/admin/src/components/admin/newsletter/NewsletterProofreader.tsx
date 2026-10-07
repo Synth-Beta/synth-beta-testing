@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle, Loader2, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,12 @@ const statusLabel = (status: NewsletterDraftRow["status"]) => {
   return "Needs review";
 };
 
+const shiftIso = (iso: string, days: number) => {
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+};
+
 export default function NewsletterProofreader() {
   const { toast } = useToast();
   const [editionDate, setEditionDate] = useState(() => centralCalendarDate(new Date()));
@@ -43,23 +49,53 @@ export default function NewsletterProofreader() {
   const [progress, setProgress] = useState("");
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [eligibleCount, setEligibleCount] = useState<number | null>(null);
+  const editionRef = useRef(editionDate);
+  editionRef.current = editionDate;
 
-  const load = useCallback(async () => {
+  const showDrafts = useCallback((date: string, rows: NewsletterDraftRow[]) => {
+    const ordered = [...rows].sort((left, right) => left.email.localeCompare(right.email));
+    editionRef.current = date;
+    setEditionDate(date);
+    setDrafts(ordered);
+    setReviewFilter("all");
+    setQuery("");
+    setSelectedId(ordered[0]?.id ?? null);
+    setCheckedIds([]);
+  }, []);
+
+  const load = useCallback(async (date = editionRef.current) => {
     setListLoading(true);
     setListError(null);
     try {
-      setDrafts(await listNewsletterDrafts(editionDate));
+      const rows = await listNewsletterDrafts(date);
+      showDrafts(date, rows);
+      return rows;
     } catch (error: unknown) {
       setDrafts([]);
       setListError(error instanceof Error ? error.message : "Unable to load drafts.");
+      return [];
     } finally {
       setListLoading(false);
     }
-  }, [editionDate]);
+  }, [showDrafts]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancel = false;
+    const today = centralCalendarDate(new Date());
+    void (async () => {
+      const dates = Array.from({ length: 10 }, (_, index) => shiftIso(today, index));
+      const lists = await Promise.all(dates.map(async (date) => ({
+        date,
+        rows: await listNewsletterDrafts(date).catch(() => [] as NewsletterDraftRow[]),
+      })));
+      if (cancel) return;
+      const fullest = lists.reduce((best, item) => (item.rows.length > best.rows.length ? item : best), lists[0]);
+      showDrafts(fullest.date, fullest.rows);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [showDrafts]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -83,37 +119,58 @@ export default function NewsletterProofreader() {
     setProgress("Loading recipient and music data…");
     try {
       const source = await loadNewsletterSource();
-      const generated = await generateDraftsFromSource(source, new Date(), editionDate);
-      setEligibleCount(generated.drafts.length + generated.held);
-      const existing = await listNewsletterDrafts(editionDate);
-      const freshIds = new Set(generated.drafts.map((draft) => draft.userId));
-      const unlock = existing.filter((draft) => freshIds.has(draft.user_id) && draft.status === "approved" && !draft.sent_at);
-      for (let index = 0; index < unlock.length; index += 5) {
-        setProgress(`Returning ${index + 1}–${Math.min(index + 5, unlock.length)} of ${unlock.length} approved drafts to review…`);
-        await Promise.all(unlock.slice(index, index + 5).map((draft) => setDraftApproval(draft.id, "needs_approval")));
+      const accountCount = Array.isArray(source.users) ? source.users.length : 0;
+      const today = centralCalendarDate(new Date());
+      let target = shiftIso(today, 10);
+      for (let index = 0; index < 10; index += 1) {
+        const date = shiftIso(today, index);
+        const rows = await listNewsletterDrafts(date);
+        if (rows.length === 0) {
+          target = date;
+          break;
+        }
       }
+      setProgress(`Building a new edition for ${target}…`);
+      const generated = await generateDraftsFromSource(source, new Date(), target);
+      setEligibleCount(generated.drafts.length + generated.held);
+      if (!generated.drafts.length) {
+        throw new Error(`No drafts were built. The account list returned ${accountCount} people.`);
+      }
+      const nowIso = new Date().toISOString();
+      showDrafts(target, generated.drafts.map((draft) => ({
+        id: `new:${draft.userId}`,
+        edition_date: target,
+        user_id: draft.userId,
+        email: draft.email,
+        subject: draft.subject,
+        preheader: draft.preheader,
+        html: draft.html,
+        content_hash: draft.contentHash,
+        sources: draft.sources,
+        retrieved_at: nowIso,
+        status: "needs_approval" as const,
+        approved_content_hash: null,
+        sent_at: null,
+      })));
       let replaced = 0;
       let kept = 0;
       for (let index = 0; index < generated.drafts.length; index += 5) {
-        setProgress(`Saving ${index + 1}–${Math.min(index + 5, generated.drafts.length)} of ${generated.drafts.length} drafts…`);
-        const result = await saveNewsletterDrafts(editionDate, generated.drafts.slice(index, index + 5));
+        setProgress(`Saving ${index + 1}–${Math.min(index + 5, generated.drafts.length)} of ${generated.drafts.length} new drafts for ${target}…`);
+        const result = await saveNewsletterDrafts(target, generated.drafts.slice(index, index + 5));
         replaced += Number(result.replaced ?? 0);
         kept += Number(result.kept ?? 0);
       }
-      if (generated.drafts.length > 0 && replaced === 0) {
-        throw new Error(`Built ${generated.drafts.length} drafts for ${editionDate}, but the server wrote 0. ${kept} existing copies were left unchanged.`);
+      const listed = await listNewsletterDrafts(target);
+      if (listed.length) showDrafts(target, listed);
+      if (listed.length < generated.drafts.length || replaced === 0) {
+        throw new Error(`Built ${generated.drafts.length} drafts from ${accountCount} accounts for ${target}, but only ${listed.length} were stored (${replaced} writes).`);
       }
       toast({
-        title: "Drafts regenerated",
-        description: `${replaced} drafts saved for ${editionDate} and need approval. ${kept} sent copies were left unchanged. ${generated.held} accounts were held.`,
+        title: "New edition ready",
+        description: `${listed.length} drafts are ready to review for ${target}.`,
       });
-      setCheckedIds([]);
-      setReviewFilter("all");
-      setQuery("");
-      await load();
     } catch (error: unknown) {
       setGenerationError(error instanceof Error ? error.message : "Could not regenerate.");
-      await load();
       toast({
         title: "Could not regenerate",
         description: error instanceof Error ? error.message : "Try again.",
@@ -188,7 +245,7 @@ export default function NewsletterProofreader() {
         <div>
           <h2 className="text-2xl font-bold">Proofread</h2>
           <p className="text-sm text-muted-foreground">
-            Edition {editionDate}. Review the exact email, then approve it. Regeneration refreshes every unsent draft and removes its approval. Sent copies stay unchanged.
+            Edition {editionDate}. Regenerate unsent creates a new edition date, so the old copies stay put and the new drafts show up here.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -196,15 +253,13 @@ export default function NewsletterProofreader() {
             <span>Edition date</span>
             <Input type="date" value={editionDate} disabled={regenerating || saving || sending} onChange={(event) => {
               if (!event.target.value) return;
-              setEditionDate(event.target.value);
-              setSelectedId(null);
-              setCheckedIds([]);
               setEligibleCount(null);
               setGenerationError(null);
+              void load(event.target.value);
             }} />
           </label>
         <Button type="button" variant="outline" disabled={regenerating || saving || sending || listLoading} onClick={() => void regenerate()}>
-          {regenerating ? "Regenerating..." : "Regenerate unsent"}
+          {regenerating ? "Creating..." : "Create new edition"}
         </Button>
         <Button type="button" disabled={regenerating || saving || sending || listLoading || approvedCount === 0} onClick={() => void sendNow()}>
           {sending ? "Sending..." : `Send ${approvedCount} approved now`}
