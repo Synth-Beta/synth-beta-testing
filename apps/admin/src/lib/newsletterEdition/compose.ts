@@ -9,7 +9,7 @@ import type {
   ShowCard,
   StoryCard,
 } from "./types";
-import { eventWithinSavedLocation } from "../../../../../supabase/functions/_shared/newsletter/nearby";
+import { eventWithinSavedLocation } from "../../../../../supabase/functions/newsletter-send/nearby";
 import { formatEventWhen, formatIssueDate, isUpcoming } from "./time";
 
 const APP_URL = "https://join.getsynth.app/";

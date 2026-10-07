@@ -1,5 +1,5 @@
-import { loadEventsNearPlaces, placeKey, type EventQuery } from "../../../../../supabase/functions/_shared/newsletter/nearby";
-import { fetchMusicNews } from "../../../../../supabase/functions/_shared/newsletter/news";
+import { loadEventsNearPlaces, placeKey, type EventQuery } from "../../../../../supabase/functions/newsletter-send/nearby";
+import { fetchMusicNews } from "../../../../../supabase/functions/newsletter-send/news";
 import { composeEdition } from "./compose";
 import { renderEditionHtml } from "./render";
 import { contentHash } from "./gate";
