@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
+import { loadEventsNearPlaces, placeKey, type EventQuery } from "../_shared/newsletter/nearby.ts";
+import { fetchMusicNews } from "../_shared/newsletter/news.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +9,16 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type NewsletterSendAction = "get_recipients" | "send_test" | "send_batch";
+type NewsletterSendAction =
+  | "get_recipients"
+  | "list_approvals"
+  | "set_approval"
+  | "list_drafts"
+  | "upsert_drafts"
+  | "set_draft_approval"
+  | "approve_all_drafts"
+  | "send_test"
+  | "send_batch";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -95,7 +106,7 @@ const authenticateAdmin = async (authorizationHeader: string | null) => {
 const getEligibleRecipients = async () => {
   const { data: users, error } = await adminClient
     .from("users")
-    .select("user_id, email, name, account_status, is_bot")
+    .select("user_id, email, name, username, account_status, is_bot")
     .eq("account_status", "active")
     .or("is_bot.is.false,is_bot.is.null")
     .not("email", "is", null);
@@ -116,9 +127,22 @@ const getEligibleRecipients = async () => {
       userId: row.user_id,
       email: normalizeEmail(String(row.email)),
       name: row.name ?? "",
+      username: row.username ?? "",
     }));
 
   return recipients;
+};
+
+const sha256 = async (value: string) => {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+};
+
+const requireSendConfig = () => {
+  if (!resendApiKey) return "RESEND_API_KEY is not configured.";
+  if (!resendFromEmail) return "RESEND_FROM_EMAIL is not configured.";
+  if (!unsubscribeSecret) return "NEWSLETTER_UNSUBSCRIBE_SECRET is not configured.";
+  return null;
 };
 
 const resendSend = async (payload: Record<string, unknown>) => {
@@ -142,12 +166,6 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { ok: false, error: "Method not allowed." });
 
-  if (!resendApiKey) return json(500, { ok: false, error: "RESEND_API_KEY is not configured." });
-  if (!resendFromEmail) return json(500, { ok: false, error: "RESEND_FROM_EMAIL is not configured." });
-  if (!unsubscribeSecret) {
-    return json(500, { ok: false, error: "NEWSLETTER_UNSUBSCRIBE_SECRET is not configured." });
-  }
-
   const auth = await authenticateAdmin(req.headers.get("Authorization"));
   if ("error" in auth) return json(403, { ok: false, error: auth.error });
 
@@ -164,7 +182,68 @@ serve(async (req) => {
       });
     }
 
+    if (action === "list_approvals") {
+      const newsletterSlug = String(body?.newsletterSlug ?? "").trim();
+      if (!newsletterSlug) return json(400, { ok: false, error: "newsletterSlug is required." });
+
+      const recipients = await getEligibleRecipients();
+      const { data: approvals, error: approvalError } = await adminClient
+        .from("newsletter_approvals")
+        .select("user_id, status")
+        .eq("newsletter_slug", newsletterSlug)
+        .eq("status", "approved");
+      if (approvalError) {
+        return json(500, { ok: false, error: approvalError.message });
+      }
+      const approvedIds = new Set((approvals ?? []).map((row) => String(row.user_id)));
+
+      return json(200, {
+        ok: true,
+        recipients: recipients.map((recipient) => ({
+          ...recipient,
+          approvalStatus: approvedIds.has(recipient.userId) ? "approved" : "pending",
+        })),
+      });
+    }
+
+    if (action === "set_approval") {
+      const newsletterSlug = String(body?.newsletterSlug ?? "").trim();
+      const userId = String(body?.userId ?? "").trim();
+      const status = String(body?.status ?? "").trim();
+      if (!newsletterSlug) return json(400, { ok: false, error: "newsletterSlug is required." });
+      if (!userId) return json(400, { ok: false, error: "userId is required." });
+      if (status !== "approved" && status !== "revoked") {
+        return json(400, { ok: false, error: "status must be approved or revoked." });
+      }
+
+      const { data: userRow, error: userError } = await adminClient
+        .from("users")
+        .select("user_id, email")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (userError || !userRow?.email || !isValidEmail(userRow.email)) {
+        return json(400, { ok: false, error: "That user does not have a valid email." });
+      }
+
+      const { error: upsertError } = await adminClient.from("newsletter_approvals").upsert(
+        {
+          newsletter_slug: newsletterSlug,
+          user_id: userId,
+          email: normalizeEmail(String(userRow.email)),
+          status,
+          approved_by: auth.userId,
+          approved_at: new Date().toISOString(),
+        },
+        { onConflict: "newsletter_slug,user_id" }
+      );
+      if (upsertError) return json(500, { ok: false, error: upsertError.message });
+
+      return json(200, { ok: true, userId, status });
+    }
+
     if (action === "send_test") {
+      const sendConfigError = requireSendConfig();
+      if (sendConfigError) return json(500, { ok: false, error: sendConfigError });
       const requestId = String(body?.requestId ?? "");
       const toEmail = normalizeEmail(String(body?.toEmail ?? ""));
       const subject = String(body?.subject ?? "").trim();
@@ -267,12 +346,219 @@ serve(async (req) => {
       }
     }
 
+    if (action === "source_edition") {
+      const { data: users, error: userError } = await adminClient
+        .from("users")
+        .select("user_id, email, name, username, location_city, location_state")
+        .eq("account_status", "active")
+        .or("is_bot.is.false,is_bot.is.null")
+        .not("email", "is", null);
+      if (userError) return json(500, { ok: false, error: userError.message });
+      const { data: unsubscribes } = await adminClient.from("newsletter_unsubscribes").select("email");
+      const unsubscribed = new Set((unsubscribes ?? []).map((row) => normalizeEmail(String(row.email))));
+      const recipients = (users ?? []).filter((user) => user.email && isValidEmail(user.email) && !unsubscribed.has(normalizeEmail(user.email)));
+      const storedNews = await adminClient.from("news_items").select("id, title, url, source, created_at").order("created_at", { ascending: false }).limit(40);
+      const rss = await fetchMusicNews();
+      const news = [...rss, ...(storedNews.data ?? [])];
+      const userIds = recipients.map((user) => user.user_id);
+      const reviews: unknown[] = [];
+      const stats: unknown[] = [];
+      for (let index = 0; index < userIds.length; index += 40) {
+        const ids = userIds.slice(index, index + 40);
+        const reviewRows = await adminClient
+          .from("reviews")
+          .select("user_id, rating, review_text, Event_date, artists(name), venues(name)")
+          .in("user_id", ids)
+          .eq("is_draft", false)
+          .order("Event_date", { ascending: false })
+          .limit(400);
+        reviews.push(...(reviewRows.data ?? []));
+        const statsRows = await adminClient.from("user_streaming_stats_summary").select("user_id, top_artists, top_genres").in("user_id", ids);
+        stats.push(...(statsRows.data ?? []));
+      }
+      const artistNames = [...new Set(userIds.flatMap((id) => {
+        const fromReviews = reviews.filter((row: any) => row.user_id === id).slice(0, 2).map((row: any) => row.artists?.name).filter(Boolean);
+        const stat: any = stats.find((row: any) => row.user_id === id);
+        const listening = Array.isArray(stat?.top_artists) ? stat.top_artists.slice(0, 3).map((artist: any) => artist.name) : [];
+        return [...listening, ...fromReviews];
+      }))].slice(0, 40);
+      const places = [...new Map(recipients.map((user) => {
+        const city = String(user.location_city || "").trim();
+        return [placeKey(city, user.location_state), { city, state: user.location_state ?? null }];
+      })).values()].filter((place) => place.city).slice(0, 30);
+      const eventSelect = "id, title, event_date, doors_time, venue_city, venue_state, latitude, longitude, ticket_available, ticket_urls, genres, event_status, artists(name), venues(name)";
+      const loaded = await loadEventsNearPlaces(places, artistNames, new Date(), async (spec: EventQuery) => {
+        if (spec.kind === "city-sample") {
+          const rows = await adminClient.from("events").select("latitude, longitude, venue_state").ilike("venue_city", spec.city).gte("event_date", spec.from).not("latitude", "is", null).limit(12);
+          return rows.data ?? [];
+        }
+        if (spec.kind === "box") {
+          const rows = await adminClient.from("events").select(eventSelect).gte("latitude", spec.minLat).lte("latitude", spec.maxLat).gte("longitude", spec.minLng).lte("longitude", spec.maxLng).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
+          return rows.data ?? [];
+        }
+        const rows = await adminClient.from("events").select(eventSelect).ilike("title", `%${spec.artist}%`).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(8);
+        return rows.data ?? [];
+      });
+      const fives = await adminClient.from("reviews").select("user_id, artists(name)").eq("is_public", true).eq("is_draft", false).gte("rating", 5).limit(300);
+      return json(200, {
+        ok: true,
+        users: recipients.map((user) => {
+          const center = loaded.centers.get(placeKey(user.location_city, user.location_state));
+          return { ...user, latitude: center?.latitude ?? null, longitude: center?.longitude ?? null };
+        }),
+        news,
+        reviews,
+        stats,
+        events: loaded.events,
+        publicFives: fives.data ?? [],
+      });
+    }
+
+    if (action === "list_drafts") {
+      const editionDate = String(body?.editionDate ?? "").trim();
+      if (!editionDate) return json(400, { ok: false, error: "editionDate is required." });
+      const { data, error } = await adminClient
+        .from("newsletter_drafts")
+        .select("id, edition_date, user_id, email, subject, preheader, html, content_hash, sources, retrieved_at, status, approved_content_hash, sent_at")
+        .eq("edition_date", editionDate)
+        .order("email", { ascending: true });
+      if (error) return json(500, { ok: false, error: error.message });
+      return json(200, { ok: true, drafts: data ?? [] });
+    }
+
+    if (action === "upsert_drafts") {
+      const editionDate = String(body?.editionDate ?? "").trim();
+      const drafts = Array.isArray(body?.drafts) ? body.drafts : [];
+      if (!editionDate) return json(400, { ok: false, error: "editionDate is required." });
+      let replaced = 0;
+      let kept = 0;
+      for (const draft of drafts) {
+        const userId = String(draft?.userId ?? "").trim();
+        const email = normalizeEmail(String(draft?.email ?? ""));
+        const subject = String(draft?.subject ?? "").trim();
+        const html = String(draft?.html ?? "");
+        if (!userId || !isValidEmail(email) || !subject || !html) continue;
+        const hash = await sha256(`${subject}\n${html}`);
+        const existing = await adminClient
+          .from("newsletter_drafts")
+          .select("id, status")
+          .eq("edition_date", editionDate)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (existing.data && (existing.data.status === "approved" || existing.data.status === "sent")) {
+          kept += 1;
+          continue;
+        }
+        const row = {
+          edition_date: editionDate,
+          user_id: userId,
+          email,
+          subject,
+          preheader: String(draft?.preheader ?? ""),
+          html,
+          content_hash: hash,
+          sources: Array.isArray(draft?.sources) ? draft.sources : [],
+          retrieved_at: new Date().toISOString(),
+          status: "needs_approval",
+          approved_content_hash: null,
+          approved_by: null,
+          approved_at: null,
+          sent_at: null,
+        };
+        const { error } = existing.data
+          ? await adminClient.from("newsletter_drafts").update(row).eq("id", existing.data.id).eq("status", "needs_approval")
+          : await adminClient.from("newsletter_drafts").insert(row);
+        if (!error) replaced += 1;
+      }
+      return json(200, { ok: true, replaced, kept });
+    }
+
+    if (action === "set_draft_approval") {
+      const draftId = String(body?.draftId ?? "").trim();
+      const status = String(body?.status ?? "").trim();
+      if (!draftId) return json(400, { ok: false, error: "draftId is required." });
+      if (status !== "approved" && status !== "needs_approval") {
+        return json(400, { ok: false, error: "status must be approved or needs_approval." });
+      }
+      const existing = await adminClient
+        .from("newsletter_drafts")
+        .select("id, status, content_hash, sent_at")
+        .eq("id", draftId)
+        .maybeSingle();
+      if (!existing.data) return json(404, { ok: false, error: "Draft not found." });
+      if (existing.data.status === "sent" || existing.data.sent_at) {
+        return json(409, { ok: false, error: "Sent newsletters cannot be changed." });
+      }
+      const { error } = await adminClient
+        .from("newsletter_drafts")
+        .update(
+          status === "approved"
+            ? {
+                status: "approved",
+                approved_content_hash: existing.data.content_hash,
+                approved_by: auth.userId,
+                approved_at: new Date().toISOString(),
+              }
+            : { status: "needs_approval", approved_content_hash: null, approved_by: null, approved_at: null }
+        )
+        .eq("id", draftId)
+        .neq("status", "sent");
+      if (error) return json(500, { ok: false, error: error.message });
+      return json(200, { ok: true, draftId, status });
+    }
+
+    if (action === "approve_all_drafts") {
+      const editionDate = String(body?.editionDate ?? "").trim();
+      const ids = Array.isArray(body?.draftIds) ? body.draftIds.map(String) : null;
+      if (!editionDate) return json(400, { ok: false, error: "editionDate is required." });
+      let query = adminClient
+        .from("newsletter_drafts")
+        .select("id, content_hash")
+        .eq("edition_date", editionDate)
+        .eq("status", "needs_approval");
+      if (ids) query = query.in("id", ids);
+      const { data, error } = await query;
+      if (error) return json(500, { ok: false, error: error.message });
+      let approved = 0;
+      for (const row of data ?? []) {
+        const { error: updateError } = await adminClient
+          .from("newsletter_drafts")
+          .update({
+            status: "approved",
+            approved_content_hash: row.content_hash,
+            approved_by: auth.userId,
+            approved_at: new Date().toISOString(),
+          })
+          .eq("id", row.id)
+          .eq("status", "needs_approval")
+          .eq("content_hash", row.content_hash);
+        if (!updateError) approved += 1;
+      }
+      return json(200, { ok: true, approved });
+    }
+
     if (action === "send_batch") {
+      const sendConfigError = requireSendConfig();
+      if (sendConfigError) return json(500, { ok: false, error: sendConfigError });
+
       const requestId = String(body?.requestId ?? "");
-      const newsletterSlug = String(body?.newsletterSlug ?? "newsletter");
-      const messages = Array.isArray(body?.messages) ? body.messages : [];
+      const editionDate = String(body?.editionDate ?? "").trim();
+      const newsletterSlug = editionDate || String(body?.newsletterSlug ?? "newsletter");
       if (!requestId) return json(400, { ok: false, error: "requestId is required." });
-      if (messages.length === 0) return json(400, { ok: false, error: "No messages provided." });
+      if (!editionDate) {
+        return json(400, { ok: false, error: "editionDate is required. Production send uses approved drafts only." });
+      }
+
+      const { data: drafts, error: draftError } = await adminClient
+        .from("newsletter_drafts")
+        .select("id, email, subject, html, content_hash, approved_content_hash, status, sent_at")
+        .eq("edition_date", editionDate)
+        .eq("status", "approved")
+        .is("sent_at", null);
+      if (draftError) return json(500, { ok: false, error: draftError.message });
+      const ready = (drafts ?? []).filter(
+        (draft) => draft.approved_content_hash && draft.approved_content_hash === draft.content_hash
+      );
 
       const { error: lockError } = await adminClient.from("newsletter_send_jobs").insert({
         request_id: requestId,
@@ -280,7 +566,7 @@ serve(async (req) => {
         send_type: "batch",
         initiated_by: auth.userId,
         status: "processing",
-        total_recipients: messages.length,
+        total_recipients: ready.length,
       });
       if (lockError) {
         if (lockError.code === "23505") {
@@ -298,23 +584,31 @@ serve(async (req) => {
       let failureCount = 0;
       const failures: Array<{ email: string; error: string }> = [];
 
-      for (const item of messages) {
-        const toEmail = normalizeEmail(String(item?.toEmail ?? ""));
-        const subject = String(item?.subject ?? "").trim();
-        const html = String(item?.html ?? "");
-        if (!toEmail || !subject || !html || !isValidEmail(toEmail) || unsubscribeSet.has(toEmail)) {
+      for (const draft of ready) {
+        const toEmail = normalizeEmail(String(draft.email ?? ""));
+        if (!toEmail || !isValidEmail(toEmail) || unsubscribeSet.has(toEmail)) {
           failureCount += 1;
           failures.push({ email: toEmail || "(missing)", error: "Skipped (invalid or unsubscribed)." });
           continue;
         }
+        const claimed = await adminClient
+          .from("newsletter_drafts")
+          .update({ status: "sent", sent_at: new Date().toISOString() })
+          .eq("id", draft.id)
+          .eq("status", "approved")
+          .eq("content_hash", draft.content_hash)
+          .eq("approved_content_hash", draft.content_hash)
+          .is("sent_at", null)
+          .select("id");
+        if (!claimed.data?.length) continue;
 
         try {
           const unsubscribeUrl = await buildUnsubscribeUrl(toEmail, newsletterSlug);
-          const htmlWithUnsubscribe = injectUnsubscribeLink(html, unsubscribeUrl);
+          const htmlWithUnsubscribe = injectUnsubscribeLink(draft.html, unsubscribeUrl);
           await resendSend({
             from: resendFromEmail,
             to: [toEmail],
-            subject,
+            subject: draft.subject,
             html: htmlWithUnsubscribe,
             headers: {
               "List-Unsubscribe": `<${unsubscribeUrl}>`,
@@ -323,6 +617,11 @@ serve(async (req) => {
           });
           successCount += 1;
         } catch (error) {
+          await adminClient
+            .from("newsletter_drafts")
+            .update({ status: "approved", sent_at: null })
+            .eq("id", draft.id)
+            .eq("status", "sent");
           failureCount += 1;
           failures.push({
             email: toEmail,
