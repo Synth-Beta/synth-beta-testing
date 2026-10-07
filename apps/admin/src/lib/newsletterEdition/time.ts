@@ -88,6 +88,11 @@ const addDays = (year: number, month: number, day: number, days: number) => {
   return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
 };
 
+export const centralCalendarDate = (now: Date) => {
+  const current = centralParts(now);
+  return ymd(current.year, current.month, current.day);
+};
+
 /** Calendar date of the next 10:00 America/Chicago send. At 10:00 the date is today. */
 export const nextEditionDate = (now: Date) => {
   const current = centralParts(now);

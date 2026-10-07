@@ -1,5 +1,6 @@
 import { loadEventsNearPlaces, placeKey, type EventQuery } from "../../../../../supabase/functions/newsletter-send/nearby";
 import { fetchMusicNews } from "../../../../../supabase/functions/newsletter-send/news";
+import { readAll, requireRows, enrichReviewArtists } from "../../../../../supabase/functions/newsletter-send/queries";
 import { composeEdition } from "./compose";
 import { renderEditionHtml } from "./render";
 import { contentHash } from "./gate";
@@ -105,14 +106,15 @@ export const generateDraftsFromSource = async (
     events: any[];
     publicFives: any[];
   },
-  now = new Date()
+  now = new Date(),
+  targetEditionDate = nextEditionDate(now)
 ): Promise<{
   editionDate: string;
   retrievedAt: string;
   drafts: GeneratedDraft[];
   held: number;
 }> => {
-  const editionDate = nextEditionDate(now);
+  const editionDate = targetEditionDate;
   const retrievedAt = now.toISOString();
   const news: EditionNews[] = (source.news ?? [])
     .filter((row) => httpUrl(row.url) && row.title)
@@ -125,15 +127,14 @@ export const generateDraftsFromSource = async (
     }));
   const reviewsByUser = new Map<string, EditionReview[]>();
   for (const row of source.reviews ?? []) {
-    const artistName = row.artistName ?? row.artists?.name;
+    const artistName = row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name;
     const userId = row.userId ?? row.user_id;
     if (!artistName || !userId) continue;
     const list = reviewsByUser.get(userId) ?? [];
-    if (list.length >= 8) continue;
     list.push({
       artistName,
-      venueName: row.venueName ?? row.venues?.name ?? null,
-      eventDate: row.eventDate ?? row.Event_date ?? null,
+      venueName: row.venueName ?? row.venues?.name ?? row.setlist?.venue?.name ?? null,
+      eventDate: row.eventDate ?? row.Event_date ?? row.setlist?.eventDate ?? null,
       rating: row.rating ?? null,
       text: row.text ?? (row.review_text && row.review_text !== "ATTENDANCE_ONLY" ? row.review_text : null),
     });
@@ -147,16 +148,16 @@ export const generateDraftsFromSource = async (
     const artists = Array.isArray(row.topArtists)
       ? row.topArtists.map(String)
       : Array.isArray(row.top_artists)
-        ? row.top_artists.map((artist: any) => String(artist.name || "")).filter(Boolean)
+        ? row.top_artists.map((artist: any) => String(typeof artist === "string" ? artist : artist.name || "")).filter(Boolean)
         : [];
     const genres = Array.isArray(row.genres)
       ? row.genres.map(String)
       : Array.isArray(row.top_genres)
-        ? row.top_genres.map((genre: any) => String(genre.genre || genre.name || "")).filter(Boolean)
+        ? row.top_genres.map((genre: any) => String(typeof genre === "string" ? genre : genre.genre || genre.name || "")).filter(Boolean)
         : [];
-    artistsByUser.set(userId, artists.slice(0, 8));
-    genresByUser.set(userId, genres.slice(0, 6));
-    listensByUser.set(userId, (row.listens ?? artists.slice(0, 2).map((artistName: string) => ({ artistName }))).slice(0, 2));
+    artistsByUser.set(userId, [...new Set([...(artistsByUser.get(userId) ?? []), ...artists])].slice(0, 8));
+    genresByUser.set(userId, [...new Set([...(genresByUser.get(userId) ?? []), ...genres])].slice(0, 6));
+    listensByUser.set(userId, [...(listensByUser.get(userId) ?? []), ...(row.listens ?? artists.slice(0, 2).map((artistName: string) => ({ artistName })))].slice(0, 2));
   }
   const events: EditionEvent[] = [];
   const seen = new Set<string>();
@@ -168,7 +169,7 @@ export const generateDraftsFromSource = async (
   }
   const fiveStarArtists = new Map<string, Set<string>>();
   for (const row of source.publicFives ?? []) {
-    const artistName = row.artistName ?? row.artists?.name;
+    const artistName = row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name;
     const userId = row.userId ?? row.user_id;
     if (!artistName || !userId) continue;
     const set = fiveStarArtists.get(String(artistName).toLowerCase()) ?? new Set<string>();
@@ -178,10 +179,12 @@ export const generateDraftsFromSource = async (
 
   const drafts: GeneratedDraft[] = [];
   let held = 0;
+  const seenEmails = new Set<string>();
   for (const user of source.users ?? []) {
     const userId = user.userId ?? user.user_id;
     const email = String(user.email ?? "").trim().toLowerCase();
-    if (!userId || !email.includes("@")) continue;
+    if (!userId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || seenEmails.has(email)) continue;
+    seenEmails.add(email);
     const reviews = reviewsByUser.get(userId) ?? [];
     const reader: EditionReader = {
       userId,
@@ -192,8 +195,8 @@ export const generateDraftsFromSource = async (
       latitude: coordinate(user.latitude),
       longitude: coordinate(user.longitude),
       reviews,
-      lifetimeShowCount: reviews.length < 8 ? reviews.length : 0,
-      fiveStarCount: reviews.length < 8 ? reviews.filter((review) => (review.rating ?? 0) >= 5).length : 0,
+      lifetimeShowCount: reviews.length,
+      fiveStarCount: reviews.filter((review) => (review.rating ?? 0) >= 5).length,
       topArtists: artistsByUser.get(userId) ?? [],
       genres: genresByUser.get(userId) ?? [],
       otherFiveStarArtists: reviews
@@ -234,15 +237,12 @@ export const generateDraftsFromSource = async (
 };
 
 export const generateEditionDrafts = async (db: Db, now = new Date()) => {
-  const { data: users, error: userError } = await db
-    .from("users")
+  const users = await readAll(() => db.from("users")
     .select("user_id, email, name, username, location_city, location_state, account_status, is_bot")
-    .eq("account_status", "active")
-    .or("is_bot.is.false,is_bot.is.null")
-    .not("email", "is", null);
-  if (userError) throw new Error(userError.message);
-
-  const { data: unsubscribes } = await db.from("newsletter_unsubscribes").select("email");
+    .eq("account_status", "active").or("is_bot.is.false,is_bot.is.null")
+    .not("email", "is", null).order("user_id"), "Load users");
+  const unsubscribes = await readAll(() => db.from("newsletter_unsubscribes")
+    .select("email").order("email"), "Load unsubscribes");
   const unsubscribed = new Set((unsubscribes ?? []).map((row: any) => String(row.email).trim().toLowerCase()));
   const recipients = (users ?? []).filter((user: any) => {
     const email = String(user.email ?? "").trim().toLowerCase();
@@ -250,59 +250,59 @@ export const generateEditionDrafts = async (db: Db, now = new Date()) => {
   });
 
   const rss = await fetchMusicNews(now);
-  const { data: storedNews } = await db
+  const storedNews = await db
     .from("news_items")
     .select("id, title, url, source, created_at")
     .order("created_at", { ascending: false })
     .limit(40);
-  const news = [...rss, ...(storedNews ?? [])];
+  const news = [...rss, ...requireRows(storedNews, "Load stored news")];
 
   const userIds = recipients.map((user: any) => user.user_id);
   const reviews: any[] = [];
   const stats: any[] = [];
   for (const ids of chunk(userIds, 40)) {
     if (!ids.length) continue;
-    const { data: reviewRows } = await db
-      .from("reviews")
-      .select("user_id, rating, review_text, Event_date, artists(name), venues(name)")
-      .in("user_id", ids)
-      .eq("is_draft", false)
-      .order("Event_date", { ascending: false })
-      .limit(400);
-    reviews.push(...(reviewRows ?? []));
-    const { data: statsRows } = await db
-      .from("user_streaming_stats_summary")
-      .select("user_id, top_artists, top_genres")
-      .in("user_id", ids);
-    stats.push(...(statsRows ?? []));
+    reviews.push(...await readAll(() => db.from("reviews")
+      .select("id, user_id, rating, review_text, Event_date, setlist, user_created_artist_id, artists(name), venues(name)")
+      .in("user_id", ids).eq("is_draft", false)
+      .order("Event_date", { ascending: false }).order("id"), "Load review history"));
+    stats.push(...await readAll(() => db.from("user_streaming_stats_summary")
+      .select("user_id, top_artists, top_genres, service_type")
+      .in("user_id", ids).order("user_id").order("service_type"), "Load listening history"));
   }
 
+  const enrichedReviews = await enrichReviewArtists(db, reviews);
   const artistNames = [...new Set(userIds.flatMap((id: string) => {
-    const reviewArtists = reviews
+    const reviewArtists = enrichedReviews
       .filter((row) => row.user_id === id)
       .slice(0, 2)
-      .map((row) => row.artists?.name)
+      .map((row) => row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name)
       .filter(Boolean);
     const stat = stats.find((row) => row.user_id === id);
     const listening = Array.isArray(stat?.top_artists) ? stat.top_artists.slice(0, 3).map((artist: any) => artist.name) : [];
     return [...listening, ...reviewArtists];
-  }))].slice(0, 40);
+  }))];
   const places = [...new Map(recipients.map((user: any) => {
     const city = String(user.location_city || "").trim();
     return [placeKey(city, user.location_state), { city, state: user.location_state ?? null }];
-  })).values()].filter((place) => place.city).slice(0, 30);
+  })).values()].filter((place) => place.city);
   const eventSelect = "id, title, event_date, doors_time, venue_city, venue_state, latitude, longitude, ticket_available, ticket_urls, genres, event_status, artists(name), venues(name)";
   const loaded = await loadEventsNearPlaces(places, artistNames, now, async (spec: EventQuery) => {
     if (spec.kind === "city-sample") {
-      const { data } = await db.from("events").select("latitude, longitude, venue_state").ilike("venue_city", spec.city).gte("event_date", spec.from).not("latitude", "is", null).limit(12);
-      return data ?? [];
+      const rows = await db.from("events").select("latitude, longitude, venue_state").ilike("venue_city", spec.city).gte("event_date", spec.from).not("latitude", "is", null).limit(12);
+      return requireRows(rows, "Load event listings");
+    }
+    if (spec.kind === "city") {
+      const rows = await db.from("events").select(eventSelect).ilike("venue_city", spec.city)
+        .gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
+      return requireRows(rows, "Load city event listings");
     }
     if (spec.kind === "box") {
-      const { data } = await db.from("events").select(eventSelect).gte("latitude", spec.minLat).lte("latitude", spec.maxLat).gte("longitude", spec.minLng).lte("longitude", spec.maxLng).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
-      return data ?? [];
+      const rows = await db.from("events").select(eventSelect).gte("latitude", spec.minLat).lte("latitude", spec.maxLat).gte("longitude", spec.minLng).lte("longitude", spec.maxLng).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
+      return requireRows(rows, "Load event listings");
     }
-    const { data } = await db.from("events").select(eventSelect).ilike("title", `%${spec.artist}%`).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(8);
-    return data ?? [];
+    const rows = await db.from("events").select(eventSelect).ilike("title", `%${spec.artist}%`).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(8);
+    return requireRows(rows, "Load event listings");
   });
   const events = loaded.events;
   const usersWithLocation = recipients.map((user: any) => {
@@ -310,7 +310,7 @@ export const generateEditionDrafts = async (db: Db, now = new Date()) => {
     return { ...user, latitude: center?.latitude ?? null, longitude: center?.longitude ?? null };
   });
 
-  const { data: publicFives } = await db
+  const publicFives = await db
     .from("reviews")
     .select("user_id, artists(name)")
     .eq("is_public", true)
@@ -318,5 +318,5 @@ export const generateEditionDrafts = async (db: Db, now = new Date()) => {
     .gte("rating", 5)
     .limit(300);
 
-  return generateDraftsFromSource({ users: usersWithLocation, news, reviews, stats, events, publicFives: publicFives ?? [] }, now);
+  return generateDraftsFromSource({ users: usersWithLocation, news, reviews: enrichedReviews, stats, events, publicFives: requireRows(publicFives, "Load community reviews") }, now);
 };

@@ -14,6 +14,10 @@ import { renderEditionHtml } from "../src/lib/newsletterEdition/render";
 import { formatEventWhen, isTenAmCentral, isUpcoming, nextEditionDate } from "../src/lib/newsletterEdition/time";
 import type { EditionEvent, EditionReader } from "../src/lib/newsletterEdition/types";
 
+if (process.env.NEWSLETTER_TEST_LIVE !== "1") {
+  globalThis.fetch = async () => new Response("", { status: 503 });
+}
+
 const sendAt = new Date("2026-10-07T14:00:00.000Z");
 const retrievedAt = "2026-10-06T21:00:00.000Z";
 
@@ -170,7 +174,7 @@ assert.ok(locatedChicago.shows.some((show) => show.title === "Horsegirl"));
 assert.equal(locatedChicago.shows.some((show) => show.title === "Wilco" && /New York/.test(show.eyebrow)), false);
 assert.equal(eventWithinSavedLocation({ ...chicago, ...chicagoPoint }, newYork), false);
 assert.equal(locatedChicago.showsHeading, "On your radar in Chicago");
-assert.equal(chicagoEdition.updates.length, 0);
+assert.ok(chicagoEdition.updates.length > 0, "readers also get honestly labeled general music news");
 
 assert.ok(sparseEdition.shows.some((show) => show.title === "Local Natives"));
 assert.equal(sparseEdition.yourSynth, undefined);
@@ -234,7 +238,7 @@ assert.equal(canSendDraft(draft({ status: "approved", approvedContentHash: hash 
 assert.equal(canSendDraft(draft({ status: "sent", sentAt: retrievedAt, approvedContentHash: hash }), new Set()).reason, "already sent");
 assert.equal(regenerateDecision(null), "replace");
 assert.equal(regenerateDecision({ status: "needs_approval" }), "replace");
-assert.equal(regenerateDecision({ status: "approved" }), "keep");
+assert.equal(regenerateDecision({ status: "approved" }), "replace");
 assert.equal(regenerateDecision({ status: "sent" }), "keep");
 
 const approved = draft({ id: "approved", status: "approved", approvedContentHash: hash });
@@ -276,7 +280,8 @@ const museum = composeEdition({
   news: [{ id: "museum", title: "The museum opens a new wing", url: "https://pitchfork.com/news/museum", source: "Pitchfork", publishedAt: "2026-10-01T12:00:00.000Z" }],
   reader: { ...noLocation, topArtists: ["Muse"], genres: [] },
 });
-assert.equal(museum?.updates.length ?? 0, 0);
+assert.equal(museum?.updates.length ?? 0, 1);
+assert.match(museum!.updates[0].body, /recent music story/i);
 
 const calls: Array<{ table: string; filters: Record<string, unknown> }> = [];
 const catalog = [
@@ -297,6 +302,7 @@ const db = {
       lte(column: string, value: unknown) { filters[`lte:${column}`] = value; return api; },
       order() { return api; },
       limit() { return api; },
+      range() { return api; },
       then(resolve: (value: { data: unknown[]; error: null }) => unknown, reject?: (reason: unknown) => unknown) {
         calls.push({ table, filters: { ...filters } });
         let data: unknown[] = [];
@@ -326,10 +332,12 @@ assert.ok(calls.some((call) => call.table === "events" && call.filters["gte:lati
 assert.match(locatedDraft?.html ?? "", /Horsegirl/);
 assert.doesNotMatch(locatedDraft?.html ?? "", /Beacon Theatre/);
 
+if (process.env.NEWSLETTER_TEST_LIVE === "1") {
 const liveNews = await fetchMusicNews(new Date());
 assert.ok(liveNews.length > 0, "music feeds returned no current stories");
 assert.ok(liveNews.every((story) => /^https?:\/\//.test(story.url)));
 assert.ok(liveNews.every((story) => Date.now() - Date.parse(story.publishedAt) <= 21 * 24 * 60 * 60 * 1000));
+}
 
 const outDir = resolve(process.cwd(), "public/newsletter-demos/generated");
 mkdirSync(outDir, { recursive: true });

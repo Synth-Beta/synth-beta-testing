@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { loadEventsNearPlaces, placeKey, type EventQuery } from "./nearby.ts";
 import { fetchMusicNews } from "./news.ts";
+import { readAll, requireRows, enrichReviewArtists } from "./queries.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,7 @@ const corsHeaders = {
 };
 
 type NewsletterSendAction =
+  | "source_edition"
   | "get_recipients"
   | "list_approvals"
   | "set_approval"
@@ -79,59 +81,37 @@ const injectUnsubscribeLink = (html: string, unsubscribeUrl: string) => {
   return `${html}\n${fallbackSnippet}`;
 };
 
-const authenticateAdmin = async (req: Request) => {
-  const authorizationHeader = req.headers.get("Authorization");
+const authenticateAdmin = async (authorizationHeader: string | null) => {
   if (!authorizationHeader?.startsWith("Bearer ")) {
     return { error: "Missing authorization token." };
   }
 
-  const apikey = req.headers.get("apikey") || Deno.env.get("SUPABASE_ANON_KEY") || serviceRoleKey;
-  const userClient = createClient(supabaseUrl, apikey, {
-    global: { headers: { Authorization: authorizationHeader } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  let authResult = await userClient.auth.getUser();
-  if (authResult.error || !authResult.data.user) {
-    const token = authorizationHeader.replace(/^Bearer\s+/i, "").trim();
-    authResult = await adminClient.auth.getUser(token);
-  }
-  if (authResult.error || !authResult.data.user) {
-    const detail = authResult.error?.message ? ` (${authResult.error.message})` : "";
-    return { error: `Invalid session${detail}.` };
+  const token = authorizationHeader.replace("Bearer ", "").trim();
+  const { data: authData, error: authError } = await adminClient.auth.getUser(token);
+  if (authError || !authData.user) {
+    return { error: "Invalid session." };
   }
 
-  const authUser = authResult.data.user;
   const { data: userRecord, error: userError } = await adminClient
     .from("users")
     .select("user_id, account_type, name")
-    .eq("user_id", authUser.id)
+    .eq("user_id", authData.user.id)
     .maybeSingle();
 
-  const metadataType = authUser.app_metadata?.account_type ?? authUser.user_metadata?.account_type;
-  const isAdmin = userRecord?.account_type === "admin" || metadataType === "admin";
-  if (!isAdmin) {
-    const detail = userError?.message ? ` (${userError.message})` : "";
-    return { error: `Admin access required${detail}.` };
+  if (userError || !userRecord || userRecord.account_type !== "admin") {
+    return { error: "Admin access required." };
   }
 
-  return { userId: authUser.id, userName: userRecord?.name ?? "Admin" };
+  return { userId: authData.user.id, userName: userRecord.name ?? "Admin" };
 };
 
 const getEligibleRecipients = async () => {
-  const { data: users, error } = await adminClient
-    .from("users")
+  const users = await readAll(() => adminClient.from("users")
     .select("user_id, email, name, username, account_status, is_bot")
-    .eq("account_status", "active")
-    .or("is_bot.is.false,is_bot.is.null")
-    .not("email", "is", null);
-
-  if (error) {
-    throw new Error(`Failed to query users: ${error.message}`);
-  }
-
-  const { data: unsubscribes } = await adminClient
-    .from("newsletter_unsubscribes")
-    .select("email");
+    .eq("account_status", "active").or("is_bot.is.false,is_bot.is.null")
+    .not("email", "is", null).order("user_id"), "Load eligible users");
+  const unsubscribes = await readAll(() => adminClient.from("newsletter_unsubscribes")
+    .select("email").order("email"), "Load unsubscribes");
   const unsubscribeSet = new Set((unsubscribes ?? []).map((row) => normalizeEmail(String(row.email))));
 
   const recipients = (users ?? [])
@@ -180,7 +160,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { ok: false, error: "Method not allowed." });
 
-  const auth = await authenticateAdmin(req);
+  const auth = await authenticateAdmin(req.headers.get("Authorization"));
   if ("error" in auth) return json(403, { ok: false, error: auth.error });
 
   try {
@@ -361,57 +341,58 @@ serve(async (req) => {
     }
 
     if (action === "source_edition") {
-      const { data: users, error: userError } = await adminClient
-        .from("users")
+      const users = await readAll(() => adminClient.from("users")
         .select("user_id, email, name, username, location_city, location_state")
-        .eq("account_status", "active")
-        .or("is_bot.is.false,is_bot.is.null")
-        .not("email", "is", null);
-      if (userError) return json(500, { ok: false, error: userError.message });
-      const { data: unsubscribes } = await adminClient.from("newsletter_unsubscribes").select("email");
+        .eq("account_status", "active").or("is_bot.is.false,is_bot.is.null")
+        .not("email", "is", null).order("user_id"), "Load users");
+      const unsubscribes = await readAll(() => adminClient.from("newsletter_unsubscribes")
+        .select("email").order("email"), "Load unsubscribes");
       const unsubscribed = new Set((unsubscribes ?? []).map((row) => normalizeEmail(String(row.email))));
       const recipients = (users ?? []).filter((user) => user.email && isValidEmail(user.email) && !unsubscribed.has(normalizeEmail(user.email)));
       const storedNews = await adminClient.from("news_items").select("id, title, url, source, created_at").order("created_at", { ascending: false }).limit(40);
       const rss = await fetchMusicNews();
-      const news = [...rss, ...(storedNews.data ?? [])];
+      const news = [...rss, ...requireRows(storedNews, "Load stored news")];
       const userIds = recipients.map((user) => user.user_id);
       const reviews: unknown[] = [];
       const stats: unknown[] = [];
       for (let index = 0; index < userIds.length; index += 40) {
         const ids = userIds.slice(index, index + 40);
-        const reviewRows = await adminClient
-          .from("reviews")
-          .select("user_id, rating, review_text, Event_date, artists(name), venues(name)")
-          .in("user_id", ids)
-          .eq("is_draft", false)
-          .order("Event_date", { ascending: false })
-          .limit(400);
-        reviews.push(...(reviewRows.data ?? []));
-        const statsRows = await adminClient.from("user_streaming_stats_summary").select("user_id, top_artists, top_genres").in("user_id", ids);
-        stats.push(...(statsRows.data ?? []));
+        reviews.push(...await readAll(() => adminClient.from("reviews")
+          .select("id, user_id, rating, review_text, Event_date, setlist, user_created_artist_id, artists(name), venues(name)")
+          .in("user_id", ids).eq("is_draft", false)
+          .order("Event_date", { ascending: false }).order("id"), "Load review history"));
+        stats.push(...await readAll(() => adminClient.from("user_streaming_stats_summary")
+          .select("user_id, top_artists, top_genres, service_type")
+          .in("user_id", ids).order("user_id").order("service_type"), "Load listening history"));
       }
+      const enrichedReviews = await enrichReviewArtists(adminClient, reviews);
       const artistNames = [...new Set(userIds.flatMap((id) => {
-        const fromReviews = reviews.filter((row: any) => row.user_id === id).slice(0, 2).map((row: any) => row.artists?.name).filter(Boolean);
+        const fromReviews = enrichedReviews.filter((row: any) => row.user_id === id).slice(0, 2).map((row: any) => (row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name)).filter(Boolean);
         const stat: any = stats.find((row: any) => row.user_id === id);
         const listening = Array.isArray(stat?.top_artists) ? stat.top_artists.slice(0, 3).map((artist: any) => artist.name) : [];
         return [...listening, ...fromReviews];
-      }))].slice(0, 40);
+      }))];
       const places = [...new Map(recipients.map((user) => {
         const city = String(user.location_city || "").trim();
         return [placeKey(city, user.location_state), { city, state: user.location_state ?? null }];
-      })).values()].filter((place) => place.city).slice(0, 30);
+      })).values()].filter((place) => place.city);
       const eventSelect = "id, title, event_date, doors_time, venue_city, venue_state, latitude, longitude, ticket_available, ticket_urls, genres, event_status, artists(name), venues(name)";
       const loaded = await loadEventsNearPlaces(places, artistNames, new Date(), async (spec: EventQuery) => {
         if (spec.kind === "city-sample") {
           const rows = await adminClient.from("events").select("latitude, longitude, venue_state").ilike("venue_city", spec.city).gte("event_date", spec.from).not("latitude", "is", null).limit(12);
-          return rows.data ?? [];
+          return requireRows(rows, "Load event listings");
+        }
+        if (spec.kind === "city") {
+          const rows = await adminClient.from("events").select(eventSelect).ilike("venue_city", spec.city)
+            .gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
+          return requireRows(rows, "Load city event listings");
         }
         if (spec.kind === "box") {
           const rows = await adminClient.from("events").select(eventSelect).gte("latitude", spec.minLat).lte("latitude", spec.maxLat).gte("longitude", spec.minLng).lte("longitude", spec.maxLng).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
-          return rows.data ?? [];
+          return requireRows(rows, "Load event listings");
         }
         const rows = await adminClient.from("events").select(eventSelect).ilike("title", `%${spec.artist}%`).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(8);
-        return rows.data ?? [];
+        return requireRows(rows, "Load event listings");
       });
       const fives = await adminClient.from("reviews").select("user_id, artists(name)").eq("is_public", true).eq("is_draft", false).gte("rating", 5).limit(300);
       return json(200, {
@@ -421,10 +402,10 @@ serve(async (req) => {
           return { ...user, latitude: center?.latitude ?? null, longitude: center?.longitude ?? null };
         }),
         news,
-        reviews,
+        reviews: enrichedReviews,
         stats,
         events: loaded.events,
-        publicFives: fives.data ?? [],
+        publicFives: requireRows(fives, "Load community reviews"),
       });
     }
 
@@ -444,47 +425,29 @@ serve(async (req) => {
       const editionDate = String(body?.editionDate ?? "").trim();
       const drafts = Array.isArray(body?.drafts) ? body.drafts : [];
       if (!editionDate) return json(400, { ok: false, error: "editionDate is required." });
-      let replaced = 0;
-      let kept = 0;
+      if (drafts.length > 15) return json(400, { ok: false, error: "Save at most 15 drafts per batch." });
+      const rows = [];
       for (const draft of drafts) {
         const userId = String(draft?.userId ?? "").trim();
         const email = normalizeEmail(String(draft?.email ?? ""));
         const subject = String(draft?.subject ?? "").trim();
         const html = String(draft?.html ?? "");
-        if (!userId || !isValidEmail(email) || !subject || !html) continue;
-        const hash = await sha256(`${subject}\n${html}`);
-        const existing = await adminClient
-          .from("newsletter_drafts")
-          .select("id, status")
-          .eq("edition_date", editionDate)
-          .eq("user_id", userId)
-          .maybeSingle();
-        if (existing.data && (existing.data.status === "approved" || existing.data.status === "sent")) {
-          kept += 1;
-          continue;
+        if (!userId || !isValidEmail(email) || !subject || !html) {
+          return json(400, { ok: false, error: "Each draft needs a user, valid email, subject and HTML." });
         }
-        const row = {
-          edition_date: editionDate,
-          user_id: userId,
-          email,
-          subject,
+        rows.push({ user_id: userId, email, subject, html,
           preheader: String(draft?.preheader ?? ""),
-          html,
-          content_hash: hash,
+          content_hash: await sha256(`${subject}\n${html}`),
           sources: Array.isArray(draft?.sources) ? draft.sources : [],
-          retrieved_at: new Date().toISOString(),
-          status: "needs_approval",
-          approved_content_hash: null,
-          approved_by: null,
-          approved_at: null,
-          sent_at: null,
-        };
-        const { error } = existing.data
-          ? await adminClient.from("newsletter_drafts").update(row).eq("id", existing.data.id).eq("status", "needs_approval")
-          : await adminClient.from("newsletter_drafts").insert(row);
-        if (!error) replaced += 1;
+        });
       }
-      return json(200, { ok: true, replaced, kept });
+      // The database locks each row while replacing it, so a concurrent send
+      // cannot have its claimed/sent row overwritten by regeneration.
+      const { data, error } = await adminClient.rpc("regenerate_newsletter_drafts", {
+        p_edition_date: editionDate, p_drafts: rows,
+      });
+      if (error) return json(500, { ok: false, error: `Drafts were not saved: ${error.message}` });
+      return json(200, { ok: true, ...data });
     }
 
     if (action === "set_draft_approval") {
@@ -499,11 +462,12 @@ serve(async (req) => {
         .select("id, status, content_hash, sent_at")
         .eq("id", draftId)
         .maybeSingle();
+      if (existing.error) return json(500, { ok: false, error: existing.error.message });
       if (!existing.data) return json(404, { ok: false, error: "Draft not found." });
       if (existing.data.status === "sent" || existing.data.sent_at) {
         return json(409, { ok: false, error: "Sent newsletters cannot be changed." });
       }
-      const { error } = await adminClient
+      const { data: updatedRows, error } = await adminClient
         .from("newsletter_drafts")
         .update(
           status === "approved"
@@ -516,8 +480,12 @@ serve(async (req) => {
             : { status: "needs_approval", approved_content_hash: null, approved_by: null, approved_at: null }
         )
         .eq("id", draftId)
-        .neq("status", "sent");
+        .eq("content_hash", existing.data.content_hash)
+        .neq("status", "sent")
+        .is("sent_at", null)
+        .select("id");
       if (error) return json(500, { ok: false, error: error.message });
+      if (!updatedRows?.length) return json(409, { ok: false, error: "Draft changed while you were reviewing. Reload and review its latest version." });
       return json(200, { ok: true, draftId, status });
     }
 
@@ -535,7 +503,7 @@ serve(async (req) => {
       if (error) return json(500, { ok: false, error: error.message });
       let approved = 0;
       for (const row of data ?? []) {
-        const { error: updateError } = await adminClient
+        const { data: updatedRows, error: updateError } = await adminClient
           .from("newsletter_drafts")
           .update({
             status: "approved",
@@ -545,8 +513,11 @@ serve(async (req) => {
           })
           .eq("id", row.id)
           .eq("status", "needs_approval")
-          .eq("content_hash", row.content_hash);
-        if (!updateError) approved += 1;
+          .eq("content_hash", row.content_hash)
+          .is("sent_at", null)
+          .select("id");
+        if (updateError) return json(500, { ok: false, error: `Approval failed after ${approved} updates: ${updateError.message}` });
+        approved += updatedRows?.length ?? 0;
       }
       return json(200, { ok: true, approved });
     }
@@ -574,6 +545,10 @@ serve(async (req) => {
         (draft) => draft.approved_content_hash && draft.approved_content_hash === draft.content_hash
       );
 
+      const unsubscribedRows = await readAll(() => adminClient.from("newsletter_unsubscribes")
+        .select("email").order("email"), "Load unsubscribes before sending");
+      const unsubscribeSet = new Set(unsubscribedRows.map((row) => normalizeEmail(String(row.email))));
+
       const { error: lockError } = await adminClient.from("newsletter_send_jobs").insert({
         request_id: requestId,
         newsletter_slug: newsletterSlug,
@@ -589,10 +564,7 @@ serve(async (req) => {
         return json(500, { ok: false, error: lockError.message });
       }
 
-      const unsubscribedRows = await adminClient.from("newsletter_unsubscribes").select("email");
-      const unsubscribeSet = new Set(
-        (unsubscribedRows.data ?? []).map((row) => normalizeEmail(String(row.email)))
-      );
+
 
       let successCount = 0;
       let failureCount = 0;
@@ -619,6 +591,8 @@ serve(async (req) => {
         try {
           const unsubscribeUrl = await buildUnsubscribeUrl(toEmail, newsletterSlug);
           const htmlWithUnsubscribe = injectUnsubscribeLink(draft.html, unsubscribeUrl);
+          // Pace delivery requests to reduce bursts.
+          await new Promise((resolve) => setTimeout(resolve, 550));
           await resendSend({
             from: resendFromEmail,
             to: [toEmail],

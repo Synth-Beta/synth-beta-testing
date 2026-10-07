@@ -292,6 +292,7 @@ export default function Admin() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdmin, loading: accountTypeLoading, accountType } = useAccountType();
   const [searchParams, setSearchParams] = useSearchParams();
+  const canProofreadNewsletters = user?.email?.toLowerCase() === 'pesceelauren@gmail.com';
   const ADMIN_TABS = useMemo(
     () =>
       new Set([
@@ -302,11 +303,11 @@ export default function Admin() {
         'moderation',
         'news',
         'newsletter-builder',
-        'newsletter-proof',
+        ...(canProofreadNewsletters ? ['newsletter-proof'] : []),
         'style-guide',
         'ai-scene-guides',
       ]),
-    [],
+    [canProofreadNewsletters],
   );
   const activeAdminTab = ADMIN_TABS.has(searchParams.get('tab') || '')
     ? (searchParams.get('tab') as string)
@@ -2298,7 +2299,7 @@ export default function Admin() {
           onValueChange={setActiveAdminTab}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-7xl grid-cols-4 lg:grid-cols-10 mb-6 gap-1 h-auto">
+          <TabsList className={`grid w-full max-w-7xl grid-cols-4 ${canProofreadNewsletters ? 'lg:grid-cols-10' : 'lg:grid-cols-9'} mb-6 gap-1 h-auto`}>
             <TabsTrigger value="users">
               <Users className="h-4 w-4 mr-2" />
               Users & Analytics
@@ -2327,10 +2328,12 @@ export default function Admin() {
               <Newspaper className="h-4 w-4 mr-2" />
               Newsletter Builder
             </TabsTrigger>
-            <TabsTrigger value="newsletter-proof">
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Proofread
-            </TabsTrigger>
+            {canProofreadNewsletters ? (
+              <TabsTrigger value="newsletter-proof">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Proofread
+              </TabsTrigger>
+            ) : null}
             <TabsTrigger value="style-guide">
               <BookOpen className="h-4 w-4 mr-2" />
               Style Guide
@@ -4168,9 +4171,11 @@ export default function Admin() {
             <NewsletterBuilder />
           </TabsContent>
 
-          <TabsContent value="newsletter-proof" className="space-y-6">
-            <NewsletterProofreader />
-          </TabsContent>
+          {canProofreadNewsletters ? (
+            <TabsContent value="newsletter-proof" className="space-y-6">
+              <NewsletterProofreader />
+            </TabsContent>
+          ) : null}
 
           <TabsContent value="style-guide" className="space-y-6">
             <AdminStyleGuidePanel />

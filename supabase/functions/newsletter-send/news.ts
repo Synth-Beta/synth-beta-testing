@@ -64,27 +64,48 @@ export const parseRssItems = (xml: string, source: string, now = new Date()): Rs
   return stories;
 };
 
-export const fetchMusicNews = async (now = new Date()): Promise<RssStory[]> => {
+export interface NewsFetchResult {
+  stories: RssStory[];
+  errors: string[];
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export const fetchMusicNewsReport = async (now = new Date()): Promise<NewsFetchResult> => {
+  const errors: string[] = [];
   const batches = await Promise.all(
     MUSIC_NEWS_FEEDS.map(async (feed) => {
-      try {
-        const response = await fetch(feed.url, {
-          headers: {
-            Accept: "application/rss+xml, application/xml, text/xml",
-            "User-Agent": "SynthNewsletter/1.0",
-          },
-        });
-        if (!response.ok) return [];
-        return parseRssItems(await response.text(), feed.source, now);
-      } catch {
-        return [];
+      let lastError = `${feed.source} feed failed.`;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const response = await fetch(feed.url, {
+            headers: {
+              Accept: "application/rss+xml, application/xml, text/xml",
+              "User-Agent": "SynthNewsletter/1.0",
+            },
+          });
+          if (!response.ok) {
+            lastError = `${feed.source} feed returned ${response.status}.`;
+          } else {
+            return parseRssItems(await response.text(), feed.source, now);
+          }
+        } catch (error) {
+          lastError = `${feed.source} feed failed: ${error instanceof Error ? error.message : String(error)}.`;
+        }
+        if (attempt < 2) await sleep(400 * (attempt + 1));
       }
+      errors.push(lastError);
+      return [];
     })
   );
   const seen = new Set<string>();
-  return batches.flat().filter((story) => {
+  const stories = batches.flat().filter((story) => {
     if (seen.has(story.url)) return false;
     seen.add(story.url);
     return true;
   });
+  return { stories, errors };
 };
+
+export const fetchMusicNews = async (now = new Date()): Promise<RssStory[]> =>
+  (await fetchMusicNewsReport(now)).stories;

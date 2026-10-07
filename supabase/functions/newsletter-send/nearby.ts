@@ -80,6 +80,7 @@ export const eventWithinSavedLocation = (
 
 export type EventQuery =
   | { kind: "city-sample"; city: string; from: string }
+  | { kind: "city"; city: string; from: string; until: string }
   | { kind: "box"; minLat: number; maxLat: number; minLng: number; maxLng: number; from: string; until: string }
   | { kind: "artist"; artist: string; from: string; until: string };
 
@@ -105,27 +106,39 @@ export const loadEventsNearPlaces = async (
     }
   };
 
-  for (const place of places) {
+  // Bound concurrency to avoid serially fetching every user's city and artist.
+  const mapLimited = async <T,>(items: T[], task: (item: T) => Promise<any[]>) => {
+    const results: any[][] = new Array(items.length);
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(4, items.length) }, async () => {
+      while (next < items.length) {
+        const index = next++;
+        results[index] = await task(items[index]);
+      }
+    }));
+    return results;
+  };
+  const cityRows = await mapLimited(places, async (place) => {
     const sample = await query({ kind: "city-sample", city: place.city, from });
     const located = sample.filter(
       (row) => finite(Number(row.latitude)) && finite(Number(row.longitude)) && sameState(row.venue_state, place.state)
     );
-    if (!located.length) continue;
+    if (!located.length) return query({ kind: "city", city: place.city, from, until });
     const center = {
       latitude: average(located.map((row) => Number(row.latitude))),
       longitude: average(located.map((row) => Number(row.longitude))),
     };
     centers.set(placeKey(place.city, place.state), center);
     const box = boundingBox(center.latitude, center.longitude);
-    add(await query({ kind: "box", ...box, from, until }));
-  }
+    return query({ kind: "box", ...box, from, until });
+  });
+  cityRows.forEach(add);
 
-  for (const artist of artists) {
+  const artistRows = await mapLimited(artists, async (artist) => {
     const rows = await query({ kind: "artist", artist, from, until });
-    add(
-      rows.filter((row) => String(row.artists?.name || row.artist_name || "").toLowerCase() === artist.toLowerCase())
-    );
-  }
+    return rows.filter((row) => String(row.artists?.name || row.artist_name || "").toLowerCase() === artist.toLowerCase());
+  });
+  artistRows.forEach(add);
 
   return { centers, events };
 };

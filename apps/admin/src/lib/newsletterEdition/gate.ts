@@ -83,6 +83,6 @@ export const regenerateDecision = (
   existing: { status: DraftStatus } | null
 ): "replace" | "keep" => {
   if (!existing) return "replace";
-  if (existing.status === "approved" || existing.status === "sent") return "keep";
+  if (existing.status === "sent") return "keep";
   return "replace";
 };

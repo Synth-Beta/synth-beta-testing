@@ -36,8 +36,12 @@ export interface EditionReview {
 
 export interface EditionListen {
   artistName: string;
-  /** Only set when the track name comes from stored listening data. */
+  /** A real recording title. Generic artist recommendations are not listens. */
   trackName?: string | null;
+  url?: string | null;
+  reason?: string | null;
+  /** A sourced live recording that is not this week's news. */
+  evergreen?: boolean;
 }
 
 export interface EditionReader {
@@ -58,7 +62,7 @@ export interface EditionReader {
 }
 
 export interface EditionSource {
-  kind: "event" | "news" | "listen" | "account";
+  kind: "event" | "news" | "listen" | "account" | "editorial";
   url: string;
   retrievedAt: string;
   label: string;
@@ -98,4 +102,5 @@ export interface ComposedEdition {
   listen?: StoryCard;
   connect?: StoryCard;
   sources: EditionSource[];
+  editorialFlags?: string[];
 }

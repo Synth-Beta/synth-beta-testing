@@ -16,6 +16,7 @@ import {
   NewsletterDraftRow,
   saveNewsletterDrafts,
   setDraftApproval,
+  sendApprovedEditionNow,
 } from "@/services/newsletterSendService";
 
 type ReviewFilter = "pending" | "approved" | "sent" | "all";
@@ -28,7 +29,7 @@ const statusLabel = (status: NewsletterDraftRow["status"]) => {
 
 export default function NewsletterProofreader() {
   const { toast } = useToast();
-  const editionDate = useMemo(() => nextEditionDate(new Date()), []);
+  const [editionDate, setEditionDate] = useState(() => nextEditionDate(new Date()));
   const [drafts, setDrafts] = useState<NewsletterDraftRow[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -38,6 +39,10 @@ export default function NewsletterProofreader() {
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [eligibleCount, setEligibleCount] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setListLoading(true);
@@ -74,19 +79,31 @@ export default function NewsletterProofreader() {
 
   const regenerate = async () => {
     setRegenerating(true);
+    setGenerationError(null);
+    setProgress("Loading recipient and music data…");
     try {
       const source = await loadNewsletterSource();
-      const generated = await generateDraftsFromSource(source);
+      const generated = await generateDraftsFromSource(source, new Date(), editionDate);
+      setEligibleCount(generated.drafts.length + generated.held);
+      let replaced = 0;
+      let kept = 0;
       for (let index = 0; index < generated.drafts.length; index += 15) {
-        await saveNewsletterDrafts(generated.editionDate, generated.drafts.slice(index, index + 15));
+        setProgress(`Saving ${index + 1}–${Math.min(index + 15, generated.drafts.length)} of ${generated.drafts.length} drafts…`);
+        const result = await saveNewsletterDrafts(generated.editionDate, generated.drafts.slice(index, index + 15));
+        replaced += Number(result.replaced ?? 0);
+        kept += Number(result.kept ?? 0);
       }
       toast({
         title: "Drafts regenerated",
-        description: `${generated.drafts.length} newsletters are waiting for approval. ${generated.held} accounts had no sourced edition. Approved and sent copies were left as they were.`,
+        description: `${replaced} drafts saved for review. ${kept} sent copies preserved. ${generated.held} held.`,
       });
       setCheckedIds([]);
+      setReviewFilter("all");
+      setQuery("");
       await load();
     } catch (error: unknown) {
+      setGenerationError(error instanceof Error ? error.message : "Could not regenerate.");
+      await load();
       toast({
         title: "Could not regenerate",
         description: error instanceof Error ? error.message : "Try again.",
@@ -94,6 +111,7 @@ export default function NewsletterProofreader() {
       });
     } finally {
       setRegenerating(false);
+      setProgress("");
     }
   };
 
@@ -136,26 +154,62 @@ export default function NewsletterProofreader() {
     }
   };
 
+  const sendNow = async () => {
+    setSending(true);
+    setGenerationError(null);
+    setProgress("Sending approved drafts. Keep this page open while results load…");
+    try {
+      const result = await sendApprovedEditionNow(editionDate);
+      const summary = `${result.successCount ?? 0} sent; ${result.failureCount ?? 0} failed or skipped.`;
+      if (result.failureCount) setGenerationError(`${summary} ${result.failures?.[0]?.error ?? "Review failed recipients before retrying."}`);
+      toast({ title: "Send results", description: summary });
+    } catch (error: unknown) {
+      setGenerationError(error instanceof Error ? error.message : "Send failed. Refresh drafts before retrying.");
+    } finally {
+      await load();
+      setProgress("");
+      setSending(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-2xl font-bold">Proofread</h2>
           <p className="text-sm text-muted-foreground">
-            Edition {editionDate}. Review the exact email, then approve it. Regeneration does not send, and it leaves approved or sent copies unchanged.
+            Edition {editionDate}. Review the exact email, then approve it. Regeneration refreshes every unsent draft and removes its approval. Sent copies stay unchanged.
           </p>
         </div>
-        <Button type="button" variant="outline" disabled={regenerating} onClick={() => void regenerate()}>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="space-y-1 text-sm">
+            <span>Edition date</span>
+            <Input type="date" value={editionDate} disabled={regenerating || saving || sending} onChange={(event) => {
+              if (!event.target.value) return;
+              setEditionDate(event.target.value);
+              setSelectedId(null);
+              setCheckedIds([]);
+              setEligibleCount(null);
+              setGenerationError(null);
+            }} />
+          </label>
+        <Button type="button" variant="outline" disabled={regenerating || saving || sending || listLoading} onClick={() => void regenerate()}>
           {regenerating ? "Regenerating..." : "Regenerate unsent"}
         </Button>
+        <Button type="button" disabled={regenerating || saving || sending || listLoading || approvedCount === 0} onClick={() => void sendNow()}>
+          {sending ? "Sending..." : `Send ${approvedCount} approved now`}
+        </Button>
+        </div>
       </div>
 
+      {progress ? <p role="status" className="text-sm">{progress}</p> : null}
+      {generationError ? <Alert variant="destructive"><AlertTitle>Newsletter action incomplete</AlertTitle><AlertDescription>{generationError} Refresh and review the stored statuses below before retrying.</AlertDescription></Alert> : null}
       <Alert>
         <AlertTitle>
-          {approvedCount} of {drafts.length} approved
+          {approvedCount} of {drafts.length} stored drafts approved{eligibleCount !== null ? ` · ${eligibleCount} eligible recipients` : ""}
         </AlertTitle>
         <AlertDescription>
-          The 10:00 a.m. Central send uses only approved drafts whose reviewed content still matches. Unapproved drafts stay unsent.
+          The 10:00 a.m. Central send uses only approved drafts whose reviewed content still matches. Unapproved drafts stay unsent. Use “Send approved now” to send this edition immediately after review.
         </AlertDescription>
       </Alert>
 
@@ -185,13 +239,14 @@ export default function NewsletterProofreader() {
             <div className="flex items-center justify-between gap-2">
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox
+                  disabled={regenerating || saving || sending}
                   checked={allPendingChecked}
                   onCheckedChange={(checked) => setCheckedIds(checked ? pendingIds : [])}
                   aria-label="Select all newsletters that need review"
                 />
                 Select all
               </label>
-              <Button type="button" size="sm" disabled={saving || checkedIds.length === 0} onClick={() => void approveIds(checkedIds)}>
+              <Button type="button" size="sm" disabled={saving || regenerating || sending || checkedIds.length === 0} onClick={() => void approveIds(checkedIds)}>
                 Approve selected
               </Button>
             </div>
@@ -213,7 +268,7 @@ export default function NewsletterProofreader() {
                 <div key={draft.id} className={`flex items-start gap-2 rounded-md border px-3 py-2 ${active ? "border-pink-600 bg-pink-50" : ""}`}>
                   <Checkbox
                     checked={checkedIds.includes(draft.id)}
-                    disabled={draft.status !== "needs_approval"}
+                    disabled={regenerating || saving || sending || draft.status !== "needs_approval"}
                     onCheckedChange={(checked) =>
                       setCheckedIds((current) => (checked ? [...current, draft.id] : current.filter((id) => id !== draft.id)))
                     }
@@ -245,11 +300,11 @@ export default function NewsletterProofreader() {
             {selected && selected.status !== "sent" ? (
               <div className="flex flex-wrap gap-2">
                 {selected.status === "approved" ? (
-                  <Button type="button" variant="outline" disabled={saving} onClick={() => void setOne(selected, "needs_approval")}>
+                  <Button type="button" variant="outline" disabled={saving || regenerating || sending} onClick={() => void setOne(selected, "needs_approval")}>
                     Remove approval
                   </Button>
                 ) : (
-                  <Button type="button" disabled={saving} onClick={() => void setOne(selected, "approved")}>
+                  <Button type="button" disabled={saving || regenerating || sending} onClick={() => void setOne(selected, "approved")}>
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Approve
                   </Button>

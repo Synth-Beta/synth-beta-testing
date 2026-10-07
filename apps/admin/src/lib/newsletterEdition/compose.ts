@@ -131,6 +131,13 @@ const pickShows = (events: EditionEvent[], reader: EditionReader, sendAt: Date) 
   return chosen;
 };
 
+const titleMentionsArtist = (title: string, artist: string) => {
+  const name = artist.trim();
+  if (name.length < 3) return false;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(title);
+};
+
 const pickNews = (news: EditionNews[], reader: EditionReader, sendAt: Date) => {
   const artists = knownArtists(reader);
   return news
@@ -140,12 +147,7 @@ const pickNews = (news: EditionNews[], reader: EditionReader, sendAt: Date) => {
       return !Number.isNaN(published) && sendAt.getTime() - published <= NEWS_WINDOW_MS && published <= sendAt.getTime();
     })
     .filter((item) =>
-      artists.some((artist) => {
-        const name = artist.trim();
-        if (name.length < 3) return false;
-        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        return new RegExp(`\\b${escaped}\\b`, "i").test(item.title);
-      })
+      artists.some((artist) => titleMentionsArtist(item.title, artist))
     )
     .slice(0, 2);
 };
@@ -193,11 +195,18 @@ export const composeEdition = ({
 }): ComposedEdition | null => {
   const sources: EditionSource[] = [];
   const shows = pickShows(events, reader, sendAt);
-  const updates = pickNews(news, reader, sendAt);
+  const personalizedNews = pickNews(news, reader, sendAt);
+  // A sourced general edition also serves readers without taste/history data.
+  const updates = personalizedNews.length ? personalizedNews : news
+    .filter((item) => httpUrl(item.url))
+    .filter((item) => {
+      const published = Date.parse(item.publishedAt);
+      return Number.isFinite(published) && published <= sendAt.getTime() && sendAt.getTime() - published <= NEWS_WINDOW_MS;
+    })
+    .filter((item, index, items) => items.findIndex((other) => other.url === item.url) === index)
+    .slice(0, 2);
   const listenPicks = pickListens(listens, shows, reader);
-  if (shows.length === 0 && updates.length === 0 && listenPicks.length === 0 && reader.reviews.length === 0) {
-    return null;
-  }
+
 
   const name = reader.firstName?.trim() || "";
   const place = reader.city?.trim() || "";
@@ -228,14 +237,14 @@ export const composeEdition = ({
 
   const updateCards: StoryCard[] = updates.map((item) => {
     const url = httpUrl(item.url)!;
-    const artist = knownArtists(reader).find((name) => item.title.toLowerCase().includes(name.toLowerCase()));
+    const artist = knownArtists(reader).find((name) => titleMentionsArtist(item.title, name));
     sources.push({ kind: "news", url, retrievedAt, label: item.title });
     return {
       eyebrow: item.source ? `${item.source} · recent` : "Live music update",
       title: item.title,
       body: artist
         ? `${artist} is part of your listening or your show history, and this listing is new enough to be worth a look.`
-        : "A current listing connected to an artist you already follow.",
+        : "A recent music story to explore this week.",
       ctaLabel: "Read the source",
       ctaUrl: url,
       tone: "white",
@@ -296,7 +305,7 @@ export const composeEdition = ({
   }
 
   const connectArtist = reader.otherFiveStarArtists[0];
-  const connect: StoryCard | undefined = connectArtist
+  const connect: StoryCard = connectArtist
     ? {
         eyebrow: "Connect",
         title: `Who else gave ${connectArtist} a 5?`,
@@ -323,7 +332,14 @@ export const composeEdition = ({
             ctaUrl: APP_URL,
             tone: "yellow",
           }
-        : undefined;
+        : {
+            eyebrow: "Make your next show count",
+            title: "Build your live music timeline.",
+            body: "Log a concert you remember, add your review, and explore what other fans are sharing on Synth.",
+            ctaLabel: "Explore Synth",
+            ctaUrl: APP_URL,
+            tone: "yellow",
+          };
 
   const headline = name ? `${name}, let’s find your next great night.` : "Let’s find your next great night.";
   const introBits = [
@@ -332,8 +348,8 @@ export const composeEdition = ({
     listen ? "something to sample before you buy a ticket" : "",
   ].filter(Boolean);
   const intro = introBits.length
-    ? `${joinList(introBits).replace(/^a/, "A")}.`
-    : "A short note pointed at what comes next.";
+    ? `${joinList(introBits).replace(/^./, (letter) => letter.toUpperCase())}.`
+    : "Your next great night starts with the music you love. Keep your concert memories and explore with other fans on Synth.";
 
   const firstArtist = showCards[0]?.title;
   const subject = firstArtist
