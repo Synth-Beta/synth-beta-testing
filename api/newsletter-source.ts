@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { loadEditionSource } from "./_lib/newsletterSource";
 
 const REVIEWER = "pesceelauren@gmail.com";
 
@@ -25,7 +26,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(403).json({ ok: false, error: "Only the newsletter reviewer can load edition data." });
     }
 
-    const { loadEditionSource } = await import("../apps/admin/src/lib/newsletterEdition/gather");
     const source = await loadEditionSource(db, new Date());
     return res.status(200).json({ ok: true, ...source });
   } catch (loadError) {
