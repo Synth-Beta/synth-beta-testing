@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { generateDraftsFromSource } from "@/lib/newsletterEdition/gather";
+import { NEWSLETTER_WRITER_MARK } from "@/lib/newsletterEdition/render";
 import { centralCalendarDate } from "@/lib/newsletterEdition/time";
 import {
   approveDrafts,
@@ -26,6 +27,18 @@ const statusLabel = (status: NewsletterDraftRow["status"]) => {
   if (status === "sent") return "Sent";
   return "Needs review";
 };
+
+const EDITION_WINDOW_DAYS = 21;
+
+const newestEdition = (lists: Array<{ date: string; rows: NewsletterDraftRow[] }>) =>
+  lists.reduce<{ date: string; rows: NewsletterDraftRow[] } | null>((best, item) => {
+    if (!item.rows.length) return best;
+    const stamp = item.rows.reduce((max, row) => (row.retrieved_at > max ? row.retrieved_at : max), "");
+    if (!best) return item;
+    const bestStamp = best.rows.reduce((max, row) => (row.retrieved_at > max ? row.retrieved_at : max), "");
+    if (stamp > bestStamp || (stamp === bestStamp && item.date > best.date)) return item;
+    return best;
+  }, null);
 
 const shiftIso = (iso: string, days: number) => {
   const [year, month, day] = iso.split("-").map(Number);
@@ -51,6 +64,7 @@ export default function NewsletterProofreader() {
   const [eligibleCount, setEligibleCount] = useState<number | null>(null);
   const editionRef = useRef(editionDate);
   editionRef.current = editionDate;
+  const viewToken = useRef(0);
 
   const showDrafts = useCallback((date: string, rows: NewsletterDraftRow[]) => {
     const ordered = [...rows].sort((left, right) => left.email.localeCompare(right.email));
@@ -80,21 +94,20 @@ export default function NewsletterProofreader() {
   }, [showDrafts]);
 
   useEffect(() => {
-    let cancel = false;
+    const token = ++viewToken.current;
     const today = centralCalendarDate(new Date());
+    setListLoading(true);
     void (async () => {
-      const dates = Array.from({ length: 10 }, (_, index) => shiftIso(today, index));
+      const dates = Array.from({ length: EDITION_WINDOW_DAYS }, (_, index) => shiftIso(today, index));
       const lists = await Promise.all(dates.map(async (date) => ({
         date,
         rows: await listNewsletterDrafts(date).catch(() => [] as NewsletterDraftRow[]),
       })));
-      if (cancel) return;
-      const fullest = lists.reduce((best, item) => (item.rows.length > best.rows.length ? item : best), lists[0]);
-      showDrafts(fullest.date, fullest.rows);
+      if (token !== viewToken.current) return;
+      const newest = newestEdition(lists);
+      showDrafts(newest?.date ?? today, newest?.rows ?? []);
+      setListLoading(false);
     })();
-    return () => {
-      cancel = true;
-    };
   }, [showDrafts]);
 
   const filtered = useMemo(() => {
@@ -114,6 +127,7 @@ export default function NewsletterProofreader() {
   const approvedCount = drafts.filter((draft) => draft.status === "approved").length;
 
   const regenerate = async () => {
+    const token = ++viewToken.current;
     setRegenerating(true);
     setGenerationError(null);
     setProgress("Loading recipient and music data…");
@@ -121,8 +135,8 @@ export default function NewsletterProofreader() {
       const source = await loadNewsletterSource();
       const accountCount = Array.isArray(source.users) ? source.users.length : 0;
       const today = centralCalendarDate(new Date());
-      let target = shiftIso(today, 10);
-      for (let index = 0; index < 10; index += 1) {
+      let target = shiftIso(today, EDITION_WINDOW_DAYS);
+      for (let index = 0; index < EDITION_WINDOW_DAYS; index += 1) {
         const date = shiftIso(today, index);
         const rows = await listNewsletterDrafts(date);
         if (rows.length === 0) {
@@ -161,6 +175,7 @@ export default function NewsletterProofreader() {
         kept += Number(result.kept ?? 0);
       }
       const listed = await listNewsletterDrafts(target);
+      if (token !== viewToken.current) return;
       if (listed.length) showDrafts(target, listed);
       if (listed.length < generated.drafts.length || replaced === 0) {
         throw new Error(`Built ${generated.drafts.length} drafts from ${accountCount} accounts for ${target}, but only ${listed.length} were stored (${replaced} writes).`);
@@ -245,7 +260,7 @@ export default function NewsletterProofreader() {
         <div>
           <h2 className="text-2xl font-bold">Proofread</h2>
           <p className="text-sm text-muted-foreground">
-            Edition {editionDate}. Regenerate unsent creates a new edition date, so the old copies stay put and the new drafts show up here.
+            Showing edition {editionDate}. Create new edition opens the new date here. A refresh keeps the newest edition, not an older one.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -268,7 +283,15 @@ export default function NewsletterProofreader() {
       </div>
 
       {progress ? <p role="status" className="text-sm">{progress}</p> : null}
-      {generationError ? <Alert variant="destructive"><AlertTitle>Newsletter action incomplete</AlertTitle><AlertDescription>{generationError} Refresh and review the stored statuses below before retrying.</AlertDescription></Alert> : null}
+      {generationError ? <Alert variant="destructive"><AlertTitle>Newsletter action incomplete</AlertTitle><AlertDescription>{generationError} Check the edition date above before trying again.</AlertDescription></Alert> : null}
+      {selected && !selected.html.includes(NEWSLETTER_WRITER_MARK) ? (
+        <Alert>
+          <AlertTitle>This is an older edition</AlertTitle>
+          <AlertDescription>
+            These drafts were written by an earlier version. Create new edition, wait until it says the new date is ready, and read that date.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <Alert>
         <AlertTitle>
           {approvedCount} of {drafts.length} stored drafts approved{eligibleCount !== null ? ` · ${eligibleCount} eligible recipients` : ""}

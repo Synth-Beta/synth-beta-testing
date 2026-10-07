@@ -34,9 +34,12 @@ const showInner = (show: ShowCard) =>
       : ""
   }<div style="margin-top:16px;">${textLink(show.ctaLabel, show.ctaUrl)}</div>`;
 
+export const NEWSLETTER_WRITER_MARK = "synth-newsletter-writer-5";
+
 export const renderEditionHtml = (edition: ComposedEdition) => {
   const checked = edition.sources[0]?.retrievedAt.slice(0, 10) ?? "";
   return `<!DOCTYPE html>
+<!-- ${NEWSLETTER_WRITER_MARK} -->
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
