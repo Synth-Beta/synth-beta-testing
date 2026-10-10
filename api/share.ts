@@ -11,10 +11,13 @@
  *   /share?review=<uuid>
  *   /share?artist=<uuid>
  *   /share?venue=<uuid>
+ *
+ * Also serves the public SEO pages (?seo=...); see api/_lib/seo/handler.ts.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { handleSeoRoute, readSeoRoute } from './_lib/seo/handler.js';
 
 function getSupabaseServerConfig(): { url: string; serviceRoleKey: string } | null {
   const url =
@@ -520,6 +523,9 @@ async function fetchVenue(supabase: SB, id: string): Promise<VenueRow | null> {
 // ─── Handler ────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const seoRoute = readSeoRoute(req);
+  if (seoRoute) return handleSeoRoute(seoRoute, res);
+
   const supabaseConfig = getSupabaseServerConfig();
   if (!supabaseConfig) {
     return res.status(500).send('Server configuration error');

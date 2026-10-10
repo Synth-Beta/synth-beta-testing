@@ -14,7 +14,7 @@ import {
     Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ChevronLeft, X } from 'lucide-react-native';
+import { CalendarDays, ChevronLeft, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
@@ -238,6 +238,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
     const [cropperVisible, setCropperVisible] = useState(false);
     const [cropPhotoIndex, setCropPhotoIndex] = useState(0);
     const [datePickerOpen, setDatePickerOpen] = useState(false);
+    // Separate from formData.eventDate so picking a result doesn't silently filter the next search.
+    const [searchDate, setSearchDate] = useState('');
+    const [searchDatePickerOpen, setSearchDatePickerOpen] = useState(false);
 
     const selectArtist = useCallback((a: ReviewArtist) => {
         updateFormData({ selectedArtist: a });
@@ -406,7 +409,10 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 return;
             }
             setEventSearching(true);
-            const rows = await searchPastEventsForReview(supabase, eventQuery, { limit: 12 });
+            const rows = await searchPastEventsForReview(supabase, eventQuery, {
+                limit: 12,
+                date: searchDate || undefined,
+            });
             if (cancelled) return;
             setEventRows(rows);
             setEventSearching(false);
@@ -415,7 +421,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             cancelled = true;
             clearTimeout(t);
         };
-    }, [eventQuery]);
+    }, [eventQuery, searchDate]);
 
     useEffect(() => {
         const t = setTimeout(() => {
@@ -805,10 +811,41 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             <SynthText variant="meta">Past event</SynthText>
             <TextInput
                 style={styles.input}
-                placeholder="Search artist, venue, title…"
+                placeholder="Artist, venue, or both — e.g. gracie anthem"
                 placeholderTextColor={SynthTokens.colors.neutral600}
                 value={eventQuery}
                 onChangeText={setEventQuery}
+            />
+            <View style={styles.dateFilterRow}>
+                <Pressable
+                    style={[styles.dateFilterChip, !!searchDate && styles.dateFilterChipOn]}
+                    onPress={() => setSearchDatePickerOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                        searchDate
+                            ? `Showing shows on ${formatEventDateLabel(searchDate)}. Tap to change.`
+                            : 'Filter past shows by date'
+                    }
+                >
+                    <CalendarDays size={14} color={SynthTokens.colors.neutral900} />
+                    <SynthText variant="meta">
+                        {searchDate ? formatEventDateLabel(searchDate) : 'Any date'}
+                    </SynthText>
+                </Pressable>
+                {!!searchDate && (
+                    <Pressable onPress={() => setSearchDate('')} hitSlop={8} accessibilityLabel="Clear date filter">
+                        <X size={14} color={SynthTokens.colors.neutral600} />
+                    </Pressable>
+                )}
+            </View>
+            <PastDatePicker
+                visible={searchDatePickerOpen}
+                value={searchDate || formData.eventDate}
+                onSelect={(d) => {
+                    setSearchDate(d);
+                    if (!formData.eventDate) updateFormData({ eventDate: d });
+                }}
+                onClose={() => setSearchDatePickerOpen(false)}
             />
             {eventSearching ? (
                 <SynthText variant="meta" color="secondary" style={styles.listNote}>
@@ -816,7 +853,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 </SynthText>
             ) : eventQuery.trim().length >= 2 && eventRows.length === 0 ? (
                 <SynthText variant="meta" color="secondary" style={styles.listNote}>
-                    No past shows found — add the artist and venue below instead.
+                    {searchDate
+                        ? 'No past shows that day — try another date or clear it.'
+                        : 'No past shows found — add the artist and venue below instead.'}
                 </SynthText>
             ) : null}
             <FlatList
@@ -1458,6 +1497,21 @@ const styles = StyleSheet.create({
         borderBottomColor: SynthTokens.colors.neutral200,
     },
     listNote: { marginTop: 8 },
+    dateFilterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+    dateFilterChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+    },
+    dateFilterChipOn: {
+        borderColor: SynthTokens.colors.brandPink500,
+        backgroundColor: SynthTokens.colors.brandPink050,
+    },
     rowTitle: { fontSize: 14, lineHeight: 18, fontWeight: '700' },
     rowSub: { fontSize: 12, lineHeight: 16, marginTop: 1 },
     starRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },

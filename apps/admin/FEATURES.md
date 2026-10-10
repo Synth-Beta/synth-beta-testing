@@ -20,7 +20,6 @@ This comprehensive guide covers all the core features and functionality of the P
 - **Event Reviews**: Rate and review concerts you've attended
 - **Venue Reviews**: Separate ratings for venue experience
 - **Artist Reviews**: Rate artist performances
-- **Post-Submit Ranking**: Rank reviews with the same rating
 - **Social Engagement**: Like, comment, and share reviews
 
 ### 🎧 Music Integration
@@ -103,27 +102,6 @@ Rate only the artist performance:
   artist_tags: ['amazing-performance', 'high-energy']
 }
 ```
-
-### Post-Submit Ranking Feature
-
-When users submit reviews with ratings that match existing reviews, they can rank them:
-
-**How It Works:**
-1. User submits a 4.5★ review
-2. System checks for other 4.5★ reviews
-3. If found, shows ranking modal
-4. User drags to reorder from favorite to least favorite
-5. Rankings saved to database
-
-**Benefits:**
-- Captures nuanced preferences within same rating
-- Improves recommendation accuracy
-- Optional feature (can skip)
-
-**Components:**
-- `PostSubmitRankingModal.tsx` - Ranking interface
-- `EventReviewForm.tsx` - Triggers ranking modal
-- `ReviewService.ts` - Handles ranking logic
 
 ### Review Components
 

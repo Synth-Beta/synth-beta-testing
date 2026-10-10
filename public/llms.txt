@@ -9,6 +9,11 @@ Synth combines event discovery with a social layer: users see who else is intere
 - [Synth](https://join.getsynth.app/): Web app — discover concerts and local events, and find people to go with.
 - [Synth on the App Store](https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095): iOS app.
 
+## Concert listings
+
+- [Concerts in Washington, DC](https://getsynth.app/concerts/washington-dc): Upcoming DC concerts by date, venue, artist and genre, updated daily.
+- [Concerts in Washington, DC this weekend](https://getsynth.app/concerts/washington-dc/this-weekend): Shows from Friday through Sunday.
+
 ## Optional
 
 - [Shared event/review previews](https://join.getsynth.app/share): Public preview pages for events, reviews, artists, and venues shared by Synth users.

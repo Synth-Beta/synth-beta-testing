@@ -7,6 +7,7 @@ import {
   LogOut,
   Music,
   Newspaper,
+  Search,
   Share2,
   Shield,
   Ticket,
@@ -34,6 +35,7 @@ const ADMIN_NAV: { label: string; items: AdminNavItem[] }[] = [
     items: [
       { tab: 'users', label: 'Users & Analytics', icon: Users },
       { tab: 'social', label: 'Social Media', icon: Share2 },
+      { tab: 'seo', label: 'SEO', icon: Search },
     ],
   },
   {

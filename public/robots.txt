@@ -14,3 +14,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://join.getsynth.app/sitemap.xml
+Sitemap: https://join.getsynth.app/sitemap-seo.xml

@@ -557,59 +557,109 @@ function toLocalYmd(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Local `YYYY-MM-DD` of a date-only or timestamptz value, or null. */
+function localYmdOf(raw: unknown): string | null {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  return Number.isFinite(d.getTime()) ? toLocalYmd(d) : null;
+}
+
 /** Same local-calendar-day rule as each app's `isEventPast`. */
 function isPastLocalDay(raw: unknown, now: Date): boolean {
-  const s = String(raw ?? '').trim();
-  if (!s) return false;
-  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : (() => {
-    const d = new Date(s);
-    return Number.isFinite(d.getTime()) ? toLocalYmd(d) : null;
-  })();
-  if (!ymd) return false;
-  return ymd < toLocalYmd(now);
+  const ymd = localYmdOf(raw);
+  return !!ymd && ymd < toLocalYmd(now);
+}
+
+function shiftYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return toLocalYmd(new Date(y, m - 1, d + days));
 }
 
 /**
- * Past shows matching a free-text artist / venue / title query, newest first.
+ * Past shows matching a free-text query, newest first.
  *
- * The cutoff has to live in the query: ordering by date DESC and filtering to
- * past rows client-side returns nothing, because the newest N rows for any
- * popular artist are all upcoming shows. The cutoff is deliberately one day
- * loose (event_date is timestamptz, the rule is local-calendar-day) and
- * `isPastLocalDay` does the exact gate afterwards.
+ * Artist and venue names are resolved to ids on their own trigram-indexed
+ * tables first, then events are fetched by id. ILIKE-ing the joined names in
+ * events_with_artist_venue could not use any index and scanned every event.
+ *
+ * Each keyword can name the artist or the venue ("gracie anthem"), so
+ * multi-word queries also match artist-from-one-word + venue-from-another,
+ * then keep only rows containing every word.
+ *
+ * The cutoff has to live in the query: the newest N rows for any popular
+ * artist are all upcoming shows. It is one day loose (event_date is
+ * timestamptz, the rule is local-calendar-day) and `isPastLocalDay` does the
+ * exact gate afterwards. `date` (YYYY-MM-DD) narrows to that local day.
  */
 export async function searchPastEventsForReview(
   client: SynthSupabaseClient,
   query: string,
-  opts?: { limit?: number; now?: Date }
+  opts?: { limit?: number; now?: Date; date?: string }
 ): Promise<ReviewEventSearchRow[]> {
   const q = sanitizeSearchTerm(query);
   if (q.length < 2) return [];
 
   const now = opts?.now ?? new Date();
   const limit = Math.max(1, Math.min(50, opts?.limit ?? 20));
-  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const pattern = `%${escapeIlikePattern(q)}%`;
+  const date = localYmdOf(opts?.date);
+  const words = [...new Set(searchWords(q))].slice(0, 5);
+  // Under 3 chars a word can't use the trigram index and matches half the table.
+  const lookupWords = words.length > 1 ? words.filter((w) => w.length >= 3) : [];
 
-  const { data, error } = await client
-    .from('events_with_artist_venue')
-    .select('id, title, artist_name_normalized, venue_name_normalized, event_date, artist_id, venue_id')
-    .or(
-      `artist_name_normalized.ilike.${pattern},title.ilike.${pattern},venue_name_normalized.ilike.${pattern}`
-    )
-    .lt('event_date', toLocalYmd(tomorrow))
-    .order('event_date', { ascending: false })
-    .limit(limit * 4);
+  const idsOf = (res: { data: unknown }) => ((res.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+  const lookup = (table: 'artists' | 'venues', term: string) =>
+    client.from(table).select('id').ilike('name', `%${escapeIlikePattern(term)}%`).limit(25);
+  const res = await Promise.all(
+    [q, ...lookupWords].flatMap((t) => [lookup('artists', t), lookup('venues', t)])
+  );
+  const phraseArtists = idsOf(res[0]);
+  const phraseVenues = idsOf(res[1]);
+  const wordArtists = [...new Set(res.slice(2).filter((_, i) => i % 2 === 0).flatMap(idsOf))];
+  const wordVenues = [...new Set(res.slice(2).filter((_, i) => i % 2 === 1).flatMap(idsOf))];
+
+  const clauses = [
+    `title.ilike.%${escapeIlikePattern(q)}%`,
+    phraseArtists.length ? `artist_id.in.(${phraseArtists.join(',')})` : null,
+    phraseVenues.length ? `venue_id.in.(${phraseVenues.join(',')})` : null,
+    wordArtists.length && wordVenues.length
+      ? `and(artist_id.in.(${wordArtists.join(',')}),venue_id.in.(${wordVenues.join(',')}))`
+      : null,
+  ].filter(Boolean) as string[];
+
+  const tomorrow = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  const upper = date && shiftYmd(date, 2) < tomorrow ? shiftYmd(date, 2) : tomorrow;
+  let req = client
+    .from('events')
+    .select('id, title, event_date, artist_id, venue_id, artists:artist_id(name), venues:venue_id(name)')
+    .or(clauses.join(','))
+    .lt('event_date', upper);
+  if (date) req = req.gte('event_date', shiftYmd(date, -1));
+  const { data, error } = await req.order('event_date', { ascending: false }).limit(limit * 4);
   if (error || !data) return [];
 
-  // The view is known to emit some events twice; dedupe before slicing.
   const seen = new Set<string>();
   const rows: ReviewEventSearchRow[] = [];
-  for (const row of data as ReviewEventSearchRow[]) {
-    if (!isPastLocalDay(row.event_date, now)) continue;
-    if (seen.has(row.id)) continue;
-    seen.add(row.id);
-    rows.push(row);
+  for (const raw of data as Array<Record<string, unknown>>) {
+    const id = String(raw.id);
+    if (seen.has(id) || !isPastLocalDay(raw.event_date, now)) continue;
+    if (date && localYmdOf(raw.event_date) !== date) continue;
+    const artist = nestedName(raw.artists) || null;
+    const venue = nestedName(raw.venues) || null;
+    const title = raw.title == null ? null : String(raw.title);
+    const hay = [artist, venue, title].join(' ').toLowerCase();
+    if (words.length > 1 && !words.every((w) => hay.includes(w))) continue;
+    seen.add(id);
+    rows.push({
+      id,
+      title,
+      artist_name_normalized: artist,
+      venue_name_normalized: venue,
+      event_date: String(raw.event_date),
+      artist_id: raw.artist_id == null ? null : String(raw.artist_id),
+      venue_id: raw.venue_id == null ? null : String(raw.venue_id),
+    });
     if (rows.length >= limit) break;
   }
   return rows;

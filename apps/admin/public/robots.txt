@@ -19,3 +19,4 @@ Allow: /
 Disallow: /admin
 
 Sitemap: https://getsynth.app/sitemap.xml
+Sitemap: https://getsynth.app/sitemap-seo.xml

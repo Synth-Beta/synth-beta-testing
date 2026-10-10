@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { SeoAdminPanel } from '@/components/admin/seo/SeoAdminPanel';
 import { 
   Users, 
   Shield, 
@@ -298,6 +299,7 @@ export default function Admin() {
         'users',
         'content-calendar',
         'social',
+        'seo',
         'events',
         'moderation',
         'news',
@@ -4142,6 +4144,10 @@ export default function Admin() {
 
           <TabsContent value="ai-scene-guides" className="space-y-6">
             <AiSceneGuidesAdminPanel />
+          </TabsContent>
+
+          <TabsContent value="seo" className="space-y-6">
+            <SeoAdminPanel />
           </TabsContent>
         </Tabs>
 

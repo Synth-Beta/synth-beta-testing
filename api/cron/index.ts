@@ -20,9 +20,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // The digest handler is the slowest of the three; the others finish well inside 10s.
 export const config = { maxDuration: 60 };
 
-type Job = 'sync-events' | 'seed-bot-messages' | 'slack-pm-digest' | 'engagement-notifications' | 'newsletter-send';
+type Job = 'sync-events' | 'seed-bot-messages' | 'slack-pm-digest' | 'engagement-notifications' | 'newsletter-send' | 'seo-indexnow';
 
-const JOBS: Job[] = ['sync-events', 'seed-bot-messages', 'slack-pm-digest', 'engagement-notifications', 'newsletter-send'];
+const JOBS: Job[] = ['sync-events', 'seed-bot-messages', 'slack-pm-digest', 'engagement-notifications', 'newsletter-send', 'seo-indexnow'];
 
 function queryJob(req: VercelRequest): string {
   const raw = req.query.job;
@@ -59,6 +59,7 @@ function resolveJob(req: VercelRequest): Job {
   if (path.includes('slack-pm-digest')) return 'slack-pm-digest';
   if (path.includes('engagement-notifications')) return 'engagement-notifications';
   if (path.includes('newsletter-send')) return 'newsletter-send';
+  if (path.includes('seo-indexnow')) return 'seo-indexnow';
 
   return jobFromHour();
 }
@@ -81,6 +82,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (job === 'newsletter-send') {
     const { default: newsletterSend } = await import('../_lib/cron/newsletterSend.js');
     return newsletterSend(req, res);
+  }
+  if (job === 'seo-indexnow') {
+    const { default: seoIndexNow } = await import('../_lib/cron/seoIndexNow.js');
+    return seoIndexNow(req, res);
   }
 
   const { default: slackPmDigest } = await import('../_lib/cron/slackPmDigest.js');

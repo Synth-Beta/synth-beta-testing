@@ -17,10 +17,6 @@ export default function PostScreen() {
             text: 'Done',
             onPress: () => (eid ? router.replace(`/event/${eid}`) : router.replace('/(tabs)')),
           },
-          {
-            text: 'Rank in My Events',
-            onPress: () => router.replace('/my-events?tab=rankings'),
-          },
         ]);
       }}
     />

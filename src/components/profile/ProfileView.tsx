@@ -166,7 +166,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const [reviewModalEvent, setReviewModalEvent] = useState<any>(null);
   const [friends, setFriends] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('my-events');
-  const [rankingMode, setRankingMode] = useState<false | 'unreviewed' | 'bucket'>(false);
+  const [eventsMode, setEventsMode] = useState<false | 'unreviewed' | 'bucket'>(false);
   const [attendedEvents, setAttendedEvents] = useState<any[]>([]);
   const [attendedEventsLoading, setAttendedEventsLoading] = useState(false);
   const [draftReviews, setDraftReviews] = useState<any[]>([]);
@@ -222,7 +222,7 @@ const { user, sessionExpired } = useAuth();
   // Unreviewed queue is own-profile only; clear it when switching to someone else's profile.
   useEffect(() => {
     if (!isViewingOwnProfile) {
-      setRankingMode((m) => (m === 'unreviewed' ? false : m));
+      setEventsMode((m) => (m === 'unreviewed' ? false : m));
     }
   }, [isViewingOwnProfile, targetUserId]);
 
@@ -2334,12 +2334,12 @@ const { user, sessionExpired } = useAuth();
             <div className="mb-6">
               <ProfileDraftsSummary
                 draftCount={draftReviews.length}
-                onClick={() => setRankingMode('unreviewed')}
+                onClick={() => setEventsMode('unreviewed')}
               />
             </div>
           )}
 
-          {/* My Events Tab - Show attended events with review/ranking toggle */}
+          {/* My Events Tab - Show attended events with reviewed / bucket / unreviewed toggle */}
           <TabsContent value="my-events" className="mt-4 mb-32 w-full max-w-full overflow-x-clip overflow-y-visible">
             <div className="flex flex-col gap-3 mb-4 p-2 w-full max-w-full">
               <h3 className="gradient-text font-semibold" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--typography-body-size, 20px)', fontWeight: 'var(--typography-body-weight, 500)', lineHeight: 'var(--typography-body-line-height, 1.5)' }}>
@@ -2359,7 +2359,7 @@ const { user, sessionExpired } = useAuth();
                 >
                   <button
                     type="button"
-                    onClick={() => setRankingMode(false)}
+                    onClick={() => setEventsMode(false)}
                     className="transition-colors"
                     style={{
                       paddingLeft: 'var(--spacing-small, 12px)',
@@ -2370,15 +2370,15 @@ const { user, sessionExpired } = useAuth();
                       fontSize: 'var(--typography-meta-size, 16px)',
                       fontWeight: 'var(--typography-meta-weight, 500)',
                       lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      backgroundColor: !rankingMode ? 'var(--neutral-50)' : 'transparent',
-                      color: !rankingMode ? 'var(--neutral-900)' : 'var(--neutral-600)'
+                      backgroundColor: !eventsMode ? 'var(--neutral-50)' : 'transparent',
+                      color: !eventsMode ? 'var(--neutral-900)' : 'var(--neutral-600)'
                     }}
                   >
                     Reviews
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRankingMode('bucket')}
+                    onClick={() => setEventsMode('bucket')}
                     className="transition-colors"
                     style={{
                       paddingLeft: 'var(--spacing-small, 12px)',
@@ -2389,8 +2389,8 @@ const { user, sessionExpired } = useAuth();
                       fontSize: 'var(--typography-meta-size, 16px)',
                       fontWeight: 'var(--typography-meta-weight, 500)',
                       lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      backgroundColor: rankingMode === 'bucket' ? 'var(--neutral-50)' : 'transparent',
-                      color: rankingMode === 'bucket' ? 'var(--neutral-900)' : 'var(--neutral-600)'
+                      backgroundColor: eventsMode === 'bucket' ? 'var(--neutral-50)' : 'transparent',
+                      color: eventsMode === 'bucket' ? 'var(--neutral-900)' : 'var(--neutral-600)'
                     }}
                   >
                     Bucket List
@@ -2398,7 +2398,7 @@ const { user, sessionExpired } = useAuth();
                   {isViewingOwnProfile && (
                     <button
                       type="button"
-                      onClick={() => setRankingMode('unreviewed')}
+                      onClick={() => setEventsMode('unreviewed')}
                       className="transition-colors"
                       style={{
                         paddingLeft: 'var(--spacing-small, 12px)',
@@ -2409,8 +2409,8 @@ const { user, sessionExpired } = useAuth();
                         fontSize: 'var(--typography-meta-size, 16px)',
                         fontWeight: 'var(--typography-meta-weight, 500)',
                         lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        backgroundColor: rankingMode === 'unreviewed' ? 'var(--neutral-50)' : 'transparent',
-                        color: rankingMode === 'unreviewed' ? 'var(--neutral-900)' : 'var(--neutral-600)'
+                        backgroundColor: eventsMode === 'unreviewed' ? 'var(--neutral-50)' : 'transparent',
+                        color: eventsMode === 'unreviewed' ? 'var(--neutral-900)' : 'var(--neutral-600)'
                       }}
                     >
                       Unreviewed
@@ -2420,7 +2420,7 @@ const { user, sessionExpired } = useAuth();
               </div>
             </div>
 
-            {rankingMode === false && (
+            {eventsMode === false && (
               reviews.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-50)', gap: 'var(--spacing-inline, 6px)' }}>
                   {/* Large icon (60px), dark grey */}
@@ -2456,11 +2456,11 @@ const { user, sessionExpired } = useAuth();
               )
             )}
 
-            {rankingMode === 'bucket' && (
+            {eventsMode === 'bucket' && (
               <PassportBucketListView userId={targetUserId} canEdit={isViewingOwnProfile} />
             )}
 
-            {rankingMode === 'unreviewed' && isViewingOwnProfile && (
+            {eventsMode === 'unreviewed' && isViewingOwnProfile && (
               <div className="space-y-4">
                 {(attendedEventsLoading || draftReviewsLoading) ? (
                   <div className="text-center py-8">
