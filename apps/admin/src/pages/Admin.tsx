@@ -10,7 +10,9 @@ const db = supabase as any;
 import Auth from './Auth';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { 
   Users, 
   Shield, 
@@ -40,12 +42,9 @@ import {
   Compass,
   User,
   Home,
-  Share2,
   Newspaper,
   Trash2,
   Plus,
-  BookOpen,
-  CalendarDays,
   Instagram,
   ExternalLink,
 } from 'lucide-react';
@@ -2269,15 +2268,23 @@ export default function Admin() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-accent/10 p-4">
+    <SidebarProvider>
+      <AdminSidebar
+        activeTab={activeAdminTab}
+        onSelectTab={setActiveAdminTab}
+        canProofreadNewsletters={canProofreadNewsletters}
+        onSignOut={signOut}
+      />
+    <SidebarInset className="min-h-screen min-w-0 bg-gradient-to-br from-primary/10 to-accent/10 p-4">
       <Helmet>
         <meta name="robots" content="noindex, nofollow" />
         <title>Synth Admin</title>
       </Helmet>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto w-full">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3 mb-4">
+            <SidebarTrigger aria-label="Toggle admin menu" />
             <div>
               <h1 className="text-3xl font-bold flex items-center gap-2">
                 <Shield className="h-8 w-8" />
@@ -2287,10 +2294,6 @@ export default function Admin() {
                 Manage users and monitor platform activity
               </p>
             </div>
-            <Button onClick={signOut} variant="outline">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
           </div>
         </div>
 
@@ -2299,50 +2302,6 @@ export default function Admin() {
           onValueChange={setActiveAdminTab}
           className="w-full"
         >
-          <TabsList className={`grid w-full max-w-7xl grid-cols-4 ${canProofreadNewsletters ? 'lg:grid-cols-10' : 'lg:grid-cols-9'} mb-6 gap-1 h-auto`}>
-            <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-2" />
-              Users & Analytics
-            </TabsTrigger>
-            <TabsTrigger value="content-calendar">
-              <CalendarDays className="h-4 w-4 mr-2" />
-              Content Calendar
-            </TabsTrigger>
-            <TabsTrigger value="social">
-              <Share2 className="h-4 w-4 mr-2" />
-              Social Media
-            </TabsTrigger>
-            <TabsTrigger value="events">
-              <Ticket className="h-4 w-4 mr-2" />
-              Event Analytics
-            </TabsTrigger>
-            <TabsTrigger value="moderation">
-              <Flag className="h-4 w-4 mr-2" />
-              Moderation
-            </TabsTrigger>
-            <TabsTrigger value="news">
-              <Newspaper className="h-4 w-4 mr-2" />
-              In the News
-            </TabsTrigger>
-            <TabsTrigger value="newsletter-builder">
-              <Newspaper className="h-4 w-4 mr-2" />
-              Newsletter Builder
-            </TabsTrigger>
-            {canProofreadNewsletters ? (
-              <TabsTrigger value="newsletter-proof">
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Proofread
-              </TabsTrigger>
-            ) : null}
-            <TabsTrigger value="style-guide">
-              <BookOpen className="h-4 w-4 mr-2" />
-              Style Guide
-            </TabsTrigger>
-            <TabsTrigger value="ai-scene-guides">
-              <Music className="h-4 w-4 mr-2" />
-              AI Scene Guides
-            </TabsTrigger>
-          </TabsList>
 
           <TabsContent value="users" className="space-y-6">
             <div className="flex flex-col xl:flex-row xl:items-start gap-6">
@@ -4511,6 +4470,7 @@ export default function Admin() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </SidebarInset>
+    </SidebarProvider>
   );
 }
