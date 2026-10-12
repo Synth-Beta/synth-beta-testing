@@ -74,6 +74,8 @@ export const MIN_GENRE_EVENTS = 5;
 const EVENT_SELECT =
   'id,slug,title,event_date,event_status,ticket_urls,external_url,genres,artist:artists(id,name,slug),venue:venues(id,name,slug,city,state)';
 const CACHE_OK = 'public, s-maxage=3600, stale-while-revalidate=86400';
+/** Content pages revalidate when seo_content.updated_at changes (ETag). */
+const CACHE_CONTENT = 'public, max-age=0, s-maxage=86400, must-revalidate';
 const CACHE_MISS = 'public, s-maxage=300';
 
 const cleanSlug = (value: string | undefined) => {
@@ -376,10 +378,24 @@ export async function collectSeoUrls(db: SupabaseClient, site: 'getsynth' | 'joi
   return (await collectSeoEntries(db, site, settings)).map((e) => e.loc);
 }
 
-function send(res: VercelResponse, status: number, body: string, type: 'html' | 'xml' | 'text' | 'js', cache: string) {
+function send(
+  req: VercelRequest,
+  res: VercelResponse,
+  status: number,
+  body: string,
+  type: 'html' | 'xml' | 'text' | 'js',
+  cache: string,
+  etag?: string,
+) {
   const contentType = { html: 'text/html', xml: 'application/xml', text: 'text/plain', js: 'application/javascript' }[type];
   res.setHeader('Content-Type', `${contentType}; charset=utf-8`);
   res.setHeader('Cache-Control', cache);
+  if (etag) {
+    res.setHeader('ETag', etag);
+    const inm = req.headers['if-none-match'];
+    const match = typeof inm === 'string' && inm.split(',').map((s) => s.trim()).includes(etag);
+    if (match && status === 200) return res.status(304).end();
+  }
   return res.status(status).send(body);
 }
 
@@ -435,10 +451,10 @@ const SITE_CITY_LINKS: LinkItem[] = [
 
 export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: VercelResponse) {
   if (route.kind === 'collect') return handleCollect(req, res);
-  if (route.kind === 'tracker') return send(res, 200, TRACKER_JS, 'js', 'public, max-age=3600, s-maxage=86400');
+  if (route.kind === 'tracker') return send(req, res, 200, TRACKER_JS, 'js', 'public, max-age=3600, s-maxage=86400');
   if (route.kind === 'indexnow-key') {
     const key = process.env.INDEXNOW_KEY?.trim();
-    return key ? send(res, 200, key, 'text', CACHE_OK) : send(res, 404, 'Not found', 'text', CACHE_MISS);
+    return key ? send(req, res, 200, key, 'text', CACHE_OK) : send(req, res, 404, 'Not found', 'text', CACHE_MISS);
   }
 
   const db = seoClient();
@@ -448,7 +464,7 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
     const settings = await loadSettings(db);
 
     if (route.kind === 'sitemap') {
-      return send(res, 200, renderSitemap(await collectSeoEntries(db, route.site, settings)), 'xml', CACHE_OK);
+      return send(req, res, 200, renderSitemap(await collectSeoEntries(db, route.site, settings)), 'xml', CACHE_OK);
     }
 
     if (route.kind === 'llms') {
@@ -463,7 +479,7 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
         cityLinks: SITE_CITY_LINKS,
         venues,
       });
-      return send(res, 200, txt, 'text', CACHE_OK);
+      return send(req, res, 200, txt, 'text', CACHE_OK);
     }
 
     if (route.kind === 'guides') {
@@ -472,11 +488,11 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
         items: content.map((c) => ({ type: c.page_type, slug: c.slug, title: c.title, summary: c.summary })),
         cityLinks: SITE_CITY_LINKS,
       });
-      return send(res, 200, settings.live && content.length ? html : html.replace('content="index, follow"', 'content="noindex, follow"'), 'html', CACHE_OK);
+      return send(req, res, 200, settings.live && content.length ? html : html.replace('content="index, follow"', 'content="noindex, follow"'), 'html', CACHE_OK);
     }
 
     if (route.kind === 'content') {
-      if (!route.slug) return send(res, 404, renderNotFound(), 'html', CACHE_MISS);
+      if (!route.slug) return send(req, res, 404, renderNotFound(), 'html', CACHE_MISS);
       const { data, error } = await db
         .from('seo_content')
         .select('page_type,slug,title,meta_description,summary,body_md,faq,keywords,published_at,updated_at')
@@ -486,7 +502,7 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
         .maybeSingle();
       if (error) throw new Error(`seo_content: ${error.message}`);
       const row = data as ContentRow | null;
-      if (!row) return send(res, 404, renderNotFound(), 'html', CACHE_MISS);
+      if (!row) return send(req, res, 404, renderNotFound(), 'html', CACHE_MISS);
       const { html, embeds } = markdownToHtml(row.body_md);
       const [bodyHtml, all] = await Promise.all([renderEmbeds(db, html, embeds), loadPublishedContent(db)]);
       const related = relatedContent(all, row.keywords ?? [], 5, row.slug);
@@ -503,12 +519,13 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
         related: related.length ? related : SITE_CITY_LINKS,
         indexable: settings.live,
       });
-      return send(res, 200, page, 'html', CACHE_OK);
+      const etag = `"seo-${row.slug}-${row.updated_at ?? row.published_at ?? '0'}"`;
+      return send(req, res, 200, page, 'html', CACHE_CONTENT, etag);
     }
 
     if (route.kind === 'city') {
       // shortcut: one city; add a cities table when the pilot expands.
-      if (route.slug !== DC.slug) return send(res, 404, renderNotFound(), 'html', CACHE_MISS);
+      if (route.slug !== DC.slug) return send(req, res, 404, renderNotFound(), 'html', CACHE_MISS);
       const [allEvents, genres, content] = await Promise.all([loadDcEvents(db), loadGenreCounts(db), loadPublishedContent(db)]);
 
       let view: CityView = { kind: 'all' };
@@ -523,7 +540,7 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
         });
       } else if (route.sub) {
         events = allEvents.filter((e) => eventHasGenre(e, route.sub));
-        if (events.length === 0) return send(res, 404, renderNotFound(), 'html', CACHE_MISS);
+        if (events.length === 0) return send(req, res, 404, renderNotFound(), 'html', CACHE_MISS);
         view = { kind: 'genre', slug: route.sub, label: genreLabel(route.sub) };
         indexable = settings.live && events.filter(isActive).length >= MIN_GENRE_EVENTS;
       }
@@ -539,7 +556,7 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
         indexable,
         guides: relatedContent(content, guideTerms, 6),
       });
-      return send(res, 200, html, 'html', CACHE_OK);
+      return send(req, res, 200, html, 'html', CACHE_OK);
     }
 
     if (route.kind === 'venue') {
@@ -547,7 +564,7 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
         ? await db.from('venues').select('*').eq('slug', route.slug).maybeSingle()
         : { data: null, error: null };
       if (error) throw new Error(`venues: ${error.message}`);
-      if (!row?.name || !row.slug) return send(res, 404, renderNotFound(), 'html', CACHE_MISS);
+      if (!row?.name || !row.slug) return send(req, res, 404, renderNotFound(), 'html', CACHE_MISS);
       const venue = toVenueDetail(row);
       const [{ events, total }, reviews, content] = await Promise.all([
         upcomingEvents(db, 'venue_id', [venue.id], 50),
@@ -564,7 +581,7 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
         reviews: reviews.venue ?? EMPTY_BLOCK,
         guides: relatedContent(content, [venue.name, 'venue'], 4),
       });
-      return send(res, 200, html, 'html', CACHE_OK);
+      return send(req, res, 200, html, 'html', CACHE_OK);
     }
 
     if (route.kind === 'event') {
@@ -576,29 +593,29 @@ export async function handleSeoRoute(route: SeoRoute, req: VercelRequest, res: V
       : { data: null, error: null };
     if (error) throw new Error(`artists: ${error.message}`);
     const artist = artistRow as SeoArtist | null;
-    if (!artist?.name || !artist.slug) return send(res, 404, renderNotFound(), 'html', CACHE_MISS);
+    if (!artist?.name || !artist.slug) return send(req, res, 404, renderNotFound(), 'html', CACHE_MISS);
     const [{ events, total }, reviews] = await Promise.all([
       upcomingEvents(db, 'artist_id', [artist.id], 50),
       loadReviews(db, { artist: artist.id }),
     ]);
     await attachInterest(db, events);
     const indexable = settings.live && events.some((e) => isActive(e) && isDcVenue(e.venue));
-    return send(res, 200, renderArtistPage({ artist, events, total, indexable, reviews: reviews.artist ?? EMPTY_BLOCK }), 'html', CACHE_OK);
+    return send(req, res, 200, renderArtistPage({ artist, events, total, indexable, reviews: reviews.artist ?? EMPTY_BLOCK }), 'html', CACHE_OK);
   } catch (err) {
     console.error('[seo] render failed', route, err);
-    return send(res, 500, renderNotFound(), 'html', 'no-store');
+    return send(req, res, 500, renderNotFound(), 'html', 'no-store');
   }
 }
 
 async function handleEvent(db: SupabaseClient, slug: string, settings: SeoSettings, res: VercelResponse) {
-  if (!slug) return send(res, 404, renderNotFound(), 'html', CACHE_MISS);
+  if (!slug) return send(req, res, 404, renderNotFound(), 'html', CACHE_MISS);
   const { data: row, error } = await db
     .from('events')
     .select('*, artist:artists(id,name,slug,genres,image_url), venue:venues(*)')
     .eq('slug', slug)
     .maybeSingle();
   if (error) throw new Error(`events: ${error.message}`);
-  if (!row) return send(res, 404, renderNotFound(), 'html', CACHE_MISS);
+  if (!row) return send(req, res, 404, renderNotFound(), 'html', CACHE_MISS);
 
   const venue = row.venue ? toVenueDetail(row.venue) : null;
   const artist = (row.artist as SeoArtist | null) ?? null;
@@ -679,5 +696,5 @@ async function handleEvent(db: SupabaseClient, slug: string, settings: SeoSettin
     isPast,
     indexable,
   });
-  return send(res, 200, html, 'html', CACHE_OK);
+  return send(req, res, 200, html, 'html', CACHE_OK);
 }

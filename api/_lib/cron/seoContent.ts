@@ -138,6 +138,21 @@ async function buildFacts(db: SupabaseClient, target: Target) {
   return facts;
 }
 
+/** Active targets with no published page yet (review/rejected drafts are regenerated). */
+export async function targetsNeedingPages(db: SupabaseClient): Promise<Target[]> {
+  const [{ data: targets, error }, { data: content }] = await Promise.all([
+    db.from('seo_target_queries').select(TARGET_SELECT).eq('active', true).order('priority', { ascending: false }),
+    db.from('seo_content').select('target_query_id,status').not('target_query_id', 'is', null),
+  ]);
+  if (error) throw new Error(`seo_target_queries: ${error.message}`);
+  const published = new Set(
+    ((content ?? []) as Array<{ target_query_id: string; status: string }>)
+      .filter((c) => c.status === 'published')
+      .map((c) => c.target_query_id),
+  );
+  return ((targets ?? []) as Target[]).filter((t) => !published.has(t.id));
+}
+
 async function pickTargets(db: SupabaseClient, limit: number): Promise<Target[]> {
   const [{ data: targets, error }, { data: content }] = await Promise.all([
     db.from('seo_target_queries').select(TARGET_SELECT).eq('active', true).order('priority', { ascending: false }).limit(200),
@@ -209,6 +224,24 @@ ${JSON.stringify(facts, null, 1)}`;
   return { id: inserted.id as string, slug, warnings };
 }
 
+export async function publishSeoContent(db: SupabaseClient, contentId: string): Promise<{ url: string; slug: string }> {
+  const { data, error: readError } = await db.from('seo_content').select('page_type,slug,published_at').eq('id', contentId).single();
+  if (readError || !data) throw new Error(readError?.message ?? 'Content not found');
+  const now = new Date().toISOString();
+  const { error } = await db
+    .from('seo_content')
+    .update({ status: 'published', published_at: data.published_at ?? now, updated_at: now })
+    .eq('id', contentId);
+  if (error) throw new Error(`seo_content publish: ${error.message}`);
+  return { url: contentUrl(data.page_type as ContentType, data.slug), slug: data.slug as string };
+}
+
+export async function generateAndPublishTarget(db: SupabaseClient, target: Target): Promise<{ id: string; slug: string; url: string; warnings: string[] }> {
+  const draft = await generateDraft(db, target);
+  const pub = await publishSeoContent(db, draft.id);
+  return { ...draft, url: pub.url };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = await authorizeSeoJob(req);
   if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
@@ -216,27 +249,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const db = seoServiceClient();
   if (!db) return res.status(500).json({ error: 'Supabase service role not configured' });
 
+  const publish = String(req.query.publish ?? '') === '1';
+  const batch = String(req.query.batch ?? '') === '1';
   const targetId = String(req.query.target ?? '').trim();
+  const limit = Math.min(20, Math.max(1, Number(req.query.limit) || (batch ? 20 : Number(process.env.SEO_DRAFTS_PER_RUN) || 2)));
+
   let targets: Target[];
   if (targetId) {
     if (!UUID_RE.test(targetId)) return res.status(400).json({ error: 'Invalid target id' });
     const { data, error } = await db.from('seo_target_queries').select(TARGET_SELECT).eq('id', targetId).maybeSingle();
     if (error || !data) return res.status(404).json({ error: 'Target not found' });
     targets = [data as Target];
+  } else if (batch) {
+    targets = (await targetsNeedingPages(db)).slice(0, limit);
   } else {
-    const perRun = Math.min(5, Math.max(1, Number(process.env.SEO_DRAFTS_PER_RUN) || 2));
-    targets = await pickTargets(db, perRun);
+    targets = await pickTargets(db, limit);
   }
 
-  const results: Array<{ query: string; id?: string; slug?: string; warnings?: string[]; error?: string }> = [];
+  const results: Array<{ query: string; id?: string; slug?: string; url?: string; warnings?: string[]; error?: string }> = [];
   for (const target of targets) {
     try {
-      results.push({ query: target.query, ...(await generateDraft(db, target)) });
+      const out = publish ? await generateAndPublishTarget(db, target) : await generateDraft(db, target);
+      results.push({ query: target.query, ...out });
     } catch (err) {
       results.push({ query: target.query, error: err instanceof Error ? err.message : String(err) });
     }
   }
-  console.log('[cron/seo-content]', JSON.stringify(results.map((r) => ({ query: r.query, slug: r.slug, error: r.error }))));
+  const remaining = batch ? Math.max(0, (await targetsNeedingPages(db)).length) : 0;
+  console.log('[cron/seo-content]', JSON.stringify({ publish, batch, results: results.map((r) => ({ query: r.query, slug: r.slug, url: r.url, error: r.error })), remaining }));
   const failed = targetId && results[0]?.error;
-  return res.status(failed ? 502 : 200).json({ ok: !failed, results });
+  return res.status(failed ? 502 : 200).json({ ok: !failed, publish, batch, remaining, results });
 }

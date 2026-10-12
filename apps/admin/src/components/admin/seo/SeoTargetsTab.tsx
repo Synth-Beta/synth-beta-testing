@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
+  contentPageUrl,
   createSeoAiPrompt,
   createSeoTarget,
   deleteSeoAiPrompt,
@@ -16,6 +17,7 @@ import {
   fetchSeoContent,
   fetchSeoTargets,
   runSeoJob,
+  runSeoTargetBatch,
   updateSeoAiPrompt,
   updateSeoTarget,
   type ContentType,
@@ -23,7 +25,7 @@ import {
   type SeoContent,
   type SeoTarget,
 } from '@/services/seoAdmin';
-import { Empty, Section } from './seoUi';
+import { Empty, ExtLink, Section } from './seoUi';
 
 const TYPE_LABELS: Record<ContentType, string> = { guide: 'Guide', brand: 'About Synth', comparison: 'Comparison' };
 const STATUS_BADGE: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -40,6 +42,7 @@ export function SeoTargetsTab({ onOpenQueue }: { onOpenQueue: () => void }) {
   const [draft, setDraft] = useState({ query: '', page_type: 'guide' as ContentType, cluster: '', priority: '60' });
   const [newPrompt, setNewPrompt] = useState('');
   const [generating, setGenerating] = useState<string | null>(null);
+  const [batchRunning, setBatchRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -94,10 +97,42 @@ export function SeoTargetsTab({ onOpenQueue }: { onOpenQueue: () => void }) {
     });
   };
 
-  const generate = async (target: SeoTarget) => {
+  const generate = async (target: SeoTarget, publish = false) => {
     setGenerating(target.id);
-    await run(() => runSeoJob('seo-content', { target: target.id }), `Draft ready for "${target.query}". Review it in the content queue.`);
+    const params: Record<string, string> = { target: target.id };
+    if (publish) params.publish = '1';
+    await run(
+      () => runSeoJob('seo-content', params),
+      publish ? `Published page for "${target.query}".` : `Draft ready for "${target.query}". Review it in the content queue.`,
+    );
     setGenerating(null);
+  };
+
+  const missingPublished = targets.filter((t) => pageFor.get(t.id)?.status !== 'published').length;
+
+  const generateAll = async () => {
+    if (!window.confirm(`Generate and publish up to 20 pages for targets that do not have a live page yet? (${missingPublished} remaining)`)) return;
+    setBatchRunning(true);
+    setError(null);
+    setNotice(null);
+    try {
+      let remaining = missingPublished;
+      let published = 0;
+      while (remaining > 0) {
+        const body = await runSeoTargetBatch({ publish: true, limit: 5 });
+        const results = (body.results ?? []) as Array<{ url?: string; error?: string }>;
+        published += results.filter((r) => r.url).length;
+        remaining = Number(body.remaining ?? 0);
+        if (results.every((r) => r.error)) break;
+        if (remaining <= 0) break;
+      }
+      setNotice(`Published ${published} page(s). ${remaining > 0 ? `${remaining} still need attention — check errors below or retry.` : 'All targets are linked.'}`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBatchRunning(false);
+    }
   };
 
   return (
@@ -119,6 +154,13 @@ export function SeoTargetsTab({ onOpenQueue }: { onOpenQueue: () => void }) {
       <Section
         title="Target searches"
         description="The searches Synth should be the answer to. Each day the two highest-priority targets without a page get an AI draft for review; nothing is published until approved."
+        action={
+          missingPublished > 0 ? (
+            <Button size="sm" disabled={batchRunning || generating !== null} onClick={() => void generateAll()}>
+              {batchRunning ? 'Publishing…' : `Publish all missing (${missingPublished})`}
+            </Button>
+          ) : undefined
+        }
       >
         <div className="mb-4 grid gap-2 md:grid-cols-[1fr_150px_150px_90px_auto]">
           <Input placeholder='A search people type, e.g. "concert buddy app"' value={draft.query} onChange={(e) => setDraft({ ...draft, query: e.target.value })} />
@@ -178,14 +220,27 @@ export function SeoTargetsTab({ onOpenQueue }: { onOpenQueue: () => void }) {
                         }}
                       />
                     </TableCell>
-                    <TableCell>{page ? <Badge variant={STATUS_BADGE[page.status]}>{page.status}</Badge> : <span className="text-xs text-muted-foreground">none</span>}</TableCell>
+                    <TableCell>
+                      {page ? (
+                        <div className="space-y-1">
+                          <Badge variant={STATUS_BADGE[page.status]}>{page.status}</Badge>
+                          {page.status === 'published' && (
+                            <div>
+                              <ExtLink href={contentPageUrl(page)}>View live</ExtLink>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">none</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Switch checked={t.active} onCheckedChange={(active) => void run(() => updateSeoTarget(t.id, { active }))} />
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-right">
-                      <Button size="sm" variant="outline" disabled={generating !== null || page?.status === 'published'} onClick={() => void generate(t)}>
+                      <Button size="sm" variant="outline" disabled={generating !== null || batchRunning || page?.status === 'published'} onClick={() => void generate(t, !page)}>
                         <Sparkles className="mr-1 h-3 w-3" />
-                        {generating === t.id ? 'Writing…' : page ? 'Regenerate' : 'Generate draft'}
+                        {generating === t.id ? 'Writing…' : page?.status === 'published' ? 'Live' : page ? 'Republish' : 'Publish page'}
                       </Button>
                       <Button size="icon" variant="ghost" onClick={() => window.confirm(`Delete "${t.query}"?`) && void run(() => deleteSeoTarget(t.id))}>
                         <Trash2 className="h-4 w-4" />

@@ -328,6 +328,14 @@ export async function deleteSeoAiPrompt(id: string): Promise<void> {
 export type SeoJob = 'seo-content' | 'seo-search-data' | 'seo-ai-visibility';
 
 /** Runs an SEO job now via api/cron (the job checks that the caller is an admin). */
+/** Generate (and optionally publish) pages for target searches missing a live page. */
+export async function runSeoTargetBatch(options: { publish?: boolean; limit?: number } = {}): Promise<Record<string, unknown>> {
+  const params: Record<string, string> = { batch: '1' };
+  if (options.publish) params.publish = '1';
+  if (options.limit) params.limit = String(options.limit);
+  return runSeoJob('seo-content', params);
+}
+
 export async function runSeoJob(job: SeoJob, params: Record<string, string> = {}): Promise<Record<string, unknown>> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
