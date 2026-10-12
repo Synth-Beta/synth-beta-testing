@@ -1,5 +1,6 @@
 /**
- * HTML templates for the public SEO pages (DC pilot): city hub, venue, artist, sitemap.
+ * HTML templates for the public SEO pages (DC pilot): city hub, venue, artist, event,
+ * guide/brand/comparison content, guides index, sitemap, llms.txt.
  * Pure string builders, like api/share.ts. No local imports so node:test can load this
  * file directly (see render.test.ts).
  *
@@ -11,13 +12,16 @@
 
 export const GETSYNTH_ORIGIN = 'https://getsynth.app';
 export const JOIN_ORIGIN = 'https://join.getsynth.app';
-const APP_STORE_URL = 'https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095';
+const APP_STORE_ID = '6757408095';
+const APP_STORE_URL = `https://apps.apple.com/us/app/synth-for-live-music-lovers/id${APP_STORE_ID}`;
+const DEFAULT_IMAGE = `${JOIN_ORIGIN}/opengraph.jpg`;
 const GA4_ID = 'G-9T0MS9F1D3';
 // shortcut: every event time is shown in Eastern time, which is right for the DC pilot only.
 const DISPLAY_TIME_ZONE = 'America/New_York';
 
 export interface SeoEvent {
   id: string;
+  slug?: string | null;
   title: string | null;
   event_date: string;
   event_status: string | null;
@@ -44,6 +48,69 @@ export interface SeoArtist {
   name: string;
   slug: string;
   genres: string[] | null;
+  image_url?: string | null;
+}
+
+export interface SeoVenueDetail extends SeoVenue {
+  capacity?: number | null;
+  image_url?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  postal_code?: string | null;
+}
+
+export interface SeoEventDetail extends SeoEvent {
+  doors_time?: string | null;
+  price_min?: number | null;
+  price_max?: number | null;
+  price_currency?: string | null;
+  tour_name?: string | null;
+  image_url?: string | null;
+  ticket_available?: boolean | null;
+  setlist_songs?: string[];
+  setlist_url?: string | null;
+}
+
+export interface ReviewBlock {
+  count: number;
+  avg: number | null;
+  snippets: Array<{ rating: number | null; text: string; date: string }>;
+}
+
+export interface ReviewSnippets {
+  artist?: ReviewBlock | null;
+  venue?: ReviewBlock | null;
+  event?: ReviewBlock | null;
+}
+
+export interface FaqItem {
+  q: string;
+  a: string;
+}
+
+export interface LinkItem {
+  title: string;
+  url: string;
+}
+
+export type ContentType = 'guide' | 'brand' | 'comparison';
+
+const CONTENT_PREFIX: Record<ContentType, string> = { guide: 'guides', brand: 'learn', comparison: 'compare' };
+const CONTENT_SECTION: Record<ContentType, string> = { guide: 'Guides', brand: 'About Synth', comparison: 'Comparisons' };
+
+export function contentUrl(type: ContentType, slug: string): string {
+  return `${GETSYNTH_ORIGIN}/${CONTENT_PREFIX[type]}/${encodeURIComponent(slug)}`;
+}
+
+export function eventUrl(slug: string): string {
+  return `${JOIN_ORIGIN}/events/${encodeURIComponent(slug)}`;
+}
+
+const DC_CITY = 'washington';
+const DC_STATE = 'District of Columbia';
+
+export function isDcVenue(venue: { city?: string | null; state?: string | null } | null | undefined): boolean {
+  return !!venue && venue.city?.trim().toLowerCase() === DC_CITY && venue.state === DC_STATE;
 }
 
 export function escapeHtml(value: unknown): string {
@@ -159,7 +226,12 @@ function breadcrumbJsonLd(items: Array<{ name: string; url: string }>): Record<s
   };
 }
 
-function eventListHtml(events: SeoEvent[], show: 'venue' | 'artist' | 'both'): string {
+/** Event pages exist (and are linked) for DC shows only. */
+function eventHref(event: SeoEvent): string | null {
+  return event.slug && isDcVenue(event.venue) ? eventUrl(event.slug) : null;
+}
+
+export function eventListHtml(events: SeoEvent[], show: 'venue' | 'artist' | 'both'): string {
   if (events.length === 0) {
     return '<p class="muted">No upcoming shows listed right now. Check back soon.</p>';
   }
@@ -184,7 +256,11 @@ function eventListHtml(events: SeoEvent[], show: 'venue' | 'artist' | 'both'): s
       : '';
     return `<li class="event">
   <div class="when">${escapeHtml(formatEventDate(event.event_date))}${status ? ` <span class="status">${status}</span>` : ''}</div>
-  <div class="what">${escapeHtml(event.title ?? event.artist?.name ?? 'Live music')}</div>
+  <div class="what">${(() => {
+    const label = escapeHtml(event.title ?? event.artist?.name ?? 'Live music');
+    const page = eventHref(event);
+    return page ? `<a href="${escapeHtml(page)}">${label}</a>` : label;
+  })()}</div>
   ${where ? `<div class="where">${where}</div>` : ''}
   ${href ? `<a class="tickets" href="${escapeHtml(href)}" rel="nofollow noopener" target="_blank" data-track="ticket_click">Tickets</a>` : ''}${interested}
 </li>`;
@@ -273,10 +349,66 @@ interface PageInput {
   jsonLd: Array<Record<string, unknown>>;
   body: string;
   ctaHref: string;
+  /** Tags the page for visitor analytics (landing pages by type). */
+  pageType?: string;
+  image?: string | null;
+  ogType?: 'website' | 'article';
+}
+
+export function faqHtml(items: FaqItem[], heading = 'Questions'): string {
+  if (items.length === 0) return '';
+  return `<h2>${escapeHtml(heading)}</h2>
+${items.map((f) => `<h3>${escapeHtml(f.q)}</h3>\n<p>${escapeHtml(f.a)}</p>`).join('\n')}`;
+}
+
+export function faqJsonLd(items: FaqItem[]): Record<string, unknown> | null {
+  if (items.length === 0) return null;
+  return {
+    '@type': 'FAQPage',
+    mainEntity: items.map((f) => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  };
+}
+
+function linkListHtml(heading: string, links: LinkItem[]): string {
+  if (links.length === 0) return '';
+  return `<h2>${escapeHtml(heading)}</h2>
+<ul class="links">${links.map((l) => `<li><a href="${escapeHtml(l.url)}">${escapeHtml(l.title)}</a></li>`).join('')}</ul>`;
+}
+
+function stars(rating: number | null | undefined): string {
+  if (rating == null || !Number.isFinite(rating)) return '';
+  const r = Math.max(0, Math.min(5, Math.round(rating)));
+  return `<span class="stars" aria-label="${r} out of 5">${'★'.repeat(r)}${'☆'.repeat(5 - r)}</span>`;
+}
+
+function reviewBlockHtml(heading: string, block: ReviewBlock | null | undefined): string {
+  if (!block || block.count === 0) return '';
+  const avg = block.avg != null ? `${block.avg.toFixed(1)} out of 5` : '';
+  const quotes = block.snippets
+    .map((s) => `<blockquote>${stars(s.rating)} ${escapeHtml(s.text.length >= 400 ? `${s.text.slice(0, 397)}…` : s.text)}</blockquote>`)
+    .join('\n');
+  return `<h2>${escapeHtml(heading)}</h2>
+<p class="muted">${block.count} ${block.count === 1 ? 'review' : 'reviews'} from Synth members${avg ? ` · average ${avg}` : ''}.</p>
+${quotes}`;
+}
+
+function setlistHtml(heading: string, songs: string[], note: string, url: string | null): string {
+  if (songs.length === 0) return '';
+  const shown = songs.slice(0, 20);
+  return `<h2>${escapeHtml(heading)}</h2>
+<p class="muted">${escapeHtml(note)}</p>
+<ol class="setlist">${shown.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>
+${songs.length > shown.length ? `<p class="muted">Plus ${songs.length - shown.length} more.</p>` : ''}
+${url && isHttpUrl(url) ? `<p class="more"><a href="${escapeHtml(url)}" rel="nofollow noopener" target="_blank">Full setlist on setlist.fm</a></p>` : ''}`;
 }
 
 export function renderPage(input: PageInput): string {
   const robots = input.indexable ? 'index, follow' : 'noindex, follow';
+  const image = input.image && isHttpUrl(input.image) ? input.image : DEFAULT_IMAGE;
   const crumbs = input.breadcrumbs
     .map((c, i) =>
       i === input.breadcrumbs.length - 1
@@ -299,14 +431,19 @@ export function renderPage(input: PageInput): string {
 <meta name="description" content="${escapeHtml(input.description)}">
 <meta name="robots" content="${robots}">
 <link rel="canonical" href="${escapeHtml(input.canonical)}">
-<meta property="og:type" content="website">
+<meta property="og:type" content="${input.ogType ?? 'website'}">
 <meta property="og:site_name" content="Synth">
 <meta property="og:title" content="${escapeHtml(input.title)}">
 <meta property="og:description" content="${escapeHtml(input.description)}">
 <meta property="og:url" content="${escapeHtml(input.canonical)}">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="${escapeHtml(image)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${escapeHtml(image)}">
+<meta name="apple-itunes-app" content="app-id=${APP_STORE_ID}, app-argument=${escapeHtml(input.canonical)}">
+${input.pageType ? `<meta name="synth:page-type" content="${escapeHtml(input.pageType)}">` : ''}
 ${jsonLdScript(breadcrumbJsonLd(input.breadcrumbs))}
 ${input.jsonLd.map(jsonLdScript).join('\n')}
+<script defer src="/api/share?seo=tracker"></script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=${GA4_ID}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA4_ID}');
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&e.target.closest('a[data-track]');if(a)gtag('event',a.getAttribute('data-track'),{page_path:location.pathname});});</script>
@@ -333,10 +470,14 @@ details[open]{padding-bottom:8px}
 summary{cursor:pointer;padding:10px 0;font-weight:600;min-height:44px;display:flex;align-items:center}
 details ul.events li.event:last-child{border-bottom:0}
 .more{font-size:14px}
+article h2,main>h2{margin-top:32px}blockquote{margin:12px 0;padding:8px 14px;border-left:3px solid var(--brand);background:color-mix(in srgb,var(--brand) 6%,transparent);border-radius:0 8px 8px 0}
+.stars{color:#f5a524;letter-spacing:1px;margin-right:6px}.solo{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:20px 0}
+.solo h2{margin:0 0 6px;font-size:20px}dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}dl.facts dt{color:var(--muted)}dl.facts dd{margin:0}
+ol.setlist{columns:2;column-gap:32px;padding-left:20px}ul.links{padding-left:20px}ul.links li{margin:4px 0}.byline{font-size:14px;color:var(--muted)}
 </style>
 </head>
 <body>
-<header class="site"><a class="brand" href="${GETSYNTH_ORIGIN}/">Synth</a><a href="${escapeHtml(input.ctaHref)}" data-track="open_in_synth">Open in Synth</a></header>
+<header class="site"><a class="brand" href="${GETSYNTH_ORIGIN}/">Synth</a><span><a href="${GETSYNTH_ORIGIN}/guides">Guides</a> · <a href="${escapeHtml(input.ctaHref)}" data-track="open_in_synth">Open in Synth</a></span></header>
 <main>
 <nav class="crumbs">${crumbs}</nav>
 ${input.body}
@@ -348,6 +489,7 @@ ${input.body}
 </main>
 <footer>
 Synth helps you find concerts and people to go with.
+<a href="${GETSYNTH_ORIGIN}/concerts/washington-dc">Concerts in DC</a> · <a href="${GETSYNTH_ORIGIN}/guides">Guides</a> · <a href="${GETSYNTH_ORIGIN}/">About Synth</a><br>
 Event data <a href="https://www.jambase.com" rel="nofollow">Powered by JamBase</a>.
 </footer>
 </body>
@@ -377,6 +519,8 @@ export function renderCityPage(input: {
   /** City-wide genres that have their own page. */
   genres: Array<{ slug: string; label: string; count: number }>;
   indexable: boolean;
+  /** Published guides worth linking from the hub. */
+  guides?: LinkItem[];
 }): string {
   const { cityName, citySlug, view, events } = input;
   const cityUrl = `${GETSYNTH_ORIGIN}/concerts/${citySlug}`;
@@ -453,16 +597,15 @@ ${more}
     : '';
 
   const busiest = venues.slice(0, 3).map((v) => v.name);
-  const faq =
+  const goTogether = 'On Synth you can see who else is interested in a show, match with people who like the same music, and plan to go together.';
+  const faqItems: FaqItem[] =
     view.kind === 'all'
-      ? `<h2>Questions</h2>
-<h3>How many concerts are coming up in ${escapeHtml(cityName)}?</h3>
-<p>Synth lists ${active} upcoming concerts in ${escapeHtml(cityName)} right now.</p>
-${busiest.length ? `<h3>Which ${escapeHtml(cityName)} venues have the most shows?</h3><p>${escapeHtml(busiest.join(', '))}.</p>` : ''}
-<h3>How can I find people to go to concerts with in ${escapeHtml(cityName)}?</h3>
-<p>On Synth you can see who else is interested in a show, match with people who like the same music, and plan to go together.</p>`
-      : `<h2>Find people to go with</h2>
-<p>On Synth you can see who else is interested in a show, match with people who like the same music, and plan to go together.</p>`;
+      ? [
+          { q: `How many concerts are coming up in ${cityName}?`, a: `Synth lists ${active} upcoming concerts in ${cityName} right now.` },
+          ...(busiest.length ? [{ q: `Which ${cityName} venues have the most shows?`, a: `${busiest.join(', ')}.` }] : []),
+          { q: `How can I find people to go to concerts with in ${cityName}?`, a: goTogether },
+        ]
+      : [{ q: `Can I find people to go with to ${heading.toLowerCase()}?`, a: goTogether }];
 
   const body = `<h1>${escapeHtml(heading)}</h1>
 <p class="summary">${escapeHtml(summary)}</p>
@@ -472,7 +615,8 @@ ${eventListHtml(events.slice(0, NEXT_UP), 'both')}
 ${seeAll}
 ${venues.length ? `<h2>Browse by venue</h2>\n${byVenue}` : ''}
 ${byArtist ? `<h2>Browse by artist</h2>\n${byArtist}` : ''}
-${faq}`;
+${linkListHtml(`${cityName} guides`, (input.guides ?? []).slice(0, 8))}
+${faqHtml(faqItems)}`;
 
   const title =
     view.kind === 'all'
@@ -506,91 +650,498 @@ ${faq}`;
           item: eventJsonLd(event),
         })),
       },
+      ...[faqJsonLd(faqItems)].filter((x): x is Record<string, unknown> => !!x),
     ],
     body,
+    pageType: view.kind === 'all' ? 'city' : view.kind === 'weekend' ? 'city_weekend' : 'city_genre',
     ctaHref: appLink('', view.kind === 'all' ? `city_${citySlug}` : `city_${citySlug}_${view.kind === 'weekend' ? 'weekend' : view.slug}`),
   });
 }
 
-export function renderVenuePage(input: { venue: SeoVenue; events: SeoEvent[]; total: number; indexable: boolean }): string {
+const DC_HUB = { name: 'Concerts in Washington, DC', url: `${GETSYNTH_ORIGIN}/concerts/washington-dc` };
+const GO_TOGETHER =
+  'Synth shows you who else is interested in or going to a show, matches you with people who like the same music, and lets you plan to meet up, so you never have to go alone.';
+
+/** "Washington, District of Columbia" reads as "Washington, DC". */
+function placeLabel(city: string | null | undefined, state: string | null | undefined): string {
+  const region = state === DC_STATE ? 'DC' : state;
+  return [city, region].filter(Boolean).join(', ');
+}
+
+function postalAddress(venue: SeoVenueDetail | SeoVenue | null | undefined): Record<string, unknown> | undefined {
+  if (!venue) return undefined;
+  const detail = venue as SeoVenueDetail;
+  return {
+    '@type': 'PostalAddress',
+    streetAddress: venue.street_address ?? undefined,
+    addressLocality: venue.city ?? undefined,
+    addressRegion: venue.state ?? undefined,
+    postalCode: detail.postal_code ?? undefined,
+    addressCountry: 'US',
+  };
+}
+
+function geoJsonLd(venue: SeoVenueDetail | null | undefined): Record<string, unknown> | undefined {
+  if (!venue || venue.latitude == null || venue.longitude == null) return undefined;
+  return { '@type': 'GeoCoordinates', latitude: venue.latitude, longitude: venue.longitude };
+}
+
+export function renderVenuePage(input: {
+  venue: SeoVenueDetail;
+  events: SeoEvent[];
+  total: number;
+  indexable: boolean;
+  reviews?: ReviewBlock | null;
+  guides?: LinkItem[];
+}): string {
   const { venue } = input;
   const canonical = venueUrl(venue.slug);
-  const place = [venue.city, venue.state].filter(Boolean).join(', ');
+  const place = placeLabel(venue.city, venue.state);
   const address = [venue.street_address, place].filter(Boolean).join(', ');
-  const summary = `${venue.name}${place ? ` in ${place}` : ''} has ${input.total} upcoming shows listed on Synth.`;
+  const next = input.events.find((e) => e.event_status !== 'cancelled');
+  const summary = `${venue.name}${place ? ` in ${place}` : ''} has ${input.total} upcoming ${input.total === 1 ? 'show' : 'shows'} listed on Synth${
+    next ? `; next up is ${next.artist?.name ?? next.title ?? 'a show'} on ${formatEventDate(next.event_date)}` : ''
+  }.`;
+  const facts = [
+    address ? `<dt>Address</dt><dd>${escapeHtml(address)}</dd>` : '',
+    venue.capacity ? `<dt>Capacity</dt><dd>About ${venue.capacity.toLocaleString('en-US')} people</dd>` : '',
+    `<dt>Upcoming shows</dt><dd>${input.total}</dd>`,
+  ].join('');
+  const faqItems: FaqItem[] = [
+    ...(address ? [{ q: `Where is ${venue.name}?`, a: `${venue.name} is at ${address}.` }] : []),
+    ...(venue.capacity ? [{ q: `How big is ${venue.name}?`, a: `${venue.name} holds about ${venue.capacity.toLocaleString('en-US')} people.` }] : []),
+    ...(next ? [{ q: `Who is playing ${venue.name} next?`, a: `${next.artist?.name ?? next.title ?? 'The next show'} on ${formatEventDate(next.event_date)}.` }] : []),
+    { q: `How can I find people to go to ${venue.name} with?`, a: GO_TOGETHER },
+  ];
   const body = `<h1>${escapeHtml(venue.name)}</h1>
-${address ? `<p class="muted">${escapeHtml(address)}</p>` : ''}
 <p class="summary">${escapeHtml(summary)}</p>
+<dl class="facts">${facts}</dl>
 <h2>Upcoming shows at ${escapeHtml(venue.name)}</h2>
-${eventListHtml(input.events, 'artist')}`;
+${eventListHtml(input.events, 'artist')}
+${reviewBlockHtml(`What Synth members say about ${venue.name}`, input.reviews)}
+${linkListHtml('Related guides', input.guides ?? [])}
+${faqHtml(faqItems)}`;
   return renderPage({
-    title: `${venue.name}${place ? `, ${place}` : ''} | Upcoming Concerts | Synth`,
-    description: `Upcoming concerts at ${venue.name}${place ? ` in ${place}` : ''}: dates, lineups and tickets.`,
+    title: `${venue.name}${place ? `, ${place}` : ''}: Upcoming Concerts & Venue Guide | Synth`,
+    description: `Upcoming concerts at ${venue.name}${place ? ` in ${place}` : ''}: dates, lineups, tickets, and what Synth members say about the venue.`,
     canonical,
     indexable: input.indexable,
-    breadcrumbs: [
-      { name: 'Synth', url: `${GETSYNTH_ORIGIN}/` },
-      { name: 'Concerts in Washington, DC', url: `${GETSYNTH_ORIGIN}/concerts/washington-dc` },
-      { name: venue.name, url: canonical },
-    ],
+    breadcrumbs: [{ name: 'Synth', url: `${GETSYNTH_ORIGIN}/` }, DC_HUB, { name: venue.name, url: canonical }],
     jsonLd: [
       {
         '@type': 'MusicVenue',
         name: venue.name,
         url: canonical,
-        address: {
-          '@type': 'PostalAddress',
-          streetAddress: venue.street_address ?? undefined,
-          addressLocality: venue.city ?? undefined,
-          addressRegion: venue.state ?? undefined,
-        },
+        address: postalAddress(venue),
+        ...(geoJsonLd(venue) ? { geo: geoJsonLd(venue) } : {}),
+        ...(venue.capacity ? { maximumAttendeeCapacity: venue.capacity } : {}),
+        ...(venue.image_url && isHttpUrl(venue.image_url) ? { image: venue.image_url } : {}),
         event: input.events.slice(0, 20).map(eventJsonLd),
       },
+      ...[faqJsonLd(faqItems)].filter((x): x is Record<string, unknown> => !!x),
     ],
     body,
+    pageType: 'venue',
+    image: venue.image_url,
     ctaHref: appLink(`venue=${venue.id}`, 'venue'),
   });
 }
 
-export function renderArtistPage(input: { artist: SeoArtist; events: SeoEvent[]; total: number; indexable: boolean }): string {
+export function renderArtistPage(input: {
+  artist: SeoArtist;
+  events: SeoEvent[];
+  total: number;
+  indexable: boolean;
+  reviews?: ReviewBlock | null;
+}): string {
   const { artist } = input;
   const canonical = artistUrl(artist.slug);
   const genres = (artist.genres ?? []).filter(Boolean).slice(0, 6);
-  const summary = `${artist.name} has ${input.total} upcoming shows listed on Synth.`;
+  const dcShows = input.events.filter((e) => isDcVenue(e.venue) && e.event_status !== 'cancelled');
+  const summary = `${artist.name} has ${input.total} upcoming ${input.total === 1 ? 'show' : 'shows'} listed on Synth${
+    dcShows.length ? `, including ${dcShows.length} in Washington, DC` : ''
+  }.`;
+  const genreChips = genres
+    .map((g) => {
+      const slug = slugifyGenre(g);
+      return `<li><a href="${escapeHtml(`${DC_HUB.url}/${slug}`)}">${escapeHtml(g)}</a></li>`;
+    })
+    .join('');
+  const faqItems: FaqItem[] = [
+    ...(dcShows[0]
+      ? [{ q: `When is ${artist.name} playing in DC?`, a: `${artist.name} plays ${dcShows[0].venue?.name ?? 'Washington, DC'} on ${formatEventDate(dcShows[0].event_date)}.` }]
+      : []),
+    { q: `How can I find people to see ${artist.name} with?`, a: GO_TOGETHER },
+  ];
   const body = `<h1>${escapeHtml(artist.name)}</h1>
-${genres.length ? `<ul class="chips">${genres.map((g) => `<li>${escapeHtml(g)}</li>`).join('')}</ul>` : ''}
+${genreChips ? `<ul class="chips">${genreChips}</ul>` : ''}
 <p class="summary">${escapeHtml(summary)}</p>
 <h2>${escapeHtml(artist.name)} tour dates</h2>
-${eventListHtml(input.events, 'venue')}`;
+${eventListHtml(input.events, 'venue')}
+${reviewBlockHtml(`What Synth members say about ${artist.name} live`, input.reviews)}
+${faqHtml(faqItems)}`;
   return renderPage({
     title: `${artist.name} Tour Dates & Tickets | Synth`,
     description: `Upcoming ${artist.name} concerts: tour dates, venues and tickets, plus people to go with on Synth.`,
     canonical,
     indexable: input.indexable,
-    breadcrumbs: [
-      { name: 'Synth', url: `${GETSYNTH_ORIGIN}/` },
-      { name: artist.name, url: canonical },
-    ],
+    breadcrumbs: [{ name: 'Synth', url: `${GETSYNTH_ORIGIN}/` }, DC_HUB, { name: artist.name, url: canonical }],
     jsonLd: [
       {
         '@type': 'MusicGroup',
         name: artist.name,
         url: canonical,
         ...(genres.length ? { genre: genres } : {}),
+        ...(artist.image_url && isHttpUrl(artist.image_url) ? { image: artist.image_url } : {}),
         event: input.events.slice(0, 20).map(eventJsonLd),
+      },
+      ...[faqJsonLd(faqItems)].filter((x): x is Record<string, unknown> => !!x),
+    ],
+    body,
+    pageType: 'artist',
+    image: artist.image_url,
+    ctaHref: appLink(`artist=${artist.id}`, 'artist'),
+  });
+}
+
+function positive(value: unknown): number | null {
+  const n = typeof value === 'string' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function priceText(event: SeoEventDetail): string | null {
+  const min = positive(event.price_min);
+  const max = positive(event.price_max);
+  if (min == null && max == null) return null;
+  const currency = (event.price_currency ?? 'USD').toUpperCase();
+  const fmt = (n: number) => (currency === 'USD' ? `$${Math.round(n)}` : `${Math.round(n)} ${currency}`);
+  if (min != null && max != null && max > min) return `${fmt(min)} to ${fmt(max)}`;
+  return fmt((min ?? max)!);
+}
+
+function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('en-US', { timeZone: DISPLAY_TIME_ZONE, hour: 'numeric', minute: '2-digit' });
+}
+
+function eventDetailJsonLd(
+  event: SeoEventDetail,
+  venue: SeoVenueDetail | null,
+  artist: SeoArtist | null,
+  canonical: string,
+  description: string,
+): Record<string, unknown> {
+  const href = ticketHref(event);
+  const min = positive(event.price_min);
+  const max = positive(event.price_max);
+  const currency = (event.price_currency ?? 'USD').toUpperCase();
+  const image = [event.image_url, artist?.image_url, venue?.image_url].find((u) => u && isHttpUrl(u));
+  const offers = href
+    ? min != null && max != null && max > min
+      ? { '@type': 'AggregateOffer', url: href, lowPrice: min, highPrice: max, priceCurrency: currency }
+      : {
+          '@type': 'Offer',
+          url: href,
+          ...(min ?? max ? { price: min ?? max, priceCurrency: currency } : {}),
+          ...(event.ticket_available === true ? { availability: 'https://schema.org/InStock' } : {}),
+        }
+    : undefined;
+  return {
+    '@type': 'MusicEvent',
+    name: event.title ?? artist?.name ?? 'Live music',
+    url: canonical,
+    description,
+    startDate: event.event_date,
+    ...(event.doors_time ? { doorTime: event.doors_time } : {}),
+    eventStatus: SCHEMA_STATUS[event.event_status ?? ''] ?? 'https://schema.org/EventScheduled',
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    ...(image ? { image: [image] } : {}),
+    ...(venue
+      ? {
+          location: {
+            '@type': 'MusicVenue',
+            name: venue.name,
+            url: venueUrl(venue.slug),
+            address: postalAddress(venue),
+            ...(geoJsonLd(venue) ? { geo: geoJsonLd(venue) } : {}),
+          },
+        }
+      : {}),
+    ...(artist ? { performer: { '@type': 'MusicGroup', name: artist.name, url: artistUrl(artist.slug) } } : {}),
+    ...(offers ? { offers } : {}),
+  };
+}
+
+/**
+ * One show. Built around what people search before a concert (when, where, doors,
+ * tickets, what they'll play, is it worth it, can I go alone) and what only Synth has:
+ * who else is going, member reviews, and a way to meet up.
+ */
+export function renderEventPage(input: {
+  event: SeoEventDetail;
+  venue: SeoVenueDetail | null;
+  artist: SeoArtist | null;
+  reviews: ReviewSnippets;
+  recentSetlist: { date: string; venueName: string | null; songs: string[]; url: string | null } | null;
+  moreDates: SeoEvent[];
+  similar: SeoEvent[];
+  guides: LinkItem[];
+  isPast: boolean;
+  indexable: boolean;
+}): string {
+  const { event, venue, artist, isPast } = input;
+  const canonical = eventUrl(event.slug ?? event.id);
+  const artistName = artist?.name ?? event.title ?? 'Live music';
+  const venueName = venue?.name ?? 'the venue';
+  const place = placeLabel(venue?.city, venue?.state);
+  const when = formatEventDate(event.event_date);
+  const doors = formatTime(event.doors_time);
+  const price = priceText(event);
+  const status = STATUS_LABEL[event.event_status ?? ''];
+  const interested = event.interested ?? 0;
+  const href = ticketHref(event);
+  const address = [venue?.street_address, place].filter(Boolean).join(', ');
+  const genre = (event.genres ?? artist?.genres ?? []).find(Boolean);
+
+  const heading = `${artistName} at ${venueName}`;
+  const summary = isPast
+    ? `${artistName} played ${venueName}${place ? ` in ${place}` : ''} on ${when}.${
+        input.reviews.event?.count ? ` ${input.reviews.event.count} Synth ${input.reviews.event.count === 1 ? 'member has' : 'members have'} reviewed the show.` : ''
+      }`
+    : `${artistName} plays ${venueName}${place ? ` in ${place}` : ''} on ${when}${doors ? `, doors at ${doors}` : ''}.${
+        price ? ` Tickets are listed at ${price}.` : ''
+      }${interested > 0 ? ` ${interested} ${interested === 1 ? 'person on Synth is' : 'people on Synth are'} interested.` : ''}${status ? ` Status: ${status}.` : ''}`;
+
+  const solo = isPast
+    ? ''
+    : `<section class="solo">
+<h2>Going alone? You don't have to.</h2>
+<p>${
+        interested > 0
+          ? `${interested} ${interested === 1 ? 'person on Synth is' : 'people on Synth are'} interested in this show.`
+          : `Be the first on Synth to say you're going${genre ? `; ${escapeHtml(genre)} fans nearby will see it` : ''}.`
+      } ${escapeHtml(GO_TOGETHER)}</p>
+<a class="cta" href="${escapeHtml(appLink(`event=${event.id}`, 'event_going'))}" data-track="open_in_synth">See who's going</a>
+${href ? `<a class="cta secondary" href="${escapeHtml(href)}" rel="nofollow noopener" target="_blank" data-track="ticket_click">Tickets</a>` : ''}
+</section>`;
+
+  const facts = [
+    `<dt>Date</dt><dd>${escapeHtml(when)}${status ? ` <span class="status">${status}</span>` : ''}</dd>`,
+    doors ? `<dt>Doors</dt><dd>${escapeHtml(doors)}</dd>` : '',
+    venue ? `<dt>Venue</dt><dd><a href="${escapeHtml(venueUrl(venue.slug))}">${escapeHtml(venue.name)}</a>${address ? `<br><span class="muted">${escapeHtml(address)}</span>` : ''}</dd>` : '',
+    venue?.capacity ? `<dt>Capacity</dt><dd>About ${venue.capacity.toLocaleString('en-US')}</dd>` : '',
+    price ? `<dt>Tickets</dt><dd>${escapeHtml(price)}</dd>` : '',
+    event.tour_name ? `<dt>Tour</dt><dd>${escapeHtml(event.tour_name)}</dd>` : '',
+    artist && artist.genres?.length ? `<dt>Genre</dt><dd>${escapeHtml(artist.genres.slice(0, 3).join(', '))}</dd>` : '',
+  ].join('');
+
+  const ownSetlist = event.setlist_songs ?? [];
+  const setlist = ownSetlist.length
+    ? setlistHtml('Setlist', ownSetlist, `What ${artistName} played at ${venueName}.`, event.setlist_url ?? null)
+    : input.recentSetlist
+      ? setlistHtml(
+          `What ${artistName} has been playing`,
+          input.recentSetlist.songs,
+          `From ${formatEventDate(input.recentSetlist.date)}${input.recentSetlist.venueName ? ` at ${input.recentSetlist.venueName}` : ''}. Setlists change night to night.`,
+          input.recentSetlist.url,
+        )
+      : '';
+
+  const faqItems: FaqItem[] = [
+    {
+      q: isPast ? `When did ${artistName} play ${venueName}?` : `When is ${artistName} playing ${venueName}?`,
+      a: `${when}${doors ? `, with doors at ${doors}` : ''}.`,
+    },
+    ...(address ? [{ q: `Where is ${venueName}?`, a: `${venueName} is at ${address}.` }] : []),
+    ...(!isPast && price ? [{ q: `How much are tickets to see ${artistName} at ${venueName}?`, a: `Tickets are listed at ${price}. Prices can change; check the ticket link for current availability.` }] : []),
+    ...(!isPast ? [{ q: `Can I go to the ${artistName} show alone?`, a: `Yes. Lots of people go to shows solo. ${GO_TOGETHER}` }] : []),
+    ...(!isPast ? [{ q: `How do I find other people going to see ${artistName}?`, a: `Open the show on Synth to see who else is interested or going and message them before the show.` }] : []),
+  ];
+
+  const body = `<h1>${escapeHtml(heading)}</h1>
+<p class="summary">${escapeHtml(summary)}</p>
+${solo}
+<h2>${isPast ? 'Show details' : 'Know before you go'}</h2>
+<dl class="facts">${facts}</dl>
+${setlist}
+${reviewBlockHtml(`What Synth members said about this show`, input.reviews.event)}
+${reviewBlockHtml(`What Synth members say about ${artistName} live`, input.reviews.artist)}
+${reviewBlockHtml(`What Synth members say about ${venueName}`, input.reviews.venue)}
+${input.moreDates.length ? `<h2>More ${escapeHtml(artistName)} dates</h2>\n${eventListHtml(input.moreDates, 'venue')}` : ''}
+${input.similar.length ? `<h2>Similar shows in DC</h2>\n${eventListHtml(input.similar, 'both')}` : ''}
+${linkListHtml('Planning your night', input.guides)}
+${faqHtml(faqItems)}`;
+
+  const description = isPast
+    ? `${artistName} at ${venueName} on ${when}: setlist, reviews from Synth members, and upcoming dates.`
+    : `${artistName} at ${venueName}${place ? `, ${place}` : ''} on ${when}: doors, tickets${price ? ` (${price})` : ''}, setlist, and who else is going on Synth.`;
+  const dateShort = new Date(event.event_date).toLocaleDateString('en-US', { timeZone: DISPLAY_TIME_ZONE, month: 'short', day: 'numeric', year: 'numeric' });
+
+  return renderPage({
+    title: `${artistName} at ${venueName}, ${dateShort}${isPast ? ': Setlist & Reviews' : ': Tickets & Who\'s Going'} | Synth`,
+    description,
+    canonical,
+    indexable: input.indexable,
+    breadcrumbs: [
+      { name: 'Synth', url: `${GETSYNTH_ORIGIN}/` },
+      DC_HUB,
+      ...(venue ? [{ name: venue.name, url: venueUrl(venue.slug) }] : []),
+      { name: heading, url: canonical },
+    ],
+    jsonLd: [
+      eventDetailJsonLd(event, venue, artist, canonical, description),
+      ...[faqJsonLd(faqItems)].filter((x): x is Record<string, unknown> => !!x),
+    ],
+    body,
+    pageType: isPast ? 'event_past' : 'event',
+    image: event.image_url ?? artist?.image_url ?? venue?.image_url,
+    ctaHref: appLink(`event=${event.id}`, 'event'),
+  });
+}
+
+/** AI-drafted, admin-approved guide / brand / comparison page. bodyHtml is pre-rendered. */
+export function renderContentPage(input: {
+  type: ContentType;
+  slug: string;
+  title: string;
+  metaDescription: string;
+  summary: string;
+  bodyHtml: string;
+  faq: FaqItem[];
+  publishedAt: string | null;
+  updatedAt: string;
+  related: LinkItem[];
+  indexable: boolean;
+}): string {
+  const canonical = contentUrl(input.type, input.slug);
+  const sectionUrl = `${GETSYNTH_ORIGIN}/guides`;
+  const updated = new Date(input.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const body = `<article>
+<h1>${escapeHtml(input.title)}</h1>
+<p class="byline">By the Synth team · Updated ${escapeHtml(updated)}</p>
+<p class="summary">${escapeHtml(input.summary)}</p>
+${input.bodyHtml}
+</article>
+${faqHtml(input.faq)}
+${linkListHtml('Keep reading', input.related)}`;
+  const organization = { '@type': 'Organization', name: 'Synth', url: `${GETSYNTH_ORIGIN}/` };
+  return renderPage({
+    title: `${input.title} | Synth`,
+    description: input.metaDescription,
+    canonical,
+    indexable: input.indexable,
+    breadcrumbs: [
+      { name: 'Synth', url: `${GETSYNTH_ORIGIN}/` },
+      { name: CONTENT_SECTION[input.type], url: sectionUrl },
+      { name: input.title, url: canonical },
+    ],
+    jsonLd: [
+      {
+        '@type': 'Article',
+        headline: input.title,
+        description: input.metaDescription,
+        url: canonical,
+        mainEntityOfPage: canonical,
+        ...(input.publishedAt ? { datePublished: input.publishedAt } : {}),
+        dateModified: input.updatedAt,
+        author: organization,
+        publisher: organization,
+      },
+      ...[faqJsonLd(input.faq)].filter((x): x is Record<string, unknown> => !!x),
+    ],
+    body,
+    pageType: input.type,
+    ogType: 'article',
+    ctaHref: appLink('', `${input.type}_${input.slug}`.slice(0, 80)),
+  });
+}
+
+export function renderGuidesIndex(input: {
+  items: Array<{ type: ContentType; slug: string; title: string; summary: string }>;
+  cityLinks: LinkItem[];
+}): string {
+  const canonical = `${GETSYNTH_ORIGIN}/guides`;
+  const section = (type: ContentType, heading: string) => {
+    const rows = input.items.filter((i) => i.type === type);
+    if (rows.length === 0) return '';
+    return `<h2>${escapeHtml(heading)}</h2>
+<ul class="links">${rows
+      .map((r) => `<li><a href="${escapeHtml(contentUrl(r.type, r.slug))}">${escapeHtml(r.title)}</a><br><span class="muted">${escapeHtml(r.summary)}</span></li>`)
+      .join('')}</ul>`;
+  };
+  const body = `<h1>Synth guides</h1>
+<p class="summary">Practical guides to live music in Washington, DC: finding people to go with, picking venues, and getting the most out of a night out.</p>
+${section('guide', 'Guides')}
+${section('brand', 'About Synth')}
+${section('comparison', 'Comparisons')}
+${linkListHtml('Browse concerts', input.cityLinks)}`;
+  return renderPage({
+    title: 'Live Music Guides for Washington, DC | Synth',
+    description: 'Guides to concerts in Washington, DC: going solo, meeting people through music, venues, and more.',
+    canonical,
+    indexable: true,
+    breadcrumbs: [{ name: 'Synth', url: `${GETSYNTH_ORIGIN}/` }, { name: 'Guides', url: canonical }],
+    jsonLd: [
+      {
+        '@type': 'CollectionPage',
+        name: 'Synth guides',
+        url: canonical,
+        hasPart: input.items.slice(0, 50).map((i) => ({ '@type': 'Article', headline: i.title, url: contentUrl(i.type, i.slug) })),
       },
     ],
     body,
-    ctaHref: appLink(`artist=${artist.id}`, 'artist'),
+    pageType: 'guides_index',
+    ctaHref: appLink('', 'guides_index'),
   });
+}
+
+/** llms.txt (https://llmstxt.org): a plain map of the pages AI assistants should read. */
+export function renderLlmsTxt(input: {
+  content: Array<{ type: ContentType; slug: string; title: string; summary: string }>;
+  cityLinks: LinkItem[];
+  venues: LinkItem[];
+}): string {
+  const line = (l: LinkItem, note?: string) => `- [${l.title}](${l.url})${note ? `: ${note}` : ''}`;
+  const byType = (type: ContentType) =>
+    input.content.filter((c) => c.type === type).map((c) => line({ title: c.title, url: contentUrl(c.type, c.slug) }, c.summary));
+  const sections: string[] = [
+    '# Synth',
+    '',
+    '> Synth is a social app for live music. It shows upcoming concerts, who else is interested in or going to each show, and helps people find others to go with, so nobody has to go alone. Available on iPhone and the web.',
+    '',
+    'Synth combines concert discovery (event data powered by JamBase) with a social layer: members mark shows they are interested in or going to, see others going, match with people who share their music taste, message them, and review shows afterward. Synth is piloting in Washington, DC.',
+    '',
+    '## Product',
+    '',
+    line({ title: 'Synth', url: `${GETSYNTH_ORIGIN}/` }, 'What Synth is and how it works'),
+    line({ title: 'Synth web app', url: `${JOIN_ORIGIN}/` }, 'Discover concerts and find people to go with'),
+    line({ title: 'Synth on the App Store', url: APP_STORE_URL }, 'iPhone app'),
+  ];
+  const brand = byType('brand');
+  if (brand.length) sections.push('', '## About Synth', '', ...brand);
+  const guides = byType('guide');
+  if (guides.length) sections.push('', '## Guides', '', ...guides);
+  const comparisons = byType('comparison');
+  if (comparisons.length) sections.push('', '## Comparisons', '', ...comparisons);
+  sections.push('', '## Concert listings', '', ...input.cityLinks.map((l) => line(l)));
+  if (input.venues.length) sections.push('', '## Venues', '', ...input.venues.map((l) => line(l)));
+  return `${sections.join('\n')}\n`;
 }
 
 export function renderNotFound(): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Page not found | Synth</title></head><body style="font-family:system-ui,sans-serif;padding:24px"><h1>Page not found</h1><p><a href="${GETSYNTH_ORIGIN}/">Go to Synth</a></p></body></html>`;
 }
 
-export function renderSitemap(urls: string[]): string {
-  const entries = urls.map((url) => `  <url><loc>${escapeHtml(url)}</loc></url>`).join('\n');
+export function renderSitemap(urls: Array<string | { loc: string; lastmod?: string | null }>): string {
+  const entries = urls
+    .map((entry) => {
+      const { loc, lastmod } = typeof entry === 'string' ? { loc: entry, lastmod: null } : entry;
+      const date = lastmod ? lastmod.slice(0, 10) : '';
+      return `  <url><loc>${escapeHtml(loc)}</loc>${/^\d{4}-\d{2}-\d{2}$/.test(date) ? `<lastmod>${date}</lastmod>` : ''}</url>`;
+    })
+    .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${entries}

@@ -1,0 +1,42 @@
+import type { SeoDashboard } from '@/services/seoAdmin';
+
+const zeroKpis = {
+  pageviews: 0,
+  pageviews_prev: 0,
+  visits: 0,
+  visits_prev: 0,
+  visitors: 0,
+  organic_visits: 0,
+  organic_visits_prev: 0,
+  ai_visits: 0,
+  ai_visits_prev: 0,
+  signups: 0,
+  signups_prev: 0,
+  app_store_clicks: 0,
+  cta_clicks: 0,
+  ticket_clicks: 0,
+};
+
+export const EMPTY_SEO_DASHBOARD: SeoDashboard = {
+  days: 28,
+  kpis: zeroKpis,
+  daily: [],
+  sources: [],
+  ai_platforms: [],
+  landing_pages: [],
+  countries: [],
+  regions: [],
+  devices: [],
+  conversions: [],
+  search_daily: [],
+  top_queries: [],
+  top_search_pages: [],
+  opportunities: [],
+  ai_visibility: [],
+  ai_weekly: [],
+  ai_latest: [],
+  competitors: [],
+  crawlers_daily: [],
+  crawler_bots: [],
+  crawler_paths: [],
+};

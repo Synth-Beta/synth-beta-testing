@@ -552,6 +552,8 @@ export const ModernLandingPage = () => {
             </a>
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 text-sm text-gray-600">
+            <a href="https://getsynth.app/concerts/washington-dc" className="hover:text-pink-600 transition-colors">Concerts in DC</a>
+            <a href="https://getsynth.app/guides" className="hover:text-pink-600 transition-colors">Guides</a>
             <a href="#" className="hover:text-pink-600 transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-pink-600 transition-colors">Terms of Service</a>
             <a href="#" className="hover:text-pink-600 transition-colors">Contact</a>

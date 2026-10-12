@@ -78,6 +78,15 @@
         padding: 0;
       }
     </style>
+    <!-- Synth first-party visitor analytics (admin SEO tab); web only, never inside the Capacitor app -->
+    <script>
+      if (/^https?:$/.test(location.protocol) && /(^|\.)getsynth\.app$/.test(location.hostname)) {
+        var synthTracker = document.createElement('script');
+        synthTracker.defer = true;
+        synthTracker.src = '/api/share?seo=tracker';
+        document.head.appendChild(synthTracker);
+      }
+    </script>
   </head>
 
   <body>
