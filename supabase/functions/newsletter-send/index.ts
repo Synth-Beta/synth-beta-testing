@@ -1,3 +1,5 @@
+import { historyArtists } from "./editorial.ts";
+import { lookupRecordings } from "./tracks.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { loadEventsNearPlaces, placeKey, type EventQuery } from "./nearby.ts";
@@ -139,12 +141,14 @@ const requireSendConfig = () => {
   return null;
 };
 
-const resendSend = async (payload: Record<string, unknown>) => {
+const resendSend = async (payload: Record<string, unknown>, idempotencyKey?: string) => {
   const response = await fetch("https://api.resend.com/emails", {
+    signal: AbortSignal.timeout(15000),
     method: "POST",
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     body: JSON.stringify(payload),
   });
@@ -364,9 +368,8 @@ serve(async (req) => {
       const stats = await loadListeningStats(adminClient, userIds);
       const enrichedReviews = await enrichReviewArtists(adminClient, reviews);
       const artistNames = [...new Set(userIds.flatMap((id) => {
-        const fromReviews = enrichedReviews.filter((row: any) => row.user_id === id).slice(0, 2).map((row: any) => (row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name)).filter(Boolean);
-        const stat: any = stats.find((row: any) => row.user_id === id);
-        const listening = Array.isArray(stat?.top_artists) ? stat.top_artists.slice(0, 3).map((artist: any) => artist.name) : [];
+        const fromReviews = historyArtists(enrichedReviews.filter((row: any) => row.user_id === id));
+        const listening = stats.filter((row: any) => row.user_id === id).flatMap((stat: any) => Array.isArray(stat.top_artists) ? stat.top_artists.slice(0, 8).map((artist: any) => artist.name) : []);
         return [...listening, ...fromReviews];
       }))];
       const places = [...new Map(recipients.map((user) => {
@@ -391,6 +394,7 @@ serve(async (req) => {
         const rows = await adminClient.from("events").select(eventSelect).ilike("title", `%${spec.artist}%`).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(8);
         return requireRows(rows, "Load event listings");
       });
+      const listens = await lookupRecordings(loaded.events.map((event) => String(event.artists?.name ?? event.artist_name ?? "")));
       const fives = await adminClient.from("reviews").select("user_id, artists(name)").eq("is_public", true).eq("is_draft", false).gte("rating", 5).limit(300);
       return json(200, {
         ok: true,
@@ -402,6 +406,7 @@ serve(async (req) => {
         reviews: enrichedReviews,
         stats,
         events: loaded.events,
+        listens,
         publicFives: requireRows(fives, "Load community reviews"),
       });
     }
@@ -531,15 +536,16 @@ serve(async (req) => {
         return json(400, { ok: false, error: "editionDate is required. Production send uses approved drafts only." });
       }
 
-      const { data: drafts, error: draftError } = await adminClient
+      const drafts = await readAll(() => adminClient
         .from("newsletter_drafts")
-        .select("id, email, subject, html, content_hash, approved_content_hash, status, sent_at")
+        .select("id, user_id, email, subject, html, content_hash, approved_content_hash, status, sent_at")
         .eq("edition_date", editionDate)
         .eq("status", "approved")
-        .is("sent_at", null);
-      if (draftError) return json(500, { ok: false, error: draftError.message });
+        .is("sent_at", null).order("id"), "Load approved drafts");
+      const eligibleRecipients = await getEligibleRecipients();
+      const eligible = new Set(eligibleRecipients.map((recipient) => `${recipient.userId}:${recipient.email}`));
       const ready = (drafts ?? []).filter(
-        (draft) => draft.approved_content_hash && draft.approved_content_hash === draft.content_hash
+        (draft) => eligible.has(`${draft.user_id}:${normalizeEmail(String(draft.email))}`) && draft.approved_content_hash && draft.approved_content_hash === draft.content_hash
       );
 
       const unsubscribedRows = await readAll(() => adminClient.from("newsletter_unsubscribes")
@@ -574,6 +580,11 @@ serve(async (req) => {
           failures.push({ email: toEmail || "(missing)", error: "Skipped (invalid or unsubscribed)." });
           continue;
         }
+        if (await sha256(`${draft.subject}\n${draft.html}`) !== draft.content_hash) {
+          failureCount += 1;
+          failures.push({ email: toEmail, error: "Stored content does not match its approved hash." });
+          continue;
+        }
         const claimed = await adminClient
           .from("newsletter_drafts")
           .update({ status: "sent", sent_at: new Date().toISOString() })
@@ -583,6 +594,7 @@ serve(async (req) => {
           .eq("approved_content_hash", draft.content_hash)
           .is("sent_at", null)
           .select("id");
+        if (claimed.error) throw new Error(claimed.error.message);
         if (!claimed.data?.length) continue;
 
         try {
@@ -599,7 +611,7 @@ serve(async (req) => {
               "List-Unsubscribe": `<${unsubscribeUrl}>`,
               "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
             },
-          });
+          }, `newsletter:${editionDate}:${draft.id}:${draft.content_hash}`);
           successCount += 1;
         } catch (error) {
           await adminClient

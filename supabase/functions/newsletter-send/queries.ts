@@ -1,3 +1,4 @@
+import { profileRecordings } from "./tracks.ts";
 /** Read every page and fail visibly instead of treating a query failure as empty data. */
 export const readAll = async (makeQuery: () => any, label: string): Promise<any[]> => {
   const rows: any[] = [];
@@ -17,7 +18,7 @@ export const requireRows = (result: { data: any[] | null; error: { message: stri
 const artistNamesFromProfile = (profileData: any) => {
   if (!profileData || typeof profileData !== "object") return [];
   const byRange = profileData.topArtistsByTimeRange;
-  const list = byRange?.medium_term ?? byRange?.short_term ?? byRange?.long_term ?? profileData.topArtists ?? [];
+  const list = [...(byRange?.medium_term ?? []), ...(byRange?.long_term ?? []), ...(byRange?.short_term ?? []), ...(profileData.topArtists ?? [])];
   const names: string[] = [];
   for (const artist of list) {
     const name = String(artist?.name || artist?.attributes?.name || "").trim();
@@ -57,12 +58,16 @@ export const loadListeningStats = async (db: { from: (table: string) => any }, u
       .order("user_id"), "Load listening genres");
     const genresByUser = new Map(preferences.map((row) => [row.user_id, genresFromPreferences(row)]));
     const seen = new Set<string>();
+    const seenServices = new Set<string>();
     for (const profile of profiles) {
-      if (!profile.user_id || seen.has(profile.user_id)) continue;
+      const service = `${profile.user_id}:${profile.service_type ?? "unknown"}`;
+      if (!profile.user_id || seenServices.has(service)) continue;
+      seenServices.add(service);
       seen.add(profile.user_id);
       stats.push({
         user_id: profile.user_id,
         service_type: profile.service_type ?? null,
+        listens: profileRecordings(profile.profile_data),
         top_artists: artistNamesFromProfile(profile.profile_data).map((name) => ({ name })),
         top_genres: (genresByUser.get(profile.user_id) ?? []).map((genre) => ({ genre })),
       });

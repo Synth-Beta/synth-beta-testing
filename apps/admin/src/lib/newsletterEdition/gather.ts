@@ -1,10 +1,12 @@
+import { historyArtists } from "../../../../../supabase/functions/newsletter-send/editorial";
+import { lookupRecordings } from "../../../../../supabase/functions/newsletter-send/tracks";
 import { loadEventsNearPlaces, placeKey, type EventQuery } from "../../../../../supabase/functions/newsletter-send/nearby";
 import { fetchMusicNews } from "../../../../../supabase/functions/newsletter-send/news";
 import { readAll, requireRows, enrichReviewArtists, loadListeningStats } from "../../../../../supabase/functions/newsletter-send/queries";
 import { composeEdition } from "./compose";
 import { renderEditionHtml } from "./render";
 import { contentHash } from "./gate";
-import { nextEditionDate } from "./time";
+import { nextEditionDate, editionSendAt } from "./time";
 import type { ComposedEdition, EditionEvent, EditionListen, EditionNews, EditionReader, EditionReview } from "./types";
 
 type Db = { from: (table: string) => any };
@@ -105,6 +107,7 @@ export const generateDraftsFromSource = async (
     stats: any[];
     events: any[];
     publicFives: any[];
+    listens?: EditionListen[];
   },
   now = new Date(),
   targetEditionDate = nextEditionDate(now)
@@ -158,7 +161,7 @@ export const generateDraftsFromSource = async (
         : [];
     artistsByUser.set(userId, [...new Set([...(artistsByUser.get(userId) ?? []), ...artists])].slice(0, 8));
     genresByUser.set(userId, [...new Set([...(genresByUser.get(userId) ?? []), ...genres])].slice(0, 6));
-    listensByUser.set(userId, [...(listensByUser.get(userId) ?? []), ...(row.listens ?? artists.slice(0, 2).map((artistName: string) => ({ artistName })))].slice(0, 2));
+    listensByUser.set(userId, [...(listensByUser.get(userId) ?? []), ...(row.listens ?? [])]);
   }
   const events: EditionEvent[] = [];
   const seen = new Set<string>();
@@ -184,7 +187,8 @@ export const generateDraftsFromSource = async (
   for (const user of source.users ?? []) {
     const userId = user.userId ?? user.user_id;
     const email = String(user.email ?? "").trim().toLowerCase();
-    if (!userId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || seenEmails.has(email)) continue;
+    if (!userId || user.is_bot === true || (user.account_status && user.account_status !== "active")
+      || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || seenEmails.has(email)) continue;
     seenEmails.add(email);
     const reviews = reviewsByUser.get(userId) ?? [];
     const reader: EditionReader = {
@@ -212,8 +216,8 @@ export const generateDraftsFromSource = async (
       reader,
       events,
       news,
-      listens: listensByUser.get(userId) ?? [],
-      sendAt: now,
+      listens: [...(listensByUser.get(userId) ?? []), ...(source.listens ?? [])],
+      sendAt: editionSendAt(editionDate),
       editionDate,
       issueNumber: 1,
       retrievedAt,
@@ -271,13 +275,8 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
 
   const enrichedReviews = await enrichReviewArtists(db, reviews);
   const artistNames = [...new Set(userIds.flatMap((id: string) => {
-    const reviewArtists = enrichedReviews
-      .filter((row) => row.user_id === id)
-      .slice(0, 2)
-      .map((row) => row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name)
-      .filter(Boolean);
-    const stat = stats.find((row) => row.user_id === id);
-    const listening = Array.isArray(stat?.top_artists) ? stat.top_artists.slice(0, 3).map((artist: any) => artist.name) : [];
+    const reviewArtists = historyArtists(enrichedReviews.filter((row) => row.user_id === id));
+    const listening = stats.filter((row) => row.user_id === id).flatMap((stat) => Array.isArray(stat.top_artists) ? stat.top_artists.slice(0, 8).map((artist: any) => artist.name) : []);
     return [...listening, ...reviewArtists];
   }))];
   const places = [...new Map(recipients.map((user: any) => {
@@ -308,6 +307,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     return { ...user, latitude: center?.latitude ?? null, longitude: center?.longitude ?? null };
   });
 
+  const listens = await lookupRecordings(events.map((event) => String(event.artists?.name ?? event.artist_name ?? "")));
   const publicFives = await db
     .from("reviews")
     .select("user_id, artists(name)")
@@ -322,6 +322,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     reviews: enrichedReviews,
     stats,
     events,
+    listens,
     publicFives: requireRows(publicFives, "Load community reviews"),
   };
 };

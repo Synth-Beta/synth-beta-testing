@@ -18,7 +18,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // The digest handler is the slowest of the three; the others finish well inside 10s.
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 300 };
 
 type Job = 'sync-events' | 'seed-bot-messages' | 'slack-pm-digest' | 'engagement-notifications' | 'newsletter-send' | 'seo-indexnow';
 

@@ -118,7 +118,7 @@
       "maxDuration": 60
     },
     "api/cron/index.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/auth/session.ts": {
       "maxDuration": 10

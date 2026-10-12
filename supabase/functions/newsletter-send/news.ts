@@ -89,6 +89,7 @@ export const fetchMusicNewsReport = async (now = new Date()): Promise<NewsFetchR
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
           const response = await fetch(feed.url, {
+            signal: AbortSignal.timeout(7000),
             headers: {
               Accept: "application/rss+xml, application/xml, text/xml",
               "User-Agent": "SynthNewsletter/1.0",

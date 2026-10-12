@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { generateDraftsFromSource } from "@/lib/newsletterEdition/gather";
 import { NEWSLETTER_WRITER_MARK } from "@/lib/newsletterEdition/render";
-import { centralCalendarDate } from "@/lib/newsletterEdition/time";
+import { centralCalendarDate, nextEditionDate } from "@/lib/newsletterEdition/time";
 import {
   approveDrafts,
   listNewsletterDrafts,
@@ -126,7 +126,7 @@ export default function NewsletterProofreader() {
   const allPendingChecked = pendingIds.length > 0 && pendingIds.every((id) => checkedIds.includes(id));
   const approvedCount = drafts.filter((draft) => draft.status === "approved").length;
 
-  const regenerate = async () => {
+  const regenerate = async (selectedEdition = false) => {
     const token = ++viewToken.current;
     setRegenerating(true);
     setGenerationError(null);
@@ -134,9 +134,9 @@ export default function NewsletterProofreader() {
     try {
       const source = await loadNewsletterSource();
       const accountCount = Array.isArray(source.users) ? source.users.length : 0;
-      const today = centralCalendarDate(new Date());
-      let target = shiftIso(today, EDITION_WINDOW_DAYS);
-      for (let index = 0; index < EDITION_WINDOW_DAYS; index += 1) {
+      const today = nextEditionDate(new Date());
+      let target = selectedEdition ? editionDate : shiftIso(today, EDITION_WINDOW_DAYS);
+      for (let index = 0; !selectedEdition && index < EDITION_WINDOW_DAYS; index += 1) {
         const date = shiftIso(today, index);
         const rows = await listNewsletterDrafts(date);
         if (rows.length === 0) {
@@ -260,7 +260,7 @@ export default function NewsletterProofreader() {
         <div>
           <h2 className="text-2xl font-bold">Proofread</h2>
           <p className="text-sm text-muted-foreground">
-            Showing edition {editionDate}. Create new edition opens the new date here. A refresh keeps the newest edition, not an older one.
+            Showing edition {editionDate}. Create new edition starts at the next 10 a.m. Chicago send date. Regenerate selected edition refreshes unsent content and removes its approvals. A refresh opens the newest edition.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -273,6 +273,9 @@ export default function NewsletterProofreader() {
               void load(event.target.value);
             }} />
           </label>
+        <Button type="button" variant="outline" disabled={regenerating || saving || sending || listLoading || !drafts.some((draft) => draft.status !== "sent")} onClick={() => void regenerate(true)}>
+          Regenerate selected edition
+        </Button>
         <Button type="button" variant="outline" disabled={regenerating || saving || sending || listLoading} onClick={() => void regenerate()}>
           {regenerating ? "Creating..." : "Create new edition"}
         </Button>

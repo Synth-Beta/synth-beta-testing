@@ -163,3 +163,12 @@ export const isUpcoming = (eventDate: string, sendAt: Date, state?: string | nul
   const instant = new Date(eventDate);
   return !Number.isNaN(instant.getTime()) && instant.getTime() > sendAt.getTime();
 };
+
+/** Resolve 10 a.m. on the edition date, including the Central DST offset. */
+export const editionSendAt = (editionDate: string) => {
+  for (const hour of [15, 16]) {
+    const candidate = new Date(`${editionDate}T${hour}:00:00.000Z`);
+    if (isTenAmCentral(candidate)) return candidate;
+  }
+  throw new Error("Invalid newsletter edition date.");
+};
