@@ -233,3 +233,8 @@ export {
   type FuzzyEventRow,
   type ReviewEventSearchRow,
 } from './forgivingNameSearch';
+export {
+  signInWithPartnerFallback,
+  PARTNER_ACCOUNT_EXISTS_MESSAGE,
+  type PartnerSignInResult,
+} from './partnerSignIn';

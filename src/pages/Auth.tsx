@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { pickFiveAuthClient } from '@/integrations/pickfive/client';
+import { signInWithPartnerFallback } from '@synth/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -186,9 +188,13 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         throw new Error('Supabase not configured. Environment variables missing at build time. Check build settings.');
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Also accepts a Pick Five email + password (same account UUID in both apps).
+      const { error } = await signInWithPartnerFallback({
+        synth: supabase,
+        partner: pickFiveAuthClient,
         email,
         password,
+        exchangeUrl: '/api/partner/exchange',
       });
 
       if (error) {
@@ -223,6 +229,9 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
         throw new Error(userMessage);
       }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const data = { session: sessionData.session, user: sessionData.session?.user ?? null };
 
       if (!data.session) {
         if (import.meta.env.DEV) {

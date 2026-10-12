@@ -10,13 +10,15 @@
  * The original URLs are preserved by rewrites in vercel.json:
  *   /api/auth/bridge-session -> /api/auth/session?job=bridge
  *   /api/auth/redeem-session -> /api/auth/session?job=redeem
+ *   /api/partner/me          -> /api/auth/session?job=partner-me        (partner apps, see partnerMe.ts)
+ *   /api/partner/exchange    -> /api/auth/session?job=partner-exchange  (see partnerExchange.ts)
  * so mobile (streamingSyncActions.withSessionHash) and web (StreamingStatsPage) keep
  * calling the paths they already call.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-type Job = 'bridge' | 'redeem';
+type Job = 'bridge' | 'redeem' | 'partner-me' | 'partner-exchange';
 
 function queryJob(req: VercelRequest): string {
   const raw = req.query.job;
@@ -34,11 +36,13 @@ function pathOf(req: VercelRequest): string {
 
 function resolveJob(req: VercelRequest): Job | null {
   const q = queryJob(req);
-  if (q === 'bridge' || q === 'redeem') return q;
+  if (q === 'bridge' || q === 'redeem' || q === 'partner-me' || q === 'partner-exchange') return q;
 
   const path = pathOf(req);
   if (path.includes('bridge-session')) return 'bridge';
   if (path.includes('redeem-session')) return 'redeem';
+  if (path.includes('partner/me')) return 'partner-me';
+  if (path.includes('partner/exchange')) return 'partner-exchange';
 
   return null;
 }
@@ -54,9 +58,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { default: redeemSession } = await import('../_lib/auth/redeemSession.js');
     return redeemSession(req, res);
   }
+  if (job === 'partner-me') {
+    const { default: partnerMe } = await import('../_lib/auth/partnerMe.js');
+    return partnerMe(req, res);
+  }
+  if (job === 'partner-exchange') {
+    const { default: partnerExchange } = await import('../_lib/auth/partnerExchange.js');
+    return partnerExchange(req, res);
+  }
 
   // No implicit default here: minting and redeeming a session are not interchangeable,
   // and guessing wrong would be a security question rather than a convenience.
   res.setHeader('Content-Type', 'application/json');
-  return res.status(400).json({ error: 'Unknown job. Expected job=bridge or job=redeem.' });
+  return res.status(400).json({ error: 'Unknown job. Expected job=bridge, job=redeem, job=partner-me or job=partner-exchange.' });
 }
