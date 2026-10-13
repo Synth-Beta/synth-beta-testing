@@ -15,10 +15,8 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getAuthRedirectOrigin, signInWithPartnerFallback } from '@synth/shared';
+import { getAuthRedirectOrigin } from '@synth/shared';
 import { isSupabaseConfigured, supabase } from '../../src/integrations/supabase/client';
-import { pickFiveAuthClient } from '../../src/integrations/pickfive/client';
-import { getExpoSiteUrl } from '../../src/utils/siteUrl';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { getAppleSignInCredential, persistAppleDisplayName } from '../../lib/appleAuth';
 import { AppleLogoGlyph } from '../../src/components/auth/AppleLogoGlyph';
@@ -86,14 +84,7 @@ export default function SignInScreen() {
     setError(null);
     setMessage(null);
     try {
-      // Also accepts a Pick Five email + password (same account UUID in both apps).
-      const { error: e } = await signInWithPartnerFallback({
-        synth: supabase,
-        partner: pickFiveAuthClient,
-        email: email.trim(),
-        password,
-        exchangeUrl: `${getExpoSiteUrl()}/api/partner/exchange`,
-      });
+      const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (e) throw e;
     } catch (err: unknown) {
       setError(formatAuthError(err));

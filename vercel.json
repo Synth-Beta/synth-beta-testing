@@ -58,14 +58,6 @@
       "destination": "/api/auth/session?job=redeem"
     },
     {
-      "source": "/api/partner/me",
-      "destination": "/api/auth/session?job=partner-me"
-    },
-    {
-      "source": "/api/partner/exchange",
-      "destination": "/api/auth/session?job=partner-exchange"
-    },
-    {
       "source": "/api/cron/sync-events",
       "destination": "/api/cron?job=sync-events"
     },
