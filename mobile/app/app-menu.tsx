@@ -18,6 +18,8 @@ import {
   Settings,
   Sparkles,
   Check,
+  Link2,
+  ChevronRight,
 } from 'lucide-react-native';
 import { supabase } from '../src/integrations/supabase/client';
 import { SynthTokens } from '../src/tokens/SynthTokens';
@@ -31,6 +33,7 @@ export default function AppMenuScreen() {
   const [accountType, setAccountType] = useState<string | null>(null);
   const [friendReqUnread, setFriendReqUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
+  const [pickFiveConnected, setPickFiveConnected] = useState(false);
 
   const loadMenuCounts = useCallback(async () => {
     const {
@@ -64,8 +67,15 @@ export default function AppMenuScreen() {
       .eq('is_read', false)
       .neq('type', 'friend_request');
 
+    const { data: pickFive } = await supabase
+      .from('user_connections')
+      .select('service')
+      .eq('service', 'pickfive')
+      .limit(1);
+
     setFriendReqUnread(frCount ?? 0);
     setNotifUnread(notifCount ?? 0);
+    setPickFiveConnected((pickFive ?? []).length > 0);
   }, []);
 
   useFocusEffect(
@@ -145,18 +155,34 @@ export default function AppMenuScreen() {
           }}
         />
 
+        <Pressable
+          style={styles.pickFiveCard}
+          onPress={() => {
+            close();
+            router.push('/settings/pickfive');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={pickFiveConnected ? 'Pick Five connected' : 'Connect Pick Five'}
+        >
+          <View style={styles.pickFiveIcon}>
+            <Link2 size={20} color={SynthTokens.colors.brandPink500} />
+          </View>
+          <View style={styles.profileText}>
+            <Text style={styles.pickFiveTitle}>{pickFiveConnected ? 'Pick Five connected' : 'Connect Pick Five'}</Text>
+            <Text style={styles.pickFiveBody}>
+              {pickFiveConnected ? 'Your accounts are linked' : 'Link your Pick Five account'}
+            </Text>
+          </View>
+          <ChevronRight size={20} color={SynthTokens.colors.neutral600} />
+        </Pressable>
+
         {isVerifiedAdmin ? (
           <View style={styles.verifiedCard}>
-            <View style={styles.verifiedHeader}>
-              <Sparkles size={18} color={SynthTokens.colors.brandPink500} />
-              <Text style={styles.verifiedTitle}>Verified Account</Text>
-            </View>
-            <Text style={styles.verifiedBody}>
-              Your admin account is verified and trusted by the Synth community.
-            </Text>
             <View style={styles.verifiedCheck}>
-              <Check size={28} color="#fff" strokeWidth={3} />
+              <Check size={14} color="#fff" strokeWidth={3} />
             </View>
+            <Sparkles size={16} color={SynthTokens.colors.brandPink500} />
+            <Text style={styles.verifiedTitle}>Verified Account</Text>
           </View>
         ) : null}
       </ScrollView>
@@ -292,43 +318,58 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: SynthTokens.colors.neutral900,
   },
-  verifiedCard: {
+  pickFiveCard: {
     marginTop: SynthTokens.spacing.xl,
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderRadius: 16,
-    padding: SynthTokens.spacing.lg,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  verifiedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    backgroundColor: SynthTokens.colors.neutral0,
   },
-  verifiedTitle: {
-    fontSize: 17,
+  pickFiveIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FCE7F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickFiveTitle: {
+    fontSize: 16,
     fontWeight: '700',
     color: SynthTokens.colors.neutral900,
   },
-  verifiedBody: {
-    fontSize: 14,
+  pickFiveBody: {
+    fontSize: 13,
     fontWeight: '500',
     color: SynthTokens.colors.neutral600,
-    lineHeight: 20,
-    marginBottom: SynthTokens.spacing.lg,
+    marginTop: 2,
+  },
+  verifiedCard: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    backgroundColor: SynthTokens.colors.neutral0,
+  },
+  verifiedTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: SynthTokens.colors.neutral900,
   },
   verifiedCheck: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#22C55E',
-    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
   },

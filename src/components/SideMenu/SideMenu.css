@@ -173,6 +173,53 @@
   margin: var(--spacing-grouped, 24px) 0;
 }
 
+/* Pick Five connect card (mirrors mobile/app/app-menu.tsx) */
+.side-menu__pickfive {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: var(--spacing-grouped, 24px);
+  padding: 14px;
+  border: 1px solid var(--neutral-200);
+  border-radius: 16px;
+  background: var(--neutral-0, #fff);
+  color: var(--neutral-600, #5d646f);
+  text-align: left;
+  cursor: pointer;
+}
+
+.side-menu__pickfive-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: #fce7f3;
+  color: var(--brand-pink-500, #cc2486);
+}
+
+.side-menu__pickfive-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.side-menu__pickfive-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--neutral-900, #0e0e0e);
+}
+
+.side-menu__pickfive-body {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* Verification Section (keeps current card styling) */
 .side-menu__verification-section {
   margin: 0 0 var(--spacing-small, 12px);

@@ -618,6 +618,19 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     setCurrentView('settings');
   };
 
+  // Set by the /connect/pickfive route (Pick Five's Connect button).
+  useEffect(() => {
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem('synth:openSettingsView');
+      sessionStorage.removeItem('synth:openSettingsView');
+    } catch {
+      return;
+    }
+    if (pending === 'pickfive') openSettingsPage('pickfive');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleProfileSettings = () => {
     openSettingsPage('menu');
   };
@@ -1222,6 +1235,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         onNavigateToNotifications={handleNavigateToNotifications}
         onNavigateToProfile={handleNavigateToProfile}
         onNavigateToSettings={() => openSettingsPage()}
+        onNavigateToPickFive={() => openSettingsPage('pickfive')}
         onNavigateToStreamingStats={() => setCurrentView('streaming-stats')}
         onNavigateToVerification={() => {
           handleNavigateToProfile(undefined, 'passport');

@@ -1,7 +1,7 @@
 import React, { useEffect, Suspense } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SynthLoader } from "@/components/ui/SynthLoader";
 import SpotifyCallback from "./pages/SpotifyCallback";
@@ -35,6 +35,16 @@ const NotFound = React.lazy(() => import("./pages/NotFound").then(m => ({ defaul
 const SharePage = React.lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 
 // Component to handle deep links and auth callbacks
+/** Pick Five's Connect button lands here; MainApp opens Settings > Pick Five (after sign-in if needed). */
+function ConnectPickFiveLink() {
+  try {
+    sessionStorage.setItem('synth:openSettingsView', 'pickfive');
+  } catch {
+    // Storage blocked: just land on the app.
+  }
+  return <Navigate to="/" replace />;
+}
+
 // Must be inside BrowserRouter to use useLocation and useNavigate
 function DeepLinkHandlerInner() {
   const location = useLocation();
@@ -132,6 +142,7 @@ const App = () => {
               <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/share" element={<SharePage />} />
+              <Route path="/connect/pickfive" element={<ConnectPickFiveLink />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/not-found" element={<NotFound />} />
 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

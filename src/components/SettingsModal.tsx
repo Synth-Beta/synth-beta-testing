@@ -17,6 +17,8 @@ import { UserVisibilityService } from '@/services/userVisibilityService';
 import { useAuth } from '@/hooks/useAuth';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
 import { ParentalControlsSettings } from '@/components/ParentalControlsSettings';
+import { StreamingAccountSettings } from '@/components/streaming/StreamingAccountSettings';
+import { PickFiveConnection } from '@/components/partners/PickFiveConnection';
 import {
   getUserSettingsPreferences,
   updateUserSettingsPreferences,
@@ -38,6 +40,7 @@ export type SettingsModalView =
   | 'security-actions'
   | 'verification'
   | 'parental-controls'
+  | 'pickfive'
   | 'delete-account';
 
 interface SettingsModalProps {
@@ -331,6 +334,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
     view === 'security-actions' ? 'Security' :
     view === 'verification' ? 'Verification' :
     view === 'parental-controls' ? 'Parental Controls' :
+    view === 'pickfive' ? 'Pick Five' :
     view === 'delete-account' ? 'Delete Account' : 'Settings';
 
   return (
@@ -516,6 +520,19 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                 />
               </SettingsSection>
 
+              {/* ── Connected apps ───────────────────────────────────────── */}
+              <SettingsSection label="Connected Apps">
+                <div className="space-y-2.5 p-4">
+                  <p className="text-sm font-bold text-muted-foreground">Spotify / Apple Music</p>
+                  <StreamingAccountSettings compact />
+                </div>
+                <div className="h-px bg-gray-100" />
+                <div className="space-y-2.5 p-4">
+                  <p className="text-sm font-bold text-muted-foreground">Pick Five</p>
+                  <PickFiveConnection />
+                </div>
+              </SettingsSection>
+
               {/* ── Danger zone ──────────────────────────────────────────── */}
               <SettingsSection label="Danger Zone">
                 <NavRow
@@ -568,6 +585,19 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                   verified={isVerified}
                 />
               )}
+            </div>
+          )}
+
+          {view === 'pickfive' && (
+            <div className="px-5 py-5 space-y-4">
+              <PickFiveConnection />
+              <button
+                type="button"
+                onClick={() => setView('menu')}
+                className="w-full text-center text-sm text-muted-foreground underline"
+              >
+                See all connected apps in Settings
+              </button>
             </div>
           )}
 

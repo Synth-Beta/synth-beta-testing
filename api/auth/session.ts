@@ -10,13 +10,18 @@
  * The original URLs are preserved by rewrites in vercel.json:
  *   /api/auth/bridge-session -> /api/auth/session?job=bridge
  *   /api/auth/redeem-session -> /api/auth/session?job=redeem
+ *   /api/partner/link/{start,redeem,complete,revoke} -> /api/auth/session?job=link-*
+ *     (partner account connections, see partnerLink.ts)
  * so mobile (streamingSyncActions.withSessionHash) and web (StreamingStatsPage) keep
  * calling the paths they already call.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { LinkJob } from '../_lib/auth/partnerLink.js';
 
-type Job = 'bridge' | 'redeem';
+type Job = 'bridge' | 'redeem' | LinkJob;
+
+const LINK_JOBS: LinkJob[] = ['link-start', 'link-redeem', 'link-complete', 'link-revoke'];
 
 function queryJob(req: VercelRequest): string {
   const raw = req.query.job;
@@ -35,10 +40,13 @@ function pathOf(req: VercelRequest): string {
 function resolveJob(req: VercelRequest): Job | null {
   const q = queryJob(req);
   if (q === 'bridge' || q === 'redeem') return q;
+  if ((LINK_JOBS as string[]).includes(q)) return q as LinkJob;
 
   const path = pathOf(req);
   if (path.includes('bridge-session')) return 'bridge';
   if (path.includes('redeem-session')) return 'redeem';
+  const link = path.match(/partner\/link\/(start|redeem|complete|revoke)/);
+  if (link) return `link-${link[1]}` as LinkJob;
 
   return null;
 }
@@ -54,9 +62,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { default: redeemSession } = await import('../_lib/auth/redeemSession.js');
     return redeemSession(req, res);
   }
+  if (job && (LINK_JOBS as string[]).includes(job)) {
+    const { default: partnerLink } = await import('../_lib/auth/partnerLink.js');
+    return partnerLink(req, res, job as LinkJob);
+  }
 
   // No implicit default here: minting and redeeming a session are not interchangeable,
   // and guessing wrong would be a security question rather than a convenience.
   res.setHeader('Content-Type', 'application/json');
-  return res.status(400).json({ error: 'Unknown job. Expected job=bridge or job=redeem.' });
+  return res.status(400).json({ error: 'Unknown job. Expected job=bridge, job=redeem or job=link-*.' });
 }

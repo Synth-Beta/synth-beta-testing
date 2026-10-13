@@ -18,7 +18,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { supabase } from '../src/integrations/supabase/client';
-import { StreamingAccountSettings } from '../src/components/streaming/StreamingAccountSettings';
 import { launchChatImagePicker } from '../src/utils/launchChatImagePicker';
 import { uploadProfileAvatarFromUri } from '../src/services/profileAvatarUpload';
 
@@ -330,15 +329,6 @@ export default function ProfileEditScreen() {
             placeholder="Tell people about your music taste"
             placeholderTextColor={SynthTokens.colors.neutral400}
           />
-        </View>
-
-        {/* ── Streaming Account ───────────────────────────────────── */}
-        <View style={styles.card}>
-          <View style={styles.sectionHead}>
-            <Music size={18} color={PINK} />
-            <Text style={styles.sectionTitle}>Streaming Account</Text>
-          </View>
-          <StreamingAccountSettings onNavigateToStats={() => router.push('/stats')} />
         </View>
 
         {/* ── Music taste ─────────────────────────────────────────── */}

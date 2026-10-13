@@ -11,15 +11,29 @@ interface VerificationStatusCardProps {
   userId: string;
   accountType: 'user' | 'creator' | 'business' | 'admin';
   verified: boolean;
+  /** Side menu: one small "Verified Account" line, nothing when not verified (matches mobile app-menu). */
+  compact?: boolean;
 }
 
 export function VerificationStatusCard({
   userId,
   accountType,
   verified,
+  compact = false,
 }: VerificationStatusCardProps) {
   const { breakdown, loading, error } = useTrustScoreBreakdown(userId);
   const [refreshing, setRefreshing] = useState(false);
+  if (compact) {
+    return verified ? (
+      <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5">
+        <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-green-500">
+          <CheckCircle className="h-3.5 w-3.5 text-white" />
+        </span>
+        <Sparkles className="h-4 w-4 text-primary" />
+        <span className="text-sm font-bold text-gray-900">Verified Account</span>
+      </div>
+    ) : null;
+  }
 // For non-user accounts, show verified card if applicable, otherwise show a placeholder card
   if (accountType !== 'user') {
     if (verified) {

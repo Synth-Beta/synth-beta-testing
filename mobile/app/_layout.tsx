@@ -436,6 +436,7 @@ export default function RootLayout() {
       seg0 === 'interested-events' ||
       seg0 === 'settings' ||
       seg0 === 'app-menu' ||
+      seg0 === 'connect' ||
       seg0 === 'user' ||
       seg0 === 'artist' ||
       seg0 === 'venue';
