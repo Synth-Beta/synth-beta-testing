@@ -1,3 +1,5 @@
+import { profileRecordings, lookupRecordings } from "../../supabase/functions/newsletter-send/tracks.ts";
+import { historyArtists } from "../../supabase/functions/newsletter-send/editorial.ts";
 type Db = { from: (table: string) => any };
 
 const NEWS_WINDOW_MS = 21 * 24 * 60 * 60 * 1000;
@@ -34,7 +36,7 @@ const chunk = <T,>(items: T[], size: number) => {
 const artistNamesFromProfile = (profileData: any) => {
   if (!profileData || typeof profileData !== "object") return [];
   const byRange = profileData.topArtistsByTimeRange;
-  const list = byRange?.medium_term ?? byRange?.short_term ?? byRange?.long_term ?? profileData.topArtists ?? [];
+  const list = [...(byRange?.medium_term ?? []), ...(byRange?.long_term ?? []), ...(byRange?.short_term ?? []), ...(profileData.topArtists ?? [])];
   const names: string[] = [];
   for (const artist of list) {
     const name = String(artist?.name || artist?.attributes?.name || "").trim();
@@ -72,12 +74,16 @@ const loadListeningStats = async (db: Db, userIds: string[]) => {
       .order("user_id"), "Load listening genres");
     const genresByUser = new Map(preferences.map((row) => [row.user_id, genresFromPreferences(row)]));
     const seen = new Set<string>();
+    const seenServices = new Set<string>();
     for (const profile of profiles) {
-      if (!profile.user_id || seen.has(profile.user_id)) continue;
+      const service = `${profile.user_id}:${profile.service_type ?? "unknown"}`;
+      if (!profile.user_id || seenServices.has(service)) continue;
+      seenServices.add(service);
       seen.add(profile.user_id);
       stats.push({
         user_id: profile.user_id,
         service_type: profile.service_type ?? null,
+        listens: profileRecordings(profile.profile_data),
         top_artists: artistNamesFromProfile(profile.profile_data).map((name: string) => ({ name })),
         top_genres: (genresByUser.get(profile.user_id) ?? []).map((genre: string) => ({ genre })),
       });
@@ -178,7 +184,7 @@ const fetchMusicNews = async (now: Date) => {
   const seen = new Set<string>();
   await Promise.all(FEEDS.map(async (feed) => {
     try {
-      const response = await fetch(feed.url, { headers: { Accept: "application/rss+xml, application/xml, text/xml", "User-Agent": "SynthNewsletter/1.0" } });
+      const response = await fetch(feed.url, { signal: AbortSignal.timeout(7000), headers: { Accept: "application/rss+xml, application/xml, text/xml", "User-Agent": "SynthNewsletter/1.0" } });
       if (!response.ok) return;
       const xml = await response.text();
       for (const block of xml.split(/<item[\s>]/i).slice(1)) {
@@ -228,10 +234,8 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
   const stats = await loadListeningStats(db, userIds);
   const enrichedReviews = await enrichReviewArtists(db, reviews);
   const artistNames = [...new Set(userIds.flatMap((id: string) => {
-    const reviewArtists = enrichedReviews.filter((row) => row.user_id === id).slice(0, 2)
-      .map((row) => row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name).filter(Boolean);
-    const stat = stats.find((row) => row.user_id === id);
-    const listening = Array.isArray(stat?.top_artists) ? stat.top_artists.slice(0, 3).map((artist: any) => artist.name) : [];
+    const reviewArtists = historyArtists(enrichedReviews.filter((row) => row.user_id === id));
+    const listening = stats.filter((row) => row.user_id === id).flatMap((stat) => Array.isArray(stat.top_artists) ? stat.top_artists.slice(0, 8).map((artist: any) => artist.name) : []);
     return [...listening, ...reviewArtists];
   }))];
   const places = [...new Map(recipients.map((user) => {
@@ -239,6 +243,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     return [placeKey(city, user.location_state), { city, state: user.location_state ?? null }];
   })).values()].filter((place) => place.city);
   const loaded = await loadEvents(db, places, artistNames, now);
+  const listens = await lookupRecordings(loaded.events.map((event) => String(event.artists?.name ?? event.artist_name ?? "")));
   const publicFives = requireRows(await db.from("reviews").select("user_id, artists(name)").eq("is_public", true).eq("is_draft", false).gte("rating", 5).limit(300), "Load community reviews");
   return {
     users: recipients.map((user) => {
@@ -249,6 +254,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     reviews: enrichedReviews,
     stats,
     events: loaded.events,
+    listens,
     publicFives,
   };
 };

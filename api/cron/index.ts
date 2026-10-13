@@ -12,17 +12,38 @@
  *   - the original paths -> /api/cron/sync-events etc, rewritten here (see vercel.json)
  *   - manual trigger     -> POST with Authorization: Bearer <CRON_SECRET>
  *
- * Auth is unchanged: each handler still verifies CRON_SECRET itself.
+ * Auth is unchanged: each handler still verifies CRON_SECRET itself. The seo-content,
+ * seo-search-data and seo-ai-visibility jobs also accept an admin's Supabase access token
+ * so the admin SEO tab can run them on demand.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // The digest handler is the slowest of the three; the others finish well inside 10s.
-export const config = { maxDuration: 60 };
+export const config = { maxDuration: 300 };
 
-type Job = 'sync-events' | 'seed-bot-messages' | 'slack-pm-digest' | 'engagement-notifications' | 'newsletter-send' | 'seo-indexnow';
+type Job =
+  | 'sync-events'
+  | 'seed-bot-messages'
+  | 'slack-pm-digest'
+  | 'engagement-notifications'
+  | 'newsletter-send'
+  | 'seo-indexnow'
+  | 'seo-content'
+  | 'seo-search-data'
+  | 'seo-ai-visibility';
 
-const JOBS: Job[] = ['sync-events', 'seed-bot-messages', 'slack-pm-digest', 'engagement-notifications', 'newsletter-send', 'seo-indexnow'];
+const JOBS: Job[] = [
+  'sync-events',
+  'seed-bot-messages',
+  'slack-pm-digest',
+  'engagement-notifications',
+  'newsletter-send',
+  'seo-indexnow',
+  'seo-content',
+  'seo-search-data',
+  'seo-ai-visibility',
+];
 
 function queryJob(req: VercelRequest): string {
   const raw = req.query.job;
@@ -60,6 +81,9 @@ function resolveJob(req: VercelRequest): Job {
   if (path.includes('engagement-notifications')) return 'engagement-notifications';
   if (path.includes('newsletter-send')) return 'newsletter-send';
   if (path.includes('seo-indexnow')) return 'seo-indexnow';
+  if (path.includes('seo-content')) return 'seo-content';
+  if (path.includes('seo-search-data')) return 'seo-search-data';
+  if (path.includes('seo-ai-visibility')) return 'seo-ai-visibility';
 
   return jobFromHour();
 }
@@ -86,6 +110,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (job === 'seo-indexnow') {
     const { default: seoIndexNow } = await import('../_lib/cron/seoIndexNow.js');
     return seoIndexNow(req, res);
+  }
+  if (job === 'seo-content') {
+    const { default: seoContent } = await import('../_lib/cron/seoContent.js');
+    return seoContent(req, res);
+  }
+  if (job === 'seo-search-data') {
+    const { default: seoSearchData } = await import('../_lib/cron/seoSearchData.js');
+    return seoSearchData(req, res);
+  }
+  if (job === 'seo-ai-visibility') {
+    const { default: seoAiVisibility } = await import('../_lib/cron/seoAiVisibility.js');
+    return seoAiVisibility(req, res);
   }
 
   const { default: slackPmDigest } = await import('../_lib/cron/slackPmDigest.js');

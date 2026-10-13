@@ -34,7 +34,7 @@ const showInner = (show: ShowCard) =>
       : ""
   }<div style="margin-top:16px;">${textLink(show.ctaLabel, show.ctaUrl)}</div>`;
 
-export const NEWSLETTER_WRITER_MARK = "synth-newsletter-writer-5";
+export const NEWSLETTER_WRITER_MARK = "synth-newsletter-writer-6";
 
 export const renderEditionHtml = (edition: ComposedEdition) => {
   const checked = edition.sources[0]?.retrievedAt.slice(0, 10) ?? "";
@@ -93,6 +93,7 @@ ${
         .join("")}`
     : ""
 }
+${(edition.features ?? []).map((feature) => card(feature.tone, storyInner(feature))).join("")}
 ${edition.listen ? card(edition.listen.tone, storyInner(edition.listen)) : ""}
 ${
   edition.connect

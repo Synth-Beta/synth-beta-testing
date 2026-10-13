@@ -49,6 +49,12 @@ export function MarketingFooter({ activeItem }: MarketingFooterProps) {
           <Link to="/newsletter" className={activeItem === "newsletter" ? activeClass : navLinkClass}>
             Newsletter
           </Link>
+          <a href="https://getsynth.app/concerts/washington-dc" className={navLinkClass}>
+            Concerts in DC
+          </a>
+          <a href="https://getsynth.app/guides" className={navLinkClass}>
+            Guides
+          </a>
           <a href="#" className={navLinkClass}>
             Privacy Policy
           </a>

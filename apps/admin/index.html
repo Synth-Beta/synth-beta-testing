@@ -89,6 +89,16 @@
 o.src="https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache="+n,o.async=!0,o.defer=!0,
 o.onload=function(){window.trackingFunctions.onLoad({appId:"68a7858505f7ea001d9ffb90"})},
 document.head.appendChild(o)}initApollo();</script>
+
+    <!-- Synth first-party visitor analytics (admin SEO tab) -->
+    <script>
+      if (/^https?:$/.test(location.protocol) && /(^|\.)getsynth\.app$/.test(location.hostname)) {
+        var synthTracker = document.createElement('script');
+        synthTracker.defer = true;
+        synthTracker.src = '/api/share?seo=tracker';
+        document.head.appendChild(synthTracker);
+      }
+    </script>
   </head>
 
   <body>

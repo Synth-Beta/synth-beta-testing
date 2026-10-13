@@ -9,6 +9,7 @@ import type {
   ShowCard,
   StoryCard,
 } from "./types";
+import { editorialListens } from "../../../../../supabase/functions/newsletter-send/editorial";
 import { eventWithinSavedLocation } from "../../../../../supabase/functions/newsletter-send/nearby";
 import { formatEventWhen, formatIssueDate, isUpcoming } from "./time";
 
@@ -83,17 +84,18 @@ const isLatestArtist = (reader: EditionReader, artistName: string) => {
   return Boolean(latest?.artistName && sameName(latest.artistName, artistName));
 };
 
-const reasonFor = (event: EditionEvent, reader: EditionReader) => {
-  const where = `${event.artistName} at ${event.venueName}`;
+const reasonFor = (event: EditionEvent, reader: EditionReader, listens: EditionListen[]) => {
   const logged = alreadyLogged(reader, event.artistName);
   const listening = reader.topArtists.some((artist) => sameName(artist, event.artistName) && !logged);
-  if (listening) return `${where}. They're in your listening, and this is a show you have not logged.`;
+  const recording = listens.find((pick) => sameName(pick.artistName, event.artistName) && pick.trackName);
+  const start = recording ? ` Start with “${recording.trackName}” before you make plans.` : "";
+  if (listening) return `A chance to take ${event.artistName} from your headphones to ${event.venueName}.${start}`;
   const genre = (event.genres ?? []).find((item) =>
     reader.genres.some((known) => known.toLowerCase() === item.toLowerCase())
   );
-  if (!logged && genre) return `${where}. A night in the ${genre} lane, and not a show already on your timeline.`;
-  if (!logged) return `${where}. A date you have not logged yet.`;
-  return `${where}. A later date, and not the show you just logged.`;
+  if (!logged && genre) return `A ${genre} detour for the taste you have been building. Try ${event.artistName} in a different room: ${event.venueName}.${start}`;
+  if (!logged) return `A discovery night at ${event.venueName}${event.genres?.length ? `, with ${event.genres.slice(0, 2).join(" and ")} on the bill` : ""}.${start} Keep the date if the music clicks.`;
+  return `Another chance to catch ${event.artistName}, this time at ${event.venueName}.${start}`;
 };
 
 const pickShows = (events: EditionEvent[], reader: EditionReader, sendAt: Date) => {
@@ -156,17 +158,15 @@ const recentNews = (news: EditionNews[], sendAt: Date) =>
     .filter((item, index, items) => items.findIndex((other) => other.url === item.url) === index);
 
 const pickListens = (listens: EditionListen[], shows: EditionEvent[], reader: EditionReader) => {
-  const fromShows = shows
-    .filter((show) => !isLatestArtist(reader, show.artistName))
-    .map((show) => ({ artistName: show.artistName }));
-  const pool = [...listens, ...fromShows].filter((item) => item.artistName && !isLatestArtist(reader, item.artistName));
-  const unlogged = pool.filter((item) => !alreadyLogged(reader, item.artistName));
-  const ordered = [
-    ...unlogged.filter((item) => item.trackName),
-    ...pool.filter((item) => item.trackName),
-    ...unlogged,
-    ...pool,
-  ];
+  // An artist name alone is never a recording. New artists take priority over repeats.
+  const pool = listens.filter((item) => item.artistName && item.trackName?.trim() && httpUrl(item.url)
+    && !isLatestArtist(reader, item.artistName)
+    && (item.evergreen || reader.topArtists.some((artist) => sameName(artist, item.artistName))
+      || shows.some((show) => sameName(show.artistName, item.artistName))));
+  const score = (item: EditionListen) =>
+    (alreadyLogged(reader, item.artistName) ? 10 : 0)
+    + (shows.some((show) => sameName(show.artistName, item.artistName)) ? 0 : item.evergreen ? 3 : 1);
+  const ordered = [...pool].sort((a, b) => score(a) - score(b));
   const chosen: EditionListen[] = [];
   for (const item of ordered) {
     if (chosen.some((existing) => sameName(existing.artistName, item.artistName))) continue;
@@ -175,9 +175,6 @@ const pickListens = (listens: EditionListen[], shows: EditionEvent[], reader: Ed
   }
   return chosen;
 };
-
-const spotifySearch = (query: string) =>
-  `https://open.spotify.com/search/${encodeURIComponent(query)}`;
 
 export const composeEdition = ({
   reader,
@@ -201,13 +198,17 @@ export const composeEdition = ({
   const sources: EditionSource[] = [];
   const shows = pickShows(events, reader, sendAt);
   const latestName = latestReview(reader)?.artistName;
-  const updates = [...recentNews(news, sendAt)]
+  const updates = [...recentNews(news, new Date(Math.min(sendAt.getTime(), Date.parse(retrievedAt))))]
     .sort((left, right) => {
       const aboutLatest = (item: EditionNews) => (latestName && titleMentionsArtist(item.title, latestName) ? 1 : 0);
-      return aboutLatest(left) - aboutLatest(right);
+      const known = knownArtists(reader).filter((artist) => !latestName || !sameName(artist, latestName));
+      const rank = (item: EditionNews) => (aboutLatest(item) ? 3 : known.some((artist) => titleMentionsArtist(item.title, artist)) ? 0 : 1);
+      return rank(left) - rank(right) || Date.parse(right.publishedAt) - Date.parse(left.publishedAt);
     })
     .slice(0, 2);
-  const listenPicks = pickListens(listens, shows, reader);
+  const curated = editorialListens(editionDate, reader.genres);
+  const availableListens = [...listens, ...curated];
+  const listenPicks = pickListens(availableListens, shows, reader);
 
 
   const name = reader.firstName?.trim() || "";
@@ -227,7 +228,7 @@ export const composeEdition = ({
     return {
       eyebrow: [when, event.venueName, event.city].filter(Boolean).join(" · "),
       title: event.artistName,
-      body: reasonFor(event, reader),
+      body: reasonFor(event, reader, availableListens),
       availabilityNote: availabilityNote(availability),
       ctaLabel: ctaLabel(availability),
       ctaUrl: url,
@@ -251,35 +252,40 @@ export const composeEdition = ({
 
   let listen: StoryCard | undefined;
   if (listenPicks.length > 0) {
-    const lines = listenPicks.map((pick) => {
-      const query = pick.trackName ? `${pick.artistName} ${pick.trackName}` : pick.artistName;
-      const url = spotifySearch(query);
-      sources.push({
-        kind: "listen",
-        url,
-        retrievedAt,
-        label: pick.trackName ? `${pick.artistName} — ${pick.trackName}` : pick.artistName,
-      });
-      return { ...pick, url };
-    });
+    const general = listenPicks.every((pick) => pick.evergreen);
+    for (const pick of listenPicks) {
+      sources.push({ kind: "listen", url: httpUrl(pick.sourceUrl) ?? httpUrl(pick.url)!, retrievedAt,
+        label: `${pick.artistName} — ${pick.trackName}` });
+    }
     listen = {
-      eyebrow: "Your next listen",
-      title: lines.filter((pick) => pick.trackName).length > 1 ? "Two songs before the ticket." : "Someone you haven’t logged yet.",
-      body: `Give ${lines
-        .map((pick) => (pick.trackName ? `${pick.artistName}’s “${pick.trackName}”` : pick.artistName))
-        .join(" and ")} ${lines.length > 1 ? "one listen each" : "one listen"}. Your next favorite live act might be someone you haven’t logged yet.`,
-      ctaLabel: lines[0].trackName ? `Listen to “${lines[0].trackName}”` : `Listen to ${lines[0].artistName}`,
-      ctaUrl: lines[0].url,
+      eyebrow: general ? "The listening room · evergreen picks" : "Your next listen",
+      title: shows.length ? "Two songs before the ticket." : "Press play. Take a different route.",
+      body: listenPicks.map((pick) => `${pick.artistName}’s “${pick.trackName}”: ${pick.reason?.trim() || "Try this recording and decide whether to explore the rest of the record."}`).join(" "),
+      ctaLabel: `Listen to “${listenPicks[0].trackName}”`,
+      ctaUrl: httpUrl(listenPicks[0].url)!,
       tone: "pink",
+      links: listenPicks.map((pick) => ({ label: `Listen to ${pick.artistName} — “${pick.trackName}”`, url: httpUrl(pick.url)! })),
     };
-    listen.links = lines.map((pick) => ({
-      label: pick.trackName ? `Listen to “${pick.trackName}”` : `Listen to ${pick.artistName}`,
-      url: pick.url,
-    }));
+  }
+
+  // Feed outages must not turn new accounts' editions into a single app CTA.
+  // This is a labeled album detour, never presented as breaking news or a personal match.
+  const features: StoryCard[] = [];
+  if (!updateCards.length) {
+    const detour = curated.find((pick) => !isLatestArtist(reader, pick.artistName)
+      && !listenPicks.some((listen) => sameName(listen.artistName, pick.artistName)))!;
+    features.push({
+      eyebrow: "The album detour · from the archives",
+      title: `${detour.artistName}: ${detour.albumName}`,
+      body: `Start with “${detour.trackName}”. ${detour.reason} If that moment lands, give the whole album a turn without skipping ahead. This is a record to revisit, rather than a new-release announcement.`,
+      ctaLabel: "Explore the record", ctaUrl: detour.sourceUrl, tone: "white",
+    });
+    sources.push({ kind: "editorial", url: detour.sourceUrl, retrievedAt,
+      label: `${detour.artistName} — ${detour.albumName} (evergreen)` });
   }
 
   let yourSynth: ComposedEdition["yourSynth"];
-  if (latest?.artistName && latest.eventDate && !isUpcoming(latest.eventDate, sendAt, reader.state)) {
+  if (latest?.artistName && latest.eventDate && !isUpcoming(latest.eventDate, new Date(retrievedAt), reader.state)) {
     const when = formatEventWhen(latest.eventDate, reader.state);
     const detail = latest.text ? ` ${firstSentence(latest.text)}` : "";
     const headline =
@@ -288,7 +294,7 @@ export const composeEdition = ({
         : `Your latest: ${latest.artistName}.`;
     yourSynth = {
       headline,
-      body: `Your latest was ${latest.artistName}${latest.venueName ? ` at ${latest.venueName}` : ""} on ${when}.${detail} The other picks are different nights.`,
+      body: `Your latest was ${latest.artistName}${latest.venueName ? ` at ${latest.venueName}` : ""} on ${when}.${detail}`,
     };
     sources.push({
       kind: "account",
@@ -312,7 +318,7 @@ export const composeEdition = ({
     ? {
         eyebrow: "Connect",
         title: "See the dates on Synth.",
-        body: "Open Synth to look through shows and write a review after you go.",
+        body: "Pick one date, send it to a friend, and leave room for the opener. After the encore, keep one detail you want to remember in your review.",
         ctaLabel: "Explore Synth",
         ctaUrl: APP_URL,
         tone: "yellow",
@@ -320,7 +326,7 @@ export const composeEdition = ({
     : {
         eyebrow: "Make your next show count",
         title: "Build your live music timeline.",
-        body: "Log a concert you remember, add your review, and explore what other fans are sharing on Synth.",
+        body: "Think of a night you would go back to: the room, the song, the person beside you. Log a concert you remember and keep one detail that made it yours.",
         ctaLabel: "Explore Synth",
         ctaUrl: APP_URL,
         tone: "yellow",
@@ -329,8 +335,8 @@ export const composeEdition = ({
   const headline = name ? `${name}, let’s find your next great night.` : "Let’s find your next great night.";
   const introBits = [
     showCards.length && place ? `a few ${place} shows to put on your radar` : showCards.length ? "a few dates to put on your radar" : "",
-    updateCards.length ? "a current artist update" : "",
-    listen ? "a listen from someone you have not logged yet" : "",
+    updateCards.length ? "the music stories worth a look" : "an album detour from the archives",
+    listen ? "two songs to take into your week" : "",
   ].filter(Boolean);
   const intro = introBits.length
     ? `${joinList(introBits).replace(/^./, (letter) => letter.toUpperCase())}.`
@@ -356,6 +362,8 @@ export const composeEdition = ({
     showsDek: showCards.length ? "Upcoming options, with a reason each one is here." : undefined,
     shows: showCards,
     updates: updateCards,
+    features,
+    editorialFlags: updateCards.length ? [] : ["No current news was available; this edition uses a labeled evergreen album feature."],
     listen,
     connect,
     sources,

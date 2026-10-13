@@ -15,18 +15,25 @@ function isGetsynthHost(host: string): boolean {
 }
 
 /** Public SEO pages render in api/share.ts (see api/_lib/seo/handler.ts). */
-function seoRewriteQuery(getsynth: boolean, path: string): string | null {
+const CONTENT_TYPES: Record<string, string> = { guides: 'guide', learn: 'brand', compare: 'comparison' };
+const ENTITY_KINDS: Record<string, string> = { venues: 'venue', artists: 'artist', events: 'event' };
+
+export function seoRewriteQuery(getsynth: boolean, path: string): string | null {
   if (path === '/sitemap-seo.xml') return `seo=sitemap&site=${getsynth ? 'getsynth' : 'join'}`;
   if (path === '/indexnow-key.txt') return 'seo=indexnow-key';
+  if (path === '/llms.txt') return 'seo=llms';
   if (getsynth) {
     // /concerts/{city} and /concerts/{city}/{this-weekend|genre}
     const city = path.match(/^\/concerts\/([^/]+)(?:\/([^/]+))?\/?$/);
-    if (!city) return null;
-    return `seo=city&slug=${encodeURIComponent(city[1])}${city[2] ? `&sub=${encodeURIComponent(city[2])}` : ''}`;
+    if (city) return `seo=city&slug=${encodeURIComponent(city[1])}${city[2] ? `&sub=${encodeURIComponent(city[2])}` : ''}`;
+    if (path === '/guides' || path === '/guides/') return 'seo=guides';
+    const content = path.match(/^\/(guides|learn|compare)\/([^/]+)\/?$/);
+    if (content) return `seo=content&type=${CONTENT_TYPES[content[1]]}&slug=${encodeURIComponent(content[2])}`;
+    return null;
   }
-  const entity = path.match(/^\/(venues|artists)\/([^/]+)\/?$/);
+  const entity = path.match(/^\/(venues|artists|events)\/([^/]+)\/?$/);
   if (!entity) return null;
-  return `seo=${entity[1] === 'venues' ? 'venue' : 'artist'}&slug=${encodeURIComponent(entity[2])}`;
+  return `seo=${ENTITY_KINDS[entity[1]]}&slug=${encodeURIComponent(entity[2])}`;
 }
 
 // Middleware runs before the CDN cache, so this sees every crawler request, cached or not.

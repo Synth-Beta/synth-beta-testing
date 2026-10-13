@@ -524,7 +524,7 @@ async function fetchVenue(supabase: SB, id: string): Promise<VenueRow | null> {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const seoRoute = readSeoRoute(req);
-  if (seoRoute) return handleSeoRoute(seoRoute, res);
+  if (seoRoute) return handleSeoRoute(seoRoute, req, res);
 
   const supabaseConfig = getSupabaseServerConfig();
   if (!supabaseConfig) {

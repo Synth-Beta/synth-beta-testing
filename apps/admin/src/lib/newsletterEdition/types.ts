@@ -44,6 +44,8 @@ export interface EditionListen {
   reason?: string | null;
   /** A sourced live recording that is not this week's news. */
   evergreen?: boolean;
+  sourceUrl?: string | null;
+  genres?: string[];
 }
 
 export interface EditionReader {
@@ -101,6 +103,7 @@ export interface ComposedEdition {
   showsDek?: string;
   shows: ShowCard[];
   updates: StoryCard[];
+  features?: StoryCard[];
   listen?: StoryCard;
   connect?: StoryCard;
   sources: EditionSource[];

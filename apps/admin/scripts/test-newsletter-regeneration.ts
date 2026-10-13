@@ -27,11 +27,13 @@ const active = await generateDraftsFromSource({ ...empty, reviews }, now);
 assert.match(active.drafts[0].html, /13 shows logged\. 7 five-star nights/);
 assert.match(active.drafts[0].html, /Manual artist/);
 const streaming = await generateDraftsFromSource({ ...empty, stats: [
-  { user_id: users[0].user_id, top_artists: ['Wilco'], top_genres: ['rock'] },
-  { user_id: users[0].user_id, top_artists: [{ name: 'Goose' }], top_genres: [{ genre: 'jam' }] },
+  { user_id: users[0].user_id, top_artists: ['Wilco'], top_genres: ['rock'], listens: [{ artistName: 'Wilco', trackName: 'Jesus, Etc.', url: 'https://open.spotify.com/search/Wilco%20Jesus%20Etc' }] },
+  { user_id: users[0].user_id, top_artists: [{ name: 'Goose' }], top_genres: [{ genre: 'jam' }], listens: [{ artistName: 'Goose', trackName: 'Arcadia', url: 'https://open.spotify.com/search/Goose%20Arcadia' }] },
 ] }, now);
 assert.match(streaming.drafts[0].html, /Wilco/);
 assert.match(streaming.drafts[0].html, /Goose/);
+assert.match(streaming.drafts[0].html, /Jesus, Etc\./);
+assert.match(streaming.drafts[0].html, /Arcadia/);
 const duplicates = await generateDraftsFromSource({ ...empty, users: [...users, { user_id: 'duplicate', email: 'USER0@example.com' }] }, now);
 assert.equal(duplicates.drafts.length, 135);
 

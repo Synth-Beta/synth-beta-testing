@@ -35,6 +35,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
 
       if (error) throw error;
 
+      (window as Window & { synthTrack?: (name: string) => void }).synthTrack?.('signup');
+
       toast({
         title: "Check your email!",
         description: "We sent you a confirmation link.",

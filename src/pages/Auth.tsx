@@ -129,6 +129,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         return;
       }
 
+      (window as Window & { synthTrack?: (name: string) => void }).synthTrack?.('signup');
+
       if (import.meta.env.DEV && data?.user) {
         console.log("Sign-up success: user id:", data.user.id, "email confirmed:", !!data.user.email_confirmed_at);
       }

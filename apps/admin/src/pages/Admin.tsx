@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
-import { SeoAdminPanel } from '@/components/admin/seo/SeoAdminPanel';
+import { SeoDashboard } from '@/components/admin/seo/SeoDashboard';
 import { 
   Users, 
   Shield, 
@@ -2290,10 +2290,12 @@ export default function Admin() {
             <div>
               <h1 className="text-3xl font-bold flex items-center gap-2">
                 <Shield className="h-8 w-8" />
-                Admin Dashboard
+                {activeAdminTab === 'seo' ? 'SEO' : 'Admin Dashboard'}
               </h1>
               <p className="text-muted-foreground mt-1">
-                Manage users and monitor platform activity
+                {activeAdminTab === 'seo'
+                  ? 'Crawler traffic and public pages'
+                  : 'Manage users and monitor platform activity'}
               </p>
             </div>
           </div>
@@ -4147,7 +4149,7 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="seo" className="space-y-6">
-            <SeoAdminPanel />
+            <SeoDashboard />
           </TabsContent>
         </Tabs>
 
