@@ -80,18 +80,25 @@ export async function openAiSearch(prompt: string): Promise<SearchAnswer> {
 export async function perplexitySearch(prompt: string): Promise<SearchAnswer> {
   const key = process.env.PERPLEXITY_API_KEY?.trim();
   if (!key) throw new Error('PERPLEXITY_API_KEY is not set');
-  const model = process.env.PERPLEXITY_MODEL?.trim() || 'sonar';
+  // Perplexity retired chat/completions (403 "Sonar is now the Agent API"); presets replace model names.
+  const preset = process.env.PERPLEXITY_PRESET?.trim() || 'fast';
   const json = await postJson(
-    'https://api.perplexity.ai/chat/completions',
-    { model, messages: [{ role: 'user', content: prompt }] },
+    'https://api.perplexity.ai/v1/agent',
+    { preset, input: prompt },
     { Authorization: `Bearer ${key}` },
   );
-  const text = json?.choices?.[0]?.message?.content ?? '';
-  const urls: string[] = [
-    ...(Array.isArray(json?.citations) ? json.citations : []),
-    ...(Array.isArray(json?.search_results) ? json.search_results.map((r: any) => r?.url) : []),
-  ].filter((u: unknown): u is string => typeof u === 'string');
-  return { text, citedUrls: [...new Set(urls)], model };
+  const output: any[] = Array.isArray(json?.output) ? json.output : [];
+  const text = output
+    .filter((o) => o?.type === 'message')
+    .flatMap((o) => o.content ?? [])
+    .map((p: any) => p?.text ?? '')
+    .join('\n');
+  const urls: string[] = output
+    .filter((o) => o?.type === 'search_results')
+    .flatMap((o) => o.results ?? [])
+    .map((r: any) => r?.url)
+    .filter((u: unknown): u is string => typeof u === 'string');
+  return { text, citedUrls: [...new Set(urls)], model: json?.model || `perplexity:${preset}` };
 }
 
 export async function geminiSearch(prompt: string): Promise<SearchAnswer> {
