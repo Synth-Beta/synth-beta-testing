@@ -11,7 +11,7 @@ import {
   Inter_500Medium,
   Inter_700Bold
 } from '@expo-google-fonts/inter';
-import { supabase } from '../src/integrations/supabase/client';
+import { supabase, readStoredSession } from '../src/integrations/supabase/client';
 import { OnboardingService } from '../src/services/onboardingService';
 import { ensureExpoPushNotificationHandler } from '../lib/registerPushNotifications';
 import { syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
@@ -131,33 +131,52 @@ export default function RootLayout() {
 
   useEffect(() => {
     let cancelled = false;
+    let subscription: { unsubscribe: () => void } | null = null;
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
-    // Cap the initial session check at 6 s so a stale stored token trying to
-    // refresh against a slow/wrong network cannot block the loading skeleton
-    // indefinitely.  onAuthStateChange will still deliver the real session if
-    // the refresh eventually succeeds.
-    const fallbackTimer = setTimeout(() => {
-      if (!cancelled) setSession(null);
-    }, 6000);
+    // A null session caused by a slow or failed token refresh is "unknown", not
+    // "signed out": keep whatever we already trust (the device's saved session) and
+    // only fall back to null when we had nothing. Real sign-outs arrive as SIGNED_OUT.
+    const keepOrNull = () => setSession((prev) => prev ?? null);
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      clearTimeout(fallbackTimer);
-      if (!cancelled) setSession(s ?? null);
-    }).catch(() => {
-      clearTimeout(fallbackTimer);
-      if (!cancelled) setSession(null);
-    });
+    void (async () => {
+      // Boot on the session saved on this device right away. getSession() first
+      // refreshes an expired token over the network, which on slow wifi meant up to
+      // 6 s of logo and then a wrong bounce to sign-in. If the server rejects the
+      // saved session, supabase-js emits SIGNED_OUT and routing sends them to sign-in.
+      const stored = await readStoredSession();
+      if (cancelled) return;
+      if (stored) setSession((prev) => (prev === undefined ? stored : prev));
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
-      clearTimeout(fallbackTimer);
-      setSession(s ?? null);
-    });
+      // Cap the wait for users with no saved session so boot always resolves.
+      fallbackTimer = setTimeout(() => {
+        if (!cancelled) keepOrNull();
+      }, 6000);
+
+      supabase.auth.getSession().then(({ data: { session: s }, error }) => {
+        clearTimeout(fallbackTimer);
+        if (cancelled) return;
+        if (s) setSession(s);
+        else if (error) keepOrNull();
+        else setSession(null);
+      }).catch(() => {
+        clearTimeout(fallbackTimer);
+        if (!cancelled) keepOrNull();
+      });
+
+      subscription = supabase.auth.onAuthStateChange((event, s) => {
+        clearTimeout(fallbackTimer);
+        // INITIAL_SESSION is null when the refresh failed on the network, not only
+        // when signed out; don't let it override the saved session.
+        if (!s && event === 'INITIAL_SESSION') keepOrNull();
+        else setSession(s ?? null);
+      }).data.subscription;
+    })();
+
     return () => {
       cancelled = true;
       clearTimeout(fallbackTimer);
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
@@ -217,6 +236,13 @@ export default function RootLayout() {
 
     // Intentionally do NOT reset onboardingEffectiveReady to false on re-run — that
     // would drop the boot gate on every token refresh and hang the loading logo.
+    // Local flag already says onboarded: boot now. The server check below still runs
+    // in the background, but only to repair a lost server flag, never to gate boot.
+    if (storageOnboardingComplete === true) {
+      setIsOnboardingComplete(true);
+      setOnboardingEffectiveReady(true);
+    }
+
     void (async () => {
       try {
         // Never let a slow/hanging profile fetch block boot: fall back to the local
@@ -388,6 +414,22 @@ export default function RootLayout() {
     const sub = AppState.addEventListener('change', maybeSync);
     return () => sub.remove();
   }, [session]);
+
+  // Log app opens (cold start + every foreground) for the churn-score re-engagement
+  // pushes. The RPC collapses opens within 30 min server-side, so no client throttle.
+  useEffect(() => {
+    if (!session?.user) return;
+    const recordOpen = () => {
+      supabase.rpc('record_app_open').then(({ error }) => {
+        if (error) console.warn('[churn] record_app_open failed', error.message);
+      });
+    };
+    recordOpen();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') recordOpen();
+    });
+    return () => sub.remove();
+  }, [session?.user?.id]);
 
   useShareDeepLink(Boolean(session?.user && isOnboardingComplete));
 

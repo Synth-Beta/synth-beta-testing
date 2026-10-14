@@ -46,7 +46,6 @@ const feedRef = useRef<HTMLDivElement>(null);
   const pageSize = 20;
 
   // Cache configuration
-  const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
   const CACHE_PREFIX = 'recommendations_';
 
   // Sort events chronologically by event_date (earliest to latest)
@@ -103,58 +102,6 @@ const feedRef = useRef<HTMLDivElement>(null);
     });
     
     return `${CACHE_PREFIX}${userId}_${filterHash}`;
-  };
-
-  // Get cached recommendations
-  const getCachedRecommendations = (cacheKey: string): PersonalizedEvent[] | null => {
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (!cached) return null;
-
-      const { events, timestamp } = JSON.parse(cached);
-      const now = Date.now();
-      
-      // Check if cache is expired
-      if (now - timestamp > CACHE_EXPIRY_MS) {
-        localStorage.removeItem(cacheKey);
-        return null;
-      }
-
-      return events as PersonalizedEvent[];
-    } catch (error) {
-      console.warn('Error reading cache:', error);
-      return null;
-    }
-  };
-
-  // Save recommendations to cache
-  const saveCachedRecommendations = (cacheKey: string, events: PersonalizedEvent[]): void => {
-    const cacheData = {
-      events,
-      timestamp: Date.now(),
-    };
-    
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-    } catch (error) {
-      console.warn('Error saving cache:', error);
-      // If storage is full, try to clear old cache entries
-      try {
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith(CACHE_PREFIX)) {
-            keysToRemove.push(key);
-          }
-        }
-        // Remove oldest entries first
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-        // Try saving again
-        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-      } catch (clearError) {
-        console.warn('Could not clear cache:', clearError);
-      }
-    }
   };
 
   // Load ALL interested events immediately on mount
@@ -245,7 +192,6 @@ const feedRef = useRef<HTMLDivElement>(null);
 
   const loadEvents = async (pageNum: number = 0, append: boolean = false, skipFollowingParam?: boolean, skipCache: boolean = false) => {
     // Declare at function scope so it's accessible in catch/finally blocks
-    let showingCachedData = false;
     
     try {
       // Convert FilterState to PreferencesV4FeedFilters if needed
@@ -304,31 +250,8 @@ const feedRef = useRef<HTMLDivElement>(null);
         }
       }
 
-      // Check cache only for initial load (pageNum === 0) and when not skipping cache
-      const cacheKey = getCacheKey(userId, feedFilters || filters);
-      let cachedEvents: PersonalizedEvent[] | null = null;
-      
-      if (pageNum === 0 && !skipCache && !append) {
-        cachedEvents = getCachedRecommendations(cacheKey);
-        
-        if (cachedEvents && cachedEvents.length > 0) {
-          // Show cached data immediately (sorted by date)
-          console.log('✅ Loading cached recommendations:', cachedEvents.length, 'events');
-          const sortedCached = sortEventsByDate(cachedEvents);
-          setEvents(sortedCached);
-          setLoading(false); // Don't show loading spinner
-          setError(null);
-          showingCachedData = true;
-          
-          // Fetch fresh data in background
-          // Continue below to fetch fresh data
-        } else {
-          // No cache, show loading spinner
-          setEvents([]);
-          setLoading(true);
-        }
-      } else if (pageNum === 0 && !append) {
-        // Starting fresh load (skipCache is true or no cache)
+      // Never show a saved copy of the feed: it must always be the latest personalized one.
+      if (pageNum === 0 && !append) {
         setEvents([]);
         setLoading(true);
       } else if (pageNum > 0) {
@@ -402,10 +325,6 @@ const feedRef = useRef<HTMLDivElement>(null);
         // Sort events chronologically before setting
         const sortedEvents = sortEventsByDate(result.events);
         setEvents(sortedEvents);
-        // Cache the sorted fresh data for next time (only for initial page)
-        if (pageNum === 0 && sortedEvents.length > 0) {
-          saveCachedRecommendations(cacheKey, sortedEvents);
-        }
       }
 
       setHasMore(result.hasMore);
@@ -413,21 +332,9 @@ const feedRef = useRef<HTMLDivElement>(null);
     } catch (err) {
       console.error('Error loading Preferences V4 feed:', err);
       
-      // If we had cached data, keep showing it even if fresh fetch failed
-      if (showingCachedData) {
-        // Silently fail - user already sees cached data
-        console.log('⚠️ Background fetch failed, keeping cached data');
-        setError(null); // Don't show error if we have cached data
-      } else {
-        // No cached data, show error
-        setError('Failed to load recommendations');
-        setLoading(false);
-      }
+      setError('Failed to load recommendations');
     } finally {
-      // Only update loading state if we weren't showing cached data
-      if (!showingCachedData || pageNum > 0) {
-        setLoading(false);
-      }
+      setLoading(false);
       setLoadingMore(false);
     }
   };

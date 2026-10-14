@@ -72,7 +72,10 @@ export default function FeedScreen() {
       // Location comes from the shared BrowseLocationContext (GPS by default,
       // or whatever the user picked in Discover) rather than a fresh GPS call
       // here, so Home and Discover always agree on "where am I browsing".
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // A failed token refresh (slow network) is an error, not "signed out": throw so
+      // the catch below keeps the last-loaded feed instead of wiping it.
+      if (sessionError) throw sessionError;
       const loc = browseCoords;
       const user = session?.user ?? null;
       if (!user) {

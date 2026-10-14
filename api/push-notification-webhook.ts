@@ -361,6 +361,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, skipped: reason, sent: 0 });
   }
 
+  // Daily cap: at most 3 non-chat pushes per rolling 24h. Chat is exempt — people
+  // expect message alerts. The notification row still lands in-app either way.
+  const CHAT_TYPES = ['message', 'chat_message', 'group_chat_invite'];
+  const DAILY_NON_CHAT_CAP = 3;
+  if (!CHAT_TYPES.includes(record.type ?? '')) {
+    const { count: dailyCount } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', record.user_id)
+      .not('type', 'in', `(${[...CHAT_TYPES, 'friend_accepted'].join(',')})`)
+      .neq('id', record.id)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    if ((dailyCount ?? 0) >= DAILY_NON_CHAT_CAP) {
+      const reason = 'daily non-chat cap reached';
+      console.log(`[push-webhook] skipped: ${reason}`, {
+        user_id: record.user_id,
+        notification_id: record.id,
+        dailyCount,
+      });
+      await writeDeliveryLog(supabase, [
+        {
+          notification_id: record.id ?? null,
+          user_id: record.user_id,
+          channel: null,
+          platform: null,
+          device_token_tail: null,
+          status: 'skipped',
+          error: 'daily-cap-reached',
+          deactivated: false,
+        },
+      ]);
+      return res.status(200).json({ ok: true, skipped: reason, sent: 0 });
+    }
+  }
+
   // Fetch active device tokens (Expo tokens can represent iOS or Android).
   const { data: devicesRaw, error: devicesError } = await supabase
     .from('device_tokens')

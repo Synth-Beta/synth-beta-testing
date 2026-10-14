@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { UserVisibilityService } from '@/services/userVisibilityService';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Hook to track user activity and update last_active_at timestamp
@@ -46,6 +47,8 @@ export function useActivityTracker() {
 
     try {
       await UserVisibilityService.updateLastActive(user.id);
+      // Feeds the churn score for re-engagement pushes; server collapses calls within 30 min.
+      await supabase.rpc('record_app_open');
       lastUpdateRef.current = now;
       console.log('📍 Activity tracked: last_active_at updated');
     } catch (error) {

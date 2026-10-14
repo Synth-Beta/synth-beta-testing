@@ -355,8 +355,17 @@ export class HomeFeedService {
                 .map((row: any) => this.mapFeedV5RowToUnifiedEvent(row))
                 .filter(e => e.id.length > 0 && isEventUpcomingForFeed(e.event_date));
 
-            mapped = await this.enrichUnifiedEventsWithArtistImages(mapped);
-            mapped = await this.enrichUnifiedEventsWithVenueLocations(mapped);
+            // Independent lookups (artists vs venues): run together, then merge by index
+            // (both helpers return a same-order, same-length copy).
+            const [withImages, withVenues] = await Promise.all([
+                this.enrichUnifiedEventsWithArtistImages(mapped),
+                this.enrichUnifiedEventsWithVenueLocations(mapped),
+            ]);
+            mapped = withImages.map((e, i) => ({
+                ...e,
+                venue_city: withVenues[i].venue_city,
+                venue_state: withVenues[i].venue_state,
+            }));
 
             if (mapped.length === 0) {
                 const fallback = await this.getFallbackUpcomingEvents(limit);
@@ -556,16 +565,6 @@ export class HomeFeedService {
             if (!reviews?.length) return [];
 
             const userIds = [...new Set(reviews.map((r: { user_id: string }) => r.user_id))];
-            const { data: users, error: usersError } = await supabase
-                .from('users')
-                .select('user_id, name, avatar_url')
-                .in('user_id', userIds);
-
-            if (usersError) throw usersError;
-
-            const usersMap = new Map<string, { name: string | null; avatar_url: string | null }>();
-            users?.forEach(u => usersMap.set(u.user_id, { name: u.name, avatar_url: u.avatar_url }));
-
             const artistIds = new Set<string>();
             const venueIds = new Set<string>();
             reviews.forEach((review: any) => {
@@ -575,35 +574,39 @@ export class HomeFeedService {
                 if (review.events?.venue_id) venueIds.add(review.events.venue_id);
             });
 
+            // Authors, artists, venues and the viewer's likes only depend on the review
+            // rows, so fetch them together instead of four round trips in a row.
+            const [usersRes, artistsRes, venuesRes, likedIds] = await Promise.all([
+                supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds),
+                artistIds.size > 0
+                    ? supabase.from('artists').select('id, name, image_url').in('id', Array.from(artistIds))
+                    : Promise.resolve({ data: [] as { id: string; name: string; image_url: string | null }[], error: null }),
+                venueIds.size > 0
+                    ? supabase.from('venues').select('id, name').in('id', Array.from(venueIds))
+                    : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+                ReviewEngagementService.getReviewIdsLikedByUser(
+                    userId,
+                    reviews.map((r: any) => String(r.id))
+                ).catch((engErr: unknown) => {
+                    console.error('[homeFeed] getReviewIdsLikedByUser', engErr);
+                    return new Set<string>();
+                }),
+            ]);
+
+            const { data: users, error: usersError } = usersRes;
+            if (usersError) throw usersError;
+
+            const usersMap = new Map<string, { name: string | null; avatar_url: string | null }>();
+            users?.forEach(u => usersMap.set(u.user_id, { name: u.name, avatar_url: u.avatar_url }));
+
             const artistsMap = new Map<string, { name: string; image_url: string | null }>();
             const venuesMap = new Map<string, string>();
-
-            if (artistIds.size > 0) {
-                const { data: artists, error: artistsError3 } = await supabase
-                    .from('artists')
-                    .select('id, name, image_url')
-                    .in('id', Array.from(artistIds));
-                if (artistsError3) console.warn('[homeFeedService] artists query failed', artistsError3);
-                artists?.forEach(a => artistsMap.set(a.id, { name: a.name, image_url: a.image_url }));
-            }
-
-            if (venueIds.size > 0) {
-                const { data: venues, error: venuesError3 } = await supabase
-                    .from('venues')
-                    .select('id, name')
-                    .in('id', Array.from(venueIds));
-                if (venuesError3) console.warn('[homeFeedService] venues query failed', venuesError3);
-                venues?.forEach(v => venuesMap.set(v.id, v.name));
-            }
+            if (artistsRes.error) console.warn('[homeFeedService] artists query failed', artistsRes.error);
+            artistsRes.data?.forEach(a => artistsMap.set(a.id, { name: a.name, image_url: a.image_url }));
+            if (venuesRes.error) console.warn('[homeFeedService] venues query failed', venuesRes.error);
+            venuesRes.data?.forEach(v => venuesMap.set(v.id, v.name));
 
             const filtered = reviews.filter((review: any) => usersMap.has(review.user_id));
-            const reviewIdsForLikes = filtered.map((r: any) => String(r.id));
-            let likedIds = new Set<string>();
-            try {
-                likedIds = await ReviewEngagementService.getReviewIdsLikedByUser(userId, reviewIdsForLikes);
-            } catch (engErr) {
-                console.error('[homeFeed] getReviewIdsLikedByUser', engErr);
-            }
 
             return filtered.map((review: any) => {
                 const user = usersMap.get(review.user_id)!;

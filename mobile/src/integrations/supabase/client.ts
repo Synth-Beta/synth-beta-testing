@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -43,3 +43,23 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         detectSessionInUrl: false,
     },
 });
+
+// Same key supabase-js derives by default (`sb-<project-ref>-auth-token`).
+const AUTH_STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+
+/**
+ * The session saved on this device, read straight from storage. Unlike getSession(),
+ * this never waits on the network to refresh an expired token, so boot can trust it
+ * immediately; supabase-js still refreshes it and emits SIGNED_OUT if the server rejects it.
+ */
+export async function readStoredSession(): Promise<Session | null> {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return null;
+        const stored = JSON.parse(raw);
+        return stored?.user?.id && stored?.refresh_token ? (stored as Session) : null;
+    } catch {
+        return null;
+    }
+}
