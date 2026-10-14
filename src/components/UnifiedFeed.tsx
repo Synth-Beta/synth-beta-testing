@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -3479,150 +3480,32 @@ export const UnifiedFeed = ({
 
       {/* Bottom Navigation is handled by MainApp via BottomNavAdapter */}
 
-      {/* Review Detail Modal - Instagram-style layout */}
+      {/* Review Detail Modal - full review: every category score and note, photos, videos, setlist */}
       {showReviewDetailModal && selectedReviewDetail && (
         <Dialog open={showReviewDetailModal} onOpenChange={setShowReviewDetailModal}>
-          <DialogContent className="max-w-5xl w-[90vw] h-[90vh] max-h-[90vh] p-0 overflow-hidden flex">
+          <DialogContent
+            className="fixed inset-0 z-[100] max-w-none w-full h-full m-0 p-0 overflow-hidden rounded-none"
+            style={{
+              left: 0,
+              top: 0,
+              transform: 'none',
+              width: '100vw',
+              height: '100vh',
+              maxWidth: '100vw',
+              maxHeight: '100vh',
+              borderRadius: 0,
+              border: 'none',
+              boxShadow: 'none',
+              backgroundColor: 'var(--neutral-50)',
+            }}
+          >
             <DialogTitle className="sr-only">Review Details</DialogTitle>
             <DialogDescription className="sr-only">Review details for {selectedReviewDetail.event_info?.artist_name || 'artist'}</DialogDescription>
-            {/* Left side - Image/Graphic */}
-            <div className="flex-1 bg-black flex items-center justify-center min-h-0">
-              {selectedReviewDetail.photos && selectedReviewDetail.photos.length > 0 ? (
-                <img 
-                  src={selectedReviewDetail.photos[0]} 
-                  alt="Review photo"
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <div className="text-center text-white">
-                  <div className="text-6xl font-bold mb-4">
-                    <span className="text-pink-500">S</span>ynth
-      </div>
-                  <div className="w-32 h-0.5 bg-white mx-auto mb-4"></div>
-                  <div className="text-sm opacity-80">Concert Review</div>
-                </div>
-              )}
-            </div>
-            
-            {/* Right side - Content */}
-            <div className="flex-1 flex flex-col bg-white">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">
-                      {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-sm">{selectedReviewDetail.author?.name || 'User'}</div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(selectedReviewDetail.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Content */}
-              <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                {/* Event Info */}
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h2 className="text-lg font-semibold mb-1">
-                        {selectedReviewDetail.event_info?.event_name || 'Concert Review'}
-                      </h2>
-                      <p className="text-sm var(--neutral-600)">
-                        {selectedReviewDetail.event_info?.artist_name} • {selectedReviewDetail.event_info?.event_date ? new Date(selectedReviewDetail.event_info.event_date).toLocaleDateString() : 'Date unknown'}
-                      </p>
-                      {selectedReviewDetail.event_info?.venue_name && (
-                        <p className="text-sm text-gray-500">
-                          {selectedReviewDetail.event_info.venue_name}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Event Status Badge */}
-                  <div className="flex items-center gap-2">
-                    {selectedReviewDetail.event_info?.event_date && new Date(selectedReviewDetail.event_info.event_date) < new Date() ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                        <Calendar className="w-3 h-3 mr-1" />
-                        Past Event
-                      </span>
-                    ) : (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                        <Calendar className="w-3 h-3 mr-1" />
-                        Upcoming
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Rating */}
-                {selectedReviewDetail.rating && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }, (_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-5 h-5 ${
-                            i < Math.floor(selectedReviewDetail.rating!) 
-                              ? 'text-yellow-500 fill-yellow-500' 
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
-                      <span className="text-sm font-medium ml-1">{selectedReviewDetail.rating}/5</span>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Review Content */}
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">Review</h3>
-                  <p className="text-gray-700 leading-relaxed">
-                    {selectedReviewDetail.content || 'No review text available.'}
-                  </p>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => handleInstagramLike(selectedReviewDetail)}
-                    className={`flex items-center gap-2 transition-colors ${
-                      likedPosts.has(selectedReviewDetail.id) ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
-                    }`}
-                  >
-                    <Heart className={`w-5 h-5 ${likedPosts.has(selectedReviewDetail.id) ? 'fill-current' : ''}`} />
-                    <span>{selectedReviewDetail.likes_count || 0} likes</span>
-                  </button>
-                  <button
-                    onClick={() => setOpenReviewCommentsFor(selectedReviewDetail.review_id || selectedReviewDetail.id)}
-                    className="flex items-center gap-2 text-gray-700 hover:text-blue-500 transition-colors"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    <span>{selectedReviewDetail.comments_count || 0} comments</span>
-                  </button>
-                  <button
-                    onClick={() => handleShare(selectedReviewDetail)}
-                    className="flex items-center gap-2 text-gray-700 hover:text-green-500 transition-colors"
-                  >
-                    <Share2 className="w-5 h-5" />
-                    <span>Share</span>
-                  </button>
-                  <button
-                    onClick={() => handleBookmark(selectedReviewDetail)}
-                    className={`flex items-center gap-2 transition-colors ${
-                      bookmarkedPosts.has(selectedReviewDetail.id) ? 'text-yellow-500' : 'text-gray-700 hover:text-yellow-500'
-                    }`}
-                  >
-                    <Bookmark className={`w-5 h-5 ${bookmarkedPosts.has(selectedReviewDetail.id) ? 'fill-current' : ''}`} />
-                    <span>Save</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ReviewDetailView
+              reviewId={selectedReviewDetail.review_id || selectedReviewDetail.id}
+              currentUserId={currentUserId}
+              onBack={() => setShowReviewDetailModal(false)}
+            />
           </DialogContent>
         </Dialog>
       )}

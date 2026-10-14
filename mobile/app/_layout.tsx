@@ -433,7 +433,6 @@ export default function RootLayout() {
       seg0 === 'modal' ||
       seg0 === 'profile-edit' ||
       seg0 === 'my-events' ||
-      seg0 === 'interested-events' ||
       seg0 === 'settings' ||
       seg0 === 'app-menu' ||
       seg0 === 'connect' ||

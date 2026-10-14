@@ -29,6 +29,7 @@ const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/V
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 import { fetchEventForModal } from '@/services/eventLookupService';
+import { useBrowseLocation } from '@/contexts/BrowseLocationContext';
 
 type DiscoverDetailView =
   | { type: 'artist'; id: string; name: string }
@@ -78,6 +79,8 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   const [selectedLocationName, setSelectedLocationName] = useState<string>('');
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  // Shared with Home: a city picked here also drives the Home feed and persists.
+  const browseLocation = useBrowseLocation();
 
   const [detailView, setDetailView] = useState<DiscoverDetailView | null>(null);
 
@@ -125,6 +128,13 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   }, [customCityInput]);
 
   const loadUserLocation = async () => {
+    if (browseLocation.isManual && browseLocation.coords) {
+      const { latitude, longitude } = browseLocation.coords;
+      setUserLocation({ latitude, longitude });
+      setFilters(prev => ({ ...prev, latitude, longitude, radiusMiles: browseLocation.radiusMiles || 30 }));
+      setSelectedLocationName(browseLocation.label);
+      return;
+    }
     try {
       // First try to get from user profile
       const { data: userProfile } = await supabase
@@ -293,10 +303,15 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         setSelectedLocationName('Current Location');
       }
       
+      browseLocation.resetToCurrentLocation();
       setLocationPopoverOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting current location:', error);
-      alert('Failed to get your current location. Please try again or enter a city name.');
+      alert(
+        error?.code === 1
+          ? 'Location access is blocked for this site. Allow it in your browser settings, or enter a city name.'
+          : 'Failed to get your current location. Please try again or enter a city name.'
+      );
     } finally {
       setIsLoadingLocation(false);
     }
@@ -314,6 +329,7 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
     });
     const label = [city.name, city.state, city.country].filter(Boolean).join(', ');
     setSelectedLocationName(label);
+    browseLocation.setManualLocation({ latitude: Number(lat), longitude: Number(lng) }, label, filters.radiusMiles || 30);
     setCustomCityInput('');
     setCitySuggestions([]);
     setLocationPopoverOpen(false);
@@ -340,7 +356,9 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         longitude: fallback.lng,
         radiusMiles: filters.radiusMiles || 30,
       });
-      setSelectedLocationName(fallback.state ? `${fallback.name}, ${fallback.state}` : fallback.name);
+      const label = fallback.state ? `${fallback.name}, ${fallback.state}` : fallback.name;
+      setSelectedLocationName(label);
+      browseLocation.setManualLocation({ latitude: fallback.lat, longitude: fallback.lng }, label, filters.radiusMiles || 30);
       setCustomCityInput('');
       setLocationPopoverOpen(false);
     } else {

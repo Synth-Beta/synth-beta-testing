@@ -215,9 +215,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse, j
       .is('revoked_at', null)
       .select('id');
     if (partner.api_base_url) {
-      await callPartner(partner.id, partner.api_base_url, 'revoke', { partner_user_id: userId }).catch((err) =>
-        console.warn('[partner/link] partner revoke notify failed', err),
-      );
+      // Partner revoke is idempotent, so one retry on 500/503 is safe.
+      const notify = () => callPartner(partner.id, partner.api_base_url!, 'revoke', { partner_user_id: userId });
+      try {
+        let response = await notify();
+        if (response.status === 500 || response.status === 503) response = await notify();
+        if (!response.ok) console.warn(`[partner/link] partner revoke notify returned ${response.status}`);
+      } catch (err) {
+        console.warn('[partner/link] partner revoke notify failed', err);
+      }
     }
     return res.status(200).json({ revoked: (revoked ?? []).length });
   } catch (err) {

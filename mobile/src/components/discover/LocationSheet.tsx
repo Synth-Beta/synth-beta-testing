@@ -262,8 +262,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: SynthTokens.colors.neutral0,
-    borderTopLeftRadius: SynthTokens.radius.lg,
-    borderTopRightRadius: SynthTokens.radius.lg,
+    borderTopLeftRadius: SynthTokens.radius.large,
+    borderTopRightRadius: SynthTokens.radius.large,
     paddingHorizontal: SynthTokens.spacing.md,
     paddingTop: SynthTokens.spacing.sm,
     paddingBottom: SynthTokens.spacing.lg,
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
-    borderRadius: SynthTokens.radius.sm,
+    borderRadius: SynthTokens.radius.small,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
-    borderRadius: SynthTokens.radius.md,
+    borderRadius: SynthTokens.radius.medium,
     backgroundColor: SynthTokens.colors.neutral0,
   },
   suggestionItem: {

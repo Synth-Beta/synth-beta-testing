@@ -14,7 +14,6 @@ import {
   Users,
   Bell,
   Music2,
-  Heart,
   Settings,
   Sparkles,
   Check,
@@ -136,14 +135,6 @@ export default function AppMenuScreen() {
           onPress={() => {
             close();
             router.push('/stats');
-          }}
-        />
-        <MenuRow
-          icon={<Heart size={22} color={SynthTokens.colors.neutral900} />}
-          label="Interested"
-          onPress={() => {
-            close();
-            router.push('/interested-events');
           }}
         />
         <MenuRow

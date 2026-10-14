@@ -52,14 +52,14 @@ export class GenreChatService {
      */
     static async getGenreChats(userId: string): Promise<GenreChatInfo[]> {
         try {
-            const { data: stats, error: statsError } = await supabase.rpc<GenreChatMemberCountRow[]>(
+            const { data: stats, error: statsError } = await supabase.rpc(
                 'get_genre_chat_member_counts'
             );
             if (statsError) throw statsError;
 
             const chatStatsByGenre = new Map<string, { chatId: string; memberCount: number }>();
             const chatIds = new Set<string>();
-            for (const stat of stats || []) {
+            for (const stat of (stats as GenreChatMemberCountRow[] | null) || []) {
                 if (!stat?.entity_id || !stat.chat_id) continue;
                 const chatId = stat.chat_id;
                 chatStatsByGenre.set(stat.entity_id, {

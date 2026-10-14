@@ -218,8 +218,10 @@ export class LocationService {
           reject(geoError);
         },
         {
-          enableHighAccuracy: true,
-          timeout: 10000,
+          // High accuracy needs GPS hardware; desktop browsers often time out or
+          // report POSITION_UNAVAILABLE with it. City-level is enough for feeds.
+          enableHighAccuracy: false,
+          timeout: 15000,
           maximumAge: 300000 // 5 minutes
         }
       );

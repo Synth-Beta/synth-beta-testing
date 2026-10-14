@@ -57,9 +57,21 @@ export function useMenuNotificationBadgeCount(userId: string | undefined) {
     // dispatch this directly so the badge clears immediately, not just on reload.
     window.addEventListener('synth-notifications-read', fetchCounts);
 
+    // `notifications` isn't in the realtime publication, so reads/arrivals from
+    // another device or tab never push here. Re-check on focus and periodically.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchCounts();
+    };
+    window.addEventListener('focus', fetchCounts);
+    document.addEventListener('visibilitychange', onVisible);
+    const interval = window.setInterval(onVisible, 60_000);
+
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('synth-notifications-read', fetchCounts);
+      window.removeEventListener('focus', fetchCounts);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(interval);
     };
   }, [userId]);
 

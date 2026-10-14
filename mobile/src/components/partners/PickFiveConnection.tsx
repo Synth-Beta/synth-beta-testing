@@ -138,7 +138,7 @@ export function PickFiveConnection() {
         <View style={styles.codeBox}>
           <SynthText variant="meta" color="secondary" style={styles.center}>
             {connectUrl
-              ? 'Finish connecting in Pick Five, then come back here. If it didn't open, enter this code in Pick Five within 10 minutes:'
+              ? "Finish connecting in Pick Five, then come back here. If it didn't open, enter this code in Pick Five within 10 minutes:"
               : 'Enter this code in Pick Five within 10 minutes:'}
           </SynthText>
           <Text style={styles.code} selectable accessibilityLabel={`Code ${code.split('').join(' ')}`}>

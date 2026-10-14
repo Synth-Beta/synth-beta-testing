@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { LocationService } from '@/services/locationService';
+import { RadiusSearchService } from '@/services/radiusSearchService';
 import { getLastKnownLocation, saveLastKnownLocation } from '@/services/locationCacheService';
 import { resolveLocation, type Coordinates } from '@synth/shared';
 
@@ -69,9 +71,39 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
   const [isManual, setIsManual] = useState(false);
   const [loading, setLoading] = useState(true);
   const initialized = useRef(false);
+  const coordsRef = useRef<Coordinates | null>(null);
+  coordsRef.current = coords;
 
-  // Live GPS -> cached last-known GPS -> null. Never falls back to the
-  // profile's `location_city` - see resolveLocation() for why.
+  // Last resort when GPS is denied/unavailable and nothing is cached: the
+  // profile's saved coords or home city. Without it the feed has no location
+  // at all and shows events from anywhere.
+  const fetchProfileLocation = useCallback(async (): Promise<boolean> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) return false;
+      const { data: row } = await supabase
+        .from('users')
+        .select('latitude, longitude, location_city, location_state')
+        .eq('user_id', userId)
+        .maybeSingle();
+      let profileCoords: Coordinates | null = null;
+      if (row?.latitude != null && row?.longitude != null) {
+        profileCoords = { latitude: Number(row.latitude), longitude: Number(row.longitude) };
+      } else if (row?.location_city) {
+        const c = await RadiusSearchService.getCityCoordinates(row.location_city, row.location_state ?? undefined);
+        if (c) profileCoords = { latitude: c.lat, longitude: c.lng };
+      }
+      if (!profileCoords) return false;
+      setCoords(profileCoords);
+      setLabel(row?.location_city || 'Home city');
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Live GPS -> cached last-known GPS -> profile location -> null.
   const fetchGpsLocation = useCallback(async () => {
     const cached = getLastKnownLocation(CACHE_MAX_AGE_MS);
     const cachedCoords: Coordinates | null = cached
@@ -99,12 +131,21 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
       if (geoError?.code !== 1) { // 1 = PERMISSION_DENIED
         console.error('[BrowseLocationContext] Error getting current location:', geoError);
       }
-      if (!seeded) {
+      if (!seeded && !(await fetchProfileLocation())) {
         setLabel('Not found');
       }
       // Otherwise keep the cache-seeded coords/label already set above.
     }
-  }, []);
+  }, [fetchProfileLocation]);
+
+  // The provider mounts before sign-in, so the profile fallback above can miss
+  // the user. Retry it once a session appears if we still have no location.
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' && !coordsRef.current) void fetchProfileLocation();
+    });
+    return () => data.subscription.unsubscribe();
+  }, [fetchProfileLocation]);
 
   useEffect(() => {
     if (initialized.current) return;

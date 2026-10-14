@@ -77,7 +77,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onClose,
   onToggle,
   onNavigateToNotifications,
-  onNavigateToProfile,
   onNavigateToSettings,
   onNavigateToVerification,
   onNavigateToStreamingStats,
@@ -304,23 +303,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                   console.error('Error tracking menu click:', error);
                 }
                 onNavigateToStreamingStats?.();
-                onClose();
-              }}
-            />
-
-            <MenuCategory
-              label="Interested"
-              icon="heart"
-              onPress={() => {
-                try {
-                  trackInteraction.click('view', 'side_menu_interested', { source: 'side_menu' });
-                } catch (error) {
-                  console.error('Error tracking menu click:', error);
-                }
-                if (onNavigateToProfile) {
-                  sessionStorage.setItem('profileTab', 'interested');
-                  onNavigateToProfile(undefined, 'interested');
-                }
                 onClose();
               }}
             />

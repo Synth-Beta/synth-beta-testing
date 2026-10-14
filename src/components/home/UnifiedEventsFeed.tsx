@@ -60,7 +60,6 @@ const BATCH_SIZE = 100; // Load-more batches
 const PREFETCH_THRESHOLD = 60; // Start prefetching when 60 events are displayed (3rd load more)
 const LOCATION_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const LOCATION_RELOAD_THRESHOLD_MILES = 50; // Only reload when location changes meaningfully
-const LOCATION_MATCH_THRESHOLD_MILES = 25; // Locations within 25mi are considered "same"
 
 function filterUpcomingFeedItems(items: UnifiedEventItem[]): UnifiedEventItem[] {
   return items.filter((item) => isEventUpcomingForFeed(item.event_date));
@@ -114,7 +113,7 @@ async function fetchBucketListTopEvents(
   }
 }
 
-/** Fetch feed for one or both locations when they don't match; merge and dedupe by event_id */
+/** Fetch feed for the filter location (the user's browse pick), else the device location */
 async function fetchFeedForLocations(
   userId: string,
   baseFilters: Omit<PersonalizedFeedFilters, 'latitude' | 'longitude'>,
@@ -122,14 +121,11 @@ async function fetchFeedForLocations(
   userLoc: { lat: number; lng: number } | null,
   limit: number
 ): Promise<{ events: UnifiedEventItem[]; hasMore: boolean }> {
+  // Never mix in GPS results when a filter location is set: a picked city must
+  // not be diluted with events from wherever the device happens to be.
   const locs: { lat: number; lng: number }[] = [];
   if (filterLoc) locs.push(filterLoc);
-  if (userLoc && filterLoc) {
-    const dist = LocationService.calculateDistance(filterLoc.lat, filterLoc.lng, userLoc.lat, userLoc.lng);
-    if (dist > LOCATION_MATCH_THRESHOLD_MILES) locs.push(userLoc);
-  } else if (userLoc) {
-    locs.push(userLoc);
-  }
+  else if (userLoc) locs.push(userLoc);
 
   const [affinity, bucketTop] = await Promise.all([
     getUserArtistAffinity(userId),

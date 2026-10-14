@@ -31,6 +31,8 @@ interface FullReviewData {
   review_text: string | null;
   rating: number | null;
   photos: string[] | null;
+  videos?: string[] | null;
+  ticket_price_paid?: number | null;
   created_at: string;
   artist_performance_rating?: number | null;
   production_rating?: number | null;
@@ -134,6 +136,8 @@ export function ReviewDetailView({
             review_text,
             rating,
             photos,
+            videos,
+            ticket_price_paid,
             created_at,
             artist_performance_rating,
             production_rating,
@@ -894,6 +898,20 @@ export function ReviewDetailView({
             </div>
           )}
 
+          {/* Remaining photos and videos */}
+          {((reviewData.photos?.length ?? 0) > 1 || (reviewData.videos?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-2 gap-2">
+              {(reviewData.photos ?? []).slice(1).map((src, i) => (
+                <a key={`p-${i}`} href={src} target="_blank" rel="noreferrer" className="rounded-xl overflow-hidden" style={{ aspectRatio: '1' }}>
+                  <img src={src} alt={`Review photo ${i + 2}`} className="w-full h-full object-cover" />
+                </a>
+              ))}
+              {(reviewData.videos ?? []).map((src, i) => (
+                <video key={`v-${i}`} src={src} controls playsInline className="rounded-xl w-full bg-black" style={{ aspectRatio: '1' }} />
+              ))}
+            </div>
+          )}
+
           {/* Rating Details */}
           {ratingCategories.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-grouped, 24px)' }}>
@@ -953,6 +971,12 @@ export function ReviewDetailView({
                 ))}
               </div>
             </div>
+          )}
+
+          {reviewData.ticket_price_paid != null && reviewData.ticket_price_paid > 0 && (
+            <p className="text-base" style={{ color: 'var(--neutral-600)', margin: 0 }}>
+              Paid ${Number(reviewData.ticket_price_paid).toFixed(2)} for the ticket
+            </p>
           )}
 
           {/* Set List */}

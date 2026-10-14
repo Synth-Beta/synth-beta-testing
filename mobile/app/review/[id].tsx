@@ -13,6 +13,7 @@ import {
     TextInput,
     Alert,
     FlatList,
+    Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ShareToChatModal } from '../../src/components/share/ShareToChatModal';
@@ -27,6 +28,7 @@ import {
     Lightbulb,
     Navigation,
     DollarSign,
+    Play,
     Share2,
     ThumbsUp,
     MessageCircle,
@@ -59,6 +61,8 @@ const REVIEW_SELECT_WEB_PARITY = `
             review_text,
             rating,
             photos,
+            videos,
+            ticket_price_paid,
             created_at,
             artist_performance_rating,
             production_rating,
@@ -123,6 +127,8 @@ type ReviewRow = {
     rating: number | null;
     review_text: string | null;
     photos: string[] | null;
+    videos?: string[] | null;
+    ticket_price_paid?: number | null;
     created_at: string;
     is_public: boolean;
     // Category ratings
@@ -767,6 +773,8 @@ export default function ReviewDetailScreen() {
                     rating: row.rating != null ? Number(row.rating) : null,
                     review_text: row.review_text != null ? String(row.review_text) : null,
                     photos: Array.isArray(row.photos) ? (row.photos as string[]) : null,
+                    videos: Array.isArray(row.videos) ? (row.videos as string[]) : null,
+                    ticket_price_paid: row.ticket_price_paid != null ? Number(row.ticket_price_paid) : null,
                     created_at: String(row.created_at),
                     // Treat null/undefined is_public as public (only block explicit false)
                     is_public: row.is_public !== false,
@@ -1174,6 +1182,30 @@ export default function ReviewDetailScreen() {
                                         />
                                     ))}
                                 </View>
+                            </View>
+                        ) : null}
+
+                        {/* Videos open in the system player (no in-app video module in this build) */}
+                        {review.videos?.length ? (
+                            <View style={styles.card}>
+                                <SynthText variant="meta" style={styles.sectionLabel}>
+                                    VIDEOS ({review.videos.length})
+                                </SynthText>
+                                {review.videos.map((uri, i) => (
+                                    <Pressable key={uri} onPress={() => void Linking.openURL(uri)} style={styles.metaRow}>
+                                        <Play size={16} color={PINK} />
+                                        <SynthText variant="meta" style={styles.metaTxt}>Watch video {i + 1}</SynthText>
+                                    </Pressable>
+                                ))}
+                            </View>
+                        ) : null}
+
+                        {review.ticket_price_paid != null && review.ticket_price_paid > 0 ? (
+                            <View style={styles.metaRow}>
+                                <DollarSign size={16} color={PINK} />
+                                <SynthText variant="meta" color="secondary" style={styles.metaTxt}>
+                                    Paid ${review.ticket_price_paid.toFixed(2)} for the ticket
+                                </SynthText>
                             </View>
                         ) : null}
 
