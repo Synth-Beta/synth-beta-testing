@@ -643,7 +643,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 {formData.ticketPricePaid ? (
                     <View style={styles.checkRow}>
                         <SynthText variant="meta" style={styles.checkMark}>✓</SynthText>
-                        <SynthText variant="meta">Ticket price (kept private): ${formData.ticketPricePaid}</SynthText>
+                        <SynthText variant="meta">Ticket price: ${formData.ticketPricePaid}</SynthText>
                     </View>
                 ) : null}
                 {formData.reviewText ? (
@@ -1283,7 +1283,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 return renderCategory(
                     categoryConfigs[6]!,
                     <View style={styles.mt12}>
-                        <SynthText variant="meta">Ticket price paid (private)</SynthText>
+                        <SynthText variant="meta">Ticket price paid (shown on your review)</SynthText>
                         <TextInput
                             style={styles.input}
                             keyboardType="decimal-pad"
@@ -1297,6 +1297,25 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                 {errors.ticketPricePaid}
                             </SynthText>
                         ) : null}
+                        <SynthText variant="meta" style={styles.mt12}>
+                            Would you recommend it at this price?
+                        </SynthText>
+                        <View style={styles.recommendRow}>
+                            {([true, false] as const).map((value) => {
+                                const on = formData.recommendAtPrice === value;
+                                return (
+                                    <Pressable
+                                        key={String(value)}
+                                        style={[styles.chip, on && styles.durationCardOn]}
+                                        accessibilityRole="button"
+                                        accessibilityState={{ selected: on }}
+                                        onPress={() => updateFormData({ recommendAtPrice: on ? null : value })}
+                                    >
+                                        <SynthText variant="body">{value ? 'Yes' : 'No'}</SynthText>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
                     </View>
                 );
             }
@@ -1521,6 +1540,7 @@ const styles = StyleSheet.create({
     starFillHalf: { width: STAR_SIZE / 2 },
     starHit: { position: 'absolute', top: 0, bottom: 0, width: STAR_SIZE / 2 },
     chipScroll: { marginTop: 8, maxHeight: 44 },
+    recommendRow: { flexDirection: 'row', marginTop: 8 },
     chip: {
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,

@@ -152,6 +152,7 @@ export async function submitEventReviewFromForm(
         location_feedback: formData.locationFeedback.trim() || undefined,
         value_feedback: formData.valueFeedback.trim() || undefined,
         ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
+        recommend_at_price: formData.recommendAtPrice ?? undefined,
         review_text: formData.reviewText.trim() || undefined,
         photos: formData.photos?.length ? formData.photos : undefined,
         videos: formData.videos?.length ? formData.videos : undefined,

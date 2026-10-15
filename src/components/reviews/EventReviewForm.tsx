@@ -465,6 +465,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             locationFeedback: review.location_feedback || '',
             valueFeedback: review.value_feedback || '',
             ticketPricePaid: review.ticket_price_paid ? String(review.ticket_price_paid) : '',
+            recommendAtPrice: review.recommend_at_price ?? null,
             rating: review.rating,
             reviewText: review.review_text || '',
             photos: review.photos || [],
@@ -872,6 +873,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         location_feedback: locationFeedback,
         value_feedback: valueFeedback,
         ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
+        recommend_at_price: formData.recommendAtPrice ?? undefined,
         review_text: formData.reviewText.trim() || undefined,
         photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
         videos: formData.videos && formData.videos.length > 0 ? formData.videos : undefined,
@@ -1624,7 +1626,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             <div className="space-y-3">
               <Label htmlFor="ticketPricePaid" className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-pink-500" />
-                What did you pay? (kept private)
+                What did you pay?
               </Label>
               <Input
                 id="ticketPricePaid"
@@ -1636,8 +1638,26 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                 onChange={(event) => updateFormData({ ticketPricePaid: event.target.value })}
               />
               <p className="text-xs text-gray-500">
-                Only you can see this number. It helps calibrate value for other fans.
+                Shown on your review so other fans can judge if the show is worth it.
               </p>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-gray-900">Would you recommend it at this price?</p>
+                <div className="flex gap-2" role="group" aria-label="Would you recommend it at this price?">
+                  {([true, false] as const).map((value) => (
+                    <Button
+                      key={String(value)}
+                      type="button"
+                      variant={formData.recommendAtPrice === value ? 'default' : 'outline'}
+                      aria-pressed={formData.recommendAtPrice === value}
+                      onClick={() =>
+                        updateFormData({ recommendAtPrice: formData.recommendAtPrice === value ? null : value })
+                      }
+                    >
+                      {value ? 'Yes' : 'No'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
           </CategoryStep>
         );

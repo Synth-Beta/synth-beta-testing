@@ -1,6 +1,6 @@
 /**
  * GenreChatsSection — horizontal scroll of genre community chat cards.
- * Shown at the bottom of the Discover tab (below Calendar + Tour Tracker).
+ * Shown at the bottom of the Discover tab (below the Calendar).
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import {

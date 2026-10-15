@@ -147,7 +147,7 @@ export function PassportTravelMap({ userId }: { userId: string }) {
     );
 
     useEffect(() => {
-        // Slight delay helps on initial mount (same trick as TourTrackerMap).
+        // Slight delay helps on initial mount.
         const t = setTimeout(() => fitAll(false), 60);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,6 +1,6 @@
 /**
  * GenreChatsSection — genre community chat cards for the Discover page.
- * Shown below the Calendar / Tour Tracker section.
+ * Shown below the Calendar section.
  */
 import React, { useEffect, useState } from 'react';
 import { MessageCircle, Users } from 'lucide-react';

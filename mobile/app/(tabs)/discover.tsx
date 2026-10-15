@@ -19,13 +19,11 @@ import {
   MapPin,
   X,
   Calendar,
-  Route,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react-native';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { SearchService, type SearchResult } from '../../src/services/searchService';
-import { MobileTourTracker } from '../../src/components/discover/MobileTourTracker';
 import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/DiscoverCalEventsSkeleton';
 import { type LatLng } from '../../src/services/locationService';
 import { toLocalYmd } from '../../src/utils/localYmd';
@@ -238,7 +236,6 @@ export default function DiscoverScreen() {
     resetToCurrentLocation,
   } = useBrowseLocation();
   const [showLocationPill, setShowLocationPill] = useState(true);
-  const [tab, setTab] = useState<'calendar' | 'tour'>('calendar');
   const [userId, setUserId] = useState<string | null>(null);
   const [isVibeSheetOpen, setIsVibeSheetOpen] = useState(false);
   const [isLocationSheetOpen, setIsLocationSheetOpen] = useState(false);
@@ -273,10 +270,6 @@ export default function DiscoverScreen() {
   const calLocationKeyRef = useRef<string>('');
 
   useEffect(() => {
-    if (tab !== 'calendar') {
-      return;
-    }
-
     // A location or radius change invalidates everything already loaded.
     const locationKey = `${coords?.latitude ?? 'na'}|${coords?.longitude ?? 'na'}|${discoverRadius}`;
     if (calLocationKeyRef.current !== locationKey) {
@@ -322,7 +315,7 @@ export default function DiscoverScreen() {
     return () => {
       cancelled = true;
     };
-  }, [tab, coords?.latitude, coords?.longitude, discoverRadius, calMonth, calYear]);
+  }, [coords?.latitude, coords?.longitude, discoverRadius, calMonth, calYear]);
 
   const daysWithEventsInMonth = useMemo(() => {
     const set = new Set<number>();
@@ -373,10 +366,6 @@ export default function DiscoverScreen() {
   const handleVibeSelect = useCallback((vibeType: VibeType) => {
     console.log('Discover vibe selected:', vibeType);
     setIsVibeSheetOpen(false);
-  }, []);
-
-  const onTourTab = useCallback(() => {
-    setTab('tour');
   }, []);
 
   return (
@@ -454,29 +443,11 @@ export default function DiscoverScreen() {
             Discover Events
           </SynthText>
           <SynthText variant="meta" color="secondary" style={styles.sectionSub}>
-            Discover events by date, leaderboards, or artist tour.
+            Discover events by date.
           </SynthText>
         </View>
 
-        <View style={styles.segmentWrap}>
-          <Pressable
-            style={[styles.seg, tab === 'calendar' && styles.segActive]}
-            onPress={() => setTab('calendar')}
-          >
-            <Calendar size={18} color={tab === 'calendar' ? PINK : SynthTokens.colors.neutral600} />
-            <Text style={[styles.segText, tab === 'calendar' && styles.segTextActive]}>Calendar</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.seg, tab === 'tour' && styles.segActive]}
-            onPress={onTourTab}
-          >
-            <Route size={18} color={tab === 'tour' ? PINK : SynthTokens.colors.neutral600} />
-            <Text style={[styles.segText, tab === 'tour' && styles.segTextActive]}>Tour Tracker</Text>
-          </Pressable>
-        </View>
 
-        {tab === 'calendar' ? (
-          <>
             {calLoadError ? (
               <SynthText variant="meta" color="secondary" style={styles.calError}>
                 Could not load events: {calLoadError}
@@ -563,12 +534,8 @@ export default function DiscoverScreen() {
                 Tap a date to see shows that day. Days with a dot have events.
               </SynthText>
             )}
-          </>
-        ) : (
-          <MobileTourTracker />
-        )}
 
-        {/* Genre Communities — shown below calendar and tour tracker */}
+        {/* Genre Communities — shown below the calendar */}
         {userId ? (
           <GenreChatsSection currentUserId={userId} />
         ) : null}
@@ -702,34 +669,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 14,
     lineHeight: 20,
-  },
-  segmentWrap: {
-    flexDirection: 'row',
-    backgroundColor: SynthTokens.colors.neutral50,
-    borderRadius: 14,
-    padding: 4,
-    gap: 4,
-  },
-  seg: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: SynthTokens.colors.neutral0,
-  },
-  segActive: {
-    backgroundColor: PINK_SOFT,
-  },
-  segText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: SynthTokens.colors.neutral600,
-  },
-  segTextActive: {
-    color: PINK,
   },
   calHint: { marginTop: 4, marginBottom: 4 },
   calError: { marginTop: 4, marginBottom: 4, color: SynthTokens.colors.brandPink500 },

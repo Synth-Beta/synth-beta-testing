@@ -63,6 +63,7 @@ const REVIEW_SELECT_WEB_PARITY = `
             photos,
             videos,
             ticket_price_paid,
+            recommend_at_price,
             created_at,
             artist_performance_rating,
             production_rating,
@@ -129,6 +130,7 @@ type ReviewRow = {
     photos: string[] | null;
     videos?: string[] | null;
     ticket_price_paid?: number | null;
+    recommend_at_price?: boolean | null;
     created_at: string;
     is_public: boolean;
     // Category ratings
@@ -775,6 +777,7 @@ export default function ReviewDetailScreen() {
                     photos: Array.isArray(row.photos) ? (row.photos as string[]) : null,
                     videos: Array.isArray(row.videos) ? (row.videos as string[]) : null,
                     ticket_price_paid: row.ticket_price_paid != null ? Number(row.ticket_price_paid) : null,
+                    recommend_at_price: typeof row.recommend_at_price === 'boolean' ? row.recommend_at_price : null,
                     created_at: String(row.created_at),
                     // Treat null/undefined is_public as public (only block explicit false)
                     is_public: row.is_public !== false,
@@ -1207,6 +1210,12 @@ export default function ReviewDetailScreen() {
                                     Paid ${review.ticket_price_paid.toFixed(2)} for the ticket
                                 </SynthText>
                             </View>
+                        ) : null}
+
+                        {review.recommend_at_price != null ? (
+                            <SynthText variant="body" style={styles.metaTxt}>
+                                Worth it at that price? {review.recommend_at_price ? 'Yes' : 'No'}
+                            </SynthText>
                         ) : null}
 
                         {/* Attendees */}

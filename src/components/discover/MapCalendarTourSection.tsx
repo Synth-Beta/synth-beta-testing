@@ -1,31 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Icon } from '@/components/Icon/Icon';
-import { TourTrackerService, type TourEvent, type ArtistGroupChat } from '@/services/tourTrackerService';
-import { ArtistSearchBox } from '@/components/ArtistSearchBox';
-import type { Artist } from '@/types/concertSearch';
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
-import { divIcon, latLngBounds } from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 
 import { format, startOfMonth } from 'date-fns';
 import type { JamBaseEvent } from '@/types/eventTypes';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeFilters } from '@/services/discoverVibeService';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
-import { CompactEventCard } from '@/components/home/CompactEventCard';
-import { MapPin, Calendar as CalendarIcon, Building2 as BuildingComplex } from 'lucide-react';
-import { LocationService } from '@/services/locationService';
 import { UserEventService } from '@/services/userEventService';
 import { SynthLoadingInline } from '@/components/ui/SynthLoader';
-
-import { getMapboxToken } from '@/utils/mapboxToken';
-
-const MAPBOX_TOKEN = getMapboxToken();
 
 /**
  * Hard row cap PostgREST applies to every response on this project. Asking
@@ -34,30 +17,6 @@ const MAPBOX_TOKEN = getMapboxToken();
  * (measured: 3.1s timeout at p_limit 10000 vs 0.39s at 1000).
  */
 const POSTGREST_MAX_ROWS = 1000;
-
-// Create numbered marker icon factory
-const createNumberedIcon = (number: number, selected = false) => {
-  const size = selected ? 36 : 32;
-  return divIcon({
-    className: 'numbered-marker',
-    html: `<div style="
-      background-color: ${selected ? 'var(--brand-pink-600, var(--brand-pink-500))' : 'var(--brand-pink-500)'};
-      color: white;
-      border: 2px solid white;
-      border-radius: 50%;
-      width: ${size}px;
-      height: ${size}px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 14px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    ">${number}</div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-});
-};
 
 interface MapCalendarTourSectionProps {
   currentUserId: string;
@@ -68,33 +27,6 @@ interface MapCalendarTourSectionProps {
   onOpenEvent?: (event: JamBaseEvent) => void;
 }
 
-// Map Updater component for center/zoom
-const MapUpdater = ({ center, zoom }: { center: [number, number]; zoom: number }) => {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, zoom);
-  }, [map, center, zoom]);
-  return null;
-};
-
-// Map Bounds Fitter component
-const MapBoundsFitter = ({ events }: { events: TourEvent[] }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (events.length === 0) return;
-    
-    const bounds = latLngBounds(
-      events.map(event => [event.latitude, event.longitude] as [number, number])
-    );
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [50, 50] });
-    }
-  }, [map, events]);
-  
-  return null;
-};
-
 export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   currentUserId,
   filters,
@@ -102,8 +34,6 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   onNavigateToChat,
   onOpenEvent,
 }) => {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'calendar' | 'tour'>('calendar');
   
   // Calendar view state
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
@@ -112,12 +42,6 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
   const [selectedDateEvents, setSelectedDateEvents] = useState<JamBaseEvent[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   
-  // Tour tracker state
-  const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
-  const [tourEvents, setTourEvents] = useState<TourEvent[]>([]);
-  const [tourRoute, setTourRoute] = useState<Array<{ from: { lat: number; lng: number; city: string }; to: { lat: number; lng: number; city: string } }>>([]);
-  const [groupChats, setGroupChats] = useState<ArtistGroupChat[]>([]);
-  const [tourLoading, setTourLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<JamBaseEvent | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
@@ -244,10 +168,6 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
 
   // Load calendar events
   useEffect(() => {
-    if (activeTab !== 'calendar') {
-      return;
-    }
-
     // Create a stable key from filter values
     const filterKey = JSON.stringify({
       lat: filters?.latitude,
@@ -284,41 +204,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     lastFilterKeyRef.current = filterKey;
     hasLoadedOnceRef.current = true;
     loadCalendarEvents();
-  }, [activeTab, filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities, filters?.genres, calendarDate, loadCalendarEvents]);
-
-  // Load tour events when artist is selected
-  useEffect(() => {
-    if (activeTab === 'tour' && selectedArtist) {
-      loadTourData();
-    }
-  }, [activeTab, selectedArtist]);
-
-  const loadTourData = async () => {
-    if (!selectedArtist || !selectedArtist.id) return;
-    setTourLoading(true);
-    try {
-      // Use artist UUID (id) instead of name for precise filtering
-      const events = await TourTrackerService.getArtistTourEvents(selectedArtist.id);
-      setTourEvents(events);
-      setSelectedEvent(null);
-      setEventDetailsOpen(false);
-      
-      const route = TourTrackerService.calculateTourRoute(events);
-      setTourRoute(route.route);
-      
-      const chats = await TourTrackerService.getArtistGroupChats(selectedArtist.id, currentUserId);
-      setGroupChats(chats);
-      
-      // Load interested events and counts
-      if (currentUserId && events.length > 0) {
-        await loadInterestedData(events.map(e => e.id));
-      }
-    } catch (error) {
-      console.error('Error loading tour data:', error);
-    } finally {
-      setTourLoading(false);
-    }
-  };
+  }, [filters?.latitude, filters?.longitude, filters?.radiusMiles, filters?.cities, filters?.genres, calendarDate, loadCalendarEvents]);
 
   const loadInterestedData = async (eventIds: string[]) => {
     if (!currentUserId || eventIds.length === 0) return;
@@ -376,187 +262,18 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
     openEventPage(event);
   };
 
-  const handleTourEventClick = (event: JamBaseEvent) => {
-    if (selectedEvent?.id === event.id) {
-      openEventPage(event);
-      return;
-    }
-    setSelectedEvent(event);
-    setEventDetailsOpen(false);
-  };
-
-  // Get sorted events for display (sorted by date)
-  const sortedTourEvents = tourEvents.length > 0 
-    ? [...tourEvents].sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
-    : [];
-
-  // Group events by venue and assign sequential numbers
-  // Each unique venue (by name + city) gets a number when it first appears
-  // If the same venue appears again later, it gets a new number (different stop on tour)
-  interface VenueGroup {
-    venueKey: string; // venue_name + venue_city for grouping
-    venueName: string;
-    venueCity: string;
-    venueState?: string;
-    latitude: number;
-    longitude: number;
-    number: number; // Sequential number for this venue stop
-    events: TourEvent[]; // All events at this venue in this grouping
-    firstEventDate: Date; // Date of first event at this venue
-  }
-
-  const getVenueKey = (event: TourEvent): string => {
-    // Use venue name + city to identify unique venues
-    return `${event.venue_name || ''}|${event.venue_city || ''}|${event.venue_state || ''}`.toLowerCase();
-  };
-
-  const groupedVenues = React.useMemo(() => {
-    if (sortedTourEvents.length === 0) return [];
-
-    const venueGroups: VenueGroup[] = [];
-    const seenVenueKeys = new Set<string>();
-    let currentNumber = 1;
-
-    // Process events in chronological order
-    for (const event of sortedTourEvents) {
-      const venueKey = getVenueKey(event);
-      
-      // Check if this is a new venue (not seen before)
-      // OR if it's a venue we've seen before but after visiting other venues
-      const lastSeenIndex = venueGroups.findIndex(g => g.venueKey === venueKey);
-      
-      if (lastSeenIndex === -1) {
-        // New venue - create new group
-        venueGroups.push({
-          venueKey,
-          venueName: event.venue_name || 'Unknown Venue',
-          venueCity: event.venue_city || '',
-          venueState: event.venue_state,
-          latitude: event.latitude,
-          longitude: event.longitude,
-          number: currentNumber++,
-          events: [event],
-          firstEventDate: new Date(event.event_date),
-        });
-        seenVenueKeys.add(venueKey);
-      } else {
-        // Venue we've seen before - check if it's the last venue in the list
-        // (meaning consecutive events at same venue) or a return visit
-        const lastGroup = venueGroups[venueGroups.length - 1];
-        if (lastGroup.venueKey === venueKey) {
-          // Consecutive events at same venue - add to existing group
-          lastGroup.events.push(event);
-        } else {
-          // Return visit to a previous venue - create new group with new number
-          venueGroups.push({
-            venueKey,
-            venueName: event.venue_name || 'Unknown Venue',
-            venueCity: event.venue_city || '',
-            venueState: event.venue_state,
-            latitude: event.latitude,
-            longitude: event.longitude,
-            number: currentNumber++,
-            events: [event],
-            firstEventDate: new Date(event.event_date),
-          });
-        }
-      }
-    }
-
-    return venueGroups;
-  }, [sortedTourEvents]);
-
-  // Create a map from event ID to venue group number for display
-  const eventToVenueNumber = React.useMemo(() => {
-    const map = new Map<string, number>();
-    groupedVenues.forEach(group => {
-      group.events.forEach(event => {
-        map.set(event.id, group.number);
-      });
-    });
-    return map;
-  }, [groupedVenues]);
-
-  // Calculate route based on grouped venues instead of individual events
-  const groupedVenueRoute = React.useMemo(() => {
-    if (groupedVenues.length < 2) return [];
-    
-    const route: Array<{ from: { lat: number; lng: number; city: string }; to: { lat: number; lng: number; city: string } }> = [];
-    
-    for (let i = 0; i < groupedVenues.length - 1; i++) {
-      const from = groupedVenues[i];
-      const to = groupedVenues[i + 1];
-      
-      route.push({
-        from: {
-          lat: from.latitude,
-          lng: from.longitude,
-          city: `${from.venueCity}${from.venueState ? `, ${from.venueState}` : ''}`,
-        },
-        to: {
-          lat: to.latitude,
-          lng: to.longitude,
-          city: `${to.venueCity}${to.venueState ? `, ${to.venueState}` : ''}`,
-        },
-      });
-    }
-    
-    return route;
-  }, [groupedVenues]);
-
-  // Calculate map center for initial load (will be overridden by fitBounds)
-  const getTourMapCenter = (): [number, number] => {
-    if (tourEvents.length === 0) return [39.8283, -98.5795]; // Default center
-    const avgLat = tourEvents.reduce((sum, e) => sum + e.latitude, 0) / tourEvents.length;
-    const avgLng = tourEvents.reduce((sum, e) => sum + e.longitude, 0) / tourEvents.length;
-    return [avgLat, avgLng];
-  };
-
   return (
     <div className="mb-2 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold">Discover Events</h2>
           <p className="text-sm text-muted-foreground">
-            Discover events by date, leaderboards, or artist tour
+            Discover events by date
           </p>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-        <TabsList 
-          className="grid w-full grid-cols-2" 
-          style={{ 
-            marginBottom: 0,
-            backgroundColor: 'rgba(255, 255, 255, 0.85)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(236, 72, 153, 0.2)',
-            borderRadius: 'var(--radius-corner, 10px)',
-            padding: '4px',
-            gap: '6px'
-          }}
-        >
-          <TabsTrigger 
-            value="calendar" 
-            className="flex items-center discover-tab-trigger"
-            style={{ gap: '12px', padding: '8px 12px' }}
-          >
-            <Icon name="calendar" size={16} />
-            Calendar
-          </TabsTrigger>
-          <TabsTrigger 
-            value="tour" 
-            className="flex items-center discover-tab-trigger"
-            style={{ gap: '12px', padding: '8px 12px' }}
-          >
-            <Icon name="route" size={16} />
-            Tour Tracker
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Calendar View */}
-        <TabsContent value="calendar" className="mt-4">
+        <div className="mt-4">
           {calendarLoading ? (
             <div aria-busy="true">
               <div role="status" aria-live="polite" className="sr-only">Loading calendar…</div>
@@ -658,427 +375,7 @@ export const MapCalendarTourSection: React.FC<MapCalendarTourSectionProps> = ({
               </div>
             </div>
           )}
-        </TabsContent>
-
-        {/* Tour Tracker View */}
-        <TabsContent value="tour" className="mt-8">
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Search for an Artist</label>
-              <ArtistSearchBox
-                onArtistSelect={(artist) => setSelectedArtist(artist)}
-                placeholder="Search for an artist to track their tour..."
-              />
-            </div>
-
-            {/* Artist Banner */}
-            {selectedArtist && (
-              <Card 
-                className="overflow-hidden border-2 border-synth-pink/20 shadow-lg cursor-pointer hover:shadow-xl transition-shadow swift-ui-card"
-                onClick={() => {
-                  // Navigate to artist profile page using UUID or encoded name
-                  const artistId = selectedArtist.id || encodeURIComponent(selectedArtist.name);
-                  navigate(`/artist/${artistId}`);
-                }}
-              >
-                <div className="swift-ui-card-content">
-                <div 
-                  className="relative p-6"
-                  style={{
-                    background: `linear-gradient(135deg, rgba(255, 51, 153, 0.1) 0%, rgba(255, 51, 153, 0.05) 100%)`,
-                  }}
-                >
-                  <div className="flex items-center gap-4">
-                    {/* Artist Image */}
-                    <div className="flex-shrink-0">
-                      {selectedArtist.image_url ? (
-                        <img
-                          src={selectedArtist.image_url}
-                          alt={selectedArtist.name}
-                          className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      {!selectedArtist.image_url && (
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-synth-pink to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
-                          <Icon name="music" size={60} color="var(--neutral-50)" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Artist Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <h2 className="text-2xl font-bold text-foreground mb-2 truncate">
-                            {selectedArtist.name}
-                          </h2>
-                          
-                          {/* Stats */}
-                          <div className="flex items-center gap-4 flex-wrap">
-                            {tourEvents.length > 0 && (
-                              <div className="flex items-center gap-2">
-                                <Icon name="calendar" size={16} color="var(--brand-pink-500)" />
-                                <span className="text-sm font-medium text-foreground">
-                                  {tourEvents.length} {tourEvents.length === 1 ? 'Tour Date' : 'Tour Dates'}
-                                </span>
-                              </div>
-                            )}
-                            {selectedArtist.genres && selectedArtist.genres.length > 0 && (
-                              <div className="flex items-center gap-2">
-                                <Icon name="music" size={16} color="var(--brand-pink-500)" />
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  {selectedArtist.genres.slice(0, 3).map((genre, idx) => (
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                                      {genre}
-                                    </span>
-                                  ))}
-                                  {selectedArtist.genres.length > 3 && (
-                                    <span className="text-xs text-muted-foreground">
-                                      +{selectedArtist.genres.length - 3} more
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Clear Button */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation(); // Prevent navigation when clicking clear button
-                            setSelectedArtist(null);
-                            setTourEvents([]);
-                            setTourRoute([]);
-                            setGroupChats([]);
-                            setSelectedEvent(null);
-                            setEventDetailsOpen(false);
-                          }}
-                          aria-label="Clear selected artist"
-                          className="flex-shrink-0 text-muted-foreground hover:text-foreground"
-                          style={{
-                            minWidth: '44px',
-                            minHeight: '44px',
-                            width: '44px',
-                            height: '44px',
-                          }}
-                        >
-                          <Icon name="x" size={16} color="var(--neutral-600)" alt="" ariaHidden />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                </div>
-              </Card>
-            )}
-
-            {tourLoading ? (
-              <div aria-busy="true">
-                <div role="status" aria-live="polite" className="sr-only">Loading tour data…</div>
-              <SynthLoadingInline text="Loading tour data..." size="lg" />
-              </div>
-            ) : selectedArtist && tourEvents.length > 0 ? (
-              <>
-                <div className="h-96 rounded-lg overflow-hidden border relative z-0">
-                  <style>{`
-                    .leaflet-control-attribution {
-                      font-size: 8px !important;
-                      padding: 2px 5px !important;
-                      background: rgba(255,255,255,0.7) !important;
-                      max-width: 150px;
-                      white-space: nowrap;
-                      overflow: hidden;
-                      text-overflow: ellipsis;
-                    }
-                    .leaflet-control-attribution a { color: #666 !important; }
-                  `}</style>
-                  <MapContainer
-                    center={getTourMapCenter()}
-                    zoom={5}
-                    style={{ height: '100%', width: '100%', zIndex: 0 }}
-                    boundsOptions={{ padding: [50, 50] }}
-                  >
-                    
-                    {MAPBOX_TOKEN ? (
-                      <TileLayer
-                        url={`https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
-                        attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                      />
-                    ) : null}
-
-                    <MapBoundsFitter events={sortedTourEvents} />
-                    
-                    {/* Draw route lines with arrowheads (based on grouped venues) */}
-                    {groupedVenueRoute.map((segment, idx) => {
-                      const lat1 = segment.from.lat;
-                      const lng1 = segment.from.lng;
-                      const lat2 = segment.to.lat;
-                      const lng2 = segment.to.lng;
-                      
-                      // Direction vector
-                      const dLat = lat2 - lat1;
-                      const dLng = lng2 - lng1;
-                      
-                      // Arrowhead position (85% along the line)
-                      const arrowLat = lat1 + dLat * 0.85;
-                      const arrowLng = lng1 + dLng * 0.85;
-                      
-                      // Calculate angle in radians and convert to degrees
-                      const angleRad = Math.atan2(dLat, dLng);
-                      const angleDeg = angleRad * 180 / Math.PI;
-                      
-                      // Create SVG arrowhead with proper rotation
-                      const arrowSvg = `
-                        <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-                          <g transform="translate(10,10) rotate(${angleDeg}) translate(-10,-10)">
-                          <polygon points="10,2 4,16 16,16" stroke="white" stroke-width="1.5" style="fill: var(--brand-pink-500);"/>
-                          </g>
-                        </svg>
-                      `;
-                      
-                      return (
-                        <React.Fragment key={idx}>
-                      <Polyline
-                        positions={[
-                              [lat1, lng1],
-                              [lat2, lng2],
-                        ]}
-                        pathOptions={{
-                          color: 'var(--brand-pink-500)',
-                          weight: 3,
-                          opacity: 0.7,
-                        }}
-                      />
-                          {/* Arrowhead marker */}
-                          <Marker
-                            position={[arrowLat, arrowLng]}
-                            icon={divIcon({
-                              className: 'arrowhead-marker',
-                              html: arrowSvg,
-                              iconSize: [20, 20],
-                              iconAnchor: [10, 10],
-                            })}
-                          />
-                        </React.Fragment>
-                      );
-                    })}
-                    
-                    {/* Numbered venue markers (one per unique venue group) */}
-                    {groupedVenues.map((venueGroup) => (
-                      <Marker
-                        key={`${venueGroup.venueKey}-${venueGroup.number}`}
-                        position={[venueGroup.latitude, venueGroup.longitude]}
-                        icon={createNumberedIcon(
-                          venueGroup.number,
-                          Boolean(selectedEvent && venueGroup.events.some(e => e.id === selectedEvent.id))
-                        )}
-                        eventHandlers={{
-                          click: () => {
-                            if (venueGroup.events.length === 0) return;
-                            const alreadySelected = selectedEvent
-                              ? venueGroup.events.find(e => e.id === selectedEvent.id)
-                              : undefined;
-                            handleTourEventClick(alreadySelected ?? venueGroup.events[0]);
-                          },
-                        }}
-                      />
-                    ))}
-                  </MapContainer>
-                </div>
-
-                {/* Events Feed */}
-                <div className="mt-4">
-                  <h3 className="font-semibold mb-3" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>Tour Dates ({sortedTourEvents.length})</h3>
-                  <div className="flex flex-col max-h-96 overflow-y-auto" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
-                    {sortedTourEvents.map((event) => {
-                      const isInterested = interestedEvents.has(event.id);
-                      const interestedCount = eventInterestedCounts.get(event.id) || 0;
-                      const eventDate = event.event_date ? new Date(event.event_date) : null;
-                      const formatTourDate = (date: Date | null) => {
-                        if (!date) return '';
-                        return format(date, 'M/d/yy');
-                      };
-                      const venueLocation = event.venue_city 
-                        ? (event.venue_state ? `${event.venue_city}, ${event.venue_state}` : event.venue_city)
-                        : event.venue_state || '';
-                      const isSelected = selectedEvent?.id === event.id;
-                      
-                      return (
-                        <div
-                          key={event.id}
-                          onClick={() => handleTourEventClick(event)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              handleTourEventClick(event);
-                            }
-                          }}
-                          tabIndex={0}
-                          role="button"
-                          aria-pressed={isSelected}
-                          aria-label={`${isSelected ? 'Open' : 'Select'} event: ${selectedArtist?.name || event.artist_name || 'Artist'} at ${event.venue_name || 'venue'}`}
-                          className="cursor-pointer transition-colors"
-                          style={{
-                            paddingTop: 'var(--spacing-grouped, 24px)',
-                            paddingBottom: 'var(--spacing-grouped, 24px)',
-                            paddingLeft: isSelected ? '10px' : undefined,
-                            borderBottom: '1px solid var(--neutral-200)',
-                            borderLeft: isSelected ? '3px solid var(--brand-pink-500)' : undefined,
-                            backgroundColor: isSelected ? 'rgba(204, 36, 134, 0.06)' : 'transparent',
-                          }}
-                        >
-                          <div className="flex flex-col w-full">
-                            <div className="mb-1">
-                              <h3 
-                                className="font-semibold break-words" 
-                                style={{
-                                  fontFamily: 'var(--font-family)',
-                                  fontSize: 'var(--typography-body-size, 20px)',
-                                  fontWeight: 'var(--typography-body-weight, 500)',
-                                  lineHeight: 'var(--typography-body-line-height, 1.5)',
-                                  color: 'var(--neutral-900)',
-                                }}
-                              >
-                                {selectedArtist?.name || event.artist_name || 'Artist'}
-                              </h3>
-                            </div>
-                            <div className="flex flex-col" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                                  {/* Location with icon */}
-                                  {venueLocation && (
-                                    <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                                      <MapPin size={20} style={{ color: 'var(--brand-pink-500)' }} />
-                                      <p 
-                                        className="text-sm truncate" 
-                                        style={{
-                                          fontFamily: 'var(--font-family)',
-                                          fontSize: 'var(--typography-meta-size, 16px)',
-                                          fontWeight: 'var(--typography-meta-weight, 500)',
-                                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                                          color: 'var(--neutral-600)',
-                                          whiteSpace: 'nowrap',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                          margin: 0,
-                                        }}
-                                      >
-                                        {venueLocation}
-                                      </p>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Venue with building icon */}
-                                  {event.venue_name && (
-                                    <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                                      <BuildingComplex size={24} style={{ color: 'var(--brand-pink-500)' }} />
-                                      <p 
-                                        className="text-sm truncate" 
-                                        style={{
-                                          fontFamily: 'var(--font-family)',
-                                          fontSize: 'var(--typography-meta-size, 16px)',
-                                          fontWeight: 'var(--typography-meta-weight, 500)',
-                                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                                          color: 'var(--neutral-600)',
-                                          whiteSpace: 'nowrap',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                          margin: 0,
-                                        }}
-                                      >
-                                        {event.venue_name}
-                                      </p>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Date with calendar icon */}
-                                  {eventDate && (
-                                    <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
-                                      <CalendarIcon size={24} style={{ color: 'var(--brand-pink-500)' }} />
-                                      <p 
-                                        className="text-sm truncate" 
-                                        style={{
-                                          fontFamily: 'var(--font-family)',
-                                          fontSize: 'var(--typography-meta-size, 16px)',
-                                          fontWeight: 'var(--typography-meta-weight, 500)',
-                                          lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                                          color: 'var(--neutral-600)',
-                                          whiteSpace: 'nowrap',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                          margin: 0,
-                                        }}
-                                      >
-                                        {formatTourDate(eventDate)}
-                                      </p>
-                                    </div>
-                                  )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Group Chats */}
-                {groupChats.length > 0 && (
-                  <div className="mt-4">
-                    <h3 className="font-semibold mb-2">Related Group Chats</h3>
-                    <div className="grid grid-cols-1 gap-2">
-                      {groupChats.map((chat) => (
-                        <Card 
-                          key={chat.id} 
-                          className="cursor-pointer hover:shadow-md swift-ui-card" 
-                          onClick={() => onNavigateToChat && chat.chat_id && onNavigateToChat(chat.chat_id)}
-                          onKeyDown={(e) => {
-                            if ((e.key === 'Enter' || e.key === ' ') && onNavigateToChat && chat.chat_id) {
-                              e.preventDefault();
-                              onNavigateToChat(chat.chat_id);
-                            }
-                          }}
-                          tabIndex={0}
-                          role="button"
-                          aria-label={`Open group chat: ${chat.name}`}
-                        >
-                          <div className="swift-ui-card-content">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-semibold">{chat.name}</h4>
-                                {chat.member_count !== undefined && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {chat.member_count} members
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : selectedArtist ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No upcoming events found for {selectedArtist.name}</p>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>Search for an artist to see their tour route</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+        </div>
 
       {/* Event Details Modal (fallback when Discover is not handling open) */}
       {!onOpenEvent && (

@@ -67,6 +67,7 @@ export interface ReviewFormData {
   valueFeedback: string;
 
   ticketPricePaid: string;
+  recommendAtPrice: boolean | null; // would recommend at the price paid; null = unanswered
 
   rating: number; // Overall rating (calculated as average of available category ratings)
   
@@ -132,6 +133,7 @@ const initialFormData: ReviewFormData = {
   locationFeedback: '',
   valueFeedback: '',
   ticketPricePaid: '',
+  recommendAtPrice: null,
   rating: 0,
   reviewText: '',
   images: [],

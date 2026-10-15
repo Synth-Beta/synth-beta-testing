@@ -33,6 +33,7 @@ interface FullReviewData {
   photos: string[] | null;
   videos?: string[] | null;
   ticket_price_paid?: number | null;
+  recommend_at_price?: boolean | null;
   created_at: string;
   artist_performance_rating?: number | null;
   production_rating?: number | null;
@@ -138,6 +139,7 @@ export function ReviewDetailView({
             photos,
             videos,
             ticket_price_paid,
+            recommend_at_price,
             created_at,
             artist_performance_rating,
             production_rating,
@@ -976,6 +978,12 @@ export function ReviewDetailView({
           {reviewData.ticket_price_paid != null && reviewData.ticket_price_paid > 0 && (
             <p className="text-base" style={{ color: 'var(--neutral-600)', margin: 0 }}>
               Paid ${Number(reviewData.ticket_price_paid).toFixed(2)} for the ticket
+            </p>
+          )}
+
+          {reviewData.recommend_at_price != null && (
+            <p className="text-base font-semibold" style={{ color: 'var(--neutral-900)', margin: 0 }}>
+              Worth it at that price? {reviewData.recommend_at_price ? 'Yes' : 'No'}
             </p>
           )}
 

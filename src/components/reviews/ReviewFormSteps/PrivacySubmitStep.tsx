@@ -196,7 +196,7 @@ export function PrivacySubmitStep({
             {ticketPriceDisplay && (
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-green-500" />
-                <span>Ticket price (kept private): ${ticketPriceDisplay}</span>
+                <span>Ticket price: ${ticketPriceDisplay}</span>
               </div>
             )}
 
