@@ -3,9 +3,12 @@ import {
   boostEventsByArtistAffinity,
   getUserArtistAffinity,
   BUCKET_LIST_TOP_LIMIT,
+  weaveJustAnnouncedIntoFeed,
+  JUST_ANNOUNCED_LABEL,
+  logJustAnnounced,
 } from '@synth/shared';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, View, RefreshControl } from 'react-native';
+import { StyleSheet, View, RefreshControl, Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -35,6 +38,9 @@ type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
   | { kind: 'review'; data: NetworkReview };
 
+
+// Module-level: FlashList can't change viewabilityConfig after mount.
+const JUST_ANNOUNCED_VIEWABILITY = { itemVisiblePercentThreshold: 50, minimumViewTime: 500 };
 export default function FeedScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -50,7 +56,25 @@ export default function FeedScreen() {
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const retryAttemptRef = useRef(0);
   const { seedFromFeed } = useInterested();
-  const { coords: browseCoords } = useBrowseLocation();
+  const { coords: browseCoords, radiusMiles: browseRadiusMiles } = useBrowseLocation();
+
+  // Save the browse location server-side so "just announced" alerts match the area the
+  // user actually browses. Rounded to ~1km: enough for a radius match, avoids storing
+  // exact GPS, and stops GPS jitter from triggering a write on every render.
+  const browseLat = browseCoords ? Math.round(browseCoords.latitude * 100) / 100 : null;
+  const browseLng = browseCoords ? Math.round(browseCoords.longitude * 100) / 100 : null;
+  useEffect(() => {
+    if (!viewerUserId || browseLat == null || browseLng == null) return;
+    supabase
+      .rpc('set_browse_location', {
+        p_latitude: browseLat,
+        p_longitude: browseLng,
+        p_radius_miles: Math.round(browseRadiusMiles),
+      })
+      .then(({ error }) => {
+        if (error) console.warn('[home] set_browse_location failed', error.message);
+      });
+  }, [viewerUserId, browseLat, browseLng, browseRadiusMiles]);
 
   // Bucket-list shows are woven into the ranked feed rather than shown on their own rail,
   // matching web. Ones the ranker already returned keep its ordering and its enriched copy;
@@ -63,6 +87,20 @@ export default function FeedScreen() {
           data,
         }))
       : reviews.map(data => ({ kind: 'review' as const, data }));
+
+  // Impressions for the 10-day just-announced test (just_announced_feed_report): once per
+  // card per screen mount. Stable ref - FlashList ignores a changed callback.
+  const loggedJustAnnouncedRef = useRef<Set<string>>(new Set());
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ item: ListItem }> }) => {
+      for (const { item } of viewableItems) {
+        if (item?.kind !== 'event' || item.data.feedLabel !== JUST_ANNOUNCED_LABEL) continue;
+        if (loggedJustAnnouncedRef.current.has(item.data.id)) continue;
+        loggedJustAnnouncedRef.current.add(item.data.id);
+        logJustAnnounced(supabase, item.data.id, 'impression', Boolean(item.data.is_fan), Platform.OS === 'ios' ? 'ios' : 'android');
+      }
+    }
+  ).current;
 
   const fetchFeed = useCallback(async () => {
     try {
@@ -104,7 +142,7 @@ export default function FeedScreen() {
       const affinityPromise = getUserArtistAffinity(supabase, user.id);
 
       if (feedDisplayMode === 'events') {
-        const [unread, suggestions, bucketEvents, affinity, unified, friendEvents] = await Promise.all([
+        const [unread, suggestions, bucketEvents, affinity, unified, friendEvents, justAnnounced] = await Promise.all([
           unreadPromise,
           suggestionsPromise,
           bucketListEventsPromise,
@@ -113,6 +151,9 @@ export default function FeedScreen() {
             user.id, 50, loc?.latitude ?? null, loc?.longitude ?? null, 50
           ),
           HomeFeedService.getNetworkEvents(user.id, 20),
+          loc
+            ? HomeFeedService.getJustAnnouncedEvents(loc.latitude, loc.longitude, 50)
+            : Promise.resolve([]),
         ]);
         setNotificationCount(unread);
         setFriendSuggestions(suggestions);
@@ -121,7 +162,16 @@ export default function FeedScreen() {
         // Artists the user actually streams or has reviewed move to the front, keeping the
         // RPC's order within each group. Applied before the friend interleave so friend
         // events keep their every-4th cadence.
-        const ranked = boostEventsByArtistAffinity(unified, affinity);
+        // New shows (first listed in the last 10 days): your artists' pinned on top, others
+        // woven in, ones already ranked just get the badge. Before the friend interleave so
+        // friend events keep their every-4th cadence.
+        const ranked = weaveJustAnnouncedIntoFeed(
+          boostEventsByArtistAffinity(unified, affinity),
+          justAnnounced,
+          e => e.id,
+          e => Boolean(e.is_fan),
+          e => ({ ...e, feedLabel: JUST_ANNOUNCED_LABEL })
+        );
 
         // Convert friend network events → UnifiedPersonalizedEvent with FRIENDS label
         const friendEventIds = new Set(ranked.map(e => e.id));
@@ -280,6 +330,9 @@ export default function FeedScreen() {
         currentUserId={viewerUserId}
         friendsInterested={item.data.friends_interested}
         onPress={() => {
+          if (item.data.feedLabel === JUST_ANNOUNCED_LABEL) {
+            logJustAnnounced(supabase, item.data.id, 'open', Boolean(item.data.is_fan), Platform.OS === 'ios' ? 'ios' : 'android');
+          }
           void EventService.toEventRouteId(item.data.id).then((rid) => {
             router.push(`/event/${rid}` as any);
           });
@@ -325,6 +378,8 @@ export default function FeedScreen() {
         <FlashList
           data={listData}
           renderItem={renderItem}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={JUST_ANNOUNCED_VIEWABILITY}
           keyExtractor={item =>
             item.kind === 'event' ? `ev-${item.data.id}` : `rv-${item.data.id}`
           }

@@ -196,6 +196,13 @@ export {
   BUCKET_LIST_TOP_LIMIT,
 } from './bucketListFeed';
 export {
+  weaveJustAnnouncedIntoFeed,
+  JUST_ANNOUNCED_LABEL,
+  JUST_ANNOUNCED_PIN_LIMIT,
+  JUST_ANNOUNCED_SPACING,
+  logJustAnnounced,
+} from './justAnnouncedFeed';
+export {
   type ArtistAffinity,
   getUserArtistAffinity,
   boostEventsByArtistAffinity,

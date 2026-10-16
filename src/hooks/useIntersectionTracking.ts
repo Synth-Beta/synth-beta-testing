@@ -23,6 +23,8 @@ interface IntersectionTrackingOptions {
   rootMargin?: string; // e.g., '0px' or '100px 0px'
   trackOnce?: boolean; // If true, only track first impression
   debounce?: number; // Debounce time in ms, default 500
+  /** List hook only: also called after an item's view is tracked. */
+  onView?: (itemId: string, metadata?: TrackingMetadata) => void;
 }
 
 interface TrackingMetadata {
@@ -131,6 +133,9 @@ export function useIntersectionTrackingList(
   const observerRef = useRef<IntersectionObserver | null>(null);
   const trackedItemsRef = useRef<Set<string>>(new Set());
   const debounceTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Ref so a new callback each render doesn't rebuild the observer.
+  const onViewRef = useRef(options.onView);
+  onViewRef.current = options.onView;
 
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
 
@@ -166,6 +171,7 @@ export function useIntersectionTrackingList(
                   tracked_via: 'intersection_observer_list'
                 }, isUUID ? itemId : undefined);
                 trackedItemsRef.current.add(itemId);
+                onViewRef.current?.(itemId, item.metadata);
               }
               debounceTimersRef.current.delete(itemId);
             }, mergedOptions.debounce);

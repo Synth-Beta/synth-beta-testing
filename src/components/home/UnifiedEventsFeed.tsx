@@ -14,7 +14,14 @@ import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { VerifiedChatService } from '@/services/verifiedChatService';
 import { getUserArtistAffinity, boostEventsByArtistAffinity } from '@/services/artistAffinityService';
 import { BucketListService } from '@/services/bucketListService';
-import { getEventsFromRankedArtists, weaveBucketListIntoFeed, BUCKET_LIST_TOP_LIMIT } from '@synth/shared';
+import {
+  getEventsFromRankedArtists,
+  weaveBucketListIntoFeed,
+  BUCKET_LIST_TOP_LIMIT,
+  weaveJustAnnouncedIntoFeed,
+  JUST_ANNOUNCED_LABEL,
+  logJustAnnounced,
+} from '@synth/shared';
 import { toast } from '@/hooks/use-toast';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
 import { LocationService } from '@/services/locationService';
@@ -39,6 +46,8 @@ interface UnifiedEventItem {
   interested_count?: number;
   friends_interested_count?: number;
   user_is_interested?: boolean;
+  /** Just-announced show by an artist the viewer follows / has bucket-listed. */
+  is_fan?: boolean;
 }
 
 interface UnifiedEventsFeedProps {
@@ -113,6 +122,61 @@ async function fetchBucketListTopEvents(
   }
 }
 
+/**
+ * Shows JamBase first listed in the last 10 days near the browse location, the viewer's
+ * own artists first (get_just_announced_events). Same RPC + weave helper as Expo.
+ */
+async function fetchJustAnnouncedEvents(
+  loc: { lat: number; lng: number } | null,
+  radiusMiles?: number
+): Promise<UnifiedEventItem[]> {
+  if (!loc) return [];
+  try {
+    const { data, error } = await supabase.rpc('get_just_announced_events', {
+      p_latitude: loc.lat,
+      p_longitude: loc.lng,
+      p_radius_miles: Math.round(radiusMiles ?? 50),
+      p_limit: 20,
+    });
+    if (error) throw error;
+    return ((data as any[]) ?? []).map((e: any) => ({
+      event_id: String(e.id),
+      title: e.title || e.artist_name || 'Event',
+      artist_name: e.artist_name || undefined,
+      venue_name: e.venue_name || undefined,
+      venue_city: e.venue_city || undefined,
+      venue_state: e.venue_state || undefined,
+      event_date: String(e.event_date),
+      images: e.images,
+      event_media_url: e.event_media_url ?? undefined,
+      reason: 'recommended' as EventReason,
+      interested_count: 0,
+      friends_interested_count: 0,
+      user_is_interested: false,
+      is_fan: Boolean(e.is_fan),
+    }));
+  } catch (error) {
+    // Feed must still load if the RPC isn't deployed yet.
+    console.warn('Error loading just-announced events for feed:', error);
+    return [];
+  }
+}
+
+const withJustAnnounced = (events: UnifiedEventItem[], justAnnounced: UnifiedEventItem[]) =>
+  weaveJustAnnouncedIntoFeed(
+    events,
+    justAnnounced,
+    (e) => e.event_id,
+    (e) => Boolean(e.is_fan),
+    (e) => ({ ...e, reasonLabel: JUST_ANNOUNCED_LABEL })
+  );
+
+/** Later pages can return shows already woven/pinned into page 1 (bucket list, just announced). */
+const appendUnique = (existing: UnifiedEventItem[], next: UnifiedEventItem[]) => {
+  const seen = new Set(existing.map((e) => e.event_id));
+  return [...existing, ...next.filter((e) => !seen.has(e.event_id))];
+};
+
 /** Fetch feed for the filter location (the user's browse pick), else the device location */
 async function fetchFeedForLocations(
   userId: string,
@@ -127,9 +191,10 @@ async function fetchFeedForLocations(
   if (filterLoc) locs.push(filterLoc);
   else if (userLoc) locs.push(userLoc);
 
-  const [affinity, bucketTop] = await Promise.all([
+  const [affinity, bucketTop, justAnnounced] = await Promise.all([
     getUserArtistAffinity(userId),
     fetchBucketListTopEvents(userId, locs[0] ?? null, baseFilters.radiusMiles),
+    fetchJustAnnouncedEvents(locs[0] ?? null, baseFilters.radiusMiles),
   ]);
 
   if (locs.length === 0) {
@@ -164,7 +229,14 @@ async function fetchFeedForLocations(
   const boostedMerged = boostEventsByArtistAffinity(mergedEvents, affinity);
   const merged = boostedMerged.map(e => personalEventToItem(e, (e as any).event_type));
   const hasMore = results.some(r => r.hasMore) || merged.length >= limit;
-  return { events: weaveBucketListIntoFeed(filterUpcomingFeedItems(merged), bucketTop, (e) => e.event_id), hasMore };
+  return {
+    events: weaveBucketListIntoFeed(
+      withJustAnnounced(filterUpcomingFeedItems(merged), justAnnounced),
+      bucketTop,
+      (e) => e.event_id
+    ),
+    hasMore,
+  };
 }
 
 function personalEventToItem(event: PersonalizedEvent, eventType?: string): UnifiedEventItem {
@@ -369,8 +441,19 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     'event',
     displayedEvents.map((e, idx) => ({
       id: e.event_id,
-      metadata: { ...getEventMetadata(e), source: 'feed', position: idx },
-    }))
+      metadata: {
+        ...getEventMetadata(e),
+        source: 'feed',
+        position: idx,
+        just_announced: e.reasonLabel === JUST_ANNOUNCED_LABEL,
+        is_fan: Boolean(e.is_fan),
+      },
+    })),
+    {
+      onView: (id, metadata) => {
+        if (metadata?.just_announced) logJustAnnounced(supabase, id, 'impression', Boolean(metadata.is_fan), 'web');
+      },
+    }
   );
 
   // Compute whether we have more events to show (locally or from API)
@@ -646,7 +729,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     // Check if we have prefetched events ready to use
     if (prefetchedEventsRef.current.length > 0 && prefetchedOffsetRef.current === apiOffset) {
       console.log('⚡ [UnifiedEventsFeed] Using prefetched events:', prefetchedEventsRef.current.length);
-      const combined = [...allFetchedEvents, ...prefetchedEventsRef.current];
+      const combined = appendUnique(allFetchedEvents, prefetchedEventsRef.current);
       setAllFetchedEvents(combined);
       setDisplayedEvents(combined.slice(0, nextDisplayCount));
       setDisplayCount(nextDisplayCount);
@@ -668,7 +751,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     setLoadingMore(true);
     try {
       const { events: newEvents, hasMore } = await fetchBatch(apiOffset);
-      const combined = [...allFetchedEvents, ...newEvents];
+      const combined = appendUnique(allFetchedEvents, newEvents);
       setAllFetchedEvents(combined);
       setDisplayedEvents(combined.slice(0, nextDisplayCount));
       setDisplayCount(nextDisplayCount);
@@ -1078,7 +1161,12 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                     onInterestClick={(e) => handleInterestToggle(event.event_id, e)}
                     onShareClick={(e) => onShareClick?.(event, e)}
                     onJoinChatClick={(e) => handleJoinEventChat(event.event_id, e)}
-                    onClick={() => onEventClick?.(event.event_id)}
+                    onClick={() => {
+                      if (event.reasonLabel === JUST_ANNOUNCED_LABEL) {
+                        logJustAnnounced(supabase, event.event_id, 'open', Boolean(event.is_fan), 'web');
+                      }
+                      onEventClick?.(event.event_id);
+                    }}
                   />
                 </div>
               );

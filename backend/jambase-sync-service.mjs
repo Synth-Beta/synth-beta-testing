@@ -397,7 +397,10 @@ class JambaseSyncService {
       is_promoted: false,
       is_featured: false,
       media_urls: [],
-      last_modified_at: jambaseEvent.dateModified ? new Date(jambaseEvent.dateModified).toISOString() : null
+      last_modified_at: jambaseEvent.dateModified ? new Date(jambaseEvent.dateModified).toISOString() : null,
+      // When JamBase first listed the show; drives "just announced" notifications.
+      // Fixed per event, so a late or backfill sync can't make an old show look new.
+      announced_at: jambaseEvent.datePublished ? new Date(jambaseEvent.datePublished).toISOString() : null
     };
   }
 

@@ -25,6 +25,8 @@ export interface UnifiedPersonalizedEvent {
     ticket_url?: string;
     /** Friends interested in this event (populated for FRIENDS-labeled events) */
     friends_interested?: Array<{ id: string; name: string; avatar_url?: string | null }>;
+    /** Just-announced show by an artist the viewer follows / has bucket-listed. */
+    is_fan?: boolean;
 }
 
 export type ReviewThumbnailCrop = {
@@ -790,6 +792,48 @@ export class HomeFeedService {
             return rankFriendSuggestionsForRail(pool, maxCards) as FriendSuggestion[];
         } catch (error) {
             console.error('Error loading friend suggestions for rail:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Shows JamBase first listed in the last 10 days near the browse location, the
+     * viewer's own artists first (get_just_announced_events). Woven into the feed with
+     * the shared weaveJustAnnouncedIntoFeed helper, same as web.
+     */
+    static async getJustAnnouncedEvents(
+        lat: number,
+        lng: number,
+        radiusMiles = 50,
+        limit = 20
+    ): Promise<UnifiedPersonalizedEvent[]> {
+        try {
+            const { data, error } = await supabase.rpc('get_just_announced_events', {
+                p_latitude: lat,
+                p_longitude: lng,
+                p_radius_miles: Math.round(radiusMiles),
+                p_limit: limit,
+            });
+            if (error) throw error;
+            return ((data as any[]) ?? []).map((p: any) => ({
+                id: String(p.id),
+                title: p.title ?? p.artist_name ?? '',
+                artist_name: p.artist_name ?? '',
+                venue_name: p.venue_name ?? '',
+                venue_city: p.venue_city || undefined,
+                venue_state: p.venue_state || undefined,
+                event_date: String(p.event_date),
+                image_url: resolveFeedImageUri(pickFeedImageUrlFromPayload(p)) ?? undefined,
+                artist_id: p.artist_id ?? undefined,
+                venue_id: p.venue_id ?? undefined,
+                ticket_url: getCompliantEventLinkFromPayload(p) ?? undefined,
+                interested_count: 0,
+                user_is_interested: false,
+                is_fan: Boolean(p.is_fan),
+            }));
+        } catch (error) {
+            // Feed must still load if the RPC isn't deployed yet.
+            console.warn('[homeFeed] getJustAnnouncedEvents', error);
             return [];
         }
     }
