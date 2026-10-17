@@ -82,8 +82,7 @@ const REVIEW_SELECT_WEB_PARITY = `
             artist_id,
             venue_id,
             attendees,
-            is_public,
-            custom_setlist
+            is_public
         `;
 
 /** Last resort when web-parity list still hits undefined_column (e.g. feedback columns missing). */
@@ -663,6 +662,22 @@ export default function ReviewDetailScreen() {
                     const second = await fetchReview(REVIEW_SELECT_WEB_PARITY);
                     data = second.data;
                     error = second.error;
+                }
+
+                // A single missing column must not hide the whole breakdown (custom_setlist did
+                // exactly that): drop just the column the error names and retry.
+                let selectList = REVIEW_SELECT_WEB_PARITY;
+                for (let i = 0; i < 3 && error && isUndefinedColumnPostgrestError(error); i++) {
+                    const missing = /column reviews\.(\w+) does not exist/.exec(error.message ?? '')?.[1];
+                    if (!missing) break;
+                    selectList = selectList
+                        .split(',')
+                        .map(c => c.trim())
+                        .filter(c => c && c !== missing)
+                        .join(', ');
+                    const retry = await fetchReview(selectList);
+                    data = retry.data;
+                    error = retry.error;
                 }
 
                 if (error && isUndefinedColumnPostgrestError(error)) {
