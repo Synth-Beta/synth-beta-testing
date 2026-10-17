@@ -518,6 +518,15 @@ export const NotificationsPage = ({
         }
         break;
 
+      case 'week1_nudge':
+      case 'reengagement':
+        if (data?.event_id && onNavigateToEvent) {
+          onNavigateToEvent(data.event_id);
+        } else if (onNavigateToDiscover) {
+          onNavigateToDiscover();
+        }
+        break;
+
       default:
         // For other types, just mark as read (handled above)
         break;

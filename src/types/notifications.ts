@@ -36,7 +36,9 @@ export type NotificationType =
   | 'flag_reviewed'
   | 'user_warned'
   | 'user_restricted'
-  | 'user_suspended';
+  | 'user_suspended'
+  | 'reengagement'
+  | 'week1_nudge';
 
 export interface Notification {
   id: string;

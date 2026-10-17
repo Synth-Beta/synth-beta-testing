@@ -1,11 +1,31 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 import { Home, Compass, Search, MessageCircle, User } from 'lucide-react-native';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { SynthTabBar } from '../../src/components/navigation/SynthTabBar';
+import { PushPrimer } from '../../src/components/PushPrimer';
+import { supabase } from '../../src/integrations/supabase/client';
+import { shouldAutoOpenFeatureTour } from '../../lib/featureTour';
 
 export default function TabLayout() {
+  const router = useRouter();
+
+  // First time a new account reaches the app (right after onboarding): open the tour once.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user || cancelled) return;
+      if ((await shouldAutoOpenFeatureTour(user)) && !cancelled) router.push('/tour');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
   return (
+    <>
     <Tabs
       tabBar={props => <SynthTabBar {...props} />}
       screenOptions={{
@@ -47,5 +67,7 @@ export default function TabLayout() {
       {/* Pushed from Discover / Post; not a tab bar destination */}
       <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>
+    <PushPrimer />
+    </>
   );
 }

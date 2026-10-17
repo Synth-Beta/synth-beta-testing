@@ -206,7 +206,7 @@ export default function SettingsScreen() {
       if (updated) {
         setEnablePush(checked);
         if (checked) {
-          await syncExpoPushTokenWithBackend();
+          await syncExpoPushTokenWithBackend({ prompt: true });
           // If the OS permission is denied, the preference is on but no push can
           // ever arrive. iOS won't re-prompt after a denial, so guide the user to
           // Settings — this is the natural moment to recover the ~majority of

@@ -150,6 +150,8 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
       case 'follows_new_events_summary':
       case 'bucket_list_new_events_summary':
       case 'friends_event_interest_summary':
+      case 'week1_nudge':
+      case 'reengagement':
         return <Music2 size={20} color={PINK} />;
       case 'event_interest':
       case 'friend_rsvp_going':

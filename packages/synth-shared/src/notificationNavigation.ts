@@ -29,6 +29,8 @@ const EVENT_SUMMARY_TYPES = new Set([
   'follows_new_events_summary',
   'friends_event_interest_summary',
   'bucket_list_new_events_summary',
+  'week1_nudge',
+  'reengagement',
 ]);
 
 /**

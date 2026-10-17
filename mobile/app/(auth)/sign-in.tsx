@@ -316,7 +316,7 @@ export default function SignInScreen() {
             </TouchableOpacity>
           ) : null}
 
-          <TouchableOpacity onPress={() => router.push('/(onboarding)/welcome')} style={styles.skip}>
+          <TouchableOpacity onPress={() => router.push('/tour')} style={styles.skip}>
             <Text style={styles.skipText}>New to Synth? Take a quick tour</Text>
           </TouchableOpacity>
         </View>

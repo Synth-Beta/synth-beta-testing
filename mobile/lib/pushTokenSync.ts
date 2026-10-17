@@ -8,11 +8,15 @@ import Constants from 'expo-constants';
 /**
  * Registers the Expo push token with Supabase `register_device_token` (same RPC as Vite `PushTokenService`).
  * Call when a session exists (e.g. after sign-in).
+ * prompt=true may show the iOS permission dialog; only pass it from a user action
+ * (PushPrimer, Settings toggle). Launch/foreground syncs stay silent.
  *
  * Delivery: `backend/push-notification-service.js` routes `ExponentPushToken*` tokens through the Expo Push API.
  * The process running `push-notification-worker.js` must have `EXPO_ACCESS_TOKEN` (from expo.dev).
  */
-export async function syncExpoPushTokenWithBackend(): Promise<void> {
+export async function syncExpoPushTokenWithBackend(
+  { prompt = false }: { prompt?: boolean } = {},
+): Promise<void> {
   try {
     const {
       data: { session },
@@ -22,7 +26,7 @@ export async function syncExpoPushTokenWithBackend(): Promise<void> {
       return;
     }
 
-    const token = await registerForPushNotificationsAsync();
+    const token = await registerForPushNotificationsAsync({ prompt });
     if (!token) {
       // registerForPushNotificationsAsync already logged the specific reason
       // (no device / permission denied / no projectId / Expo token error).

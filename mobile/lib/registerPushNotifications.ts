@@ -60,8 +60,11 @@ export function ensureExpoPushNotificationHandler(): void {
 /**
  * Requests notification permission and returns an Expo push token (for FCM/APNs via Expo).
  * Send the token to your backend (same flow as Capacitor PushTokenService) for `push-notification-worker`.
+ * prompt=false only mints a token when permission is already granted (no system dialog).
  */
-export async function registerForPushNotificationsAsync(): Promise<string | null> {
+export async function registerForPushNotificationsAsync(
+  { prompt = true }: { prompt?: boolean } = {},
+): Promise<string | null> {
   ensureExpoPushNotificationHandler();
   if (Platform.OS === 'web') return null;
   if (!Device.isDevice) {
@@ -71,6 +74,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
   const existing = await Notifications.getPermissionsAsync();
   let granted = notificationPermissionGranted(existing);
+  if (!granted && !prompt) {
+    // Launch/foreground sync: the soft ask (PushPrimer) owns the system prompt.
+    return null;
+  }
   if (!granted) {
     // On iOS the system prompt only appears while status is "undetermined"; once a
     // user has denied it, requestPermissionsAsync() resolves to denied WITHOUT a

@@ -22,7 +22,7 @@ import { InterestedProvider } from '../src/contexts/InterestedContext';
 import { BrowseLocationProvider } from '../src/contexts/BrowseLocationContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryService';
-import { needsContactEmail } from '@synth/shared';
+import { needsContactEmail, resolveNotificationExpoPath } from '@synth/shared';
 
 /**
  * Lets screens that write `contact_email` (onboarding's profile step, the
@@ -433,10 +433,45 @@ export default function RootLayout() {
 
   useShareDeepLink(Boolean(session?.user && isOnboardingComplete));
 
+  // Push taps: open the screen the notification is about. Cold-start taps wait
+  // until routing has landed the user in the app, or the guard would overwrite them.
+  const appReadyForPushNav = Boolean(routingReady && session?.user && isOnboardingComplete && !needsEmail);
+  const pendingPushPathRef = useRef<string | null>(null);
+  const handledPushIdsRef = useRef(new Set<string>());
+  useEffect(() => {
+    const onResponse = (response: Notifications.NotificationResponse | null) => {
+      if (!response) return;
+      const id = response.notification.request.identifier;
+      if (handledPushIdsRef.current.has(id)) return;
+      handledPushIdsRef.current.add(id);
+      // Otherwise the next normal launch would replay this tap.
+      void Notifications.clearLastNotificationResponseAsync().catch(() => {});
+      const data = (response.notification.request.content.data ?? {}) as Record<string, unknown>;
+      const dest = resolveNotificationExpoPath(String(data.type ?? ''), data);
+      if (!dest) return;
+      if (appReadyForPushNav) router.push(dest.path as never);
+      else pendingPushPathRef.current = dest.path;
+    };
+    void Notifications.getLastNotificationResponseAsync().then(onResponse).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener(onResponse);
+    return () => sub.remove();
+  }, [appReadyForPushNav, router]);
+  useEffect(() => {
+    if (!appReadyForPushNav || !pendingPushPathRef.current) return;
+    const path = pendingPushPathRef.current;
+    pendingPushPathRef.current = null;
+    // Let the guard's replace('/(tabs)') settle first so the tab stays under the pushed screen.
+    const t = setTimeout(() => router.push(path as never), 300);
+    return () => clearTimeout(t);
+  }, [appReadyForPushNav, router]);
+
   useEffect(() => {
     if (!routingReady) return;
 
     const seg0 = segments[0];
+
+    // The feature tour works signed in or out (sign-in links to it); never redirect off it.
+    if (seg0 === 'tour') return;
 
     // `useSegments()` can be empty at `/` before `app/index.tsx` resolves — otherwise no branch matches and the UI can stall.
     if (seg0 === undefined) {
@@ -554,6 +589,7 @@ export default function RootLayout() {
       <Stack.Screen name="my-events" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="app-menu" options={{ headerShown: false, animation: 'slide_from_right' }} />
+      <Stack.Screen name="tour" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
     </Stack>
     </BrowseLocationProvider>
     </InterestedProvider>
