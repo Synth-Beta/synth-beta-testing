@@ -61,6 +61,10 @@ export interface EditionReader {
   fiveStarCount: number;
   topArtists: string[];
   genres: string[];
+  /** Artists this reader follows on Synth. */
+  followedArtists?: string[];
+  /** Venues this reader follows on Synth. */
+  followedVenues?: string[];
   /** Other public 5-star reviews of an artist this reader rated highly, excluding the reader. */
   otherFiveStarArtists: string[];
   interestedEventIds?: string[];

@@ -202,8 +202,10 @@ export const generateDraftsFromSource = async (
       reviews,
       lifetimeShowCount: reviews.length,
       fiveStarCount: reviews.filter((review) => (review.rating ?? 0) >= 5).length,
-      topArtists: [...new Set([...(artistsByUser.get(userId) ?? []), ...((user.followedArtists as string[] | undefined) ?? [])])].slice(0, 8),
+      topArtists: [...new Set(artistsByUser.get(userId) ?? [])].slice(0, 8),
       genres: genresByUser.get(userId) ?? [],
+      followedArtists: [...new Set(((user.followedArtists as string[] | undefined) ?? []).map(String).filter(Boolean))],
+      followedVenues: [...new Set(((user.followedVenues as string[] | undefined) ?? []).map(String).filter(Boolean))],
       otherFiveStarArtists: reviews
         .filter((review) => (review.rating ?? 0) >= 5)
         .map((review) => review.artistName)

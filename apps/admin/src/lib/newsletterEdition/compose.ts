@@ -62,20 +62,35 @@ const joinList = (items: string[]) => {
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 };
 
-const knownArtists = (reader: EditionReader) => {
-  const names = [
-    ...reader.topArtists,
-    ...reader.otherFiveStarArtists,
-    ...reader.reviews.map((review) => review.artistName),
-  ].filter(Boolean);
+const uniqueNames = (names: Array<string | null | undefined>) => {
   const seen = new Set<string>();
-  return names.filter((name) => {
-    const key = name.toLowerCase();
+  return names.filter((name): name is string => {
+    const cleaned = String(name ?? "").trim();
+    if (!cleaned) return false;
+    const key = cleaned.toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 };
+
+const knownArtists = (reader: EditionReader) => uniqueNames([
+  ...reader.topArtists,
+  ...(reader.followedArtists ?? []),
+  ...reader.otherFiveStarArtists,
+  ...reader.reviews.map((review) => review.artistName),
+]);
+
+/** Artists and venues that should steer news picks. Low-rated reviews stay out. */
+const newsInterestNames = (reader: EditionReader) => uniqueNames([
+  ...reader.topArtists,
+  ...(reader.followedArtists ?? []),
+  ...(reader.followedVenues ?? []),
+  ...reader.otherFiveStarArtists,
+  ...reader.reviews
+    .filter((review) => review.rating == null || review.rating >= 3)
+    .flatMap((review) => [review.artistName, review.venueName]),
+]);
 
 const alreadyLogged = (reader: EditionReader, artistName: string) =>
   reader.reviews.some((review) => sameName(review.artistName, artistName));
@@ -287,27 +302,28 @@ export const composeEdition = ({
   if (historyArtist) claim(historyArtist.name);
 
   const tasteGenres = inferTasteGenres(reader);
-  const hasTaste = tasteGenres.length > 0 || knownArtists(reader).length > 0;
+  const interestNames = newsInterestNames(reader);
+  const hasTaste = tasteGenres.length > 0 || interestNames.length > 0 || knownArtists(reader).length > 0;
   const freshNews = recentNews(news, new Date(Math.min(sendAt.getTime(), Date.parse(retrievedAt))));
   const summarized = freshNews
     .map((item) => ({ ...item, summary: meaningfulSummary(item.summary) }))
     .filter((item) => item.summary);
   const omittedSummaries = freshNews.length - summarized.length;
-  const knownForNews = knownArtists(reader).filter((artist) => !taken(artist));
+  const knownForNews = interestNames.filter((name) => !taken(name));
   const scoredNews = summarized
     .map((item) => {
       const blocked = [...used].some((artist) => storyMentionsArtist(item, artist));
-      const artistHit = !blocked && knownForNews.some((artist) => storyMentionsArtist(item, artist));
+      const interestHit = !blocked && knownForNews.some((name) => storyMentionsArtist(item, name));
       const taste = blocked ? 0 : storyTasteScore(item, tasteGenres);
-      return { item, blocked, artistHit, taste, published: Date.parse(item.publishedAt) };
+      return { item, blocked, interestHit, taste, published: Date.parse(item.publishedAt) };
     })
     .filter((row) => !row.blocked)
     .sort((left, right) =>
-      Number(right.artistHit) - Number(left.artistHit)
+      Number(right.interestHit) - Number(left.interestHit)
       || right.taste - left.taste
       || right.published - left.published
     );
-  const relevantNews = scoredNews.filter((row) => row.artistHit || row.taste > 0).map((row) => row.item);
+  const relevantNews = scoredNews.filter((row) => row.interestHit || row.taste > 0).map((row) => row.item);
   // With taste data, stay on taste-aligned stories. Do not pad with unrelated pop/general headlines.
   const chosenNews = (hasTaste
     ? (relevantNews.length ? relevantNews : scoredNews.map((row) => row.item).slice(0, 1))
@@ -315,7 +331,7 @@ export const composeEdition = ({
   ).slice(0, hasTaste && relevantNews.length ? Math.min(2, relevantNews.length) : 1);
   const newsArtists = new Map<string, string>();
   for (const item of chosenNews) {
-    const matched = knownForNews.find((artist) => storyMentionsArtist(item, artist) && !taken(artist));
+    const matched = knownForNews.find((name) => storyMentionsArtist(item, name) && !taken(name));
     if (matched) {
       claim(matched);
       newsArtists.set(item.id, matched);

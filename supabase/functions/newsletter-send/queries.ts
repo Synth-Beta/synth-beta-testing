@@ -88,12 +88,14 @@ export const loadListeningStats = async (db: { from: (table: string) => any }, u
 export interface TasteSignals {
   interests: Array<{ user_id: string; event_id: string; relationship_type: string }>;
   follows: Array<{ user_id: string; artistName: string }>;
+  venueFollows: Array<{ user_id: string; venueName: string }>;
 }
 
-/** Saved shows and followed artists. Empty tables are real; query errors are not. */
+/** Saved shows, followed artists, and followed venues. Empty tables are real; query errors are not. */
 export const loadTasteSignals = async (db: { from: (table: string) => any }, userIds: string[]): Promise<TasteSignals> => {
   const interests: TasteSignals["interests"] = [];
   const followRows: Array<{ user_id: string; artist_id: string }> = [];
+  const venueFollowRows: Array<{ user_id: string; venue_id: string }> = [];
   for (let index = 0; index < userIds.length; index += 40) {
     const ids = userIds.slice(index, index + 40);
     if (!ids.length) continue;
@@ -105,20 +107,35 @@ export const loadTasteSignals = async (db: { from: (table: string) => any }, use
       .select("user_id, artist_id")
       .in("user_id", ids)
       .order("user_id"), "Load followed artists"));
+    venueFollowRows.push(...await readAll(() => db.from("user_venue_relationships")
+      .select("user_id, venue_id")
+      .in("user_id", ids)
+      .order("user_id"), "Load followed venues"));
   }
   const artistIds = [...new Set(followRows.map((row) => row.artist_id).filter(Boolean))];
-  const names = new Map<string, string>();
+  const venueIds = [...new Set(venueFollowRows.map((row) => row.venue_id).filter(Boolean))];
+  const artistNames = new Map<string, string>();
+  const venueNames = new Map<string, string>();
   for (let index = 0; index < artistIds.length; index += 100) {
     const group = artistIds.slice(index, index + 100);
     if (!group.length) continue;
     const artists = await readAll(() => db.from("artists").select("id, name").in("id", group).order("id"), "Load followed artist names");
-    for (const artist of artists) if (artist?.name) names.set(artist.id, String(artist.name));
+    for (const artist of artists) if (artist?.name) artistNames.set(artist.id, String(artist.name));
+  }
+  for (let index = 0; index < venueIds.length; index += 100) {
+    const group = venueIds.slice(index, index + 100);
+    if (!group.length) continue;
+    const venues = await readAll(() => db.from("venues").select("id, name").in("id", group).order("id"), "Load followed venue names");
+    for (const venue of venues) if (venue?.name) venueNames.set(venue.id, String(venue.name));
   }
   return {
     interests: interests.filter((row) => row.user_id && row.event_id),
     follows: followRows
-      .map((row) => ({ user_id: row.user_id, artistName: names.get(row.artist_id) || "" }))
+      .map((row) => ({ user_id: row.user_id, artistName: artistNames.get(row.artist_id) || "" }))
       .filter((row) => row.artistName),
+    venueFollows: venueFollowRows
+      .map((row) => ({ user_id: row.user_id, venueName: venueNames.get(row.venue_id) || "" }))
+      .filter((row) => row.venueName),
   };
 };
 

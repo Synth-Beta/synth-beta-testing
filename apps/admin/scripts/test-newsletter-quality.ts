@@ -186,6 +186,28 @@ assert.match(jamSam.listen?.body ?? "", /Circles Around the Sun|Lettuce|Medeski 
 assert.notEqual(jamSam.listen?.body, empty.listen?.body);
 assert.doesNotMatch(jamSam.listen?.body ?? "", /Goose|Phish|Arcadia/);
 
+const followNews = compose(baseReader({
+  userId: "follow-reader",
+  followedArtists: ["Japanese Breakfast"],
+  followedVenues: ["9:30 Club"],
+  reviews: [
+    { artistName: "Bad Show", venueName: "Echo Stage", eventDate: "2025-01-01T00:00:00.000Z", rating: 2, text: "The sound never settled and the set felt unfinished in that room." },
+    { artistName: "Good Show", venueName: "Lincoln Theatre", eventDate: "2025-02-01T00:00:00.000Z", rating: 4, text: "The encore ran long and the balcony stayed on its feet the whole time." },
+  ],
+}), [], {
+  news: [
+    { id: "jb", title: "Japanese Breakfast shares a new single", url: "https://pitchfork.com/news/jb", source: "Pitchfork", publishedAt: "2026-10-12T10:00:00.000Z", summary: "Japanese Breakfast shared a new single, with the credits listed at the source." },
+    { id: "club", title: "9:30 Club posts a busy November calendar", url: "https://dcist.com/news/930", source: "DCist", publishedAt: "2026-10-11T10:00:00.000Z", summary: "9:30 Club posted a busy November calendar, with dates and ticket links on its site." },
+    { id: "bad", title: "Bad Show announces a reunion date", url: "https://pitchfork.com/news/bad", source: "Pitchfork", publishedAt: "2026-10-12T12:00:00.000Z", summary: "Bad Show announced a reunion date, and the venue and on-sale note are at the source." },
+    { id: "good", title: "Good Show adds a Lincoln Theatre return", url: "https://pitchfork.com/news/good", source: "Pitchfork", publishedAt: "2026-10-10T10:00:00.000Z", summary: "Good Show added a Lincoln Theatre return, with the date posted by the venue." },
+    { id: "pop", title: "A pop star drops a glittery single", url: "https://pitchfork.com/news/pop", source: "Pitchfork", publishedAt: "2026-10-12T14:00:00.000Z", summary: "The pop star released a glittery single, with the video and credits posted at the source." },
+  ],
+});
+assert.ok(followNews.updates.some((story) => /Japanese Breakfast/i.test(story.title)));
+assert.ok(followNews.updates.some((story) => /9:30 Club|Good Show|Lincoln Theatre/i.test(story.title)));
+assert.equal(followNews.updates.some((story) => /Bad Show/i.test(story.title)), false);
+assert.equal(followNews.updates.some((story) => /pop star/i.test(story.title)), false);
+
 const sparseNearby = compose(active, [
   show({ id: "only", artistName: "KETTAMA" }),
   show({ id: "miles-away", artistName: "Phish", city: "Denver", state: "CO", latitude: 39.7392, longitude: -104.9903, venueName: "Red Rocks" }),

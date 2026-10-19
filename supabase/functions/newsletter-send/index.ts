@@ -400,6 +400,7 @@ serve(async (req) => {
             interestedEventIds: mine.filter((row) => row.relationship_type !== "going").map((row) => String(row.event_id)),
             goingEventIds: mine.filter((row) => row.relationship_type === "going").map((row) => String(row.event_id)),
             followedArtists: signals.follows.filter((row) => row.user_id === user.user_id).map((row) => row.artistName),
+            followedVenues: signals.venueFollows.filter((row) => row.user_id === user.user_id).map((row) => row.venueName),
           };
         }),
         news,
