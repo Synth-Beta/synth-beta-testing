@@ -18,6 +18,9 @@ import { rankArtists } from "../../../../../supabase/functions/newsletter-send/t
 import { formatEventWhen, formatIssueDate, isUpcoming } from "./time";
 
 const APP_URL = "https://join.getsynth.app/";
+const PROFILE_EDIT_URL = "https://join.getsynth.app/profile-edit";
+
+const readerCity = (city: string) => (/^washington(?:\s*,?\s*d\.?c\.?)?$/i.test(city.trim()) ? "DC" : city.trim());
 const NEWS_WINDOW_MS = 21 * 24 * 60 * 60 * 1000;
 
 const httpUrl = (value?: string | null) => {
@@ -161,14 +164,19 @@ const reasonFor = (event: EditionEvent, reader: EditionReader) => {
   return `${event.artistName} plays ${event.venueName} in ${event.city}.`;
 };
 
-const listenReason = (pick: EditionListen, reader: EditionReader) => {
+/** True when Spotify or a logged setlist already ties this artist to the reader. */
+const alreadyHeardArtist = (reader: EditionReader, artistName: string) =>
+  reader.topArtists.some((artist) => sameName(artist, artistName)) || alreadyLogged(reader, artistName);
+
+const listenReason = (pick: EditionListen) => {
   const supplied = pick.reason?.trim() ?? "";
-  if (supplied && !/give it another spin|song to try before making plans|before choosing your next night/i.test(supplied)) {
+  if (
+    supplied
+    && !/give it another spin|from your saved listening|song to try before making plans|before choosing your next night|recording to revisit/i.test(supplied)
+  ) {
     return scrub(supplied);
   }
-  if (reader.topArtists.some((artist) => sameName(artist, pick.artistName))) return "It is already in your saved listening.";
-  if (alreadyLogged(reader, pick.artistName)) return `You have logged ${pick.artistName} live. This is a recording to revisit.`;
-  return supplied ? scrub(supplied) : "Worth a play this week.";
+  return "Worth a play this week.";
 };
 
 export const composeEdition = ({
@@ -301,28 +309,31 @@ export const composeEdition = ({
     }
   }
 
-  const curated = editorialListens(editionDate, reader.genres);
-  const personalListens = listens.filter((item) =>
-    item.artistName && item.trackName?.trim() && httpUrl(item.url) && !item.evergreen && !taken(item.artistName)
-    && (reader.topArtists.some((artist) => sameName(artist, item.artistName))
-      || shows.some((show) => sameName(show.artistName, item.artistName))
-      || alreadyLogged(reader, item.artistName))
+  // Discovery only: genre-ranked editorial picks the reader has not already
+  // streamed or logged. Never resurface Spotify top tracks or setlist artists.
+  const discoveryListens = editorialListens(editionDate, reader.genres).filter((item) =>
+    item.artistName
+    && item.trackName?.trim()
+    && httpUrl(item.url)
+    && !taken(item.artistName)
+    && !alreadyHeardArtist(reader, item.artistName)
   );
-  const evergreenListens = curated.filter((item) => !taken(item.artistName));
-  const listenPool = (personalListens.length ? personalListens : evergreenListens).filter((item, index, items) =>
-    items.findIndex((other) => sameName(other.artistName, item.artistName)) === index
-  ).slice(0, 2);
+  const listenPool = discoveryListens
+    .filter((item, index, items) => items.findIndex((other) => sameName(other.artistName, item.artistName)) === index)
+    .slice(0, 2);
   listenPool.forEach((item) => claim(item.artistName));
 
+  const genericShows = !savedPlace(located) && shows.length > 0;
   const showCards: ShowCard[] = shows.map((event) => {
-    const url = httpUrl(event.ticketUrl)!;
+    const listed = genericShows ? { ...event, city: readerCity(event.city) } : event;
+    const url = httpUrl(listed.ticketUrl)!;
     const availability = availabilityOf(event);
-    sources.push({ kind: "event", url, retrievedAt, label: `${event.artistName} at ${event.venueName}` });
-    const when = formatEventWhen(event.eventDate, event.state, event.doorsTime);
+    sources.push({ kind: "event", url, retrievedAt, label: `${listed.artistName} at ${listed.venueName}` });
+    const when = formatEventWhen(listed.eventDate, listed.state, listed.doorsTime);
     return {
-      eyebrow: [when, event.venueName, event.city].filter(Boolean).join(" · "),
-      title: event.artistName,
-      body: scrub(reasonFor(event, located)),
+      eyebrow: [when, listed.venueName, listed.city].filter(Boolean).join(" · "),
+      title: listed.artistName,
+      body: scrub(reasonFor(listed, located)),
       availabilityNote: availabilityNote(availability),
       ctaLabel: ctaLabel(availability),
       ctaUrl: url,
@@ -346,7 +357,6 @@ export const composeEdition = ({
 
   let listen: StoryCard | undefined;
   if (listenPool.length > 0) {
-    const general = listenPool.every((pick) => pick.evergreen);
     for (const pick of listenPool) {
       sources.push({
         kind: "listen",
@@ -356,9 +366,9 @@ export const composeEdition = ({
       });
     }
     listen = {
-      eyebrow: general ? "The listening room · evergreen picks" : "Your next listen",
+      eyebrow: "Your next listen",
       title: listenPool.length > 1 ? "Two recordings to put on." : `“${listenPool[0].trackName}”`,
-      body: scrub(listenPool.map((pick) => `${pick.artistName}, “${pick.trackName}”. ${listenReason(pick, reader)}`).join(" ")),
+      body: scrub(listenPool.map((pick) => `${pick.artistName}, “${pick.trackName}”. ${listenReason(pick)}`).join(" ")),
       ctaLabel: `Listen to “${listenPool[0].trackName}”`,
       ctaUrl: httpUrl(listenPool[0].url)!,
       tone: "pink",
@@ -368,7 +378,7 @@ export const composeEdition = ({
 
   const features: StoryCard[] = [];
   if (!updateCards.length) {
-    const detour = evergreenListens.find((pick) => !listenPool.some((item) => sameName(item.artistName, pick.artistName)));
+    const detour = discoveryListens.find((pick) => !listenPool.some((item) => sameName(item.artistName, pick.artistName)));
     if (detour && claim(detour.artistName)) {
       features.push({
         eyebrow: "The album detour · from the archives",
@@ -382,7 +392,7 @@ export const composeEdition = ({
         kind: "editorial",
         url: detour.sourceUrl,
         retrievedAt,
-        label: `${detour.artistName}, ${detour.albumName} (evergreen)`,
+        label: `${detour.artistName}, ${detour.albumName}`,
       });
     }
   }
@@ -486,10 +496,9 @@ export const composeEdition = ({
               tone: "yellow",
             };
 
-  const showCities = [...new Set(shows.map((event) => event.city).filter(Boolean))];
   const savedShows = shows.filter((event) => savedRelationship(event, reader));
   const showNames = shows.map((event) => event.artistName);
-  const where = place ? `around ${place}` : showCities.length ? `in ${joinList(showCities)}` : "";
+  const where = genericShows ? "" : place ? `around ${place}` : "";
   const introSentences = [
     showNames.length
       ? `${joinList(showNames)} ${showNames.length === 1 ? "is" : "are"} ${savedShows.length === shows.length ? "already saved" : "coming up"}${where ? ` ${where}` : ""}.`
@@ -579,8 +588,14 @@ export const composeEdition = ({
     intro,
     yourSynth,
     showsHeading: showCards.length ? (localShows ? `On your radar in ${place}` : "On your radar") : undefined,
-    showsDek: showCards.length
-      ? (place ? `Dates around ${place}.` : showCities.length ? `Dates in ${joinList(showCities)}.` : "A few dates on the calendar.")
+    showsDek: showCards.length && !genericShows
+      ? (place ? `Dates around ${place}.` : "A few dates on the calendar.")
+      : undefined,
+    locationPrompt: genericShows
+      ? {
+          label: "Add your location in the app for more personalized recommendations.",
+          url: PROFILE_EDIT_URL,
+        }
       : undefined,
     shows: showCards,
     updates: updateCards,

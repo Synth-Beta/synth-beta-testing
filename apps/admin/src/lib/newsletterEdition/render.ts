@@ -82,7 +82,7 @@ ${
 }
 ${
   edition.showsHeading
-    ? `<tr><td class="mobile-pad" style="padding:32px 32px 0;font-family:${FONT};"><h2 class="section-title" style="margin:0;color:#0E0E0E;">${escapeHtml(edition.showsHeading)}</h2><p style="margin:10px 0 0;font-size:16px;line-height:1.65;color:#5D646F;">${escapeHtml(edition.showsDek ?? "")}</p></td></tr>`
+    ? `<tr><td class="mobile-pad" style="padding:32px 32px 0;font-family:${FONT};"><h2 class="section-title" style="margin:0;color:#0E0E0E;">${escapeHtml(edition.showsHeading)}</h2>${edition.showsDek ? `<p style="margin:10px 0 0;font-size:16px;line-height:1.65;color:#5D646F;">${escapeHtml(edition.showsDek)}</p>` : ""}${edition.locationPrompt ? `<p style="margin:10px 0 0;font-size:16px;line-height:1.65;">${textLink(edition.locationPrompt.label, edition.locationPrompt.url)}</p>` : ""}</td></tr>`
     : ""
 }
 ${edition.shows.map((show) => card(show.caution ? "caution" : "white", showInner(show))).join("")}

@@ -120,6 +120,8 @@ export interface ComposedEdition {
   yourSynth?: { headline: string; body: string };
   showsHeading?: string;
   showsDek?: string;
+  /** Shown when the dates are general hub picks, not the reader's city. */
+  locationPrompt?: { label: string; url: string };
   shows: ShowCard[];
   updates: StoryCard[];
   features?: StoryCard[];

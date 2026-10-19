@@ -45,6 +45,16 @@ function ConnectPickFiveLink() {
   return <Navigate to="/" replace />;
 }
 
+/** Newsletter location prompt. Opens profile edit in the app. */
+function ProfileEditLink() {
+  try {
+    sessionStorage.setItem('synth:openView', 'profile-edit');
+  } catch {
+    // Storage blocked: just land on the app.
+  }
+  return <Navigate to="/" replace />;
+}
+
 // Must be inside BrowserRouter to use useLocation and useNavigate
 function DeepLinkHandlerInner() {
   const location = useLocation();
@@ -143,6 +153,7 @@ const App = () => {
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/share" element={<SharePage />} />
               <Route path="/connect/pickfive" element={<ConnectPickFiveLink />} />
+              <Route path="/profile-edit" element={<ProfileEditLink />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/not-found" element={<NotFound />} />
 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

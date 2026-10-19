@@ -195,6 +195,7 @@ assert.ok(locatedChicago.shows.some((show) => show.title === "Horsegirl"));
 assert.equal(locatedChicago.shows.some((show) => show.title === "Wilco" && /New York/.test(show.eyebrow)), false);
 assert.equal(eventWithinSavedLocation({ ...chicago, ...chicagoPoint }, newYork), false);
 assert.equal(locatedChicago.showsHeading, "On your radar in Chicago");
+assert.equal(locatedChicago.locationPrompt, undefined);
 assert.ok(chicagoEdition.updates.length > 0, "readers also get honestly labeled general music news");
 
 assert.ok(sparseEdition.shows.some((show) => show.title === "Local Natives"));
@@ -203,9 +204,14 @@ assert.equal(/inactive|haven't used|no shows yet/i.test(renderEditionHtml(sparse
 
 assert.equal(noLocationEdition.showsHeading, "On your radar");
 assert.equal(/nearby|near you|no saved city|sourced summary|saved shows cluster/i.test(noLocationEdition.intro + (noLocationEdition.showsDek ?? "") + noLocationEdition.shows.map((show) => show.body).join(" ")), false);
+assert.doesNotMatch(`${noLocationEdition.intro} ${noLocationEdition.showsDek ?? ""}`, /Chicago|Washington|New York/);
+assert.equal(noLocationEdition.locationPrompt?.url, "https://join.getsynth.app/profile-edit");
+assert.match(noLocationEdition.locationPrompt?.label ?? "", /Add your location in the app/);
 assert.ok(noLocationEdition.shows.some((show) => show.title === "Wilco"));
-assert.ok(noLocationEdition.shows.some((show) => /Washington/.test(show.eyebrow)));
+assert.ok(noLocationEdition.shows.some((show) => /DC/.test(show.eyebrow)));
+assert.equal(noLocationEdition.shows.some((show) => /Washington/.test(show.eyebrow)), false);
 assert.equal(noLocationEdition.shows.some((show) => show.title === "Phoebe Bridgers"), false);
+assert.match(renderEditionHtml(noLocationEdition), /join\.getsynth\.app\/profile-edit/);
 
 const jungleReader: EditionReader = {
   ...sparse,
@@ -250,7 +256,8 @@ assert.equal(/not a promise you’ll love it|Sample Jungle|show history|your lat
 assert.equal(jungleEdition.connect.title.includes("Jungle"), false);
 assert.equal(jungleEdition.updates.every((update) => update.title.includes("Jungle")), false);
 assert.doesNotMatch(jungleEdition.listen?.body ?? "", /Coffee|Jungle/);
-assert.match(jungleEdition.listen?.eyebrow ?? "", /evergreen/);
+assert.equal(jungleEdition.listen?.eyebrow, "Your next listen");
+assert.doesNotMatch(jungleEdition.listen?.body ?? "", /saved listening|logged .+ live|evergreen/i);
 
 const soldOut = laurenEdition.shows.find((show) => show.title === "Glass Animals");
 if (soldOut) {

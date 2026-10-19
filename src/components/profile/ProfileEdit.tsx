@@ -41,7 +41,8 @@ export const ProfileEdit = ({ currentUserId, onBack, onSave }: ProfileEditProps)
     music_streaming_service: '' as '' | 'spotify' | 'apple_music',
     avatar_url: null as string | null,
     gender: '',
-    birthday: ''
+    birthday: '',
+    location_city: ''
   });
   const [usernameValidation, setUsernameValidation] = useState<{
     checking: boolean;
@@ -69,7 +70,7 @@ useEffect(() => {
   const fetchProfile = async () => {
     try {
       console.log('Fetching profile for user:', currentUserId);
-      const selectFields = 'id, user_id, name, username, avatar_url, bio, instagram_handle, music_streaming_profile, music_streaming_service, gender, birthday, created_at, updated_at';
+      const selectFields = 'id, user_id, name, username, avatar_url, bio, instagram_handle, music_streaming_profile, music_streaming_service, gender, birthday, location_city, created_at, updated_at';
       const fetchProfileRecord = async (column: 'user_id' | 'id') => {
         console.log(`ProfileEdit: Attempting profile lookup by ${column}`);
         return await supabase
@@ -114,7 +115,8 @@ useEffect(() => {
             music_streaming_service: '',
             avatar_url: null,
             gender: '',
-            birthday: ''
+            birthday: '',
+            location_city: ''
           });
           setLoading(false);
           return;
@@ -136,7 +138,8 @@ useEffect(() => {
         music_streaming_service: (profileData as any).music_streaming_service || '',
         avatar_url: profileData.avatar_url || null,
         gender: profileData.gender || '',
-        birthday: profileData.birthday || ''
+        birthday: profileData.birthday || '',
+        location_city: profileData.location_city || ''
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -203,6 +206,7 @@ useEffect(() => {
         avatar_url: formData.avatar_url || null,
         gender: formData.gender.trim() || null,
         birthday: formData.birthday.trim() || null,
+        location_city: formData.location_city.trim() || null,
         updated_at: new Date().toISOString()
       };
       
@@ -459,6 +463,20 @@ useEffect(() => {
               </div>
               <p className="text-xs text-muted-foreground">
                 Your unique identifier. Can only be changed once every 30 days. 3-30 characters, lowercase letters, numbers, underscores, and periods only.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location_city">City</Label>
+              <Input
+                id="location_city"
+                value={formData.location_city}
+                onChange={(e) => handleInputChange('location_city', e.target.value)}
+                placeholder="Los Angeles, CA"
+                maxLength={80}
+              />
+              <p className="text-xs text-muted-foreground">
+                Used for more personalized show recommendations
               </p>
             </div>
 

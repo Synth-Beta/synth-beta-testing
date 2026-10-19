@@ -15,7 +15,8 @@ const drafts = await generateDraftsFromSource(empty, now, "2026-10-12");
 assert.equal(drafts.drafts.length, 135);
 assert.equal(drafts.held, 0);
 for (const draft of drafts.drafts) {
-  assert.match(draft.html, /evergreen picks/);
+  assert.match(draft.html, /Your next listen/);
+  assert.doesNotMatch(draft.html, /evergreen/i);
   assert.match(draft.html, /The album detour/);
   assert.match(draft.html, /synth-newsletter-writer-7/);
   assert.ok(draft.sources.filter((source) => source.kind === "listen").length === 2);
@@ -62,7 +63,8 @@ assert.equal((renderEditionHtml(edition).match(/LAST_REVIEW/g) ?? []).length, 0)
 assert.match(edition.yourSynth?.body ?? "", /Latest/);
 assert.match(edition.yourSynth?.body ?? "", /2 nights/);
 assert.equal(edition.listen!.links!.some((link) => link.url === tracks[0].url), false);
-assert.match(edition.listen?.eyebrow ?? "", /evergreen/);
+assert.equal(edition.listen?.eyebrow, "Your next listen");
+assert.doesNotMatch(edition.listen?.eyebrow ?? "", /evergreen/i);
 assert.equal(editionSendAt("2026-10-12").toISOString(), "2026-10-12T15:00:00.000Z");
 assert.equal(editionSendAt("2027-01-12").toISOString(), "2027-01-12T16:00:00.000Z");
 assert.notDeepEqual(editorialListens("2026-10-12"), editorialListens("2026-10-19"));

@@ -38,6 +38,15 @@ export const ContactEmailContext = React.createContext<{
 void SplashScreen.hideAsync().catch(() => {});
 
 const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
+
+/** Set when a signed-out reader opens the newsletter location link, then restored after sign-in. */
+let pendingProfileEdit = false;
+
+const homeAfterAuth = (fallback: string) => {
+  if (fallback !== '/(tabs)' || !pendingProfileEdit) return fallback;
+  pendingProfileEdit = false;
+  return '/profile-edit';
+};
 const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
 /** First wizard step — skip marketing welcome, go straight to profile setup */
 const ONBOARDING_FLOW_ENTRY = '/(onboarding)/profile';
@@ -517,6 +526,8 @@ export default function RootLayout() {
       seg0 === 'artist' ||
       seg0 === 'venue';
 
+    if (!session && seg0 === 'profile-edit') pendingProfileEdit = true;
+
     if (!session && needsAuth) {
       router.replace('/(auth)/sign-in');
       return;
@@ -540,13 +551,13 @@ export default function RootLayout() {
     }
 
     if (session && inAuth) {
-      router.replace(!isOnboardingComplete ? ONBOARDING_FLOW_ENTRY : needsEmail ? '/email-required' : '/(tabs)');
+      router.replace(homeAfterAuth(!isOnboardingComplete ? ONBOARDING_FLOW_ENTRY : needsEmail ? '/email-required' : '/(tabs)'));
       return;
     }
 
     if (isOnboardingComplete && inOnboarding) {
       if (session) {
-        router.replace(needsEmail ? '/email-required' : '/(tabs)');
+        router.replace(homeAfterAuth(needsEmail ? '/email-required' : '/(tabs)'));
       } else {
         router.replace('/(auth)/sign-in');
       }
@@ -554,7 +565,7 @@ export default function RootLayout() {
     }
 
     if (inEmailRequired && !needsEmail) {
-      router.replace(session ? '/(tabs)' : '/(auth)/sign-in');
+      router.replace(session ? homeAfterAuth('/(tabs)') : '/(auth)/sign-in');
       return;
     }
 

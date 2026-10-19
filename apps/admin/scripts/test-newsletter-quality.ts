@@ -105,8 +105,9 @@ assert.ok(activeEdition.shows.some((card) => card.body.includes("saved")));
 assert.equal(activeEdition.shows.some((card) => card.title === "Wilco"), false);
 assert.equal(activeEdition.shows.some((card) => card.title === "Penelope Road"), false);
 assert.equal(activeEdition.history?.title === "Penelope Road", false);
-assert.equal(activeEdition.listen?.body.includes("Arcadia"), false, "Goose is already in another section");
-assert.match(activeEdition.listen?.body ?? "", /Time \(You and I\)/);
+assert.doesNotMatch(activeEdition.listen?.body ?? "", /Arcadia|Time \(You and I\)|Khruangbin|Goose/);
+assert.equal(activeEdition.listen?.eyebrow, "Your next listen");
+assert.doesNotMatch(activeEdition.listen?.body ?? "", /saved listening|logged .+ live|evergreen/i);
 assert.equal(new Set(artistsOf(activeEdition)).size, artistsOf(activeEdition).length);
 assert.ok(activeEdition.qualityReport.sections.includes("yourSynth"));
 assert.ok(activeEdition.qualityReport.sections.includes("onYourRadar"));
@@ -123,7 +124,7 @@ const reviewsOnly = compose(baseReader({
 assert.ok(reviewsOnly.yourSynth?.body.includes("Wilco"));
 assert.equal(reviewsOnly.shows.some((card) => card.title === "Jason Isbell"), true);
 assert.equal(reviewsOnly.history?.title === "Wilco" || reviewsOnly.history?.title === "Jason Isbell", false);
-assert.match(reviewsOnly.listen?.eyebrow ?? "", /evergreen/);
+assert.equal(reviewsOnly.listen?.eyebrow, "Your next listen");
 assert.ok(reviewsOnly.qualityReport.missingData.some((line) => /streaming/i.test(line)));
 
 const streamingOnly = compose(baseReader({
@@ -137,9 +138,10 @@ const streamingOnly = compose(baseReader({
   listens: [{ artistName: "Wilco", trackName: "Jesus, Etc.", url: "https://open.spotify.com/track/wilco" }],
 });
 assert.equal(streamingOnly.yourSynth, undefined);
-assert.equal(streamingOnly.shows.some((card) => card.title === "Wilco") && /Jesus, Etc\./.test(streamingOnly.listen?.body ?? ""), false);
+assert.doesNotMatch(streamingOnly.listen?.body ?? "", /Jesus, Etc\.|Wilco/);
+assert.equal(streamingOnly.listen?.eyebrow, "Your next listen");
 assert.match(renderEditionHtml(streamingOnly), /Wilco/);
-assert.match(renderEditionHtml(streamingOnly), /Jesus, Etc\.|evergreen/);
+assert.doesNotMatch(`${streamingOnly.listen?.eyebrow ?? ""} ${streamingOnly.listen?.body ?? ""}`, /saved listening|evergreen/i);
 assert.ok(streamingOnly.qualityReport.missingData.some((line) => /reviews/i.test(line)));
 
 const empty = compose(baseReader({
@@ -151,7 +153,8 @@ const empty = compose(baseReader({
 }));
 const emptyHtml = renderEditionHtml(empty);
 assert.equal(empty.yourSynth, undefined);
-assert.match(emptyHtml, /evergreen picks/);
+assert.match(emptyHtml, /Your next listen/);
+assert.doesNotMatch(emptyHtml, /evergreen/i);
 assert.match(emptyHtml, /The album detour/);
 assert.match(emptyHtml, /Build your live music timeline/);
 assert.doesNotMatch(emptyHtml, /your latest|because you love|your favorite artist/i);

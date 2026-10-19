@@ -631,6 +631,18 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (loading || !user?.id) return;
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem('synth:openView');
+      if (pending === 'profile-edit') sessionStorage.removeItem('synth:openView');
+    } catch {
+      return;
+    }
+    if (pending === 'profile-edit') setCurrentView('profile-edit');
+  }, [loading, user?.id]);
+
   const handleProfileSettings = () => {
     openSettingsPage('menu');
   };
