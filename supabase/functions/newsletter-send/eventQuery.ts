@@ -1,5 +1,5 @@
-import { requireRows } from "./queries.ts";
-import { artistTitlePattern, type EventQuery } from "./nearby.ts";
+import { requireRows } from "./queries.js";
+import { artistTitlePattern, type EventQuery } from "./nearby.js";
 
 export const EVENT_SELECT =
   "id, title, event_date, doors_time, venue_city, venue_state, latitude, longitude, ticket_available, ticket_urls, genres, event_status, artists(name), venues(name)";

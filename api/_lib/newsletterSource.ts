@@ -2,12 +2,12 @@
  * Edition data for the Vercel API route. This stays inside api/ so the
  * serverless function does not have to open the admin app at runtime.
  */
-import { historyArtists } from "../../supabase/functions/newsletter-send/editorial.ts";
-import { runEventQuery } from "../../supabase/functions/newsletter-send/eventQuery.ts";
-import { lookupRecordings } from "../../supabase/functions/newsletter-send/tracks.ts";
-import { loadEventsNearPlaces, placeKey, withHubPlaces, type EventQuery } from "../../supabase/functions/newsletter-send/nearby.ts";
-import { fetchMusicNews } from "../../supabase/functions/newsletter-send/news.ts";
-import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals } from "../../supabase/functions/newsletter-send/queries.ts";
+import { historyArtists } from "../../supabase/functions/newsletter-send/editorial.js";
+import { runEventQuery } from "../../supabase/functions/newsletter-send/eventQuery.js";
+import { lookupRecordings } from "../../supabase/functions/newsletter-send/tracks.js";
+import { loadEventsNearPlaces, placeKey, withHubPlaces, type EventQuery } from "../../supabase/functions/newsletter-send/nearby.js";
+import { fetchMusicNews } from "../../supabase/functions/newsletter-send/news.js";
+import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals } from "../../supabase/functions/newsletter-send/queries.js";
 
 type Db = { from: (table: string) => any };
 

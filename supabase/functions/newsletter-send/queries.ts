@@ -1,4 +1,4 @@
-import { profileRecordings } from "./tracks.ts";
+import { profileRecordings } from "./tracks.js";
 /** Read every page and fail visibly instead of treating a query failure as empty data. */
 export const readAll = async (makeQuery: () => any, label: string): Promise<any[]> => {
   const rows: any[] = [];

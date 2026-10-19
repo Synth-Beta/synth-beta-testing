@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { loadEditionSource } from "./_lib/newsletterSource";
+import { loadEditionSource } from "./_lib/newsletterSource.js";
 
 const REVIEWER = "pesceelauren@gmail.com";
 
