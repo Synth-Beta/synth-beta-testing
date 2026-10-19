@@ -79,10 +79,53 @@ export const eventWithinSavedLocation = (
 };
 
 export type EventQuery =
-  | { kind: "city-sample"; city: string; from: string }
-  | { kind: "city"; city: string; from: string; until: string }
-  | { kind: "box"; minLat: number; maxLat: number; minLng: number; maxLng: number; from: string; until: string }
-  | { kind: "artist"; artist: string; from: string; until: string };
+  | { kind: "city-sample"; city: string; from: string; limit?: number }
+  | { kind: "city"; city: string; from: string; until: string; limit?: number }
+  | { kind: "box"; minLat: number; maxLat: number; minLng: number; maxLng: number; from: string; until: string; limit?: number }
+  | { kind: "artist"; artist: string; from: string; until: string; limit?: number }
+  | { kind: "ids"; ids: string[]; limit?: number };
+
+/** Fifteen-day slices so a 40-row cap cannot hide the rest of the 90-day window. */
+export const SLICE_DAYS = 15;
+export const SLICE_COUNT = 6;
+export const SLICE_LIMIT = 25;
+export const ARTIST_LIMIT = 12;
+
+export const HUB_PLACES: Place[] = [
+  { city: "Chicago", state: "IL" },
+  { city: "Washington", state: "DC" },
+  { city: "New York", state: "NY" },
+];
+
+export const withHubPlaces = (places: Place[]) => {
+  const map = new Map(places.map((place) => [placeKey(place.city, place.state), place]));
+  for (const hub of HUB_PLACES) {
+    const key = placeKey(hub.city, hub.state);
+    if (!map.has(key)) map.set(key, hub);
+  }
+  return [...map.values()];
+};
+
+export const artistTitlePattern = (artist: string) => `${artist.replace(/[%_\\]/g, " ").replace(/\s+/g, " ").trim()} at%`;
+
+export const windowSlices = (fromIso: string, untilIso: string) => {
+  const slices: Array<{ from: string; until: string }> = [];
+  let cursor = Date.parse(fromIso);
+  const end = Date.parse(untilIso);
+  if (!Number.isFinite(cursor) || !Number.isFinite(end)) return slices;
+  while (cursor < end && slices.length < SLICE_COUNT) {
+    const next = Math.min(end, cursor + SLICE_DAYS * 24 * 60 * 60 * 1000);
+    slices.push({ from: new Date(cursor).toISOString(), until: new Date(next).toISOString() });
+    cursor = next;
+  }
+  return slices;
+};
+
+export const hubForEvent = (event: { city?: string | null; state?: string | null }) =>
+  HUB_PLACES.find((hub) => {
+    const sameCity = String(event.city ?? "").trim().toLowerCase() === hub.city.toLowerCase();
+    return sameCity && sameState(event.state, hub.state);
+  }) ?? null;
 
 const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
 
@@ -118,24 +161,34 @@ export const loadEventsNearPlaces = async (
     }));
     return results;
   };
+  const slices = windowSlices(from, until);
   const cityRows = await mapLimited(places, async (place) => {
-    const sample = await query({ kind: "city-sample", city: place.city, from });
+    const sample = await query({ kind: "city-sample", city: place.city, from, limit: 12 });
     const located = sample.filter(
       (row) => finite(Number(row.latitude)) && finite(Number(row.longitude)) && sameState(row.venue_state, place.state)
     );
-    if (!located.length) return query({ kind: "city", city: place.city, from, until });
+    const collected: any[] = [];
+    if (!located.length) {
+      for (const slice of slices) {
+        collected.push(...await query({ kind: "city", city: place.city, ...slice, limit: SLICE_LIMIT }));
+      }
+      return collected;
+    }
     const center = {
       latitude: average(located.map((row) => Number(row.latitude))),
       longitude: average(located.map((row) => Number(row.longitude))),
     };
     centers.set(placeKey(place.city, place.state), center);
     const box = boundingBox(center.latitude, center.longitude);
-    return query({ kind: "box", ...box, from, until });
+    for (const slice of slices) {
+      collected.push(...await query({ kind: "box", ...box, ...slice, limit: SLICE_LIMIT }));
+    }
+    return collected;
   });
   cityRows.forEach(add);
 
   const artistRows = await mapLimited(artists, async (artist) => {
-    const rows = await query({ kind: "artist", artist, from, until });
+    const rows = await query({ kind: "artist", artist, from, until, limit: ARTIST_LIMIT });
     return rows.filter((row) => String(row.artists?.name || row.artist_name || "").toLowerCase() === artist.toLowerCase());
   });
   artistRows.forEach(add);

@@ -1,8 +1,9 @@
 import { historyArtists } from "../../../../../supabase/functions/newsletter-send/editorial";
+import { runEventQuery } from "../../../../../supabase/functions/newsletter-send/eventQuery";
 import { lookupRecordings } from "../../../../../supabase/functions/newsletter-send/tracks";
-import { loadEventsNearPlaces, placeKey, type EventQuery } from "../../../../../supabase/functions/newsletter-send/nearby";
+import { loadEventsNearPlaces, placeKey, withHubPlaces, type EventQuery } from "../../../../../supabase/functions/newsletter-send/nearby";
 import { fetchMusicNews } from "../../../../../supabase/functions/newsletter-send/news";
-import { readAll, requireRows, enrichReviewArtists, loadListeningStats } from "../../../../../supabase/functions/newsletter-send/queries";
+import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals } from "../../../../../supabase/functions/newsletter-send/queries";
 import { composeEdition } from "./compose";
 import { renderEditionHtml } from "./render";
 import { contentHash } from "./gate";
@@ -32,28 +33,38 @@ const httpUrl = (value?: string | null) => {
   }
 };
 
-const RESALE_HOST = /stubhub|viagogo|vividseats|tickpick/i;
+const RESALE_HOST = /stubhub|viagogo|vivid[-.]?seats|tickpick|gametime|seatgeek/i;
 
-const officialTicketUrl = (value: string) => {
+const unwrapTicketUrl = (value: string) => {
   try {
     const parsed = new URL(value);
-    const wrapped = parsed.searchParams.get("u") || parsed.searchParams.get("destination");
+    const wrapped = parsed.searchParams.get("u") || parsed.searchParams.get("url") || parsed.searchParams.get("destination");
     const destination = wrapped ? httpUrl(wrapped) : null;
-    if (destination && !RESALE_HOST.test(destination)) return destination;
+    if (destination) return destination;
   } catch {
     return value;
   }
   return value;
 };
 
+const ticketRank = (value: string) => {
+  const host = new URL(value).host.toLowerCase();
+  if (RESALE_HOST.test(host)) return 9;
+  if (/ticketmaster|axs\.com|dice\.fm|eventbrite|etix|tixr|seetickets|universe\.com/.test(host)) return 0;
+  return 1;
+};
+
 const firstTicketUrl = (value: unknown) => {
   const urls: string[] = [];
   const list = Array.isArray(value) ? value : value ? [value] : [];
   for (const item of list) {
-    const url = httpUrl(typeof item === "string" ? item : null);
-    if (url) urls.push(officialTicketUrl(url));
+    const url = httpUrl(typeof item === "string" ? item : typeof item === "object" && item && "url" in item ? String((item as { url?: string }).url ?? "") : null);
+    if (url) urls.push(unwrapTicketUrl(url));
   }
-  return urls.find((url) => !RESALE_HOST.test(url)) ?? urls[0] ?? null;
+  const official = urls.filter((url) => {
+    try { return ticketRank(url) < 9; } catch { return false; }
+  }).sort((left, right) => ticketRank(left) - ticketRank(right));
+  return official[0] ?? null;
 };
 
 const toEvent = (row: any): EditionEvent | null => {
@@ -127,7 +138,7 @@ export const generateDraftsFromSource = async (
       url: String(row.url),
       source: row.source ?? null,
       publishedAt: String(row.publishedAt ?? row.created_at),
-      summary: row.summary ?? null,
+      summary: row.summary ?? row.seo_description ?? null,
     }));
   const reviewsByUser = new Map<string, EditionReview[]>();
   for (const row of source.reviews ?? []) {
@@ -202,7 +213,7 @@ export const generateDraftsFromSource = async (
       reviews,
       lifetimeShowCount: reviews.length,
       fiveStarCount: reviews.filter((review) => (review.rating ?? 0) >= 5).length,
-      topArtists: artistsByUser.get(userId) ?? [],
+      topArtists: [...new Set([...(artistsByUser.get(userId) ?? []), ...((user.followedArtists as string[] | undefined) ?? [])])].slice(0, 8),
       genres: genresByUser.get(userId) ?? [],
       otherFiveStarArtists: reviews
         .filter((review) => (review.rating ?? 0) >= 5)
@@ -211,6 +222,8 @@ export const generateDraftsFromSource = async (
           const set = fiveStarArtists.get(artist.toLowerCase());
           return Boolean(set && [...set].some((id) => id !== userId));
         }),
+      interestedEventIds: Array.isArray(user.interestedEventIds) ? user.interestedEventIds.map(String) : [],
+      goingEventIds: Array.isArray(user.goingEventIds) ? user.goingEventIds.map(String) : [],
     };
     const composed = composeEdition({
       reader,
@@ -243,8 +256,8 @@ export const generateDraftsFromSource = async (
 
 export const loadEditionSource = async (db: Db, now = new Date()) => {
   const users = await readAll(() => db.from("users")
-    .select("user_id, email, name, username, location_city, location_state, account_status, is_bot")
-    .eq("account_status", "active").or("is_bot.is.false,is_bot.is.null")
+    .select("user_id, email, name, username, location_city, location_state, account_status, is_bot, newsletter_subscription")
+    .eq("account_status", "active").eq("newsletter_subscription", "subscribed").or("is_bot.is.false,is_bot.is.null")
     .not("email", "is", null).order("user_id"), "Load users");
   const unsubscribes = await readAll(() => db.from("newsletter_unsubscribes")
     .select("email").order("email"), "Load unsubscribes");
@@ -257,7 +270,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
   const rss = await fetchMusicNews(now);
   const storedNews = await db
     .from("news_items")
-    .select("id, title, url, source, created_at")
+    .select("id, title, url, source, created_at, seo_description")
     .order("created_at", { ascending: false })
     .limit(40);
   const news = [...rss, ...requireRows(storedNews, "Load stored news")];
@@ -279,42 +292,45 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     const listening = stats.filter((row) => row.user_id === id).flatMap((stat) => Array.isArray(stat.top_artists) ? stat.top_artists.slice(0, 8).map((artist: any) => artist.name) : []);
     return [...listening, ...reviewArtists];
   }))];
-  const places = [...new Map(recipients.map((user: any) => {
+  const places = withHubPlaces([...new Map(recipients.map((user: any) => {
     const city = String(user.location_city || "").trim();
     return [placeKey(city, user.location_state), { city, state: user.location_state ?? null }];
-  })).values()].filter((place) => place.city);
-  const eventSelect = "id, title, event_date, doors_time, venue_city, venue_state, latitude, longitude, ticket_available, ticket_urls, genres, event_status, artists(name), venues(name)";
-  const loaded = await loadEventsNearPlaces(places, artistNames, now, async (spec: EventQuery) => {
-    if (spec.kind === "city-sample") {
-      const rows = await db.from("events").select("latitude, longitude, venue_state").ilike("venue_city", spec.city).gte("event_date", spec.from).not("latitude", "is", null).limit(12);
-      return requireRows(rows, "Load event listings");
+  })).values()].filter((place) => place.city));
+  const loaded = await loadEventsNearPlaces(places, artistNames, now, (spec: EventQuery) => runEventQuery(db, spec));
+  const signals = await loadTasteSignals(db, userIds);
+  const seenEventIds = new Set(loaded.events.map((row: any) => String(row.id)));
+  const missingIds = [...new Set(signals.interests.map((row) => String(row.event_id)))].filter((id) => !seenEventIds.has(id));
+  for (let index = 0; index < missingIds.length; index += 80) {
+    const ids = missingIds.slice(index, index + 80);
+    for (const row of await runEventQuery(db, { kind: "ids", ids, limit: ids.length })) {
+      if (row?.id && !seenEventIds.has(String(row.id))) {
+        seenEventIds.add(String(row.id));
+        loaded.events.push(row);
+      }
     }
-    if (spec.kind === "city") {
-      const rows = await db.from("events").select(eventSelect).ilike("venue_city", spec.city)
-        .gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
-      return requireRows(rows, "Load city event listings");
-    }
-    if (spec.kind === "box") {
-      const rows = await db.from("events").select(eventSelect).gte("latitude", spec.minLat).lte("latitude", spec.maxLat).gte("longitude", spec.minLng).lte("longitude", spec.maxLng).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
-      return requireRows(rows, "Load event listings");
-    }
-    const rows = await db.from("events").select(eventSelect).ilike("title", `%${spec.artist}%`).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(8);
-    return requireRows(rows, "Load event listings");
-  });
+  }
   const events = loaded.events;
   const usersWithLocation = recipients.map((user: any) => {
     const center = loaded.centers.get(placeKey(user.location_city, user.location_state));
-    return { ...user, latitude: center?.latitude ?? null, longitude: center?.longitude ?? null };
+    const mine = signals.interests.filter((row) => row.user_id === user.user_id);
+    return {
+      ...user,
+      latitude: center?.latitude ?? null,
+      longitude: center?.longitude ?? null,
+      interestedEventIds: mine.filter((row) => row.relationship_type !== "going").map((row) => String(row.event_id)),
+      goingEventIds: mine.filter((row) => row.relationship_type === "going").map((row) => String(row.event_id)),
+      followedArtists: signals.follows.filter((row) => row.user_id === user.user_id).map((row) => row.artistName),
+    };
   });
 
   const listens = await lookupRecordings(events.map((event) => String(event.artists?.name ?? event.artist_name ?? "")));
-  const publicFives = await db
+  const publicFives = await readAll(() => db
     .from("reviews")
     .select("user_id, artists(name)")
     .eq("is_public", true)
     .eq("is_draft", false)
     .gte("rating", 5)
-    .limit(300);
+    .order("user_id"), "Load community reviews");
 
   return {
     users: usersWithLocation,
@@ -323,7 +339,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     stats,
     events,
     listens,
-    publicFives: requireRows(publicFives, "Load community reviews"),
+    publicFives,
   };
 };
 

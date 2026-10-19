@@ -961,13 +961,14 @@ export default function NewsletterBuilder() {
     setIsSendingTest(true);
     setTestSendMessage(null);
     try {
-      await sendTestNewsletter({
+      const result = await sendTestNewsletter({
         newsletter,
         previewUserId: selectedRealUserId,
         toEmail: email,
       });
-      setTestSendMessage(`Test email sent to ${email}.`);
-      toast({ title: "Test sent", description: `Newsletter test sent to ${email}.` });
+      const accepted = `Brevo accepted a test email to ${email}${result.brevoMessageId ? ` (${result.brevoMessageId})` : ""}. This confirms acceptance, not inbox delivery.`;
+      setTestSendMessage(accepted);
+      toast({ title: "Test accepted", description: accepted });
     } catch (error: any) {
       const message = error?.message ?? "Test send failed.";
       setTestSendMessage(message);
@@ -1673,9 +1674,9 @@ export default function NewsletterBuilder() {
           </div>
 
           <div className="space-y-3 rounded-md border p-3">
-            <p className="text-sm font-medium">Resend test send</p>
+            <p className="text-sm font-medium">Test send</p>
             <p className="text-xs text-muted-foreground">
-              Safe mode only: sends one resolved newsletter to your test email. Production send remains manual and is not triggered here.
+              Sends one resolved newsletter to the address you enter. This does not send the approved edition.
             </p>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               <Input

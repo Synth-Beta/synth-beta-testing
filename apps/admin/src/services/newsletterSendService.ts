@@ -116,6 +116,10 @@ export interface NewsletterDraftRow {
   status: "needs_approval" | "approved" | "sent";
   approved_content_hash: string | null;
   sent_at: string | null;
+  brevo_message_id?: string | null;
+  delivery_state?: "accepted" | "failed" | "uncertain" | null;
+  delivery_error?: string | null;
+  send_claimed_at?: string | null;
 }
 
 export const listNewsletterDrafts = async (editionDate: string) => {

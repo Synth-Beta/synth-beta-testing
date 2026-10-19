@@ -15,10 +15,13 @@ assert.match(generated.drafts[0].html, /Build your live music timeline/);
 assert.doesNotMatch(generated.drafts[0].html, /Tickets are listed as available/);
 assert.notEqual(generated.drafts[0].html, generated.drafts[1].html);
 
-const news = [{ id: 'story', title: 'Festival announces its lineup', url: 'https://example.com/music', created_at: '2026-10-06T12:00:00Z' }];
+const news = [{ id: 'story', title: 'Festival announces its lineup', url: 'https://example.com/music', created_at: '2026-10-06T12:00:00Z', summary: 'The festival posted its lineup and ticket links on the official site this week.' }];
 const general = await generateDraftsFromSource({ ...empty, news }, now);
 assert.match(general.drafts[0].html, /Festival announces its lineup/);
-assert.doesNotMatch(general.drafts[0].html, /artist you already follow/);
+assert.match(general.drafts[0].html, /posted its lineup/);
+assert.doesNotMatch(general.drafts[0].html, /artist you already follow|recent music story/);
+const bare = await generateDraftsFromSource({ ...empty, news: [{ id: 'bare', title: 'Untitled blurb', url: 'https://example.com/bare', created_at: '2026-10-06T12:00:00Z' }] }, now);
+assert.doesNotMatch(bare.drafts[0].html, /Untitled blurb|recent music story/);
 const stale = await generateDraftsFromSource({ ...empty, news: [{ ...news[0], created_at: '2025-01-01' }] }, now);
 assert.doesNotMatch(stale.drafts[0].html, /Festival announces its lineup/);
 

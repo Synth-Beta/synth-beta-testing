@@ -22,11 +22,20 @@ import {
 
 type ReviewFilter = "pending" | "approved" | "sent" | "all";
 
-const statusLabel = (status: NewsletterDraftRow["status"]) => {
-  if (status === "approved") return "Approved";
-  if (status === "sent") return "Sent";
+const statusLabel = (draft: NewsletterDraftRow) => {
+  if (draft.status === "sent" || draft.brevo_message_id) return "Sent";
+  if (draft.delivery_state === "uncertain" || draft.send_claimed_at) return "Not confirmed";
+  if (draft.delivery_state === "failed") return "Send failed";
+  if (draft.status === "approved") return "Approved";
   return "Needs review";
 };
+
+const sendableDraft = (draft: NewsletterDraftRow) =>
+  draft.status === "approved"
+  && !draft.sent_at
+  && !draft.brevo_message_id
+  && draft.delivery_state !== "uncertain"
+  && !draft.send_claimed_at;
 
 const EDITION_WINDOW_DAYS = 21;
 
@@ -125,6 +134,8 @@ export default function NewsletterProofreader() {
   const pendingIds = filtered.filter((draft) => draft.status === "needs_approval").map((draft) => draft.id);
   const allPendingChecked = pendingIds.length > 0 && pendingIds.every((id) => checkedIds.includes(id));
   const approvedCount = drafts.filter((draft) => draft.status === "approved").length;
+  const sendableCount = drafts.filter(sendableDraft).length;
+  const unconfirmedCount = drafts.filter((draft) => draft.status !== "sent" && !draft.brevo_message_id && (draft.delivery_state === "uncertain" || Boolean(draft.send_claimed_at))).length;
 
   const regenerate = async (selectedEdition = false) => {
     const token = ++viewToken.current;
@@ -242,7 +253,7 @@ export default function NewsletterProofreader() {
     setProgress("Sending approved drafts. Keep this page open while results load…");
     try {
       const result = await sendApprovedEditionNow(editionDate);
-      const summary = `${result.successCount ?? 0} sent; ${result.failureCount ?? 0} failed or skipped.`;
+      const summary = `${result.successCount ?? 0} accepted by Brevo; ${result.failureCount ?? 0} not accepted.`;
       if (result.failureCount) setGenerationError(`${summary} ${result.failures?.[0]?.error ?? "Review failed recipients before retrying."}`);
       toast({ title: "Send results", description: summary });
     } catch (error: unknown) {
@@ -279,8 +290,8 @@ export default function NewsletterProofreader() {
         <Button type="button" variant="outline" disabled={regenerating || saving || sending || listLoading} onClick={() => void regenerate()}>
           {regenerating ? "Creating..." : "Create new edition"}
         </Button>
-        <Button type="button" disabled={regenerating || saving || sending || listLoading || approvedCount === 0} onClick={() => void sendNow()}>
-          {sending ? "Sending..." : `Send ${approvedCount} approved now`}
+        <Button type="button" disabled={regenerating || saving || sending || listLoading || sendableCount === 0} onClick={() => void sendNow()}>
+          {sending ? "Sending..." : `Send ${sendableCount} approved now`}
         </Button>
         </div>
       </div>
@@ -300,7 +311,7 @@ export default function NewsletterProofreader() {
           {approvedCount} of {drafts.length} stored drafts approved{eligibleCount !== null ? ` · ${eligibleCount} eligible recipients` : ""}
         </AlertTitle>
         <AlertDescription>
-          The 10:00 a.m. Central send uses only approved drafts whose reviewed content still matches. Unapproved drafts stay unsent. Use “Send approved now” to send this edition immediately after review.
+          The 10:00 a.m. Central send uses only approved drafts whose reviewed content still matches. Unapproved drafts stay unsent. Use “Send approved now” to send this edition immediately after review. Sent means Brevo accepted the message, not that it reached the inbox.{unconfirmedCount ? ` ${unconfirmedCount} ${unconfirmedCount === 1 ? "send was" : "sends were"} not confirmed and will not be retried automatically.` : ""}
         </AlertDescription>
       </Alert>
 
@@ -371,7 +382,7 @@ export default function NewsletterProofreader() {
                         <p className="truncate text-sm font-medium">{draft.email}</p>
                         <p className="truncate text-xs text-muted-foreground">{draft.subject}</p>
                       </div>
-                      <Badge variant={draft.status === "needs_approval" ? "secondary" : "default"}>{statusLabel(draft.status)}</Badge>
+                      <Badge variant={draft.status === "needs_approval" || draft.delivery_state === "failed" || draft.delivery_state === "uncertain" ? "secondary" : "default"}>{statusLabel(draft)}</Badge>
                     </div>
                   </button>
                 </div>
@@ -388,7 +399,7 @@ export default function NewsletterProofreader() {
                 {selected ? "This is the stored email. Approving it locks this exact version." : "Choose a draft to proofread it."}
               </CardDescription>
             </div>
-            {selected && selected.status !== "sent" ? (
+            {selected && selected.status !== "sent" && selected.delivery_state !== "uncertain" && !selected.send_claimed_at ? (
               <div className="flex flex-wrap gap-2">
                 {selected.status === "approved" ? (
                   <Button type="button" variant="outline" disabled={saving || regenerating || sending} onClick={() => void setOne(selected, "needs_approval")}>
@@ -406,13 +417,43 @@ export default function NewsletterProofreader() {
           <CardContent className="space-y-4">
             {selected ? (
               <>
+                {selected.delivery_error ? (
+                  <Alert variant={selected.delivery_state === "failed" ? "destructive" : "default"}>
+                    <AlertTitle>{selected.delivery_state === "uncertain" ? "Brevo did not confirm acceptance" : "Brevo did not accept this send"}</AlertTitle>
+                    <AlertDescription>{selected.delivery_error}</AlertDescription>
+                  </Alert>
+                ) : null}
+                {selected.brevo_message_id ? (
+                  <p className="text-xs text-muted-foreground">Brevo message ID: {selected.brevo_message_id}</p>
+                ) : null}
                 <div className="overflow-hidden rounded-md border bg-[#F5F5F5]">
                   <iframe title="Recipient newsletter" srcDoc={selected.html} className="h-[760px] w-full bg-white" />
                 </div>
+                {(() => {
+                  const report = (selected.sources ?? []).find((source) => (source as { kind?: string }).kind === "quality") as { report?: {
+                    sections?: string[];
+                    sourceCounts?: Record<string, number>;
+                    personalizationEvidence?: string[];
+                    missingData?: string[];
+                    warnings?: string[];
+                  } } | undefined;
+                  if (!report?.report) return null;
+                  const quality = report.report;
+                  return (
+                    <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                      <p className="font-medium">Quality report</p>
+                      <p className="mt-1 text-muted-foreground">Sections: {(quality.sections ?? []).join(", ") || "None"}</p>
+                      <p className="text-muted-foreground">Sources: {Object.entries(quality.sourceCounts ?? {}).map(([key, value]) => `${key} ${value}`).join(" · ")}</p>
+                      {(quality.personalizationEvidence ?? []).length ? <p>Evidence: {quality.personalizationEvidence?.join("; ")}</p> : null}
+                      {(quality.missingData ?? []).length ? <p>Missing: {quality.missingData?.join("; ")}</p> : null}
+                      {(quality.warnings ?? []).length ? <p>Warnings: {quality.warnings?.join("; ")}</p> : null}
+                    </div>
+                  );
+                })()}
                 <div className="space-y-1 text-xs text-muted-foreground">
                   <p>Retrieved {new Date(selected.retrieved_at).toLocaleString()}</p>
-                  {(selected.sources ?? []).map((source) => (
-                    <p key={source.url}>
+                  {(selected.sources ?? []).filter((source) => (source as { kind?: string }).kind !== "quality").map((source) => (
+                    <p key={`${source.label}:${source.url}`}>
                       {source.label}:{" "}
                       <a className="underline" href={source.url} target="_blank" rel="noreferrer">
                         {source.url}

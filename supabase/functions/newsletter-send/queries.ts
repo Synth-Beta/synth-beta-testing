@@ -85,6 +85,43 @@ export const loadListeningStats = async (db: { from: (table: string) => any }, u
   return stats;
 };
 
+export interface TasteSignals {
+  interests: Array<{ user_id: string; event_id: string; relationship_type: string }>;
+  follows: Array<{ user_id: string; artistName: string }>;
+}
+
+/** Saved shows and followed artists. Empty tables are real; query errors are not. */
+export const loadTasteSignals = async (db: { from: (table: string) => any }, userIds: string[]): Promise<TasteSignals> => {
+  const interests: TasteSignals["interests"] = [];
+  const followRows: Array<{ user_id: string; artist_id: string }> = [];
+  for (let index = 0; index < userIds.length; index += 40) {
+    const ids = userIds.slice(index, index + 40);
+    if (!ids.length) continue;
+    interests.push(...await readAll(() => db.from("user_event_relationships")
+      .select("user_id, event_id, relationship_type")
+      .in("user_id", ids)
+      .order("user_id"), "Load saved shows"));
+    followRows.push(...await readAll(() => db.from("artist_follows")
+      .select("user_id, artist_id")
+      .in("user_id", ids)
+      .order("user_id"), "Load followed artists"));
+  }
+  const artistIds = [...new Set(followRows.map((row) => row.artist_id).filter(Boolean))];
+  const names = new Map<string, string>();
+  for (let index = 0; index < artistIds.length; index += 100) {
+    const group = artistIds.slice(index, index + 100);
+    if (!group.length) continue;
+    const artists = await readAll(() => db.from("artists").select("id, name").in("id", group).order("id"), "Load followed artist names");
+    for (const artist of artists) if (artist?.name) names.set(artist.id, String(artist.name));
+  }
+  return {
+    interests: interests.filter((row) => row.user_id && row.event_id),
+    follows: followRows
+      .map((row) => ({ user_id: row.user_id, artistName: names.get(row.artist_id) || "" }))
+      .filter((row) => row.artistName),
+  };
+};
+
 /** Resolve manually entered artists without relying on a PostgREST relationship. */
 export const enrichReviewArtists = async (db: { from: (table: string) => any }, reviews: any[]) => {
   const ids = [...new Set(reviews.map((row) => row.user_created_artist_id).filter(Boolean))];

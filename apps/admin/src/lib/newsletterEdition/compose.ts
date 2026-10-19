@@ -4,13 +4,17 @@ import type {
   EditionEvent,
   EditionListen,
   EditionNews,
+  EditionQualityReport,
+  EditionReview,
   EditionReader,
   EditionSource,
   ShowCard,
   StoryCard,
 } from "./types";
 import { editorialListens } from "../../../../../supabase/functions/newsletter-send/editorial";
-import { eventWithinSavedLocation } from "../../../../../supabase/functions/newsletter-send/nearby";
+import { eventWithinSavedLocation, hubForEvent, milesBetween, NEARBY_MILES } from "../../../../../supabase/functions/newsletter-send/nearby";
+import { meaningfulSummary } from "../../../../../supabase/functions/newsletter-send/news";
+import { rankArtists } from "../../../../../supabase/functions/newsletter-send/taste";
 import { formatEventWhen, formatIssueDate, isUpcoming } from "./time";
 
 const APP_URL = "https://join.getsynth.app/";
@@ -29,6 +33,9 @@ const httpUrl = (value?: string | null) => {
 
 const sameName = (left: string, right: string) => left.trim().toLowerCase() === right.trim().toLowerCase();
 
+const scrub = (value: string) =>
+  value.replace(/\u2014/g, ", ").replace(/\u2013/g, "-").replace(/\s+,/g, ",").replace(/[ \t]{2,}/g, " ").trim();
+
 const availabilityOf = (event: EditionEvent): Availability => {
   if (event.ticketAvailable === true) return "available";
   if (event.ticketAvailable === false) return "sold_out";
@@ -42,8 +49,7 @@ const availabilityNote = (availability: Availability) => {
 };
 
 const ctaLabel = (availability: Availability) => {
-  if (availability === "sold_out") return "Check the official listing";
-  if (availability === "unverified") return "Check the official listing";
+  if (availability === "sold_out" || availability === "unverified") return "Check the official listing";
   return "See the show";
 };
 
@@ -51,12 +57,6 @@ const joinList = (items: string[]) => {
   if (items.length <= 1) return items[0] ?? "";
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
-};
-
-const firstSentence = (text: string) => {
-  const cleaned = text.replace(/\s+/g, " ").trim();
-  const match = cleaned.match(/^.{12,180}?[.!](\s|$)/);
-  return (match ? match[0] : cleaned.slice(0, 160)).trim();
 };
 
 const knownArtists = (reader: EditionReader) => {
@@ -79,74 +79,15 @@ const alreadyLogged = (reader: EditionReader, artistName: string) =>
 const latestReview = (reader: EditionReader) =>
   [...reader.reviews].sort((left, right) => String(right.eventDate ?? "").localeCompare(String(left.eventDate ?? "")))[0];
 
-const isLatestArtist = (reader: EditionReader, artistName: string) => {
-  const latest = latestReview(reader);
-  return Boolean(latest?.artistName && sameName(latest.artistName, artistName));
-};
-
-const reasonFor = (event: EditionEvent, reader: EditionReader, listens: EditionListen[]) => {
-  const logged = alreadyLogged(reader, event.artistName);
-  const listening = reader.topArtists.some((artist) => sameName(artist, event.artistName) && !logged);
-  const recording = listens.find((pick) => sameName(pick.artistName, event.artistName) && pick.trackName);
-  const start = recording ? ` Start with “${recording.trackName}” before you make plans.` : "";
-  if (listening) return `A chance to take ${event.artistName} from your headphones to ${event.venueName}.${start}`;
-  const genre = (event.genres ?? []).find((item) =>
-    reader.genres.some((known) => known.toLowerCase() === item.toLowerCase())
-  );
-  if (!logged && genre) return `A ${genre} detour for the taste you have been building. Try ${event.artistName} in a different room: ${event.venueName}.${start}`;
-  if (!logged) return `A discovery night at ${event.venueName}${event.genres?.length ? `, with ${event.genres.slice(0, 2).join(" and ")} on the bill` : ""}.${start} Keep the date if the music clicks.`;
-  return `Another chance to catch ${event.artistName}, this time at ${event.venueName}.${start}`;
-};
-
-const pickShows = (events: EditionEvent[], reader: EditionReader, sendAt: Date) => {
-  const artists = knownArtists(reader);
-  const upcoming = events.filter(
-    (event) =>
-      isUpcoming(event.eventDate, sendAt, event.state) &&
-      httpUrl(event.ticketUrl) &&
-      event.artistName &&
-      event.venueName &&
-      event.city &&
-      eventWithinSavedLocation(reader, event)
-  );
-  const genreMatch = (event: EditionEvent) =>
-    (event.genres ?? []).some((genre) => reader.genres.some((known) => sameName(known, genre)));
-  const ranked = [...upcoming].sort((left, right) => {
-    const score = (event: EditionEvent) => {
-      const inCity = Boolean(reader.city && sameName(event.city, reader.city));
-      const logged = alreadyLogged(reader, event.artistName);
-      const listening = reader.topArtists.some((artist) => sameName(artist, event.artistName));
-      if (!logged && listening && inCity) return 0;
-      if (!logged && listening) return 1;
-      if (!logged && genreMatch(event) && inCity) return 2;
-      if (!logged && inCity) return 3;
-      if (!logged && genreMatch(event)) return 4;
-      if (!logged) return 5;
-      if (inCity) return 6;
-      return 8;
-    };
-    return score(left) - score(right) || left.eventDate.localeCompare(right.eventDate);
-  });
-  const notTheLatest = (event: EditionEvent) => !isLatestArtist(reader, event.artistName);
-  const taste = ranked.filter(
-    (event) => artists.some((artist) => sameName(artist, event.artistName)) || genreMatch(event)
-  );
-  const pool = (reader.latitude != null || reader.city ? ranked : taste).filter(notTheLatest);
-  const chosen: EditionEvent[] = [];
-  for (const event of pool) {
-    if (chosen.some((item) => sameName(item.artistName, event.artistName))) continue;
-    chosen.push(event);
-    if (chosen.length === 3) break;
-  }
-  return chosen;
-};
-
 const titleMentionsArtist = (title: string, artist: string) => {
   const name = artist.trim();
   if (name.length < 3) return false;
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`\\b${escaped}\\b`, "i").test(title);
 };
+
+const storyMentionsArtist = (item: { title: string; summary?: string | null }, artist: string) =>
+  titleMentionsArtist(item.title, artist) || titleMentionsArtist(item.summary ?? "", artist);
 
 const recentNews = (news: EditionNews[], sendAt: Date) =>
   news
@@ -157,23 +98,77 @@ const recentNews = (news: EditionNews[], sendAt: Date) =>
     })
     .filter((item, index, items) => items.findIndex((other) => other.url === item.url) === index);
 
-const pickListens = (listens: EditionListen[], shows: EditionEvent[], reader: EditionReader) => {
-  // An artist name alone is never a recording. New artists take priority over repeats.
-  const pool = listens.filter((item) => item.artistName && item.trackName?.trim() && httpUrl(item.url)
-    && !isLatestArtist(reader, item.artistName)
-    && (item.evergreen || reader.topArtists.some((artist) => sameName(artist, item.artistName))
-      || shows.some((show) => sameName(show.artistName, item.artistName))));
-  const score = (item: EditionListen) =>
-    (alreadyLogged(reader, item.artistName) ? 10 : 0)
-    + (shows.some((show) => sameName(show.artistName, item.artistName)) ? 0 : item.evergreen ? 3 : 1);
-  const ordered = [...pool].sort((a, b) => score(a) - score(b));
-  const chosen: EditionListen[] = [];
-  for (const item of ordered) {
-    if (chosen.some((existing) => sameName(existing.artistName, item.artistName))) continue;
-    chosen.push(item);
-    if (chosen.length === 2) break;
+const savedPlace = (reader: EditionReader) =>
+  Boolean(reader.city?.trim()) || (reader.latitude != null && reader.longitude != null);
+
+/** When the profile has no city, a tight cluster of saved events is still a real place. */
+const inferActivityCenter = (reader: EditionReader, events: EditionEvent[], sendAt: Date) => {
+  const ids = new Set([...(reader.interestedEventIds ?? []), ...(reader.goingEventIds ?? [])]);
+  const linked = events.filter((event) =>
+    ids.has(event.id) &&
+    typeof event.latitude === "number" &&
+    typeof event.longitude === "number" &&
+    event.city?.trim()
+  );
+  const upcoming = linked.filter((event) => Date.parse(event.eventDate) >= sendAt.getTime() - 86400000);
+  const pool = upcoming.length >= 3 ? upcoming : linked;
+  if (pool.length < 3) return null;
+  let best: EditionEvent[] = [];
+  for (const seed of pool) {
+    const cluster = pool.filter((event) =>
+      milesBetween(seed.latitude!, seed.longitude!, event.latitude!, event.longitude!) <= NEARBY_MILES
+    );
+    if (cluster.length > best.length) best = cluster;
   }
-  return chosen;
+  if (best.length < 3 || best.length * 2 < pool.length) return null;
+  const cities = new Map<string, { city: string; state?: string | null; count: number }>();
+  for (const event of best) {
+    const key = event.city.trim().toLowerCase();
+    const current = cities.get(key) ?? { city: event.city.trim(), state: event.state, count: 0 };
+    current.count += 1;
+    cities.set(key, current);
+  }
+  const top = [...cities.values()].sort((left, right) => right.count - left.count)[0];
+  return {
+    city: top.city,
+    state: top.state ?? null,
+    latitude: best.reduce((sum, event) => sum + event.latitude!, 0) / best.length,
+    longitude: best.reduce((sum, event) => sum + event.longitude!, 0) / best.length,
+  };
+};
+
+const genreMatch = (event: EditionEvent, reader: EditionReader) =>
+  (event.genres ?? []).some((genre) => reader.genres.some((known) => sameName(known, genre)));
+
+const savedRelationship = (event: EditionEvent, reader: EditionReader) => {
+  if (reader.goingEventIds?.includes(event.id)) return "going" as const;
+  if (reader.interestedEventIds?.includes(event.id)) return "interested" as const;
+  return null;
+};
+
+const reasonFor = (event: EditionEvent, reader: EditionReader) => {
+  const saved = savedRelationship(event, reader);
+  if (saved === "going") return `You marked ${event.artistName} at ${event.venueName} as going on Synth.`;
+  if (saved === "interested") return `You saved ${event.artistName} at ${event.venueName} on Synth.`;
+  const logged = alreadyLogged(reader, event.artistName);
+  const listening = reader.topArtists.some((artist) => sameName(artist, event.artistName));
+  if (!logged && listening) return `${event.artistName} is in your saved listening, and this date is at ${event.venueName}.`;
+  if (logged) return `You have seen ${event.artistName} before. This date is at ${event.venueName}.`;
+  const knownVenue = reader.reviews.find((review) => review.venueName && sameName(review.venueName, event.venueName));
+  if (knownVenue) return `You have already spent a night at ${event.venueName}. ${event.artistName} is on a later bill there.`;
+  const genre = (event.genres ?? []).find((item) => reader.genres.some((known) => sameName(known, item)));
+  if (genre) return `${event.artistName} plays ${event.venueName}. The bill is listed as ${genre}.`;
+  return `${event.artistName} plays ${event.venueName} in ${event.city}.`;
+};
+
+const listenReason = (pick: EditionListen, reader: EditionReader) => {
+  const supplied = pick.reason?.trim() ?? "";
+  if (supplied && !/give it another spin|song to try before making plans|before choosing your next night/i.test(supplied)) {
+    return scrub(supplied);
+  }
+  if (reader.topArtists.some((artist) => sameName(artist, pick.artistName))) return "It is already in your saved listening.";
+  if (alreadyLogged(reader, pick.artistName)) return `You have logged ${pick.artistName} live. This is a recording to revisit.`;
+  return supplied ? scrub(supplied) : "Worth a play this week.";
 };
 
 export const composeEdition = ({
@@ -196,39 +191,138 @@ export const composeEdition = ({
   retrievedAt: string;
 }): ComposedEdition | null => {
   const sources: EditionSource[] = [];
-  const shows = pickShows(events, reader, sendAt);
-  const latestName = latestReview(reader)?.artistName;
-  const updates = [...recentNews(news, new Date(Math.min(sendAt.getTime(), Date.parse(retrievedAt))))]
-    .sort((left, right) => {
-      const aboutLatest = (item: EditionNews) => (latestName && titleMentionsArtist(item.title, latestName) ? 1 : 0);
-      const known = knownArtists(reader).filter((artist) => !latestName || !sameName(artist, latestName));
-      const rank = (item: EditionNews) => (aboutLatest(item) ? 3 : known.some((artist) => titleMentionsArtist(item.title, artist)) ? 0 : 1);
-      return rank(left) - rank(right) || Date.parse(right.publishedAt) - Date.parse(left.publishedAt);
-    })
-    .slice(0, 2);
-  const curated = editorialListens(editionDate, reader.genres);
-  const availableListens = [...listens, ...curated];
-  const listenPicks = pickListens(availableListens, shows, reader);
-
+  const used = new Set<string>();
+  const featuredArtists: string[] = [];
+  const claim = (artist?: string | null) => {
+    const name = artist?.trim();
+    if (!name) return false;
+    const key = name.toLowerCase();
+    if (used.has(key)) return false;
+    used.add(key);
+    featuredArtists.push(name);
+    return true;
+  };
+  const taken = (artist?: string | null) => Boolean(artist && used.has(artist.trim().toLowerCase()));
 
   const name = reader.firstName?.trim() || "";
-  const place = reader.city?.trim() || "";
+  const profilePlace = savedPlace(reader);
+  const inferred = profilePlace ? null : inferActivityCenter(reader, events, sendAt);
+  const located = inferred
+    ? { ...reader, city: inferred.city, state: inferred.state, latitude: inferred.latitude, longitude: inferred.longitude }
+    : reader;
+  const place = located.city?.trim() || "";
   const latest = latestReview(reader);
+  const latestIsPast = Boolean(
+    latest?.artistName && latest.eventDate && !isUpcoming(latest.eventDate, new Date(retrievedAt), reader.state)
+  );
+  if (latestIsPast) claim(latest?.artistName);
+
+  const upcoming = events.filter((event) =>
+    isUpcoming(event.eventDate, sendAt, event.state) &&
+    httpUrl(event.ticketUrl) &&
+    event.artistName &&
+    event.venueName &&
+    event.city &&
+    !taken(event.artistName)
+  );
+  const byInterest = (left: EditionEvent, right: EditionEvent) => {
+    const score = (event: EditionEvent) => {
+      const saved = savedRelationship(event, reader);
+      const logged = alreadyLogged(reader, event.artistName);
+      const listening = reader.topArtists.some((artist) => sameName(artist, event.artistName));
+      const inCity = Boolean(place && sameName(event.city, place));
+      if (saved === "going") return 0;
+      if (saved === "interested") return 1;
+      if (!logged && listening && inCity) return 2;
+      if (!logged && listening) return 3;
+      if (logged && inCity) return 4;
+      if (logged) return 5;
+      if (genreMatch(event, reader) && inCity) return 6;
+      if (inCity) return 7;
+      if (genreMatch(event, reader)) return 8;
+      return 9;
+    };
+    return score(left) - score(right) || left.eventDate.localeCompare(right.eventDate) || Number(left.ticketAvailable !== true) - Number(right.ticketAvailable !== true);
+  };
+
+  const shows: EditionEvent[] = [];
+  if (savedPlace(located)) {
+    const local = upcoming.filter((event) => eventWithinSavedLocation(located, event)).sort(byInterest);
+    for (const event of local) {
+      if (shows.some((item) => sameName(item.artistName, event.artistName))) continue;
+      if (!claim(event.artistName)) continue;
+      shows.push(event);
+      if (shows.length === 3) break;
+    }
+  } else {
+    const hubs = ["Chicago", "Washington", "New York"];
+    for (const hubName of hubs) {
+      const pool = upcoming.filter((event) => hubForEvent(event)?.city === hubName).sort(byInterest);
+      const event = pool.find((item) => !shows.some((chosen) => sameName(chosen.artistName, item.artistName)));
+      if (!event || !claim(event.artistName)) continue;
+      shows.push(event);
+    }
+  }
+
+  const rankedHistory = rankArtists(reader.reviews).filter((artist) => !taken(artist.name));
+  const week = Math.floor(Date.parse(`${editionDate}T12:00:00Z`) / (7 * 86400000));
+  const historyPool = (rankedHistory.some((artist) => !artist.shortOnly) ? rankedHistory.filter((artist) => !artist.shortOnly) : rankedHistory).slice(0, 4);
+  const historyArtist = historyPool.length
+    ? historyPool[((Number.isFinite(week) ? week : 0) % historyPool.length + historyPool.length) % historyPool.length]
+    : null;
+  const historyReview = historyArtist
+    ? reader.reviews
+      .filter((review) => sameName(review.artistName, historyArtist.name))
+      .sort((left, right) => (right.text?.length ?? 0) - (left.text?.length ?? 0))[0]
+    : null;
+  if (historyArtist) claim(historyArtist.name);
+
+  const freshNews = recentNews(news, new Date(Math.min(sendAt.getTime(), Date.parse(retrievedAt))));
+  const summarized = freshNews
+    .map((item) => ({ ...item, summary: meaningfulSummary(item.summary) }))
+    .filter((item) => item.summary);
+  const omittedSummaries = freshNews.length - summarized.length;
+  const newsRank = (item: EditionNews) => {
+    if ([...used].some((artist) => storyMentionsArtist(item, artist))) return 9;
+    const known = knownArtists(reader).filter((artist) => !taken(artist));
+    if (known.some((artist) => storyMentionsArtist(item, artist))) return 0;
+    if (reader.genres.some((genre) => storyMentionsArtist(item, genre))) return 1;
+    return 2;
+  };
+  const sortedNews = [...summarized].sort((left, right) => newsRank(left) - newsRank(right) || Date.parse(right.publishedAt) - Date.parse(left.publishedAt));
+  const relevantNews = sortedNews.filter((item) => newsRank(item) < 2);
+  const chosenNews = (relevantNews.length ? relevantNews : sortedNews.filter((item) => newsRank(item) < 9)).slice(0, relevantNews.length ? 2 : 1);
+  const newsArtists = new Map<string, string>();
+  for (const item of chosenNews) {
+    const matched = knownArtists(reader).find((artist) => storyMentionsArtist(item, artist) && !taken(artist));
+    if (matched) {
+      claim(matched);
+      newsArtists.set(item.id, matched);
+    }
+  }
+
+  const curated = editorialListens(editionDate, reader.genres);
+  const personalListens = listens.filter((item) =>
+    item.artistName && item.trackName?.trim() && httpUrl(item.url) && !item.evergreen && !taken(item.artistName)
+    && (reader.topArtists.some((artist) => sameName(artist, item.artistName))
+      || shows.some((show) => sameName(show.artistName, item.artistName))
+      || alreadyLogged(reader, item.artistName))
+  );
+  const evergreenListens = curated.filter((item) => !taken(item.artistName));
+  const listenPool = (personalListens.length ? personalListens : evergreenListens).filter((item, index, items) =>
+    items.findIndex((other) => sameName(other.artistName, item.artistName)) === index
+  ).slice(0, 2);
+  listenPool.forEach((item) => claim(item.artistName));
 
   const showCards: ShowCard[] = shows.map((event) => {
     const url = httpUrl(event.ticketUrl)!;
     const availability = availabilityOf(event);
-    sources.push({
-      kind: "event",
-      url,
-      retrievedAt,
-      label: `${event.artistName} at ${event.venueName}`,
-    });
+    sources.push({ kind: "event", url, retrievedAt, label: `${event.artistName} at ${event.venueName}` });
     const when = formatEventWhen(event.eventDate, event.state, event.doorsTime);
     return {
       eyebrow: [when, event.venueName, event.city].filter(Boolean).join(" · "),
       title: event.artistName,
-      body: reasonFor(event, reader, availableListens),
+      body: scrub(reasonFor(event, located)),
       availabilityNote: availabilityNote(availability),
       ctaLabel: ctaLabel(availability),
       ctaUrl: url,
@@ -236,14 +330,14 @@ export const composeEdition = ({
     };
   });
 
-  const updateCards: StoryCard[] = updates.map((item) => {
+  const updateCards: StoryCard[] = chosenNews.map((item) => {
     const url = httpUrl(item.url)!;
     sources.push({ kind: "news", url, retrievedAt, label: item.title });
+    const matched = newsArtists.get(item.id);
     return {
-      eyebrow: item.source ? `${item.source} · recent` : "Live music update",
-      title: item.title,
-      body: item.summary?.trim()
-        || (item.source ? `${item.source}: a recent music story, with the details at the source.` : "A recent music story to explore this week."),
+      eyebrow: item.source ? (matched ? `${item.source} · ${matched}` : item.source) : "Music story",
+      title: scrub(item.title),
+      body: scrub(item.summary || ""),
       ctaLabel: "Read the source",
       ctaUrl: url,
       tone: "white",
@@ -251,102 +345,232 @@ export const composeEdition = ({
   });
 
   let listen: StoryCard | undefined;
-  if (listenPicks.length > 0) {
-    const general = listenPicks.every((pick) => pick.evergreen);
-    for (const pick of listenPicks) {
-      sources.push({ kind: "listen", url: httpUrl(pick.sourceUrl) ?? httpUrl(pick.url)!, retrievedAt,
-        label: `${pick.artistName} — ${pick.trackName}` });
+  if (listenPool.length > 0) {
+    const general = listenPool.every((pick) => pick.evergreen);
+    for (const pick of listenPool) {
+      sources.push({
+        kind: "listen",
+        url: httpUrl(pick.sourceUrl) ?? httpUrl(pick.url)!,
+        retrievedAt,
+        label: `${pick.artistName}, ${pick.trackName}`,
+      });
     }
     listen = {
       eyebrow: general ? "The listening room · evergreen picks" : "Your next listen",
-      title: shows.length ? "Two songs before the ticket." : "Press play. Take a different route.",
-      body: listenPicks.map((pick) => `${pick.artistName}’s “${pick.trackName}”: ${pick.reason?.trim() || "Try this recording and decide whether to explore the rest of the record."}`).join(" "),
-      ctaLabel: `Listen to “${listenPicks[0].trackName}”`,
-      ctaUrl: httpUrl(listenPicks[0].url)!,
+      title: listenPool.length > 1 ? "Two recordings to put on." : `“${listenPool[0].trackName}”`,
+      body: scrub(listenPool.map((pick) => `${pick.artistName}, “${pick.trackName}”. ${listenReason(pick, reader)}`).join(" ")),
+      ctaLabel: `Listen to “${listenPool[0].trackName}”`,
+      ctaUrl: httpUrl(listenPool[0].url)!,
       tone: "pink",
-      links: listenPicks.map((pick) => ({ label: `Listen to ${pick.artistName} — “${pick.trackName}”`, url: httpUrl(pick.url)! })),
+      links: listenPool.map((pick) => ({ label: `Listen to ${pick.artistName}, “${pick.trackName}”`, url: httpUrl(pick.url)! })),
     };
   }
 
-  // Feed outages must not turn new accounts' editions into a single app CTA.
-  // This is a labeled album detour, never presented as breaking news or a personal match.
   const features: StoryCard[] = [];
   if (!updateCards.length) {
-    const detour = curated.find((pick) => !isLatestArtist(reader, pick.artistName)
-      && !listenPicks.some((listen) => sameName(listen.artistName, pick.artistName)))!;
-    features.push({
-      eyebrow: "The album detour · from the archives",
-      title: `${detour.artistName}: ${detour.albumName}`,
-      body: `Start with “${detour.trackName}”. ${detour.reason} If that moment lands, give the whole album a turn without skipping ahead. This is a record to revisit, rather than a new-release announcement.`,
-      ctaLabel: "Explore the record", ctaUrl: detour.sourceUrl, tone: "white",
-    });
-    sources.push({ kind: "editorial", url: detour.sourceUrl, retrievedAt,
-      label: `${detour.artistName} — ${detour.albumName} (evergreen)` });
+    const detour = evergreenListens.find((pick) => !listenPool.some((item) => sameName(item.artistName, pick.artistName)));
+    if (detour && claim(detour.artistName)) {
+      features.push({
+        eyebrow: "The album detour · from the archives",
+        title: `${detour.artistName}: ${detour.albumName}`,
+        body: scrub(`Start with “${detour.trackName}”. ${detour.reason} The rest of ${detour.albumName} is worth a turn.`),
+        ctaLabel: "Explore the record",
+        ctaUrl: detour.sourceUrl,
+        tone: "white",
+      });
+      sources.push({
+        kind: "editorial",
+        url: detour.sourceUrl,
+        retrievedAt,
+        label: `${detour.artistName}, ${detour.albumName} (evergreen)`,
+      });
+    }
   }
+
+  const usedFacts = new Set<string>();
+  const extraFact = (review: EditionReview) => {
+    const candidates: string[] = [];
+    const repeats = reader.reviews.filter((item) => sameName(item.artistName, review.artistName)).length;
+    if (repeats > 1) candidates.push(`You have logged ${review.artistName} ${repeats} times.`);
+    const venueMates = [...new Set(reader.reviews
+      .filter((item) => review.venueName && item.venueName && sameName(item.venueName, review.venueName) && !sameName(item.artistName, review.artistName))
+      .map((item) => item.artistName))];
+    if (review.venueName && venueMates.length) candidates.push(`${review.venueName} is also where you saw ${joinList(venueMates.slice(0, 2))}.`);
+    const later = shows.find((event) => review.venueName && sameName(event.venueName, review.venueName));
+    if (later && review.venueName) candidates.push(`${later.artistName} plays ${review.venueName} on a later date.`);
+    if ((review.rating ?? 0) >= 5 && reader.fiveStarCount > 1) {
+      const others = reader.fiveStarCount - 1;
+      candidates.push(`It sits with ${others} other five-star night${others === 1 ? "" : "s"}.`);
+    }
+    if (reader.lifetimeShowCount > 1) candidates.push(`It is one of ${reader.lifetimeShowCount} nights on your timeline.`);
+    const pick = candidates.find((line) => !usedFacts.has(line));
+    if (pick) usedFacts.add(pick);
+    return pick ?? "";
+  };
 
   let yourSynth: ComposedEdition["yourSynth"];
-  if (latest?.artistName && latest.eventDate && !isUpcoming(latest.eventDate, new Date(retrievedAt), reader.state)) {
-    const when = formatEventWhen(latest.eventDate, reader.state);
-    const detail = latest.text ? ` ${firstSentence(latest.text)}` : "";
-    const headline =
-      reader.lifetimeShowCount > 0 && reader.fiveStarCount > 0
-        ? `${reader.lifetimeShowCount} show${reader.lifetimeShowCount === 1 ? "" : "s"} logged. ${reader.fiveStarCount} five-star night${reader.fiveStarCount === 1 ? "" : "s"}.`
-        : `Your latest: ${latest.artistName}.`;
+  if (latestIsPast && latest?.artistName) {
+    const when = formatEventWhen(latest.eventDate || "", reader.state);
+    const fact = extraFact(latest);
+    const headline = reader.lifetimeShowCount > 0 && reader.fiveStarCount > 0
+      ? `${reader.lifetimeShowCount} show${reader.lifetimeShowCount === 1 ? "" : "s"} logged. ${reader.fiveStarCount} five-star night${reader.fiveStarCount === 1 ? "" : "s"}.`
+      : `Your latest: ${latest.artistName}.`;
     yourSynth = {
       headline,
-      body: `Your latest was ${latest.artistName}${latest.venueName ? ` at ${latest.venueName}` : ""} on ${when}.${detail}`,
+      body: scrub(`${latest.artistName}${latest.venueName ? ` at ${latest.venueName}` : ""}${when ? ` on ${when}` : ""} is the newest night on your timeline.${fact ? ` ${fact}` : ""}`),
     };
-    sources.push({
-      kind: "account",
-      url: APP_URL,
-      retrievedAt,
-      label: `Review of ${latest.artistName}`,
-    });
+    sources.push({ kind: "account", url: APP_URL, retrievedAt, label: `Review of ${latest.artistName}` });
   }
 
-  const connectArtist = reader.otherFiveStarArtists.find((artist) => !latest?.artistName || !sameName(artist, latest.artistName));
-  const connect: StoryCard = connectArtist
-    ? {
-        eyebrow: "Connect",
-        title: `Who else gave ${connectArtist} a 5?`,
-        body: `Other people on Synth rated ${connectArtist} a five. Open those reviews and see who else is planning a night out.`,
-        ctaLabel: "Explore Synth",
-        ctaUrl: APP_URL,
-        tone: "yellow",
-      }
-    : shows.length
-    ? {
-        eyebrow: "Connect",
-        title: "See the dates on Synth.",
-        body: "Pick one date, send it to a friend, and leave room for the opener. After the encore, keep one detail you want to remember in your review.",
-        ctaLabel: "Explore Synth",
-        ctaUrl: APP_URL,
-        tone: "yellow",
-      }
-    : {
-        eyebrow: "Make your next show count",
-        title: "Build your live music timeline.",
-        body: "Think of a night you would go back to: the room, the song, the person beside you. Log a concert you remember and keep one detail that made it yours.",
-        ctaLabel: "Explore Synth",
-        ctaUrl: APP_URL,
-        tone: "yellow",
-      };
+  let history: StoryCard | undefined;
+  if (historyArtist && historyReview) {
+    const when = historyReview.eventDate ? formatEventWhen(historyReview.eventDate, reader.state) : "";
+    const rating = historyReview.rating != null ? `${historyReview.rating} stars` : "a rating";
+    const fact = extraFact(historyReview);
+    history = {
+      eyebrow: "From your concert history",
+      title: historyArtist.name,
+      body: scrub(`${historyArtist.name}${historyReview.venueName ? ` at ${historyReview.venueName}` : ""}${when ? ` on ${when}` : ""} is an earlier night you rated ${rating}.${fact ? ` ${fact}` : ""}`),
+      ctaLabel: "Open your timeline",
+      ctaUrl: APP_URL,
+      tone: "white",
+    };
+    sources.push({ kind: "account", url: APP_URL, retrievedAt, label: `History note for ${historyArtist.name}` });
+  }
 
-  const headline = name ? `${name}, let’s find your next great night.` : "Let’s find your next great night.";
-  const introBits = [
-    showCards.length && place ? `a few ${place} shows to put on your radar` : showCards.length ? "a few dates to put on your radar" : "",
-    updateCards.length ? "the music stories worth a look" : "an album detour from the archives",
-    listen ? "two songs to take into your week" : "",
+  const savedCount = (reader.interestedEventIds?.length ?? 0) + (reader.goingEventIds?.length ?? 0);
+  const communityArtist = reader.otherFiveStarArtists.find((artist) => !taken(artist));
+  if (communityArtist) claim(communityArtist);
+  const connect: StoryCard = communityArtist
+    ? {
+        eyebrow: "Connect on Synth",
+        title: `Who else gave ${communityArtist} a 5?`,
+        body: `Other people on Synth rated ${communityArtist} five stars. Open those reviews and see what they wrote down.`,
+        ctaLabel: "Explore Synth",
+        ctaUrl: APP_URL,
+        tone: "yellow",
+      }
+    : savedCount > 0
+      ? {
+          eyebrow: "Connect on Synth",
+          title: "Your saved dates",
+          body: `You have ${savedCount} show${savedCount === 1 ? "" : "s"} saved on Synth. Open the list and pick a night to keep.`,
+          ctaLabel: "Explore Synth",
+          ctaUrl: APP_URL,
+          tone: "yellow",
+        }
+      : showCards.length
+        ? {
+            eyebrow: "Connect on Synth",
+            title: "Bring one date back to Synth",
+            body: "Save a date, send it to a friend, and after the show keep one detail in a review.",
+            ctaLabel: "Explore Synth",
+            ctaUrl: APP_URL,
+            tone: "yellow",
+          }
+        : reader.reviews.length
+          ? {
+              eyebrow: "Connect on Synth",
+              title: "Your timeline is already started",
+              body: "Open a night you logged and see whether anyone else wrote about that artist.",
+              ctaLabel: "Explore Synth",
+              ctaUrl: APP_URL,
+              tone: "yellow",
+            }
+          : {
+              eyebrow: "Make your next show count",
+              title: "Build your live music timeline.",
+              body: "Think of a night you would go back to: the room, the song, the person beside you. Log a concert you remember and keep one detail that made it yours.",
+              ctaLabel: "Explore Synth",
+              ctaUrl: APP_URL,
+              tone: "yellow",
+            };
+
+  const showCities = [...new Set(shows.map((event) => event.city).filter(Boolean))];
+  const savedShows = shows.filter((event) => savedRelationship(event, reader));
+  const showNames = shows.map((event) => event.artistName);
+  const where = place ? `around ${place}` : showCities.length ? `in ${joinList(showCities)}` : "";
+  const introSentences = [
+    showNames.length
+      ? `${joinList(showNames)} ${showNames.length === 1 ? "is" : "are"} ${savedShows.length === shows.length ? "already saved" : "coming up"}${where ? ` ${where}` : ""}.`
+      : "",
+    historyArtist ? `${historyArtist.name} is an earlier night still on your timeline.` : "",
+    !showNames.length && !historyArtist && latest?.artistName ? `${latest.artistName} is the newest night on your timeline.` : "",
+    !showNames.length && !historyArtist && !latest?.artistName && listenPool[0]?.artistName
+      ? `${listenPool[0].artistName} is worth a play this week.`
+      : "",
   ].filter(Boolean);
-  const intro = introBits.length
-    ? `${joinList(introBits).replace(/^./, (letter) => letter.toUpperCase())}.`
-    : "Your next great night starts with the music you love. Keep your concert memories and explore with other fans on Synth.";
+  const intro = introSentences.join(" ")
+    || (name ? `${name}, a few things in music are worth your time this week.` : "A few things in music are worth your time this week.");
 
-  const firstArtist = showCards[0]?.title;
-  const subject = firstArtist
-    ? `${name ? `${name}, ` : ""}${firstArtist} and what’s worth hearing`.slice(0, 78)
-    : `${name ? `${name}, ` : ""}Your next night out`.slice(0, 78);
+  const headline = name ? `${name}, here is a week drawn from your music.` : "Here is a week drawn from your music.";
+  const lead = showCards[0]?.title || historyArtist?.name || listenPool[0]?.artistName;
+  const subject = (lead
+    ? `${name ? `${name}, ` : ""}${lead} and a few things worth your time`
+    : `${name ? `${name}, ` : ""}A week of music worth your time`).slice(0, 78);
 
+  const warnings: string[] = [];
+  if (omittedSummaries > 0) warnings.push(`${omittedSummaries} music ${omittedSummaries === 1 ? "story was" : "stories were"} skipped because the source had no reliable summary.`);
+  if (!updateCards.length) warnings.push("No current news with a reliable summary was available, so this edition uses another section.");
+  if (showCards.some((show) => /sold out/i.test(show.availabilityNote ?? ""))) warnings.push("A listed show is sold out. The note says so and does not promise tickets.");
+  if (savedPlace(located) && showCards.length < 2) warnings.push("Fewer than two upcoming shows passed the location, date, and ticket checks.");
+  const loweredFeatured = featuredArtists.map((artist) => artist.toLowerCase());
+  if (new Set(loweredFeatured).size !== loweredFeatured.length) warnings.push("The same artist was featured in more than one section.");
+
+  const missingData: string[] = [];
+  if (!reader.reviews.length) missingData.push("No concert reviews");
+  if (!reader.topArtists.length) missingData.push("No streaming artists in the source");
+  if (!reader.genres.length) missingData.push("No genre preferences in the source");
+  if (!profilePlace) missingData.push("No saved city or coordinates");
+  if (!savedCount) missingData.push("No saved upcoming shows");
+  if (savedPlace(located) && showCards.length === 0) missingData.push("No upcoming shows within 75 miles with an official ticket link");
+
+  const evidence: string[] = [];
+  if (reader.lifetimeShowCount) evidence.push(`${reader.lifetimeShowCount} logged shows`);
+  if (reader.fiveStarCount) evidence.push(`${reader.fiveStarCount} five-star reviews`);
+  if (reader.topArtists.length) evidence.push(`Listening artists include ${joinList(reader.topArtists.slice(0, 3))}`);
+  if (reader.genres.length) evidence.push(`Genres on the account: ${joinList(reader.genres.slice(0, 3))}`);
+  if (savedCount) evidence.push(`${savedCount} saved shows`);
+  if (latestIsPast && latest?.artistName) evidence.push(`Latest show: ${latest.artistName}`);
+  if (historyArtist) evidence.push(`History note: ${historyArtist.name}`);
+  if (inferred) evidence.push(`Saved shows cluster around ${inferred.city}`);
+  if (!profilePlace && !inferred && showCards.length) evidence.push("City listings are general because no saved location was available");
+
+  const sections = [
+    "introduction",
+    yourSynth ? "yourSynth" : "",
+    showCards.length ? "onYourRadar" : "",
+    updateCards.length ? "thisWeekInMusic" : "",
+    features.length ? "albumDetour" : "",
+    listen ? "yourNextListen" : "",
+    history ? "fromYourHistory" : "",
+    "connect",
+  ].filter(Boolean);
+
+  const qualityReport: EditionQualityReport = {
+    sections,
+    sourceCounts: {
+      reviews: reader.reviews.length,
+      fiveStarReviews: reader.fiveStarCount,
+      streamingArtists: reader.topArtists.length,
+      candidateEvents: events.length,
+      newsStories: freshNews.length,
+      personalListens: listens.filter((item) => !item.evergreen && item.trackName).length,
+    },
+    personalizationEvidence: evidence,
+    missingData,
+    warnings,
+    featuredArtists,
+  };
+  sources.push({
+    kind: "quality",
+    url: APP_URL,
+    retrievedAt,
+    label: "Quality report",
+    report: qualityReport,
+  });
+
+  const localShows = Boolean(place) && (located.latitude != null || shows.every((event) => sameName(event.city, place)));
   return {
     subject,
     preheader: intro,
@@ -354,18 +578,18 @@ export const composeEdition = ({
     headline,
     intro,
     yourSynth,
-    showsHeading: showCards.length
-      ? place && (reader.latitude != null || shows.every((event) => sameName(event.city, place)))
-        ? `On your radar in ${place}`
-        : "On your radar"
+    showsHeading: showCards.length ? (localShows ? `On your radar in ${place}` : "On your radar") : undefined,
+    showsDek: showCards.length
+      ? (place ? `Dates around ${place}.` : showCities.length ? `Dates in ${joinList(showCities)}.` : "A few dates on the calendar.")
       : undefined,
-    showsDek: showCards.length ? "Upcoming options, with a reason each one is here." : undefined,
     shows: showCards,
     updates: updateCards,
     features,
-    editorialFlags: updateCards.length ? [] : ["No current news was available; this edition uses a labeled evergreen album feature."],
+    editorialFlags: warnings,
     listen,
+    history,
     connect,
     sources,
+    qualityReport,
   };
 };

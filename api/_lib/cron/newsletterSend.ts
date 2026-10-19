@@ -8,8 +8,10 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { sendBrevoNewsletter } from '../brevoNewsletter.js';
 import {
   deliverApprovedDrafts,
+  reconcileNewsletterDelivery,
   type StoredDraft,
   deliveryKey,
 } from '../newsletterDelivery.js';
@@ -77,10 +79,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const resendKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  const brevoKey = process.env.BREVO_API_KEY;
   const unsubscribeSecret = process.env.NEWSLETTER_UNSUBSCRIBE_SECRET;
-  if (!supabaseUrl || !serviceKey || !resendKey || !fromEmail || !unsubscribeSecret) {
+  if (!supabaseUrl || !serviceKey || !brevoKey || !unsubscribeSecret) {
     return res.status(500).json({ ok: false, error: 'Newsletter send is not configured.' });
   }
 
@@ -89,13 +90,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
   const editionDate = editionDateCentral(now);
   try {
+    await reconcileNewsletterDelivery(db, editionDate);
     const rows = await readAll(() => db
       .from('newsletter_drafts')
-      .select('id, edition_date, user_id, email, subject, html, content_hash, status, approved_content_hash, sent_at')
+      .select('id, edition_date, user_id, email, subject, html, content_hash, status, approved_content_hash, sent_at, brevo_message_id, delivery_state, send_claimed_at')
       .eq('edition_date', editionDate).order('id'));
 
     const unsubscribedRows = await readAll(() => db.from('newsletter_unsubscribes').select('email').order('email'));
-    const eligibleRows = await readAll(() => db.from('users').select('user_id, email').eq('account_status', 'active').or('is_bot.is.false,is_bot.is.null').order('user_id'));
+    const eligibleRows = await readAll(() => db.from('users').select('user_id, email, newsletter_subscription').eq('account_status', 'active').eq('newsletter_subscription', 'subscribed').or('is_bot.is.false,is_bot.is.null').order('user_id'));
     const eligible = new Set(eligibleRows.map((row) => `${row.user_id}:${String(row.email).trim().toLowerCase()}`));
     const unsubscribed = new Set(
       (unsubscribedRows ?? []).map((row) => String(row.email).trim().toLowerCase())
@@ -111,6 +113,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       status: row.status,
       approvedContentHash: row.approved_content_hash,
       sentAt: row.sent_at,
+      brevoMessageId: row.brevo_message_id,
+      deliveryState: row.delivery_state,
+      sendClaimedAt: row.send_claimed_at,
     }));
 
     const result = await deliverApprovedDrafts({
@@ -119,12 +124,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       claim: async (draft) => {
         const claimed = await db
           .from('newsletter_drafts')
-          .update({ status: 'sent', sent_at: new Date().toISOString() })
+          .update({ send_claimed_at: new Date().toISOString(), delivery_error: null })
           .eq('id', draft.id)
           .eq('status', 'approved')
           .eq('content_hash', draft.contentHash)
           .eq('approved_content_hash', draft.contentHash)
           .is('sent_at', null)
+          .is('brevo_message_id', null)
+          .is('send_claimed_at', null)
+          .or('delivery_state.is.null,delivery_state.eq.failed')
           .select('id');
         if (claimed.error) throw new Error(claimed.error.message);
         return Boolean(claimed.data?.length);
@@ -133,44 +141,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const email = draft.email.trim().toLowerCase();
         const token = createHmac('sha256', unsubscribeSecret).update(email).digest('hex');
         const unsubscribeUrl = `${supabaseUrl}/functions/v1/newsletter-unsubscribe?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}&slug=${encodeURIComponent(editionDate)}&next=${encodeURIComponent('https://getsynth.app')}`;
-        // Resend permits two requests per second; avoid rejecting most of a large edition.
-        await new Promise((resolve) => setTimeout(resolve, 550));
-        const response = await fetch('https://api.resend.com/emails', {
-          signal: AbortSignal.timeout(15000),
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${resendKey}`,
-            'Content-Type': 'application/json',
-            'Idempotency-Key': deliveryKey(draft),
-          },
-          body: JSON.stringify({
-            from: fromEmail,
-            to: [email],
-            subject: draft.subject,
-            html: injectUnsubscribeLink(draft.html, unsubscribeUrl),
-            headers: {
-              'List-Unsubscribe': `<${unsubscribeUrl}>`,
-              'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-            },
-          }),
+        return sendBrevoNewsletter(brevoKey, {
+          to: email,
+          subject: draft.subject,
+          html: injectUnsubscribeLink(draft.html, unsubscribeUrl),
+          unsubscribeUrl,
+          deliveryKey: deliveryKey(draft),
         });
-        if (!response.ok) {
-          const body = await response.json().catch(() => ({}));
-          throw new Error((body as { message?: string }).message || `Resend failed (${response.status})`);
-        }
       },
-      release: async (draft) => {
+      confirm: async (draft, messageId) => {
+        const recorded = await db
+          .from('newsletter_drafts')
+          .update({ brevo_message_id: messageId, delivery_state: 'accepted', delivery_error: null })
+          .eq('id', draft.id)
+          .eq('status', 'approved')
+          .is('sent_at', null)
+          .select('id');
+        if (recorded.error) throw new Error(recorded.error.message);
+        if (!recorded.data?.length) return false;
+        const marked = await db
+          .from('newsletter_drafts')
+          .update({ status: 'sent', sent_at: new Date().toISOString(), delivery_state: 'accepted' })
+          .eq('id', draft.id)
+          .eq('status', 'approved')
+          .eq('brevo_message_id', messageId)
+          .is('sent_at', null)
+          .select('id');
+        if (marked.error) throw new Error(marked.error.message);
+        return Boolean(marked.data?.length);
+      },
+      release: async (draft, error) => {
         const released = await db
           .from('newsletter_drafts')
-          .update({ status: 'approved', sent_at: null })
+          .update({
+            send_claimed_at: null,
+            delivery_state: 'failed',
+            delivery_error: (error ?? 'Brevo rejected the message.').slice(0, 500),
+          })
           .eq('id', draft.id)
-          .eq('status', 'sent')
-          .eq('content_hash', draft.contentHash);
+          .eq('status', 'approved')
+          .is('sent_at', null)
+          .is('brevo_message_id', null);
         if (released.error) throw new Error(released.error.message);
+      },
+      hold: async (draft, error) => {
+        const held = await db
+          .from('newsletter_drafts')
+          .update({
+            delivery_state: 'uncertain',
+            delivery_error: error.slice(0, 500),
+          })
+          .eq('id', draft.id)
+          .eq('status', 'approved')
+          .is('sent_at', null)
+          .is('brevo_message_id', null);
+        if (held.error) throw new Error(held.error.message);
       },
     });
 
-    return res.status(result.failed ? 502 : 200).json({ ok: result.failed === 0, skipped: false, editionDate, timeZone: SEND_TIME_ZONE, ...result });
+    const problem = result.failed + result.uncertain;
+    return res.status(problem ? 502 : 200).json({ ok: problem === 0, skipped: false, editionDate, timeZone: SEND_TIME_ZONE, ...result });
   } catch (error) {
     return res.status(500).json({ ok: false, error: error instanceof Error ? error.message : 'Newsletter delivery failed.' });
   }

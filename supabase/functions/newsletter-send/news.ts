@@ -3,7 +3,7 @@ export const NEWS_WINDOW_MS = 21 * 24 * 60 * 60 * 1000;
 export const MUSIC_NEWS_FEEDS = [
   { source: "Pitchfork", url: "https://pitchfork.com/rss/news/" },
   { source: "Rolling Stone", url: "https://www.rollingstone.com/music/rss/" },
-  { source: "NME", url: "https://www.nme.com/music/feed/" },
+  { source: "NME", url: "https://www.nme.com/news/music/feed" },
   { source: "Billboard", url: "https://www.billboard.com/feed/" },
 ] as const;
 
@@ -33,13 +33,43 @@ const tag = (block: string, name: string) => {
   return match ? decode(match[1]) : "";
 };
 
-const summaryOf = (block: string) => {
-  const raw = tag(block, "description") || tag(block, "content:encoded");
-  const text = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  if (text.length < 40) return null;
-  const sentence = text.match(/^.{40,220}?[.!](\s|$)/);
-  return (sentence ? sentence[0] : text.slice(0, 180)).trim();
+const BOILERPLATE = /appeared first on|continue reading|read the full|subscribe to|comments on:|posted a new comment|^(read more|continue reading)\b/i;
+
+export const plainText = (value: string) =>
+  decode(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** A usable blurb states a fact. Headlines and boilerplate do not count. */
+export const meaningfulSummary = (value?: string | null) => {
+  const text = plainText(String(value ?? ""));
+  if (text.length < 40 || BOILERPLATE.test(text)) return null;
+  if (/recent music story|details at the source|current artist update|the other picks are different/i.test(text)) return null;
+  const sentence = text.match(/^.{40,240}?[.!](\s|$)/);
+  return (sentence ? sentence[0] : text.slice(0, 200)).trim();
 };
+
+const summaryOf = (block: string) => {
+  const chunks = ["description", "content:encoded", "summary", "content"].map((name) => tag(block, name));
+  for (const chunk of chunks) {
+    const summary = meaningfulSummary(chunk);
+    if (summary) return summary;
+  }
+  return null;
+};
+
+const linkOf = (block: string) => {
+  const text = httpUrl(tag(block, "link"));
+  if (text) return text;
+  const href = block.match(/<link[^>]*href=["']([^"']+)["'][^>]*\/?>/i);
+  return href ? httpUrl(decode(href[1])) : null;
+};
+
+const publishedOf = (block: string) =>
+  Date.parse(tag(block, "pubDate") || tag(block, "published") || tag(block, "updated") || tag(block, "dc:date"));
 
 const httpUrl = (value: string) => {
   try {
@@ -53,11 +83,13 @@ const httpUrl = (value: string) => {
 export const parseRssItems = (xml: string, source: string, now = new Date()): RssStory[] => {
   const stories: RssStory[] = [];
   const seen = new Set<string>();
-  for (const block of xml.split(/<item[\s>]/i).slice(1)) {
+  const blocks = [...xml.split(/<item[\s>]/i).slice(1), ...xml.split(/<entry[\s>]/i).slice(1)];
+  for (const block of blocks) {
     const title = tag(block, "title");
-    const link = httpUrl(tag(block, "link"));
-    const published = Date.parse(tag(block, "pubDate"));
+    const link = linkOf(block);
+    const published = publishedOf(block);
     if (!title || !link || !Number.isFinite(published)) continue;
+    if (/^comments on:/i.test(title)) continue;
     if (published > now.getTime() + 24 * 60 * 60 * 1000) continue;
     if (now.getTime() - published > NEWS_WINDOW_MS) continue;
     if (seen.has(link)) continue;
@@ -115,6 +147,22 @@ export const fetchMusicNewsReport = async (now = new Date()): Promise<NewsFetchR
     seen.add(story.url);
     return true;
   });
+  const missing = stories.filter((story) => !story.summary).slice(0, 8);
+  await Promise.all(missing.map(async (story) => {
+    try {
+      const response = await fetch(story.url, {
+        signal: AbortSignal.timeout(5000),
+        headers: { Accept: "text/html", "User-Agent": "SynthNewsletter/1.0" },
+      });
+      if (!response.ok) return;
+      const html = (await response.text()).slice(0, 80000);
+      const meta = html.match(/<meta[^>]+(?:property|name)=["'](?:og:description|description)["'][^>]+content=["']([^"']+)["']/i)
+        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:description|description)["']/i);
+      if (meta) story.summary = meaningfulSummary(decode(meta[1].replace(/&amp;/g, "&")));
+    } catch {
+      /* The headline stays unused when the page has no reliable summary. */
+    }
+  }));
   return { stories, errors };
 };
 

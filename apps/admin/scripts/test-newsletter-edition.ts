@@ -117,6 +117,15 @@ const base = {
       url: "https://www.msg.com/events/jon-batiste",
       source: "Madison Square Garden",
       publishedAt: "2026-10-01T12:00:00.000Z",
+      summary: "Jon Batiste is on a Radio City bill celebrating a birthday, with the lineup listed at the venue.",
+    },
+    {
+      id: "news-2",
+      title: "A fall calendar lands for a Chicago room",
+      url: "https://pitchfork.com/news/calendar",
+      source: "Pitchfork",
+      publishedAt: "2026-09-28T12:00:00.000Z",
+      summary: "The Chicago venue posted its fall calendar, with dates and ticket links on its own site.",
     },
   ],
   listens: [] as [],
@@ -138,9 +147,12 @@ assert.ok(noLocationEdition);
 
 assert.equal(laurenEdition.shows.some((show) => show.title === "Jon Batiste"), false, "past shows are not upcoming");
 assert.ok(laurenEdition.shows.some((show) => show.title === "Sylvan Esso" || show.title === "Glass Animals"));
-assert.ok(laurenEdition.updates.some((update) => update.title.includes("Jon Batiste")));
+assert.equal(laurenEdition.updates.some((update) => update.title.includes("Jon Batiste")), false, "the recap artist is not repeated in the news");
+assert.ok(laurenEdition.updates.some((update) => update.title.includes("fall calendar")));
+assert.doesNotMatch(laurenEdition.updates.map((update) => update.body).join(" "), /recent music story|details at the source/i);
 assert.ok(laurenEdition.yourSynth?.body.includes("Wolf Trap"));
-assert.ok(laurenEdition.yourSynth?.body.includes("Fur Elise"));
+assert.equal(/Fur Elise/.test(laurenEdition.yourSynth?.body ?? ""), false, "the recap does not quote the review");
+assert.match(laurenEdition.yourSynth?.body ?? "", /five-star|timeline/);
 assert.equal(laurenEdition.yourSynth?.body.includes("this week"), false);
 assert.equal(laurenEdition.shows.some((show) => /Fur Elise/.test(show.body)), false);
 assert.equal(laurenEdition.updates.some((update) => /Fur Elise/.test(update.body)), false);
@@ -189,9 +201,10 @@ assert.equal(sparseEdition.yourSynth, undefined);
 assert.equal(/inactive|haven't used|no shows yet/i.test(renderEditionHtml(sparseEdition)), false);
 
 assert.equal(noLocationEdition.showsHeading, "On your radar");
-assert.equal(/nearby|near you/i.test(noLocationEdition.intro + (noLocationEdition.showsDek ?? "")), false);
-assert.ok(noLocationEdition.shows.some((show) => show.title === "Phoebe Bridgers"));
-assert.equal(noLocationEdition.shows.some((show) => show.title === "Sylvan Esso"), false);
+assert.equal(/nearby|near you|no saved city|sourced summary|saved shows cluster/i.test(noLocationEdition.intro + (noLocationEdition.showsDek ?? "") + noLocationEdition.shows.map((show) => show.body).join(" ")), false);
+assert.ok(noLocationEdition.shows.some((show) => show.title === "Wilco"));
+assert.ok(noLocationEdition.shows.some((show) => /Washington/.test(show.eyebrow)));
+assert.equal(noLocationEdition.shows.some((show) => show.title === "Phoebe Bridgers"), false);
 
 const jungleReader: EditionReader = {
   ...sparse,
@@ -228,14 +241,15 @@ const jungleEdition = composeEdition({
 });
 assert.equal(jungleEdition.shows.some((show) => show.title === "Jungle"), false, "the last concert is not recommended again");
 assert.ok(jungleEdition.shows.some((show) => show.title === "Sylvan Esso"));
-assert.ok(jungleEdition.yourSynth?.body.includes("did not sit down"));
+assert.ok(jungleEdition.yourSynth?.body.includes("The Anthem"));
+assert.equal(/did not sit down/.test(jungleEdition.yourSynth?.body ?? ""), false);
 assert.equal(jungleEdition.shows.some((show) => /did not sit down/.test(show.body)), false);
 assert.equal(/did not sit down/.test(jungleEdition.listen?.body ?? ""), false);
 assert.equal(/not a promise you’ll love it|Sample Jungle|show history|your latest log/i.test(renderEditionHtml(jungleEdition)), false);
 assert.equal(jungleEdition.connect.title.includes("Jungle"), false);
 assert.equal(jungleEdition.updates.every((update) => update.title.includes("Jungle")), false);
-assert.match(jungleEdition.listen?.body ?? "", /Coffee/);
-assert.equal(/Jungle/.test(jungleEdition.listen?.body ?? ""), false);
+assert.doesNotMatch(jungleEdition.listen?.body ?? "", /Coffee|Jungle/);
+assert.match(jungleEdition.listen?.eyebrow ?? "", /evergreen/);
 
 const soldOut = laurenEdition.shows.find((show) => show.title === "Glass Animals");
 if (soldOut) {
@@ -288,6 +302,9 @@ assert.equal(canSendDraft(draft({ status: "approved", approvedContentHash: hash 
 assert.equal(canSendDraft(draft({ status: "approved", approvedContentHash: changed }), new Set()).reason, "approval does not match the reviewed content");
 assert.equal(canSendDraft(draft({ status: "approved", approvedContentHash: hash }), new Set(["lauren@example.com"])).reason, "unsubscribed");
 assert.equal(canSendDraft(draft({ status: "sent", sentAt: retrievedAt, approvedContentHash: hash }), new Set()).reason, "already sent");
+assert.equal(canSendDraft(draft({ status: "approved", approvedContentHash: hash, deliveryState: "uncertain", sendClaimedAt: retrievedAt }), new Set()).reason, "acceptance was not confirmed");
+assert.equal(canSendDraft(draft({ status: "approved", approvedContentHash: hash, deliveryState: "failed" }), new Set()).ok, true);
+assert.equal(canSendDraft(draft({ status: "approved", approvedContentHash: hash, brevoMessageId: "<brevo>" }), new Set()).reason, "already sent");
 assert.equal(regenerateDecision(null), "replace");
 assert.equal(regenerateDecision({ status: "needs_approval" }), "replace");
 assert.equal(regenerateDecision({ status: "approved" }), "replace");
@@ -332,8 +349,9 @@ const museum = composeEdition({
   news: [{ id: "museum", title: "The museum opens a new wing", url: "https://pitchfork.com/news/museum", source: "Pitchfork", publishedAt: "2026-10-01T12:00:00.000Z" }],
   reader: { ...noLocation, topArtists: ["Muse"], genres: [] },
 });
-assert.equal(museum?.updates.length ?? 0, 1);
-assert.match(museum!.updates[0].body, /recent music story/i);
+assert.equal(museum?.updates.length ?? 0, 0);
+assert.ok((museum?.features ?? []).length > 0);
+assert.doesNotMatch(renderEditionHtml(museum!), /recent music story|details at the source/i);
 
 const calls: Array<{ table: string; filters: Record<string, unknown> }> = [];
 const catalog = [

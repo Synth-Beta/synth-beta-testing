@@ -17,7 +17,7 @@ assert.equal(drafts.held, 0);
 for (const draft of drafts.drafts) {
   assert.match(draft.html, /evergreen picks/);
   assert.match(draft.html, /The album detour/);
-  assert.match(draft.html, /synth-newsletter-writer-6/);
+  assert.match(draft.html, /synth-newsletter-writer-7/);
   assert.ok(draft.sources.filter((source) => source.kind === "listen").length === 2);
   assert.ok(draft.sources.some((source) => source.kind === "editorial"));
   assert.doesNotMatch(draft.html, /This week in live music|Your latest was|Tickets are listed as available/);
@@ -49,17 +49,20 @@ const edition = composeEdition({ reader, events: [], listens: [...tracks,
   { artistName: "Latest", trackName: "Last show's song", url: "https://example.com/song" },
   { artistName: "Unrelated local act", trackName: "Wrong city", url: "https://example.com/wrong-city" },
 ], news: [
-  { id: "latest", title: "Latest announces a tour", url: "https://example.com/latest", publishedAt: "2026-10-10T12:00:00Z" },
-  { id: "history", title: "Older favorite shares a recording", url: "https://example.com/history", publishedAt: "2026-10-09T12:00:00Z" },
-  { id: "general", title: "A festival reveals its lineup", url: "https://example.com/general", publishedAt: "2026-10-08T12:00:00Z" },
-  { id: "future", title: "Unpublished story", url: "https://example.com/future", publishedAt: "2026-10-12T01:00:00Z" },
+  { id: "latest", title: "Latest announces a tour", url: "https://example.com/latest", publishedAt: "2026-10-10T12:00:00Z", summary: "Latest added tour dates, and the routing is listed on the official page." },
+  { id: "history", title: "Older favorite shares a recording", url: "https://example.com/history", publishedAt: "2026-10-09T12:00:00Z", summary: "Older favorite released a recording, with the song title and credits at the source." },
+  { id: "general", title: "A festival reveals its lineup", url: "https://example.com/general", publishedAt: "2026-10-08T12:00:00Z", summary: "The festival published its lineup and the daily schedule on its own site." },
+  { id: "future", title: "Unpublished story", url: "https://example.com/future", publishedAt: "2026-10-12T01:00:00Z", summary: "This story is dated after the edition and should stay out of the newsletter." },
 ], sendAt: editionSendAt("2026-10-12"), editionDate: "2026-10-12", issueNumber: 1, retrievedAt: now.toISOString() })!;
 assert.equal(edition.updates[0].title, "Older favorite shares a recording");
 assert.equal(edition.updates.some((story) => story.title.includes("Latest")), false);
 assert.equal(edition.updates.some((story) => story.title === "Unpublished story"), false);
-assert.doesNotMatch(edition.listen!.body, /Last show's song|Wrong city/);
-assert.equal((renderEditionHtml(edition).match(/LAST_REVIEW/g) ?? []).length, 1);
-assert.ok(edition.listen!.links!.some((link) => link.url === tracks[0].url));
+assert.doesNotMatch(edition.listen!.body, /Last show's song|Wrong city|Older favorite/);
+assert.equal((renderEditionHtml(edition).match(/LAST_REVIEW/g) ?? []).length, 0);
+assert.match(edition.yourSynth?.body ?? "", /Latest/);
+assert.match(edition.yourSynth?.body ?? "", /2 nights/);
+assert.equal(edition.listen!.links!.some((link) => link.url === tracks[0].url), false);
+assert.match(edition.listen?.eyebrow ?? "", /evergreen/);
 assert.equal(editionSendAt("2026-10-12").toISOString(), "2026-10-12T15:00:00.000Z");
 assert.equal(editionSendAt("2027-01-12").toISOString(), "2027-01-12T16:00:00.000Z");
 assert.notDeepEqual(editorialListens("2026-10-12"), editorialListens("2026-10-19"));

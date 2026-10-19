@@ -63,13 +63,32 @@ export interface EditionReader {
   genres: string[];
   /** Other public 5-star reviews of an artist this reader rated highly, excluding the reader. */
   otherFiveStarArtists: string[];
+  interestedEventIds?: string[];
+  goingEventIds?: string[];
+}
+
+export interface EditionQualityReport {
+  sections: string[];
+  sourceCounts: {
+    reviews: number;
+    fiveStarReviews: number;
+    streamingArtists: number;
+    candidateEvents: number;
+    newsStories: number;
+    personalListens: number;
+  };
+  personalizationEvidence: string[];
+  missingData: string[];
+  warnings: string[];
+  featuredArtists: string[];
 }
 
 export interface EditionSource {
-  kind: "event" | "news" | "listen" | "account" | "editorial";
+  kind: "event" | "news" | "listen" | "account" | "editorial" | "quality";
   url: string;
   retrievedAt: string;
   label: string;
+  report?: EditionQualityReport;
 }
 
 export interface ShowCard {
@@ -105,7 +124,9 @@ export interface ComposedEdition {
   updates: StoryCard[];
   features?: StoryCard[];
   listen?: StoryCard;
+  history?: StoryCard;
   connect?: StoryCard;
   sources: EditionSource[];
   editorialFlags?: string[];
+  qualityReport: EditionQualityReport;
 }

@@ -1,10 +1,13 @@
 import { historyArtists } from "./editorial.ts";
+import { runEventQuery } from "./eventQuery.ts";
 import { lookupRecordings } from "./tracks.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { loadEventsNearPlaces, placeKey, type EventQuery } from "./nearby.ts";
+import { loadEventsNearPlaces, placeKey, withHubPlaces, type EventQuery } from "./nearby.ts";
 import { fetchMusicNews } from "./news.ts";
-import { readAll, requireRows, enrichReviewArtists, loadListeningStats } from "./queries.ts";
+import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals } from "./queries.ts";
+import { sendBrevoNewsletter } from "../../../api/_lib/brevoNewsletter.ts";
+import { deliverApprovedDrafts, reconcileNewsletterDelivery, deliveryKey, type StoredDraft } from "../../../api/_lib/newsletterDelivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,8 +29,7 @@ type NewsletterSendAction =
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
-const resendFromEmail = Deno.env.get("RESEND_FROM_EMAIL") ?? "";
+const brevoApiKey = Deno.env.get("BREVO_API_KEY") ?? "";
 const unsubscribeSecret = Deno.env.get("NEWSLETTER_UNSUBSCRIBE_SECRET") ?? "";
 const publicSiteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? "https://getsynth.app";
 
@@ -109,8 +111,8 @@ const authenticateAdmin = async (authorizationHeader: string | null) => {
 
 const getEligibleRecipients = async () => {
   const users = await readAll(() => adminClient.from("users")
-    .select("user_id, email, name, username, account_status, is_bot")
-    .eq("account_status", "active").or("is_bot.is.false,is_bot.is.null")
+    .select("user_id, email, name, username, account_status, is_bot, newsletter_subscription")
+    .eq("account_status", "active").eq("newsletter_subscription", "subscribed").or("is_bot.is.false,is_bot.is.null")
     .not("email", "is", null).order("user_id"), "Load eligible users");
   const unsubscribes = await readAll(() => adminClient.from("newsletter_unsubscribes")
     .select("email").order("email"), "Load unsubscribes");
@@ -135,30 +137,12 @@ const sha256 = async (value: string) => {
 };
 
 const requireSendConfig = () => {
-  if (!resendApiKey) return "RESEND_API_KEY is not configured.";
-  if (!resendFromEmail) return "RESEND_FROM_EMAIL is not configured.";
+  if (!brevoApiKey) return "BREVO_API_KEY is not configured.";
   if (!unsubscribeSecret) return "NEWSLETTER_UNSUBSCRIBE_SECRET is not configured.";
   return null;
 };
 
-const resendSend = async (payload: Record<string, unknown>, idempotencyKey?: string) => {
-  const response = await fetch("https://api.resend.com/emails", {
-    signal: AbortSignal.timeout(15000),
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(body?.message ?? `Resend request failed (${response.status})`);
-  }
-  return body;
-};
+const draftColumns = "id, edition_date, user_id, email, subject, preheader, html, content_hash, sources, retrieved_at, status, approved_content_hash, sent_at, brevo_message_id, delivery_state, delivery_error, send_claimed_at";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -271,6 +255,23 @@ serve(async (req) => {
           error: "A recent test send already exists for this recipient. Wait a few minutes before retrying.",
         });
       }
+      const recentUncertain = await adminClient
+        .from("newsletter_send_jobs")
+        .select("id")
+        .eq("newsletter_slug", newsletterSlug)
+        .eq("target_email", toEmail)
+        .eq("send_type", "test")
+        .eq("status", "failed")
+        .ilike("error_message", "%Acceptance was not confirmed%")
+        .gte("created_at", tenMinutesAgo)
+        .limit(1)
+        .maybeSingle();
+      if (recentUncertain.data) {
+        return json(409, {
+          ok: false,
+          error: "Brevo did not confirm the last test to this address. Check Brevo before trying again.",
+        });
+      }
 
       const { error: lockError } = await adminClient.from("newsletter_send_jobs").insert({
         request_id: requestId,
@@ -301,18 +302,13 @@ serve(async (req) => {
 
         const unsubscribeUrl = await buildUnsubscribeUrl(toEmail, newsletterSlug);
         const htmlWithUnsubscribe = injectUnsubscribeLink(html, unsubscribeUrl);
-
-        const resendPayload = {
-          from: resendFromEmail,
-          to: [toEmail],
+        const brevoMessageId = await sendBrevoNewsletter(brevoApiKey, {
+          to: toEmail,
           subject,
           html: htmlWithUnsubscribe,
-          headers: {
-            "List-Unsubscribe": `<${unsubscribeUrl}>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          },
-        };
-        const resendResult = await resendSend(resendPayload);
+          unsubscribeUrl,
+          deliveryKey: `newsletter-test:${requestId}`,
+        });
 
         await adminClient
           .from("newsletter_send_jobs")
@@ -320,14 +316,15 @@ serve(async (req) => {
             status: "completed",
             success_count: 1,
             failure_count: 0,
-            resend_batch_id: resendResult?.id ?? null,
+            brevo_message_id: brevoMessageId,
           })
           .eq("request_id", requestId);
 
         return json(200, {
           ok: true,
           requestId,
-          resendId: resendResult?.id ?? null,
+          brevoMessageId,
+          accepted: true,
         });
       } catch (sendError) {
         const message = sendError instanceof Error ? sendError.message : String(sendError);
@@ -337,7 +334,7 @@ serve(async (req) => {
             status: "failed",
             success_count: 0,
             failure_count: 1,
-            error_message: message,
+            error_message: message.slice(0, 500),
           })
           .eq("request_id", requestId);
         return json(500, { ok: false, error: message });
@@ -346,14 +343,14 @@ serve(async (req) => {
 
     if (action === "source_edition") {
       const users = await readAll(() => adminClient.from("users")
-        .select("user_id, email, name, username, location_city, location_state")
-        .eq("account_status", "active").or("is_bot.is.false,is_bot.is.null")
+        .select("user_id, email, name, username, location_city, location_state, newsletter_subscription")
+        .eq("account_status", "active").eq("newsletter_subscription", "subscribed").or("is_bot.is.false,is_bot.is.null")
         .not("email", "is", null).order("user_id"), "Load users");
       const unsubscribes = await readAll(() => adminClient.from("newsletter_unsubscribes")
         .select("email").order("email"), "Load unsubscribes");
       const unsubscribed = new Set((unsubscribes ?? []).map((row) => normalizeEmail(String(row.email))));
       const recipients = (users ?? []).filter((user) => user.email && isValidEmail(user.email) && !unsubscribed.has(normalizeEmail(user.email)));
-      const storedNews = await adminClient.from("news_items").select("id, title, url, source, created_at").order("created_at", { ascending: false }).limit(40);
+      const storedNews = await adminClient.from("news_items").select("id, title, url, source, created_at, seo_description").order("created_at", { ascending: false }).limit(40);
       const rss = await fetchMusicNews();
       const news = [...rss, ...requireRows(storedNews, "Load stored news")];
       const userIds = recipients.map((user) => user.user_id);
@@ -372,42 +369,45 @@ serve(async (req) => {
         const listening = stats.filter((row: any) => row.user_id === id).flatMap((stat: any) => Array.isArray(stat.top_artists) ? stat.top_artists.slice(0, 8).map((artist: any) => artist.name) : []);
         return [...listening, ...fromReviews];
       }))];
-      const places = [...new Map(recipients.map((user) => {
+      const places = withHubPlaces([...new Map(recipients.map((user) => {
         const city = String(user.location_city || "").trim();
         return [placeKey(city, user.location_state), { city, state: user.location_state ?? null }];
-      })).values()].filter((place) => place.city);
-      const eventSelect = "id, title, event_date, doors_time, venue_city, venue_state, latitude, longitude, ticket_available, ticket_urls, genres, event_status, artists(name), venues(name)";
-      const loaded = await loadEventsNearPlaces(places, artistNames, new Date(), async (spec: EventQuery) => {
-        if (spec.kind === "city-sample") {
-          const rows = await adminClient.from("events").select("latitude, longitude, venue_state").ilike("venue_city", spec.city).gte("event_date", spec.from).not("latitude", "is", null).limit(12);
-          return requireRows(rows, "Load event listings");
+      })).values()].filter((place) => place.city));
+      const loaded = await loadEventsNearPlaces(places, artistNames, new Date(), (spec: EventQuery) => runEventQuery(adminClient, spec));
+      const signals = await loadTasteSignals(adminClient, userIds);
+      const seenEventIds = new Set(loaded.events.map((row) => String(row.id)));
+      const missingIds = [...new Set(signals.interests.map((row) => String(row.event_id)))].filter((id) => !seenEventIds.has(id));
+      for (let index = 0; index < missingIds.length; index += 80) {
+        const ids = missingIds.slice(index, index + 80);
+        for (const row of await runEventQuery(adminClient, { kind: "ids", ids, limit: ids.length })) {
+          if (row?.id && !seenEventIds.has(String(row.id))) {
+            seenEventIds.add(String(row.id));
+            loaded.events.push(row);
+          }
         }
-        if (spec.kind === "city") {
-          const rows = await adminClient.from("events").select(eventSelect).ilike("venue_city", spec.city)
-            .gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
-          return requireRows(rows, "Load city event listings");
-        }
-        if (spec.kind === "box") {
-          const rows = await adminClient.from("events").select(eventSelect).gte("latitude", spec.minLat).lte("latitude", spec.maxLat).gte("longitude", spec.minLng).lte("longitude", spec.maxLng).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(40);
-          return requireRows(rows, "Load event listings");
-        }
-        const rows = await adminClient.from("events").select(eventSelect).ilike("title", `%${spec.artist}%`).gte("event_date", spec.from).lte("event_date", spec.until).order("event_date", { ascending: true }).limit(8);
-        return requireRows(rows, "Load event listings");
-      });
+      }
       const listens = await lookupRecordings(loaded.events.map((event) => String(event.artists?.name ?? event.artist_name ?? "")));
-      const fives = await adminClient.from("reviews").select("user_id, artists(name)").eq("is_public", true).eq("is_draft", false).gte("rating", 5).limit(300);
+      const publicFives = await readAll(() => adminClient.from("reviews").select("user_id, artists(name)").eq("is_public", true).eq("is_draft", false).gte("rating", 5).order("user_id"), "Load community reviews");
       return json(200, {
         ok: true,
         users: recipients.map((user) => {
           const center = loaded.centers.get(placeKey(user.location_city, user.location_state));
-          return { ...user, latitude: center?.latitude ?? null, longitude: center?.longitude ?? null };
+          const mine = signals.interests.filter((row) => row.user_id === user.user_id);
+          return {
+            ...user,
+            latitude: center?.latitude ?? null,
+            longitude: center?.longitude ?? null,
+            interestedEventIds: mine.filter((row) => row.relationship_type !== "going").map((row) => String(row.event_id)),
+            goingEventIds: mine.filter((row) => row.relationship_type === "going").map((row) => String(row.event_id)),
+            followedArtists: signals.follows.filter((row) => row.user_id === user.user_id).map((row) => row.artistName),
+          };
         }),
         news,
         reviews: enrichedReviews,
         stats,
         events: loaded.events,
         listens,
-        publicFives: requireRows(fives, "Load community reviews"),
+        publicFives,
       });
     }
 
@@ -416,7 +416,7 @@ serve(async (req) => {
       if (!editionDate) return json(400, { ok: false, error: "editionDate is required." });
       const { data, error } = await adminClient
         .from("newsletter_drafts")
-        .select("id, edition_date, user_id, email, subject, preheader, html, content_hash, sources, retrieved_at, status, approved_content_hash, sent_at")
+        .select(draftColumns)
         .eq("edition_date", editionDate)
         .order("email", { ascending: true });
       if (error) return json(500, { ok: false, error: error.message });
@@ -461,13 +461,16 @@ serve(async (req) => {
       }
       const existing = await adminClient
         .from("newsletter_drafts")
-        .select("id, status, content_hash, sent_at")
+        .select("id, status, content_hash, sent_at, brevo_message_id, delivery_state, send_claimed_at")
         .eq("id", draftId)
         .maybeSingle();
       if (existing.error) return json(500, { ok: false, error: existing.error.message });
       if (!existing.data) return json(404, { ok: false, error: "Draft not found." });
-      if (existing.data.status === "sent" || existing.data.sent_at) {
+      if (existing.data.status === "sent" || existing.data.sent_at || existing.data.brevo_message_id) {
         return json(409, { ok: false, error: "Sent newsletters cannot be changed." });
+      }
+      if (existing.data.delivery_state === "uncertain" || existing.data.send_claimed_at) {
+        return json(409, { ok: false, error: "Brevo has not confirmed this send. Check Brevo before changing it." });
       }
       const { data: updatedRows, error } = await adminClient
         .from("newsletter_drafts")
@@ -485,6 +488,8 @@ serve(async (req) => {
         .eq("content_hash", existing.data.content_hash)
         .neq("status", "sent")
         .is("sent_at", null)
+        .is("brevo_message_id", null)
+        .is("send_claimed_at", null)
         .select("id");
       if (error) return json(500, { ok: false, error: error.message });
       if (!updatedRows?.length) return json(409, { ok: false, error: "Draft changed while you were reviewing. Reload and review its latest version." });
@@ -536,9 +541,10 @@ serve(async (req) => {
         return json(400, { ok: false, error: "editionDate is required. Production send uses approved drafts only." });
       }
 
+      await reconcileNewsletterDelivery(adminClient, editionDate);
       const drafts = await readAll(() => adminClient
         .from("newsletter_drafts")
-        .select("id, user_id, email, subject, html, content_hash, approved_content_hash, status, sent_at")
+        .select("id, user_id, email, subject, html, content_hash, approved_content_hash, status, sent_at, brevo_message_id, delivery_state, send_claimed_at")
         .eq("edition_date", editionDate)
         .eq("status", "approved")
         .is("sent_at", null).order("id"), "Load approved drafts");
@@ -547,6 +553,21 @@ serve(async (req) => {
       const ready = (drafts ?? []).filter(
         (draft) => eligible.has(`${draft.user_id}:${normalizeEmail(String(draft.email))}`) && draft.approved_content_hash && draft.approved_content_hash === draft.content_hash
       );
+      const stored: StoredDraft[] = ready.map((draft) => ({
+        id: String(draft.id),
+        editionDate,
+        userId: String(draft.user_id),
+        email: normalizeEmail(String(draft.email)),
+        subject: String(draft.subject),
+        html: String(draft.html),
+        contentHash: String(draft.content_hash),
+        status: "approved",
+        approvedContentHash: String(draft.approved_content_hash),
+        sentAt: draft.sent_at ? String(draft.sent_at) : null,
+        brevoMessageId: draft.brevo_message_id ? String(draft.brevo_message_id) : null,
+        deliveryState: draft.delivery_state ?? null,
+        sendClaimedAt: draft.send_claimed_at ? String(draft.send_claimed_at) : null,
+      }));
 
       const unsubscribedRows = await readAll(() => adminClient.from("newsletter_unsubscribes")
         .select("email").order("email"), "Load unsubscribes before sending");
@@ -558,7 +579,7 @@ serve(async (req) => {
         send_type: "batch",
         initiated_by: auth.userId,
         status: "processing",
-        total_recipients: ready.length,
+        total_recipients: stored.length,
       });
       if (lockError) {
         if (lockError.code === "23505") {
@@ -567,83 +588,115 @@ serve(async (req) => {
         return json(500, { ok: false, error: lockError.message });
       }
 
-
-
-      let successCount = 0;
-      let failureCount = 0;
       const failures: Array<{ email: string; error: string }> = [];
+      try {
+        const result = await deliverApprovedDrafts({
+          drafts: stored,
+          unsubscribedEmails: unsubscribeSet,
+          claim: async (draft) => {
+            const claimed = await adminClient
+              .from("newsletter_drafts")
+              .update({ send_claimed_at: new Date().toISOString(), delivery_error: null })
+              .eq("id", draft.id)
+              .eq("status", "approved")
+              .eq("content_hash", draft.contentHash)
+              .eq("approved_content_hash", draft.contentHash)
+              .is("sent_at", null)
+              .is("brevo_message_id", null)
+              .is("send_claimed_at", null)
+              .or("delivery_state.is.null,delivery_state.eq.failed")
+              .select("id");
+            if (claimed.error) throw new Error(claimed.error.message);
+            return Boolean(claimed.data?.length);
+          },
+          sendEmail: async (draft) => {
+            const toEmail = normalizeEmail(draft.email);
+            const unsubscribeUrl = await buildUnsubscribeUrl(toEmail, newsletterSlug);
+            return sendBrevoNewsletter(brevoApiKey, {
+              to: toEmail,
+              subject: draft.subject,
+              html: injectUnsubscribeLink(draft.html, unsubscribeUrl),
+              unsubscribeUrl,
+              deliveryKey: deliveryKey(draft),
+            });
+          },
+          confirm: async (draft, messageId) => {
+            const recorded = await adminClient
+              .from("newsletter_drafts")
+              .update({ brevo_message_id: messageId, delivery_state: "accepted", delivery_error: null })
+              .eq("id", draft.id)
+              .eq("status", "approved")
+              .is("sent_at", null)
+              .select("id");
+            if (recorded.error) throw new Error(recorded.error.message);
+            if (!recorded.data?.length) return false;
+            const marked = await adminClient
+              .from("newsletter_drafts")
+              .update({ status: "sent", sent_at: new Date().toISOString(), delivery_state: "accepted" })
+              .eq("id", draft.id)
+              .eq("status", "approved")
+              .eq("brevo_message_id", messageId)
+              .is("sent_at", null)
+              .select("id");
+            if (marked.error) throw new Error(marked.error.message);
+            return Boolean(marked.data?.length);
+          },
+          release: async (draft, error) => {
+            const message = (error ?? "Brevo rejected the message.").slice(0, 500);
+            const released = await adminClient
+              .from("newsletter_drafts")
+              .update({ send_claimed_at: null, delivery_state: "failed", delivery_error: message })
+              .eq("id", draft.id)
+              .eq("status", "approved")
+              .is("sent_at", null)
+              .is("brevo_message_id", null);
+            if (released.error) throw new Error(released.error.message);
+            failures.push({ email: draft.email, error: message });
+          },
+          hold: async (draft, error) => {
+            const message = error.slice(0, 500);
+            const held = await adminClient
+              .from("newsletter_drafts")
+              .update({ delivery_state: "uncertain", delivery_error: message })
+              .eq("id", draft.id)
+              .eq("status", "approved")
+              .is("sent_at", null)
+              .is("brevo_message_id", null);
+            if (held.error) throw new Error(held.error.message);
+            failures.push({ email: draft.email, error: message });
+          },
+        });
+        for (const skipped of result.skip) {
+          const draft = stored.find((item) => item.id === skipped.id);
+          failures.push({ email: draft?.email ?? skipped.id, error: skipped.reason });
+        }
+        const failureCount = result.failed + result.uncertain + result.skip.length;
+        await adminClient
+          .from("newsletter_send_jobs")
+          .update({
+            status: failureCount === 0 ? "completed" : result.sent > 0 ? "completed" : "failed",
+            success_count: result.sent,
+            failure_count: failureCount,
+            error_message: failures.length > 0 ? JSON.stringify(failures.slice(0, 10)) : null,
+          })
+          .eq("request_id", requestId);
 
-      for (const draft of ready) {
-        const toEmail = normalizeEmail(String(draft.email ?? ""));
-        if (!toEmail || !isValidEmail(toEmail) || unsubscribeSet.has(toEmail)) {
-          failureCount += 1;
-          failures.push({ email: toEmail || "(missing)", error: "Skipped (invalid or unsubscribed)." });
-          continue;
-        }
-        if (await sha256(`${draft.subject}\n${draft.html}`) !== draft.content_hash) {
-          failureCount += 1;
-          failures.push({ email: toEmail, error: "Stored content does not match its approved hash." });
-          continue;
-        }
-        const claimed = await adminClient
-          .from("newsletter_drafts")
-          .update({ status: "sent", sent_at: new Date().toISOString() })
-          .eq("id", draft.id)
-          .eq("status", "approved")
-          .eq("content_hash", draft.content_hash)
-          .eq("approved_content_hash", draft.content_hash)
-          .is("sent_at", null)
-          .select("id");
-        if (claimed.error) throw new Error(claimed.error.message);
-        if (!claimed.data?.length) continue;
-
-        try {
-          const unsubscribeUrl = await buildUnsubscribeUrl(toEmail, newsletterSlug);
-          const htmlWithUnsubscribe = injectUnsubscribeLink(draft.html, unsubscribeUrl);
-          // Pace delivery requests to reduce bursts.
-          await new Promise((resolve) => setTimeout(resolve, 550));
-          await resendSend({
-            from: resendFromEmail,
-            to: [toEmail],
-            subject: draft.subject,
-            html: htmlWithUnsubscribe,
-            headers: {
-              "List-Unsubscribe": `<${unsubscribeUrl}>`,
-              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            },
-          }, `newsletter:${editionDate}:${draft.id}:${draft.content_hash}`);
-          successCount += 1;
-        } catch (error) {
-          await adminClient
-            .from("newsletter_drafts")
-            .update({ status: "approved", sent_at: null })
-            .eq("id", draft.id)
-            .eq("status", "sent");
-          failureCount += 1;
-          failures.push({
-            email: toEmail,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
+        return json(200, {
+          ok: true,
+          requestId,
+          successCount: result.sent,
+          failureCount,
+          unconfirmedCount: result.uncertain,
+          failures: failures.slice(0, 10),
+        });
+      } catch (sendError) {
+        const message = sendError instanceof Error ? sendError.message : String(sendError);
+        await adminClient
+          .from("newsletter_send_jobs")
+          .update({ status: "failed", error_message: message.slice(0, 500) })
+          .eq("request_id", requestId);
+        return json(500, { ok: false, error: message });
       }
-
-      await adminClient
-        .from("newsletter_send_jobs")
-        .update({
-          status: failureCount === 0 ? "completed" : successCount > 0 ? "completed" : "failed",
-          success_count: successCount,
-          failure_count: failureCount,
-          error_message: failures.length > 0 ? JSON.stringify(failures.slice(0, 10)) : null,
-        })
-        .eq("request_id", requestId);
-
-      return json(200, {
-        ok: true,
-        requestId,
-        successCount,
-        failureCount,
-        failures,
-      });
     }
 
     return json(400, { ok: false, error: "Unsupported action." });
