@@ -8,6 +8,7 @@ import { resolve } from "node:path";
 import { generateEditionDrafts } from "../src/lib/newsletterEdition/gather";
 import { composeEdition } from "../src/lib/newsletterEdition/compose";
 import { eventWithinSavedLocation, milesBetween, NEARBY_MILES } from "../../../supabase/functions/newsletter-send/nearby";
+import { runEventQuery } from "../../../supabase/functions/newsletter-send/eventQuery";
 import { fetchMusicNews, parseRssItems } from "../../../supabase/functions/newsletter-send/news";
 import { canSendDraft, contentHash, deliverApprovedDrafts, planSend, regenerateDecision, type StoredDraft } from "../src/lib/newsletterEdition/gate";
 import { renderEditionHtml } from "../src/lib/newsletterEdition/render";
@@ -415,5 +416,40 @@ writeFileSync(resolve(outDir, "lauren.html"), laurenHtml);
 writeFileSync(resolve(outDir, "chicago.html"), chicagoHtml);
 writeFileSync(resolve(outDir, "sparse.html"), renderEditionHtml(sparseEdition));
 writeFileSync(resolve(outDir, "no-location.html"), renderEditionHtml(noLocationEdition));
+
+const namedEvents = await runEventQuery({
+  from(table: string) {
+    const api: Record<string, unknown> = {
+      select() { return api; },
+      eq() { return api; },
+      in() { return api; },
+      gte() { return api; },
+      lte() { return api; },
+      order() { return api; },
+      limit() { return api; },
+      then(resolve: (value: { data: unknown[]; error: null }) => unknown) {
+        const data = table === "events"
+          ? [{ id: "show", artist_id: "artist", venue_id: "venue", venue_city: "Chicago", event_date: "2026-11-01T00:00:00.000Z" }]
+          : table === "artists"
+            ? [{ id: "artist", name: "Horsegirl" }]
+            : table === "venues"
+              ? [{ id: "venue", name: "SPACE" }]
+              : [];
+        return Promise.resolve({ data, error: null }).then(resolve);
+      },
+    };
+    return api;
+  },
+}, {
+  kind: "box",
+  minLat: 41,
+  maxLat: 42,
+  minLng: -88,
+  maxLng: -87,
+  from: "2026-10-01T00:00:00.000Z",
+  until: "2026-12-01T00:00:00.000Z",
+});
+assert.equal(namedEvents[0]?.artists?.name, "Horsegirl");
+assert.equal(namedEvents[0]?.venues?.name, "SPACE");
 
 console.log("newsletter edition checks passed");

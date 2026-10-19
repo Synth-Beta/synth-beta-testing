@@ -73,8 +73,8 @@ export const runEventQuery = async (db: QueryClient, spec: EventQuery) => {
 };
 
 const attachNames = async (db: QueryClient, rows: any[]) => {
-  const artistIds = [...new Set(rows.map((row) => row.artist_id).filter((id) => id && !row.artists?.name && !row.artist_name))];
-  const venueIds = [...new Set(rows.map((row) => row.venue_id).filter((id) => id && !row.venues?.name && !row.venue_name))];
+  const artistIds = [...new Set(rows.filter((row) => row.artist_id && !row.artists?.name && !row.artist_name).map((row) => row.artist_id))];
+  const venueIds = [...new Set(rows.filter((row) => row.venue_id && !row.venues?.name && !row.venue_name).map((row) => row.venue_id))];
   const artistNames = new Map<string, string>();
   const venueNames = new Map<string, string>();
   if (artistIds.length) {
