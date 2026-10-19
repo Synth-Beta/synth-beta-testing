@@ -78,8 +78,30 @@ export const eventWithinSavedLocation = (
   return true;
 };
 
+export const ARTIST_QUERY_CAP = 80;
+
+/** Keep the artists who show up for the most readers. One lookup per person times out. */
+export const rankedArtistNames = (groups: string[][], limit = ARTIST_QUERY_CAP) => {
+  const counts = new Map<string, { name: string; count: number }>();
+  for (const group of groups) {
+    const seen = new Set<string>();
+    for (const raw of group) {
+      const name = String(raw ?? "").trim();
+      const key = name.toLowerCase();
+      if (!name || seen.has(key)) continue;
+      seen.add(key);
+      const prior = counts.get(key);
+      counts.set(key, { name, count: (prior?.count ?? 0) + 1 });
+    }
+  }
+  return [...counts.values()]
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, limit)
+    .map((row) => row.name);
+};
+
 export type EventQuery =
-  | { kind: "city-sample"; city: string; from: string; limit?: number }
+  | { kind: "city-sample"; city: string; from: string; until?: string; limit?: number }
   | { kind: "city"; city: string; from: string; until: string; limit?: number }
   | { kind: "box"; minLat: number; maxLat: number; minLng: number; maxLng: number; from: string; until: string; limit?: number }
   | { kind: "artist"; artist: string; from: string; until: string; limit?: number }
@@ -163,17 +185,12 @@ export const loadEventsNearPlaces = async (
   };
   const slices = windowSlices(from, until);
   const cityRows = await mapLimited(places, async (place) => {
-    const sample = await query({ kind: "city-sample", city: place.city, from, limit: 12 });
+    const sample = await query({ kind: "city-sample", city: place.city, from, until, limit: 12 });
     const located = sample.filter(
       (row) => finite(Number(row.latitude)) && finite(Number(row.longitude)) && sameState(row.venue_state, place.state)
     );
     const collected: any[] = [];
-    if (!located.length) {
-      for (const slice of slices) {
-        collected.push(...await query({ kind: "city", city: place.city, ...slice, limit: SLICE_LIMIT }));
-      }
-      return collected;
-    }
+    if (!located.length) return collected;
     const center = {
       latitude: average(located.map((row) => Number(row.latitude))),
       longitude: average(located.map((row) => Number(row.longitude))),

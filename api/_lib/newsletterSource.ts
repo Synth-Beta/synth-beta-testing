@@ -5,7 +5,7 @@
 import { historyArtists } from "../../supabase/functions/newsletter-send/editorial.js";
 import { runEventQuery } from "../../supabase/functions/newsletter-send/eventQuery.js";
 import { lookupRecordings } from "../../supabase/functions/newsletter-send/tracks.js";
-import { loadEventsNearPlaces, placeKey, withHubPlaces, type EventQuery } from "../../supabase/functions/newsletter-send/nearby.js";
+import { loadEventsNearPlaces, placeKey, rankedArtistNames, withHubPlaces, type EventQuery } from "../../supabase/functions/newsletter-send/nearby.js";
 import { fetchMusicNews } from "../../supabase/functions/newsletter-send/news.js";
 import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals } from "../../supabase/functions/newsletter-send/queries.js";
 
@@ -45,11 +45,11 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
   const stats = await loadListeningStats(db, userIds);
 
   const enrichedReviews = await enrichReviewArtists(db, reviews);
-  const artistNames = [...new Set(userIds.flatMap((id: string) => {
+  const artistNames = rankedArtistNames(userIds.map((id: string) => {
     const reviewArtists = historyArtists(enrichedReviews.filter((row) => row.user_id === id));
     const listening = stats.filter((row) => row.user_id === id).flatMap((stat) => Array.isArray(stat.top_artists) ? stat.top_artists.slice(0, 8).map((artist: any) => artist.name) : []);
     return [...listening, ...reviewArtists];
-  }))];
+  }));
   const places = withHubPlaces([...new Map(recipients.map((user: any) => {
     const city = String(user.location_city || "").trim();
     return [placeKey(city, user.location_state), { city, state: user.location_state ?? null }];

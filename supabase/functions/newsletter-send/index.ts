@@ -3,7 +3,7 @@ import { runEventQuery } from "./eventQuery.ts";
 import { lookupRecordings } from "./tracks.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
-import { loadEventsNearPlaces, placeKey, withHubPlaces, type EventQuery } from "./nearby.ts";
+import { loadEventsNearPlaces, placeKey, rankedArtistNames, withHubPlaces, type EventQuery } from "./nearby.ts";
 import { fetchMusicNews } from "./news.ts";
 import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals } from "./queries.ts";
 import { sendBrevoNewsletter } from "../../../api/_lib/brevoNewsletter.ts";
@@ -364,11 +364,11 @@ serve(async (req) => {
       }
       const stats = await loadListeningStats(adminClient, userIds);
       const enrichedReviews = await enrichReviewArtists(adminClient, reviews);
-      const artistNames = [...new Set(userIds.flatMap((id) => {
+      const artistNames = rankedArtistNames(userIds.map((id) => {
         const fromReviews = historyArtists(enrichedReviews.filter((row: any) => row.user_id === id));
         const listening = stats.filter((row: any) => row.user_id === id).flatMap((stat: any) => Array.isArray(stat.top_artists) ? stat.top_artists.slice(0, 8).map((artist: any) => artist.name) : []);
         return [...listening, ...fromReviews];
-      }))];
+      }));
       const places = withHubPlaces([...new Map(recipients.map((user) => {
         const city = String(user.location_city || "").trim();
         return [placeKey(city, user.location_state), { city, state: user.location_state ?? null }];
