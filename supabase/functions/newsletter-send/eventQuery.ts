@@ -9,6 +9,10 @@ type QueryClient = {
 export const EVENT_SELECT =
   "id, title, event_date, doors_time, venue_city, venue_state, latitude, longitude, ticket_available, ticket_urls, genres, event_status, artists(name), venues(name)";
 
+/** Listing filters stay on events columns. Names are attached after the limit. */
+const EVENT_COLUMNS =
+  "id, title, event_date, doors_time, venue_city, venue_state, latitude, longitude, ticket_available, ticket_urls, genres, event_status, artist_id, venue_id";
+
 const limitOf = (spec: EventQuery) => {
   if (spec.limit) return spec.limit;
   if (spec.kind === "city-sample" || spec.kind === "artist") return 12;
@@ -42,22 +46,50 @@ export const runEventQuery = async (db: QueryClient, spec: EventQuery) => {
     const rows = await db.from("events").select(EVENT_SELECT).in("id", spec.ids.slice(0, limit));
     return requireRows(rows, "Load saved events");
   }
-  let query = db.from("events").select(EVENT_SELECT).gte("event_date", spec.from).lte("event_date", spec.until)
-    .order("event_date", { ascending: true }).limit(limit);
-  if (spec.kind === "city") query = query.ilike("venue_city", spec.city);
-  if (spec.kind === "box") {
-    query = query.gte("latitude", spec.minLat).lte("latitude", spec.maxLat)
-      .gte("longitude", spec.minLng).lte("longitude", spec.maxLng);
-  }
   if (spec.kind === "artist") {
     const name = artistName(spec.artist);
     if (name.length < 2) return [];
     const people = requireRows(await db.from("artists").select("id").ilike("name", name).limit(8), "Load event listings");
     const ids = people.map((row: { id?: string }) => row.id).filter(Boolean);
     if (!ids.length) return [];
-    return requireRows(await db.from("events").select(EVENT_SELECT).in("artist_id", ids)
+    const rows = requireRows(await db.from("events").select(EVENT_COLUMNS).in("artist_id", ids)
       .gte("event_date", spec.from).lte("event_date", spec.until)
       .order("event_date", { ascending: true }).limit(limit), "Load event listings");
+    return attachNames(db, rows);
   }
-  return requireRows(await query, "Load event listings");
+  if (spec.kind === "box") {
+    const rows = requireRows(await db.from("events").select(EVENT_COLUMNS)
+      .gte("latitude", spec.minLat).lte("latitude", spec.maxLat)
+      .gte("longitude", spec.minLng).lte("longitude", spec.maxLng)
+      .gte("event_date", spec.from).lte("event_date", spec.until)
+      .order("latitude", { ascending: true }).limit(limit), "Load event listings");
+    return attachNames(db, rows);
+  }
+  const rows = requireRows(await db.from("events").select(EVENT_COLUMNS)
+    .ilike("venue_city", spec.city)
+    .gte("event_date", spec.from).lte("event_date", spec.until)
+    .limit(limit), "Load event listings");
+  return attachNames(db, rows);
+};
+
+const attachNames = async (db: QueryClient, rows: any[]) => {
+  const artistIds = [...new Set(rows.map((row) => row.artist_id).filter((id) => id && !row.artists?.name && !row.artist_name))];
+  const venueIds = [...new Set(rows.map((row) => row.venue_id).filter((id) => id && !row.venues?.name && !row.venue_name))];
+  const artistNames = new Map<string, string>();
+  const venueNames = new Map<string, string>();
+  if (artistIds.length) {
+    for (const person of requireRows(await db.from("artists").select("id, name").in("id", artistIds), "Load event listings")) {
+      if (person?.name) artistNames.set(person.id, person.name);
+    }
+  }
+  if (venueIds.length) {
+    for (const place of requireRows(await db.from("venues").select("id, name").in("id", venueIds), "Load event listings")) {
+      if (place?.name) venueNames.set(place.id, place.name);
+    }
+  }
+  return rows.map((row) => ({
+    ...row,
+    artists: row.artists?.name ? row.artists : artistNames.has(row.artist_id) ? { name: artistNames.get(row.artist_id) } : row.artists,
+    venues: row.venues?.name ? row.venues : venueNames.has(row.venue_id) ? { name: venueNames.get(row.venue_id) } : row.venues,
+  }));
 };

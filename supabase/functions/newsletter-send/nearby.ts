@@ -175,7 +175,7 @@ export const loadEventsNearPlaces = async (
   const mapLimited = async <T,>(items: T[], task: (item: T) => Promise<any[]>) => {
     const results: any[][] = new Array(items.length);
     let next = 0;
-    await Promise.all(Array.from({ length: Math.min(4, items.length) }, async () => {
+    await Promise.all(Array.from({ length: Math.min(2, items.length) }, async () => {
       while (next < items.length) {
         const index = next++;
         results[index] = await task(items[index]);
