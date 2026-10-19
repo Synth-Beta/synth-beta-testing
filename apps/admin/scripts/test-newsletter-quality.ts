@@ -108,10 +108,11 @@ assert.equal(activeEdition.history?.title === "Penelope Road", false);
 assert.doesNotMatch(activeEdition.listen?.body ?? "", /Arcadia|Time \(You and I\)|Khruangbin|Goose/);
 assert.equal(activeEdition.listen?.eyebrow, "Your next listen");
 assert.doesNotMatch(activeEdition.listen?.body ?? "", /saved listening|logged .+ live|evergreen/i);
+assert.match(activeEdition.listen?.body ?? "", /Circles Around the Sun|Lettuce|Medeski Martin|Alabama Shakes|Hiss Golden|Wilco/);
 assert.equal(new Set(artistsOf(activeEdition)).size, artistsOf(activeEdition).length);
 assert.ok(activeEdition.qualityReport.sections.includes("yourSynth"));
 assert.ok(activeEdition.qualityReport.sections.includes("onYourRadar"));
-assert.ok(activeEdition.qualityReport.personalizationEvidence.some((line) => /logged shows|Listening artists|saved shows/.test(line)));
+assert.ok(activeEdition.qualityReport.personalizationEvidence.some((line) => /logged shows|Listening artists|saved shows|Taste genres/.test(line)));
 
 const reviewsOnly = compose(baseReader({
   lifetimeShowCount: 4,
@@ -159,6 +160,31 @@ assert.match(emptyHtml, /The album detour/);
 assert.match(emptyHtml, /Build your live music timeline/);
 assert.doesNotMatch(emptyHtml, /your latest|because you love|your favorite artist/i);
 noFiller(emptyHtml);
+
+const jamSam = compose(baseReader({
+  userId: "sam-jam",
+  firstName: "Sam",
+  topArtists: ["Goose", "Phish"],
+  genres: ["jam"],
+  lifetimeShowCount: 6,
+  fiveStarCount: 2,
+  reviews: [
+    { artistName: "Goose", venueName: "The Anthem", eventDate: "2025-06-11T00:00:00.000Z", rating: 5, text: "The second set opened with a long jam that the whole floor knew." },
+  ],
+}), [], {
+  news: [
+    { id: "pop-a", title: "A pop star drops a glittery single", url: "https://pitchfork.com/news/pop-a", source: "Pitchfork", publishedAt: "2026-10-12T12:00:00.000Z", summary: "The pop star released a glittery single, with the video and credits posted at the source." },
+    { id: "pop-b", title: "Another chart act announces a stadium tour", url: "https://pitchfork.com/news/pop-b", source: "Pitchfork", publishedAt: "2026-10-11T18:00:00.000Z", summary: "The chart act announced stadium dates, and the routing is listed on the official page." },
+    { id: "billy", title: "Billy Strings expands a fall run", url: "https://pitchfork.com/news/billy", source: "Pitchfork", publishedAt: "2026-10-10T12:00:00.000Z", summary: "Billy Strings added fall dates, with the routing and on-sale note published at the source." },
+    { id: "panic", title: "Widespread Panic plots another spring route", url: "https://relix.com/news/panic", source: "Relix", publishedAt: "2026-10-09T12:00:00.000Z", summary: "Widespread Panic plotted another spring route, and the dates are listed on the band site." },
+  ],
+});
+assert.equal(jamSam.updates.length, 2);
+assert.ok(jamSam.updates.every((story) => /Billy Strings|Widespread Panic/i.test(story.title)));
+assert.equal(jamSam.updates.some((story) => /pop star|chart act/i.test(story.title)), false);
+assert.match(jamSam.listen?.body ?? "", /Circles Around the Sun|Lettuce|Medeski Martin/);
+assert.notEqual(jamSam.listen?.body, empty.listen?.body);
+assert.doesNotMatch(jamSam.listen?.body ?? "", /Goose|Phish|Arcadia/);
 
 const sparseNearby = compose(active, [
   show({ id: "only", artistName: "KETTAMA" }),

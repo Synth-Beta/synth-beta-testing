@@ -11,7 +11,7 @@ import type {
   ShowCard,
   StoryCard,
 } from "./types";
-import { editorialListens } from "../../../../../supabase/functions/newsletter-send/editorial";
+import { editorialListens, inferTasteGenres, storyTasteScore } from "../../../../../supabase/functions/newsletter-send/editorial";
 import { eventWithinSavedLocation, hubForEvent, milesBetween, NEARBY_MILES } from "../../../../../supabase/functions/newsletter-send/nearby";
 import { meaningfulSummary } from "../../../../../supabase/functions/newsletter-send/news";
 import { rankArtists } from "../../../../../supabase/functions/newsletter-send/taste";
@@ -65,6 +65,7 @@ const joinList = (items: string[]) => {
 const knownArtists = (reader: EditionReader) => {
   const names = [
     ...reader.topArtists,
+    ...reader.otherFiveStarArtists,
     ...reader.reviews.map((review) => review.artistName),
   ].filter(Boolean);
   const seen = new Set<string>();
@@ -285,33 +286,45 @@ export const composeEdition = ({
     : null;
   if (historyArtist) claim(historyArtist.name);
 
+  const tasteGenres = inferTasteGenres(reader);
+  const hasTaste = tasteGenres.length > 0 || knownArtists(reader).length > 0;
   const freshNews = recentNews(news, new Date(Math.min(sendAt.getTime(), Date.parse(retrievedAt))));
   const summarized = freshNews
     .map((item) => ({ ...item, summary: meaningfulSummary(item.summary) }))
     .filter((item) => item.summary);
   const omittedSummaries = freshNews.length - summarized.length;
-  const newsRank = (item: EditionNews) => {
-    if ([...used].some((artist) => storyMentionsArtist(item, artist))) return 9;
-    const known = knownArtists(reader).filter((artist) => !taken(artist));
-    if (known.some((artist) => storyMentionsArtist(item, artist))) return 0;
-    if (reader.genres.some((genre) => storyMentionsArtist(item, genre))) return 1;
-    return 2;
-  };
-  const sortedNews = [...summarized].sort((left, right) => newsRank(left) - newsRank(right) || Date.parse(right.publishedAt) - Date.parse(left.publishedAt));
-  const relevantNews = sortedNews.filter((item) => newsRank(item) < 2);
-  const chosenNews = (relevantNews.length ? relevantNews : sortedNews.filter((item) => newsRank(item) < 9)).slice(0, relevantNews.length ? 2 : 1);
+  const knownForNews = knownArtists(reader).filter((artist) => !taken(artist));
+  const scoredNews = summarized
+    .map((item) => {
+      const blocked = [...used].some((artist) => storyMentionsArtist(item, artist));
+      const artistHit = !blocked && knownForNews.some((artist) => storyMentionsArtist(item, artist));
+      const taste = blocked ? 0 : storyTasteScore(item, tasteGenres);
+      return { item, blocked, artistHit, taste, published: Date.parse(item.publishedAt) };
+    })
+    .filter((row) => !row.blocked)
+    .sort((left, right) =>
+      Number(right.artistHit) - Number(left.artistHit)
+      || right.taste - left.taste
+      || right.published - left.published
+    );
+  const relevantNews = scoredNews.filter((row) => row.artistHit || row.taste > 0).map((row) => row.item);
+  // With taste data, stay on taste-aligned stories. Do not pad with unrelated pop/general headlines.
+  const chosenNews = (hasTaste
+    ? (relevantNews.length ? relevantNews : scoredNews.map((row) => row.item).slice(0, 1))
+    : scoredNews.map((row) => row.item)
+  ).slice(0, hasTaste && relevantNews.length ? Math.min(2, relevantNews.length) : 1);
   const newsArtists = new Map<string, string>();
   for (const item of chosenNews) {
-    const matched = knownArtists(reader).find((artist) => storyMentionsArtist(item, artist) && !taken(artist));
+    const matched = knownForNews.find((artist) => storyMentionsArtist(item, artist) && !taken(artist));
     if (matched) {
       claim(matched);
       newsArtists.set(item.id, matched);
     }
   }
 
-  // Discovery only: genre-ranked editorial picks the reader has not already
-  // streamed or logged. Never resurface Spotify top tracks or setlist artists.
-  const discoveryListens = editorialListens(editionDate, reader.genres).filter((item) =>
+  // Discovery only: taste-ranked picks the reader has not already streamed or
+  // logged. Never resurface Spotify top tracks or setlist artists.
+  const discoveryListens = editorialListens(editionDate, tasteGenres, reader.userId).filter((item) =>
     item.artistName
     && item.trackName?.trim()
     && httpUrl(item.url)
@@ -538,7 +551,7 @@ export const composeEdition = ({
   if (reader.lifetimeShowCount) evidence.push(`${reader.lifetimeShowCount} logged shows`);
   if (reader.fiveStarCount) evidence.push(`${reader.fiveStarCount} five-star reviews`);
   if (reader.topArtists.length) evidence.push(`Listening artists include ${joinList(reader.topArtists.slice(0, 3))}`);
-  if (reader.genres.length) evidence.push(`Genres on the account: ${joinList(reader.genres.slice(0, 3))}`);
+  if (tasteGenres.length) evidence.push(`Taste genres include ${joinList(tasteGenres.slice(0, 3))}`);
   if (savedCount) evidence.push(`${savedCount} saved shows`);
   if (latestIsPast && latest?.artistName) evidence.push(`Latest show: ${latest.artistName}`);
   if (historyArtist) evidence.push(`History note: ${historyArtist.name}`);

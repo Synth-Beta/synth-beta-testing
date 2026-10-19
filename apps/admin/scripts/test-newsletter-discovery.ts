@@ -3,7 +3,7 @@ import { generateDraftsFromSource } from "../src/lib/newsletterEdition/gather";
 import { composeEdition } from "../src/lib/newsletterEdition/compose";
 import { renderEditionHtml } from "../src/lib/newsletterEdition/render";
 import { editionSendAt } from "../src/lib/newsletterEdition/time";
-import { editorialListens, historyArtists } from "../../../supabase/functions/newsletter-send/editorial";
+import { editorialListens, historyArtists, inferTasteGenres } from "../../../supabase/functions/newsletter-send/editorial";
 import { profileRecordings, lookupRecordings } from "../../../supabase/functions/newsletter-send/tracks";
 import { loadListeningStats } from "../../../supabase/functions/newsletter-send/queries";
 import { loadEditionSource as apiSource } from "../../../api/_lib/newsletterSource";
@@ -68,6 +68,11 @@ assert.doesNotMatch(edition.listen?.eyebrow ?? "", /evergreen/i);
 assert.equal(editionSendAt("2026-10-12").toISOString(), "2026-10-12T15:00:00.000Z");
 assert.equal(editionSendAt("2027-01-12").toISOString(), "2027-01-12T16:00:00.000Z");
 assert.notDeepEqual(editorialListens("2026-10-12"), editorialListens("2026-10-19"));
+assert.deepEqual(inferTasteGenres({ topArtists: ["Goose"], genres: [] }), ["jam", "rock"]);
+assert.notEqual(
+  editorialListens("2026-10-12", ["jam"], "sam").map((pick) => pick.artistName).join("|"),
+  editorialListens("2026-10-12", [], "empty").map((pick) => pick.artistName).join("|"),
+);
 
 let lookups = 0;
 globalThis.fetch = async () => {
