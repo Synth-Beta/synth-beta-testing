@@ -6,19 +6,16 @@ import { Icon } from '@/components/Icon/Icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { RedesignedSearchPage } from '@/components/search/RedesignedSearchPage';
 import { VibeSelectorModal } from './VibeSelectorModal';
 import { DiscoverResultsView } from './DiscoverResultsView';
 import { BecauseYouLikeSection } from './BecauseYouLikeSection';
 import { MapCalendarTourSection } from './MapCalendarTourSection';
-import { GenreChatsSection } from './GenreChatsSection';
 import { LocationService } from '@/services/locationService';
 import { CityService, type CityData } from '@/services/cityService';
 import { supabase } from '@/integrations/supabase/client';
 import type { VibeType } from '@/services/discoverVibeService';
 import type { VibeFilters } from '@/services/discoverVibeService';
 import { MobileHeader } from '@/components/Header/MobileHeader';
-import { SearchBar } from '@/components/SearchBar/SearchBar';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { Share2 } from 'lucide-react';
 import { ShareService } from '@/services/shareService';
@@ -30,6 +27,8 @@ import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { UserEventService } from '@/services/userEventService';
 import { fetchEventForModal } from '@/services/eventLookupService';
 import { useBrowseLocation } from '@/contexts/BrowseLocationContext';
+import { ConnectionsHub } from './ConnectionsHub';
+import '@/components/home/thread/thread.css';
 
 type DiscoverDetailView =
   | { type: 'artist'; id: string; name: string }
@@ -42,7 +41,7 @@ interface DiscoverViewProps {
   onNavigateToNotifications?: () => void;
   onNavigateToProfile?: (userId: string) => void;
   onNavigateToChat?: (userId: string) => void;
-  onViewChange?: (view: 'feed' | 'search' | 'profile') => void;
+  onViewChange?: (view: 'feed' | 'search' | 'profile' | 'chat') => void;
   menuOpen?: boolean;
   onMenuClick?: () => void;
   hideHeader?: boolean;
@@ -61,9 +60,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   hideHeader = false,
   webDesktopChrome = false,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [vibeModalOpen, setVibeModalOpen] = useState(false);
   const [selectedVibe, setSelectedVibe] = useState<VibeType | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -393,28 +389,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
   };
 
   const hasActiveLocation = Boolean(filters.latitude && filters.longitude);
-  const isSearchMode = isSearchFocused || isSearchActive;
-
-  const dismissSearch = () => {
-    setSearchQuery('');
-    setIsSearchActive(false);
-    setIsSearchFocused(false);
-  };
-
-  const discoverSearchBar = (
-    <SearchBar
-      value={searchQuery}
-      onChange={(value) => {
-        setSearchQuery(value);
-        setIsSearchActive(value.trim().length >= 2);
-      }}
-      onFocus={() => setIsSearchFocused(true)}
-      showClear={isSearchMode}
-      onClear={dismissSearch}
-      placeholder='Try "Radiohead"'
-      widthVariant="flex"
-    />
-  );
 
   // If a vibe is selected, show results view
   if (selectedVibe) {
@@ -467,451 +441,43 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         </MobileHeader>
       )
       : (
-        <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            width: '100%',
-            maxWidth: '100%',
-          }}>
-            {discoverSearchBar}
-          </div>
+        <MobileHeader className="home-brand-bar" menuOpen={menuOpen} onMenuClick={onMenuClick}>
+          <h1 className="messages-title">Community</h1>
         </MobileHeader>
       )
     : undefined;
 
   return (
-    <PageShell header={discoverHeader}>
+    <PageShell
+      header={discoverHeader}
+      contentHorizontalPadding={false}
+      contentPaddingTop="0px"
+      includeBottomNavPadding={true}
+      contentClassName="grouped-canvas"
+      contentStyle={{
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {!hideHeader && !detailView && !eventDetailsOpen && webDesktopChrome && (
         <header
-          className="sticky z-30 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
+          className="home-brand-bar"
           style={{
-            top: 'var(--onboarding-banner-height, 0px)',
-            paddingTop: 'var(--mobile-header-padding-top, env(safe-area-inset-top, 0px))',
-            marginBottom: 'var(--spacing-small, 12px)',
+            position: 'relative',
+            flexShrink: 0,
+            minHeight: 56,
           }}
         >
-          {discoverSearchBar}
+          <h1 className="messages-title">Community</h1>
         </header>
       )}
-      {/* Glass backdrop context - blobs and noise */}
-      <div
-        className="swift-ui-discover-backdrop"
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          pointerEvents: 'none',
-          zIndex: 0,
-          overflow: 'hidden'
-        }}
-      >
-        <div
-          className="swift-ui-discover-blob"
-          style={{
-            position: 'absolute',
-            top: '10%',
-            left: '5%',
-            width: '300px',
-            height: '300px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-pink-500) 20%, transparent) 0%, transparent 70%)',
-            filter: 'blur(80px)',
-            opacity: 0.4,
-            pointerEvents: 'none'
-          }}
+      {!detailView && !eventDetailsOpen && (
+        <ConnectionsHub
+          currentUserId={currentUserId}
+          onNavigateToProfile={onNavigateToProfile}
+          onOpenMessages={() => onViewChange?.('chat')}
         />
-        <div
-          className="swift-ui-discover-blob"
-          style={{
-            position: 'absolute',
-            top: '50%',
-            right: '10%',
-            width: '400px',
-            height: '400px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-pink-400) 15%, transparent) 0%, transparent 70%)',
-            filter: 'blur(100px)',
-            opacity: 0.3,
-            pointerEvents: 'none'
-          }}
-        />
-        <div
-          className="swift-ui-discover-blob"
-          style={{
-            position: 'absolute',
-            bottom: '20%',
-            left: '20%',
-            width: '250px',
-            height: '250px',
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, color-mix(in srgb, var(--brand-pink-300) 18%, transparent) 0%, transparent 70%)',
-            filter: 'blur(60px)',
-            opacity: 0.35,
-            pointerEvents: 'none'
-          }}
-        />
-        <div
-          className="swift-ui-discover-noise"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            opacity: 0.05
-          }}
-        />
-      </div>
-      <div
-        className={webDesktopChrome ? 'w-full max-w-none mx-auto' : 'max-w-7xl mx-auto'}
-        style={{
-          overflow: 'visible',
-          minHeight: 'auto',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        {/* Browse Vibes and Location Filter */}
-        <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: 'var(--spacing-small, 12px)' }}>
-          {/* Browse Vibes Button */}
-          <Button
-            onClick={() => setVibeModalOpen(true)}
-            className="gap-2 flex-shrink-0" 
-            style={{ backgroundColor: 'var(--brand-pink-500)', color: 'var(--neutral-50)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)'; }}
-            size="sm"
-            data-tour="discover-vibes"
-          >
-            <Icon name="mediumShootingStar" size={24} color="var(--neutral-50)" />
-            Browse Vibes
-          </Button>
-
-          {/* Location Filter */}
-          <Popover open={locationPopoverOpen} onOpenChange={setLocationPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="secondary-neutral" className="gap-2 flex-shrink-0" style={{
-                height: 'var(--size-button-height, 36px)',
-                paddingLeft: 'var(--spacing-small, 12px)',
-                paddingRight: 'var(--spacing-small, 12px)',
-                borderColor: 'var(--neutral-200)',
-                color: 'var(--neutral-900) !important',
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-meta-size, 16px)',
-                fontWeight: 'var(--typography-meta-weight, 500)',
-                lineHeight: 'var(--typography-meta-line-height, 1.5)'
-              }}>
-                <Icon name="location" size={24} color="var(--neutral-900)" />
-                Location
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 swift-ui-card" align="start">
-              <div className="swift-ui-card-content space-y-4">
-                <div className="font-semibold text-sm">Set Location</div>
-                
-                {/* Current Location Button */}
-                <Button
-                  onClick={handleUseCurrentLocation}
-                  disabled={isLoadingLocation}
-                  variant="outline"
-                  className="w-full"
-                  size="sm"
-                >
-                  {isLoadingLocation ? (
-                    <>
-                      <Icon name="refresh" size={16} className="mr-2 animate-spin" color="var(--neutral-900)" />
-                      Getting location...
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="location" size={16} className="mr-2" color="var(--neutral-900)" />
-                      Use Current Location
-                    </>
-                  )}
-                </Button>
-
-                <div className="text-sm text-center" style={{ color: 'var(--neutral-600)' }}>or</div>
-
-                {/* City Input + trigram typeahead */}
-              <div className="space-y-2 relative">
-                  <Input
-                    placeholder="Search city (e.g., New York, Los Angeles)"
-                    value={customCityInput}
-                    onChange={(e) => setCustomCityInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleCitySearch();
-                      }
-                    }}
-                  />
-                  {isSearchingCities && (
-                    <div className="text-sm mt-0.5" style={{ color: 'var(--neutral-500)' }}>
-                      Searching…
-                    </div>
-                  )}
-                  {citySuggestions.length > 0 && customCityInput.trim().length >= 2 && (
-                    <ul
-                      className="absolute z-50 w-full mt-1 rounded-md border bg-white shadow-lg max-h-48 overflow-auto"
-                      style={{
-                        borderColor: 'var(--neutral-200)',
-                        top: '100%',
-                        left: 0,
-                        right: 0,
-                      }}
-                    >
-                      {citySuggestions.map((city) => (
-                        <li key={city.id ?? `${city.name}-${city.state ?? ''}-${city.country ?? ''}`}>
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-100"
-                            style={{ color: 'var(--neutral-900)' }}
-                            onClick={() => handleSelectCitySuggestion(city)}
-                          >
-                            {[city.name, city.state, city.country].filter(Boolean).join(', ')}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <Button
-                    onClick={handleCitySearch}
-                    disabled={!customCityInput.trim()}
-                    className="w-full"
-                    size="sm"
-                  >
-                    Search City
-                  </Button>
-                </div>
-
-                {/* Radius Slider */}
-                {hasActiveLocation && (
-                  <div className="space-y-2 pt-2 border-t">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Radius: {filters.radiusMiles || 30} miles</span>
-                      <span style={{ color: 'var(--neutral-600)' }}>Max: 50</span>
-              </div>
-                    <Slider
-                      value={[filters.radiusMiles || 30]}
-                      onValueChange={handleRadiusChange}
-                      min={1}
-                      max={50}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-                )}
-
-                {/* Clear Location */}
-                {hasActiveLocation && (
-                  <Button
-                    onClick={handleClearLocation}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full"
-                  >
-                    Clear Location
-                  </Button>
-                )}
-            </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        {/* Location Indicator Badges */}
-        <div className="flex flex-wrap gap-2" style={{ marginBottom: '24px' }}>
-          {/* Location Pill - Only show when location is active */}
-          {hasActiveLocation && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                height: '25px',
-                paddingLeft: 'var(--spacing-small, 12px)',
-                paddingRight: 'var(--spacing-small, 12px)',
-                borderRadius: '999px',
-                backgroundColor: 'var(--brand-pink-050)',
-                border: '2px solid var(--brand-pink-500)',
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-meta-size, 16px)',
-                fontWeight: 'var(--typography-meta-weight, 500)',
-                lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                color: 'var(--brand-pink-500)',
-                gap: 'var(--spacing-inline, 6px)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                width: 'fit-content',
-                maxWidth: '100%'
-              }}
-            >
-              <Icon name="location" size={19} color="var(--brand-pink-500)" />
-              <span style={{ 
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-meta-size, 16px)',
-                fontWeight: 'var(--typography-meta-weight, 500)',
-                lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                color: 'var(--brand-pink-500)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                minWidth: 0,
-                flexShrink: 1
-              }}>
-                {selectedLocationName || 'Location'}
-              </span>
-              <button
-                onClick={handleClearLocation}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  flexShrink: 0,
-                  marginLeft: 'var(--spacing-inline, 6px)'
-                }}
-                className="hover:text-destructive"
-                aria-label="Clear location"
-              >
-                <Icon name="x" size={19} color="var(--brand-pink-500)" />
-              </button>
-            </div>
-          )}
-
-          {/* Radius Pill - Show only when a custom radius is set (different from default 30) */}
-          {(filters.radiusMiles && filters.radiusMiles !== 30) && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                height: '25px',
-                paddingLeft: 'var(--spacing-small, 12px)',
-                paddingRight: 'var(--spacing-small, 12px)',
-                borderRadius: '999px',
-                backgroundColor: 'var(--brand-pink-050)',
-                border: '2px solid var(--brand-pink-500)',
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-meta-size, 16px)',
-                fontWeight: 'var(--typography-meta-weight, 500)',
-                lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                color: 'var(--brand-pink-500)',
-                gap: 'var(--spacing-inline, 6px)',
-                whiteSpace: 'nowrap',
-                width: 'fit-content'
-              }}
-            >
-              <span style={{
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-meta-size, 16px)',
-                fontWeight: 'var(--typography-meta-weight, 500)',
-                lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                color: 'var(--brand-pink-500)'
-              }}>{filters.radiusMiles || 30} mi radius</span>
-              <button
-                onClick={handleClearRadius}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  flexShrink: 0,
-                  marginLeft: 'var(--spacing-inline, 6px)'
-                }}
-                className="hover:text-destructive"
-                aria-label="Clear radius"
-              >
-                <Icon name="x" size={19} color="var(--brand-pink-500)" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Search overlay — results when typing, tappable blank when empty */}
-        {isSearchMode && (
-          isSearchActive ? (
-            <div className="mt-4">
-              <RedesignedSearchPage
-                userId={currentUserId}
-                allowedTabs={['artists', 'venues', 'users', 'events']}
-                showMap={false}
-                layout="compact"
-                mode="embedded"
-                headerTitle=""
-                headerDescription=""
-                showHelperText={false}
-                initialSearchQuery={searchQuery}
-                hideSearchInput={true}
-                showResults={true}
-                onNavigateToProfile={onNavigateToProfile}
-                onNavigateToChat={onNavigateToChat}
-                onArtistClick={(artistId, artistName) => setDetailView({ type: 'artist', id: artistId, name: artistName })}
-                onVenueClick={(venueId, venueName) => setDetailView({ type: 'venue', id: venueId, name: venueName })}
-              />
-            </div>
-          ) : (
-            <div
-              className="mt-4"
-              style={{ minHeight: '50vh' }}
-              onClick={dismissSearch}
-              role="button"
-              tabIndex={0}
-              aria-label="Dismiss search"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
-                  e.preventDefault();
-                  dismissSearch();
-                }
-              }}
-            />
-          )
-        )}
-
-      {/* Main Content */}
-      {!isSearchMode && (
-          <>
-            {/* Section 1: Because You Like ___ */}
-            <div style={{ marginBottom: '32px' }}>
-            <BecauseYouLikeSection
-            currentUserId={currentUserId}
-            onNavigateToProfile={onNavigateToProfile}
-            onNavigateToChat={onNavigateToChat}
-          />
-            </div>
-
-            {/* Section 2: Map/Calendar/Tour Section */}
-            <div style={{ marginBottom: '32px' }}>
-            <MapCalendarTourSection
-            currentUserId={currentUserId}
-              filters={filters}
-            onNavigateToProfile={onNavigateToProfile}
-            onNavigateToChat={onNavigateToChat}
-            onOpenEvent={(event) => {
-              void handleEventClickFromVenue(event.id);
-            }}
-          />
-            </div>
-
-            {/* Section 3: Genre Communities */}
-            <GenreChatsSection
-              currentUserId={currentUserId}
-              onNavigateToChat={onNavigateToChat}
-            />
-
-          </>
-        )}
-        </div>
-
-      {/* Vibe Selector Modal */}
-      <VibeSelectorModal
-        isOpen={vibeModalOpen}
-        onClose={() => setVibeModalOpen(false)}
-        onSelectVibe={handleSelectVibe}
-        isMobile={isMobile}
-      />
+      )}
 
       {/* Artist/Venue detail overlays (single Discover header drives navigation).
           Rendered via portal to escape the CSS transform containing block created by the

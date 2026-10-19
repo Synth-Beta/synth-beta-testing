@@ -52,6 +52,9 @@ export interface MobileHeaderProps {
    * Optional badge count to display on the hamburger menu button
    */
   badgeCount?: number;
+
+  /** Extra class on the header element, for screen-specific styling. */
+  className?: string;
 }
 
 /**
@@ -81,9 +84,10 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   onLeftIconClick,
   rightButton,
   badgeCount,
+  className,
 }) => {
   return (
-    <header className="mobile-header" role="banner">
+    <header className={className ? `mobile-header ${className}` : 'mobile-header'} role="banner">
       <div className="mobile-header__container">
         {/* Content area - can be centered or left-aligned */}
         <div

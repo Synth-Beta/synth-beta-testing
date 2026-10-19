@@ -20,11 +20,13 @@ import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
-import { UnifiedEventsFeed } from './UnifiedEventsFeed';
+import { UnifiedEventsFeed, type ThreadNode } from './UnifiedEventsFeed';
 import { JamBaseHeaderAttribution } from './JamBaseHeaderAttribution';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
+import { RedesignedSearchPage, type EventSearchResult } from '@/components/search/RedesignedSearchPage';
+import { SearchBar } from '@/components/SearchBar/SearchBar';
 import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
 import { Icon } from '@/components/Icon';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
@@ -38,12 +40,6 @@ import { LocationService } from '@/services/locationService';
 import { getLastKnownLocation } from '@/services/locationCacheService';
 import { useBrowseLocation } from '@/contexts/BrowseLocationContext';
 import { getFallbackEventImage, replaceJambasePlaceholder } from '@/utils/eventImageFallbacks';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { useViewTracking } from '@/hooks/useViewTracking';
 import { trackInteraction } from '@/services/interactionTrackingService';
@@ -278,8 +274,6 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
   // Feed type selection - simplified to just Events and Reviews
   const [selectedFeedType, setSelectedFeedType] = useState<string>('events');
-  const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
-
   // Location state for feed filtering
   const [feedLocation, setFeedLocation] = useState<{
     latitude: number;
@@ -308,6 +302,16 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [selectedArtistName, setSelectedArtistName] = useState<string>('');
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [selectedVenueName, setSelectedVenueName] = useState<string>('');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const isSearchMode = isSearchFocused || isSearchActive;
+  const dismissSearch = () => {
+    setSearchQuery('');
+    setIsSearchActive(false);
+    setIsSearchFocused(false);
+  };
 
   const navigate = useNavigate();
 
@@ -578,6 +582,7 @@ interface FriendEventInterest {
       loadNetworkEvents(true);
     } else if (selectedFeedType === 'events') {
       loadFriendSuggestionsForRail();
+      loadReviews();
       if (currentUserId) {
         HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10).then(setFriendFeedEvents).catch(() => {});
       }
@@ -599,19 +604,11 @@ interface FriendEventInterest {
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
       console.log('🔄 [HOME FEED] Refresh trigger changed, refetching reviews...');
-      if (selectedFeedType === 'reviews') {
+      if (selectedFeedType === 'events' || selectedFeedType === 'reviews') {
         loadReviews();
       }
     }
   }, [refreshTrigger, selectedFeedType]);
-
-  // Update dropdown button border when open state changes
-  useEffect(() => {
-    const trigger = document.querySelector('[data-tour="feed-toggle"]') as HTMLElement;
-    if (trigger) {
-      trigger.style.borderColor = dropdownOpen ? 'var(--brand-pink-500)' : 'var(--neutral-200)';
-    }
-  }, [dropdownOpen]);
 
   // Reload sections when filters change (but NOT for friends feed - no filters on friends feed)
   useEffect(() => {
@@ -1811,115 +1808,86 @@ interface FriendEventInterest {
     return 'Based on your preferences';
   };
 
-  const feedTypes = [
-    { value: 'events', label: 'Events' },
-    { value: 'reviews', label: 'Reviews' },
-  ];
+  const reviewNodes = useMemo<ThreadNode[]>(
+    () =>
+      reviews.map((review) => ({
+        key: review.id,
+        node: (
+          <SwiftUIReviewCard
+            review={{
+              id: review.id,
+              user_id: review.author.id,
+              event_id: (review.event_info as any)?.event_id || '',
+              artist_id: review.artist_id,
+              rating: review.rating,
+              review_text: review.content,
+              is_public: true,
+              created_at: review.created_at,
+              updated_at: review.created_at,
+              likes_count: 0,
+              comments_count: 0,
+              shares_count: 0,
+              is_liked_by_user: false,
+              reaction_emoji: '',
+              photos: review.photos || [],
+              videos: [],
+              mood_tags: [],
+              genre_tags: [],
+              context_tags: [],
+              artist_name: review.event_info?.artist_name,
+              venue_name: review.event_info?.venue_name,
+              Event_date: review.event_info?.event_date,
+            } as ReviewWithEngagement}
+            mode="compact"
+            currentUserId={currentUserId}
+            artistImageUrl={review.artist_image_url}
+            userProfile={{
+              name: review.author.name,
+              avatar_url: review.author.avatar_url || undefined,
+            }}
+            onOpenDetail={() => {
+              const unifiedReview: UnifiedFeedItem = {
+                id: review.id,
+                type: 'review',
+                title: review.event_info?.artist_name || 'Review',
+                author: review.author,
+                created_at: review.created_at,
+                content: review.content,
+                rating: review.rating,
+                photos: review.photos,
+                event_info: review.event_info,
+                relevance_score: 0,
+              };
+              setSelectedReview(unifiedReview);
+              setReviewDetailOpen(true);
+            }}
+          />
+        ),
+      })),
+    [reviews, currentUserId]
+  );
                       
                       return (
-    <div 
-      className="min-h-screen" style={{ backgroundColor: 'var(--neutral-50)' }}
-    >
+    <div className="grouped-canvas min-h-screen">
             {/* Mobile / Capacitor: full MobileHeader with hamburger + badge */}
       {!hideHeader && !webDesktopChrome && (
-        <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick} badgeCount={unreadNotificationsCount + unreadFriendRequestsCount}>
+        <MobileHeader className="home-brand-bar" menuOpen={menuOpen} onMenuClick={onMenuClick} badgeCount={unreadNotificationsCount + unreadFriendRequestsCount}>
           <div
             style={{
               width: '100%',
               display: 'flex',
-              justifyContent: 'flex-start',
+              justifyContent: 'center',
               alignItems: 'center',
             }}
           >
-            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  style={{
-                    backgroundColor: 'var(--neutral-50)',
-                    borderColor: dropdownOpen ? 'var(--brand-pink-500)' : 'var(--neutral-200)',
-                    borderWidth: '2px',
-                    borderStyle: 'solid',
-                    color: 'var(--neutral-900)',
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-meta-size, 16px)',
-                    fontWeight: 'var(--typography-meta-weight, 500)',
-                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    transition: 'border-color 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!e.currentTarget.matches(':focus-visible') && !dropdownOpen) {
-                      e.currentTarget.style.borderColor = 'var(--neutral-200)';
-                    }
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--brand-pink-500)';
-                    e.currentTarget.style.outline = '2px solid var(--brand-pink-500)';
-                    e.currentTarget.style.outlineOffset = '2px';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.outline = 'none';
-                    if (!dropdownOpen) {
-                      e.currentTarget.style.borderColor = 'var(--neutral-200)';
-                    }
-                  }}
-                  data-tour="feed-toggle"
-                >
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      color: 'var(--neutral-900)',
-                    }}
-                  >
-                    {feedTypes.find((ft) => ft.value === selectedFeedType)?.label || 'Events'}
-                  </span>
-                  <ChevronDown className="h-4 w-4" style={{ color: 'var(--neutral-900)' }} />
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent
-                style={{
-                  backgroundColor: 'var(--neutral-50)',
-                  border: '2px solid var(--neutral-200)',
-                  borderRadius: 'var(--radius-corner, 10px)',
-                  boxShadow: '0 4px 4px 0 var(--shadow-color)',
-                  padding: 'var(--spacing-inline, 6px)',
-                  minWidth: '200px',
-                }}
-              >
-                {feedTypes.map((feedType) => (
-                  <DropdownMenuItem
-                    key={feedType.value}
-                    onClick={() => setSelectedFeedType(feedType.value)}
-                    style={{
-                      fontFamily: 'var(--font-family)',
-                      fontSize: 'var(--typography-meta-size, 16px)',
-                      fontWeight: 'var(--typography-meta-weight, 500)',
-                      lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                      color: 'var(--neutral-900)',
-                      padding: 'var(--spacing-small, 12px)',
-                      borderRadius: 'var(--radius-corner, 10px)',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }}
-                  >
-                    {feedType.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <h1 className="synth-wordmark" data-tour="feed-toggle">
+              <span className="synth-wordmark__mark">
+                <img src="/Logos/Main logo black background.png" alt="" />
+              </span>
+              <span className="synth-wordmark__name">
+                synth<span>.</span>
+              </span>
+            </h1>
           </div>
         </MobileHeader>
       )}
@@ -1927,57 +1895,20 @@ interface FriendEventInterest {
       {/* Web desktop: sticky strip — Events/Reviews + JamBase only (notifications → rail Menu). */}
       {!hideHeader && webDesktopChrome && (
         <header
-          className="sticky z-40 flex min-h-[52px] items-center justify-between gap-4 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
+          className="home-brand-bar sticky z-40 flex min-h-[52px] items-center justify-end gap-4 px-4 py-2"
           style={{
             top: 'var(--onboarding-banner-height, 0px)',
             paddingTop: 'max(var(--mobile-header-padding-top, env(safe-area-inset-top, 0px)), 8px)',
           }}
         >
-          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="flex items-center gap-2"
-                style={{
-                  backgroundColor: 'var(--neutral-50)',
-                  borderColor: dropdownOpen ? 'var(--brand-pink-500)' : 'var(--neutral-200)',
-                  borderWidth: '2px',
-                  color: 'var(--neutral-900)',
-                  fontFamily: 'var(--font-family)',
-                  fontSize: 'var(--typography-meta-size, 16px)',
-                  fontWeight: 'var(--typography-meta-weight, 500)',
-                }}
-                data-tour="feed-toggle"
-              >
-                <span>{feedTypes.find((ft) => ft.value === selectedFeedType)?.label || 'Events'}</span>
-                <ChevronDown className="h-4 w-4" style={{ color: 'var(--neutral-900)' }} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              style={{
-                backgroundColor: 'var(--neutral-50)',
-                border: '2px solid var(--neutral-200)',
-                borderRadius: 'var(--radius-corner, 10px)',
-                boxShadow: '0 4px 4px 0 var(--shadow-color)',
-                minWidth: '200px',
-              }}
-            >
-              {feedTypes.map((feedType) => (
-                <DropdownMenuItem
-                  key={feedType.value}
-                  onClick={() => setSelectedFeedType(feedType.value)}
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-meta-size, 16px)',
-                    cursor: 'pointer',
-                    padding: 'var(--spacing-small, 12px)',
-                  }}
-                >
-                  {feedType.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <h1 className="synth-wordmark" data-tour="feed-toggle">
+            <span className="synth-wordmark__mark">
+              <img src="/Logos/Main logo black background.png" alt="" />
+            </span>
+            <span className="synth-wordmark__name">
+              synth<span>.</span>
+            </span>
+          </h1>
           {selectedFeedType === 'events' ? <JamBaseHeaderAttribution variant="inline" /> : <span />}
         </header>
       )}
@@ -2002,7 +1933,71 @@ interface FriendEventInterest {
           transition: 'margin-top 0.2s ease-out',
         }}
       >
-        {feedLocation && selectedFeedType !== 'events' && selectedFeedType !== 'reviews' && (
+        <div style={{ marginBottom: 16 }}>
+          <SearchBar
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value);
+              setIsSearchActive(value.trim().length >= 2);
+            }}
+            onFocus={() => setIsSearchFocused(true)}
+            showClear={isSearchMode}
+            onClear={dismissSearch}
+            placeholder='Try "Radiohead"'
+            widthVariant="flex"
+          />
+        </div>
+
+        {isSearchMode && (
+          isSearchActive ? (
+            <div className="mt-2">
+              <RedesignedSearchPage
+                userId={currentUserId}
+                allowedTabs={['artists', 'venues', 'users', 'events']}
+                showMap={false}
+                layout="compact"
+                mode="embedded"
+                headerTitle=""
+                headerDescription=""
+                showHelperText={false}
+                initialSearchQuery={searchQuery}
+                hideSearchInput={true}
+                showResults={true}
+                onNavigateToProfile={onNavigateToProfile}
+                onNavigateToChat={onNavigateToChat}
+                onEventClick={(event: EventSearchResult) => {
+                  void handleEventClick(event.id);
+                }}
+                onArtistClick={(artistId, artistName) => {
+                  setSelectedArtistId(artistId);
+                  setSelectedArtistName(artistName);
+                  setArtistModalOpen(true);
+                }}
+                onVenueClick={(venueId, venueName) => {
+                  setSelectedVenueId(venueId);
+                  setSelectedVenueName(venueName);
+                  setVenueModalOpen(true);
+                }}
+              />
+            </div>
+          ) : (
+            <div
+              style={{ minHeight: '50vh' }}
+              onClick={dismissSearch}
+              role="button"
+              tabIndex={0}
+              aria-label="Dismiss search"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') {
+                  e.preventDefault();
+                  dismissSearch();
+                }
+              }}
+            />
+          )
+        )}
+
+        {!isSearchMode && feedLocation && selectedFeedType !== 'events' && selectedFeedType !== 'reviews' && (
           <>
             {/* Radius selector - below box, right-aligned */}
             <div className="flex items-center justify-end gap-2" style={{ marginBottom: 'var(--spacing-small, 12px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)' }}>
@@ -2029,7 +2024,7 @@ interface FriendEventInterest {
           </>
         )}
         {/* Feed content based on selection */}
-        {selectedFeedType === 'events' && (
+        {!isSearchMode && selectedFeedType === 'events' && (
           <UnifiedEventsFeed
             currentUserId={currentUserId}
             filters={filters}
@@ -2038,15 +2033,22 @@ interface FriendEventInterest {
               console.log('Interest toggled:', eventId, interested);
             }}
             insertSectionAfterIndex={0}
+            reviewNodes={reviewNodes}
             extraEvents={friendExtraEvents}
             middleSection={
-              friendSuggestionsForRail.length > 0 ? (
-                <FriendSuggestionsRail
-                  suggestions={friendSuggestionsForRail}
-                  onUserClick={(userId) => onNavigateToProfile?.(userId)}
-                  onAddFriend={handleSendFriendRequestForRail}
-                />
-              ) : undefined
+              <>
+                {friendSuggestionsForRail.length > 0 && (
+                  <FriendSuggestionsRail
+                    suggestions={friendSuggestionsForRail}
+                    onUserClick={(userId) => onNavigateToProfile?.(userId)}
+                    onAddFriend={handleSendFriendRequestForRail}
+                  />
+                )}
+                <section className="feed-banner" aria-label="Your feed">
+                  <h2>Your scene</h2>
+                  <p>Shows picked for you, what your friends are into, and what's trending nearby.</p>
+                </section>
+              </>
             }
             onShareClick={async (event, e) => {
               e.stopPropagation();
@@ -2081,14 +2083,14 @@ interface FriendEventInterest {
             }}
           />
         )}
-        {selectedFeedType === 'recommended' && (
+        {!isSearchMode && selectedFeedType === 'recommended' && (
               <PreferencesV4FeedSection
                 userId={currentUserId}
                 onEventClick={handleEventClick}
                 filters={filters}
           />
         )}
-        {selectedFeedType === 'trending' && (
+        {!isSearchMode && selectedFeedType === 'trending' && (
           <div ref={trendingFeedRef} className="space-y-4">
               {loadingTrending && trendingEvents.length === 0 ? (
                 <SynthLoadingInline text="Loading trending events..." size="md" />
@@ -2145,7 +2147,7 @@ interface FriendEventInterest {
               )}
               </div>
         )}
-        {selectedFeedType === 'friends' && (
+        {!isSearchMode && selectedFeedType === 'friends' && (
           <div ref={friendsFeedRef} className="space-y-4">
             {loadingNetwork && firstDegreeEvents.length === 0 && secondDegreeEvents.length === 0 ? (
               <div className="flex items-center justify-center py-12">
@@ -2201,7 +2203,7 @@ interface FriendEventInterest {
               )}
           </div>
         )}
-        {selectedFeedType === 'group-chats' && (
+        {!isSearchMode && selectedFeedType === 'group-chats' && (
           <div className="space-y-4">
             {loadingRecommendedGroupChats ? (
               <div className="flex items-center justify-center py-12">
@@ -2260,103 +2262,6 @@ interface FriendEventInterest {
                 )}
               </div>
             )}
-          </div>
-        )}
-        {selectedFeedType === 'reviews' && (
-          <div className="space-y-4">
-          {friendSuggestionsForRail.length > 0 && (
-            <FriendSuggestionsRail
-              suggestions={friendSuggestionsForRail}
-              onUserClick={(userId) => onNavigateToProfile?.(userId)}
-              onAddFriend={handleSendFriendRequestForRail}
-            />
-          )}
-          {loadingReviews ? (
-            <div className="flex items-center justify-center py-12">
-              <SynthLoadingInline />
-            </div>
-          ) : reviews.length === 0 ? (
-            <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-inline, 6px)', paddingTop: 'var(--spacing-grouped, 24px)', paddingBottom: 'var(--spacing-grouped, 24px)' }}>
-              {/* Large icon (60px), dark grey - using MessageSquare for reviews */}
-              <Icon name="squareComment" size={60} alt="" color="var(--neutral-600)" />
-              {/* Heading - Body typography, off black */}
-              <p style={{ 
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-body-size, 20px)',
-                fontWeight: 'var(--typography-body-weight, 500)',
-                lineHeight: 'var(--typography-body-line-height, 1.5)',
-                color: 'var(--neutral-900)',
-                margin: 0,
-                textAlign: 'center'
-              }}>No reviews yet</p>
-              {/* Description - Meta typography, dark grey */}
-              <p style={{ 
-                fontFamily: 'var(--font-family)',
-                fontSize: 'var(--typography-meta-size, 16px)',
-                fontWeight: 'var(--typography-meta-weight, 500)',
-                lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                color: 'var(--neutral-600)',
-                margin: 0,
-                textAlign: 'center'
-              }}>Be the first to review an event!</p>
-                  </div>
-                ) : (
-              <div className="space-y-3">
-              {reviews.map((review) => (
-                <SwiftUIReviewCard
-                  key={review.id}
-                  review={{
-                    id: review.id,
-                    user_id: review.author.id,
-                    event_id: (review.event_info as any)?.event_id || '',
-                    artist_id: review.artist_id,
-                    rating: review.rating,
-                    review_text: review.content,
-                    is_public: true,
-                    created_at: review.created_at,
-                    updated_at: review.created_at,
-                    likes_count: 0,
-                    comments_count: 0,
-                    shares_count: 0,
-                    is_liked_by_user: false,
-                    reaction_emoji: '',
-                    photos: review.photos || [],
-                    videos: [],
-                    mood_tags: [],
-                    genre_tags: [],
-                    context_tags: [],
-                    artist_name: review.event_info?.artist_name,
-                    venue_name: review.event_info?.venue_name,
-                    Event_date: review.event_info?.event_date,
-                  } as ReviewWithEngagement}
-                  mode="compact"
-                  currentUserId={currentUserId}
-                  artistImageUrl={review.artist_image_url}
-                  userProfile={{
-                    name: review.author.name,
-                    avatar_url: review.author.avatar_url || undefined,
-                  }}
-                  onOpenDetail={() => {
-                    // Convert NetworkReview to UnifiedFeedItem format for the modal
-                    const unifiedReview: UnifiedFeedItem = {
-                      id: review.id,
-                      type: 'review',
-                      title: review.event_info?.artist_name || 'Review',
-                      author: review.author,
-                      created_at: review.created_at,
-                      content: review.content,
-                      rating: review.rating,
-                      photos: review.photos,
-                      event_info: review.event_info,
-                      relevance_score: 0,
-                    };
-                    setSelectedReview(unifiedReview);
-                    setReviewDetailOpen(true);
-                  }}
-                />
-              ))}
-            </div>
-          )}
           </div>
         )}
 
@@ -2489,6 +2394,12 @@ interface FriendEventInterest {
             artistId={selectedArtistId}
             artistName={selectedArtistName}
             currentUserId={currentUserId}
+            onEventClick={(eventId) => {
+              setArtistModalOpen(false);
+              setSelectedArtistId(null);
+              setSelectedArtistName('');
+              void handleEventClick(eventId);
+            }}
           />
         )}
         {venueModalOpen && selectedVenueId && (

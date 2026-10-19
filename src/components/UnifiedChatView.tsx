@@ -77,6 +77,8 @@ import { trackInteraction } from '@/services/interactionTrackingService';
 import { toast } from '@/hooks/use-toast';
 import { buildChatImageStoragePath, resolveChatImageDisplayUrl } from '@/utils/chatImageStorage';
 import PageShell from '@/components/layout/PageShell';
+import { GenreChatsSection } from '@/components/discover/GenreChatsSection';
+import '@/components/home/thread/thread.css';
 import { MessageReactions, ReactionPicker } from '@/components/chat/MessageReactions';
 import { ReplyQuote } from '@/components/chat/ReplyQuote';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
@@ -1957,17 +1959,22 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
   // Chat list view keeps the boxed MobileHeader (hamburger + "Messages" title, app-level chrome).
   // Thread view does not — see threadTopBar below, which renders inline in the scrolling panel instead.
+  const openChatById = async (chatId: string) => {
+    const current = chats.find((chat) => chat.id === chatId);
+    if (current) {
+      setSelectedChat(current);
+      return;
+    }
+    const fresh = await fetchChats();
+    const match = fresh?.find((chat) => chat.id === chatId);
+    if (match) setSelectedChat(match);
+  };
+
   const chatHeader = showChatHeader && !selectedChat ? (
-    <MobileHeader menuOpen={menuOpen} onMenuClick={onMenuClick} alignLeft={true}>
-      <h1
-        style={{
-          fontFamily: 'var(--font-family)',
-          fontSize: 'var(--typography-h2-size, 24px)',
-          fontWeight: 'var(--typography-h2-weight, 700)',
-          color: 'var(--neutral-900)',
-        }}
-      >
-        {`Messages${unreadMessagesCount > 0 ? ` (${unreadMessagesCount})` : ''}`}
+    <MobileHeader className="home-brand-bar" menuOpen={menuOpen} onMenuClick={onMenuClick}>
+      <h1 className="messages-title">
+        Messages
+        {unreadMessagesCount > 0 && <span>{unreadMessagesCount}</span>}
       </h1>
     </MobileHeader>
   ) : undefined;
@@ -2618,10 +2625,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       contentPaddingTop={selectedChat ? '0px' : undefined}
       contentStyle={pageContentStyle}
     >
-      <div
-        className="flex w-full flex-1 min-h-0"
-        style={{ backgroundColor: 'var(--neutral-50)' }}
-      >
+      <div className="grouped-canvas flex w-full flex-1 min-h-0">
       {/* Left Sidebar - Chat List (always mounted; hidden on mobile when a chat is open) */}
       <div
         className="flex flex-col flex-shrink-0 min-h-0"
@@ -2634,31 +2638,32 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         // We use an inline media-query workaround via a companion style tag below
         id="chat-list-panel"
       >
-        {/* Content area - 12px below header */}
-          <div className="flex-shrink-0" style={{ paddingLeft: 'var(--spacing-screen-margin-x, 20px)', paddingRight: 'var(--spacing-screen-margin-x, 20px)', paddingTop: 'var(--spacing-small, 12px)', paddingBottom: 0 }}>
-          
-          {/* New Chat Button - opens unified modal for direct or group chat */}
-            <SynthButton
-              variant="primary"
-              size="standard"
-              fullWidth
-              icon="plus"
-              iconPosition="right"
-              onClick={(e) => {
-                e.preventDefault();
-                setShowUserSearch(true);
-                setSelectedUsers([]);
-                setGroupName('');
-                setSearchQuery('');
-              }}
-            >
-              New Chat
-            </SynthButton>
-        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '12px var(--spacing-screen-margin-x, 20px) calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))' }}>
+          <GenreChatsSection currentUserId={currentUserId} onNavigateToChat={(chatId) => void openChatById(chatId)} />
 
-        {/* Chat List */}
+          <section className="feed-banner" style={{ paddingLeft: 2, paddingRight: 2 }} aria-label="Your chats">
+            <h2>Your chats</h2>
+            <p>Friends, groups, and the shows you're going to.</p>
+          </section>
+
+          <button
+            type="button"
+            className="thread-btn thread-btn--interest"
+            style={{ margin: '4px 0 14px' }}
+            onClick={(e) => {
+              e.preventDefault();
+              setShowUserSearch(true);
+              setSelectedUsers([]);
+              setGroupName('');
+              setSearchQuery('');
+            }}
+          >
+            <Plus size={18} />
+            New Chat
+          </button>
+
           {chats.length === 0 ? (
-            <div className="flex flex-col items-center justify-center min-h-full" style={{ gap: 'var(--spacing-big-section, 60px)', padding: 'var(--spacing-small, 12px)', paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))' }}>
+            <div className="flex flex-col items-center justify-center" style={{ gap: 'var(--spacing-grouped, 24px)', padding: '28px 4px 12px' }}>
               {/* New Chat Button - Already in header, but shown in empty state per Figma */}
 
               {/* Empty State Content */}
@@ -2736,17 +2741,16 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               </div>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 overflow-y-auto" style={{ paddingTop: 0, paddingBottom: 'calc(var(--spacing-bottom-nav, 32px) + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column' }}>
-              {chats.map((chat, index) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {chats.map((chat) => (
                 <div
                   key={chat.id}
-                  className="cursor-pointer transition-colors"
+                  className="cursor-pointer"
                   style={{
-                    padding: 'var(--spacing-grouped, 24px)',
-                    paddingLeft: 'var(--spacing-screen-margin-x, 20px)',
-                    paddingRight: 'var(--spacing-screen-margin-x, 20px)',
-                    borderBottom: index < chats.length - 1 ? '1px solid var(--neutral-200)' : 'none',
-                    backgroundColor: selectedChat?.id === chat.id ? 'var(--neutral-100)' : 'transparent'
+                    padding: '14px 16px',
+                    borderRadius: 16,
+                    backgroundColor: selectedChat?.id === chat.id ? 'var(--brand-pink-050)' : '#fff',
+                    border: '0.5px solid rgba(60, 60, 67, 0.1)',
                   }}
                   onClick={() => {
                     // Track chat open
@@ -2769,7 +2773,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   }}
                   onMouseLeave={(e) => {
                     if (selectedChat?.id !== chat.id) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.backgroundColor = '#fff';
                     }
                   }}
                 >
@@ -2860,6 +2864,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
               ))}
             </div>
           )}
+        </div>
       </div>
 
       {/* Right Side - Messages (always mounted on desktop; hidden on mobile when no chat selected) */}

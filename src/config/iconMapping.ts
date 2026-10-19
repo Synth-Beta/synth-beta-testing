@@ -65,7 +65,7 @@ export const iconNameToLucide: Record<string, string> = {
   
   // Size 24px - Navigation Icons (unselected states use lucide-react)
   'house': 'Home',
-  'discover': 'Compass',
+  'discover': 'Users',
   'circleComment': 'MessageCircle',
   'user': 'User',
   

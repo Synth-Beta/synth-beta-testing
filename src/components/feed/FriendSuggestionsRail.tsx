@@ -147,13 +147,11 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   // While loading exclusions, show skeleton placeholders
   if (!exclusionsLoaded) {
     return (
-      <div className="mb-6 flex w-full flex-col items-center" style={{ marginTop: 12 }}>
-        <div className="flex items-center mb-3 px-1 w-full justify-center">
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-synth-black">Who You Should Know</h2>
-            <p className="text-sm text-synth-black/60">People you may know</p>
-          </div>
-        </div>
+      <div className="flex w-full flex-col">
+        <section className="feed-banner mb-3 w-full" aria-label="Who you should know">
+          <h2>Who You Should Know</h2>
+          <p>People you may know</p>
+        </section>
         <div className="flex gap-3 px-1 pb-4 pt-1 overflow-hidden w-full justify-center">
           <SkeletonFriendCard />
           <SkeletonFriendCard />
@@ -178,34 +176,27 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   };
 
   return (
-    <div
-      className="mb-6 flex w-full flex-col items-center"
-      style={{ marginTop: 12 }}
-    >
-      {/* Section title */}
-      <div className={cn(
-        "flex items-center mb-3 px-1 w-full",
-        onDismiss ? "justify-between" : "justify-center"
-      )}>
-        <div className={onDismiss ? undefined : "text-center"}>
-          <h2 className="text-lg font-semibold text-synth-black">Who You Should Know</h2>
-          <p className="text-sm text-synth-black/60">People you may know</p>
+    <div className="flex w-full flex-col">
+      <section className="feed-banner mb-3 flex w-full items-start justify-between gap-3" aria-label="Who you should know">
+        <div>
+          <h2>Who You Should Know</h2>
+          <p>People you may know</p>
         </div>
         {onDismiss && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onDismiss}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 shrink-0 p-0"
           >
             <X className="h-4 w-4" />
           </Button>
         )}
-      </div>
+      </section>
 
       {/* Horizontal Scrollable Rail */}
       <ScrollArea className="w-full">
-        <div className="flex justify-center space-x-3 pb-4 pt-1">
+        <div className="flex justify-start gap-1 px-2 pb-2">
           {visibleSuggestions.map((suggestion) => {
             const isSent = sentUserIds.has(suggestion.user_id);
             const isRemoving = removingUserIds.has(suggestion.user_id);
@@ -215,10 +206,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                 key={suggestion.user_id}
                 className={cn(
                   // Layout
-                  "relative flex flex-col items-center min-w-[148px] max-w-[148px]",
-                  // Card styling
-                  "rounded-2xl bg-gradient-to-b from-white to-pink-50/40",
-                  "border border-pink-100/50 shadow-sm px-3 pt-3 pb-2",
+                  "relative flex flex-col items-center min-w-[108px] max-w-[108px] px-2 py-3",
                   // Interaction
                   "group cursor-pointer select-none",
                   "active:scale-[0.97] transition-all duration-300 ease-out",
@@ -251,8 +239,8 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                   <Avatar className={cn(
                     "h-20 w-20 ring-2 transition-all duration-300 overflow-hidden",
                     isSent
-                      ? "ring-green-400/60"
-                      : "ring-synth-pink/30 group-hover:ring-synth-pink/60"
+                      ? "ring-green-500/50"
+                      : "ring-black/10"
                   )}>
                     {suggestion.avatar_url ? (
                       <ProgressiveImage

@@ -249,19 +249,22 @@ export async function syncStreamingProfile(
       let clientResult: { ok: boolean; message?: string } = { ok: false };
       let serverResult: StreamingSyncResult = { ok: false, skipped: 'not-configured' };
 
-      // Client sync first — restores session from refresh_token and writes to streaming_profiles.
+      // Client sync first — restores a browser session from its local refresh token.
       clientResult = await tryClientSpotifySync();
 
       let profileData = await fetchSpotifyProfileData(userId);
       let tracksOk = profileSyncComplete(profileData);
 
-      if (!tracksOk) {
+      // A saved row in spotify_user_tokens is the durable link. Manual refresh always
+      // uses it when this browser has no Spotify session, even if artists are already stored.
+      const shouldUseStoredToken = !clientResult.ok && (isManual || !tracksOk);
+      if (shouldUseStoredToken) {
         if (!isManual && shouldSkipServerSpotifySync(userId)) {
           serverResult = {
             ok: false,
             skipped: 'no-stored-token',
             message:
-              'Connect Spotify in this browser once to save your token — then sync will work here and in the app.',
+              'Spotify stays linked. Refresh uses the token saved when you connected.',
             usedServer: true,
           };
         } else {
@@ -311,7 +314,7 @@ export async function syncStreamingProfile(
 
       if (tracksOk && isManual && !syncRan) {
         const noRefreshMessage =
-          'Could not reach Spotify to refresh. Use Connect Spotify below, complete login, then tap Sync again.';
+          'Spotify stays linked. Refresh could not reach Spotify from the saved token — connect once in this browser if a token was never saved.';
         streamingSyncService.errorSync(noRefreshMessage);
         logSyncResult({
           ok: false,
@@ -401,7 +404,7 @@ export async function syncStreamingProfile(
       return {
         ok: false,
         skipped: 'no-session',
-        message: 'Connect Apple Music in this browser to refresh stats.',
+        message: 'Apple Music stays linked. This browser needs an Apple Music sign-in to pull a fresh library.',
       };
     }
 

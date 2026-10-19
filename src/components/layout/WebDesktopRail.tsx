@@ -16,15 +16,15 @@ export interface WebDesktopRailProps {
 export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount = 0 }: WebDesktopRailProps) {
   return (
     <aside
-      className="flex w-[220px] shrink-0 flex-col border-r border-[var(--neutral-200)] bg-[var(--neutral-50)]"
+      className="web-rail flex w-[220px] shrink-0 flex-col"
       aria-label="Main navigation"
       data-testid="web-desktop-rail"
     >
-      <div className="sticky top-0 flex h-[min(100dvh,100vh)] flex-col gap-1 py-4 pl-3 pr-2">
+      <div className="sticky top-0 flex h-full flex-col gap-1 py-4 pl-3 pr-2">
         <button
           type="button"
           onClick={onOpenMenu}
-          className="relative mb-4 flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[var(--neutral-100)]"
+          className="web-rail__item relative mb-4 flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors"
           aria-label="Open menu"
         >
           <span className="relative inline-flex h-6 w-6 items-center justify-center overflow-visible">
@@ -79,8 +79,8 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
               key={item.id}
               type="button"
               onClick={() => onItemClick(item)}
-              className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                active ? 'bg-[var(--neutral-100)]' : 'hover:bg-[var(--neutral-100)]'
+              className={`web-rail__item relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                active ? 'web-rail__item--active' : ''
               }`}
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
@@ -99,7 +99,7 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
               </span>
               {item.hasUnread ? (
                 <span
-                  className="absolute left-8 top-2 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[var(--neutral-50)]"
+                  className="absolute left-8 top-2 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white/80"
                   aria-hidden
                 />
               ) : null}

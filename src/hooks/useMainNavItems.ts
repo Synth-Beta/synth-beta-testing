@@ -179,7 +179,7 @@ export function useMainNavItems({
       },
       {
         id: 'discover',
-        label: 'Discover',
+        label: 'Community',
         icon: isDiscover ? 'discoverSelected' : 'discover',
         onActivate: () => {
           trackInteraction.navigate(currentView, 'search', { source: interactionSource });

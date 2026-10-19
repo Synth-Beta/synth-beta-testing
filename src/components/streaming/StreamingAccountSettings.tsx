@@ -112,10 +112,10 @@ export function StreamingAccountSettings({
         onNavigateToStreamingStats?.();
       } else if (result.skipped === 'no-stored-token' || result.skipped === 'no-session') {
         toast({
-          title: 'Reconnect to refresh',
+          title: 'Still connected',
           description:
             result.message ||
-            'Open Streaming Stats and connect your music app once — then resync will work automatically.',
+            'Your music app stays linked. Refresh uses the token saved when you connected.',
           variant: 'destructive',
         });
         onNavigateToStreamingStats?.();

@@ -4,7 +4,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PersonalizationEngineV5, type PersonalizedEvent } from '@/services/personalizedFeedService';
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
-import { CompactEventCard, type EventReason } from './CompactEventCard';
+import type { EventReason } from './CompactEventCard';
+import { ThreadEventCard, type CardReviewHighlight } from './thread/ThreadEventCard';
+import { usePick5FeedEvents } from './thread/usePick5FeedEvents';
+import { findPick5Band } from './thread/pick5';
+import { useReviewHighlights } from './thread/useReviewHighlights';
+import { ArtistExclusionService } from '@/services/artistExclusionService';
+import { ToastAction } from '@/components/ui/toast';
+import './thread/thread.css';
 import { Button } from '@/components/ui/button';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
 import { resolveEventCardImageUrl } from '@/utils/eventImageFallbacks';
@@ -31,7 +38,9 @@ import { isEventUpcomingForFeed } from '@/utils/localYmd';
 interface UnifiedEventItem {
   event_id: string;
   title: string;
+  artist_id?: string;
   artist_name?: string;
+  venue_id?: string;
   venue_name?: string;
   venue_city?: string;
   venue_state?: string;
@@ -48,7 +57,30 @@ interface UnifiedEventItem {
   user_is_interested?: boolean;
   /** Just-announced show by an artist the viewer follows / has bucket-listed. */
   is_fan?: boolean;
+  distance_miles?: number | null;
 }
+
+/** Non-event stop on the thread (e.g. a friend's review). */
+export interface ThreadNode {
+  key: string;
+  node: React.ReactNode;
+}
+
+type ThreadEntry =
+  | { kind: 'event'; item: UnifiedEventItem }
+  | { kind: 'review'; key: string; node: React.ReactNode }
+  | { kind: 'section'; node: React.ReactNode };
+
+const PICK5_FIRST_AT = 2;
+const PICK5_EVERY = 5;
+const REVIEW_FIRST_AT = 4;
+const REVIEW_EVERY = 6;
+
+const isWovenSlot = (eventsSoFar: number, firstAt: number, every: number) =>
+  eventsSoFar >= firstAt && (eventsSoFar - firstAt) % every === 0;
+
+const formatDistance = (miles?: number | null) =>
+  miles == null ? undefined : miles < 10 ? 'Near you' : `${Math.round(miles).toLocaleString()} mi away`;
 
 interface UnifiedEventsFeedProps {
   currentUserId: string;
@@ -59,6 +91,8 @@ interface UnifiedEventsFeedProps {
   /** Insert this ReactNode after N events (e.g. friend suggestions rail after 3 events) */
   insertSectionAfterIndex?: number;
   middleSection?: React.ReactNode;
+  /** Friends' reviews woven between events */
+  reviewNodes?: ThreadNode[];
   /** Extra events to inject into the feed (e.g. friend-interested events labeled FRIENDS) */
   extraEvents?: UnifiedEventItem[];
 }
@@ -104,7 +138,9 @@ async function fetchBucketListTopEvents(
     return events.map((e: any) => ({
       event_id: String(e.id),
       title: e.title || e.artist_name || 'Event',
+      artist_id: e.artist_id ?? undefined,
       artist_name: e.artist_name || undefined,
+      venue_id: e.venue_id ?? undefined,
       venue_name: e.venue_name || undefined,
       venue_city: e.venue_city || undefined,
       venue_state: e.venue_state || undefined,
@@ -142,7 +178,9 @@ async function fetchJustAnnouncedEvents(
     return ((data as any[]) ?? []).map((e: any) => ({
       event_id: String(e.id),
       title: e.title || e.artist_name || 'Event',
+      artist_id: e.artist_id ?? undefined,
       artist_name: e.artist_name || undefined,
+      venue_id: e.venue_id ?? undefined,
       venue_name: e.venue_name || undefined,
       venue_city: e.venue_city || undefined,
       venue_state: e.venue_state || undefined,
@@ -248,7 +286,9 @@ function personalEventToItem(event: PersonalizedEvent, eventType?: string): Unif
   return {
     event_id: event.id || '',
     title: event.title || event.artist_name || 'Event',
+    artist_id: event.artist_id ?? undefined,
     artist_name: event.artist_name ?? undefined,
+    venue_id: event.venue_id ?? undefined,
     venue_name: event.venue_name ?? undefined,
     venue_city: event.venue_city ?? undefined,
     venue_state: event.venue_state ?? undefined,
@@ -271,6 +311,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   onShareClick,
   insertSectionAfterIndex,
   middleSection,
+  reviewNodes,
   extraEvents,
 }) => {
   const queryClient = useQueryClient();
@@ -286,6 +327,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   const feedRef = useRef<HTMLDivElement>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
+  const [engagedAtLoad, setEngagedAtLoad] = useState<Set<string>>(new Set());
+  const [excludedArtists, setExcludedArtists] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
 
@@ -827,9 +870,14 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         .in('relationship_type', ['interested', 'going', 'maybe'])
     )
       .then(({ data }) => {
-        if (data) setInterestedEvents(new Set(data.map(r => r.event_id)));
+        if (!data) return;
+        const ids = new Set(data.map(r => r.event_id));
+        setInterestedEvents(ids);
+        // Snapshot, not live: a card the user taps "I'm in" on stays put until the next load.
+        setEngagedAtLoad(new Set(ids));
       })
       .catch(() => {});
+    void ArtistExclusionService.list(currentUserId).then(setExcludedArtists);
   }, [currentUserId]);
 
   // Initial load is now handled in the location fetch effect above
@@ -954,9 +1002,12 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     };
   }, []); // Empty deps - only run once, uses refs for latest values
 
-  const findEvent = useCallback((eventId: string): UnifiedEventItem | null => {
-    return allFetchedEvents.find(e => e.event_id === eventId) ?? null;
-  }, [allFetchedEvents]);
+  const findEvent = (eventId: string): UnifiedEventItem | null => {
+    const fromFeed = allFetchedEvents.find((e) => e.event_id === eventId);
+    if (fromFeed) return fromFeed;
+    const partner = pick5Events.find((e) => e.event_id === eventId);
+    return partner ? { ...partner, reason: 'pick5' } : null;
+  };
 
   const handleInterestToggle = async (eventId: string, e: React.MouseEvent) => {
     hapticLight();
@@ -1032,6 +1083,100 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       poster_image_url: event.poster_image_url,
       image_url: event.image_url,
     });
+
+  const pick5Coords = useMemo(() => {
+    const f = filters as any;
+    if (f?.latitude != null && f?.longitude != null) return { lat: f.latitude, lng: f.longitude };
+    return userLocation ?? getLastKnownLocation(LOCATION_CACHE_MAX_AGE_MS);
+  }, [filters, userLocation]);
+  const pick5Events = usePick5FeedEvents(pick5Coords ? { lat: pick5Coords.lat, lng: pick5Coords.lng } : null);
+
+  const threadEntries = useMemo<ThreadEntry[]>(() => {
+    const isVisible = (e: UnifiedEventItem) =>
+      !engagedAtLoad.has(e.event_id) && !(e.artist_id && excludedArtists.has(e.artist_id));
+    const events = displayedEvents.filter(isVisible);
+    const seen = new Set(events.map((e) => e.event_id));
+    const partner: UnifiedEventItem[] = pick5Events
+      .map((p) => ({ ...p, reason: 'pick5' as EventReason }))
+      .filter((p) => isVisible(p) && !seen.has(p.event_id));
+    const reviews = reviewNodes ?? [];
+    const insertAt = insertSectionAfterIndex != null && middleSection != null ? insertSectionAfterIndex : -1;
+
+    const entries: ThreadEntry[] = [];
+    let pi = 0;
+    let ri = 0;
+    events.forEach((item, i) => {
+      if (i === insertAt) entries.push({ kind: 'section', node: middleSection });
+      entries.push({ kind: 'event', item });
+      const count = i + 1;
+      if (isWovenSlot(count, PICK5_FIRST_AT, PICK5_EVERY) && pi < partner.length) {
+        entries.push({ kind: 'event', item: partner[pi++] });
+      }
+      if (isWovenSlot(count, REVIEW_FIRST_AT, REVIEW_EVERY) && ri < reviews.length) {
+        entries.push({ kind: 'review', ...reviews[ri++] });
+      }
+    });
+    if (insertAt >= events.length) entries.push({ kind: 'section', node: middleSection });
+    return entries;
+  }, [displayedEvents, pick5Events, reviewNodes, engagedAtLoad, excludedArtists, insertSectionAfterIndex, middleSection]);
+
+  const threadEvents = threadEntries.flatMap((e) => (e.kind === 'event' ? [e.item] : []));
+  const reviewHighlights = useReviewHighlights(
+    threadEvents.flatMap((e) => (e.artist_id ? [e.artist_id] : [])),
+    threadEvents.flatMap((e) => (e.venue_id ? [e.venue_id] : []))
+  );
+
+  const getReviewHighlight = (event: UnifiedEventItem): CardReviewHighlight | undefined => {
+    const artist = event.artist_id ? reviewHighlights.artists.get(event.artist_id) : undefined;
+    if (artist) return { ...artist, scope: 'artist', name: event.artist_name };
+    const venue = event.venue_id ? reviewHighlights.venues.get(event.venue_id) : undefined;
+    if (venue) return { ...venue, scope: 'venue', name: event.venue_name };
+    return undefined;
+  };
+
+  const handleHideArtist = async (event: UnifiedEventItem) => {
+    const artistId = event.artist_id;
+    if (!artistId) return;
+    const name = event.artist_name || 'this artist';
+    const setHidden = (hidden: boolean) =>
+      setExcludedArtists((prev) => {
+        const next = new Set(prev);
+        if (hidden) next.add(artistId);
+        else next.delete(artistId);
+        return next;
+      });
+
+    hapticLight();
+    setHidden(true);
+    try {
+      await ArtistExclusionService.exclude(currentUserId, artistId);
+      toast({
+        title: `We'll stop recommending ${name}`,
+        description: 'Their shows are hidden from your feed.',
+        duration: 6000,
+        action: (
+          <ToastAction
+            altText="Undo"
+            onClick={async () => {
+              setHidden(false);
+              try {
+                await ArtistExclusionService.restore(currentUserId, artistId);
+              } catch (error) {
+                console.error('Error restoring artist:', error);
+                setHidden(true);
+              }
+            }}
+          >
+            Undo
+          </ToastAction>
+        ),
+      });
+    } catch (error) {
+      console.error('Error excluding artist:', error);
+      setHidden(false);
+      toast({ title: "Couldn't hide that artist", description: 'Please try again.', duration: 4000 });
+    }
+  };
 
   if (loading && displayedEvents.length === 0) {
     return (
@@ -1110,38 +1255,42 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           WebkitOverflowScrolling: 'touch',
         }}
       >
-        <div className="px-2">
-          {(() => {
-            const insertAt = insertSectionAfterIndex != null && middleSection != null ? insertSectionAfterIndex : -1;
-            const before = insertAt >= 0 ? displayedEvents.slice(0, insertAt) : displayedEvents;
-            const after = insertAt >= 0 ? displayedEvents.slice(insertAt) : [];
-            const renderEvent = (event: UnifiedEventItem, index: number, keySuffix: string, opts?: { topAlign?: boolean }) => {
-              const imageUrl = getImageUrl(event);
-              const isInterested = interestedEvents.has(event.event_id) || event.user_is_interested || false;
-              const interestedCount = event.interested_count || 0;
-              const friendsInterestedCount = event.friends_interested_count || 0;
-              const topAlign = opts?.topAlign === true;
+        <div className="home-thread">
+          <div className="home-thread__list">
+          {threadEntries.map((entry, index) => {
+            if (entry.kind === 'section') {
               return (
+                <div key="thread-section" className="thread-item" data-variant="section" data-reason="friend_interested">
+                  <span className="thread-item__node" aria-hidden="true" />
+                  {entry.node}
+                </div>
+              );
+            }
+            if (entry.kind === 'review') {
+              return (
+                <div key={`review-${entry.key}`} className="thread-item" data-reason="review">
+                  <span className="thread-item__node" aria-hidden="true" />
+                  <div className="thread-review">{entry.node}</div>
+                </div>
+              );
+            }
+            const event = entry.item;
+            const imageUrl = getImageUrl(event);
+            const isInterested = interestedEvents.has(event.event_id) || event.user_is_interested || false;
+            const interestedCount = event.interested_count || 0;
+            const friendsInterestedCount = event.friends_interested_count || 0;
+            const isPick5 = event.reason === 'pick5' || !!findPick5Band(event.artist_name);
+            return (
                 <div
-                  key={`${event.event_id}-${keySuffix}`}
-                  className="swift-ui-feed-item"
+                  key={`${event.event_id}-${event.reason}`}
+                  className="thread-item"
+                  data-reason={event.reason}
+                  data-pick5={isPick5 || undefined}
                   ref={(el) => attachObserver(el, event.event_id)}
-                  style={
-                    // When we inject a section (e.g. "Who You Should Know") before a card,
-                    // the next `swift-ui-feed-item` is vertically centered and can create a large
-                    // perceived gap on mobile due to `min-height` + `justify-content: center`.
-                    // Top-align just the first card *after* the injected section so spacing
-                    // matches the Review feed.
-                    topAlign
-                      ? {
-                          justifyContent: 'flex-start',
-                          alignItems: 'stretch',
-                          minHeight: 'auto',
-                        }
-                      : undefined
-                  }
+                  style={{ animationDelay: `${Math.min(index, 4) * 60}ms` }}
                 >
-                  <CompactEventCard
+                  <span className="thread-item__node" aria-hidden="true" />
+                  <ThreadEventCard
                     event={{
                       id: event.event_id,
                       title: event.title,
@@ -1157,10 +1306,13 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                     reasonLabel={event.reasonLabel}
                     interestedCount={interestedCount}
                     friendsInterestedCount={friendsInterestedCount}
+                    distanceLabel={formatDistance(event.distance_miles)}
                     isInterested={isInterested}
+                    reviewHighlight={getReviewHighlight(event)}
                     onInterestClick={(e) => handleInterestToggle(event.event_id, e)}
                     onShareClick={(e) => onShareClick?.(event, e)}
                     onJoinChatClick={(e) => handleJoinEventChat(event.event_id, e)}
+                    onHideArtist={event.artist_id ? () => void handleHideArtist(event) : undefined}
                     onClick={() => {
                       if (event.reasonLabel === JUST_ANNOUNCED_LABEL) {
                         logJustAnnounced(supabase, event.event_id, 'open', Boolean(event.is_fan), 'web');
@@ -1169,22 +1321,9 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                     }}
                   />
                 </div>
-              );
-            };
-            return (
-              <>
-                {before.map((event, i) => renderEvent(event, i, `before-${i}`))}
-                {insertAt >= 0 && middleSection && (
-                  <div className="w-full flex justify-center flex-shrink-0">
-                    {middleSection}
-                  </div>
-                )}
-                {after.map((event, i) =>
-                  renderEvent(event, i, `after-${i}`, { topAlign: insertAt >= 0 && middleSection != null && i === 0 })
-                )}
-              </>
             );
-          })()}
+          })}
+          </div>
         </div>
         
         {/* Load More Button - SwiftUI Glassmorphism Style with Synth Pink */}

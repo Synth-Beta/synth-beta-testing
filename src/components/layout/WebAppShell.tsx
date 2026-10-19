@@ -52,7 +52,7 @@ if (!enabled) {
 
   return (
     <div
-      className="flex min-h-[100dvh] min-h-screen"
+      className="flex h-full min-h-0 flex-1"
       data-testid="web-app-shell"
     >
       {rail}

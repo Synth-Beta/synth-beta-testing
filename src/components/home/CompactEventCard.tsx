@@ -9,7 +9,7 @@ import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import { Ticket, ExternalLink } from 'lucide-react';
 import { ClickableImage } from '@/components/modals/FullScreenImageModal';
 
-export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following' | 'bucket_list';
+export type EventReason = 'recommended' | 'trending' | 'friend_interested' | 'following' | 'bucket_list' | 'pick5';
 
 interface CompactEventCardProps {
   event: {
@@ -95,6 +95,7 @@ export const CompactEventCard: React.FC<CompactEventCardProps> = ({
       friend_interested: 'Friend Interested',
       following: 'Following',
       bucket_list: 'Bucket List',
+      pick5: 'Pick5',
     };
     const label = reasonLabel || labelMap[reason];
 

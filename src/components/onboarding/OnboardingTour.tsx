@@ -205,7 +205,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         <div className="space-y-2">
           <h3 className="text-lg font-bold">Your Home Feed</h3>
           <p>
-            Tap the dropdown to switch between <strong>Events</strong> — upcoming shows near you — and <strong>Reviews</strong> — what your friends thought of shows they attended.
+            One thread for your scene: upcoming shows picked for you, what your friends thought of shows they attended, and setlist games from our partner <strong>Pick5</strong>.
           </p>
         </div>
       ),
@@ -231,9 +231,9 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       target: '[data-tour="discover-vibes"]',
       content: (
         <div className="space-y-2">
-          <h3 className="text-lg font-bold">Discover by Vibes</h3>
+          <h3 className="text-lg font-bold">Community</h3>
           <p>
-            Tap <strong>Browse Vibes</strong> to filter events by scene and energy — Indie, Hip-Hop, Intimate, High Energy, and more. Use the <strong>Location</strong> filter to find shows in any city.
+            Link your Pick5 account, then open Messages for genre communities and your chats. Reviews from the whole Synth community are here too.
           </p>
         </div>
       ),
