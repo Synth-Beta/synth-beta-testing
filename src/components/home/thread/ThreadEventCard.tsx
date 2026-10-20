@@ -9,7 +9,7 @@ import { getEventUuid, getEventMetadata } from '@/utils/entityUuidResolver';
 import { getCompliantEventLink } from '@/utils/jambaseLinkUtils';
 import type { EventReason } from '../CompactEventCard';
 import { findPick5Band, pick5BandUrl, PICK5_LOGO_SRC } from './pick5';
-import type { ReviewHighlight } from './useReviewHighlights';
+import type { RatingHighlight } from './useReviewHighlights';
 
 const POPULAR_THRESHOLD = 5;
 
@@ -22,9 +22,14 @@ const REASON_LABELS: Record<EventReason, string> = {
   pick5: 'Pick5 partner',
 };
 
-export interface CardReviewHighlight extends ReviewHighlight {
-  scope: 'artist' | 'venue';
-  name?: string;
+/** One rating line under the card: an average (no count) and at most one quote. */
+export interface CardRatingLine extends RatingHighlight {
+  name: string;
+}
+
+export interface CardRatings {
+  artist?: CardRatingLine;
+  venue?: CardRatingLine;
 }
 
 export interface ThreadEventCardProps {
@@ -38,6 +43,8 @@ export interface ThreadEventCardProps {
     venue_state?: string;
     image_url?: string;
     poster_image_url?: string;
+    /** Primary ticket link is ticket_urls[0] (JamBase: never modified). */
+    ticket_urls?: string[];
   };
   reason?: EventReason;
   reasonLabel?: string;
@@ -45,7 +52,7 @@ export interface ThreadEventCardProps {
   friendsInterestedCount?: number;
   distanceLabel?: string;
   isInterested?: boolean;
-  reviewHighlight?: CardReviewHighlight;
+  ratings?: CardRatings;
   onInterestClick?: (e: React.MouseEvent) => void;
   onShareClick?: (e: React.MouseEvent) => void;
   onJoinChatClick?: (e: React.MouseEvent) => void;
@@ -61,7 +68,7 @@ export const ThreadEventCard: React.FC<ThreadEventCardProps> = ({
   friendsInterestedCount = 0,
   distanceLabel,
   isInterested = false,
-  reviewHighlight,
+  ratings,
   onInterestClick,
   onShareClick,
   onJoinChatClick,
@@ -233,17 +240,23 @@ export const ThreadEventCard: React.FC<ThreadEventCardProps> = ({
           </span>
         </div>
 
-        {reviewHighlight && (
+        {(ratings?.artist || ratings?.venue) && (
           <div className="thread-card__review">
-            <div className="thread-card__review-meta">
-              <Star size={14} fill="currentColor" aria-hidden="true" />
-              <strong>{reviewHighlight.avgRating.toFixed(1)}</strong>
-              <span>
-                · {reviewHighlight.count} {reviewHighlight.count === 1 ? 'review' : 'reviews'} of{' '}
-                {reviewHighlight.name || (reviewHighlight.scope === 'artist' ? 'this artist' : 'this venue')}
-              </span>
-            </div>
-            {reviewHighlight.quote && <p>“{reviewHighlight.quote}”</p>}
+            {[ratings.artist, ratings.venue].map(
+              (line, i) =>
+                line && (
+                  <div key={i} className="thread-card__rating">
+                    <div className="thread-card__review-meta">
+                      <Star size={14} fill="currentColor" aria-hidden="true" />
+                      <strong aria-label={`Average rating ${line.avgRating.toFixed(1)} out of 5`}>
+                        {line.avgRating.toFixed(1)}
+                      </strong>
+                      <span className="truncate">{line.name}</span>
+                    </div>
+                    {line.quote && <p>“{line.quote}”</p>}
+                  </div>
+                )
+            )}
           </div>
         )}
 
@@ -272,10 +285,11 @@ export const ThreadEventCard: React.FC<ThreadEventCardProps> = ({
             aria-label={isInterested ? 'Remove interest' : 'Mark as interested'}
           >
             <Heart size={17} strokeWidth={2.4} aria-hidden="true" fill={isInterested ? 'currentColor' : 'none'} />
-            {isInterested ? 'Interested' : "I'm in"}
+            {isInterested ? 'Interested' : "I'm interested"}
           </button>
-          <button type="button" onClick={handleShare} className="thread-btn thread-btn--icon" aria-label="Share event">
-            <Send size={17} strokeWidth={2.4} />
+          <button type="button" onClick={handleShare} className="thread-btn thread-btn--ghost thread-btn--share" aria-label="Share event">
+            <Send size={16} strokeWidth={2.4} aria-hidden="true" />
+            <span className="thread-btn__label">Share</span>
           </button>
           {isInterested && onJoinChatClick && (
             <button type="button" onClick={handleChat} className="thread-btn thread-btn--icon" aria-label="Join event chat">

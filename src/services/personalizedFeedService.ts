@@ -81,6 +81,8 @@ type PersonalizedFeedRow = {
 
 export interface PersonalizedEvent extends JamBaseEvent {
   relevance_score?: number;
+  /** New show from an artist the user follows / bucket-listed, pinned by the RPC. */
+  just_announced?: boolean;
   user_is_interested?: boolean;
   interested_count?: number;
   friends_interested_count?: number;
@@ -323,6 +325,7 @@ export class PersonalizationEngineV5 {
         return {
           ...event,
           event_type: row.context?.event_type ?? row.section ?? 'trending',
+          just_announced: row.context?.just_announced === true,
         };
       });
 

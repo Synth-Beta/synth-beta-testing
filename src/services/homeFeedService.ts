@@ -61,6 +61,7 @@ export interface NetworkReview {
   content?: string;
   photos?: string[];
   artist_id?: string;
+  venue_id?: string;
   artist_image_url?: string;
   event_info?: {
     artist_name?: string;
@@ -814,16 +815,11 @@ export class HomeFeedService {
       
       console.log('🔍 [NETWORK_REVIEWS] Found friends:', friends?.length || 0);
       
-      // When no friends exist show recent public reviews from all users (discovery mode).
-      const hasFriends = (friends ?? []).length > 0;
-      const friendIds = hasFriends
-        ? [userId, ...friends!.map(f => (f.user_id === userId ? f.related_user_id : f.user_id))]
-        : [];
+      // Friends only change the card label; the feed shows everyone's public reviews.
+      const friendIdSet = new Set((friends ?? []).map(f => (f.user_id === userId ? f.related_user_id : f.user_id)));
 
-      console.log('🔍 [NETWORK_REVIEWS] Friend IDs:', friendIds);
-
-      // Get reviews — scoped to friends (+ self) when they exist, otherwise all public reviews
-      let reviewQuery = supabase
+      // All public reviews except the viewer's own
+      const reviewQuery = supabase
         .from('reviews')
         .select(`
           id,
@@ -846,11 +842,8 @@ export class HomeFeedService {
         // Align with mobile + review detail: NULL is_public / is_draft treated as published/public
         .or('is_public.eq.true,is_public.is.null')
         .or('is_draft.eq.false,is_draft.is.null')
-        .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY');
-
-      if (hasFriends) {
-        reviewQuery = reviewQuery.in('user_id', [...new Set(friendIds)]);
-      }
+        .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY')
+        .neq('user_id', userId);
 
       const { data: reviews, error: reviewsError } = await reviewQuery
         .order('created_at', { ascending: false })
@@ -939,13 +932,14 @@ export class HomeFeedService {
             content: review.review_text || undefined,
             photos: review.photos || undefined,
             artist_id: artistId || undefined,
+            venue_id: venueId || undefined,
             artist_image_url: artistImageUrl,
             event_info: {
               artist_name: artistName || undefined,
               venue_name: venueName || undefined,
               event_date: review.events?.event_date || undefined,
             },
-            connection_degree: 1 as const, // Direct friends
+            connection_degree: friendIdSet.has(review.user_id) ? (1 as const) : (2 as const),
           };
         })
 

@@ -16,7 +16,7 @@ import { NetworkEventsSection } from './NetworkEventsSection';
 import { EventListsCarousel } from './EventListsCarousel';
 import { CompactEventCard } from './CompactEventCard';
 import { SwiftUIEventCard } from '@/components/events/SwiftUIEventCard';
-import { SwiftUIReviewCard } from '@/components/reviews/SwiftUIReviewCard';
+import { ThreadReviewCard } from './thread/ThreadReviewCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
@@ -27,6 +27,7 @@ import { EventDetailsModal } from '@/components/events/EventDetailsModal';
 import { EventFilters, type FilterState } from '@/components/search/EventFilters';
 import { RedesignedSearchPage, type EventSearchResult } from '@/components/search/RedesignedSearchPage';
 import { SearchBar } from '@/components/SearchBar/SearchBar';
+import { LocationFilterButton } from '@/components/search/LocationFilterButton';
 import { Users, Sparkles, TrendingUp, UserPlus, UserCheck, MessageSquare, MessageCircle, ChevronRight, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';
 import { Icon } from '@/components/Icon';
 import { SynthLoadingInline, SynthLoader } from '@/components/ui/SynthLoader';
@@ -369,11 +370,12 @@ interface FriendEventInterest {
     if (!currentUserId || !browseLocation.coords) return;
 
     const { latitude, longitude } = browseLocation.coords;
+    const radiusMiles = browseLocation.radiusMiles || 50;
 
     setFeedLocation({
       latitude,
       longitude,
-      radiusMiles: filtersRef.current?.radiusMiles || 50,
+      radiusMiles,
       locationName: browseLocation.label,
     });
 
@@ -390,17 +392,17 @@ interface FriendEventInterest {
       priorLng != null &&
       LocationService.calculateDistance(priorLat, priorLng, latitude, longitude) < 10;
 
-    if (!isNegligibleMove) {
+    if (!isNegligibleMove || filters.radiusMiles !== radiusMiles) {
       setFilters(prev => ({
         ...prev,
         latitude,
         longitude,
-        radiusMiles: prev.radiusMiles || 50,
+        radiusMiles,
         selectedCities: [], // Clear city names - we use coordinates
       }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUserId, browseLocation.coords, browseLocation.label]);
+  }, [currentUserId, browseLocation.coords, browseLocation.label, browseLocation.radiusMiles]);
 
   // Fetch unread notifications count for header badge (includes friend requests in total)
   useEffect(() => {
@@ -1812,8 +1814,10 @@ interface FriendEventInterest {
     () =>
       reviews.map((review) => ({
         key: review.id,
+        artistId: review.artist_id,
+        venueId: review.venue_id,
         node: (
-          <SwiftUIReviewCard
+          <ThreadReviewCard
             review={{
               id: review.id,
               user_id: review.author.id,
@@ -1838,14 +1842,14 @@ interface FriendEventInterest {
               venue_name: review.event_info?.venue_name,
               Event_date: review.event_info?.event_date,
             } as ReviewWithEngagement}
-            mode="compact"
             currentUserId={currentUserId}
+            chipLabel={review.connection_degree === 1 ? 'Friend review' : 'Review'}
             artistImageUrl={review.artist_image_url}
-            userProfile={{
+            author={{
               name: review.author.name,
               avatar_url: review.author.avatar_url || undefined,
             }}
-            onOpenDetail={() => {
+            onOpen={() => {
               const unifiedReview: UnifiedFeedItem = {
                 id: review.id,
                 type: 'review',
@@ -1946,6 +1950,11 @@ interface FriendEventInterest {
             placeholder='Try "Radiohead"'
             widthVariant="flex"
           />
+          {!isSearchMode && (
+            <div style={{ marginTop: 8 }}>
+              <LocationFilterButton />
+            </div>
+          )}
         </div>
 
         {isSearchMode && (
