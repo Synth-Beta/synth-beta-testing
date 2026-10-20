@@ -27,7 +27,9 @@ import {
   MessageCircle,
   Users,
   Link2,
+  Sparkles,
 } from 'lucide-react-native';
+import { startTour } from '../lib/tourProgress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
@@ -441,6 +443,19 @@ export default function SettingsScreen() {
             label="Connected Apps"
             description="Spotify, Apple Music, Pick5"
             onPress={() => router.push('/settings/connected-apps' as any)}
+          />
+        </View>
+
+        <SettingsSection title="Help" />
+        <View style={styles.card}>
+          <AccountNavRow
+            icon={Sparkles}
+            label="App Tutorial"
+            description="Walk through Synth on the real screens again"
+            onPress={() => {
+              router.dismissTo('/(tabs)');
+              startTour();
+            }}
           />
         </View>
 

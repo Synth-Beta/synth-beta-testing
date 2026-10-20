@@ -27,7 +27,7 @@ export default function ReviewComposeScreen() {
             prefill={prefill}
             onClose={() => router.back()}
             onSubmitted={(eid, reviewId) => {
-                // App tour's review step: the tour shows the next slide instead.
+                // App tutorial's review step: back to the tabs, where the tutorial moves on.
                 if (reportTourAction('review')) {
                     router.back();
                 } else if (reviewId) {

@@ -18,7 +18,8 @@ import { StyleSheet, View, RefreshControl, Platform, Pressable, Text } from 'rea
 import { Search } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
+import { useTour } from '../../lib/tourProgress';
 import { FeedHeader } from '../../src/components/Feed/FeedHeader';
 import { EventCard, type CardRatingLine } from '../../src/components/Feed/EventCard';
 import { ThreadReviewCard } from '../../src/components/Feed/ThreadReviewCard';
@@ -350,7 +351,17 @@ export default function FeedScreen() {
     void fetchFeed();
   };
 
-  const renderItem = ({ item }: { item: ListItem }) => {
+  // App tutorial: the first show is the one it spotlights; bring it into view for those steps.
+  const listRef = useRef<FlashListRef<ListItem>>(null);
+  const tourStep = useTour()?.step;
+  const tourCardIndex = listData.findIndex((i) => i.kind === 'event');
+  useEffect(() => {
+    if ((tourStep === 'feed' || tourStep === 'save') && tourCardIndex >= 0) {
+      void listRef.current?.scrollToIndex({ index: tourCardIndex, animated: true });
+    }
+  }, [tourStep, tourCardIndex]);
+
+  const renderItem = ({ item, index }: { item: ListItem; index: number }) => {
     if (item.kind === 'review') {
       return (
         <ThreadReviewCard
@@ -382,6 +393,7 @@ export default function FeedScreen() {
         friendsInterested={item.data.friends_interested}
         ratings={getRatings(item.data)}
         onHideArtist={item.data.artist_id ? () => hideArtist(String(item.data.artist_id)) : undefined}
+        tourTarget={index === tourCardIndex}
         onPress={() => {
           if (item.data.feedLabel === JUST_ANNOUNCED_LABEL) {
             logJustAnnounced(supabase, item.data.id, 'open', Boolean(item.data.is_fan), Platform.OS === 'ios' ? 'ios' : 'android');
@@ -438,6 +450,7 @@ export default function FeedScreen() {
         </View>
       ) : (
         <FlashList
+          ref={listRef}
           data={listData}
           renderItem={renderItem}
           extraData={highlights}

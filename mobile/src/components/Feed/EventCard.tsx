@@ -10,6 +10,7 @@ import { EventService } from '../../services/eventService';
 import { isEventPast } from '../../utils/eventStatusUtils';
 import { useInterested } from '../../contexts/InterestedContext';
 import { ShareToChatModal } from '../share/ShareToChatModal';
+import { useTourTarget } from '../../../lib/tourTargets';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - SynthTokens.spacing.screenMarginX * 2;
@@ -56,6 +57,8 @@ export interface EventCardProps {
   ratings?: { artist?: CardRatingLine; venue?: CardRatingLine };
   /** Home feed: "Don't recommend {artist}" from the ⋯ button. */
   onHideArtist?: () => void;
+  /** App tutorial spotlights this card and its I'm interested button (first show on Home). */
+  tourTarget?: boolean;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -78,8 +81,11 @@ export const EventCard: React.FC<EventCardProps> = ({
   friendsInterested,
   ratings,
   onHideArtist,
+  tourTarget = false,
 }) => {
   const router = useRouter();
+  const tourCardRef = useTourTarget('feed-card', tourTarget);
+  const tourInterestedRef = useTourTarget('interested-btn', tourTarget);
   const { isInterested, toggle, loading: interestedLoading } = useInterested();
   const interested = interestedLoading
     ? isInterested(id) || initialInterested
@@ -183,7 +189,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       : null);
 
   return (
-    <View style={styles.shadowShell}>
+    <View ref={tourCardRef} style={styles.shadowShell}>
       <View style={[styles.cardFace, pick5Band && styles.cardFacePick5]}>
         {pick5Band ? (
           <Pressable
@@ -301,6 +307,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             </Pressable>
           ) : (
             <Pressable
+              ref={tourInterestedRef}
               onPress={() => void onToggleInterested()}
               style={[styles.interestedBtn, interested && styles.interestedBtnOn]}
             >

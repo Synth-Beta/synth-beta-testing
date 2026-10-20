@@ -284,6 +284,23 @@ const getMissingFields = (record: any, type: 'event' | 'artist' | 'venue'): stri
   return missing;
 };
 
+// Shape returned by get_admin_app_metrics (supabase/migrations/20261020120000_admin_app_metrics.sql).
+type AppMetrics = {
+  opens_since: string | null;
+  open_dau: number;
+  open_wau: number;
+  open_mau: number;
+  week1_nudges_7d: number;
+  week1_nudges_read_7d: number;
+  public_reviews_7d: number;
+  public_reviews_total: number;
+  reviews_hiding_price: number;
+  artist_exclusions: number;
+  users_hiding_artists: number;
+  newsletter_subscribed: number;
+  calendar_opens_7d: number;
+};
+
 export default function Admin() {
   console.log('🔐 Admin component is rendering...');
   console.log('📍 Current pathname:', window.location.pathname);
@@ -389,6 +406,7 @@ export default function Admin() {
   const [weeklyShares, setWeeklyShares] = useState(0);
   const [eciPerUser, setEciPerUser] = useState(0);
   const [networkDensity, setNetworkDensity] = useState(0);
+  const [appMetrics, setAppMetrics] = useState<AppMetrics | null>(null);
   
   // ECI/U Components
   const [eventsInterested, setEventsInterested] = useState(0);
@@ -495,6 +513,10 @@ export default function Admin() {
       fetchTodayAdditions();
       fetchModerationFlags();
       fetchUserAnalytics();
+      db.rpc('get_admin_app_metrics').then(({ data, error }: { data: AppMetrics | null; error: Error | null }) => {
+        if (error) console.warn('⚠️ get_admin_app_metrics failed:', error);
+        else setAppMetrics(data);
+      });
       fetchSocialMediaAnalytics();
       fetchSignupMethods();
     }
@@ -2724,6 +2746,51 @@ export default function Admin() {
                     </Card>
                   </div>
                 </div>
+
+                {/* App 1.5: web + mobile app opens and the new Home / Community / Calendar features */}
+                {appMetrics && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">
+                      App (web + mobile)
+                      {appMetrics.opens_since && ` · opens tracked since ${format(new Date(appMetrics.opens_since), 'MMM d')}`}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { label: 'Opened today', value: appMetrics.open_dau, note: 'Unique users, 24h' },
+                        { label: 'Opened this week', value: appMetrics.open_wau, note: 'Unique users, 7d' },
+                        { label: 'Opened this month', value: appMetrics.open_mau, note: 'Unique users, 30d' },
+                        {
+                          label: 'Week-1 nudges',
+                          value: appMetrics.week1_nudges_7d,
+                          note: `${appMetrics.week1_nudges_read_7d} read (7d)`,
+                        },
+                        {
+                          label: 'Public reviews',
+                          value: appMetrics.public_reviews_7d,
+                          note: `This week · ${appMetrics.public_reviews_total.toLocaleString()} total in Community`,
+                        },
+                        { label: 'Ticket price hidden', value: appMetrics.reviews_hiding_price, note: 'Published reviews' },
+                        {
+                          label: 'Hidden artists',
+                          value: appMetrics.artist_exclusions,
+                          note: `By ${appMetrics.users_hiding_artists} users on Home`,
+                        },
+                        { label: 'Newsletter subscribers', value: appMetrics.newsletter_subscribed, note: 'The Synth Setlist' },
+                        { label: 'Calendar opens', value: appMetrics.calendar_opens_7d, note: 'Web side menu (7d)' },
+                      ].map((m) => (
+                        <Card key={m.label} className="shadow-sm">
+                          <CardHeader className="p-3 pb-1">
+                            <CardTitle className="text-xs font-medium text-muted-foreground">{m.label}</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-3 pt-0">
+                            <div className="text-lg font-bold">{m.value.toLocaleString()}</div>
+                            <p className="text-xs text-muted-foreground">{m.note}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
             {/* ECI/U Detail Section (North Star Metric) */}
             <Card className="border-2 border-primary">

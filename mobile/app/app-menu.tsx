@@ -144,14 +144,6 @@ export default function AppMenuScreen() {
             router.push('/settings');
           }}
         />
-        <MenuRow
-          icon={<Sparkles size={22} color={SynthTokens.colors.neutral900} />}
-          label="App Tour"
-          onPress={() => {
-            close();
-            router.push('/tour');
-          }}
-        />
 
         {/* Pick5 linking lives on Community and in Settings → Connected Apps (same as web). */}
 

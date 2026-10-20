@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getAuthRedirectOrigin } from '@synth/shared';
 import { isSupabaseConfigured, supabase } from '../../src/integrations/supabase/client';
@@ -31,7 +30,6 @@ const AUTH_PINK = '#FF3399';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
-  const router = useRouter();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -315,10 +313,6 @@ export default function SignInScreen() {
               <Text style={styles.magicLinkText}>Email me a magic link</Text>
             </TouchableOpacity>
           ) : null}
-
-          <TouchableOpacity onPress={() => router.push('/tour')} style={styles.skip}>
-            <Text style={styles.skipText}>New to Synth? Take a quick tour</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -403,6 +397,4 @@ const styles = StyleSheet.create({
   dividerText: { color: SynthTokens.colors.neutral600, marginHorizontal: 10, fontSize: 16, fontWeight: '500' },
   error: { color: '#dc2626', marginTop: 8 },
   message: { color: SynthTokens.colors.neutral600, marginTop: 8 },
-  skip: { marginTop: 22, alignItems: 'center' },
-  skipText: { color: '#8a236d', fontSize: 14, fontWeight: '500' },
 });

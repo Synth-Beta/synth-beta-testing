@@ -479,9 +479,6 @@ export default function RootLayout() {
 
     const seg0 = segments[0];
 
-    // The feature tour works signed in or out (sign-in links to it); never redirect off it.
-    if (seg0 === 'tour') return;
-
     // `useSegments()` can be empty at `/` before `app/index.tsx` resolves — otherwise no branch matches and the UI can stall.
     if (seg0 === undefined) {
       void (async () => {
@@ -600,7 +597,6 @@ export default function RootLayout() {
       <Stack.Screen name="my-events" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="app-menu" options={{ headerShown: false, animation: 'slide_from_right' }} />
-      <Stack.Screen name="tour" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
     </Stack>
     </BrowseLocationProvider>
     </InterestedProvider>

@@ -6,7 +6,7 @@ import { endTour } from './tourProgress';
 // Per-user so a shared device still shows the tour to each new account.
 const key = (userId: string) => `FEATURE_TOUR_DONE:${userId}`;
 
-/** Accounts older than this never get the tour auto-opened (it's still in the app menu). */
+/** Accounts older than this never get the tutorial auto-started (it's still in Settings). */
 export const FEATURE_TOUR_AUTO_MAX_ACCOUNT_AGE_DAYS = 14;
 
 export async function hasSeenFeatureTour(userId: string): Promise<boolean> {
@@ -33,7 +33,7 @@ export async function markFeatureTourSeen(userId: string): Promise<void> {
   }
 }
 
-/** Ends the tour, marks it seen and lets the push primer run. Used by the slides and the task banner. */
+/** Ends the tutorial, marks it seen and lets the push primer run. Used by TourOverlay. */
 export async function finishTour(): Promise<void> {
   endTour();
   const { data: { session } } = await supabase.auth.getSession();

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { supabase } from '../../integrations/supabase/client';
 import { useUnreadMessageCount } from '../../hooks/useUnreadMessageCount';
+import { useTourTarget } from '../../../lib/tourTargets';
 
 /** Matches web [BottomNav.css](src/components/BottomNav/BottomNav.css): pink-050 bar, 2px top border, pill CTA 70×40, brand pink icons. */
 const CTA_WIDTH = 70;
@@ -45,6 +46,13 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
   }, []);
 
   const unreadMessages = useUnreadMessageCount(uid);
+  // App tutorial spotlights these tab buttons.
+  const tourRefs: Record<string, ReturnType<typeof useTourTarget>> = {
+    discover: useTourTarget('tab-discover'),
+    post: useTourTarget('tab-post'),
+    chat: useTourTarget('tab-chat'),
+    profile: useTourTarget('tab-profile'),
+  };
   const tabBarTotalHeight = TAB_BAR_HEIGHT + insets.bottom;
 
   const onTabPress = (route: (typeof state.routes)[0], isFocused: boolean) => {
@@ -74,6 +82,7 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
             return (
               <View key={route.key} style={styles.tabItem}>
                 <TouchableOpacity
+                  ref={tourRefs.post}
                   onPress={() => onTabPress(route, isFocused)}
                   style={styles.ctaPill}
                   activeOpacity={0.85}
@@ -109,6 +118,7 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
           return (
             <TouchableOpacity
               key={route.key}
+              ref={tourRefs[route.name]}
               onPress={() => onTabPress(route, isFocused)}
               style={styles.tabItem}
               activeOpacity={0.7}

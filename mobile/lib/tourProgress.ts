@@ -1,18 +1,17 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * App tour state, shared by the slide screen (app/tour.tsx) and the task banner
- * (TourTaskBanner in the tab layout). Signed in: 3 slides + 2 live tasks the user
- * does in the real app (save a show, review a show). Every step can be skipped.
+ * App tutorial state, shared by the spotlight overlay (TourOverlay in the tab layout) and the
+ * real features that complete its live steps. Runs on the real screens: each step opens its page
+ * and spotlights the control it talks about. Two steps are live tasks the user actually does
+ * (save a show, review a show). Every step can be skipped.
  */
-export type TourStepId = 'feed' | 'save' | 'community' | 'review' | 'profile' | 'save-info';
+export type TourStepId = 'feed' | 'save' | 'community' | 'review' | 'messages' | 'profile';
 export type TourAction = 'interested' | 'review';
 
 export const TASK_ACTION: Partial<Record<TourStepId, TourAction>> = { save: 'interested', review: 'review' };
 
-const SIGNED_IN_STEPS: TourStepId[] = ['feed', 'save', 'community', 'review', 'profile'];
-// Signed out (opened from sign-in) there is nothing to save or review, so tasks become a slide.
-const SIGNED_OUT_STEPS: TourStepId[] = ['feed', 'save-info', 'community', 'profile'];
+const STEPS: TourStepId[] = ['feed', 'save', 'community', 'review', 'messages', 'profile'];
 
 type TourState = { steps: TourStepId[]; index: number } | null;
 
@@ -35,8 +34,8 @@ export function getTour() {
 
 export const isTourActive = () => state !== null;
 
-export function startTour(signedIn: boolean) {
-  state = { steps: signedIn ? SIGNED_IN_STEPS : SIGNED_OUT_STEPS, index: 0 };
+export function startTour() {
+  state = { steps: STEPS, index: 0 };
   emit();
 }
 
