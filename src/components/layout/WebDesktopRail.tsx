@@ -1,6 +1,7 @@
 import React from 'react';
 import { Icon } from '@/components/Icon';
 import type { MainNavItem } from '@/hooks/useMainNavItems';
+import './WebDesktopRail.css';
 
 export interface WebDesktopRailProps {
   items: MainNavItem[];
@@ -61,6 +62,7 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
                   fontFamily: 'var(--font-family)',
                 }}
                 aria-label={item.label}
+                data-tour={item.tourId}
               >
                 <Icon name={item.icon as any} size={22} color="var(--neutral-50)" alt="" ariaHidden />
                 <span
@@ -84,6 +86,7 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
               }`}
               aria-current={active ? 'page' : undefined}
               aria-label={item.label}
+              data-tour={item.tourId}
             >
               <span style={{ color: active ? 'var(--brand-pink-500)' : 'var(--neutral-700)' }}>
                 <Icon name={item.icon as any} size={24} alt="" ariaHidden />

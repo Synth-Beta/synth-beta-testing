@@ -1,0 +1,27 @@
+/*
+ * Section header ("Who You Should Know", "Your feed", "The community"...). Shared:
+ * it used to live only in thread.css, so on Profile (which doesn't load that file)
+ * the friend suggestions header rendered unstyled.
+ */
+.feed-banner {
+  padding: 14px 16px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-family: var(--font-family);
+}
+
+.feed-banner h2 {
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--neutral-900);
+}
+
+.feed-banner p {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--neutral-600);
+}
