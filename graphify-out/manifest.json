@@ -11929,14 +11929,14 @@
   },
   "supabase/migrations/20261019200000_feed_v5_announced_in_groups.sql": {
     "mtime": 1792447055.1561556,
-    "seen": 1792467354.490149,
-    "ast_hash": "",
+    "seen": 1792467584.5850265,
+    "ast_hash": "2aa0e1dfa93a62c77982fd91604e12ed",
     "semantic_hash": ""
   },
   "supabase/migrations/20261019210000_feed_v5_pick5_soft_push.sql": {
     "mtime": 1792451281.6905916,
-    "seen": 1792467354.490149,
-    "ast_hash": "",
+    "seen": 1792467584.5850265,
+    "ast_hash": "692bbc68fd353b65e9312827ec09bad7",
     "semantic_hash": ""
   },
   "supabase/migrations/20261018130000_review_hide_ticket_price.sql": {
