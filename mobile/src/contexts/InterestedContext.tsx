@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { supabase } from '../integrations/supabase/client';
 import { EventService } from '../services/eventService';
 import { requestPushPrimer } from '../../lib/pushPrimer';
+import { reportTourAction } from '../../lib/tourProgress';
 
 type RsvpType = 'interested' | 'going' | 'maybe';
 
@@ -173,7 +174,10 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             });
         }
         // 'added'/'removed' — optimistic update was correct, keep it.
-        if (action === 'added') requestPushPrimer('interested');
+        if (action === 'added') {
+            requestPushPrimer('interested');
+            reportTourAction('interested');
+        }
     }, [rsvpMap, resolve]);
 
     const setRsvp = useCallback(async (
@@ -208,6 +212,7 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             });
         } else if (target !== null && previous === null) {
             requestPushPrimer('interested');
+            reportTourAction('interested');
         }
     }, [rsvpMap, resolve]);
 

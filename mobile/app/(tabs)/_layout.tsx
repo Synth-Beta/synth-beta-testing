@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
-import { Home, Compass, Search, MessageCircle, User } from 'lucide-react-native';
+import { Home, Users, Search, MessageCircle, User } from 'lucide-react-native';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { SynthTabBar } from '../../src/components/navigation/SynthTabBar';
 import { PushPrimer } from '../../src/components/PushPrimer';
+import { TourTaskBanner } from '../../src/components/TourTaskBanner';
 import { supabase } from '../../src/integrations/supabase/client';
 import { shouldAutoOpenFeatureTour } from '../../lib/featureTour';
 
@@ -43,7 +44,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="discover"
         options={{
-          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -67,6 +68,7 @@ export default function TabLayout() {
       {/* Pushed from Discover / Post; not a tab bar destination */}
       <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>
+    <TourTaskBanner />
     <PushPrimer />
     </>
   );

@@ -7,7 +7,7 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { PickFiveConnection } from '../../src/components/partners/PickFiveConnection';
 
-/** Opened from the app menu's Pick Five button. Settings > Connected Apps shows the same control. */
+/** Pick5 deep link (and older menu links). Settings → Connected Apps shows the same control. */
 export default function PickFiveScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -18,7 +18,7 @@ export default function PickFiveScreen() {
         <Pressable onPress={() => router.back()} style={styles.iconBtn} accessibilityLabel="Back">
           <ChevronLeft size={28} color={SynthTokens.colors.neutral900} />
         </Pressable>
-        <Text style={styles.title}>Pick Five</Text>
+        <Text style={styles.title}>Pick5</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -26,7 +26,7 @@ export default function PickFiveScreen() {
         <View style={styles.card}>
           <PickFiveConnection />
         </View>
-        <Pressable onPress={() => router.push('/settings')} accessibilityRole="button">
+        <Pressable onPress={() => router.push('/settings/connected-apps' as any)} accessibilityRole="button">
           <SynthText variant="meta" color="secondary" style={styles.footer}>
             See all connected apps in Settings
           </SynthText>

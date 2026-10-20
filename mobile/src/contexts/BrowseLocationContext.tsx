@@ -14,7 +14,8 @@ import { resolveLocation } from '@synth/shared';
  */
 
 const STORAGE_KEY = '@synth/browseLocation';
-const DEFAULT_RADIUS_MILES = 30;
+// Same default as web (BrowseLocationContext) and the feed RPC.
+const DEFAULT_RADIUS_MILES = 50;
 
 interface StoredBrowseLocation {
   coords: LatLng;

@@ -18,6 +18,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Menu, Trash2 } from 'lucide-react-native';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
+import { GenreChatsSection } from '../../src/components/discover/GenreChatsSection';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -34,6 +35,7 @@ export default function ChatListScreen() {
   const [chats, setChats] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -42,6 +44,7 @@ export default function ChatListScreen() {
       data: { session },
     } = await supabase.auth.getSession();
     const user = session?.user ?? null;
+    setUserId(user?.id ?? null);
     if (!user) {
       setLoading(false);
       setRefreshing(false);
@@ -163,6 +166,8 @@ export default function ChatListScreen() {
         data={chats}
         renderItem={renderItem}
         keyExtractor={item => item.id}
+        // Genre communities sit above the chat list (moved from Discover, same as web Messages).
+        ListHeaderComponent={userId ? <View style={styles.genres}><GenreChatsSection currentUserId={userId} /></View> : null}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: bottomSafeContentPadding(insets.bottom) },
@@ -224,6 +229,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   listContent: {},
+  genres: {
+    paddingHorizontal: SynthTokens.spacing.md,
+    marginBottom: SynthTokens.spacing.md,
+  },
   chatItem: {
     flexDirection: 'row',
     paddingHorizontal: SynthTokens.spacing.md,

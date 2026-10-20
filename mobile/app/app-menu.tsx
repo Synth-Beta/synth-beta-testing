@@ -17,8 +17,7 @@ import {
   Settings,
   Sparkles,
   Check,
-  Link2,
-  ChevronRight,
+  CalendarDays,
 } from 'lucide-react-native';
 import { supabase } from '../src/integrations/supabase/client';
 import { SynthTokens } from '../src/tokens/SynthTokens';
@@ -32,7 +31,6 @@ export default function AppMenuScreen() {
   const [accountType, setAccountType] = useState<string | null>(null);
   const [friendReqUnread, setFriendReqUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
-  const [pickFiveConnected, setPickFiveConnected] = useState(false);
 
   const loadMenuCounts = useCallback(async () => {
     const {
@@ -66,15 +64,8 @@ export default function AppMenuScreen() {
       .eq('is_read', false)
       .neq('type', 'friend_request');
 
-    const { data: pickFive } = await supabase
-      .from('user_connections')
-      .select('service')
-      .eq('service', 'pickfive')
-      .limit(1);
-
     setFriendReqUnread(frCount ?? 0);
     setNotifUnread(notifCount ?? 0);
-    setPickFiveConnected((pickFive ?? []).length > 0);
   }, []);
 
   useFocusEffect(
@@ -130,6 +121,14 @@ export default function AppMenuScreen() {
           }}
         />
         <MenuRow
+          icon={<CalendarDays size={22} color={SynthTokens.colors.neutral900} />}
+          label="Calendar"
+          onPress={() => {
+            close();
+            router.push('/calendar' as any); // typed routes regenerate on next expo start
+          }}
+        />
+        <MenuRow
           icon={<Music2 size={22} color={SynthTokens.colors.neutral900} />}
           label="Streaming Stats"
           onPress={() => {
@@ -154,26 +153,7 @@ export default function AppMenuScreen() {
           }}
         />
 
-        <Pressable
-          style={styles.pickFiveCard}
-          onPress={() => {
-            close();
-            router.push('/settings/pickfive');
-          }}
-          accessibilityRole="button"
-          accessibilityLabel={pickFiveConnected ? 'Pick Five connected' : 'Connect Pick Five'}
-        >
-          <View style={styles.pickFiveIcon}>
-            <Link2 size={20} color={SynthTokens.colors.brandPink500} />
-          </View>
-          <View style={styles.profileText}>
-            <Text style={styles.pickFiveTitle}>{pickFiveConnected ? 'Pick Five connected' : 'Connect Pick Five'}</Text>
-            <Text style={styles.pickFiveBody}>
-              {pickFiveConnected ? 'Your accounts are linked' : 'Link your Pick Five account'}
-            </Text>
-          </View>
-          <ChevronRight size={20} color={SynthTokens.colors.neutral600} />
-        </Pressable>
+        {/* Pick5 linking lives on Community and in Settings → Connected Apps (same as web). */}
 
         {isVerifiedAdmin ? (
           <View style={styles.verifiedCard}>

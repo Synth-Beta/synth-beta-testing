@@ -259,6 +259,9 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral100,
   },
   row: {
+    // Centered when the cards fit; still scrolls from the first card when they do not.
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: SynthTokens.spacing.md,
     gap: 12,
     paddingBottom: 8,

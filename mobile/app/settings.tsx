@@ -26,6 +26,7 @@ import {
   ChevronRight,
   MessageCircle,
   Users,
+  Link2,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
@@ -37,8 +38,6 @@ import {
   updateCurrentUserSettingsPreferences,
 } from '../src/services/userSettingsPreferencesService';
 import { SettingsScreenSkeleton } from '../src/components/skeletons/SettingsScreenSkeleton';
-import { StreamingAccountSettings } from '../src/components/streaming/StreamingAccountSettings';
-import { PickFiveConnection } from '../src/components/partners/PickFiveConnection';
 import { unregisterExpoPushToken, syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
 import { getNotificationPermissionStatus } from '../lib/registerPushNotifications';
 
@@ -437,19 +436,12 @@ export default function SettingsScreen() {
 
         <SettingsSection title="Connected Apps" />
         <View style={styles.card}>
-          <View style={styles.connectedApp}>
-            <SynthText variant="meta" color="secondary" style={styles.connectedAppLabel}>
-              Spotify / Apple Music
-            </SynthText>
-            <StreamingAccountSettings onNavigateToStats={() => router.push('/stats')} />
-          </View>
-          <RowDivider />
-          <View style={styles.connectedApp}>
-            <SynthText variant="meta" color="secondary" style={styles.connectedAppLabel}>
-              Pick Five
-            </SynthText>
-            <PickFiveConnection />
-          </View>
+          <AccountNavRow
+            icon={Link2}
+            label="Connected Apps"
+            description="Spotify, Apple Music, Pick5"
+            onPress={() => router.push('/settings/connected-apps' as any)}
+          />
         </View>
 
         <SettingsSection title="Danger Zone" />
@@ -630,8 +622,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: -4,
   },
-  connectedApp: { padding: 16, gap: 10 },
-  connectedAppLabel: { fontWeight: '700' },
   card: {
     borderRadius: 16,
     borderWidth: 1,

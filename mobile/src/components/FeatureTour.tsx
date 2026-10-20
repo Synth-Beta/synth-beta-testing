@@ -1,121 +1,106 @@
-import React, { useRef, useState } from 'react';
-import {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Compass,
-  Heart,
-  Home,
-  Star,
-  User,
-  type LucideIcon,
-} from 'lucide-react-native';
+import { Users, Heart, Home, User, Star, type LucideIcon } from 'lucide-react-native';
 import { SynthText } from './SynthText';
 import { SynthButton } from './SynthButton';
 import { SynthTokens } from '../tokens/SynthTokens';
+import type { TourStepId } from '../../lib/tourProgress';
 
-type Slide = { Icon: LucideIcon; title: string; body: string };
+type StepCopy = { Icon: LucideIcon; title: string; body: string };
 
-// Short on purpose: one idea per slide, naming the control a user taps.
-const SLIDES: Slide[] = [
-  {
+// Short on purpose: one idea per step, naming the control a user taps.
+export const TOUR_COPY: Record<TourStepId, StepCopy> = {
+  feed: {
     Icon: Home,
-    title: 'Events feed',
-    body: 'Home shows upcoming concerts near you from artists you follow. Tap one for details and tickets.',
+    title: 'Your feed',
+    body: 'Home mixes shows picked for you with reviews from people who went. Search and your location pin are at the top.',
   },
-  {
-    Icon: Star,
-    title: 'Reviews feed',
-    body: 'Tap “Events ▾” at the top of Home and pick Reviews to see what people thought of shows.',
+  save: {
+    Icon: Heart,
+    title: 'Save a show',
+    body: "Tap I'm interested on any show you like. We'll remind you before it.",
   },
-  {
-    Icon: Compass,
-    title: 'Discover',
-    body: 'The compass tab. Browse by vibe, city or date, or search any artist or venue.',
-  },
-  {
+  'save-info': {
     Icon: Heart,
     title: 'Save and review',
-    body: 'Tap Interested on a show and we’ll remind you before it. Went to one? Tap the pink + to review it.',
+    body: "Tap I'm interested on a show and we'll remind you before it. Went to one? Tap the pink + to review it.",
   },
-  {
+  community: {
+    Icon: Users,
+    title: 'Community & Messages',
+    body: 'The two-person tab has reviews from everyone on Synth and your Pick5 link. Messages has your chats and genre communities.',
+  },
+  review: {
+    Icon: Star,
+    title: 'Review a show',
+    body: 'Been to a show lately? Rate it and say what stood out. Your friends see it on their feed.',
+  },
+  profile: {
     Icon: User,
-    title: 'Profile',
-    body: 'The last tab: your Passport, saved shows and friends. Notifications and this tour are in the menu.',
+    title: 'Your profile',
+    body: 'The last tab: your Passport, saved shows and friends. Calendar, notifications and this tour are in the ☰ menu.',
   },
-];
+};
 
-export function FeatureTour({ onDone }: { onDone: () => void }) {
-  const { width } = useWindowDimensions();
+/** One full-screen tour slide. Live tasks (save / review) use TourTaskBanner instead. */
+export function FeatureTourSlide({
+  step,
+  index,
+  total,
+  nextIsTask,
+  onNext,
+  onSkipTour,
+}: {
+  step: TourStepId;
+  index: number;
+  total: number;
+  /** Next step happens in the app, so the button says "Try it". */
+  nextIsTask: boolean;
+  onNext: () => void;
+  onSkipTour: () => void;
+}) {
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
-  const [index, setIndex] = useState(0);
-  const isLast = index === SLIDES.length - 1;
-
-  const goTo = (i: number) => {
-    scrollRef.current?.scrollTo({ x: i * width, animated: true });
-    setIndex(i);
-  };
-
-  const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setIndex(Math.round(e.nativeEvent.contentOffset.x / width));
-  };
+  const { Icon, title, body } = TOUR_COPY[step];
+  const isLast = index === total - 1;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
       <View style={styles.topBar}>
         <SynthText variant="meta" color="secondary">
-          {index + 1} of {SLIDES.length}
+          {index + 1} of {total}
         </SynthText>
         {!isLast ? (
-          <Pressable onPress={onDone} hitSlop={12} accessibilityRole="button" accessibilityLabel="Skip tour">
-            <SynthText variant="meta" color="secondary">Skip</SynthText>
+          <Pressable onPress={onSkipTour} hitSlop={12} accessibilityRole="button" accessibilityLabel="Skip tour">
+            <SynthText variant="meta" color="secondary">Skip tour</SynthText>
           </Pressable>
         ) : null}
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onScrollEnd}
-        style={styles.pager}
-      >
-        {SLIDES.map(({ Icon, title, body }) => (
-          // Inner ScrollView only matters with very large accessibility text sizes.
-          <ScrollView key={title} style={{ width }} contentContainerStyle={styles.slide}>
-            <View style={styles.iconWrap}>
-              <Icon size={40} color={SynthTokens.colors.brandPink500} />
-            </View>
-            <SynthText variant="h2" style={styles.title} accessibilityRole="header">
-              {title}
-            </SynthText>
-            <SynthText variant="meta" color="secondary" style={styles.body}>
-              {body}
-            </SynthText>
-          </ScrollView>
-        ))}
+      {/* ScrollView only matters with very large accessibility text sizes. */}
+      <ScrollView style={styles.pager} contentContainerStyle={styles.slide}>
+        <View style={styles.iconWrap}>
+          <Icon size={40} color={SynthTokens.colors.brandPink500} />
+        </View>
+        <SynthText variant="h2" style={styles.title} accessibilityRole="header">
+          {title}
+        </SynthText>
+        <SynthText variant="meta" color="secondary" style={styles.body}>
+          {body}
+        </SynthText>
       </ScrollView>
 
       <View style={styles.dots} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {SLIDES.map((s, i) => (
-          <View key={s.title} style={[styles.dot, i === index && styles.dotActive]} />
+        {Array.from({ length: total }, (_, i) => (
+          <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
         ))}
       </View>
 
       <View style={styles.footer}>
         <SynthButton
-          title={isLast ? 'Start exploring' : 'Next'}
+          title={isLast ? 'Start exploring' : nextIsTask ? 'Next: try it' : 'Next'}
           variant="primary"
-          onPress={isLast ? onDone : () => goTo(index + 1)}
+          onPress={onNext}
           style={styles.button}
         />
       </View>

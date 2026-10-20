@@ -9,6 +9,7 @@ import { supabase } from '../integrations/supabase/client';
 import { getNotificationPermissionStatus } from '../../lib/registerPushNotifications';
 import { syncExpoPushTokenWithBackend } from '../../lib/pushTokenSync';
 import { shouldAutoOpenFeatureTour } from '../../lib/featureTour';
+import { isTourActive } from '../../lib/tourProgress';
 import {
   PushPrimerReason,
   loadPrimerState,
@@ -40,7 +41,8 @@ export function PushPrimer() {
   const busy = useRef(false);
 
   const tryShow = useCallback(async (r: PushPrimerReason) => {
-    if (busy.current) return;
+    // Never on top of the app tour; the session ask restarts when the tour closes.
+    if (busy.current || isTourActive()) return;
     busy.current = true;
     try {
       const { data: { session } } = await supabase.auth.getSession();
