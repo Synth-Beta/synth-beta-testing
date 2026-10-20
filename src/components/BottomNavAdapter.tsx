@@ -30,6 +30,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({ items, onIte
                 aria-label={item.label}
                 aria-current={item.isActive ? 'page' : undefined}
                 type="button"
+                data-tour={item.tourId}
               >
                 <Icon name={item.icon as any} size={24} alt="" />
               </button>
@@ -44,6 +45,7 @@ export const BottomNavAdapter: React.FC<BottomNavAdapterProps> = ({ items, onIte
               aria-label={item.label}
               aria-current={item.isActive ? 'page' : undefined}
               type="button"
+              data-tour={item.tourId}
               style={{ position: 'relative' }}
             >
               <Icon name={item.icon as any} size={24} alt="" />

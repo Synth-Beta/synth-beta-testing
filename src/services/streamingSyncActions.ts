@@ -264,7 +264,7 @@ export async function syncStreamingProfile(
             ok: false,
             skipped: 'no-stored-token',
             message:
-              'Spotify stays linked. Refresh uses the token saved when you connected.',
+              'Spotify is still connected, but no refresh token is saved yet. Connect once in this browser and refresh will work from then on.',
             usedServer: true,
           };
         } else {

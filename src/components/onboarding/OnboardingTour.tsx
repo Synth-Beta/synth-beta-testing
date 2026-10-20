@@ -233,7 +233,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
         <div className="space-y-2">
           <h3 className="text-lg font-bold">Community</h3>
           <p>
-            Link your Pick5 account, then open Messages for genre communities and your chats. Reviews from the whole Synth community are here too.
+            Link your Pick5 account and read what the whole Synth community thought of the shows they went to. Tap any review to like or comment.
           </p>
         </div>
       ),
@@ -403,7 +403,7 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       // Pause the tour
       setRunTour(false);
       setIsLoading(true);
-      setLoadingMessage('Loading discover page...');
+      setLoadingMessage('Loading Community...');
       
       // Navigate to discover view
       onViewChange('search');

@@ -2322,6 +2322,7 @@ const { user, sessionExpired } = useAuth();
             )}
             <TabsTrigger
               value="passport"
+              data-tour="profile-passport"
               className="flex items-center gap-2 data-[state=active]:text-[var(--brand-pink-500)] data-[state=active]:bg-[var(--brand-pink-050)]"
             >
               <Sparkles size={16} />

@@ -111,12 +111,12 @@ export function StreamingAccountSettings({
         });
         onNavigateToStreamingStats?.();
       } else if (result.skipped === 'no-stored-token' || result.skipped === 'no-session') {
+        // Not an error: the account is still linked, this browser just can't pull fresh data yet.
         toast({
-          title: 'Still connected',
+          title: "Couldn't refresh here yet",
           description:
             result.message ||
-            'Your music app stays linked. Refresh uses the token saved when you connected.',
-          variant: 'destructive',
+            'Your music app is still connected. Connect once in this browser and refresh will work from then on.',
         });
         onNavigateToStreamingStats?.();
       } else {
