@@ -188,6 +188,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   // Feed sections state
   const [recommendedEvents, setRecommendedEvents] = useState<PersonalizedEvent[]>([]);
   const [friendFeedEvents, setFriendFeedEvents] = useState<NetworkEvent[]>([]); // injected into main events feed
+  const [friendFeedEventsLoaded, setFriendFeedEventsLoaded] = useState(false);
   const friendExtraEvents = useMemo(() => friendFeedEvents
     .filter((ne) => isEventUpcomingForFeed(ne.event_date))
     .map(ne => ({
@@ -586,7 +587,10 @@ interface FriendEventInterest {
       loadFriendSuggestionsForRail();
       loadReviews();
       if (currentUserId) {
-        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10).then(setFriendFeedEvents).catch(() => {});
+        HomeFeedService.getFirstDegreeNetworkEvents(currentUserId, 10)
+          .then(setFriendFeedEvents)
+          .catch(() => {})
+          .finally(() => setFriendFeedEventsLoaded(true));
       }
     } else if (selectedFeedType === 'group-chats') {
       loadRecommendedGroupChats();
@@ -1816,8 +1820,10 @@ interface FriendEventInterest {
         key: review.id,
         artistId: review.artist_id,
         venueId: review.venue_id,
-        node: (
+        venueFeedback: review.venue_feedback,
+        render: (match) => (
           <ThreadReviewCard
+            match={match}
             review={{
               id: review.id,
               user_id: review.author.id,
@@ -1825,6 +1831,8 @@ interface FriendEventInterest {
               artist_id: review.artist_id,
               rating: review.rating,
               review_text: review.content,
+              artist_performance_feedback: review.artist_performance_feedback,
+              venue_feedback: review.venue_feedback,
               is_public: true,
               created_at: review.created_at,
               updated_at: review.created_at,
@@ -2044,6 +2052,7 @@ interface FriendEventInterest {
             insertSectionAfterIndex={0}
             reviewNodes={reviewNodes}
             extraEvents={friendExtraEvents}
+            extrasLoading={loadingReviews || !friendFeedEventsLoaded}
             middleSection={
               <>
                 {friendSuggestionsForRail.length > 0 && (

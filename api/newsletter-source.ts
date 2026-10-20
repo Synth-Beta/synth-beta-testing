@@ -2,8 +2,6 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { loadEditionSource } from "./_lib/newsletterSource.js";
 
-const REVIEWER = "pesceelauren@gmail.com";
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -22,8 +20,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const { data, error } = await db.auth.getUser(token);
-    if (error || data.user?.email?.toLowerCase() !== REVIEWER) {
-      return res.status(403).json({ ok: false, error: "Only the newsletter reviewer can load edition data." });
+    if (error || !data.user) return res.status(401).json({ ok: false, error: "Sign in again before creating an edition." });
+    const { data: profile } = await db.from("users").select("account_type").eq("user_id", data.user.id).maybeSingle();
+    if (profile?.account_type !== "admin") {
+      return res.status(403).json({ ok: false, error: "Only admins can load edition data." });
     }
 
     const source = await loadEditionSource(db, new Date());

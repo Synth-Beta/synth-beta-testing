@@ -11,6 +11,7 @@ import type { NetworkReview } from '../../services/homeFeedService';
 import { ReviewEngagementService } from '../../services/reviewEngagementService';
 import { EventService } from '../../services/eventService';
 import { ShareToChatModal } from '../share/ShareToChatModal';
+import { reviewQuoteFor, type ReviewMatch } from '@synth/shared';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - SynthTokens.spacing.screenMarginX * 2;
@@ -23,6 +24,8 @@ export interface ThreadReviewCardProps {
   currentUserId?: string | null;
   /** Corner label, e.g. "Friend review" on Home, "Review" on Community. */
   label?: string;
+  /** Side of the show this card sits after on Home: picks the artist or venue text. */
+  match?: ReviewMatch | null;
   onPress?: () => void;
 }
 
@@ -31,7 +34,7 @@ export interface ThreadReviewCardProps {
  * date badge, title, actions) so reviews sit naturally between shows. Mirrors web
  * ThreadReviewCard.
  */
-export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, currentUserId, label, onPress }) => {
+export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, currentUserId, label, match, onPress }) => {
   const router = useRouter();
   const artist = review.event_info?.artist_name;
   const venue = review.event_info?.venue_name;
@@ -39,7 +42,10 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
 
   const photos = Array.isArray(review.photos) ? review.photos : [];
   const imageUri = photos[review.thumbnail_index ?? 0] ?? photos[0] ?? resolveFeedImageUri(review.artist_image_url ?? null) ?? undefined;
-  const text = review.content && review.content !== 'ATTENDANCE_ONLY' ? review.content.trim() : '';
+  const text = reviewQuoteFor(
+    { ...review, review_text: review.content === 'ATTENDANCE_ONLY' ? undefined : review.content },
+    match
+  );
   const rating = typeof review.rating === 'number' && Number.isFinite(review.rating) ? review.rating : null;
   const chip = label ?? (review.connection_degree === 1 ? 'Friend review' : 'Review');
 

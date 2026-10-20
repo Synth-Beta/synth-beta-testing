@@ -212,6 +212,7 @@ export {
   seededRandom,
   dailySeed,
 } from './naturalWeave';
+export { type ReviewMatch, reviewEventMatch, reviewQuoteFor } from './reviewMatch';
 export {
   weaveJustAnnouncedIntoFeed,
   JUST_ANNOUNCED_LABEL,

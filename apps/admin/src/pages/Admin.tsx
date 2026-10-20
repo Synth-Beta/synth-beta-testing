@@ -292,7 +292,7 @@ export default function Admin() {
   const { user, loading: authLoading, signOut } = useAuth();
   const { isAdmin, loading: accountTypeLoading, accountType } = useAccountType();
   const [searchParams, setSearchParams] = useSearchParams();
-  const canProofreadNewsletters = user?.email?.toLowerCase() === 'pesceelauren@gmail.com';
+  const canProofreadNewsletters = isAdmin;
   const ADMIN_TABS = useMemo(
     () =>
       new Set([

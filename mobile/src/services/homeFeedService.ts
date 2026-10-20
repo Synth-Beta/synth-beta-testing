@@ -50,6 +50,8 @@ export interface NetworkReview {
     created_at: string;
     rating?: number;
     content?: string;
+    artist_performance_feedback?: string;
+    venue_feedback?: string;
     photos?: string[];
     /** Cover photo index when `photos` has multiple entries */
     thumbnail_index?: number;
@@ -525,6 +527,8 @@ export class HomeFeedService {
           venue_id,
           rating,
           review_text,
+          artist_performance_feedback,
+          venue_feedback,
           photos,
           likes_count,
           comments_count,
@@ -624,6 +628,8 @@ export class HomeFeedService {
                     created_at: review.created_at,
                     rating: review.rating ?? undefined,
                     content: review.review_text ?? undefined,
+                    artist_performance_feedback: review.artist_performance_feedback ?? undefined,
+                    venue_feedback: review.venue_feedback ?? undefined,
                     photos: review.photos ?? undefined,
                     artist_image_url: artistData?.image_url || undefined,
                     event_info: {

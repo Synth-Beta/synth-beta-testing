@@ -7,6 +7,8 @@ import {
   logJustAnnounced,
   planNaturalWeave,
   dailySeed,
+  reviewEventMatch,
+  type ReviewMatch,
   fetchReviewHighlights,
   EMPTY_REVIEW_HIGHLIGHTS,
   type ReviewHighlights,
@@ -43,7 +45,7 @@ import { isEventUpcomingForFeed } from '../../src/utils/localYmd';
 
 type ListItem =
   | { kind: 'event'; data: UnifiedPersonalizedEvent }
-  | { kind: 'review'; data: NetworkReview };
+  | { kind: 'review'; data: NetworkReview; match: ReviewMatch | null };
 
 // Same spacing as web UnifiedEventsFeed (REVIEW_WEAVE / FRIEND_EVENT_WEAVE).
 const REVIEW_WEAVE = { firstAt: 4, minGap: 5, maxGap: 9 };
@@ -106,15 +108,13 @@ export default function FeedScreen() {
     const placed = planNaturalWeave(woven.slice(pinnedCount), reviews, {
       seed: dailySeed(`${viewerUserId ?? 'anon'}:reviews`),
       ...REVIEW_WEAVE,
-      relatesTo: (review, event) =>
-        (!!review.artist_id && review.artist_id === event.artist_id) ||
-        (!!review.venue_id && review.venue_id === event.venue_id),
+      relatesTo: (review, event) => reviewEventMatch(review, event) !== null,
     });
     const items: ListItem[] = [];
     woven.forEach((data, i) => {
       items.push({ kind: 'event', data });
       const review = i >= pinnedCount ? placed.get(i - pinnedCount) : undefined;
-      if (review) items.push({ kind: 'review', data: review });
+      if (review) items.push({ kind: 'review', data: review, match: reviewEventMatch(review, data) });
     });
     return items;
   }, [events, bucketListEvents, reviews, viewerUserId]);
@@ -355,6 +355,7 @@ export default function FeedScreen() {
       return (
         <ThreadReviewCard
           review={item.data}
+          match={item.match}
           currentUserId={viewerUserId}
           onPress={() => router.push(`/review/${item.data.id}`)}
         />

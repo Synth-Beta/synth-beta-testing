@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { ReviewService, type ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
 import { replaceJambasePlaceholder, getFallbackEventImage, getSynthPlaceholderImage } from '@/utils/eventImageFallbacks';
+import { reviewQuoteFor, type ReviewMatch } from '@synth/shared';
 
 export interface ThreadReviewCardProps {
   review: ReviewWithEngagement;
@@ -16,6 +17,8 @@ export interface ThreadReviewCardProps {
   onOpen: () => void;
   /** Chip text on the image, e.g. "Friend review" on Home, "Review" on Community. */
   chipLabel?: string;
+  /** Side of the show this card sits after on Home: picks the artist or venue text. */
+  match?: ReviewMatch | null;
 }
 
 /**
@@ -29,6 +32,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({
   currentUserId,
   onOpen,
   chipLabel = 'Friend review',
+  match,
 }) => {
   const [likesCount, setLikesCount] = useState(review.likes_count || 0);
   const [commentsCount, setCommentsCount] = useState(review.comments_count || 0);
@@ -63,7 +67,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({
   const validDate = eventDate && !Number.isNaN(eventDate.getTime()) ? eventDate : null;
   const title = [review.artist_name, review.venue_name].filter(Boolean).join(' at ') || 'Concert review';
   const rating = typeof review.rating === 'number' ? Math.max(0, Math.min(5, review.rating)) : null;
-  const text = review.review_text?.trim();
+  const text = reviewQuoteFor(review, match);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();

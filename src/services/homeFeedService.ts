@@ -59,6 +59,8 @@ export interface NetworkReview {
   created_at: string;
   rating?: number;
   content?: string;
+  artist_performance_feedback?: string;
+  venue_feedback?: string;
   photos?: string[];
   artist_id?: string;
   venue_id?: string;
@@ -829,6 +831,8 @@ export class HomeFeedService {
           venue_id,
           rating,
           review_text,
+          artist_performance_feedback,
+          venue_feedback,
           photos,
           created_at,
           events (
@@ -930,6 +934,8 @@ export class HomeFeedService {
             created_at: review.created_at,
             rating: review.rating || undefined,
             content: review.review_text || undefined,
+            artist_performance_feedback: review.artist_performance_feedback || undefined,
+            venue_feedback: review.venue_feedback || undefined,
             photos: review.photos || undefined,
             artist_id: artistId || undefined,
             venue_id: venueId || undefined,

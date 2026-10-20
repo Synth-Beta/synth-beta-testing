@@ -28,6 +28,8 @@ import {
   logJustAnnounced,
   planNaturalWeave,
   dailySeed,
+  reviewEventMatch,
+  type ReviewMatch,
 } from '@synth/shared';
 import { toast } from '@/hooks/use-toast';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
@@ -66,10 +68,13 @@ interface UnifiedEventItem {
 /** Non-event stop on the thread (e.g. a friend's review). */
 export interface ThreadNode {
   key: string;
-  node: React.ReactNode;
+  /** Gets the side of the show it sits after (artist / venue), or null when unrelated. */
+  render: (match: ReviewMatch | null) => React.ReactNode;
   /** Lets the card sit right after a show by the same artist / at the same venue. */
   artistId?: string | null;
   venueId?: string | null;
+  /** A venue-only pairing needs venue text (see reviewEventMatch). */
+  venueFeedback?: string | null;
 }
 
 type ThreadEntry =
@@ -106,6 +111,8 @@ interface UnifiedEventsFeedProps {
   reviewNodes?: ThreadNode[];
   /** Extra events to inject into the feed (e.g. friend-interested events labeled FRIENDS) */
   extraEvents?: UnifiedEventItem[];
+  /** True while the parent is still fetching reviewNodes/extraEvents; the first paint waits for them */
+  extrasLoading?: boolean;
 }
 
 const PAGE_SIZE = 20;
@@ -281,6 +288,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   middleSection,
   reviewNodes,
   extraEvents,
+  extrasLoading = false,
 }) => {
   const queryClient = useQueryClient();
 
@@ -297,6 +305,10 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [engagedAtLoad, setEngagedAtLoad] = useState<Set<string>>(new Set());
   const [excludedArtists, setExcludedArtists] = useState<Set<string>>(new Set());
+  const [relationsLoaded, setRelationsLoaded] = useState(false);
+  // Latches true once everything that reshapes the list (reviews, friend shows, saved
+  // shows, hidden artists) has arrived, so the feed draws once instead of shuffling.
+  const [firstPaintReady, setFirstPaintReady] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
 
@@ -496,6 +508,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         saveLastKnownLocation(loc.lat, loc.lng);
       }
         if (prefsResult.status === 'fulfilled' && prefsResult.value.data?.top_genres) {
+          // The feed RPC doesn't take genres, so refetching once they arrive only redraws the list.
+          hadGenresForReloadRef.current = true;
           setUserTopGenres(prefsResult.value.data.top_genres);
         }
       } else {
@@ -835,7 +849,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   // Load interested events
   useEffect(() => {
-    void Promise.resolve(
+    const interestedPromise = Promise.resolve(
       supabase
         .from('user_event_relationships')
         .select('event_id')
@@ -848,10 +862,21 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         setInterestedEvents(ids);
         // Snapshot, not live: a card the user taps "I'm in" on stays put until the next load.
         setEngagedAtLoad(new Set(ids));
-      })
-      .catch(() => {});
-    void ArtistExclusionService.list(currentUserId).then(setExcludedArtists);
+      });
+    const excludedPromise = ArtistExclusionService.list(currentUserId).then(setExcludedArtists);
+    void Promise.allSettled([interestedPromise, excludedPromise]).then(() => setRelationsLoaded(true));
   }, [currentUserId]);
+
+  useEffect(() => {
+    if (firstPaintReady) return;
+    if (relationsLoaded && !extrasLoading) {
+      setFirstPaintReady(true);
+      return;
+    }
+    // Never hold the feed hostage to a slow side request.
+    const timer = setTimeout(() => setFirstPaintReady(true), 4000);
+    return () => clearTimeout(timer);
+  }, [firstPaintReady, relationsLoaded, extrasLoading]);
 
   // Initial load is now handled in the location fetch effect above
 
@@ -1064,12 +1089,15 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     // same artist or at the same venue when one comes up.
     const firstUnpinned = events.findIndex((e) => !e.just_announced);
     const pinnedCount = firstUnpinned < 0 ? events.length : firstUnpinned;
+    const match = (review: ThreadNode, event: UnifiedEventItem) =>
+      reviewEventMatch(
+        { artist_id: review.artistId, venue_id: review.venueId, venue_feedback: review.venueFeedback },
+        event
+      );
     const placed = planNaturalWeave(events.slice(pinnedCount), reviewNodes ?? [], {
       seed: dailySeed(`${currentUserId}:reviews`),
       ...REVIEW_WEAVE,
-      relatesTo: (review, event) =>
-        (!!review.artistId && review.artistId === event.artist_id) ||
-        (!!review.venueId && review.venueId === event.venue_id),
+      relatesTo: (review, event) => match(review, event) !== null,
     });
 
     const entries: ThreadEntry[] = [];
@@ -1077,7 +1105,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       if (i === insertAt) entries.push({ kind: 'section', node: middleSection });
       entries.push({ kind: 'event', item });
       const review = i >= pinnedCount ? placed.get(i - pinnedCount) : undefined;
-      if (review) entries.push({ kind: 'review', key: review.key, node: review.node });
+      if (review) entries.push({ kind: 'review', key: review.key, node: review.render(match(review, item)) });
     });
     if (insertAt >= events.length) entries.push({ kind: 'section', node: middleSection });
     return entries;
@@ -1145,7 +1173,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     }
   };
 
-  if (loading && displayedEvents.length === 0) {
+  if (!firstPaintReady || (loading && displayedEvents.length === 0)) {
     return (
       <div className="swift-ui-feed-container">
         <SynthLoadingInline
