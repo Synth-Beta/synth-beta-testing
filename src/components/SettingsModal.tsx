@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   LogOut, User, Bell, Shield, Mail, Key, AtSign, Eye, EyeOff,
   AlertCircle, CheckCircle, ArrowLeft, Info, ChevronRight, UserX, Lock,
-  MessageCircle, Users,
+  MessageCircle, Users, Link2,
 } from 'lucide-react';
 import { OnboardingPreferencesSettings } from '@/components/OnboardingPreferencesSettings';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +40,8 @@ export type SettingsModalView =
   | 'security-actions'
   | 'verification'
   | 'parental-controls'
+  | 'connected-apps'
+  /** Kept for the /connect/pickfive deep link; shows the Connected Apps page. */
   | 'pickfive'
   | 'delete-account';
 
@@ -334,7 +336,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
     view === 'security-actions' ? 'Security' :
     view === 'verification' ? 'Verification' :
     view === 'parental-controls' ? 'Parental Controls' :
-    view === 'pickfive' ? 'Pick Five' :
+    view === 'connected-apps' || view === 'pickfive' ? 'Connected Apps' :
     view === 'delete-account' ? 'Delete Account' : 'Settings';
 
   return (
@@ -520,17 +522,16 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                 />
               </SettingsSection>
 
-              {/* ── Connected apps ───────────────────────────────────────── */}
+              {/* ── Connected apps (own page: more connections are coming) ── */}
               <SettingsSection label="Connected Apps">
-                <div className="space-y-2.5 p-4">
-                  <p className="text-sm font-bold text-muted-foreground">Spotify / Apple Music</p>
-                  <StreamingAccountSettings compact />
-                </div>
-                <div className="h-px bg-gray-100" />
-                <div className="space-y-2.5 p-4">
-                  <p className="text-sm font-bold text-muted-foreground">Pick Five</p>
-                  <PickFiveConnection />
-                </div>
+                <NavRow
+                  icon={Link2}
+                  iconBg="bg-pink-100"
+                  iconColor="text-pink-500"
+                  label="Connected Apps"
+                  description="Spotify, Apple Music, Pick5"
+                  onClick={() => setView('connected-apps')}
+                />
               </SettingsSection>
 
               {/* ── Danger zone ──────────────────────────────────────────── */}
@@ -588,16 +589,18 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
             </div>
           )}
 
-          {view === 'pickfive' && (
+          {(view === 'connected-apps' || view === 'pickfive') && (
             <div className="px-5 py-5 space-y-4">
-              <PickFiveConnection />
-              <button
-                type="button"
-                onClick={() => setView('menu')}
-                className="w-full text-center text-sm text-muted-foreground underline"
-              >
-                See all connected apps in Settings
-              </button>
+              <SettingsSection label="Spotify / Apple Music">
+                <div className="p-4">
+                  <StreamingAccountSettings compact />
+                </div>
+              </SettingsSection>
+              <SettingsSection label="Pick5">
+                <div className="p-4">
+                  <PickFiveConnection />
+                </div>
+              </SettingsSection>
             </div>
           )}
 
