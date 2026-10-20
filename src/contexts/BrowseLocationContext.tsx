@@ -33,6 +33,8 @@ interface BrowseLocationContextValue {
   /** True only during the initial resolve (stored value or first GPS fetch). */
   loading: boolean;
   setManualLocation: (coords: Coordinates, label: string, radiusMiles: number) => void;
+  /** Change only the radius; keeps the current (GPS or manual) location. */
+  setRadiusMiles: (radiusMiles: number) => void;
   resetToCurrentLocation: () => void;
 }
 
@@ -43,8 +45,21 @@ const BrowseLocationContext = createContext<BrowseLocationContextValue>({
   isManual: false,
   loading: true,
   setManualLocation: () => {},
+  setRadiusMiles: () => {},
   resetToCurrentLocation: () => {},
 });
+
+// Radius chosen while on GPS location (no manual override stored).
+const RADIUS_KEY = 'synth_browse_radius_v1';
+
+function readStoredRadius(): number | null {
+  try {
+    const n = Number(window.localStorage?.getItem(RADIUS_KEY));
+    return n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
 
 function readStored(): StoredBrowseLocation | null {
   try {
@@ -164,6 +179,8 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
       }
 
       // No manual override stored - fall back to live/cached GPS.
+      const storedRadius = readStoredRadius();
+      if (storedRadius) setRadiusMiles(storedRadius);
       await fetchGpsLocation();
       setLoading(false);
     })();
@@ -182,6 +199,19 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
+  const updateRadiusMiles = useCallback((newRadiusMiles: number) => {
+    setRadiusMiles(newRadiusMiles);
+    try {
+      window.localStorage?.setItem(RADIUS_KEY, String(newRadiusMiles));
+      const stored = readStored();
+      if (stored) {
+        window.localStorage?.setItem(STORAGE_KEY, JSON.stringify({ ...stored, radiusMiles: newRadiusMiles }));
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
   const resetToCurrentLocation = useCallback(() => {
     setIsManual(false);
     setLoading(true);
@@ -195,7 +225,7 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
 
   return (
     <BrowseLocationContext.Provider
-      value={{ coords, label, radiusMiles, isManual, loading, setManualLocation, resetToCurrentLocation }}
+      value={{ coords, label, radiusMiles, isManual, loading, setManualLocation, setRadiusMiles: updateRadiusMiles, resetToCurrentLocation }}
     >
       {children}
     </BrowseLocationContext.Provider>
