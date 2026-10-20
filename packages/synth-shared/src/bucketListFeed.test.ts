@@ -7,7 +7,7 @@
  *  - #1 on the list outranks #2 even when #2's show is sooner,
  *  - a location narrows the query to a bounding box.
  *
- * Run: node --experimental-strip-types packages/synth-shared/src/bucketListFeed.test.ts
+ * Run: npx tsx packages/synth-shared/src/bucketListFeed.test.ts
  */
 
 import assert from 'node:assert/strict';
@@ -107,7 +107,7 @@ void main();
 
 // ---------------------------------------------------------------------------
 // weaveBucketListIntoFeed — bucket list is woven into the ranked feed, never pinned.
-// Run: node --experimental-strip-types packages/synth-shared/src/bucketListFeed.test.ts
+// Run: npx tsx packages/synth-shared/src/bucketListFeed.test.ts
 // ---------------------------------------------------------------------------
 {
   const byEventId = (e: { event_id: string }) => e.event_id;
@@ -151,4 +151,19 @@ void main();
   assert.ok(altKeyed.some((e) => e.id === 'b0'));
 
   console.log('weaveBucketListIntoFeed: all checks passed');
+}
+
+// Seeded (natural) mode: varied gaps, never first, never adjacent, nothing dropped.
+{
+  const byEventId = (e: { event_id: string }) => e.event_id;
+  const ranked = Array.from({ length: 30 }, (_, i) => ({ event_id: `r${i}` }));
+  const bucket = [{ event_id: 'b0' }, { event_id: 'b1' }, { event_id: 'b2' }];
+  const woven = weaveBucketListIntoFeed(ranked, bucket, byEventId, 4, 'user-1:2026-10-19:bucket');
+  assert.equal(woven[0].event_id, 'r0');
+  assert.equal(woven.length, 33);
+  const at = woven.flatMap((e, i) => (e.event_id.startsWith('b') ? [i] : []));
+  assert.equal(at.length, 3);
+  for (let i = 1; i < at.length; i++) assert.ok(at[i] - at[i - 1] > 1, 'bucket events never touch');
+  assert.deepEqual(weaveBucketListIntoFeed(ranked, bucket, byEventId, 4, 'user-1:2026-10-19:bucket'), woven);
+  console.log('weaveBucketListIntoFeed natural OK', at);
 }

@@ -4,6 +4,7 @@
  * sorts the same way on both platforms.
  */
 import type { SynthSupabaseClient } from './supabaseClientType';
+import { planNaturalWeave } from './naturalWeave';
 
 /** One bucket-list artist, already in priority order (index 0 = #1). */
 export interface RankedBucketArtist {
@@ -141,7 +142,9 @@ export function weaveBucketListIntoFeed<T>(
   // Takes an id accessor rather than assuming a field name: web feed items key on
   // `event_id`, Expo's on `id`, and the weaving must be identical on both.
   getId: (item: T) => string,
-  spacing: number = BUCKET_LIST_SPACING
+  spacing: number = BUCKET_LIST_SPACING,
+  /** When set, gaps vary around `spacing` (see naturalWeave) instead of a fixed every-Nth. */
+  seed?: string
 ): T[] {
   if (bucketEvents.length === 0) return events;
 
@@ -152,6 +155,24 @@ export function weaveBucketListIntoFeed<T>(
   // A spacing of 0 or less would inject after every event; clamp so the feed stays mostly
   // the ranker's.
   const step = Math.max(1, spacing);
+
+  if (seed) {
+    const placed = planNaturalWeave(events, missing, {
+      seed,
+      firstAt: step,
+      minGap: Math.max(2, step - 1),
+      maxGap: step + 3,
+    });
+    const used = new Set(placed.values());
+    const merged: T[] = [];
+    events.forEach((event, index) => {
+      merged.push(event);
+      const extra = placed.get(index);
+      if (extra !== undefined) merged.push(extra);
+    });
+    // Anything that did not fit still belongs in the feed rather than being dropped.
+    return [...merged, ...missing.filter((m) => !used.has(m))];
+  }
 
   const merged: T[] = [];
   let next = 0;

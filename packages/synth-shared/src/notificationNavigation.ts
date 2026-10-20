@@ -100,7 +100,8 @@ export function resolveNotificationExpoPath(
 
   if (EVENT_SUMMARY_TYPES.has(type)) {
     if (eventId) return { path: `/event/${eventId}` };
-    return { path: '/(tabs)/discover' };
+    // No single show: Home, where nearby shows live now that Community replaced Discover.
+    return { path: '/(tabs)' };
   }
 
   if (type === 'friend_accepted') {

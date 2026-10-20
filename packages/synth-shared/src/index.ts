@@ -196,6 +196,23 @@ export {
   BUCKET_LIST_TOP_LIMIT,
 } from './bucketListFeed';
 export {
+  type RatingHighlight,
+  type ReviewHighlights,
+  type HighlightReviewRow,
+  summarizeReviewHighlights,
+  fetchReviewHighlights,
+  EMPTY_REVIEW_HIGHLIGHTS,
+  QUOTE_MIN_RATING,
+} from './reviewHighlights';
+export {
+  type WovenEntry,
+  type NaturalWeaveOptions,
+  weaveNaturally,
+  planNaturalWeave,
+  seededRandom,
+  dailySeed,
+} from './naturalWeave';
+export {
   weaveJustAnnouncedIntoFeed,
   JUST_ANNOUNCED_LABEL,
   JUST_ANNOUNCED_PIN_LIMIT,
@@ -240,3 +257,10 @@ export {
   type FuzzyEventRow,
   type ReviewEventSearchRow,
 } from './forgivingNameSearch';
+export {
+  PICK5_ORIGIN,
+  PICK5_BANDS,
+  pick5BandUrl,
+  findPick5Band,
+  type Pick5Band,
+} from './pick5';
