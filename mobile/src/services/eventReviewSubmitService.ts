@@ -32,6 +32,7 @@ export interface ReviewData {
   value_feedback?: string;
   ticket_price_paid?: number;
   recommend_at_price?: boolean;
+  show_ticket_price?: boolean;
   artist_rating?: number;
   review_type: 'event' | 'venue' | 'artist';
   review_text?: string;
@@ -510,6 +511,7 @@ export class EventReviewSubmitService {
           // All 5 category recommendation fields
           ticket_price_paid: reviewData.ticket_price_paid,
           recommend_at_price: reviewData.recommend_at_price,
+          show_ticket_price: reviewData.show_ticket_price,
           artist_rating: reviewData.artist_rating, // Legacy field
           review_type: reviewData.review_type,
           venue_tags: reviewData.venue_tags,
@@ -729,6 +731,7 @@ export class EventReviewSubmitService {
         // All 5 category recommendation fields
         ticket_price_paid: reviewData.ticket_price_paid,
         recommend_at_price: reviewData.recommend_at_price,
+        show_ticket_price: reviewData.show_ticket_price,
         artist_rating: reviewData.artist_rating, // Legacy field
         review_type: reviewData.review_type,
         venue_tags: reviewData.venue_tags,
@@ -839,6 +842,7 @@ export class EventReviewSubmitService {
           value_feedback: reviewData.value_feedback?.trim() || undefined,
           ticket_price_paid: reviewData.ticket_price_paid,
           recommend_at_price: reviewData.recommend_at_price,
+          show_ticket_price: reviewData.show_ticket_price,
           photos: reviewData.photos,
           setlist: reviewData.setlist || null, // JSONB field (Supabase handles conversion)
           attendees: attendeesForDb,

@@ -12,6 +12,7 @@ import {
     Platform,
     FlatList,
     Alert,
+    Switch,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { CalendarDays, ChevronLeft, X } from 'lucide-react-native';
@@ -694,6 +695,25 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     </SynthText>
                 </Pressable>
             </View>
+
+            {formData.isPublic && formData.ticketPricePaid ? (
+                <View style={styles.priceToggleRow}>
+                    <View style={{ flex: 1 }}>
+                        <SynthText variant="body" style={styles.privacyCardTitle}>
+                            Show what I paid (${formData.ticketPricePaid})
+                        </SynthText>
+                        <SynthText variant="meta" color="secondary">
+                            Off keeps the price private. Your ratings and "worth it" answer stay public.
+                        </SynthText>
+                    </View>
+                    <Switch
+                        value={formData.showTicketPrice}
+                        onValueChange={(v) => updateFormData({ showTicketPrice: v })}
+                        trackColor={{ true: SynthTokens.colors.brandPink500 }}
+                        accessibilityLabel="Show what I paid on my review"
+                    />
+                </View>
+            ) : null}
 
             {/* Privacy info bullets (matches web) */}
             <View style={styles.privacyInfo}>
@@ -1603,6 +1623,7 @@ const styles = StyleSheet.create({
         color: SynthTokens.colors.neutral900,
     },
     privacyGroup: { gap: 12, marginTop: 8 },
+    priceToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 },
     privacyCard: {
         borderWidth: 2,
         borderColor: SynthTokens.colors.neutral200,

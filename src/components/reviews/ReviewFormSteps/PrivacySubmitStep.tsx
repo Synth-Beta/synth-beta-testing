@@ -1,5 +1,6 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -331,6 +332,22 @@ export function PrivacySubmitStep({
           </div>
         </div>
       </div>
+
+      {formData.isPublic && ticketPriceDisplay && (
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-4">
+          <Label htmlFor="showTicketPrice" className="cursor-pointer">
+            <span className="font-medium text-gray-900">Show what I paid (${ticketPriceDisplay})</span>
+            <span className="block text-sm text-gray-500 mt-1">
+              Off keeps the price private. Your ratings and "worth it" answer stay public.
+            </span>
+          </Label>
+          <Switch
+            id="showTicketPrice"
+            checked={formData.showTicketPrice}
+            onCheckedChange={(checked) => onUpdateFormData({ showTicketPrice: checked })}
+          />
+        </div>
+      )}
 
       <div className="bg-gray-50 rounded-lg p-4">
         <div className="flex items-start space-x-2">

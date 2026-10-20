@@ -68,6 +68,7 @@ export interface ReviewFormData {
 
   ticketPricePaid: string;
   recommendAtPrice: boolean | null; // would recommend at the price paid; null = unanswered
+  showTicketPrice: boolean; // false = keep the price private on a public review
 
   rating: number; // Overall rating (calculated as average of available category ratings)
   
@@ -134,6 +135,7 @@ const initialFormData: ReviewFormData = {
   valueFeedback: '',
   ticketPricePaid: '',
   recommendAtPrice: null,
+  showTicketPrice: true,
   rating: 0,
   reviewText: '',
   images: [],
