@@ -33,7 +33,7 @@ function GenreCard({
     return (
         <div
             style={{
-                background: '#fff',
+                background: '#FFFDFA',
                 borderRadius: 16,
                 border: '0.5px solid rgba(60, 60, 67, 0.1)',
                 padding: 14,

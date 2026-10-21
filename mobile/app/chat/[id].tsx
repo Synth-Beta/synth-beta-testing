@@ -37,6 +37,7 @@ import {
 } from '../../src/services/contentModerationService';
 
 const PINK = SynthTokens.colors.brandPink500;
+const MUTED_ICON = SynthTokens.colors.neutral400;
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const COPY_FEEDBACK_MS = 140;
 
@@ -859,7 +860,7 @@ export default function ChatThreadScreen() {
         if (hearts.length === 0) return null;
         return (
             <View style={styles.heartBadge}>
-                <Heart size={13} color="#fff" fill="#fff" />
+                <Heart size={13} color="#FFFDFA" fill="#FFFDFA" />
                 {hearts.length > 1 ? <Text style={styles.heartBadgeCount}>{hearts.length}</Text> : null}
             </View>
         );
@@ -975,7 +976,7 @@ export default function ChatThreadScreen() {
                             style={styles.shareCardHeader}
                         >
                             <View style={styles.shareCardHeaderIcon}>
-                                <FileText size={16} color="#fff" />
+                                <FileText size={16} color="#FFFDFA" />
                             </View>
                             <Text style={styles.shareCardHeaderLabel}>Concert Review</Text>
                             {past && (
@@ -988,7 +989,7 @@ export default function ChatThreadScreen() {
                         {/* Card body */}
                         <View style={styles.shareCardBody}>
                             {loading ? (
-                                <ActivityIndicator color={PINK} style={{ marginVertical: 12 }} />
+                                <ActivityIndicator color={MUTED_ICON} style={{ marginVertical: 12 }} />
                             ) : (
                                 <>
                                     {customNote ? (
@@ -1013,13 +1014,13 @@ export default function ChatThreadScreen() {
                                     ) : null}
                                     {rc?.event_date ? (
                                         <View style={styles.shareMetaRow}>
-                                            <Calendar size={13} color={PINK} />
+                                            <Calendar size={13} color={MUTED_ICON} />
                                             <Text style={styles.shareMetaText}>{formatEventWhen(rc.event_date)}</Text>
                                         </View>
                                     ) : null}
                                     {rc?.venue_name ? (
                                         <View style={styles.shareMetaRow}>
-                                            <MapPin size={13} color={PINK} />
+                                            <MapPin size={13} color={MUTED_ICON} />
                                             <Text style={styles.shareMetaText} numberOfLines={1}>
                                                 {[rc.venue_name, rc.venue_city].filter(Boolean).join(', ')}
                                             </Text>
@@ -1085,7 +1086,7 @@ export default function ChatThreadScreen() {
                             style={styles.shareCardHeader}
                         >
                             <View style={styles.shareCardHeaderIcon}>
-                                <Music size={16} color="#fff" />
+                                <Music size={16} color="#FFFDFA" />
                             </View>
                             <Text style={styles.shareCardHeaderLabel}>Shared Event</Text>
                             <View style={styles.shareCardBadge}>
@@ -1096,7 +1097,7 @@ export default function ChatThreadScreen() {
                         {/* Card body */}
                         <View style={styles.shareCardBody}>
                             {loading ? (
-                                <ActivityIndicator color={PINK} style={{ marginVertical: 12 }} />
+                                <ActivityIndicator color={MUTED_ICON} style={{ marginVertical: 12 }} />
                             ) : (
                                 <>
                                     {ev?.image_url ? (
@@ -1113,13 +1114,13 @@ export default function ChatThreadScreen() {
                                     ) : null}
                                     {eventWhen ? (
                                         <View style={styles.shareMetaRow}>
-                                            <Calendar size={13} color={PINK} />
+                                            <Calendar size={13} color={MUTED_ICON} />
                                             <Text style={styles.shareMetaText}>{eventWhen}</Text>
                                         </View>
                                     ) : null}
                                     {eventPlace ? (
                                         <View style={styles.shareMetaRow}>
-                                            <MapPin size={13} color={PINK} />
+                                            <MapPin size={13} color={MUTED_ICON} />
                                             <Text style={styles.shareMetaText} numberOfLines={1}>{eventPlace}</Text>
                                         </View>
                                     ) : null}
@@ -1280,7 +1281,7 @@ export default function ChatThreadScreen() {
                     style={[styles.sendButton, !inputText.trim() && styles.sendDisabled]}
                     disabled={!inputText.trim()}
                 >
-                    <Send size={20} color="white" />
+                    <Send size={20} color="#FFFDFA" />
                 </Pressable>
             </View>
         </KeyboardAvoidingView>
@@ -1364,8 +1365,8 @@ export default function ChatThreadScreen() {
                             >
                                 <Heart
                                     size={20}
-                                    color={selectedMessageHasHeart ? '#fff' : PINK}
-                                    fill={selectedMessageHasHeart ? '#fff' : 'transparent'}
+                                    color={selectedMessageHasHeart ? '#FFFDFA' : PINK}
+                                    fill={selectedMessageHasHeart ? '#FFFDFA' : 'transparent'}
                                 />
                             </View>
                         ) : (
@@ -1442,7 +1443,7 @@ const styles = StyleSheet.create({
     },
     messageWrapperSelected: {
         transform: [{ scale: 1.03 }],
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.12,
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 4 },
@@ -1462,8 +1463,9 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         borderRadius: 20,
     },
+    // Dark, not pink: pink is reserved for the Send button (isolation effect).
     myBubble: {
-        backgroundColor: SynthTokens.colors.brandPink500,
+        backgroundColor: SynthTokens.colors.neutral900,
         borderBottomRightRadius: 4,
     },
     theirBubble: {
@@ -1491,9 +1493,9 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: PINK,
+        backgroundColor: SynthTokens.colors.neutral900,
         borderWidth: 1.5,
-        borderColor: '#fff',
+        borderColor: '#FFFDFA',
     },
     heartBadgeCount: {
         position: 'absolute',
@@ -1504,7 +1506,7 @@ const styles = StyleSheet.create({
         borderRadius: 7,
         paddingHorizontal: 2,
         backgroundColor: SynthTokens.colors.neutral900,
-        color: '#fff',
+        color: '#FFFDFA',
         textAlign: 'center',
         fontSize: 9,
         lineHeight: 14,
@@ -1558,7 +1560,7 @@ const styles = StyleSheet.create({
         borderColor: '#FBCFE8',
         overflow: 'hidden',
         backgroundColor: SynthTokens.colors.neutral0,
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.08,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
@@ -1581,7 +1583,7 @@ const styles = StyleSheet.create({
     },
     shareCardHeaderLabel: {
         flex: 1,
-        color: '#fff',
+        color: '#FFFDFA',
         fontSize: 12,
         fontWeight: '600',
     },
@@ -1594,7 +1596,7 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255,255,255,0.50)',
     },
     shareCardBadgeText: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontSize: 10,
         fontWeight: '700',
         letterSpacing: 0.3,
@@ -1626,11 +1628,11 @@ const styles = StyleSheet.create({
     shareCardArtist: {
         fontSize: 13,
         fontWeight: '600',
-        color: SynthTokens.colors.brandPink500,
+        color: SynthTokens.colors.neutral600,
         marginBottom: 6,
     },
     shareSnippetBox: {
-        backgroundColor: 'rgba(251,207,232,0.25)',
+        backgroundColor: SynthTokens.colors.neutral100,
         borderRadius: 8,
         paddingHorizontal: 10,
         paddingVertical: 8,
@@ -1666,7 +1668,7 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontSize: 12,
         fontWeight: '600',
-        color: SynthTokens.colors.brandPink500,
+        color: SynthTokens.colors.neutral900,
         textAlign: 'right',
     },
     ratingRow: {
@@ -1697,12 +1699,12 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: SynthTokens.colors.brandPink500,
+        backgroundColor: SynthTokens.colors.neutral200,
         alignItems: 'center',
         justifyContent: 'center',
     },
     senderAvatarInitial: {
-        color: '#fff',
+        color: SynthTokens.colors.neutral600,
         fontSize: 14,
         fontWeight: '700',
     },
@@ -1723,7 +1725,7 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.14,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 6 },
@@ -1739,7 +1741,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.18,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
@@ -1772,7 +1774,7 @@ const styles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: 19,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
         alignItems: 'center',
         justifyContent: 'center',
         alignSelf: 'center',

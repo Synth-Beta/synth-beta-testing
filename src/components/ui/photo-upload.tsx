@@ -1007,7 +1007,7 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
             />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-black/50 rounded-full p-2">
-                <Play className="w-6 h-6 text-white" fill="white" />
+                <Play className="w-6 h-6 text-white" fill="#FFFDFA" />
               </div>
             </div>
             <button

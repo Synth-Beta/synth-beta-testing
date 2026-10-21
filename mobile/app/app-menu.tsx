@@ -150,7 +150,7 @@ export default function AppMenuScreen() {
         {isVerifiedAdmin ? (
           <View style={styles.verifiedCard}>
             <View style={styles.verifiedCheck}>
-              <Check size={14} color="#fff" strokeWidth={3} />
+              <Check size={14} color="#FFFDFA" strokeWidth={3} />
             </View>
             <Sparkles size={16} color={SynthTokens.colors.brandPink500} />
             <Text style={styles.verifiedTitle}>Verified Account</Text>
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     borderColor: SynthTokens.colors.neutral0,
   },
   badgeText: {
-    color: '#fff',
+    color: '#FFFDFA',
     fontSize: 11,
     fontWeight: '700',
     lineHeight: 12,

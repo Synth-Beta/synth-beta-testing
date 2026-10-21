@@ -71,7 +71,7 @@ function Avatar({ name, url, size = 36 }: { name: string; url?: string | null; s
                 justifyContent: 'center',
             }}
         >
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: size * 0.4 }}>{letter}</Text>
+            <Text style={{ color: '#FFFDFA', fontWeight: '700', fontSize: size * 0.4 }}>{letter}</Text>
         </View>
     );
 }
@@ -210,7 +210,7 @@ export function ShareToChatModal({
                 <View style={styles.targetLeft}>
                     {item.type === 'group' ? (
                         <View style={[styles.groupIconBg, isSelected && styles.groupIconBgSelected]}>
-                            <Users size={18} color={isSelected ? '#fff' : PINK} />
+                            <Users size={18} color={isSelected ? '#FFFDFA' : PINK} />
                         </View>
                     ) : (
                         <Avatar name={item.name} url={item.avatar_url} size={38} />
@@ -224,7 +224,7 @@ export function ShareToChatModal({
                     </SynthText>
                 </View>
                 <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected ? <Check size={14} color="#fff" /> : null}
+                    {isSelected ? <Check size={14} color="#FFFDFA" /> : null}
                 </View>
             </Pressable>
         );
@@ -361,12 +361,12 @@ export function ShareToChatModal({
                                 disabled={!selected.size || sending}
                             >
                                 {sending ? (
-                                    <ActivityIndicator color="#fff" size="small" />
+                                    <ActivityIndicator color="#FFFDFA" size="small" />
                                 ) : sent ? (
-                                    <Check size={20} color="#fff" />
+                                    <Check size={20} color="#FFFDFA" />
                                 ) : (
                                     <>
-                                        <Send size={18} color="#fff" />
+                                        <Send size={18} color="#FFFDFA" />
                                         <Text style={styles.sendBtnText}>
                                             Send{selected.size > 1 ? ` (${selected.size})` : ''}
                                         </Text>
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 24,
         maxHeight: '85%',
         minHeight: 300,
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.18,
         shadowRadius: 20,
         shadowOffset: { width: 0, height: -4 },
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#22c55e',
     },
     sendBtnText: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontWeight: '700',
         fontSize: 16,
     },

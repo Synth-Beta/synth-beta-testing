@@ -5,8 +5,9 @@
 export const SynthTokens = {
     colors: {
         // Base (from tokens.css --neutral-*)
-        neutral0: '#FFFFFF',
-        neutral50: '#FCFCFC',
+        // No pure white or black: warm off-white surfaces, near-black text.
+        neutral0: '#FFFDFA',
+        neutral50: '#FBF9F6',
         neutral100: '#F5F5F5',
         neutral200: '#E6E6E6',
         neutral400: '#8A8F98',

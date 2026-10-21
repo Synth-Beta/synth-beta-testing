@@ -10,8 +10,9 @@
      COLORS - NEUTRALS
      ============================================ */
   
-  --neutral-0: #FFFFFF;   /* pure white */
-  --neutral-50: #FCFCFC;  /* base app background */
+  /* No pure white or black anywhere: warm off-white surfaces, near-black text. */
+  --neutral-0: #FFFDFA;   /* cards, surfaces (warm off-white) */
+  --neutral-50: #FBF9F6;  /* base app background */
   --neutral-100: #F5F5F5; /* subtle surfaces, cards */
   --neutral-200: #E6E6E6; /* dividers, borders */
   --neutral-400: #8A8F98; /* disabled text/icons */

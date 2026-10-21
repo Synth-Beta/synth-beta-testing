@@ -503,7 +503,7 @@ export function CustomSetlistInput({ setlists, onChange, className, disabled = f
                       className={editingIndex !== null ? "flex-1" : "w-full"}
                       style={{ 
                         backgroundColor: SETLIST_PURPLE,
-                        color: 'white'
+                        color: '#FFFDFA'
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.backgroundColor = SETLIST_PURPLE_HOVER;
@@ -577,7 +577,7 @@ export function CustomSetlistInput({ setlists, onChange, className, disabled = f
                   className="w-full mt-6"
                   style={{ 
                     backgroundColor: SETLIST_PURPLE,
-                    color: 'white'
+                    color: '#FFFDFA'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = SETLIST_PURPLE_HOVER;

@@ -598,7 +598,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             {/* Rating summary card */}
             <View style={styles.summaryCard}>
                 {formData.selectedArtist?.name && formData.selectedVenue?.name ? (
-                    <SynthText variant="accent" style={[styles.center, { color: '#fff' }]}>
+                    <SynthText variant="accent" style={[styles.center, { color: '#FFFDFA' }]}>
                         {formData.selectedArtist.name} @ {formData.selectedVenue.name}
                     </SynthText>
                 ) : null}
@@ -607,7 +607,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         {formData.eventDate}
                     </SynthText>
                 ) : null}
-                <SynthText variant="h2" style={[styles.center, styles.mt8, { color: '#fff' }]}>
+                <SynthText variant="h2" style={[styles.center, styles.mt8, { color: '#FFFDFA' }]}>
                     {averageRatingForSummary > 0 ? `${averageRatingForSummary.toFixed(1)} / 5` : '—'}
                 </SynthText>
                 {categoryBreakdown.length > 0 ? (
@@ -615,7 +615,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         {categoryBreakdown.map(c => (
                             <View key={c.label} style={styles.categoryItem}>
                                 <SynthText variant="meta" style={{ color: 'rgba(255,255,255,0.8)' }}>{c.label}</SynthText>
-                                <SynthText variant="accent" style={{ color: '#fff' }}>{c.rating ? c.rating.toFixed(1) : '—'}</SynthText>
+                                <SynthText variant="accent" style={{ color: '#FFFDFA' }}>{c.rating ? c.rating.toFixed(1) : '—'}</SynthText>
                             </View>
                         ))}
                     </View>
@@ -1255,7 +1255,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         ) : null}
                         <Pressable style={styles.primaryBtn} onPress={pickPhotos} disabled={uploadingPhoto || formData.photos.length >= 5}>
                             {uploadingPhoto ? (
-                                <ActivityIndicator color="#fff" />
+                                <ActivityIndicator color="#FFFDFA" />
                             ) : (
                                 <SynthText variant="body" style={styles.primaryBtnText}>
                                     Add photos ({formData.photos.length}/5)
@@ -1363,7 +1363,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         ) : null}
                         <Pressable style={styles.primaryBtn} onPress={pickPhotos} disabled={uploadingPhoto || formData.photos.length >= 5}>
                             {uploadingPhoto ? (
-                                <ActivityIndicator color="#fff" />
+                                <ActivityIndicator color="#FFFDFA" />
                             ) : (
                                 <SynthText variant="body" style={styles.primaryBtnText}>
                                     Add photos ({formData.photos.length}/5)
@@ -1473,7 +1473,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         disabled={isLoading}
                     >
                         {isLoading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color="#FFFDFA" />
                         ) : (
                             <SynthText variant="body" style={styles.primaryBtnText}>
                                 Submit Review
@@ -1515,7 +1515,7 @@ const styles = StyleSheet.create({
         minHeight: 48,
         justifyContent: 'center',
         fontSize: 16,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
         color: SynthTokens.colors.neutral900,
     },
     area: {
@@ -1526,7 +1526,7 @@ const styles = StyleSheet.create({
         minHeight: 120,
         textAlignVertical: 'top',
         fontSize: 16,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
         color: SynthTokens.colors.neutral900,
     },
     listRow: {
@@ -1568,7 +1568,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         marginRight: 8,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
     },
     durationCard: {
         borderWidth: 2,
@@ -1576,7 +1576,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 14,
         marginTop: 12,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
     },
     durationCardOn: {
         borderColor: SynthTokens.colors.brandPink500,
@@ -1707,7 +1707,7 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         alignItems: 'center',
     },
-    primaryBtnText: { color: '#fff', fontWeight: '600' },
+    primaryBtnText: { color: '#FFFDFA', fontWeight: '600' },
     primaryBtnDisabled: { opacity: 0.7 },
     photoStrip: {
         flexDirection: 'row',
@@ -1740,7 +1740,7 @@ const styles = StyleSheet.create({
         paddingVertical: 1,
     },
     thumbnailBadgeText: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontSize: 9,
         fontWeight: '700',
     },
@@ -1761,7 +1761,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(180,0,0,0.6)',
     },
     photoActionTxt: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontSize: 10,
         fontWeight: '600',
     },

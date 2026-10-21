@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
         borderRadius: 999,
         backgroundColor: PINK,
     },
-    retryTxt: { color: '#fff', fontWeight: '700' },
+    retryTxt: { color: '#FFFDFA', fontWeight: '700' },
     emptyBox: {
         padding: 20,
         borderRadius: 14,

@@ -141,7 +141,7 @@ export default function CommunityScreen() {
               setRefreshing(true);
               void load();
             }}
-            tintColor={SynthTokens.colors.brandPink500}
+            tintColor={SynthTokens.colors.neutral400}
           />
         }
       />

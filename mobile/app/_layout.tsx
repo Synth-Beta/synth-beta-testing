@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { Alert, AppState, type AppStateStatus } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as Linking from 'expo-linking';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -188,6 +190,28 @@ export default function RootLayout() {
       subscription?.unsubscribe();
     };
   }, []);
+
+  // Magic links (sign-in screen) open synth://#access_token=...; detectSessionInUrl is off
+  // in React Native, so without this the link opened the app and left them on sign-in.
+  const authLinkUrl = Linking.useURL();
+  useEffect(() => {
+    if (!authLinkUrl) return;
+    const { params, errorCode } = QueryParams.getQueryParams(authLinkUrl);
+    if (errorCode || params.error_description) {
+      console.warn('[auth] sign-in link rejected', errorCode ?? params.error_description);
+      Alert.alert('Sign-in link expired', 'Request a new link from the sign-in screen.');
+      return;
+    }
+    if (params.access_token && params.refresh_token) {
+      void supabase.auth
+        .setSession({ access_token: params.access_token, refresh_token: params.refresh_token })
+        .then(({ error }) => error && console.warn('[auth] sign-in link setSession failed', error.message));
+    } else if (params.code) {
+      void supabase.auth
+        .exchangeCodeForSession(params.code)
+        .then(({ error }) => error && console.warn('[auth] sign-in link code exchange failed', error.message));
+    }
+  }, [authLinkUrl]);
 
   useEffect(() => {
     if (!session?.user?.id) {

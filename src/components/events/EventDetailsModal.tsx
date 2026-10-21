@@ -1472,8 +1472,8 @@ export function EventDetailsModal({
                     borderRadius: 999,
                     fontSize: 12,
                     fontWeight: 600,
-                    background: isPastEvent ? 'rgba(255,255,255,0.18)' : 'var(--brand-pink-500)',
-                    color: '#fff',
+                    background: isPastEvent ? 'rgba(255,255,255,0.18)' : 'rgba(14, 14, 14, 0.42)',
+                    color: '#FFFDFA',
                     backdropFilter: 'blur(6px)',
                   }}>
                     {isPastEvent ? 'Past Event' : 'Upcoming'}
@@ -1637,15 +1637,15 @@ export function EventDetailsModal({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 'var(--spacing-inline, 6px)',
-                    border: localRsvp === 'going' ? 'none' : '1.5px solid var(--brand-pink-500)',
-                    background: localRsvp === 'going' ? 'var(--brand-pink-500)' : 'rgba(255, 255, 255, 0.8)',
+                    border: localRsvp === 'going' ? 'none' : '1.5px solid var(--neutral-200)',
+                    background: localRsvp === 'going' ? 'var(--neutral-900)' : 'rgba(255, 255, 255, 0.8)',
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
                     boxShadow: '0 4px 4px 0 var(--shadow-color)',
                     transition: `all ${animations.standardDuration} ${animations.springTiming}`,
                   }}
                 >
-                  <Calendar size={22} color={localRsvp === 'going' ? 'var(--neutral-0)' : 'var(--brand-pink-500)'} aria-hidden="true" />
+                  <Calendar size={22} color={localRsvp === 'going' ? 'var(--neutral-0)' : 'var(--neutral-900)'} aria-hidden="true" />
                   <span style={{
                     color: localRsvp === 'going' ? 'var(--neutral-0)' : 'inherit',
                     fontFamily: 'var(--font-family)',
@@ -1686,7 +1686,7 @@ export function EventDetailsModal({
                   position: 'relative'
                 }}
               >
-                <Flag size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                <Flag size={24} style={{ color: 'var(--neutral-600)' }} />
                 Report
               </Button>
             </div>
@@ -1710,7 +1710,7 @@ export function EventDetailsModal({
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                    <Calendar size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                    <Calendar size={24} style={{ color: 'var(--neutral-400)' }} />
                   </div>
                   <div>
                     <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
@@ -1730,7 +1730,7 @@ export function EventDetailsModal({
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                    <Clock size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                    <Clock size={24} style={{ color: 'var(--neutral-400)' }} />
                   </div>
                   <div>
                     <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
@@ -1759,7 +1759,7 @@ export function EventDetailsModal({
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}>
-                        <MapPin size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                        <MapPin size={24} style={{ color: 'var(--neutral-400)' }} />
                       </div>
                       <div>
                         <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
@@ -1782,7 +1782,7 @@ export function EventDetailsModal({
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                      <BuildingComplex size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                      <BuildingComplex size={24} style={{ color: 'var(--neutral-400)' }} />
                     </div>
                     <div>
                       <span style={{ ...textStyles.callout, color: 'var(--neutral-900)' }}>
@@ -1822,7 +1822,7 @@ export function EventDetailsModal({
                           alignItems: 'center',
                           justifyContent: 'center',
                         }}>
-                          <Ticket size={24} style={{ color: 'var(--brand-pink-500)' }} />
+                          <Ticket size={24} style={{ color: 'var(--neutral-400)' }} />
                         </div>
                         <div>
                           <span style={{ ...textStyles.callout, fontWeight: 600, color: 'var(--neutral-900)' }}>
@@ -2047,7 +2047,7 @@ export function EventDetailsModal({
               {reviewsLoading ? (
                 <div className="flex items-center justify-center py-8" aria-busy="true">
                   <div role="status" aria-live="polite" className="sr-only">Loading reviews…</div>
-                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--brand-pink-500)' }} aria-hidden="true" />
+                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--neutral-400)' }} aria-hidden="true" />
                 </div>
               ) : artistVenueReviews.length > 0 ? (
                 <div className="flex flex-col gap-4">
@@ -2097,14 +2097,14 @@ export function EventDetailsModal({
                               display: 'flex',
                               alignItems: 'center',
                               gap: 4,
-                              background: 'var(--brand-pink-500)',
-                              color: '#fff',
+                              background: 'var(--neutral-900)',
+                              color: '#FFFDFA',
                               padding: '4px 8px',
                               borderRadius: 6,
                               fontSize: 14,
                               fontWeight: 600,
                             }}>
-                              {reviewType === 'artist' ? <Music size={24} /> : reviewType === 'venue' ? <Building2 size={24} /> : <Star size={24} fill="#fff" />}
+                              {reviewType === 'artist' ? <Music size={24} /> : reviewType === 'venue' ? <Building2 size={24} /> : <Star size={24} fill="#FFFDFA" />}
                               {(reviewType === 'artist' ? (artistPerfRating || review.rating) : reviewType === 'venue' ? (venueRating || review.rating) : review.rating)?.toFixed(1) || 'N/A'}
                             </div>
                             {/* Secondary: Location Rating for venue reviews */}
@@ -2154,7 +2154,7 @@ export function EventDetailsModal({
                             marginTop: 12,
                             padding: '8px 12px',
                             background: 'rgba(255,255,255,0.8)',
-                            border: '1.5px solid var(--brand-pink-500)',
+                            border: '1.5px solid var(--neutral-200)',
                             borderRadius: 20,
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
@@ -2165,11 +2165,11 @@ export function EventDetailsModal({
                             width: 24,
                             height: 24,
                             borderRadius: '50%',
-                            background: profile?.avatar_url ? `url(${profile.avatar_url}) center/cover` : 'var(--brand-pink-500)',
+                            background: profile?.avatar_url ? `url(${profile.avatar_url}) center/cover` : 'var(--neutral-200)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: '#fff',
+                            color: 'var(--neutral-600)',
                             fontSize: 11,
                             fontWeight: 600,
                           }}>
@@ -2177,7 +2177,7 @@ export function EventDetailsModal({
                           </div>
                           <span style={{
                             fontSize: 14,
-                            color: 'var(--brand-pink-500)',
+                            color: 'var(--neutral-900)',
                             fontWeight: 500,
                           }}>
                             {profile?.name || 'User'}
@@ -2296,11 +2296,11 @@ export function EventDetailsModal({
               <div className="flex flex-col items-center justify-center py-10 gap-4">
                 {verifiedChatLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: 'var(--brand-pink-500)' }} />
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: 'var(--neutral-400)' }} />
                   </div>
                 ) : (
                   <>
-                    <MessageCircle size={52} style={{ color: 'var(--brand-pink-500)' }} />
+                    <MessageCircle size={52} style={{ color: 'var(--neutral-400)' }} />
                     <div className="text-center space-y-1">
                       <h3 className="text-lg font-bold" style={{ color: 'var(--neutral-900)' }}>
                         {verifiedChatInfo?.chat_name ?? `${actualEvent?.title || actualEvent?.artist_name || 'Event'} Chat`}
@@ -2350,7 +2350,7 @@ export function EventDetailsModal({
               <div className="flex flex-col gap-3">
                 {guestListLoading ? (
                   <div className="flex items-center justify-center py-10">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: 'var(--brand-pink-500)' }} />
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2" style={{ borderColor: 'var(--neutral-400)' }} />
                   </div>
                 ) : guestListAllUsers.length === 0 ? (
                   <div className="flex flex-col items-center gap-3 py-10 text-center">
@@ -2369,7 +2369,7 @@ export function EventDetailsModal({
                       {guestListAllUsers.map(u => (
                         <button
                           key={u.user_id}
-                          className="flex items-center gap-3 py-3 px-1 w-full text-left hover:bg-pink-50 transition-colors rounded-lg"
+                          className="flex items-center gap-3 py-3 px-1 w-full text-left hover:bg-gray-100 transition-colors rounded-lg"
                           onClick={() => {
                             if (onNavigateToProfile) {
                               onNavigateToProfile(u.user_id);
@@ -2382,12 +2382,12 @@ export function EventDetailsModal({
                               src={u.avatar_url}
                               alt={u.name ?? 'User'}
                               className="w-11 h-11 rounded-full object-cover flex-shrink-0"
-                              style={{ border: '2px solid var(--brand-pink-200, #FBCFE8)' }}
+                              style={{ border: '2px solid var(--neutral-200)' }}
                             />
                           ) : (
                             <div
-                              className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base flex-shrink-0"
-                              style={{ backgroundColor: 'var(--brand-pink-500)' }}
+                              className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-base flex-shrink-0"
+                              style={{ backgroundColor: 'var(--neutral-200)', color: 'var(--neutral-600)' }}
                             >
                               {(u.name ?? '?').charAt(0).toUpperCase()}
                             </div>
@@ -2409,7 +2409,7 @@ export function EventDetailsModal({
                     {showViewMoreButton && (
                       <button
                         className="text-sm text-center underline cursor-pointer"
-                        style={{ color: 'var(--brand-pink-500)' }}
+                        style={{ color: 'var(--neutral-900)' }}
                         onClick={() => setInterestedModalOpen(true)}
                       >
                         See all {interestedCount} interested →
@@ -2443,15 +2443,15 @@ export function EventDetailsModal({
                 onValueChange={(value) => setSetlistExpanded(value === "setlist")}
                 className="mb-6"
               >
-                <AccordionItem value="setlist" className="border border-purple-200 rounded-lg">
+                <AccordionItem value="setlist" className="border border-gray-200 rounded-lg">
                   <AccordionTrigger className="px-6 py-4 hover:no-underline">
                     <div className="flex items-center gap-3 w-full">
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center">
-                        <Music size={24} className="text-white" />
+                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                        <Music size={24} className="text-gray-600" />
                       </div>
                       <div className="flex-1 text-left">
-                        <h3 className="text-lg font-bold text-purple-900">Setlist from this Show</h3>
-                        <p className="text-sm text-purple-700">
+                        <h3 className="text-lg font-bold text-gray-900">Setlist from this Show</h3>
+                        <p className="text-sm text-gray-600">
                           {(() => {
                             // Use song count from database if available, otherwise calculate from setlist data
                             if (actualEvent.setlist_song_count && actualEvent.setlist_song_count > 0) {
@@ -2467,7 +2467,7 @@ export function EventDetailsModal({
                           variant="outline"
                           size="sm"
                           asChild
-                          className="border-purple-300 hover:bg-purple-100"
+                          className="border-gray-300 hover:bg-gray-100"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <a
@@ -2486,8 +2486,8 @@ export function EventDetailsModal({
                   <AccordionContent className="px-6 pb-6">
                     {fetchingSetlist ? (
                       <div className="text-center py-8">
-                        <Music size={35} className="text-purple-500 mx-auto mb-3 animate-pulse" />
-                        <p className="text-purple-700">Loading setlist from setlist.fm...</p>
+                        <Music size={35} className="text-gray-400 mx-auto mb-3 animate-pulse" />
+                        <p className="text-gray-600">Loading setlist from setlist.fm...</p>
                       </div>
                     ) : (() => {
                       const setlistData = actualEvent.setlist as any;
@@ -2510,7 +2510,7 @@ export function EventDetailsModal({
                       if (!songs || songs.length === 0) {
                         return (
                           <div className="text-center py-4">
-                            <p className="text-purple-700">Setlist data is available but in an unexpected format.</p>
+                            <p className="text-gray-600">Setlist data is available but in an unexpected format.</p>
                             <p className="text-xs text-gray-500 mt-2">Data keys: {setlistData ? Object.keys(setlistData).join(', ') : 'none'}</p>
                             <p className="text-xs text-gray-500 mt-1">Setlist type: {typeof setlistData}</p>
                           </div>
@@ -2526,14 +2526,14 @@ export function EventDetailsModal({
 
                             return (
                               <div key={setNum} className="p-4" style={{ borderRadius: 'var(--radius-corner, 10px)', backgroundColor: 'var(--neutral-100)', border: 'var(--border-default)' }}>
-                                <h4 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                                   <Music size={16} />
                                   {setName}
                                 </h4>
                                 <div className="space-y-1">
                                   {setSongs.map((song: any, idx: number) => (
                                     <div key={song.position || idx} className="flex items-start gap-3 py-1">
-                                      <span className="text-purple-600 font-medium min-w-[28px] text-sm">
+                                      <span className="text-gray-600 font-medium min-w-[28px] text-sm">
                                         {song.position || (idx + 1)}.
                                       </span>
                                       <div className="flex-1 min-w-0">
@@ -2578,8 +2578,8 @@ export function EventDetailsModal({
                           })}
 
                           {setlistData.info && (
-                            <div className="bg-purple-100/50 rounded-lg p-3 mt-4">
-                              <p className="text-sm text-purple-900">
+                            <div className="bg-gray-100 rounded-lg p-3 mt-4">
+                              <p className="text-sm text-gray-900">
                                 <span className="font-semibold">Note:</span> {setlistData.info}
                               </p>
                             </div>
@@ -2640,7 +2640,7 @@ export function EventDetailsModal({
                     fontSize: 'var(--typography-meta-size, 16px)',
                     fontWeight: 'var(--typography-meta-weight, 500)',
                     lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    ...(userWasThere ? { backgroundColor: 'var(--brand-pink-500)', color: '#fff', border: 'none' } : {})
+                    ...(userWasThere ? { backgroundColor: 'var(--brand-pink-500)', color: '#FFFDFA', border: 'none' } : {})
                   }}
                 >
                   {attendanceLoading ? (
@@ -2740,7 +2740,7 @@ export function EventDetailsModal({
                           fontSize: 'var(--typography-meta-size, 16px)',
                           fontWeight: 'var(--typography-meta-weight, 500)',
                           lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                          backgroundColor: 'var(--brand-pink-500)',
+                          backgroundColor: 'var(--neutral-900)',
                           color: 'var(--neutral-0)',
                           paddingLeft: 'var(--spacing-small, 12px)',
                           paddingRight: 'var(--spacing-small, 12px)',
@@ -2754,10 +2754,10 @@ export function EventDetailsModal({
                           boxShadow: '0 4px 4px 0 var(--shadow-color)'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+                          e.currentTarget.style.backgroundColor = 'var(--neutral-600)';
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
+                          e.currentTarget.style.backgroundColor = 'var(--neutral-900)';
                         }}
                       >
                         <a

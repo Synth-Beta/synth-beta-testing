@@ -535,29 +535,29 @@ body,
 @layer base {
   :root {
     /* Synth Light Mode - White Background */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
+    --background: 40 100% 99%;
+    --foreground: 0 0% 5%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card: 40 100% 99%;
+    --card-foreground: 0 0% 5%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --popover: 40 100% 99%;
+    --popover-foreground: 0 0% 5%;
 
     --primary: 320 100% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 40 100% 99%;
 
     --secondary: 60 56% 91%;
-    --secondary-foreground: 0 0% 0%;
+    --secondary-foreground: 0 0% 5%;
 
     --muted: 60 20% 95%;
     --muted-foreground: 0 0% 40%;
 
     --accent: 320 100% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 40 100% 99%;
 
     --destructive: 0 75% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 40 100% 99%;
 
     --border: 0 0% 90%;
     --input: 0 0% 95%;
@@ -577,7 +577,7 @@ body,
     --gradient-brand: linear-gradient(135deg, #FF3399, #FF66B3);
     --gradient-card: linear-gradient(145deg, var(--neutral-0), #F5F5DC);
     --gradient-accent: linear-gradient(135deg, #F5F5DC, #FAFAF5);
-    --gradient-dark: linear-gradient(135deg, #000000, #1A1A1A);
+    --gradient-dark: linear-gradient(135deg, #0E0E0E, #1A1A1A);
     --gradient-soft: linear-gradient(
       180deg,
       rgba(255, 51, 153, 0.06) 0%,
@@ -610,22 +610,22 @@ body,
 
   /* Light mode variant - if needed */
   .light {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --background: 40 100% 99%;
+    --foreground: 0 0% 5%;
+    --card: 40 100% 99%;
+    --card-foreground: 0 0% 5%;
+    --popover: 40 100% 99%;
+    --popover-foreground: 0 0% 5%;
     --primary: 320 100% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 40 100% 99%;
     --secondary: 60 56% 91%;
-    --secondary-foreground: 0 0% 0%;
+    --secondary-foreground: 0 0% 5%;
     --muted: 60 20% 95%;
     --muted-foreground: 0 0% 40%;
     --accent: 320 100% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 40 100% 99%;
     --destructive: 0 75% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 40 100% 99%;
     --border: 0 0% 90%;
     --input: 0 0% 95%;
     --ring: 320 100% 60%;

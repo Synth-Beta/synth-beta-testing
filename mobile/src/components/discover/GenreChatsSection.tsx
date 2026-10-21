@@ -78,7 +78,7 @@ function GenreCard({
                     style={[styles.joinBtn, { backgroundColor: genre.color }]}
                 >
                     {joining ? (
-                        <ActivityIndicator size="small" color="#fff" />
+                        <ActivityIndicator size="small" color="#FFFDFA" />
                     ) : (
                         <Text style={styles.joinBtnText}>Join</Text>
                     )}
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
         borderTopWidth: 3,
         padding: 14,
         gap: 6,
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.07,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
         minHeight: 34,
     },
     joinBtnText: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontWeight: '700',
         fontSize: 13,
     },

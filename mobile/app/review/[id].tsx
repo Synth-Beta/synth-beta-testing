@@ -51,6 +51,7 @@ import { ReviewEngagementService } from '../../src/services/reviewEngagementServ
  */
 
 const PINK = SynthTokens.colors.brandPink500;
+const MUTED_ICON = SynthTokens.colors.neutral400;
 const SCREEN_W = Dimensions.get('window').width;
 const PHOTO_SIZE = (SCREEN_W - 32 - 8) / 3;
 
@@ -540,12 +541,12 @@ const cmtStyles = StyleSheet.create({
         flexShrink: 0,
     },
     cmtAvatarFallback: {
-        backgroundColor: PINK,
+        backgroundColor: SynthTokens.colors.neutral200,
         alignItems: 'center',
         justifyContent: 'center',
     },
     cmtAvatarLetter: {
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.neutral600,
         fontWeight: '700',
         fontSize: 13,
     },
@@ -949,7 +950,7 @@ export default function ReviewDetailScreen() {
             <>
                 <Stack.Screen options={{ headerShown: false }} />
                 <View style={[styles.root, styles.centered, { paddingTop: insets.top }]}>
-                    <ActivityIndicator size="large" color={PINK} />
+                    <ActivityIndicator size="large" color={MUTED_ICON} />
                 </View>
             </>
         );
@@ -1067,7 +1068,7 @@ export default function ReviewDetailScreen() {
                                 style={styles.artistPill}
                                 onPress={ev.artist_id ? () => router.push(`/artist/${ev.artist_id}` as any) : undefined}
                             >
-                                <Music size={16} color="#FDF2F8" />
+                                <Music size={16} color={SynthTokens.colors.neutral0} />
                                 <Text style={styles.artistPillText} numberOfLines={1}>{ev.artist_name}</Text>
                             </Pressable>
                         ) : null}
@@ -1076,7 +1077,7 @@ export default function ReviewDetailScreen() {
                                 style={styles.venuePill}
                                 onPress={ev.venue_id ? () => router.push(`/venue/${ev.venue_id}` as any) : undefined}
                             >
-                                <MapPin size={16} color={PINK} />
+                                <MapPin size={16} color={MUTED_ICON} />
                                 <Text style={styles.venuePillText} numberOfLines={1}>{ev.venue_name}</Text>
                             </Pressable>
                         ) : null}
@@ -1106,7 +1107,7 @@ export default function ReviewDetailScreen() {
                         {/* Event date */}
                         {ev?.event_date ? (
                             <View style={styles.metaRow}>
-                                <Calendar size={16} color={PINK} />
+                                <Calendar size={16} color={MUTED_ICON} />
                                 <SynthText variant="meta" color="secondary" style={styles.metaTxt}>
                                     {new Date(ev.event_date).toLocaleDateString('en-US', {
                                         weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
@@ -1152,31 +1153,31 @@ export default function ReviewDetailScreen() {
                                     View Rating Details
                                 </SynthText>
                                 <CategoryRatingRow
-                                    icon={<Mic2 size={16} color={PINK} />}
+                                    icon={<Mic2 size={16} color={MUTED_ICON} />}
                                     label="Artist Performance"
                                     rating={review.artist_performance_rating}
                                     feedback={review.artist_performance_feedback}
                                 />
                                 <CategoryRatingRow
-                                    icon={<Lightbulb size={16} color={PINK} />}
+                                    icon={<Lightbulb size={16} color={MUTED_ICON} />}
                                     label="Production"
                                     rating={review.production_rating}
                                     feedback={review.production_feedback}
                                 />
                                 <CategoryRatingRow
-                                    icon={<MapPin size={16} color={PINK} />}
+                                    icon={<MapPin size={16} color={MUTED_ICON} />}
                                     label="Venue Experience"
                                     rating={review.venue_rating}
                                     feedback={review.venue_feedback}
                                 />
                                 <CategoryRatingRow
-                                    icon={<Navigation size={16} color={PINK} />}
+                                    icon={<Navigation size={16} color={MUTED_ICON} />}
                                     label="Location & Logistics"
                                     rating={review.location_rating}
                                     feedback={review.location_feedback}
                                 />
                                 <CategoryRatingRow
-                                    icon={<DollarSign size={16} color={PINK} />}
+                                    icon={<DollarSign size={16} color={MUTED_ICON} />}
                                     label="Value"
                                     rating={review.value_rating}
                                     feedback={review.value_feedback}
@@ -1211,7 +1212,7 @@ export default function ReviewDetailScreen() {
                                 </SynthText>
                                 {review.videos.map((uri, i) => (
                                     <Pressable key={uri} onPress={() => void Linking.openURL(uri)} style={styles.metaRow}>
-                                        <Play size={16} color={PINK} />
+                                        <Play size={16} color={MUTED_ICON} />
                                         <SynthText variant="meta" style={styles.metaTxt}>Watch video {i + 1}</SynthText>
                                     </Pressable>
                                 ))}
@@ -1220,7 +1221,7 @@ export default function ReviewDetailScreen() {
 
                         {review.ticket_price_paid != null && review.ticket_price_paid > 0 ? (
                             <View style={styles.metaRow}>
-                                <DollarSign size={16} color={PINK} />
+                                <DollarSign size={16} color={MUTED_ICON} />
                                 <SynthText variant="meta" color="secondary" style={styles.metaTxt}>
                                     Paid ${review.ticket_price_paid.toFixed(2)} for the ticket
                                 </SynthText>
@@ -1341,7 +1342,7 @@ export default function ReviewDetailScreen() {
                                 style={styles.shareBtn}
                                 accessibilityLabel="Share review"
                             >
-                                <Share2 size={18} color={SynthTokens.colors.neutral0} />
+                                <Share2 size={18} color={SynthTokens.colors.neutral900} />
                             </Pressable>
                         </View>
 
@@ -1415,7 +1416,7 @@ const styles = StyleSheet.create({
         height: 44,
         borderRadius: 22,
         borderWidth: 2,
-        borderColor: PINK,
+        borderColor: SynthTokens.colors.neutral200,
         flexShrink: 0,
     },
     headerAuthorName: {
@@ -1438,7 +1439,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        backgroundColor: PINK,
+        backgroundColor: SynthTokens.colors.neutral900,
         borderRadius: 14,
         paddingVertical: 10,
         paddingHorizontal: 16,
@@ -1454,16 +1455,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
-        backgroundColor: SynthTokens.colors.brandPink050,
+        backgroundColor: SynthTokens.colors.neutral100,
         borderRadius: 14,
         borderWidth: 2,
-        borderColor: '#FBCFE8',
+        borderColor: SynthTokens.colors.neutral200,
         paddingVertical: 10,
         paddingHorizontal: 16,
         maxWidth: '60%',
     },
     venuePillText: {
-        color: PINK,
+        color: SynthTokens.colors.neutral900,
         fontWeight: '600',
         fontSize: 15,
         flexShrink: 1,
@@ -1479,9 +1480,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 10,
     },
-    avatar: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: PINK },
-    avatarFallback: { backgroundColor: PINK, alignItems: 'center', justifyContent: 'center' },
-    avatarLetter: { color: SynthTokens.colors.neutral0, fontWeight: '700', fontSize: 13 },
+    avatar: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: SynthTokens.colors.neutral200 },
+    avatarFallback: { backgroundColor: SynthTokens.colors.neutral200, alignItems: 'center', justifyContent: 'center' },
+    avatarLetter: { color: SynthTokens.colors.neutral600, fontWeight: '700', fontSize: 13 },
     authorName: { fontWeight: '700', color: SynthTokens.colors.neutral900 },
     overallRatingRow: {
         flexDirection: 'row',
@@ -1500,7 +1501,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     metaTxt: { flex: 1, fontSize: 15 },
-    metaLink: { color: PINK, fontWeight: '600' },
+    metaLink: { color: SynthTokens.colors.neutral900, fontWeight: '600', textDecorationLine: 'underline' },
     reviewTextBox: {
         backgroundColor: SynthTokens.colors.neutral0,
         borderRadius: SynthTokens.radius.corner,
@@ -1574,7 +1575,9 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: SynthTokens.radius.corner,
-        backgroundColor: PINK,
+        borderWidth: 1,
+        borderColor: SynthTokens.colors.neutral200,
+        backgroundColor: SynthTokens.colors.neutral0,
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
@@ -1588,7 +1591,7 @@ const styles = StyleSheet.create({
         borderColor: SynthTokens.colors.neutral200,
         backgroundColor: SynthTokens.colors.neutral0,
     },
-    eventLinkTxt: { color: PINK, fontWeight: '700' },
+    eventLinkTxt: { color: SynthTokens.colors.neutral900, fontWeight: '700' },
     attendeesRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -1604,7 +1607,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         borderRadius: 999,
         borderWidth: 1.5,
-        borderColor: PINK,
+        borderColor: SynthTokens.colors.neutral200,
     },
     attendeeAvatar: {
         width: 20,
@@ -1612,12 +1615,12 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     attendeeAvatarFallback: {
-        backgroundColor: PINK,
+        backgroundColor: SynthTokens.colors.neutral200,
         alignItems: 'center',
         justifyContent: 'center',
     },
     attendeeAvatarLetter: {
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.neutral600,
         fontWeight: '700',
         fontSize: 10,
     },

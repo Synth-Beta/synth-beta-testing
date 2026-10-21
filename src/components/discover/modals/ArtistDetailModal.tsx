@@ -580,7 +580,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                       boxShadow: '0 8px 24px rgba(204, 36, 134, 0.3)',
                     }}
                   >
-                    <Music size={40} color="#fff" />
+                    <Music size={40} color="#FFFDFA" />
                   </div>
                 )}
                 
@@ -652,7 +652,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                                   alignItems: 'center',
                                   gap: 4,
                                   background: 'var(--brand-pink-500)',
-                                  color: '#fff',
+                                  color: '#FFFDFA',
                                   padding: '4px 8px',
                                   borderRadius: 6,
                                   fontSize: 14,
@@ -709,7 +709,7 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#fff',
+                                color: '#FFFDFA',
                                 fontSize: 11,
                                 fontWeight: 600,
                               }}>

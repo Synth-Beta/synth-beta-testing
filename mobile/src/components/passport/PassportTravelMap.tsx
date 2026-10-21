@@ -272,7 +272,7 @@ export function PassportTravelMap({ userId }: { userId: string }) {
                         accessibilityLabel="Show whole journey"
                     >
                         <GlassPill style={styles.recenterBtn}>
-                            <Locate size={17} color="#fff" />
+                            <Locate size={17} color="#FFFDFA" />
                         </GlassPill>
                     </Pressable>
 
@@ -348,7 +348,7 @@ export function PassportTravelMap({ userId }: { userId: string }) {
                                                 <SynthText variant="meta" style={styles.primaryActionTxt}>
                                                     View event
                                                 </SynthText>
-                                                <ChevronRight size={15} color="#fff" />
+                                                <ChevronRight size={15} color="#FFFDFA" />
                                             </Pressable>
                                         ) : null}
                                         <Pressable
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
         backgroundColor: Platform.OS === 'ios' ? 'rgba(18,20,24,0.35)' : undefined,
     },
-    statsTxt: { color: '#fff', fontWeight: '700', fontSize: 12.5 },
+    statsTxt: { color: '#FFFDFA', fontWeight: '700', fontSize: 12.5 },
     statsDot: { color: 'rgba(255,255,255,0.45)', fontSize: 12.5 },
 
     recenterWrap: { position: 'absolute', top: 12, right: 12 },
@@ -553,13 +553,13 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: PINK,
         borderWidth: 2.5,
-        borderColor: '#fff',
+        borderColor: '#FFFDFA',
         alignItems: 'center',
         justifyContent: 'center',
     },
     markerCoreSelected: { width: 19, height: 19, borderRadius: 10 },
     markerCoreWithCount: { width: 22, height: 22, borderRadius: 11 },
-    markerCoreTxt: { color: '#fff', fontWeight: '800', fontSize: 10, lineHeight: 12 },
+    markerCoreTxt: { color: '#FFFDFA', fontWeight: '800', fontSize: 10, lineHeight: 12 },
 
     detailCard: {
         position: 'absolute',
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         backgroundColor: SynthTokens.colors.neutral0,
         padding: 14,
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.28,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 6 },
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 999,
     },
-    primaryActionTxt: { color: '#fff', fontWeight: '800', fontSize: 13.5 },
+    primaryActionTxt: { color: '#FFFDFA', fontWeight: '800', fontSize: 13.5 },
     secondaryAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     secondaryActionTxt: { color: PINK, fontWeight: '700', fontSize: 13.5 },
 

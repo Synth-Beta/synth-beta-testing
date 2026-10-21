@@ -69,7 +69,8 @@ export default function ArtistsScreen() {
         );
     };
 
-    const MIN_ARTISTS = 3;
+    // 1 to finish (people quit at this step); the copy still recommends 3+.
+    const MIN_ARTISTS = 1;
     const enoughArtists = selectedArtistIds.length >= MIN_ARTISTS;
     // The 3-artist minimum holds whenever the list actually loaded. It is relaxed only
     // when the app itself failed to produce artists to pick from — a weak first feed is
@@ -128,7 +129,7 @@ export default function ArtistsScreen() {
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
                 <OnboardingProgress totalSteps={5} currentStep={5} />
-                {/* No skip — at least 3 artists is required so the feed has real signal. */}
+                {/* No skip — at least 1 artist is required so the feed has some signal. */}
                 <View style={styles.skipButton} />
             </View>
 
@@ -158,7 +159,7 @@ export default function ArtistsScreen() {
                     <View style={styles.textContent}>
                         <SynthText variant="h1" style={styles.title}>Follow your favorites</SynthText>
                         <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                            Pick at least 3 — this powers your personalized feed
+                            Pick at least 1 — 3 or more makes your feed much better
                         </SynthText>
                     </View>
                 }
@@ -186,10 +187,10 @@ export default function ArtistsScreen() {
                         saving
                             ? 'Finishing…'
                             : enoughArtists
-                                ? `Follow ${selectedArtistIds.length} Artists`
+                                ? `Follow ${selectedArtistIds.length} Artist${selectedArtistIds.length === 1 ? '' : 's'}`
                                 : loadFailed
                                     ? 'Continue'
-                                    : `Pick at least 3 (${selectedArtistIds.length}/3)`
+                                    : 'Pick at least 1 artist'
                     }
                     onPress={handleContinue}
                     disabled={!canContinue || saving}
@@ -212,7 +213,7 @@ function ArtistCard({ artist, selected, onPress }: { artist: Artist, selected: b
                     </SynthText>
                 </View>
                 <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-                    {selected ? <Check color="white" size={16} strokeWidth={3} /> : null}
+                    {selected ? <Check color="#FFFDFA" size={16} strokeWidth={3} /> : null}
                 </View>
             </View>
         </Pressable>

@@ -19,6 +19,9 @@ export default {
 		},
 		extend: {
 			colors: {
+				// No pure white/black: bg-white, text-black etc. resolve to tokens.css neutral-0 / neutral-900.
+				white: '#FFFDFA',
+				black: '#0E0E0E',
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -61,7 +64,7 @@ export default {
 					beige: '#F5F5DC',
 					'beige-light': '#FAFAF5',
 					'beige-dark': '#E6E6D1',
-					black: '#000000',
+					black: '#0E0E0E',
 					'black-light': '#1A1A1A',
 					'black-dark': '#0D0D0D'
 				},

@@ -274,15 +274,15 @@ export default function PublicUserProfileScreen() {
                   }
                 >
                   {friendLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <ActivityIndicator size="small" color="#FFFDFA" />
                   ) : friendStatus === 'friends' ? (
-                    <><UserCheck size={16} color="#fff" /><SynthText variant="meta" style={styles.friendBtnTxt}>Friends</SynthText></>
+                    <><UserCheck size={16} color="#FFFDFA" /><SynthText variant="meta" style={styles.friendBtnTxt}>Friends</SynthText></>
                   ) : friendStatus === 'pending_sent' ? (
                     <><UserX size={16} color="#CC2486" /><SynthText variant="meta" style={styles.friendBtnTxtPink}>Request sent</SynthText></>
                   ) : friendStatus === 'pending_received' ? (
-                    <><UserCheck size={16} color="#fff" /><SynthText variant="meta" style={styles.friendBtnTxt}>Accept request</SynthText></>
+                    <><UserCheck size={16} color="#FFFDFA" /><SynthText variant="meta" style={styles.friendBtnTxt}>Accept request</SynthText></>
                   ) : (
-                    <><UserPlus size={16} color="#fff" /><SynthText variant="meta" style={styles.friendBtnTxt}>Add friend</SynthText></>
+                    <><UserPlus size={16} color="#FFFDFA" /><SynthText variant="meta" style={styles.friendBtnTxt}>Add friend</SynthText></>
                   )}
                 </Pressable>
               ) : null}
@@ -430,6 +430,6 @@ const styles = StyleSheet.create({
   friendBtnDone: { backgroundColor: '#6B7280' },
   friendBtnPending: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#CC2486' },
   friendBtnReceived: { backgroundColor: '#16A34A' },
-  friendBtnTxt: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  friendBtnTxt: { color: '#FFFDFA', fontWeight: '700', fontSize: 13 },
   friendBtnTxtPink: { color: '#CC2486', fontWeight: '700', fontSize: 13 },
 });

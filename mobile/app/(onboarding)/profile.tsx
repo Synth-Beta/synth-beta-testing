@@ -276,11 +276,6 @@ export default function ProfileSetupScreen() {
             setAcquisitionSourceError('Please select where you heard about Synth');
             return;
         }
-        if (acquisitionSource === 'Other' && !trimmedOtherSource) {
-            trackOnboardingBlock('acquisition_other_detail');
-            setAcquisitionSourceError('Please describe where you heard about Synth');
-            return;
-        }
 
         const trimmedContactEmail = contactEmail.trim();
         // Validate only what they actually typed: a blank passes through (the
@@ -309,7 +304,7 @@ export default function ProfileSetupScreen() {
                 gender: gender || undefined,
                 acquisition_source: acquisitionSource || undefined,
                 other_acquisition_source:
-                    acquisitionSource === 'Other' ? trimmedOtherSource : null,
+                    acquisitionSource === 'Other' ? trimmedOtherSource || null : null,
                 contact_email:
                     showContactEmailField && trimmedContactEmail ? trimmedContactEmail : undefined,
             });
@@ -490,7 +485,7 @@ export default function ProfileSetupScreen() {
                     </View>
                     {acquisitionSource === 'Other' && (
                         <View style={styles.fieldBlock}>
-                            <Text style={styles.label}>Share a bit more</Text>
+                            <Text style={styles.label}>Share a bit more (optional)</Text>
                             <TextInput
                                 style={[styles.input, styles.otherInput, acquisitionSourceError ? styles.inputError : null]}
                                 value={acquisitionSourceOther}

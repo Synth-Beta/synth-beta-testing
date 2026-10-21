@@ -567,7 +567,7 @@ export function UniversalShareModal({
                                     border: '2px solid white',
                                   }}
                                 >
-                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFDFA' }} />
                                 </div>
                               )}
                             </div>
@@ -673,7 +673,7 @@ export function UniversalShareModal({
                                     border: '2px solid white',
                                   }}
                                 >
-                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFDFA' }} />
                                 </div>
                               )}
                             </div>
@@ -919,7 +919,7 @@ export function UniversalShareModal({
                 borderRadius: '12px',
                 border: 'none',
                 backgroundColor: 'var(--brand-pink-500)',
-                color: 'white',
+                color: '#FFFDFA',
                 fontFamily: 'var(--font-family)',
                 fontSize: '16px',
                 fontWeight: '600',

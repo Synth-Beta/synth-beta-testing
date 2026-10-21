@@ -200,7 +200,7 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <LinearGradient
-        colors={['#fdf2f8', '#ffffff', '#fce7f3', '#ffffff', '#fdf2f8']}
+        colors={['#fdf2f8', '#FFFDFA', '#fce7f3', '#FFFDFA', '#fdf2f8']}
         locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.94)',
     borderRadius: 30,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: '#0E0E0E',
     shadowOpacity: 0.2,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: AUTH_PINK },
   primaryText: { color: SynthTokens.colors.neutral0, fontWeight: '600', fontSize: 16 },
   apple: {
-    backgroundColor: '#000',
+    backgroundColor: '#0E0E0E',
     marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',

@@ -46,6 +46,7 @@ import {
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.38;
 const PINK = SynthTokens.colors.brandPink500;
+const MUTED_ICON = SynthTokens.colors.neutral400;
 
 interface MeetUser {
     user_id: string;
@@ -501,10 +502,10 @@ export default function EventDetailScreen() {
                     />
                     <View style={[styles.navHeader, { paddingTop: insets.top + 8 }]}>
                         <Pressable onPress={() => router.back()} style={styles.circleButton}>
-                            <ChevronLeft size={24} color="white" />
+                            <ChevronLeft size={24} color="#FFFDFA" />
                         </Pressable>
                         <Pressable onPress={handleShare} style={styles.circleButton}>
-                            <ShareIcon size={20} color="white" />
+                            <ShareIcon size={20} color="#FFFDFA" />
                         </Pressable>
                     </View>
                 </View>
@@ -520,7 +521,7 @@ export default function EventDetailScreen() {
                         {isUpcomingEvent ? (
                             <Pressable
                                 onPress={() => void handleToggleInterested()}
-                                style={[styles.outlineAction, isInterested && styles.outlineActionActive]}
+                                style={[styles.outlineAction, styles.outlineActionPrimary, isInterested && styles.outlineActionActive]}
                                 accessibilityRole="button"
                                 accessibilityLabel={isInterested ? 'Interested' : "I'm Interested"}
                             >
@@ -542,13 +543,13 @@ export default function EventDetailScreen() {
                                     const steppingDown = rsvp === 'going';
                                     void setRsvp(event.id, steppingDown ? 'interested' : 'going', steppingDown);
                                 }}
-                                style={[styles.outlineAction, rsvp === 'going' && styles.outlineActionActive]}
+                                style={[styles.outlineAction, rsvp === 'going' && styles.outlineActionActiveNeutral]}
                                 accessibilityRole="button"
                                 accessibilityLabel={rsvp === 'going' ? 'Going' : "I'm Going"}
                             >
                                 <Calendar
                                     size={22}
-                                    color={rsvp === 'going' ? SynthTokens.colors.neutral0 : PINK}
+                                    color={rsvp === 'going' ? SynthTokens.colors.neutral0 : SynthTokens.colors.neutral900}
                                 />
                                 <Text style={[styles.outlineActionText, rsvp === 'going' && styles.outlineActionTextOn]} numberOfLines={1}>
                                     {rsvp === 'going' ? 'Going' : "I'm Going"}
@@ -558,7 +559,7 @@ export default function EventDetailScreen() {
                         {!isUpcomingEvent ? (
                             <Pressable
                                 onPress={() => router.push(`/review-compose?eventId=${event.id}`)}
-                                style={styles.outlineAction}
+                                style={[styles.outlineAction, styles.outlineActionPrimary]}
                                 accessibilityRole="button"
                                 accessibilityLabel="Write a review"
                             >
@@ -572,7 +573,7 @@ export default function EventDetailScreen() {
                             accessibilityRole="button"
                             accessibilityLabel="Report event"
                         >
-                            <Flag size={22} color={PINK} />
+                            <Flag size={22} color={SynthTokens.colors.neutral600} />
                             <Text style={styles.outlineActionText}>Report</Text>
                         </Pressable>
                     </View>
@@ -580,13 +581,13 @@ export default function EventDetailScreen() {
                     {/* Info card */}
                     <View style={styles.infoCard}>
                         <View style={styles.infoRow}>
-                            <View style={styles.infoIconWrap}><Calendar size={22} color={PINK} /></View>
+                            <View style={styles.infoIconWrap}><Calendar size={22} color={MUTED_ICON} /></View>
                             <SynthText variant="body" color="primary" style={styles.infoRowText}>
                                 {formatEventDetailDate(event.event_date)}
                             </SynthText>
                         </View>
                         <View style={styles.infoRow}>
-                            <View style={styles.infoIconWrap}><Clock size={22} color={PINK} /></View>
+                            <View style={styles.infoIconWrap}><Clock size={22} color={MUTED_ICON} /></View>
                             <Text style={styles.infoRowTextPlain}>
                                 <Text style={styles.infoRowTextStrong}>{showTimePrimary || 'Time TBA'}</Text>
                                 {doorsShort ? <Text style={styles.infoRowTextMuted}> Doors: {doorsShort}</Text> : null}
@@ -594,7 +595,7 @@ export default function EventDetailScreen() {
                         </View>
                         {formatCityState(event) ? (
                             <View style={styles.infoRow}>
-                                <View style={styles.infoIconWrap}><MapPin size={22} color={PINK} /></View>
+                                <View style={styles.infoIconWrap}><MapPin size={22} color={MUTED_ICON} /></View>
                                 <SynthText variant="body" color="primary" style={styles.infoRowText}>
                                     {formatCityState(event)}
                                 </SynthText>
@@ -602,7 +603,7 @@ export default function EventDetailScreen() {
                         ) : null}
                         {event.venue_name?.trim() ? (
                             <View style={styles.infoRow}>
-                                <View style={styles.infoIconWrap}><BuildingComplex size={22} color={PINK} /></View>
+                                <View style={styles.infoIconWrap}><BuildingComplex size={22} color={MUTED_ICON} /></View>
                                 <SynthText variant="body" color="primary" style={styles.infoRowText}>
                                     {event.venue_name.trim()}
                                 </SynthText>
@@ -610,7 +611,7 @@ export default function EventDetailScreen() {
                         ) : null}
                         {event.tour_name?.trim() ? (
                             <View style={styles.infoRow}>
-                                <View style={styles.infoIconWrap}><Music size={22} color={PINK} /></View>
+                                <View style={styles.infoIconWrap}><Music size={22} color={MUTED_ICON} /></View>
                                 <SynthText variant="body" color="primary" style={styles.infoRowText}>
                                     {event.tour_name.trim()}
                                 </SynthText>
@@ -631,7 +632,7 @@ export default function EventDetailScreen() {
                             accessibilityLabel={`Artist ${event.artist_name}`}
                         >
                             <View style={styles.entityCardHeader}>
-                                <Music size={16} color={PINK} />
+                                <Music size={16} color={SynthTokens.colors.neutral600} />
                                 <SynthText variant="meta" style={styles.entityCardLabel}>Artist</SynthText>
                             </View>
                             <SynthText variant="body" color="primary" style={styles.entityCardTitle}>
@@ -662,7 +663,7 @@ export default function EventDetailScreen() {
                             accessibilityLabel={`Venue ${event.venue_name || event.venue_city || 'venue'}`}
                         >
                             <View style={styles.entityCardHeader}>
-                                <Ticket size={16} color={PINK} />
+                                <Ticket size={16} color={SynthTokens.colors.neutral600} />
                                 <SynthText variant="meta" style={styles.entityCardLabel}>Venue</SynthText>
                             </View>
                             <SynthText variant="body" color="primary" style={styles.entityCardTitle}>
@@ -711,7 +712,7 @@ export default function EventDetailScreen() {
                             </Pressable>
                         </View>
                         {reviewsLoading ? (
-                            <ActivityIndicator color={PINK} style={{ marginTop: 8 }} />
+                            <ActivityIndicator color={MUTED_ICON} style={{ marginTop: 8 }} />
                         ) : reviews.length === 0 ? (
                             <SynthText variant="body" color="secondary">No reviews yet.</SynthText>
                         ) : (
@@ -769,10 +770,10 @@ export default function EventDetailScreen() {
                                         </SynthText>
                                     </Pressable>
                                 ) : groupChatLoading ? (
-                                    <ActivityIndicator color={PINK} size="large" style={{ paddingVertical: 32 }} />
+                                    <ActivityIndicator color={MUTED_ICON} size="large" style={{ paddingVertical: 32 }} />
                                 ) : (
                                     <View style={styles.groupChatCard}>
-                                        <MessageCircle size={36} color={PINK} />
+                                        <MessageCircle size={36} color={MUTED_ICON} />
                                         <Text style={styles.groupChatTitle}>
                                             {groupChat?.name ?? `${event?.title || event?.artist_name || 'Event'} Chat`}
                                         </Text>
@@ -812,7 +813,7 @@ export default function EventDetailScreen() {
                                         </SynthText>
                                     </Pressable>
                                 ) : meetLoading ? (
-                                    <ActivityIndicator color={PINK} size="large" style={{ paddingVertical: 32 }} />
+                                    <ActivityIndicator color={MUTED_ICON} size="large" style={{ paddingVertical: 32 }} />
                                 ) : allInterestedUsers.length === 0 ? (
                                     <View style={styles.meetEmptyWrap}>
                                         <Heart size={52} color={SynthTokens.colors.neutral400} />
@@ -969,7 +970,8 @@ const styles = StyleSheet.create({
         marginBottom: SynthTokens.spacing.lg,
     },
     linkText: {
-        color: PINK,
+        color: SynthTokens.colors.neutral900,
+        textDecorationLine: 'underline',
         fontWeight: 'bold',
     },
     emptyBlock: {
@@ -1004,8 +1006,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         borderRadius: SynthTokens.radius.corner,
         borderWidth: 1.5,
-        borderColor: PINK,
+        borderColor: SynthTokens.colors.neutral200,
         backgroundColor: SynthTokens.colors.neutral0,
+    },
+    // Pink is only for the page's main action (isolation effect).
+    outlineActionPrimary: {
+        borderColor: PINK,
+    },
+    outlineActionActiveNeutral: {
+        backgroundColor: SynthTokens.colors.neutral900,
+        borderColor: SynthTokens.colors.neutral900,
     },
     outlineActionSingle: {
         flex: 1,
@@ -1032,7 +1042,7 @@ const styles = StyleSheet.create({
         gap: 12,
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.06,
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 2 },
@@ -1076,7 +1086,7 @@ const styles = StyleSheet.create({
         marginBottom: SynthTokens.spacing.md,
         borderWidth: 1,
         borderColor: SynthTokens.colors.neutral200,
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.06,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
@@ -1093,7 +1103,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
-        color: PINK,
+        color: SynthTokens.colors.neutral600,
     },
     entityCardTitle: {
         fontSize: 18,
@@ -1163,12 +1173,12 @@ const styles = StyleSheet.create({
         marginBottom: SynthTokens.spacing.md,
         padding: SynthTokens.spacing.md,
         borderRadius: SynthTokens.radius.medium,
-        backgroundColor: SynthTokens.colors.brandPink050,
+        backgroundColor: SynthTokens.colors.neutral100,
         borderWidth: 1,
-        borderColor: PINK,
+        borderColor: SynthTokens.colors.neutral200,
     },
     signInBannerText: {
-        color: SynthTokens.colors.brandPink600,
+        color: SynthTokens.colors.neutral900,
         fontWeight: '600',
         textAlign: 'center',
     },
@@ -1236,8 +1246,8 @@ const styles = StyleSheet.create({
         backgroundColor: SynthTokens.colors.neutral0,
     },
     tabActive: {
-        backgroundColor: PINK,
-        borderColor: PINK,
+        backgroundColor: SynthTokens.colors.neutral900,
+        borderColor: SynthTokens.colors.neutral900,
     },
     tabText: {
         fontSize: 14,
@@ -1325,12 +1335,12 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     guestChipAvatarPlaceholder: {
-        backgroundColor: SynthTokens.colors.brandPink500,
+        backgroundColor: SynthTokens.colors.neutral200,
         alignItems: 'center',
         justifyContent: 'center',
     },
     guestChipInitial: {
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.neutral600,
         fontWeight: '700',
         fontSize: 16,
     },
@@ -1361,14 +1371,14 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     meetListAvatarPlaceholder: {
-        backgroundColor: PINK,
+        backgroundColor: SynthTokens.colors.neutral200,
         alignItems: 'center',
         justifyContent: 'center',
     },
     meetListAvatarInitial: {
         fontSize: 18,
         fontWeight: '700',
-        color: SynthTokens.colors.neutral0,
+        color: SynthTokens.colors.neutral600,
     },
     meetListInfo: {
         flex: 1,
@@ -1402,7 +1412,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        backgroundColor: PINK,
+        backgroundColor: SynthTokens.colors.neutral900,
         paddingVertical: 15,
         borderRadius: SynthTokens.radius.medium,
         minHeight: 50,

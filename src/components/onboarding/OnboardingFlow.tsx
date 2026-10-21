@@ -433,12 +433,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
     }
-    if (acquisitionSource === 'Other' && !trimmedOtherSource) {
-      trackBlock('acquisition_other_detail');
-      setAcquisitionSourceError('Please describe where you heard about Synth');
-      completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      return;
-    }
 
     const trimmedContactEmail = contactEmail.trim();
     setContactEmailError(null);
@@ -484,7 +478,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       if (acquisitionSource !== null) {
         profilePayload.acquisition_source = acquisitionSource;
         profilePayload.other_acquisition_source =
-          acquisitionSource === 'Other' ? trimmedOtherSource : null;
+          acquisitionSource === 'Other' ? trimmedOtherSource || null : null;
       }
       if (showContactEmailField) {
         profilePayload.contact_email = trimmedContactEmail;
@@ -741,7 +735,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                   </div>
                   {acquisitionSource === 'Other' && (
                     <div className="space-y-2">
-                      <Label htmlFor="acquisition_source_other">Tell us more</Label>
+                      <Label htmlFor="acquisition_source_other">Tell us more (optional)</Label>
                       <Input
                         id="acquisition_source_other"
                         value={acquisitionSourceOther}

@@ -1,7 +1,7 @@
 .calendar-page { padding-left: 16px; padding-right: 16px; }
 
 .calendar-page__card {
-  background: var(--neutral-0, #fff);
+  background: var(--neutral-0, #FFFDFA);
   border: 1px solid var(--neutral-200, #e6e6e6);
   border-radius: 18px;
   box-shadow: 0 12px 30px -24px rgba(14, 14, 14, 0.35);
@@ -26,7 +26,7 @@
 .calendar-page__scope-btn:hover { color: var(--neutral-900, #0e0e0e); }
 
 .calendar-page__scope-btn.is-active {
-  background: var(--neutral-0, #fff);
+  background: var(--neutral-0, #FFFDFA);
   color: var(--brand-pink-500, #cc2486);
   box-shadow: 0 1px 3px rgba(14, 14, 14, 0.12);
 }
@@ -78,7 +78,7 @@
   width: 100%;
   padding: 10px;
   border-radius: 16px;
-  background: var(--neutral-0, #fff);
+  background: var(--neutral-0, #FFFDFA);
   border: 1px solid var(--neutral-200, #e6e6e6);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }

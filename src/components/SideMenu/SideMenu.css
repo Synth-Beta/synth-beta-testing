@@ -183,7 +183,7 @@
   padding: 14px;
   border: 1px solid var(--neutral-200);
   border-radius: 16px;
-  background: var(--neutral-0, #fff);
+  background: var(--neutral-0, #FFFDFA);
   color: var(--neutral-600, #5d646f);
   text-align: left;
   cursor: pointer;

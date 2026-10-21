@@ -181,7 +181,7 @@ export function MobileAttendeeSelector({ value, onChange, userId, metOnSynth, on
                         value={metOnSynth}
                         onValueChange={onMetOnSynthChange}
                         trackColor={{ false: SynthTokens.colors.neutral200, true: SynthTokens.colors.brandPink500 }}
-                        thumbColor="#fff"
+                        thumbColor="#FFFDFA"
                     />
                 </View>
             )}
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 10,
         fontSize: 15,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
         color: SynthTokens.colors.neutral900,
     },
     spinner: { alignSelf: 'center' },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
         borderRadius: 20,
         paddingHorizontal: 10,
         paddingVertical: 6,
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     phoneAddTxt: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontWeight: '600',
     },
     metRow: {

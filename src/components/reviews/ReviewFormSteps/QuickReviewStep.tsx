@@ -265,7 +265,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
                 style={{
                   backgroundColor: 'var(--brand-pink-500)',
                   borderColor: 'var(--brand-pink-500)',
-                  color: 'white',
+                  color: '#FFFDFA',
                   fontFamily: 'var(--font-family)',
                   fontSize: 'var(--typography-meta-size, 16px)',
                   fontWeight: 'var(--typography-meta-weight, 500)',
@@ -278,9 +278,9 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
                   e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
                 }}
               >
-                <Plus style={{ width: 24, height: 24, color: 'white' }} />
+                <Plus style={{ width: 24, height: 24, color: '#FFFDFA' }} />
                 <span style={{ 
-                  color: 'white',
+                  color: '#FFFDFA',
                   fontFamily: 'var(--font-family)',
                   fontSize: 'var(--typography-meta-size, 16px)',
                   fontWeight: 'var(--typography-meta-weight, 500)',

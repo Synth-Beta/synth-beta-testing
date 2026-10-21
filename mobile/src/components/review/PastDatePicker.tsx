@@ -183,7 +183,7 @@ export function PastDatePicker({ visible, value, onSelect, onClose }: Props) {
 const CELL = `${100 / 7}%`;
 
 const styles = StyleSheet.create({
-    sheet: { flex: 1, backgroundColor: '#fff' },
+    sheet: { flex: 1, backgroundColor: '#FFFDFA' },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     daySel: { backgroundColor: SynthTokens.colors.brandPink500 },
     dayTxt: { fontSize: 16 },
     dayTxtOff: { color: SynthTokens.colors.neutral400 },
-    dayTxtSel: { color: '#fff', fontWeight: '700' },
+    dayTxtSel: { color: '#FFFDFA', fontWeight: '700' },
     quickRow: { flexDirection: 'row', gap: 8, marginTop: 20, flexWrap: 'wrap' },
     quickChip: {
         borderWidth: 1,

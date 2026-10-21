@@ -34,7 +34,8 @@ export class OnboardingService {
    * whichever platform it signs up on — the two diverging is what produced completed
    * users with zero artist signal.
    */
-  static readonly MIN_ARTIST_FOLLOWS = 3;
+  // 1 to finish (3 blocked people at the last step); the copy still recommends 3+.
+  static readonly MIN_ARTIST_FOLLOWS = 1;
 
   /**
    * Counts follows already on record, so progress carries across platforms and sessions:

@@ -578,9 +578,9 @@ export const NotificationsPage = ({
               }}
             >
               {filter === 'friends_only' ? (
-                <UserPlus size={19} style={{ color: '#fff' }} />
+                <UserPlus size={19} style={{ color: '#FFFDFA' }} />
               ) : (
-                <Bell size={19} style={{ color: '#fff' }} />
+                <Bell size={19} style={{ color: '#FFFDFA' }} />
               )}
             </div>
             <div>
@@ -601,7 +601,7 @@ export const NotificationsPage = ({
                   <div
                     style={{
                       backgroundColor: '#EF4444',
-                      color: '#fff',
+                      color: '#FFFDFA',
                       borderRadius: 999,
                       minWidth: 22,
                       height: 22,

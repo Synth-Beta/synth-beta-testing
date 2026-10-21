@@ -155,7 +155,7 @@ export default function NewChatScreen() {
                             onPress={() => toggleSelect(f)}
                         >
                             <Text style={styles.chipText}>{f.name.split(' ')[0]}</Text>
-                            <X size={12} color="#fff" />
+                            <X size={12} color="#FFFDFA" />
                         </Pressable>
                     ))}
                 </ScrollView>
@@ -226,7 +226,7 @@ export default function NewChatScreen() {
 
                                 {/* Checkbox */}
                                 <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                                    {isSelected && <Check size={14} color="#fff" strokeWidth={3} />}
+                                    {isSelected && <Check size={14} color="#FFFDFA" strokeWidth={3} />}
                                 </View>
                             </Pressable>
                         );
@@ -246,7 +246,7 @@ export default function NewChatScreen() {
                     ]}
                 >
                     {creating ? (
-                        <ActivityIndicator color="#fff" />
+                        <ActivityIndicator color="#FFFDFA" />
                     ) : (
                         <Text style={styles.ctaBtnText}>{ctaLabel}</Text>
                     )}
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
     },
     chipText: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontWeight: '700',
         fontSize: 13,
     },
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
         opacity: 0.85,
     },
     ctaBtnText: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontWeight: '700',
         fontSize: 17,
     },

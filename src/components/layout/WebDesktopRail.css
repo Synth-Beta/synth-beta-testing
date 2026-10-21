@@ -4,7 +4,7 @@
  * loads with Home/Community/Messages, so hover/active differed on other pages.
  */
 .web-rail {
-  background: #ffffff;
+  background: #FFFDFA;
   border-right: 1px solid var(--neutral-200, #e6e6e6);
 }
 

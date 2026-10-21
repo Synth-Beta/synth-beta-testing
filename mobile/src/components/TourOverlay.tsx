@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 4,
-    shadowColor: '#000',
+    shadowColor: '#0E0E0E',
     shadowOpacity: 0.25,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
@@ -287,6 +287,6 @@ const styles = StyleSheet.create({
   textBtn: { paddingVertical: 8, paddingHorizontal: 4 },
   textBtnTxt: { fontSize: 15, fontWeight: '600', color: SynthTokens.colors.neutral600 },
   primaryBtn: { backgroundColor: PINK, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 20 },
-  primaryTxt: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  primaryTxt: { fontSize: 15, fontWeight: '700', color: '#FFFDFA' },
   successRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
 });

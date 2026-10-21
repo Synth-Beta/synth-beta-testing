@@ -63,7 +63,7 @@ export function AiSceneGuideRoomNotice({
           style={{
             flexShrink: 0,
             border: '1px solid var(--neutral-300)',
-            background: 'white',
+            background: '#FFFDFA',
             borderRadius: 6,
             padding: '4px 8px',
             fontSize: 12,
@@ -97,7 +97,7 @@ export function AiSourceChips({ facts }: { facts: SourceChipFact[] }) {
               border: '1px solid var(--neutral-300)',
               color: 'var(--neutral-700)',
               textDecoration: 'none',
-              background: 'white',
+              background: '#FFFDFA',
             }}
           >
             {isSignal ? 'topic signal' : 'source'}: {f.sourceTitle.slice(0, 28)}

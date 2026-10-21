@@ -464,7 +464,7 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
                 justifyContent: 'center',
               }}
             >
-              <Music size={14} color="#fff" />
+              <Music size={14} color="#FFFDFA" />
             </div>
             <span style={{ ...textStyles.caption, color: 'var(--brand-pink-500)' }}>Shared Event</span>
           </div>
@@ -633,7 +633,7 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
                 gap: 6,
                 padding: '8px 16px',
                 background: 'var(--brand-pink-500)',
-                color: '#fff',
+                color: '#FFFDFA',
                 fontFamily: 'var(--font-family)',
                 fontSize: 'var(--typography-meta-size, 16px)',
                 fontWeight: 'var(--typography-meta-weight, 500)',
@@ -651,9 +651,9 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
-              <Ticket size={24} style={{ color: '#fff' }} />
+              <Ticket size={24} style={{ color: '#FFFDFA' }} />
               <span style={{ 
-                color: '#fff',
+                color: '#FFFDFA',
                 fontFamily: 'var(--font-family)',
                 fontSize: 'var(--typography-meta-size, 16px)',
                 fontWeight: 'var(--typography-meta-weight, 500)',
@@ -688,7 +688,7 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
                     gap: 6,
                     padding: '8px 14px',
                     background: isInterested ? 'var(--brand-pink-500)' : 'rgba(255, 255, 255, 0.8)',
-                    color: isInterested ? '#fff' : 'var(--brand-pink-500)',
+                    color: isInterested ? '#FFFDFA' : 'var(--brand-pink-500)',
                     border: isInterested ? 'none' : '1px solid var(--brand-pink-500)',
                     borderRadius: 10,
                     fontFamily: 'var(--font-family)',
@@ -700,9 +700,9 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
                     opacity: interestLoading ? 0.7 : 1,
                   }}
                 >
-                  <Heart size={16} fill={isInterested ? '#fff' : 'none'} style={{ color: isInterested ? '#fff' : 'var(--brand-pink-500)' }} aria-hidden="true" />
+                  <Heart size={16} fill={isInterested ? '#FFFDFA' : 'none'} style={{ color: isInterested ? '#FFFDFA' : 'var(--brand-pink-500)' }} aria-hidden="true" />
                   <span style={{ 
-                    color: isInterested ? '#fff' : 'var(--brand-pink-500)',
+                    color: isInterested ? '#FFFDFA' : 'var(--brand-pink-500)',
                     fontFamily: 'var(--font-family)',
                     fontSize: 'var(--typography-meta-size, 16px)',
                     fontWeight: 'var(--typography-meta-weight, 500)',
@@ -723,7 +723,7 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
                     gap: 6,
                     padding: '8px 14px',
                     background: isAttended || propHasReviewed ? 'var(--status-success-500)' : 'rgba(255, 255, 255, 0.8)',
-                    color: isAttended || propHasReviewed ? '#fff' : 'var(--status-success-500)',
+                    color: isAttended || propHasReviewed ? '#FFFDFA' : 'var(--status-success-500)',
                     border: isAttended || propHasReviewed ? 'none' : '1px solid var(--status-success-500)',
                     borderRadius: 10,
                     fontFamily: 'var(--font-family)',
@@ -735,7 +735,7 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
                     opacity: attendanceLoading ? 0.7 : 1,
                   }}
                 >
-                  <Star size={16} fill={isAttended || propHasReviewed ? '#fff' : 'none'} aria-hidden="true" />
+                  <Star size={16} fill={isAttended || propHasReviewed ? '#FFFDFA' : 'none'} aria-hidden="true" />
                   <span>{isAttended || propHasReviewed ? 'I Was There!' : 'I Was There'}</span>
                 </button>
               )}

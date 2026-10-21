@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     minWidth: 24,
   },
   unreadPillText: {
-    color: 'white',
+    color: '#FFFDFA',
     fontWeight: '700',
     fontSize: 12,
   },

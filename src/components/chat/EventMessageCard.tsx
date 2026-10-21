@@ -163,7 +163,7 @@ export function EventMessageCard({
               fontSize: 11,
               fontWeight: 600,
               background: isPastEvent ? 'rgba(255,255,255,0.15)' : 'var(--brand-pink-500)',
-              color: '#fff',
+              color: '#FFFDFA',
               backdropFilter: 'blur(4px)',
             }}>
               {isPastEvent ? 'Past' : 'Upcoming'}
@@ -179,7 +179,7 @@ export function EventMessageCard({
             "{customMessage}"
           </p>
         )}
-        <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.2, marginBottom: 2 }}>
+        <p style={{ fontSize: 16, fontWeight: 700, color: '#FFFDFA', lineHeight: 1.2, marginBottom: 2 }}>
           {event.artist_name || event.title}
         </p>
         {event.artist_name && event.title !== event.artist_name && (
@@ -224,10 +224,10 @@ export function EventMessageCard({
                   padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
                   fontSize: 13, fontWeight: 600,
                   background: isInterested ? 'rgba(255,255,255,0.15)' : 'var(--brand-pink-500)',
-                  color: '#fff',
+                  color: '#FFFDFA',
                 }}
               >
-                <Heart size={13} fill={isInterested ? '#fff' : 'none'} stroke="#fff" />
+                <Heart size={13} fill={isInterested ? '#FFFDFA' : 'none'} stroke="#FFFDFA" />
                 {isInterested ? 'Interested' : "I'm Interested"}
               </button>
             )}
@@ -255,10 +255,10 @@ export function EventMessageCard({
                   padding: '6px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
                   fontSize: 13, fontWeight: 600,
                   background: isAttended ? 'var(--brand-pink-500)' : 'rgba(255,255,255,0.1)',
-                  color: '#fff',
+                  color: '#FFFDFA',
                 }}
               >
-                <Star size={13} fill={isAttended ? '#fff' : 'none'} stroke="#fff" />
+                <Star size={13} fill={isAttended ? '#FFFDFA' : 'none'} stroke="#FFFDFA" />
                 I Was There!
               </button>
             )}

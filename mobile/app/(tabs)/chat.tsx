@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   newChatText: {
-    color: '#fff',
+    color: '#FFFDFA',
     fontWeight: '700',
     fontSize: 17,
   },

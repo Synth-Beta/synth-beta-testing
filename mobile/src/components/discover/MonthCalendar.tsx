@@ -124,7 +124,7 @@ const calStyles = StyleSheet.create({
     padding: SynthTokens.spacing.md,
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
-    shadowColor: '#000',
+    shadowColor: '#0E0E0E',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 3 },

@@ -2457,7 +2457,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                                 padding: 'var(--spacing-small, 12px)',
                                 borderRadius: 'var(--radius-corner, 10px)',
                                 border: message.sender_id === currentUserId ? 'none' : '1px solid var(--neutral-200)',
-                                backgroundColor: message.sender_id === currentUserId ? 'var(--brand-pink-500)' : 'var(--neutral-100)',
+                                backgroundColor: message.sender_id === currentUserId ? 'var(--neutral-900)' : 'var(--neutral-100)',
                                 overflowWrap: 'anywhere',
                                 wordWrap: 'break-word',
                                 whiteSpace: 'pre-wrap'
@@ -2497,7 +2497,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              backgroundColor: 'var(--brand-pink-500)',
+                              backgroundColor: 'var(--neutral-900)',
                               border: '1.5px solid var(--neutral-0)',
                               zIndex: 2,
                             }}
@@ -2749,7 +2749,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   style={{
                     padding: '14px 16px',
                     borderRadius: 16,
-                    backgroundColor: selectedChat?.id === chat.id ? 'var(--brand-pink-050)' : '#fff',
+                    backgroundColor: selectedChat?.id === chat.id ? 'var(--neutral-100)' : 'var(--neutral-0)',
                     border: '0.5px solid rgba(60, 60, 67, 0.1)',
                   }}
                   onClick={() => {
@@ -2773,7 +2773,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   }}
                   onMouseLeave={(e) => {
                     if (selectedChat?.id !== chat.id) {
-                      e.currentTarget.style.backgroundColor = '#fff';
+                      e.currentTarget.style.backgroundColor = '#FFFDFA';
                     }
                   }}
                 >
@@ -2837,7 +2837,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           </p>
                           {chat.is_group_chat && chat.is_verified && (
                             <div className="flex items-center gap-2 mt-2">
-                                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-900)', border: '2px solid var(--neutral-200)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                   <Shield className="w-3 h-3 mr-1" />
                                   Verified {chat.entity_type ? chat.entity_type.charAt(0).toUpperCase() + chat.entity_type.slice(1) : 'Chat'}
                                 </span>
@@ -3062,7 +3062,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     onMouseLeave={e => { e.currentTarget.style.background = 'var(--neutral-50)'; }}
                   >
                     {isUploadingImage
-                      ? <Loader2 size={18} className="animate-spin" style={{ color: 'var(--brand-pink-500)' }} />
+                      ? <Loader2 size={18} className="animate-spin" style={{ color: 'var(--neutral-400)' }} />
                       : <Images size={18} style={{ color: 'var(--neutral-600)' }} />
                     }
                   </button>
@@ -3252,8 +3252,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           ''
                       }`}
                       style={{ 
-                        borderColor: 'var(--brand-pink-500)',
-                        backgroundColor: isSelected ? 'var(--brand-pink-050)' : 'var(--neutral-50)'
+                        borderColor: isSelected ? 'var(--neutral-900)' : 'var(--neutral-200)',
+                        backgroundColor: isSelected ? 'var(--neutral-100)' : 'var(--neutral-50)'
                       }}
                       onClick={() => {
                           if (isSelected) {
@@ -3376,7 +3376,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
             <div className="flex-1 flex overflow-hidden">
               {/* Left side - Hero Image */}
-              <div className="flex-1 flex items-center justify-center min-h-0 relative" style={{ background: 'linear-gradient(135deg, var(--brand-pink-500) 0%, #9333EA 100%)' }}>
+              <div className="flex-1 flex items-center justify-center min-h-0 relative" style={{ background: 'var(--neutral-900)' }}>
                 {(reviewDetailData?.photos && reviewDetailData.photos.length > 0) || (selectedReviewDetail.photos && selectedReviewDetail.photos.length > 0) ? (
                   <img 
                     src={reviewDetailData?.photos[0] || selectedReviewDetail.photos?.[0]} 
@@ -3417,7 +3417,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 {loadingReviewDetails ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" style={{ color: 'var(--brand-pink-500)' }} />
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" style={{ color: 'var(--neutral-400)' }} />
                       <p className="text-sm" style={{ color: 'var(--neutral-500)' }}>Loading review details...</p>
                     </div>
                   </div>
@@ -3430,7 +3430,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       </h2>
                       <div className="flex flex-wrap items-center gap-2 mb-3" style={{ fontSize: 'var(--typography-meta-size)', color: 'var(--neutral-600)' }}>
                         {selectedReviewDetail.event_info?.artist_name && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-900)', border: '2px solid var(--neutral-200)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                             {selectedReviewDetail.event_info.artist_name}
                           </span>
                         )}
@@ -3722,7 +3722,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                               )}
                             </h3>
                             {participant.verified && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-900)', border: '2px solid var(--neutral-200)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 ✓ Verified
                               </span>
                             )}
@@ -3734,7 +3734,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           )}
                           <div className="flex items-center gap-3 mt-1">
                             {isAdmin && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-900)', border: '2px solid var(--neutral-200)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
                                 Admin
                               </span>
                             )}
@@ -3755,7 +3755,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           }}
                           className="p-2 flex-shrink-0"
                           style={{ color: 'var(--neutral-600)' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--brand-pink-500)'; e.currentTarget.style.backgroundColor = 'var(--brand-pink-050)'; }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--neutral-900)'; e.currentTarget.style.backgroundColor = 'var(--neutral-100)'; }}
                           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--neutral-600)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
                         >
                           <User className="w-4 h-4" />

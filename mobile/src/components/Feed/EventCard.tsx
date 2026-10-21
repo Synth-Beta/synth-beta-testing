@@ -19,6 +19,8 @@ const IMAGE_HEIGHT = CARD_WIDTH / ASPECT_RATIO;
 const CARD_RADIUS = SynthTokens.radius.corner;
 
 const PINK = SynthTokens.colors.brandPink500;
+/** Pink is only for the main action (isolation effect); info icons stay quiet. */
+const MUTED_ICON = SynthTokens.colors.neutral400;
 const PICK5_PURPLE = '#8b2ff0';
 const PICK5_LOGO = require('../../../assets/images/pick5-logo-mark.png');
 
@@ -217,7 +219,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             ) : null}
             {dateBadge ? (
               <View style={styles.dateBadge} pointerEvents="none" accessibilityLabel={formattedDate}>
-                <Text style={[styles.dateBadgeSmall, { color: pick5Band ? PICK5_PURPLE : PINK }]}>{dateBadge.month}</Text>
+                <Text style={[styles.dateBadgeSmall, { color: pick5Band ? PICK5_PURPLE : SynthTokens.colors.neutral900 }]}>{dateBadge.month}</Text>
                 <Text style={styles.dateBadgeDay}>{dateBadge.day}</Text>
                 <Text style={styles.dateBadgeSmall}>{dateBadge.weekday}</Text>
               </View>
@@ -238,7 +240,7 @@ export const EventCard: React.FC<EventCardProps> = ({
           <View style={styles.detailsPad}>
             {artistLine ? (
               <View style={styles.metaRow}>
-                <Music size={16} color={PINK} />
+                <Music size={16} color={MUTED_ICON} />
                 <SynthText
                   variant="meta"
                   color="secondary"
@@ -252,7 +254,7 @@ export const EventCard: React.FC<EventCardProps> = ({
 
             {cityState ? (
               <View style={styles.metaRow}>
-                <MapPin size={16} color={PINK} />
+                <MapPin size={16} color={MUTED_ICON} />
                 <SynthText
                   variant="meta"
                   color="secondary"
@@ -265,7 +267,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             ) : null}
 
             <View style={styles.metaRow}>
-              <BuildingComplex size={16} color={PINK} />
+              <BuildingComplex size={16} color={MUTED_ICON} />
               <SynthText
                 variant="meta"
                 color="secondary"
@@ -322,11 +324,11 @@ export const EventCard: React.FC<EventCardProps> = ({
           )}
           {ticketUrlProp?.trim() ? (
             <Pressable onPress={() => void openTickets()} style={styles.ticketBtn} accessibilityLabel="Tickets">
-              <Ticket size={20} color={PINK} />
+              <Ticket size={20} color={SynthTokens.colors.neutral900} />
             </Pressable>
           ) : null}
           <Pressable onPress={onShare} style={styles.shareBtn} accessibilityLabel="Share event">
-            <Share2 size={20} color={PINK} />
+            <Share2 size={20} color={SynthTokens.colors.neutral900} />
           </Pressable>
         </View>
       </View>
@@ -466,13 +468,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: SynthTokens.spacing.sm,
     left: SynthTokens.spacing.sm,
-    backgroundColor: PINK,
+    // Neutral glass like web .thread-chip: pink is reserved for the Interested button.
+    backgroundColor: 'rgba(14, 14, 14, 0.42)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
   },
   cornerLabelText: {
-    // Match web CompactEventCard reason badge (tokens.css --neutral-50 on --brand-pink-500).
     color: SynthTokens.colors.neutral50,
     fontWeight: '800',
     fontSize: 10,
@@ -585,7 +587,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: SynthTokens.radius.corner,
     borderWidth: 2,
-    borderColor: PINK,
+    borderColor: SynthTokens.colors.neutral200,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: SynthTokens.colors.neutral0,
@@ -595,7 +597,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: SynthTokens.radius.corner,
     borderWidth: 2,
-    borderColor: PINK,
+    borderColor: SynthTokens.colors.neutral200,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: SynthTokens.colors.neutral0,

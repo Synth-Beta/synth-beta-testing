@@ -199,7 +199,7 @@ export const FollowArtistsModal = ({
             <p className="text-center text-sm text-muted-foreground">
               {loadFailed
                 ? "We couldn't load artists right now — you can continue and follow artists later."
-                : `Follow at least ${MIN_FOLLOWS} — this powers your personalized feed (${followedCount}/${MIN_FOLLOWS})`}
+                : `Follow at least ${MIN_FOLLOWS} — 3 or more makes your feed much better (${followedCount} followed)`}
             </p>
 
             {!loadFailed && (

@@ -108,7 +108,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
             </View>
             {dateBadge ? (
               <View style={styles.dateBadge} pointerEvents="none">
-                <Text style={[styles.dateBadgeSmall, { color: PINK }]}>{dateBadge.month}</Text>
+                <Text style={[styles.dateBadgeSmall, { color: SynthTokens.colors.neutral900 }]}>{dateBadge.month}</Text>
                 <Text style={styles.dateBadgeDay}>{dateBadge.day}</Text>
                 <Text style={styles.dateBadgeSmall}>{dateBadge.year}</Text>
               </View>
@@ -164,7 +164,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
             <Text style={styles.commentTxt}>{commentsCount > 0 ? commentsCount : 'Comment'}</Text>
           </Pressable>
           <Pressable onPress={onShare} style={styles.iconBtn} accessibilityLabel="Share review">
-            <Share2 size={20} color={PINK} />
+            <Share2 size={20} color={SynthTokens.colors.neutral900} />
           </Pressable>
         </View>
       </View>
@@ -212,7 +212,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: SynthTokens.spacing.sm,
     left: SynthTokens.spacing.sm,
-    backgroundColor: PINK,
+    // Neutral glass like web .thread-chip: pink is reserved for the Like button.
+    backgroundColor: 'rgba(14, 14, 14, 0.42)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -245,8 +246,8 @@ const styles = StyleSheet.create({
   headline: { fontSize: 18, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: { width: 26, height: 26, borderRadius: 13 },
-  avatarFallback: { backgroundColor: SynthTokens.colors.brandPink050, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontSize: 12, fontWeight: '700', color: PINK },
+  avatarFallback: { backgroundColor: SynthTokens.colors.neutral100, alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: { fontSize: 12, fontWeight: '700', color: SynthTokens.colors.neutral600 },
   authorName: { flexShrink: 1, fontSize: 15, fontWeight: '600', color: SynthTokens.colors.neutral900 },
   stars: { flexDirection: 'row', gap: 1, marginLeft: 'auto' },
   quote: { fontSize: 15, lineHeight: 21 },
@@ -289,7 +290,7 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: CARD_RADIUS,
     borderWidth: 2,
-    borderColor: PINK,
+    borderColor: SynthTokens.colors.neutral200,
     alignItems: 'center',
     justifyContent: 'center',
   },

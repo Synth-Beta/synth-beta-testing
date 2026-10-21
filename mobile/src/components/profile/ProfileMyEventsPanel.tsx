@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   draftsCount: {
-    color: '#fff',
+    color: '#FFFDFA',
     fontSize: 22,
     fontWeight: '700',
     marginTop: 4,
@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: PINK,
   },
-  miniCtaTxt: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  miniCtaTxt: { color: '#FFFDFA', fontWeight: '700', fontSize: 12 },
   unrevList: { paddingBottom: 24 },
   caughtUp: { paddingVertical: 24, alignItems: 'center', gap: 12 },
   caughtUpTitle: { fontWeight: '700', textAlign: 'center' },

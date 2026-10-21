@@ -171,7 +171,7 @@ export function ReviewMessageCard({
             fontSize: 11,
             fontWeight: 600,
             background: 'rgba(255,255,255,0.2)',
-            color: '#fff',
+            color: '#FFFDFA',
             backdropFilter: 'blur(4px)',
           }}>
             Concert Review
@@ -182,14 +182,14 @@ export function ReviewMessageCard({
             <Star
               key={i}
               size={15}
-              fill={i < filledStars ? '#fff' : 'none'}
-              stroke="#fff"
+              fill={i < filledStars ? '#FFFDFA' : 'none'}
+              stroke="#FFFDFA"
               strokeWidth={1.5}
               style={{ opacity: i < filledStars ? 1 : 0.4 }}
             />
           ))}
         </div>
-        <p style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1 }}>
+        <p style={{ fontSize: 20, fontWeight: 700, color: '#FFFDFA', margin: 0, lineHeight: 1 }}>
           {review.rating.toFixed(1)}
           <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.7, marginLeft: 4 }}>/&nbsp;5</span>
         </p>
@@ -202,7 +202,7 @@ export function ReviewMessageCard({
             "{customMessage}"
           </p>
         )}
-        <p style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.2, marginBottom: 2 }}>
+        <p style={{ fontSize: 16, fontWeight: 700, color: '#FFFDFA', lineHeight: 1.2, marginBottom: 2 }}>
           {review.artist_name || review.event_title || 'Concert Review'}
         </p>
         {review.artist_name && review.event_title && review.event_title !== review.artist_name && (
