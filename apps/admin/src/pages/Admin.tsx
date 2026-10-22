@@ -2316,7 +2316,7 @@ export default function Admin() {
               </h1>
               <p className="text-muted-foreground mt-1">
                 {activeAdminTab === 'seo'
-                  ? 'Crawler traffic and public pages'
+                  ? 'Visits, search, and AI visibility for getsynth.app and join.getsynth.app'
                   : 'Manage users and monitor platform activity'}
               </p>
             </div>

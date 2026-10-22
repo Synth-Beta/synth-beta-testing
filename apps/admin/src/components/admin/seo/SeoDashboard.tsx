@@ -4,39 +4,55 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { fetchCrawlerTraffic, type CrawlerTraffic } from '@/services/seoAdmin';
+import {
+  fetchCrawlerTraffic,
+  fetchSeoDashboard,
+  fetchSiteTraffic,
+  type CrawlerTraffic,
+  type SeoDashboard as SeoDashboardData,
+  type SiteTraffic,
+} from '@/services/seoAdmin';
 import { SeoAdminPanel } from './SeoAdminPanel';
 import { SeoAiTab } from './SeoAiTab';
 import { SeoContentQueue } from './SeoContentQueue';
 import { SeoOverviewTab } from './SeoOverviewTab';
 import { SeoSearchTab } from './SeoSearchTab';
 import { SeoTargetsTab } from './SeoTargetsTab';
-import { EMPTY_SEO_DASHBOARD } from './emptyDashboard';
 
 const RANGES = [7, 28, 90, 180];
 
 export function SeoDashboard() {
   const [tab, setTab] = useState('overview');
   const [days, setDays] = useState(28);
-  const [traffic, setTraffic] = useState<CrawlerTraffic | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [dashboard, setDashboard] = useState<SeoDashboardData | null>(null);
+  const [sites, setSites] = useState<SiteTraffic | null>(null);
+  const [crawlers, setCrawlers] = useState<CrawlerTraffic | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      setTraffic(await fetchCrawlerTraffic(days));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
+    const [dashboardResult, sitesResult, crawlerResult] = await Promise.allSettled([
+      fetchSeoDashboard(days),
+      fetchSiteTraffic(days),
+      fetchCrawlerTraffic(days),
+    ]);
+    if (dashboardResult.status === 'fulfilled') setDashboard(dashboardResult.value);
+    if (sitesResult.status === 'fulfilled') setSites(sitesResult.value);
+    if (crawlerResult.status === 'fulfilled') setCrawlers(crawlerResult.value);
+    const failed = [dashboardResult, sitesResult, crawlerResult].find((result) => result.status === 'rejected');
+    if (failed?.status === 'rejected') {
+      setError(failed.reason instanceof Error ? failed.reason.message : String(failed.reason));
     }
+    setLoading(false);
   }, [days]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const showRange = tab === 'overview' || tab === 'search' || tab === 'ai';
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="space-y-4">
@@ -49,16 +65,16 @@ export function SeoDashboard() {
           <TabsTrigger value="targets">Targets</TabsTrigger>
           <TabsTrigger value="pages">Pages and settings</TabsTrigger>
         </TabsList>
-        {tab === 'overview' && (
+        {showRange && (
           <div className="flex items-center gap-2">
-            <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+            <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
               <SelectTrigger className="w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {RANGES.map((r) => (
-                  <SelectItem key={r} value={String(r)}>
-                    Last {r} days
+                {RANGES.map((range) => (
+                  <SelectItem key={range} value={String(range)}>
+                    Last {range} days
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -70,18 +86,20 @@ export function SeoDashboard() {
         )}
       </div>
 
-      {error && tab === 'overview' && (
+      {error && showRange && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <TabsContent value="overview">{traffic ? <SeoOverviewTab data={traffic} /> : loading && <Loading />}</TabsContent>
+      <TabsContent value="overview">
+        {dashboard && sites ? <SeoOverviewTab dashboard={dashboard} sites={sites} crawlers={crawlers} /> : loading && <Loading />}
+      </TabsContent>
       <TabsContent value="search">
-        <SeoSearchTab data={{ ...EMPTY_SEO_DASHBOARD, days }} onChanged={() => undefined} />
+        {dashboard ? <SeoSearchTab data={dashboard} onChanged={() => void load()} /> : loading && <Loading />}
       </TabsContent>
       <TabsContent value="ai">
-        <SeoAiTab data={{ ...EMPTY_SEO_DASHBOARD, days }} onChanged={() => undefined} />
+        {dashboard ? <SeoAiTab data={dashboard} onChanged={() => void load()} /> : loading && <Loading />}
       </TabsContent>
       <TabsContent value="queue">
         <SeoContentQueue />

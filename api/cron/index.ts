@@ -31,7 +31,8 @@ type Job =
   | 'seo-indexnow'
   | 'seo-content'
   | 'seo-search-data'
-  | 'seo-ai-visibility';
+  | 'seo-ai-visibility'
+  | 'seo-recap';
 
 const JOBS: Job[] = [
   'sync-events',
@@ -43,6 +44,7 @@ const JOBS: Job[] = [
   'seo-content',
   'seo-search-data',
   'seo-ai-visibility',
+  'seo-recap',
 ];
 
 function queryJob(req: VercelRequest): string {
@@ -67,6 +69,7 @@ function jobFromHour(now = new Date()): Job {
   const hour = now.getUTCHours();
   if (hour === 9) return 'sync-events';
   if (hour === 10) return 'seed-bot-messages';
+  if (hour === 12) return 'seo-recap';
   return 'slack-pm-digest';
 }
 
@@ -84,6 +87,7 @@ function resolveJob(req: VercelRequest): Job {
   if (path.includes('seo-content')) return 'seo-content';
   if (path.includes('seo-search-data')) return 'seo-search-data';
   if (path.includes('seo-ai-visibility')) return 'seo-ai-visibility';
+  if (path.includes('seo-recap')) return 'seo-recap';
 
   return jobFromHour();
 }
@@ -131,6 +135,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (job === 'seo-ai-visibility') {
     const { default: seoAiVisibility } = await import('../_lib/cron/seoAiVisibility.js');
     return seoAiVisibility(req, res);
+  }
+  if (job === 'seo-recap') {
+    const { default: seoRecap } = await import('../_lib/cron/seoRecap.js');
+    return seoRecap(req, res);
   }
 
   const { default: slackPmDigest } = await import('../_lib/cron/slackPmDigest.js');

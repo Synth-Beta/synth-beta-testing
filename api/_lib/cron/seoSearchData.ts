@@ -71,7 +71,7 @@ async function gscQuery(token: string, site: string, dimensions: string[], start
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ startDate, endDate, dimensions, rowLimit: 25_000, startRow, dataState: 'all' }),
     });
-    if (!response.ok) throw new Error(`Search Console ${site}: ${response.status} ${(await response.text()).slice(0, 200)}`);
+    if (!response.ok) throw new Error(`${response.status}`);
     const page = ((await response.json()) as { rows?: typeof rows }).rows ?? [];
     rows.push(...page);
     if (page.length < 25_000) break;
@@ -84,26 +84,52 @@ async function lastDate(db: SupabaseClient, engine: 'google' | 'bing', site: str
   return (data?.date as string | undefined) ?? null;
 }
 
-async function fetchGoogle(db: SupabaseClient, rawKey: string): Promise<SearchRow[]> {
+const DEFAULT_GSC_SITES = 'sc-domain:getsynth.app,https://getsynth.app/,https://www.getsynth.app/,https://join.getsynth.app/';
+
+/** Properties the key can access, plus the configured list. A denied property must not drop the others. */
+async function googleSites(token: string): Promise<string[]> {
+  const discovered: string[] = [];
+  try {
+    const response = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (response.ok) {
+      const json = (await response.json()) as { siteEntry?: Array<{ siteUrl?: string }> };
+      for (const site of json.siteEntry ?? []) if (site.siteUrl) discovered.push(site.siteUrl);
+    }
+  } catch {
+    // Fall back to the configured list.
+  }
+  return [...new Set([...discovered, ...list(process.env.GSC_SITES, DEFAULT_GSC_SITES)])];
+}
+
+async function fetchGoogle(db: SupabaseClient, rawKey: string): Promise<{ rows: SearchRow[]; notes: string[] }> {
   const token = await googleAccessToken(rawKey);
   const out: SearchRow[] = [];
+  const notes: string[] = [];
   const end = isoDay(Date.now() - DAY);
-  for (const site of list(process.env.GSC_SITES, 'sc-domain:getsynth.app')) {
-    const last = await lastDate(db, 'google', site);
-    // Recent days keep updating for ~3 days, so always re-pull a short overlap.
-    const start = last ? isoDay(Math.min(Date.parse(last) - 3 * DAY, Date.now() - 4 * DAY)) : isoDay(Date.now() - 90 * DAY);
-    const [byPage, byQuery] = await Promise.all([
-      gscQuery(token, site, ['date', 'page'], start, end),
-      gscQuery(token, site, ['date', 'page', 'query'], start, end),
-    ]);
-    for (const r of byPage) {
-      out.push({ date: r.keys[0], engine: 'google', site, page: r.keys[1], query: '', clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position });
-    }
-    for (const r of byQuery) {
-      out.push({ date: r.keys[0], engine: 'google', site, page: r.keys[1], query: r.keys[2].slice(0, 500), clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position });
+  for (const site of await googleSites(token)) {
+    try {
+      const last = await lastDate(db, 'google', site);
+      // Recent days keep updating for ~3 days, so always re-pull a short overlap.
+      // First sync covers the 16 months Search Console keeps.
+      const start = last ? isoDay(Math.min(Date.parse(last) - 3 * DAY, Date.now() - 4 * DAY)) : isoDay(Date.now() - 480 * DAY);
+      const [byPage, byQuery] = await Promise.all([
+        gscQuery(token, site, ['date', 'page'], start, end),
+        gscQuery(token, site, ['date', 'page', 'query'], start, end),
+      ]);
+      for (const r of byPage) {
+        out.push({ date: r.keys[0], engine: 'google', site, page: r.keys[1], query: '', clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position });
+      }
+      for (const r of byQuery) {
+        out.push({ date: r.keys[0], engine: 'google', site, page: r.keys[1], query: r.keys[2].slice(0, 500), clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position });
+      }
+      notes.push(`${site}: ${byPage.length + byQuery.length} rows`);
+    } catch (err) {
+      notes.push(`${site}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  return out;
+  return { rows: out, notes };
 }
 
 /** Bing returns WCF dates: "/Date(1712300400000-0700)/". */
@@ -163,9 +189,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const gscKey = process.env.GSC_SERVICE_ACCOUNT_JSON?.trim();
   if (gscKey) {
     try {
-      const rows = await fetchGoogle(db, gscKey);
-      await upsert(db, rows);
-      results.google = rows.length;
+      const google = await fetchGoogle(db, gscKey);
+      await upsert(db, google.rows);
+      results.google = google.notes.join('; ') || String(google.rows.length);
     } catch (err) {
       results.google = err instanceof Error ? err.message : String(err);
     }
