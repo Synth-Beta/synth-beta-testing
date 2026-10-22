@@ -4,6 +4,34 @@
  */
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const recentAlerts = new Map();
+
+function statusWillAlert(error) {
+  const status = error?.status || error?.statusCode || 500;
+  return status >= 500;
+}
+
+function notifyAdminBot(error, req) {
+  if (NODE_ENV === 'development' || NODE_ENV === 'test') return;
+  const key = `${req.method} ${req.originalUrl} ${error?.message || ''}`.slice(0, 180);
+  const now = Date.now();
+  const last = recentAlerts.get(key) || 0;
+  if (now - last < 30 * 60 * 1000) return;
+  recentAlerts.set(key, now);
+  fetch('https://join.getsynth.app/api/ops-alert', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      kind: 'client',
+      surface: 'web',
+      severity: 'bug',
+      message: error?.message || 'Unhandled API error',
+      stack: error?.stack,
+      context: `${req.method} ${req.originalUrl}`,
+      platform: 'api',
+    }),
+  }).catch(() => {});
+}
 
 /**
  * @param {Error} error
@@ -22,6 +50,10 @@ function errorHandler(error, req, res, next) {
     message: error?.message,
     stack: error?.stack,
   });
+
+  if (statusWillAlert(error)) {
+    notifyAdminBot(error, req);
+  }
 
   const status = error.status || error.statusCode || 500;
   res.status(status).json({

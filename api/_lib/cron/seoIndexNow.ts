@@ -10,6 +10,7 @@
  */
 import { timingSafeEqual } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { recordClientIssue } from '../adminAlerts.js';
 import { collectSeoUrls, loadSettings, seoClient } from '../seo/handler.js';
 
 function secureEquals(a: string, b: string): boolean {
@@ -53,6 +54,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({ host, key, keyLocation: `https://${host}/indexnow-key.txt`, urlList }),
     });
     results[host] = response.status;
+    if (response.status !== 200 && response.status !== 202) {
+      await recordClientIssue({
+        surface: 'web',
+        severity: 'failed_index',
+        message: `IndexNow ${host} returned HTTP ${response.status}`,
+        context: host,
+        url: `https://${host}/`,
+        platform: 'indexnow',
+      });
+    }
   }
   console.log('[cron/seo-indexnow]', results);
   return res.status(200).json({ ok: true, results });

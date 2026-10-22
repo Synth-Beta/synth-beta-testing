@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Classic Slack Incoming Webhook → Vercel env setup (no Slack next-gen CLI).
+ * Signup alerts post as the admin bot (SLACK_ADMIN_BOT_TOKEN) into
+ * SLACK_ADMIN_BOT_SIGNUP_CHANNEL. The classic incoming webhook below is only
+ * a fallback for environments that do not have the bot configured.
  *
  * Usage:
  *   export SLACK_SIGNUP_WEBHOOK_URL='https://hooks.slack.com/services/...'

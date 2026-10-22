@@ -91,6 +91,15 @@ function resolveJob(req: VercelRequest): Job {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const job = resolveJob(req);
 
+  try {
+    const { isCronAuthorized, probeUptime } = await import('../_lib/adminAlerts.js');
+    if (isCronAuthorized(req.headers.authorization)) {
+      await probeUptime();
+    }
+  } catch (err) {
+    console.warn('[cron] uptime probe failed', (err as Error).message);
+  }
+
   if (job === 'sync-events') {
     const { default: syncEvents } = await import('../_lib/cron/syncEvents.js');
     return syncEvents(req, res);

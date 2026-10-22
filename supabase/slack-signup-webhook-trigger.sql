@@ -1,6 +1,7 @@
--- Optional: real-time Slack signup alerts via Database Webhook trigger.
--- The app now also alerts from the client + PM digest catch-up, so this is
--- belt-and-suspenders, not required for alerts to work.
+-- Real-time Slack signup alerts via Database Webhook trigger.
+-- The endpoint posts as the admin bot into #new-sign-ups
+-- (SLACK_ADMIN_BOT_TOKEN + SLACK_ADMIN_BOT_SIGNUP_CHANNEL).
+-- The client notify path and the PM digest catch-up are the backup.
 --
 -- Run in Supabase SQL editor. Replace <<SLACK_SIGNUP_WEBHOOK_SECRET>> with
 -- the same value as Vercel SLACK_SIGNUP_WEBHOOK_SECRET / .env.local.

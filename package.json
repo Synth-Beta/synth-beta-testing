@@ -41,7 +41,8 @@
     "ai-guides:dry-run": "npm --prefix ai-scene-guides run dry-run --",
     "ai-guides:shadow": "npm --prefix ai-scene-guides run shadow --",
     "ai-guides:test": "npm --prefix ai-scene-guides test",
-    "slack:setup-webhook": "node scripts/setup-slack-signup-webhook.mjs"
+    "slack:setup-webhook": "node scripts/setup-slack-signup-webhook.mjs",
+    "cron:run": "node scripts/run-cron.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.0",

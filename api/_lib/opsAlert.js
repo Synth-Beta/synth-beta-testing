@@ -1,6 +1,7 @@
 /**
- * getsynth.app/api/ops-alert → Slack #alerts
- * Called from admin Content Calendar when generate/research fails.
+ * /api/ops-alert → Slack #alerts via the admin bot.
+ * Admin editorial failures still require an admin session.
+ * kind=client reports come from any web or app user (signed in or not).
  */
 export const config = { runtime: 'nodejs', maxDuration: 15 };
 
@@ -9,7 +10,9 @@ function corsHeaders(req) {
   const allowed = new Set([
     'https://getsynth.app',
     'https://www.getsynth.app',
+    'https://join.getsynth.app',
     'http://localhost:5173',
+    'http://localhost:5174',
     'http://localhost:3000',
   ]);
   const allow = allowed.has(origin) ? origin : 'https://getsynth.app';
@@ -57,6 +60,32 @@ async function readBody(req) {
   } catch {
     return {};
   }
+}
+
+function isClientReport(body) {
+  return body?.kind === 'client' || body?.surface === 'web' || body?.surface === 'app' || body?.surface === 'admin';
+}
+
+async function optionalUserId(req) {
+  const auth = headerGet(req, 'authorization');
+  if (!auth?.startsWith('Bearer ')) return null;
+  const token = auth.slice(7).trim();
+  if (token.split('.').length !== 3) return null;
+  const base =
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    'https://glpiolbrafqikqhnseto.supabase.co';
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY;
+  if (!base || !key) return null;
+  const userRes = await fetch(`${base.replace(/\/+$/g, '')}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${token}`, apikey: key },
+  });
+  if (!userRes.ok) return null;
+  const user = await userRes.json();
+  return user?.id || null;
 }
 
 async function requireAdmin(req) {
@@ -112,17 +141,31 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' }, req);
 
   try {
+    const body = await readBody(req);
+    const { postAdminAlert, recordClientIssue } = await import('./adminAlerts.js');
+
+    if (isClientReport(body)) {
+      const userId = await optionalUserId(req);
+      const result = await recordClientIssue({
+        surface: body.surface,
+        severity: body.severity,
+        message: body.message || body.fail_log,
+        stack: body.stack,
+        context: body.context,
+        url: body.url,
+        platform: body.platform,
+        appVersion: body.app_version || body.appVersion,
+        userId,
+      });
+      if (result.skipped === 'slack_failed') {
+        return json(res, 502, { ok: false, error: 'Failed to post to Slack' }, req);
+      }
+      return json(res, 200, { ok: true, posted: result.posted, skipped: result.skipped ?? null }, req);
+    }
+
     const adminId = await requireAdmin(req);
     if (!adminId) return json(res, 401, { error: 'Admin auth required' }, req);
 
-    const webhook =
-      process.env.SLACK_ALERTS_WEBHOOK_URL?.trim() ||
-      process.env.SLACK_OPS_WEBHOOK_URL?.trim();
-    if (!webhook) {
-      return json(res, 500, { ok: false, error: 'SLACK_ALERTS_WEBHOOK_URL not configured' }, req);
-    }
-
-    const body = await readBody(req);
     const severity =
       body.severity === 'warning' || body.severity === 'degraded' ? body.severity : 'down';
     const title =
@@ -143,14 +186,9 @@ export default async function handler(req, res) {
     if (body.next_step) lines.push(`*Next step:* ${escapeSlack(String(body.next_step))}`);
     lines.push(`*Admin:* \`${adminId}\``);
 
-    const slackRes = await fetch(webhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: lines.join('\n') }),
-    });
-    if (!slackRes.ok) {
-      const errText = await slackRes.text().catch(() => '');
-      return json(res, 502, { ok: false, error: `Slack ${slackRes.status}: ${errText.slice(0, 120)}` }, req);
+    const posted = await postAdminAlert(lines.join('\n'));
+    if (posted.ok === false) {
+      return json(res, 502, { ok: false, error: `Slack: ${posted.error}`.slice(0, 180) }, req);
     }
     return json(res, 200, { ok: true }, req);
   } catch (err) {

@@ -18,6 +18,7 @@ import { SynthText } from '../../src/components/SynthText';
 import { launchChatImagePicker, type ChatImagePickerSource } from '../../src/utils/launchChatImagePicker';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { ChatService, Message } from '../../src/services/chatService';
+import { reportAppIssue } from '../../src/services/clientIssueReporter';
 import {
     MessageActionsSheet,
     MessageReactions,
@@ -261,6 +262,11 @@ export default function ChatThreadScreen() {
                                 error_message: error.message,
                                 error_details: { chat_id: id, code: error.code, details: error.details, hint: error.hint },
                                 platform: Platform.OS,
+                            });
+                            reportAppIssue({
+                                message: error.message || 'mark_chat_as_read failed',
+                                context: 'mark_chat_as_read',
+                                details: { chat_id: id, code: error.code },
                             });
                         } else {
                             // Tell the tab bar's unread badge to recompute now, rather than

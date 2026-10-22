@@ -24,7 +24,10 @@ import { InterestedProvider } from '../src/contexts/InterestedContext';
 import { BrowseLocationProvider } from '../src/contexts/BrowseLocationContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryService';
+import { installAppIssueReporter, setAppIssueRoute } from '../src/services/clientIssueReporter';
 import { needsContactEmail, resolveNotificationExpoPath } from '@synth/shared';
+
+installAppIssueReporter();
 
 /**
  * Lets screens that write `contact_email` (onboarding's profile step, the
@@ -85,6 +88,10 @@ export default function RootLayout() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const segments = useSegments();
   const router = useRouter();
+
+  useEffect(() => {
+    setAppIssueRoute(segments.join('/') || '/');
+  }, [segments]);
 
   // Stable primitives derived from `session`. Supabase emits a NEW session object on
   // every auth event (INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED / USER_UPDATED),

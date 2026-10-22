@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export const SLACK_SIGNUP_ALERT_META_KEY = 'slack_signup_alerted_at';
-export const SLACK_SIGNUP_LOOKBACK_DAYS = 7;
+export const SLACK_SIGNUP_LOOKBACK_DAYS = 30;
 
 export interface UsersSignupRecord {
   id?: string;
@@ -41,6 +41,14 @@ export function getSlackSignupWebhookUrl(): string | null {
 
 export function getSlackSignupWebhookSecret(): string | null {
   return process.env.SLACK_SIGNUP_WEBHOOK_SECRET?.trim() || null;
+}
+
+export function getSlackAdminBotToken(): string | null {
+  return process.env.SLACK_ADMIN_BOT_TOKEN?.trim() || null;
+}
+
+export function getSlackAdminBotSignupChannel(): string | null {
+  return process.env.SLACK_ADMIN_BOT_SIGNUP_CHANNEL?.trim() || null;
 }
 
 export function getSupabaseService(): SupabaseClient | null {
@@ -160,8 +168,40 @@ export async function markSignupAlerted(record: UsersSignupRecord): Promise<void
   }
 }
 
-export async function postSignupToSlack(
-  record: UsersSignupRecord,
+async function postViaAdminBot(
+  text: string,
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const token = getSlackAdminBotToken();
+  const channel = getSlackAdminBotSignupChannel();
+  if (!token || !channel) return { ok: false, error: 'Admin bot not configured' };
+
+  const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify({
+      channel,
+      text,
+      unfurl_links: false,
+      unfurl_media: false,
+    }),
+  });
+
+  const body = (await slackRes.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  if (!slackRes.ok || !body?.ok) {
+    return {
+      ok: false,
+      error: (body?.error || `HTTP ${slackRes.status}`).slice(0, 500),
+      status: slackRes.status,
+    };
+  }
+  return { ok: true };
+}
+
+async function postViaIncomingWebhook(
+  text: string,
 ): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
   const slackUrl = getSlackSignupWebhookUrl();
   if (!slackUrl) return { ok: false, error: 'Slack webhook URL not configured' };
@@ -169,7 +209,7 @@ export async function postSignupToSlack(
   const slackRes = await fetch(slackUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: formatSignupMessage(record) }),
+    body: JSON.stringify({ text }),
   });
 
   if (!slackRes.ok) {
@@ -177,6 +217,19 @@ export async function postSignupToSlack(
     return { ok: false, error: body.slice(0, 500), status: slackRes.status };
   }
   return { ok: true };
+}
+
+export async function postSignupToSlack(
+  record: UsersSignupRecord,
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const text = formatSignupMessage(record);
+  // The classic incoming webhook was revoked (Slack returns 404 no_service), so
+  // signups go out as the admin bot into #new-sign-ups. The webhook stays as a
+  // fallback for environments that have not set the bot token yet.
+  if (getSlackAdminBotToken() && getSlackAdminBotSignupChannel()) {
+    return postViaAdminBot(text);
+  }
+  return postViaIncomingWebhook(text);
 }
 
 export async function alertSignupIfNeeded(
@@ -223,13 +276,16 @@ export async function catchUpMissedSignups(): Promise<{ posted: number; skipped:
   if (!supabase) return { posted: 0, skipped: 0 };
 
   const since = new Date(Date.now() - SLACK_SIGNUP_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  // Only rows that were never stamped. Ordering the whole window and taking the
+  // oldest 50 kept re-reading people already posted and never reached newer signups.
   const { data, error } = await supabase
     .from('users')
     .select(SIGNUP_SELECT)
     .gte('created_at', since)
     .or('is_bot.is.null,is_bot.eq.false')
+    .filter('permissions_metadata->>slack_signup_alerted_at', 'is', null)
     .order('created_at', { ascending: true })
-    .limit(50);
+    .limit(100);
 
   if (error) {
     console.error('[slack-signup] catch-up query failed', error.message);
@@ -240,8 +296,12 @@ export async function catchUpMissedSignups(): Promise<{ posted: number; skipped:
   let skipped = 0;
   for (const row of data || []) {
     const result = await alertSignupIfNeeded(row as Record<string, unknown>);
-    if (result.posted) posted += 1;
-    else skipped += 1;
+    if (result.posted) {
+      posted += 1;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    } else {
+      skipped += 1;
+    }
   }
   return { posted, skipped };
 }
