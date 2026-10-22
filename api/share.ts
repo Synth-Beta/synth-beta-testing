@@ -16,26 +16,18 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import {
+  getShareSupabase,
+  isValidShareUuid,
+  fetchShareEvent,
+  fetchShareReview,
+  fetchArtist,
+  fetchVenue,
+  ogImageUrl,
+  isOgRequest,
+} from './_lib/shareData.js';
+import { eventBubble, reviewBubble, formatShowDate, starRating, truncateQuote } from './_lib/shareCopy.js';
 import { handleSeoRoute, readSeoRoute } from './_lib/seo/handler.js';
-
-function getSupabaseServerConfig(): { url: string; serviceRoleKey: string } | null {
-  const url =
-    process.env.SUPABASE_URL?.trim() ||
-    process.env.VITE_SUPABASE_URL?.trim() ||
-    process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !serviceRoleKey) return null;
-  return { url, serviceRoleKey };
-}
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-/** Security: Reject malformed UUID query params before hitting the database. */
-function isValidShareUuid(value: string | undefined): value is string {
-  return typeof value === 'string' && UUID_PATTERN.test(value.trim());
-}
 
 /**
  * Inlined from @synth/shared — Vercel serverless cannot bundle the workspace
@@ -144,24 +136,6 @@ function isSocialPreviewCrawler(userAgent: string | undefined): boolean {
 }
 
 // Local shape types — keeps the fetchers free of `any` casts
-interface ArtistRef { name: string }
-interface VenueRef  { name: string; city: string; state: string }
-
-interface EventRow {
-  id: string; title: string | null; event_date: string | null;
-  event_media_url: string | null;
-  images: Record<string, string> | null; genres: string[] | null;
-  artists: ArtistRef | ArtistRef[] | null;
-  venues:  VenueRef  | VenueRef[]  | null;
-}
-interface ReviewRow {
-  id: string; overall_rating: number | null; created_at: string | null;
-  events:   (Omit<EventRow, 'genres'>) | null;
-  profiles: { display_name: string | null; username: string | null } | null;
-}
-interface ArtistRow { id: string; name: string; image_url: string | null; genres: string[] | null }
-interface VenueRow  { id: string; name: string; city: string | null; state: string | null; image_url: string | null }
-
 const APP_STORE_URL =
   'https://apps.apple.com/us/app/synth-for-live-music-lovers/id6757408095';
 function getBaseUrl(): string {
@@ -184,36 +158,6 @@ function esc(str: string | null | undefined): string {
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-}
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'long',
-      day: 'numeric',
-    });
-  } catch {
-    return '';
-  }
-}
-
-// events store their image in event_media_url; artists and venues use image_url.
-// Keep both so this stays usable for all three row shapes.
-function pickImage(row: Record<string, any>): string {
-  return (
-    row.event_media_url ||
-    row.image_url ||
-    row.images?.portrait_url ||
-    row.images?.square_url ||
-    ''
-  );
-}
-
-function starRating(score: number): string {
-  const full = Math.round(Math.max(0, Math.min(5, score)));
-  return '★'.repeat(full) + '☆'.repeat(5 - full);
 }
 
 // ─── Page renderer ──────────────────────────────────────────────────────────
@@ -469,65 +413,26 @@ function renderPage(opts: {
 </html>`;
 }
 
-// ─── Data fetchers ───────────────────────────────────────────────────────────
-
-type SB = SupabaseClient<any, any, any>;
-
-async function fetchEvent(supabase: SB, id: string): Promise<EventRow | null> {
-  const { data } = await supabase
-    .from('events')
-    .select(`
-      id, title, event_date, event_media_url, images, genres,
-      artists ( name ),
-      venues ( name, city, state )
-    `)
-    .eq('id', id)
-    .maybeSingle();
-  return data as EventRow | null;
-}
-
-async function fetchReview(supabase: SB, id: string): Promise<ReviewRow | null> {
-  const { data } = await supabase
-    .from('reviews')
-    .select(`
-      id, overall_rating, created_at,
-      events ( title, event_date, event_media_url, images,
-        artists ( name ),
-        venues ( name, city, state )
-      ),
-      profiles ( display_name, username )
-    `)
-    .eq('id', id)
-    .maybeSingle();
-  return data as unknown as ReviewRow | null;
-}
-
-async function fetchArtist(supabase: SB, id: string): Promise<ArtistRow | null> {
-  const { data } = await supabase
-    .from('artists')
-    .select('id, name, image_url, genres')
-    .eq('id', id)
-    .maybeSingle();
-  return data as ArtistRow | null;
-}
-
-async function fetchVenue(supabase: SB, id: string): Promise<VenueRow | null> {
-  const { data } = await supabase
-    .from('venues')
-    .select('id, name, city, state, image_url')
-    .eq('id', id)
-    .maybeSingle();
-  return data as VenueRow | null;
-}
-
 // ─── Handler ────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // /api/og (rewritten here; see api/_lib/ogPoster.ts). Before the crawler
+  // redirects below, which would otherwise bounce the image request.
+  if (isOgRequest(req.query, req.url)) {
+    // Lazy: @vercel/og reads ~3MB of wasm/fonts at import; keep it off share/SEO pages.
+    const { ogPosterResponse } = await import('./_lib/ogPoster.js');
+    const { event, review } = readShareQuery(req);
+    const poster = await ogPosterResponse({ event, review });
+    res.status(poster.status);
+    poster.headers.forEach((value, key) => res.setHeader(key, value));
+    return res.send(Buffer.from(await poster.arrayBuffer()));
+  }
+
   const seoRoute = readSeoRoute(req);
   if (seoRoute) return handleSeoRoute(seoRoute, req, res);
 
-  const supabaseConfig = getSupabaseServerConfig();
-  if (!supabaseConfig) {
+  const supabase = getShareSupabase();
+  if (!supabase) {
     return res.status(500).send('Server configuration error');
   }
 
@@ -568,88 +473,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const supabase = createClient(supabaseConfig.url, supabaseConfig.serviceRoleKey);
-
-  // Cache 5 min, stale up to 1 hour — safe since content rarely changes
-  res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
+  // private: this HTML is only for preview bots. A shared CDN copy (keyed by URL,
+  // not user agent) was served to the friend tapping the link, who should get the
+  // redirect above instead. Bots keep their own preview cache.
+  res.setHeader('Cache-Control', 'private, max-age=300');
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
   try {
     // ── Event ──────────────────────────────────────────────────────────────
     if (event) {
-      const data = await fetchEvent(supabase, event);
+      const data = await fetchShareEvent(supabase, event);
       if (!data) {
         return res.redirect(302, spaRedirectForQuery(BASE_URL, 'event', event, referrerId));
       }
 
-      const artistRef  = Array.isArray(data.artists) ? data.artists[0] : data.artists;
-      const venueRef   = Array.isArray(data.venues)  ? data.venues[0]  : data.venues;
-      const artistName = artistRef?.name ?? '';
-      const venueName  = venueRef?.name  ?? '';
-      const venueCity  = venueRef?.city  ?? '';
-      const venueState = venueRef?.state ?? '';
-      const date       = formatDate(data.event_date);
-      const image      = pickImage(data as Record<string, any>);
-
-      const location = [venueName, venueCity, venueState].filter(Boolean).join(', ');
-      const ogTitle  = artistName ? `${artistName} at ${venueName}` : (data.title ?? 'Event on Synth');
-      const ogDesc   = [data.title, date ? `📅 ${date}` : '', location ? `📍 ${location}` : '']
-        .filter(Boolean).join(' · ');
+      const date     = formatShowDate(data.date);
+      const location = [data.venue, data.city, data.state].filter(Boolean).join(', ');
+      const bubble   = eventBubble(data);
 
       return res.send(renderPage({
-        ogTitle,
-        ogDescription: ogDesc,
-        ogImage: image,
+        ogTitle: bubble.title,
+        ogDescription: bubble.description,
+        ogImage: ogImageUrl(BASE_URL, 'event', event),
         canonicalUrl: `${BASE_URL}/share?event=${event}`,
         badge: 'Live Event',
-        headline: artistName || data.title || 'Event',
+        headline: data.artist || data.title || 'Event',
         sublines: [
-          data.title && artistName ? data.title : '',
+          data.title && data.artist ? data.title : '',
           location ? `📍 ${location}` : '',
           date     ? `📅 ${date}`     : '',
         ].filter(Boolean),
-        heroImage: image,
+        heroImage: data.image,
         referrerId,
       }));
     }
 
     // ── Review ─────────────────────────────────────────────────────────────
     if (review) {
-      const data = await fetchReview(supabase, review);
+      const data = await fetchShareReview(supabase, review);
       if (!data) {
         return res.redirect(302, spaRedirectForQuery(BASE_URL, 'review', review, referrerId));
       }
 
-      const ev          = data.events ?? {} as NonNullable<ReviewRow['events']>;
-      const profile     = data.profiles;
-      const evArtistRef = ev.artists ? (Array.isArray(ev.artists) ? ev.artists[0] : ev.artists) : null;
-      const evVenueRef  = ev.venues  ? (Array.isArray(ev.venues)  ? ev.venues[0]  : ev.venues)  : null;
-      const artistName  = evArtistRef?.name ?? '';
-      const venueName   = evVenueRef?.name  ?? '';
-      const date        = formatDate(ev.event_date);
-      const image       = pickImage(ev as Record<string, any>);
-      const reviewer    = profile?.display_name || (profile?.username ? `@${profile.username}` : 'Someone');
-      const rating      = typeof data.overall_rating === 'number' ? data.overall_rating : undefined;
-
-      const ogTitle = rating
-        ? `${reviewer} rated ${artistName || ev.title} ${starRating(rating)}`
-        : `${reviewer}'s review of ${artistName || ev.title}`;
-      const ogDesc  = [venueName, date].filter(Boolean).join(' · ');
+      const ev     = data.event;
+      const date   = formatShowDate(ev?.date);
+      const quote  = truncateQuote(data.text);
+      const bubble = reviewBubble({
+        reviewer: data.reviewer,
+        artist: ev?.artist,
+        venue: ev?.venue,
+        date: ev?.date,
+        rating: data.rating,
+        title: ev?.title,
+      });
 
       return res.send(renderPage({
-        ogTitle,
-        ogDescription: ogDesc,
-        ogImage: image,
+        ogTitle: bubble.title,
+        ogDescription: bubble.description,
+        ogImage: ogImageUrl(BASE_URL, 'review', review),
         canonicalUrl: `${BASE_URL}/share?review=${review}`,
         badge: 'Review',
-        headline: artistName || ev.title || 'Concert Review',
+        headline: ev?.artist || ev?.title || 'Concert Review',
         sublines: [
-          `by ${reviewer}`,
-          venueName ? `📍 ${venueName}` : '',
+          quote ? `“${quote}”` : '',
+          `by ${data.reviewer}`,
+          ev?.venue ? `📍 ${ev.venue}` : '',
           date      ? `📅 ${date}`      : '',
         ].filter(Boolean),
-        heroImage: image,
-        rating,
+        heroImage: ev?.image ?? '',
+        rating: data.rating ?? undefined,
         referrerId,
       }));
     }

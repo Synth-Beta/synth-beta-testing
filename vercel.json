@@ -78,6 +78,10 @@
       "destination": "/"
     },
     {
+      "source": "/api/og",
+      "destination": "/api/share?og=1"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

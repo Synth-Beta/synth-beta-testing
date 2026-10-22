@@ -2769,12 +2769,6 @@ export default function Admin() {
                           value: appMetrics.public_reviews_7d,
                           note: `This week · ${appMetrics.public_reviews_total.toLocaleString()} total in Community`,
                         },
-                        { label: 'Ticket price hidden', value: appMetrics.reviews_hiding_price, note: 'Published reviews' },
-                        {
-                          label: 'Hidden artists',
-                          value: appMetrics.artist_exclusions,
-                          note: `By ${appMetrics.users_hiding_artists} users on Home`,
-                        },
                         { label: 'Newsletter subscribers', value: appMetrics.newsletter_subscribed, note: 'The Synth Setlist' },
                         { label: 'Calendar opens', value: appMetrics.calendar_opens_7d, note: 'Web side menu (7d)' },
                       ].map((m) => (

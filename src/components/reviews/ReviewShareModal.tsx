@@ -305,7 +305,7 @@ const modalRef = useRef<HTMLDivElement>(null);
         style={{
           width: '100%',
           maxWidth: '100%',
-          maxHeight: '85vh',
+          height: '90vh',
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
@@ -441,13 +441,10 @@ const modalRef = useRef<HTMLDivElement>(null);
               <div
                 style={{
                   display: 'flex',
+                  flexWrap: 'wrap',
                   gap: '16px',
-                  overflowX: 'auto',
                   paddingBottom: '8px',
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
                 }}
-                className="hide-scrollbar"
               >
                 {allTargets.map((target) => {
                   const isSelected = selectedTargets.has(target.id);
@@ -533,7 +530,10 @@ const modalRef = useRef<HTMLDivElement>(null);
               </div>
             </div>
           ) : null}
+          </div>
 
+        {/* External share stays pinned under the scrolling contact grid. */}
+        <div style={{ padding: '12px 20px 16px', borderTop: '1px solid rgba(0, 0, 0, 0.08)' }}>
           {/* External Share Options */}
           <div>
             <div
