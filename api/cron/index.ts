@@ -32,7 +32,8 @@ type Job =
   | 'seo-content'
   | 'seo-search-data'
   | 'seo-ai-visibility'
-  | 'seo-recap';
+  | 'seo-recap'
+  | 'jambase-ingest-report';
 
 const JOBS: Job[] = [
   'sync-events',
@@ -45,6 +46,7 @@ const JOBS: Job[] = [
   'seo-search-data',
   'seo-ai-visibility',
   'seo-recap',
+  'jambase-ingest-report',
 ];
 
 function queryJob(req: VercelRequest): string {
@@ -63,13 +65,15 @@ function pathOf(req: VercelRequest): string {
 
 /**
  * Falls back to the UTC hour so a cron that somehow arrives without ?job still runs the
- * right thing: sync-events at 09:30, seed-bot-messages at 10:00, digests at 13/17/21.
+ * right thing: sync-events at 09:30, seed-bot-messages at 10:00, digests at 13/17/21,
+ * jambase-ingest-report at 18:30.
  */
 function jobFromHour(now = new Date()): Job {
   const hour = now.getUTCHours();
   if (hour === 9) return 'sync-events';
   if (hour === 10) return 'seed-bot-messages';
   if (hour === 12) return 'seo-recap';
+  if (hour === 18) return 'jambase-ingest-report';
   return 'slack-pm-digest';
 }
 
@@ -88,6 +92,7 @@ function resolveJob(req: VercelRequest): Job {
   if (path.includes('seo-search-data')) return 'seo-search-data';
   if (path.includes('seo-ai-visibility')) return 'seo-ai-visibility';
   if (path.includes('seo-recap')) return 'seo-recap';
+  if (path.includes('jambase-ingest-report')) return 'jambase-ingest-report';
 
   return jobFromHour();
 }
@@ -139,6 +144,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (job === 'seo-recap') {
     const { default: seoRecap } = await import('../_lib/cron/seoRecap.js');
     return seoRecap(req, res);
+  }
+  if (job === 'jambase-ingest-report') {
+    const { default: jambaseIngestReport } = await import('../_lib/cron/jambaseIngestReport.js');
+    return jambaseIngestReport(req, res);
   }
 
   const { default: slackPmDigest } = await import('../_lib/cron/slackPmDigest.js');

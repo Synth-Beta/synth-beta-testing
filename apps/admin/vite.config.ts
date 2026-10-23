@@ -4,6 +4,10 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Repo-root .env.local holds VITE_SUPABASE_URL. Without this, the admin
+  // client falls back to https://your-project.supabase.co and sign-in fails
+  // with ERR_NAME_NOT_RESOLVED.
+  envDir: path.resolve(__dirname, "../.."),
   server: {
     host: "localhost",
     port: 5173,

@@ -8,7 +8,7 @@
  *
  * Jobs: sync-events, seed-bot-messages, slack-pm-digest, engagement-notifications,
  * newsletter-send, seo-indexnow, seo-content, seo-search-data, seo-ai-visibility,
- * seo-recap,
+ * seo-recap, jambase-ingest-report,
  * ai-scene-guides <schedule|publish|shadow>
  */
 import { readFileSync } from 'node:fs';
