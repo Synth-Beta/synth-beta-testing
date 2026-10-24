@@ -10,6 +10,7 @@
 const express = require('express');
 const { spawn } = require('child_process');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { timingSafeEqual } = require('crypto');
 const { createRateLimiter } = require('./middleware/rateLimiter');
 
@@ -48,6 +49,10 @@ router.post('/internal/sync-events', createRateLimiter('moderate'), (req, res) =
   const projectRoot = path.resolve(__dirname, '..');
   const scriptPath = path.join(projectRoot, 'scripts', 'sync-jambase-incremental-3nf.mjs');
 
+  if (!process.env.SLACK_ADMIN_BOT_TOKEN) {
+    console.error('[sync] SLACK_ADMIN_BOT_TOKEN is not set — the finished sync cannot post to Slack');
+  }
+
   console.log(`[sync] Starting incremental JamBase sync at ${startedAt}`);
 
   const child = spawn(process.execPath, [scriptPath], {
@@ -56,26 +61,52 @@ router.post('/internal/sync-events', createRateLimiter('moderate'), (req, res) =
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
+  // The script posts when it finishes. If it dies before that line, post from here.
+  let slackReported = false;
+  const noteSlack = (chunk) => {
+    if (String(chunk).includes('[event-ingest-report] posted')) slackReported = true;
+  };
+
   child.stdout.on('data', (data) => {
+    noteSlack(data);
     const lines = data.toString().trim().split('\n');
     lines.forEach((line) => console.log(`[sync] ${line}`));
   });
 
   child.stderr.on('data', (data) => {
+    noteSlack(data);
     const lines = data.toString().trim().split('\n');
     lines.forEach((line) => console.error(`[sync:err] ${line}`));
   });
 
+  const postIfSilent = async (errorText) => {
+    if (slackReported) return;
+    slackReported = true;
+    try {
+      const reportUrl = pathToFileURL(path.join(projectRoot, 'api/_lib/eventIngestReport.mjs')).href;
+      const { postEventIngestReport } = await import(reportUrl);
+      const posted = await postEventIngestReport({ kind: 'failure', error: errorText });
+      if (!posted.ok) {
+        console.error(`[sync] Slack report was not sent: ${posted.error}`);
+      }
+    } catch (err) {
+      console.error(`[sync] Slack report was not sent: ${err.message}`);
+    }
+  };
+
   child.on('close', (code) => {
     if (code === 0) {
       console.log(`[sync] Completed successfully at ${new Date().toISOString()}`);
+      postIfSilent('Sync finished without sending the Slack report');
     } else {
       console.error(`[sync] Exited with code ${code} at ${new Date().toISOString()}`);
+      postIfSilent(`Sync exited ${code} before the Slack report was sent`);
     }
   });
 
   child.on('error', (err) => {
     console.error(`[sync] Failed to spawn sync process: ${err.message}`);
+    postIfSilent(`Sync failed to start: ${err.message}`);
   });
 });
 

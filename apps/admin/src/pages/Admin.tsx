@@ -14,6 +14,7 @@ import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { SeoDashboard } from '@/components/admin/seo/SeoDashboard';
+import { EventAnalyticsDashboard } from '@/components/admin/events/EventAnalyticsDashboard';
 import { 
   Users, 
   Shield, 
@@ -22,10 +23,8 @@ import {
   Calendar,
   Loader2,
   Music,
-  MapPin,
   Ticket,
   AlertCircle,
-  ChevronUp,
   Eye,
   ChevronDown,
   FileQuestion,
@@ -156,15 +155,6 @@ interface ModerationFlag {
   updated_at: string;
 }
 
-// Helper function to check if a field is missing/null/empty
-const isFieldMissing = (value: any): boolean => {
-  if (value === null || value === undefined) return true;
-  if (typeof value === 'string' && value.trim() === '') return true;
-  if (Array.isArray(value) && value.length === 0) return true;
-  if (typeof value === 'object' && Object.keys(value).length === 0) return true;
-  return false;
-};
-
 // Helper function to format values for display
 const formatValue = (value: any): string => {
   if (value === null || value === undefined) return 'null';
@@ -223,66 +213,6 @@ function SignupNamesTooltip({
     </div>
   );
 }
-
-// Helper function to get missing fields for each type based on actual schemas
-const getMissingFields = (record: any, type: 'event' | 'artist' | 'venue'): string[] => {
-  const missing: string[] = [];
-  
-  if (type === 'event') {
-    // Required fields: title (not null), event_date (not null)
-    // Important fields: artist_id, venue_id, venue_city, venue_state, genres
-    const requiredFields = ['title', 'event_date'];
-    const importantFields = ['artist_id', 'venue_id', 'venue_city', 'venue_state', 'genres'];
-    
-    requiredFields.forEach(field => {
-      if (isFieldMissing(record[field])) {
-        missing.push(field);
-      }
-    });
-    
-    importantFields.forEach(field => {
-      if (isFieldMissing(record[field])) {
-        missing.push(field);
-      }
-    });
-  } else if (type === 'artist') {
-    // Required fields: name (not null), identifier (not null)
-    // Important fields: url, image_url, external_identifiers, genres
-    const requiredFields = ['name', 'identifier'];
-    const importantFields = ['url', 'image_url', 'external_identifiers', 'genres'];
-    
-    requiredFields.forEach(field => {
-      if (isFieldMissing(record[field])) {
-        missing.push(field);
-      }
-    });
-    
-    importantFields.forEach(field => {
-      if (isFieldMissing(record[field])) {
-        missing.push(field);
-      }
-    });
-  } else if (type === 'venue') {
-    // Required fields: name (not null)
-    // Important fields: identifier, state, street_address, country, zip
-    const requiredFields = ['name'];
-    const importantFields = ['identifier', 'state', 'street_address', 'country', 'zip'];
-    
-    requiredFields.forEach(field => {
-      if (isFieldMissing(record[field])) {
-        missing.push(field);
-      }
-    });
-    
-    importantFields.forEach(field => {
-      if (isFieldMissing(record[field])) {
-        missing.push(field);
-      }
-    });
-  }
-  
-  return missing;
-};
 
 // Shape returned by get_admin_app_metrics (supabase/migrations/20261020120000_admin_app_metrics.sql).
 type AppMetrics = {
@@ -351,19 +281,6 @@ export default function Admin() {
   const [signupMethodFilter, setSignupMethodFilter] = useState<'all' | SignupMethod>('all');
   const [acquisitionSourceFilter, setAcquisitionSourceFilter] = useState<string>('all');
 
-  // Event Analytics state
-  const [totalArtists, setTotalArtists] = useState(0);
-  const [totalEvents, setTotalEvents] = useState(0);
-  const [totalVenues, setTotalVenues] = useState(0);
-  const [artistsChange, setArtistsChange] = useState<number | null>(null);
-  const [eventsChange, setEventsChange] = useState<number | null>(null);
-  const [venuesChange, setVenuesChange] = useState<number | null>(null);
-  const [eventAnalyticsLoading, setEventAnalyticsLoading] = useState(true);
-  const [todayEvents, setTodayEvents] = useState<any[]>([]);
-  const [todayArtists, setTodayArtists] = useState<any[]>([]);
-  const [todayVenues, setTodayVenues] = useState<any[]>([]);
-  const [expandedRow, setExpandedRow] = useState<{ type: 'event' | 'artist' | 'venue'; id: string } | null>(null);
-  
   // Moderation Flags state
   const [moderationFlags, setModerationFlags] = useState<ModerationFlag[]>([]);
   const [moderationLoading, setModerationLoading] = useState(false);
@@ -510,7 +427,6 @@ export default function Admin() {
   useEffect(() => {
     if (user && isAdmin) {
       fetchUsers();
-      fetchTodayAdditions();
       fetchModerationFlags();
       fetchUserAnalytics();
       db.rpc('get_admin_app_metrics').then(({ data, error }: { data: AppMetrics | null; error: Error | null }) => {
@@ -521,12 +437,6 @@ export default function Admin() {
       fetchSignupMethods();
     }
   }, [user, isAdmin, fetchSocialMediaAnalytics]);
-
-  useEffect(() => {
-    if (user && isAdmin) {
-      fetchTodayAdditions();
-    }
-  }, [user, isAdmin]);
 
   const fetchUsers = async () => {
     try {
@@ -740,157 +650,6 @@ export default function Admin() {
     }
 
     setMonthlySignupsData(months);
-  };
-
-  // Helper function to fetch events count from the active events table
-  const fetchEventsCount = async (options?: { gte?: string; lte?: string }) => {
-    let query = db
-      .from('jambase_events')
-      .select('*', { count: 'exact', head: true });
-
-    if (options?.gte) {
-      query = query.gte('created_at', options.gte);
-    }
-    if (options?.lte) {
-      query = query.lte('created_at', options.lte);
-    }
-
-    return await query;
-  };
-
-  const fetchTodayAdditions = async () => {
-    try {
-      setEventAnalyticsLoading(true);
-      
-      // Get today's date range (start of day to end of day)
-      const today = new Date();
-      const startOfToday = startOfDay(today);
-      const endOfToday = new Date(startOfToday);
-      endOfToday.setHours(23, 59, 59, 999);
-      
-      // Get yesterday's date range for comparison
-      const yesterday = subDays(today, 1);
-      const startOfYesterday = startOfDay(yesterday);
-      const endOfYesterday = new Date(startOfYesterday);
-      endOfYesterday.setHours(23, 59, 59, 999);
-      
-      const startISO = startOfToday.toISOString();
-      const endISO = endOfToday.toISOString();
-      const startYesterdayISO = startOfYesterday.toISOString();
-      const endYesterdayISO = endOfYesterday.toISOString();
-
-      // Fetch totals and day-over-day changes
-      // Unfiltered totals use 'estimated' (planner reltuples) instead of 'exact'.
-      // An exact count here seq-scans all 55k artists / 27k venues on every
-      // dashboard load — it was ~5.8% of total DB time. The day-over-day counts
-      // below stay 'exact': they're date-ranged and cheap.
-      const [totalArtistsResult, totalEventsResult, totalVenuesResult] = await Promise.all([
-        db
-          .from('artists')
-          .select('*', { count: 'estimated', head: true }),
-        fetchEventsCount(),
-        db
-          .from('venues')
-          .select('*', { count: 'estimated', head: true })
-      ]);
-
-      // Fetch today's counts
-      const [todayArtistsCount, todayEventsCount, todayVenuesCount] = await Promise.all([
-        db
-          .from('artists')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startISO)
-          .lte('created_at', endISO),
-        fetchEventsCount({ gte: startISO, lte: endISO }),
-        db
-          .from('venues')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startISO)
-          .lte('created_at', endISO)
-      ]);
-
-      // Fetch yesterday's counts
-      const [yesterdayArtistsCount, yesterdayEventsCount, yesterdayVenuesCount] = await Promise.all([
-        db
-          .from('artists')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startYesterdayISO)
-          .lte('created_at', endYesterdayISO),
-        fetchEventsCount({ gte: startYesterdayISO, lte: endYesterdayISO }),
-        db
-          .from('venues')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', startYesterdayISO)
-          .lte('created_at', endYesterdayISO)
-      ]);
-
-      // Set totals
-      setTotalArtists(totalArtistsResult.count || 0);
-      setTotalEvents(totalEventsResult.count || 0);
-      setTotalVenues(totalVenuesResult.count || 0);
-
-      // Calculate day-over-day changes
-      const todayArtists = todayArtistsCount.count || 0;
-      const yesterdayArtists = yesterdayArtistsCount.count || 0;
-      setArtistsChange(todayArtists - yesterdayArtists);
-
-      const todayEvents = todayEventsCount.count || 0;
-      const yesterdayEvents = yesterdayEventsCount.count || 0;
-      setEventsChange(todayEvents - yesterdayEvents);
-
-      const todayVenues = todayVenuesCount.count || 0;
-      const yesterdayVenues = yesterdayVenuesCount.count || 0;
-      setVenuesChange(todayVenues - yesterdayVenues);
-
-      const eventsResult = await db
-        .from('jambase_events')
-        .select('*')
-        .gte('created_at', startISO)
-        .lte('created_at', endISO)
-        .order('created_at', { ascending: false });
-
-      const [artistsResult, venuesResult] = await Promise.all([
-        db
-          .from('artists')
-          .select('*')
-          .gte('created_at', startISO)
-          .lte('created_at', endISO)
-          .order('created_at', { ascending: false }),
-        db
-          .from('venues')
-          .select('*')
-          .gte('created_at', startISO)
-          .lte('created_at', endISO)
-          .order('created_at', { ascending: false })
-      ]);
-
-      if (eventsResult.error) {
-        console.error('Error fetching events:', eventsResult.error);
-      } else {
-        setTodayEvents(eventsResult.data || []);
-      }
-
-      if (artistsResult.error) {
-        console.error('Error fetching artists:', artistsResult.error);
-      } else {
-        setTodayArtists(artistsResult.data || []);
-      }
-
-      if (venuesResult.error) {
-        console.error('Error fetching venues:', venuesResult.error);
-      } else {
-        setTodayVenues(venuesResult.data || []);
-      }
-    } catch (error: any) {
-      console.error('Error fetching today\'s additions:', error);
-      toast({
-        title: 'Error loading today\'s additions',
-        description: error.message || 'Failed to fetch data',
-        variant: 'destructive',
-      });
-    } finally {
-      setEventAnalyticsLoading(false);
-    }
   };
 
 
@@ -2316,7 +2075,7 @@ export default function Admin() {
               </h1>
               <p className="text-muted-foreground mt-1">
                 {activeAdminTab === 'seo'
-                  ? 'Crawler traffic and public pages'
+                  ? 'Visits, search, and AI visibility for getsynth.app and join.getsynth.app'
                   : 'Manage users and monitor platform activity'}
               </p>
             </div>
@@ -3393,376 +3152,7 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="events" className="space-y-6">
-            {/* Event Analytics Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Artists</CardTitle>
-                  <Music className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalArtists.toLocaleString()}</div>
-                  {artistsChange !== null && (
-                    <p className={`text-xs mt-1 ${artistsChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {artistsChange >= 0 ? '+' : ''}{artistsChange} from yesterday
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    All artists in database
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-                  <Ticket className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalEvents.toLocaleString()}</div>
-                  {eventsChange !== null && (
-                    <p className={`text-xs mt-1 ${eventsChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {eventsChange >= 0 ? '+' : ''}{eventsChange} from yesterday
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    All events in database
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Venues</CardTitle>
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalVenues.toLocaleString()}</div>
-                  {venuesChange !== null && (
-                    <p className={`text-xs mt-1 ${venuesChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {venuesChange >= 0 ? '+' : ''}{venuesChange} from yesterday
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    All venues in database
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Today's Additions List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Today's Additions</CardTitle>
-                <CardDescription>
-                  Events, artists, and venues added today ({format(new Date(), 'MMMM d, yyyy')})
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {eventAnalyticsLoading ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                    <p className="text-sm text-muted-foreground">
-                      Loading today's additions...
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Events Section */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <Ticket className="h-5 w-5" />
-                        Events ({todayEvents.length})
-                      </h3>
-                      {todayEvents.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No events added today</p>
-                      ) : (
-                        <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Title</TableHead>
-                                <TableHead>Artist ID</TableHead>
-                                <TableHead>Venue ID</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Missing Fields</TableHead>
-                                <TableHead>Details</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {todayEvents.map((event) => {
-                                const missingFields = getMissingFields(event, 'event');
-                                const isExpanded = expandedRow?.type === 'event' && expandedRow?.id === event.id;
-                                return (
-                                  <Collapsible key={event.id} open={isExpanded} onOpenChange={(open) => {
-                                    setExpandedRow(open ? { type: 'event', id: event.id } : null);
-                                  }}>
-                                    <TableRow className={missingFields.length > 0 ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
-                                      <TableCell className="font-medium">{event.title || 'N/A'}</TableCell>
-                                      <TableCell>{event.artist_id || 'N/A'}</TableCell>
-                                      <TableCell>{event.venue_id || 'N/A'}</TableCell>
-                                      <TableCell>{event.event_date ? format(new Date(event.event_date), 'MMM d, yyyy') : 'N/A'}</TableCell>
-                                      <TableCell>
-                                        {missingFields.length > 0 ? (
-                                          <Badge variant="destructive" className="gap-1">
-                                            <AlertCircle className="h-3 w-3" />
-                                            {missingFields.length}
-                                          </Badge>
-                                        ) : (
-                                          <Badge variant="outline" className="text-green-600">Complete</Badge>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <CollapsibleTrigger asChild>
-                                          <Button variant="ghost" size="sm">
-                                            {isExpanded ? (
-                                              <>
-                                                <ChevronUp className="h-4 w-4 mr-1" />
-                                                Hide
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Eye className="h-4 w-4 mr-1" />
-                                                View
-                                              </>
-                                            )}
-                                          </Button>
-                                        </CollapsibleTrigger>
-                                      </TableCell>
-                                    </TableRow>
-                                    <CollapsibleContent asChild>
-                                      <TableRow>
-                                        <TableCell colSpan={6} className="bg-muted/50">
-                                          <div className="p-4 space-y-2">
-                                            <h4 className="font-semibold mb-2">All Fields:</h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                                              {Object.entries(event).map(([key, value]) => (
-                                                <div key={key} className={isFieldMissing(value) ? 'text-red-600' : ''}>
-                                                  <span className="font-medium">{key}:</span>{' '}
-                                                  <span className={isFieldMissing(value) ? 'font-semibold' : ''}>
-                                                    {formatValue(value)}
-                                                  </span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                            {missingFields.length > 0 && (
-                                              <div className="mt-3 pt-3 border-t">
-                                                <p className="text-sm font-semibold text-red-600 mb-1">Missing Fields:</p>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {missingFields.map((field) => (
-                                                    <Badge key={field} variant="destructive">{field}</Badge>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
-                                    </CollapsibleContent>
-                                  </Collapsible>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Artists Section */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <Music className="h-5 w-5" />
-                        Artists ({todayArtists.length})
-                      </h3>
-                      {todayArtists.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No artists added today</p>
-                      ) : (
-                        <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Identifier</TableHead>
-                                <TableHead>Missing Fields</TableHead>
-                                <TableHead>Details</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {todayArtists.map((artist) => {
-                                const missingFields = getMissingFields(artist, 'artist');
-                                const isExpanded = expandedRow?.type === 'artist' && expandedRow?.id === artist.id;
-                                return (
-                                  <Collapsible key={artist.id} open={isExpanded} onOpenChange={(open) => {
-                                    setExpandedRow(open ? { type: 'artist', id: artist.id } : null);
-                                  }}>
-                                    <TableRow className={missingFields.length > 0 ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
-                                      <TableCell className="font-medium">{artist.name || 'N/A'}</TableCell>
-                                      <TableCell>{artist.identifier || 'N/A'}</TableCell>
-                                      <TableCell>
-                                        {missingFields.length > 0 ? (
-                                          <Badge variant="destructive" className="gap-1">
-                                            <AlertCircle className="h-3 w-3" />
-                                            {missingFields.length}
-                                          </Badge>
-                                        ) : (
-                                          <Badge variant="outline" className="text-green-600">Complete</Badge>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <CollapsibleTrigger asChild>
-                                          <Button variant="ghost" size="sm">
-                                            {isExpanded ? (
-                                              <>
-                                                <ChevronUp className="h-4 w-4 mr-1" />
-                                                Hide
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Eye className="h-4 w-4 mr-1" />
-                                                View
-                                              </>
-                                            )}
-                                          </Button>
-                                        </CollapsibleTrigger>
-                                      </TableCell>
-                                    </TableRow>
-                                    <CollapsibleContent asChild>
-                                      <TableRow>
-                                        <TableCell colSpan={4} className="bg-muted/50">
-                                          <div className="p-4 space-y-2">
-                                            <h4 className="font-semibold mb-2">All Fields:</h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                                              {Object.entries(artist).map(([key, value]) => (
-                                                <div key={key} className={isFieldMissing(value) ? 'text-red-600' : ''}>
-                                                  <span className="font-medium">{key}:</span>{' '}
-                                                  <span className={isFieldMissing(value) ? 'font-semibold' : ''}>
-                                                    {formatValue(value)}
-                                                  </span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                            {missingFields.length > 0 && (
-                                              <div className="mt-3 pt-3 border-t">
-                                                <p className="text-sm font-semibold text-red-600 mb-1">Missing Fields:</p>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {missingFields.map((field) => (
-                                                    <Badge key={field} variant="destructive">{field}</Badge>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
-                                    </CollapsibleContent>
-                                  </Collapsible>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Venues Section */}
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        Venues ({todayVenues.length})
-                      </h3>
-                      {todayVenues.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No venues added today</p>
-                      ) : (
-                        <div className="border rounded-lg overflow-hidden">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Street Address</TableHead>
-                                <TableHead>State</TableHead>
-                                <TableHead>Missing Fields</TableHead>
-                                <TableHead>Details</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {todayVenues.map((venue) => {
-                                const missingFields = getMissingFields(venue, 'venue');
-                                const isExpanded = expandedRow?.type === 'venue' && expandedRow?.id === venue.id;
-                                return (
-                                  <Collapsible key={venue.id} open={isExpanded} onOpenChange={(open) => {
-                                    setExpandedRow(open ? { type: 'venue', id: venue.id } : null);
-                                  }}>
-                                    <TableRow className={missingFields.length > 0 ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
-                                      <TableCell className="font-medium">{venue.name || 'N/A'}</TableCell>
-                                      <TableCell>{venue.street_address || 'N/A'}</TableCell>
-                                      <TableCell>{venue.state || 'N/A'}</TableCell>
-                                      <TableCell>
-                                        {missingFields.length > 0 ? (
-                                          <Badge variant="destructive" className="gap-1">
-                                            <AlertCircle className="h-3 w-3" />
-                                            {missingFields.length}
-                                          </Badge>
-                                        ) : (
-                                          <Badge variant="outline" className="text-green-600">Complete</Badge>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <CollapsibleTrigger asChild>
-                                          <Button variant="ghost" size="sm">
-                                            {isExpanded ? (
-                                              <>
-                                                <ChevronUp className="h-4 w-4 mr-1" />
-                                                Hide
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Eye className="h-4 w-4 mr-1" />
-                                                View
-                                              </>
-                                            )}
-                                          </Button>
-                                        </CollapsibleTrigger>
-                                      </TableCell>
-                                    </TableRow>
-                                    <CollapsibleContent asChild>
-                                      <TableRow>
-                                        <TableCell colSpan={5} className="bg-muted/50">
-                                          <div className="p-4 space-y-2">
-                                            <h4 className="font-semibold mb-2">All Fields:</h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                                              {Object.entries(venue).map(([key, value]) => (
-                                                <div key={key} className={isFieldMissing(value) ? 'text-red-600' : ''}>
-                                                  <span className="font-medium">{key}:</span>{' '}
-                                                  <span className={isFieldMissing(value) ? 'font-semibold' : ''}>
-                                                    {formatValue(value)}
-                                                  </span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                            {missingFields.length > 0 && (
-                                              <div className="mt-3 pt-3 border-t">
-                                                <p className="text-sm font-semibold text-red-600 mb-1">Missing Fields:</p>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {missingFields.map((field) => (
-                                                    <Badge key={field} variant="destructive">{field}</Badge>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
-                                    </CollapsibleContent>
-                                  </Collapsible>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <EventAnalyticsDashboard />
           </TabsContent>
 
           <TabsContent value="moderation" className="space-y-6">

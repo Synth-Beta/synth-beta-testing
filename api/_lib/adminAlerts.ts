@@ -6,6 +6,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const DEFAULT_ALERTS_CHANNEL = 'C0BL95CSDMF';
+const DEFAULT_SEO_CHANNEL = 'C0C8WJK3L78';
 const DEDUPE_MS = 30 * 60 * 1000;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_CAP = 40;
@@ -36,6 +37,35 @@ function escapeSlack(text: string): string {
 
 export function alertsChannel(): string {
   return process.env.SLACK_ADMIN_BOT_ALERTS_CHANNEL?.trim() || DEFAULT_ALERTS_CHANNEL;
+}
+
+/** #seo. SLACK_ADMIN_BOT_CHANNEL is already this channel. */
+export function seoRecapChannel(): string {
+  return (
+    process.env.SLACK_ADMIN_BOT_SEO_CHANNEL?.trim() ||
+    process.env.SLACK_ADMIN_BOT_CHANNEL?.trim() ||
+    DEFAULT_SEO_CHANNEL
+  );
+}
+
+async function postBotMessage(
+  channel: string,
+  text: string,
+): Promise<{ ok: true } | { ok: false; error: string; status?: number } | null> {
+  const token = process.env.SLACK_ADMIN_BOT_TOKEN?.trim();
+  if (!token) return null;
+  const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify({ channel, text, unfurl_links: false, unfurl_media: false }),
+  });
+  const body = (await slackRes.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  if (slackRes.ok && body?.ok) return { ok: true };
+  console.error('[admin-alerts] bot post failed', body?.error || slackRes.status);
+  return { ok: false, error: body?.error || `Slack ${slackRes.status}`, status: slackRes.status };
 }
 
 function service(): SupabaseClient | null {
@@ -93,24 +123,21 @@ export function formatClientIssue(input: {
   return lines.join('\n');
 }
 
+/** SEO recap only. No alerts-webhook fallback, so this never lands in #alerts. */
+export async function postAdminChannel(
+  channel: string,
+  text: string,
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const posted = await postBotMessage(channel, text);
+  if (posted) return posted;
+  return { ok: false, error: 'SLACK_ADMIN_BOT_TOKEN is not set' };
+}
+
 export async function postAdminAlert(
   text: string,
 ): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
-  const token = process.env.SLACK_ADMIN_BOT_TOKEN?.trim();
-  const channel = alertsChannel();
-  if (token) {
-    const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-      body: JSON.stringify({ channel, text, unfurl_links: false, unfurl_media: false }),
-    });
-    const body = (await slackRes.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-    if (slackRes.ok && body?.ok) return { ok: true };
-    console.error('[admin-alerts] bot post failed', body?.error || slackRes.status);
-  }
+  const posted = await postBotMessage(alertsChannel(), text);
+  if (posted?.ok) return posted;
 
   const webhook =
     process.env.SLACK_ALERTS_WEBHOOK_URL?.trim() || process.env.SLACK_OPS_WEBHOOK_URL?.trim();

@@ -217,6 +217,117 @@ export async function fetchSeoDashboard(days: number): Promise<SeoDashboard> {
   return data as SeoDashboard;
 }
 
+export const TRACKED_HOSTS = ['getsynth.app', 'join.getsynth.app'] as const;
+
+export type SiteStat = {
+  host: string;
+  visits: number;
+  visitsPrev: number;
+  pageviews: number;
+  pageviewsPrev: number;
+  visitors: number;
+  organic: number;
+  ai: number;
+};
+
+export type SiteTraffic = {
+  sites: SiteStat[];
+  daily: Array<{ day: string; visits: Record<string, number> }>;
+  truncated: boolean;
+};
+
+type PageViewRow = {
+  ts: string;
+  host: string;
+  session_id: string | null;
+  visitor_id: string | null;
+  source_category: string | null;
+};
+
+async function fetchPageViewRows(since: string): Promise<{ rows: PageViewRow[]; truncated: boolean }> {
+  const rows: PageViewRow[] = [];
+  for (let from = 0; from < 20_000; from += 1000) {
+    const { data, error } = await db
+      .from('seo_page_views')
+      .select('ts,host,session_id,visitor_id,source_category')
+      .eq('event_name', 'pageview')
+      .gte('ts', since)
+      .order('ts', { ascending: true })
+      .range(from, from + 999);
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as PageViewRow[];
+    rows.push(...page);
+    if (page.length < 1000) return { rows, truncated: false };
+  }
+  return { rows, truncated: true };
+}
+
+function viewSession(row: PageViewRow): string {
+  return row.session_id || row.visitor_id || row.ts;
+}
+
+function siteStat(host: string, current: PageViewRow[], previous: PageViewRow[]): SiteStat {
+  const cur = current.filter((row) => row.host === host);
+  const prev = previous.filter((row) => row.host === host);
+  const first = new Map<string, string>();
+  for (const row of cur) {
+    const id = viewSession(row);
+    if (!first.has(id)) first.set(id, row.source_category || '');
+  }
+  let organic = 0;
+  let ai = 0;
+  for (const category of first.values()) {
+    if (category === 'organic_search') organic += 1;
+    if (category === 'ai_assistant') ai += 1;
+  }
+  return {
+    host,
+    visits: new Set(cur.map(viewSession)).size,
+    visitsPrev: new Set(prev.map(viewSession)).size,
+    pageviews: cur.length,
+    pageviewsPrev: prev.length,
+    visitors: new Set(cur.map((row) => row.visitor_id).filter(Boolean)).size,
+    organic,
+    ai,
+  };
+}
+
+/** Visits split by site. A session counts on each host it actually opened. */
+export async function fetchSiteTraffic(days: number): Promise<SiteTraffic> {
+  const span = days * 86_400_000;
+  const now = Date.now();
+  const { rows, truncated } = await fetchPageViewRows(new Date(now - 2 * span).toISOString());
+  const cutoff = now - span;
+  const current = rows.filter((row) => new Date(row.ts).getTime() >= cutoff);
+  const previous = rows.filter((row) => new Date(row.ts).getTime() < cutoff);
+  const extra = [...new Set(current.map((row) => row.host))].filter((host) => !TRACKED_HOSTS.includes(host as (typeof TRACKED_HOSTS)[number]));
+  const hosts = [...TRACKED_HOSTS, ...extra];
+  const dailyMap = new Map<string, Record<string, Set<string>>>();
+  for (const row of current) {
+    const day = row.ts.slice(0, 10);
+    const byHost = dailyMap.get(day) ?? {};
+    const sessions = byHost[row.host] ?? new Set<string>();
+    sessions.add(viewSession(row));
+    byHost[row.host] = sessions;
+    dailyMap.set(day, byHost);
+  }
+  return {
+    sites: hosts.map((host) => siteStat(host, current, previous)).sort((a, b) => {
+      const ai = TRACKED_HOSTS.indexOf(a.host as (typeof TRACKED_HOSTS)[number]);
+      const bi = TRACKED_HOSTS.indexOf(b.host as (typeof TRACKED_HOSTS)[number]);
+      if (ai !== -1 || bi !== -1) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      return b.visits - a.visits;
+    }),
+    daily: [...dailyMap.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([day, byHost]) => ({
+        day,
+        visits: Object.fromEntries(Object.entries(byHost).map(([host, sessions]) => [host, sessions.size])),
+      })),
+    truncated,
+  };
+}
+
 export type ContentType = 'guide' | 'brand' | 'comparison';
 export type ContentStatus = 'review' | 'published' | 'rejected' | 'archived';
 
