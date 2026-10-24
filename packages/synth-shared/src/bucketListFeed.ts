@@ -4,7 +4,7 @@
  * sorts the same way on both platforms.
  */
 import type { SynthSupabaseClient } from './supabaseClientType';
-import { planNaturalWeave } from './naturalWeave';
+import { planNaturalWeave } from './naturalWeave.ts';
 
 /** One bucket-list artist, already in priority order (index 0 = #1). */
 export interface RankedBucketArtist {

@@ -12,12 +12,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { calculateAge } from '@/utils/calculateAge';
 import { SinglePhotoUpload } from '@/components/ui/photo-upload';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/utils/logger';
+import { validateOnboardingProfile } from '@synth/shared';
 
 export interface ProfileSetupFormData {
+  name: string;
   username: string;
   location_city: string;
   birthday: string;
@@ -28,6 +29,7 @@ export interface ProfileSetupFormData {
 
 interface ProfileSetupStepProps {
   initialData?: {
+    name?: string;
     username?: string;
     location_city?: string;
     birthday?: string;
@@ -57,6 +59,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
   ref
 ) {
   const [formData, setFormData] = useState({
+    name: initialData?.name || '',
     username: initialData?.username || '',
     location_city: initialData?.location_city || '',
     birthday: initialData?.birthday || '',
@@ -237,25 +240,19 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
       }
     }
 
-    // Validate required fields
-    if (!formData.location_city.trim()) {
-      newErrors.location_city = 'City is required';
-    }
-
-    if (!formData.birthday) {
-      newErrors.birthday = 'Birthday is required';
-    } else {
-      // Validate age (must be at least 13 years old)
-      const today = new Date();
-      const age = calculateAge(formData.birthday, today);
-
-      if (age === null || age < 13) {
-        newErrors.birthday = 'You must be at least 13 years old';
-      }
-    }
-
-    if (formData.bio.length > 120) {
-      newErrors.bio = 'Bio must be 120 characters or less';
+    // Name, birthday and bio follow the rules shared with iOS (@synth/shared
+    // onboardingRules). City, gender, bio and photo are optional on both platforms.
+    // Username keeps its own format + availability check above; "how did you hear" is
+    // checked by OnboardingFlow.
+    const shared = validateOnboardingProfile({
+      name: formData.name,
+      username: 'placeholder',
+      birthday: formData.birthday,
+      acquisitionSource: 'checked-elsewhere',
+      bio: formData.bio,
+    }).errors;
+    for (const field of ['name', 'birthday', 'bio'] as const) {
+      if (shared[field]) newErrors[field] = shared[field] as string;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -302,6 +299,27 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Name (Required) */}
+        <div className="space-y-2">
+          <Label htmlFor="name">
+            Name <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="name"
+            placeholder="Your name"
+            value={formData.name}
+            onChange={(e) => {
+              setFormData({ ...formData, name: e.target.value });
+              if (errors.name) setErrors({ ...errors, name: '' });
+            }}
+            autoComplete="name"
+            className={`bg-white ${errors.name ? 'border-destructive' : ''}`}
+          />
+          {errors.name && (
+            <p className="text-[16px] font-medium leading-[1.5] text-destructive">{errors.name}</p>
+          )}
+        </div>
+
         {/* Username (Required) */}
         <div className="space-y-2">
           <Label htmlFor="username">
@@ -375,10 +393,10 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
           </p>
         </div>
 
-        {/* Location/City (Required) */}
+        {/* Location/City (Optional: the feed and alerts fall back to the browse location) */}
         <div className="space-y-2">
           <Label htmlFor="location_city">
-            City <span className="text-destructive">*</span>
+            City <span className="text-muted-foreground">(optional)</span>
           </Label>
           <Input
             id="location_city"

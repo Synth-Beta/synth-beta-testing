@@ -8,6 +8,7 @@ import { SynthTokens } from '../tokens/SynthTokens';
 import { supabase } from '../integrations/supabase/client';
 import { getNotificationPermissionStatus } from '../../lib/registerPushNotifications';
 import { syncExpoPushTokenWithBackend } from '../../lib/pushTokenSync';
+import { trackPushPrimer } from '../services/onboardingTelemetry';
 import { shouldAutoOpenFeatureTour } from '../../lib/featureTour';
 import { isTourActive } from '../../lib/tourProgress';
 import {
@@ -23,7 +24,11 @@ import {
 // How long someone uses the app (after the tour) before the session-based ask.
 const SESSION_DELAY_MS = 45_000;
 
-const COPY: Record<PushPrimerReason, { title: string; body: string }> = {
+export const PUSH_PRIMER_COPY: Record<PushPrimerReason, { title: string; body: string }> = {
+  onboarding: {
+    title: 'Know the moment they announce',
+    body: 'Turn on notifications to hear when your artists announce shows near you, and get reminders before shows you save.',
+  },
   interested: {
     title: 'Get a reminder before the show',
     body: 'We’ll ping you a week before and the day before, and when artists you follow announce shows near you.',
@@ -36,7 +41,6 @@ const COPY: Record<PushPrimerReason, { title: string; body: string }> = {
 
 /** Mounted once in the tab layout, so it only ever runs after onboarding. */
 export function PushPrimer() {
-  const insets = useSafeAreaInsets();
   const [reason, setReason] = useState<PushPrimerReason | null>(null);
   const busy = useRef(false);
 
@@ -53,6 +57,7 @@ export function PushPrimer() {
       const state = await loadPrimerState(userId);
       if (!primerAllowed(state, Date.now())) return;
       await recordPrimerShown(userId, state);
+      trackPushPrimer('shown', r);
       setReason(r);
     } finally {
       busy.current = false;
@@ -80,26 +85,43 @@ export function PushPrimer() {
     };
   }, []);
 
-  const close = () => setReason(null);
+  const close = () => {
+    if (reason) trackPushPrimer('declined', reason);
+    setReason(null);
+  };
   const enable = async () => {
-    close();
+    if (reason) trackPushPrimer('accepted', reason);
+    setReason(null);
     await syncExpoPushTokenWithBackend({ prompt: true });
   };
 
   if (!reason) return null;
-  const { title, body } = COPY[reason];
+  return <PushPrimerSheet reason={reason} onEnable={() => void enable()} onDismiss={close} />;
+}
 
+/** The soft-ask sheet itself; also shown at the end of onboarding (artists step). */
+export function PushPrimerSheet({
+  reason,
+  onEnable,
+  onDismiss,
+}: {
+  reason: PushPrimerReason;
+  onEnable: () => void;
+  onDismiss: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const { title, body } = PUSH_PRIMER_COPY[reason];
   return (
-    <Modal transparent animationType="slide" visible onRequestClose={close}>
-      <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Dismiss" />
+    <Modal transparent animationType="slide" visible onRequestClose={onDismiss}>
+      <Pressable style={styles.backdrop} onPress={onDismiss} accessibilityLabel="Dismiss" />
       <View style={[styles.sheet, { paddingBottom: insets.bottom + SynthTokens.spacing.md }]}>
         <View style={styles.iconWrap}>
           <BellRing size={28} color={SynthTokens.colors.brandPink500} />
         </View>
         <SynthText variant="h2" style={styles.title} accessibilityRole="header">{title}</SynthText>
         <SynthText variant="meta" color="secondary" style={styles.body}>{body}</SynthText>
-        <SynthButton title="Turn on notifications" variant="primary" onPress={() => void enable()} style={styles.button} />
-        <SynthButton title="Not now" variant="ghost" onPress={close} style={styles.button} />
+        <SynthButton title="Turn on notifications" variant="primary" onPress={onEnable} style={styles.button} />
+        <SynthButton title="Not now" variant="ghost" onPress={onDismiss} style={styles.button} />
       </View>
     </Modal>
   );

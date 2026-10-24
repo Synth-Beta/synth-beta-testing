@@ -265,3 +265,6 @@ export {
   findPick5Band,
   type Pick5Band,
 } from './pick5';
+export { type ProfileSaveError, describeProfileSaveError } from './profileSaveError';
+export { type OnboardingProfileInput, type OnboardingField, ONBOARDING_MIN_AGE, ONBOARDING_BIO_MAX, validateOnboardingProfile, pickPreselected, normalizeBirthday, isPlaceholderName } from './onboardingRules';
+export { isEmptySpotifySync, streamingRowHasData, SPOTIFY_EMPTY_SYNC_MESSAGE } from './spotifySyncGuard';

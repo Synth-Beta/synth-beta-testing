@@ -34,6 +34,8 @@ import {
   type AcquisitionSource,
   type FeaturedShowCandidate,
   needsContactEmail,
+  describeProfileSaveError,
+  isPlaceholderName,
 } from '@synth/shared';
 
 interface OnboardingFlowProps {
@@ -234,6 +236,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   ]);
 
   const handleProfileDraftChange = useCallback((draft: {
+    name: string;
     username: string;
     location_city: string;
     birthday: string;
@@ -242,6 +245,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     avatar_url: string;
   }) => {
     setProfileData({
+      name: draft.name || undefined,
       username: draft.username || undefined,
       location_city: draft.location_city || undefined,
       birthday: draft.birthday || undefined,
@@ -326,7 +330,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         const { data, error } = await supabase
           .from('users')
           .select(
-            'username, location_city, birthday, gender, bio, avatar_url, acquisition_source, other_acquisition_source'
+            'name, username, location_city, birthday, gender, bio, avatar_url, acquisition_source, other_acquisition_source'
           )
           .eq('user_id', session.user.id)
           .maybeSingle();
@@ -340,6 +344,15 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
 
         if (data) {
           setProfileData({
+            // Prefill name from the profile, else the sign-up account, so most people
+            // just confirm it (it is required on both platforms now).
+            // Skips what the signup trigger seeded ('Synth User', email prefix) so the
+            // field starts blank instead of looking pre-filled with junk.
+            name: [
+              (data as any).name as string | null | undefined,
+              session.user.user_metadata?.name as string | undefined,
+              session.user.user_metadata?.full_name as string | undefined,
+            ].find((n) => !isPlaceholderName(n, session.user.email)),
             username: data.username ?? undefined,
             location_city: (data as any).location_city ?? undefined,
             birthday: (data as any).birthday ?? undefined,
@@ -467,7 +480,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     try {
       // Save profile
       const profilePayload: ProfileSetupData = {
-        name: finalName,
+        name: profileResult.data.name?.trim() || finalName,
         username: profileResult.data.username,
         location_city: profileResult.data.location_city,
         birthday: profileResult.data.birthday,
@@ -486,10 +499,12 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       let profileSuccess = false;
       try {
         profileSuccess = await OnboardingService.saveProfileSetup(user.id, profilePayload);
-      } catch (profileErr: any) {
-        trackBlock('profile_save_threw');
-        const msg = profileErr?.message || 'Failed to save profile. Please try again.';
-        setCompletionError(msg);
+      } catch (profileErr: unknown) {
+        // The code in telemetry tells us WHY saves fail (users were retrying a generic error).
+        const { code, message } = describeProfileSaveError(profileErr);
+        console.error('Profile setup save failed:', profileErr);
+        trackBlock(`profile_save_threw_${code}`);
+        setCompletionError(message);
         completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
       }

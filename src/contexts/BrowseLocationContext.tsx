@@ -11,7 +11,8 @@ import { resolveLocation, type Coordinates } from '@synth/shared';
  * Deliberately NOT persisted to `public.users.location_city/latitude/longitude` -
  * those are profile identity fields (edited in Settings). Writing a temporary
  * browse pick there would silently corrupt the user's real home city. This
- * stores on-device only, mirroring the mobile app's BrowseLocationContext.
+ * stores on-device plus `user_browse_locations` (via set_browse_location), mirroring
+ * the mobile app's BrowseLocationContext.
  */
 
 const STORAGE_KEY = 'synth_browse_location_v1';
@@ -86,6 +87,7 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
   const [isManual, setIsManual] = useState(false);
   const [loading, setLoading] = useState(true);
   const initialized = useRef(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const coordsRef = useRef<Coordinates | null>(null);
   coordsRef.current = coords;
 
@@ -156,7 +158,8 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
   // The provider mounts before sign-in, so the profile fallback above can miss
   // the user. Retry it once a session appears if we still have no location.
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      setAuthUserId(session?.user?.id ?? null);
       if (event === 'SIGNED_IN' && !coordsRef.current) void fetchProfileLocation();
     });
     return () => data.subscription.unsubscribe();
@@ -222,6 +225,30 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
     }
     void fetchGpsLocation().finally(() => setLoading(false));
   }, [fetchGpsLocation]);
+
+  // Save the browse location server-side (user_browse_locations, not the profile) like
+  // the iOS home screen does, so "just announced" alerts and week-1 nudges can match
+  // shows near web users too: city is optional now and web users never set this before.
+  // Rounded to ~1km so jitter doesn't write on every render.
+  // Keyed on the user too: coords usually resolve before sign-in, so without it a
+  // new signup (or a second account on this browser) was never saved.
+  const savedBrowseKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!coords || !authUserId) return;
+    const lat = Math.round(coords.latitude * 100) / 100;
+    const lng = Math.round(coords.longitude * 100) / 100;
+    const key = `${authUserId},${lat},${lng},${Math.round(radiusMiles)}`;
+    if (savedBrowseKeyRef.current === key) return;
+    void (async () => {
+      const { error } = await supabase.rpc('set_browse_location', {
+        p_latitude: lat,
+        p_longitude: lng,
+        p_radius_miles: Math.round(radiusMiles),
+      });
+      if (error) console.warn('[browse-location] set_browse_location failed', error.message);
+      else savedBrowseKeyRef.current = key;
+    })();
+  }, [coords, radiusMiles, authUserId]);
 
   return (
     <BrowseLocationContext.Provider

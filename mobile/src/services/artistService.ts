@@ -6,9 +6,30 @@ export interface Artist {
     name: string;
     image_url?: string;
     genres?: string[];
+    /** Onboarding: the server's pick to start checked (first 3). */
+    preselected?: boolean;
 }
 
 export class ArtistService {
+    /**
+     * Artist step list (onboarding_suggested_artists): streaming top artists, then artists
+     * playing nearby, then nationally; first 3 flagged preselected. Falls back to the plain
+     * suggested list so the step always has something to offer.
+     */
+    static async getOnboardingSuggestions(limit = 12): Promise<Artist[]> {
+        const { data, error } = await supabase.rpc('onboarding_suggested_artists', { p_limit: limit });
+        if (!error && Array.isArray(data) && data.length > 0) {
+            return data.map((a: { id: string; name: string; image_url: string | null; preselected: boolean }) => ({
+                id: a.id,
+                name: a.name,
+                image_url: a.image_url ?? undefined,
+                preselected: a.preselected,
+            }));
+        }
+        if (error) console.warn('onboarding_suggested_artists failed, using fallback:', error.message);
+        return ArtistService.getSuggestedArtists(limit);
+    }
+
     static async getSuggestedArtists(limit = 20): Promise<Artist[]> {
         const { data, error } = await supabase
             .from('artists')

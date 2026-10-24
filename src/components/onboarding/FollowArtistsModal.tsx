@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Search, X } from 'lucide-react';
+import { pickPreselected } from '@synth/shared';
 
 import {
   Dialog,
@@ -47,7 +48,13 @@ export const FollowArtistsModal = ({
   const MIN_FOLLOWS = OnboardingService.MIN_ARTIST_FOLLOWS;
 
   const [visibleArtists, setVisibleArtists] = useState<FollowArtistOption[]>(artists);
-  const [pendingKeys, setPendingKeys] = useState<Set<string>>(new Set());
+  // Select, then save on Done (same model as the iOS artist step). The old follow-on-tap
+  // model could not show pre-selected artists without silently following them.
+  const [selected, setSelected] = useState<Map<string, FollowArtistOption>>(new Map());
+  // Pre-select once: on a reopen (finish failed, retry) the RPC returns 3 new picks, which
+  // would be followed without the user ever choosing them.
+  const preselectedOnce = useRef(false);
+  const [saving, setSaving] = useState(false);
   const [followedCount, setFollowedCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadFailed, setLoadFailed] = useState(false);
@@ -69,7 +76,7 @@ export const FollowArtistsModal = ({
         // someone who followed two artists on mobile only needs one more here.
         const [existing, suggested] = await Promise.all([
           OnboardingService.countArtistFollows(userId).catch(() => 0),
-          OnboardingService.getSuggestedArtists(),
+          OnboardingService.getOnboardingSuggestions(),
         ]);
         if (cancelled) return;
 
@@ -85,6 +92,18 @@ export const FollowArtistsModal = ({
           merged.push({ id: artist.id, name: artist.name, image_url: artist.image_url ?? undefined });
         }
         setVisibleArtists(merged);
+        // Start with 3 checked (server picks, else the first 3) so Done works immediately.
+        const preIds = new Set(
+          pickPreselected(
+            suggested.map((a) => ({ id: a.id, preselected: (a as { preselected?: boolean }).preselected }))
+          )
+        );
+        if (!preselectedOnce.current) {
+          preselectedOnce.current = true;
+          setSelected((prev) =>
+            prev.size > 0 ? prev : new Map(merged.filter((a) => a.id && preIds.has(a.id)).map((a) => [getArtistKey(a), a]))
+          );
+        }
         setLoadFailed(false);
       } catch (error) {
         if (cancelled) return;
@@ -119,38 +138,48 @@ export const FollowArtistsModal = ({
     }
   };
 
-  const remainingFollows = Math.max(0, MIN_FOLLOWS - followedCount);
+  const remainingFollows = Math.max(0, MIN_FOLLOWS - followedCount - selected.size);
   const canFinish = remainingFollows === 0 || loadFailed;
 
-  const handleFollowArtist = async (artist: FollowArtistOption) => {
+  const toggleArtist = (artist: FollowArtistOption) => {
     const key = getArtistKey(artist);
-    if (pendingKeys.has(key)) {
-      return;
-    }
-
-    setPendingKeys((prev) => {
-      const next = new Set(prev);
-      next.add(key);
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(key)) next.delete(key);
+      else next.set(key, artist);
       return next;
     });
+  };
 
+  /**
+   * Save the selection, then finish. Done, the X and dismissing the dialog all come here
+   * so a selection is never lost. If every follow fails, the user still gets through
+   * (bypass): a save error must never be the reason someone is stuck in onboarding.
+   */
+  const commit = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
-      if (artist.id) {
-        await ArtistFollowService.setArtistFollow(userId, artist.id, true);
-      } else {
-        await ArtistFollowService.setArtistFollowByName(userId, artist.name, undefined, true);
-      }
-
-      setVisibleArtists((prev) => prev.filter((item) => getArtistKey(item) !== key));
-      setFollowedCount((prev) => prev + 1);
-    } catch (error) {
-      console.warn(`FollowArtistsModal: could not follow artist "${artist.name}":`, error);
-    } finally {
-      setPendingKeys((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
+      const picks = [...selected.values()];
+      const results = await Promise.allSettled(
+        picks.map((artist) =>
+          artist.id
+            ? ArtistFollowService.setArtistFollow(userId, artist.id, true)
+            : ArtistFollowService.setArtistFollowByName(userId, artist.name, undefined, true)
+        )
+      );
+      const saved = results.filter((r) => r.status === 'fulfilled').length;
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.warn(`FollowArtistsModal: could not follow "${picks[i].name}":`, r.reason);
       });
+      const allSavesFailed = picks.length > 0 && saved === 0;
+      setFollowedCount((prev) => prev + saved);
+      setSelected(new Map());
+      // saved > 0: trust our own successful save over the server recount, so a lagging
+      // count can't turn Done into a silent no-op.
+      await onDone((loadFailed && followedCount + saved < MIN_FOLLOWS) || allSavesFailed || saved > 0);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -171,7 +200,7 @@ export const FollowArtistsModal = ({
   const closeOffset = 'var(--spacing-screen-margin-x, 20px)';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : void commit())}>
       <DialogContent hideCloseButton>
         <div className="relative flex h-full flex-col overflow-hidden">
           <div style={{ paddingTop: closeOffset, paddingLeft: closeOffset, paddingRight: closeOffset }}>
@@ -179,7 +208,7 @@ export const FollowArtistsModal = ({
               <button
                 type="button"
                 aria-label="Close"
-                onClick={() => onOpenChange(false)}
+                onClick={() => void commit()}
                 className="flex items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 var(--neutral-900) shadow-sm"
                 style={{
                   width: '44px',
@@ -199,7 +228,7 @@ export const FollowArtistsModal = ({
             <p className="text-center text-sm text-muted-foreground">
               {loadFailed
                 ? "We couldn't load artists right now — you can continue and follow artists later."
-                : `Follow at least ${MIN_FOLLOWS} — 3 or more makes your feed much better (${followedCount} followed)`}
+                : `We picked a few to start. Tap to change — 3 or more makes your feed much better (${followedCount + selected.size} selected)`}
             </p>
 
             {!loadFailed && (
@@ -219,7 +248,7 @@ export const FollowArtistsModal = ({
               <div className="flex justify-center space-x-4 pb-4 pt-1">
                 {visibleArtists.map((artist) => {
                   const key = getArtistKey(artist);
-                  const isPending = pendingKeys.has(key);
+                  const isSelected = selected.has(key);
 
                   return (
                     <div
@@ -241,15 +270,23 @@ export const FollowArtistsModal = ({
 
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant={isSelected ? 'default' : 'outline'}
                         className="h-7 text-xs w-full"
+                        aria-pressed={isSelected}
                         onClick={(event) => {
                           event.stopPropagation();
-                          void handleFollowArtist(artist);
+                          toggleArtist(artist);
                         }}
-                        disabled={isPending}
+                        disabled={saving}
                       >
-                        Add
+                        {isSelected ? (
+                          <>
+                            <Check className="mr-1 h-3 w-3" aria-hidden="true" />
+                            Added
+                          </>
+                        ) : (
+                          'Add'
+                        )}
                       </Button>
                     </div>
                   );
@@ -261,14 +298,12 @@ export const FollowArtistsModal = ({
 
           <DialogFooter className="items-center justify-center sm:justify-center">
             <Button
-              onClick={() => {
-                void onDone(loadFailed && remainingFollows > 0);
-              }}
-              disabled={!canFinish}
+              onClick={() => void commit()}
+              disabled={!canFinish || saving}
               className="w-full max-w-xs"
               type="button"
             >
-              {canFinish ? 'Done' : `Follow ${remainingFollows} more`}
+              {saving ? 'Saving…' : canFinish ? 'Done' : `Pick ${remainingFollows} more`}
             </Button>
           </DialogFooter>
         </div>

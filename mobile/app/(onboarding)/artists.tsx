@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Pressable, SafeAreaView, TextInput, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,12 @@ import { ArtistService, Artist } from '../../src/services/artistService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
+import { pickPreselected } from '@synth/shared';
+import { PushPrimerSheet } from '../../src/components/PushPrimer';
+import { trackPushPrimer } from '../../src/services/onboardingTelemetry';
+import { getNotificationPermissionStatus } from '../../lib/registerPushNotifications';
+import { loadPrimerState, primerAllowed, recordPrimerShown } from '../../lib/pushPrimer';
+import { syncExpoPushTokenWithBackend } from '../../lib/pushTokenSync';
 
 const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
 const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
@@ -24,6 +30,10 @@ export default function ArtistsScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [loadFailed, setLoadFailed] = useState(false);
+    const [showPushAsk, setShowPushAsk] = useState(false);
+    // Pre-select once: clearing the search reloads suggestions and must not re-check
+    // artists the user deliberately unchecked.
+    const preselectedOnce = useRef(false);
 
     useEffect(() => {
         trackOnboardingStep('artists');
@@ -32,8 +42,13 @@ export default function ArtistsScreen() {
 
     const loadSuggestedArtists = async () => {
         setIsLoading(true);
-        const data = await ArtistService.getSuggestedArtists();
+        const data = await ArtistService.getOnboardingSuggestions();
         setArtists(data);
+        // Start with 3 checked so Continue works right away; they can uncheck or add.
+        if (!preselectedOnce.current && data.length > 0) {
+            preselectedOnce.current = true;
+            setSelectedArtistIds(prev => (prev.length ? prev : pickPreselected(data)));
+        }
         // getSuggestedArtists swallows its own error and returns [] (artistService.ts:23),
         // and `artists` is never legitimately empty, so an empty suggested list means the
         // query failed. This screen is the last step, has no skip and no back-out, and its
@@ -116,6 +131,27 @@ export default function ArtistsScreen() {
         }
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // Push ask right as onboarding ends (their artists are picked, so "hear when they
+        // announce" is concrete). Only when iOS can still ask; any failure goes straight
+        // to Home. Counts toward the primer cap (3-day cooldown before the tabs ask can show).
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && (await getNotificationPermissionStatus()) === 'undetermined') {
+                const state = await loadPrimerState(user.id);
+                if (primerAllowed(state, Date.now())) {
+                    await recordPrimerShown(user.id, state);
+                    trackPushPrimer('shown', 'onboarding');
+                    setShowPushAsk(true);
+                    return;
+                }
+            }
+        } catch {
+            // Fall through to Home.
+        }
+        goHome();
+    };
+
+    const goHome = () => {
         // End onboarding on Home (feed), not Discover.
         // No trailing slash — '/(tabs)/' is not a valid typed route and every other
         // call site in the app uses this form (_layout, share, email-required, post).
@@ -124,6 +160,24 @@ export default function ArtistsScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            {showPushAsk ? (
+                <PushPrimerSheet
+                    reason="onboarding"
+                    onEnable={() => {
+                        trackPushPrimer('accepted', 'onboarding');
+                        setShowPushAsk(false);
+                        // Home now; the system prompt still shows over it. Not awaited: the token fetch has no
+                        // timeout and can hang on a bad network, which left them on this screen.
+                        void syncExpoPushTokenWithBackend({ prompt: true }).catch(() => undefined);
+                        goHome();
+                    }}
+                    onDismiss={() => {
+                        trackPushPrimer('declined', 'onboarding');
+                        setShowPushAsk(false);
+                        goHome();
+                    }}
+                />
+            ) : null}
             <View style={styles.header}>
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
@@ -159,7 +213,7 @@ export default function ArtistsScreen() {
                     <View style={styles.textContent}>
                         <SynthText variant="h1" style={styles.title}>Follow your favorites</SynthText>
                         <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                            Pick at least 1 — 3 or more makes your feed much better
+                            We picked a few to start. Tap to change — 3 or more makes your feed much better
                         </SynthText>
                     </View>
                 }

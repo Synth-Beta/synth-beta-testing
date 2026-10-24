@@ -57,6 +57,11 @@ export function trackOnboardingStep(step: string): void {
  * Onboarding refused to advance. Keep `reason` values in sync with web's trackBlock so
  * both platforms aggregate in one query.
  */
+/** Push soft-ask funnel: shown / accepted / declined, per reason (onboarding, session, interested). */
+export function trackPushPrimer(event: 'shown' | 'accepted' | 'declined', reason: string): void {
+  void record('form_submit', 'form', `push_primer_${event}_${reason}`);
+}
+
 export function trackOnboardingBlock(reason: string): void {
   void record('form_submit', 'form', `onboarding_blocked_${reason}`);
 }

@@ -152,20 +152,42 @@ export function alreadyAlerted(record: UsersSignupRecord): boolean {
   return typeof stamped === 'string' && stamped.length > 0;
 }
 
-export async function markSignupAlerted(record: UsersSignupRecord): Promise<void> {
-  const supabase = getSupabaseService();
+const ALERT_FLAG_PATH = `permissions_metadata->>${SLACK_SIGNUP_ALERT_META_KEY}`;
+
+// Stamp BEFORE posting, and only where the flag is still empty. The DB trigger and the
+// web + mobile client notify all fire within milliseconds of a signup; checking then
+// stamping after the post let every one of them through (one person, three alerts).
+// Postgres re-checks the WHERE under the row lock, so exactly one caller wins.
+async function claimSignupAlert(
+  supabase: SupabaseClient,
+  record: UsersSignupRecord,
+): Promise<'claimed' | 'taken' | 'unavailable'> {
   const userId = record.user_id || record.id;
-  if (!supabase || !userId) return;
+  if (!userId) return 'unavailable';
 
   const meta = { ...(record.permissions_metadata || {}) };
   meta[SLACK_SIGNUP_ALERT_META_KEY] = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('users')
     .update({ permissions_metadata: meta })
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .filter(ALERT_FLAG_PATH, 'is', null)
+    .select('user_id');
   if (error) {
-    console.warn('[slack-signup] failed to stamp alert flag', error.message);
+    console.warn('[slack-signup] failed to claim alert flag', error.message);
+    return 'unavailable';
   }
+  return data && data.length > 0 ? 'claimed' : 'taken';
+}
+
+// Slack failed after we claimed: clear the flag so the client notify or catch-up retries.
+async function releaseSignupAlert(supabase: SupabaseClient, record: UsersSignupRecord): Promise<void> {
+  const userId = record.user_id || record.id;
+  if (!userId) return;
+  const meta = { ...(record.permissions_metadata || {}) };
+  delete meta[SLACK_SIGNUP_ALERT_META_KEY];
+  const { error } = await supabase.from('users').update({ permissions_metadata: meta }).eq('user_id', userId);
+  if (error) console.warn('[slack-signup] failed to release alert flag', error.message);
 }
 
 async function postViaAdminBot(
@@ -234,17 +256,24 @@ export async function postSignupToSlack(
 
 export async function alertSignupIfNeeded(
   raw: Record<string, unknown> | UsersSignupRecord,
+  deps: { supabase: SupabaseClient | null; post: typeof postSignupToSlack } = {
+    supabase: getSupabaseService(),
+    post: postSignupToSlack,
+  },
 ): Promise<{ posted: boolean; skipped?: string }> {
   const record = selectSignupFields(raw);
   if (alreadyAlerted(record)) return { posted: false, skipped: 'already_alerted' };
 
-  const result = await postSignupToSlack(record);
+  const claim = deps.supabase ? await claimSignupAlert(deps.supabase, record) : 'unavailable';
+  if (claim === 'taken') return { posted: false, skipped: 'already_alerted' };
+
+  const result = await deps.post(record);
   if (result.ok === false) {
     console.error('[slack-signup] Slack post failed', result.status, result.error);
+    if (claim === 'claimed' && deps.supabase) await releaseSignupAlert(deps.supabase, record);
     return { posted: false, skipped: 'slack_failed' };
   }
 
-  await markSignupAlerted(record);
   console.log('[slack-signup] posted', {
     user_id: record.user_id || record.id,
     username: record.username,

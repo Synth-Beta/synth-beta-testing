@@ -13,12 +13,15 @@ import { getStreamingLinkStatus } from '../../src/services/streamingConnectionSe
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
 import { authenticateSpotifyInApp } from '../../src/services/spotifyAuthService';
 import { syncStreamingProfile, withSessionHash } from '../../src/services/streamingSyncActions';
-import { trackOnboardingStep } from '../../src/services/onboardingTelemetry';
+import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
+import { SPOTIFY_EMPTY_SYNC_MESSAGE } from '@synth/shared';
 
 export default function ConnectScreen() {
     const router = useRouter();
     const [isLinked, setIsLinked] = useState(false);
     const [checking, setChecking] = useState(false);
+    // Shown when a connection attempt didn't take, so nobody waits on a silent failure.
+    const [connectNote, setConnectNote] = useState<string | null>(null);
 
     useEffect(() => {
         trackOnboardingStep('connect');
@@ -34,11 +37,14 @@ export default function ConnectScreen() {
                 const status = await getStreamingLinkStatus(user.id);
                 if (status.linked) {
                     setIsLinked(true);
+                    setConnectNote(null);
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                } else {
+                    setConnectNote("Apple Music didn't connect. You can try again or skip for now.");
                 }
             }
         } catch {
-            // ignore
+            setConnectNote("Apple Music didn't connect. You can try again or skip for now.");
         } finally {
             setChecking(false);
         }
@@ -60,14 +66,27 @@ export default function ConnectScreen() {
             }
 
             // Token persisted — trigger first server sync.
-            await syncStreamingProfile(user.id, 'spotify', { manual: true });
+            const syncResult = await syncStreamingProfile(user.id, 'spotify', { manual: true });
             const status = await getStreamingLinkStatus(user.id);
             if (status.linked) {
                 setIsLinked(true);
+                setConnectNote(null);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } else {
+                // Typically Spotify sent no data (app still in Development Mode).
+                // Show the real reason (timeout, offline, server error) when the sync gave one.
+                trackOnboardingBlock('spotify_no_data_nonfatal');
+                setConnectNote(
+                    !syncResult.ok && syncResult.message
+                        ? /skip/i.test(syncResult.message)
+                            ? syncResult.message
+                            : `${syncResult.message} You can try again or skip for now.`
+                        : SPOTIFY_EMPTY_SYNC_MESSAGE
+                );
             }
         } catch {
-            // ignore transient errors in onboarding
+            trackOnboardingBlock('spotify_connect_threw_nonfatal');
+            setConnectNote("Couldn't reach Spotify. Check your connection and try again, or skip for now.");
         } finally {
             setChecking(false);
         }
@@ -107,7 +126,7 @@ export default function ConnectScreen() {
             <View style={styles.content}>
                 <SynthText variant="h1" style={styles.title}>Connect your music</SynthText>
                 <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                    We'll build your personal concert passport based on your library
+                    Recommended: we'll pick artists and shows for you from your library. Optional, you can skip.
                 </SynthText>
 
                 <View style={styles.cardsContainer}>
@@ -137,6 +156,9 @@ export default function ConnectScreen() {
             </View>
 
             <View style={styles.footer}>
+                {connectNote && !isLinked ? (
+                    <Text style={styles.connectNote} accessibilityLiveRegion="polite">{connectNote}</Text>
+                ) : null}
                 <SynthButton
                     title={isLinked ? 'Continue' : 'Skip for now'}
                     onPress={handleContinue}
@@ -173,6 +195,13 @@ function ServiceCard({ name, color, isConnected, connecting, onConnect, subtitle
 }
 
 const styles = StyleSheet.create({
+    connectNote: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: SynthTokens.colors.neutral600,
+        textAlign: 'center',
+        marginBottom: 12,
+    },
     container: { flex: 1, backgroundColor: SynthTokens.colors.neutral50 },
     header: {
         flexDirection: 'row',
