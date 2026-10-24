@@ -5,6 +5,14 @@ const ENDPOINT = 'https://join.getsynth.app/api/ops-alert';
 export type ClientSeverity = 'bug' | 'down' | 'failed_index';
 
 const recent = new Set<string>();
+let reloading = false;
+
+// After vite:preloadError is preventDefault-ed, the failed import() resolves to undefined,
+// so callers crash ("Cannot destructure property 'BadgeService'...") while the page reloads.
+// Those errors are noise: the reload already fixes it.
+export function markStaleBuildReload(): void {
+  reloading = true;
+}
 
 function isLocal(): boolean {
   return typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(window.location.hostname);
@@ -17,7 +25,7 @@ export function reportClientIssue(input: {
   context?: string;
   surface?: 'web' | 'admin';
 }): void {
-  if (isLocal()) return;
+  if (isLocal() || reloading) return;
   const message = input.message?.trim();
   if (!message || message.length < 3) return;
   const key = `${input.severity || 'bug'}:${message.slice(0, 160)}`;

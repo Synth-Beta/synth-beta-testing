@@ -2,7 +2,7 @@ import './instrument'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary'
-import { installWebIssueReporter, reportClientIssue } from './services/clientIssueReporter'
+import { installWebIssueReporter, markStaleBuildReload, reportClientIssue } from './services/clientIssueReporter'
 import './index.css'
 
 installWebIssueReporter()
@@ -25,6 +25,7 @@ window.addEventListener('vite:preloadError', (event) => {
     return;
   }
   event.preventDefault();
+  markStaleBuildReload();
   try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch { /* storage blocked */ }
   console.warn('[chunk] stale build detected, reloading');
   window.location.reload();
