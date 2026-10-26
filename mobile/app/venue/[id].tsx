@@ -20,6 +20,7 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { EventCard } from '../../src/components/Feed/EventCard';
 import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import { NetworkReview } from '../../src/services/homeFeedService';
+import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
 import { EventService } from '../../src/services/eventService';
 import { VenueFollowService } from '../../src/services/venueFollowService';
 import { JamBaseAttributionInline } from '../../src/components/Feed/JamBaseAttributionInline';
@@ -284,6 +285,9 @@ export default function VenueDetailScreen() {
           .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .slice(0, 15);
         const reviewRows = combined as ReviewRow[];
+        const likedIds = user
+          ? await ReviewEngagementService.getReviewIdsLikedByUser(user.id, reviewRows.map((rv) => String(rv.id))).catch(() => new Set<string>())
+          : new Set<string>();
         setReviews(reviewRows.map((rv): NetworkReview => ({
           id: String(rv.id),
           event_id: rv.event_id ?? undefined,
@@ -305,7 +309,7 @@ export default function VenueDetailScreen() {
           value_rating: rv.value_rating != null ? Number(rv.value_rating) : undefined,
           likes_count: typeof rv.likes_count === 'number' ? rv.likes_count : 0,
           comments_count: typeof rv.comments_count === 'number' ? rv.comments_count : 0,
-          is_liked_by_user: false,
+          is_liked_by_user: likedIds.has(String(rv.id)),
           connection_degree: 1,
           event_info: {
             artist_name: rv.events?.artist_name ?? undefined,

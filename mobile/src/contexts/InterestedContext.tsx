@@ -6,11 +6,14 @@ import { reportTourAction } from '../../lib/tourProgress';
 
 type RsvpType = 'interested' | 'going' | 'maybe';
 
+/** What a toggle did; null when it could not run or the write failed. */
+type ToggleResult = Awaited<ReturnType<typeof EventService.toggleInteraction>>;
+
 interface InterestedContextValue {
     /** Returns true if the user has marked this event as interested. Accepts raw or canonical event ID. */
     isInterested: (rawId: string) => boolean;
     /** Toggle interested for an event. Handles resolve + optimistic update + DB write. */
-    toggle: (rawId: string) => Promise<void>;
+    toggle: (rawId: string) => Promise<ToggleResult>;
     /** True while the initial load from DB is in progress. */
     loading: boolean;
     /** Seed initial interested state from feed data (before DB load completes). */
@@ -26,7 +29,7 @@ interface InterestedContextValue {
 
 const InterestedContext = createContext<InterestedContextValue>({
     isInterested: () => false,
-    toggle: async () => {},
+    toggle: async () => null,
     loading: false,
     seedFromFeed: () => {},
     rsvpOf: () => null,
@@ -139,12 +142,12 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
         }
     }, []);
 
-    const toggle = useCallback(async (rawId: string): Promise<void> => {
+    const toggle = useCallback(async (rawId: string): Promise<ToggleResult> => {
         const userId = userIdRef.current;
-        if (!userId) return;
+        if (!userId) return null;
 
         const canonical = await resolve(rawId);
-        if (!canonical) return;
+        if (!canonical) return null;
 
         const isCurrentlyInterested = rsvpMap.has(canonical);
 
@@ -178,6 +181,7 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             requestPushPrimer('interested');
             reportTourAction('interested');
         }
+        return action;
     }, [rsvpMap, resolve]);
 
     const setRsvp = useCallback(async (

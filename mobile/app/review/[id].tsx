@@ -13,10 +13,10 @@ import {
     TextInput,
     Alert,
     FlatList,
-    Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ShareToChatModal } from '../../src/components/share/ShareToChatModal';
+import { ReviewVideoPlayer } from '../../src/components/review/ReviewVideoPlayer';
 import { Image } from 'expo-image';
 import {
     ChevronLeft,
@@ -28,7 +28,6 @@ import {
     Lightbulb,
     Navigation,
     DollarSign,
-    Play,
     Share2,
     ThumbsUp,
     MessageCircle,
@@ -612,7 +611,8 @@ const cmtStyles = StyleSheet.create({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function ReviewDetailScreen() {
-    const { id } = useLocalSearchParams<{ id: string }>();
+    // comments=1: opened from a card's comment button, so start with the comments sheet up.
+    const { id, comments } = useLocalSearchParams<{ id: string; comments?: string }>();
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [review, setReview] = useState<ReviewRow | null>(null);
@@ -623,7 +623,7 @@ export default function ReviewDetailScreen() {
     const [commentsCount, setCommentsCount] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
     const [liking, setLiking] = useState(false);
-    const [commentsOpen, setCommentsOpen] = useState(false);
+    const [commentsOpen, setCommentsOpen] = useState(comments === '1');
     const [shareToChatOpen, setShareToChatOpen] = useState(false);
     const [lastError, setLastError] = useState<{ code?: string; message?: string } | null>(null);
 
@@ -1210,11 +1210,8 @@ export default function ReviewDetailScreen() {
                                 <SynthText variant="meta" style={styles.sectionLabel}>
                                     VIDEOS ({review.videos.length})
                                 </SynthText>
-                                {review.videos.map((uri, i) => (
-                                    <Pressable key={uri} onPress={() => void Linking.openURL(uri)} style={styles.metaRow}>
-                                        <Play size={16} color={MUTED_ICON} />
-                                        <SynthText variant="meta" style={styles.metaTxt}>Watch video {i + 1}</SynthText>
-                                    </Pressable>
+                                {review.videos.map((uri) => (
+                                    <ReviewVideoPlayer key={uri} uri={uri} />
                                 ))}
                             </View>
                         ) : null}

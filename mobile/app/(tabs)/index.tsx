@@ -361,6 +361,20 @@ export default function FeedScreen() {
     }
   }, [tourStep, tourCardIndex]);
 
+  // Interested events leave Home (they live in Saved) so the feed keeps showing new
+  // shows. The short delay lets the user see the tap land. Not during the tutorial,
+  // whose "save" step points at this card.
+  const hideInterestedEvent = useCallback(
+    (eventId: string) => {
+      if (tourStep) return;
+      setTimeout(() => {
+        setEvents(list => list.filter(e => String(e.id) !== eventId));
+        setBucketListEvents(list => list.filter(e => String(e.id) !== eventId));
+      }, 900);
+    },
+    [tourStep]
+  );
+
   const renderItem = ({ item, index }: { item: ListItem; index: number }) => {
     if (item.kind === 'review') {
       return (
@@ -393,6 +407,7 @@ export default function FeedScreen() {
         friendsInterested={item.data.friends_interested}
         ratings={getRatings(item.data)}
         onHideArtist={item.data.artist_id ? () => hideArtist(String(item.data.artist_id)) : undefined}
+        onInterested={() => hideInterestedEvent(String(item.data.id))}
         tourTarget={index === tourCardIndex}
         onPress={() => {
           if (item.data.feedLabel === JUST_ANNOUNCED_LABEL) {

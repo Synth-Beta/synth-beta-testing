@@ -59,6 +59,8 @@ export interface EventCardProps {
   ratings?: { artist?: CardRatingLine; venue?: CardRatingLine };
   /** Home feed: "Don't recommend {artist}" from the ⋯ button. */
   onHideArtist?: () => void;
+  /** Called after the user marks this event Interested (not when they un-mark it). */
+  onInterested?: () => void;
   /** App tutorial spotlights this card and its I'm interested button (first show on Home). */
   tourTarget?: boolean;
 }
@@ -83,6 +85,7 @@ export const EventCard: React.FC<EventCardProps> = ({
   friendsInterested,
   ratings,
   onHideArtist,
+  onInterested,
   tourTarget = false,
 }) => {
   const router = useRouter();
@@ -147,8 +150,8 @@ export const EventCard: React.FC<EventCardProps> = ({
   }, [currentUserId, id, headline, formattedDate]);
 
   const onToggleInterested = useCallback(async () => {
-    await toggle(id);
-  }, [id, toggle]);
+    if ((await toggle(id)) === 'added') onInterested?.();
+  }, [id, toggle, onInterested]);
 
   const openTickets = useCallback(async () => {
     const u = ticketUrlProp?.trim();

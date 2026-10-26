@@ -184,6 +184,11 @@ export default function ProfileEditScreen() {
 
   const onSave = async () => {
     if (!userId) return;
+    // Username is the unique handle (tags, search); never let an edit blank it.
+    if (!username.trim()) {
+      Alert.alert('Username required', 'Pick a username so friends can find and tag you.');
+      return;
+    }
     setSaving(true);
     try {
       // Save profile
@@ -191,7 +196,7 @@ export default function ProfileEditScreen() {
         .from('users')
         .update({
           name: name.trim() || null,
-          username: username.trim() || null,
+          username: username.trim(),
           location_city: locationCity.trim() || null,
           avatar_url: avatarUrl?.trim() || null,
           bio: bio.trim() || null,
@@ -229,7 +234,10 @@ export default function ProfileEditScreen() {
       Alert.alert('Saved', 'Profile updated.');
       router.back();
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Could not save profile');
+      Alert.alert(
+        'Error',
+        e?.code === '23505' ? 'That username is taken. Try another.' : e?.message || 'Could not save profile'
+      );
     } finally {
       setSaving(false);
     }
@@ -313,7 +321,7 @@ export default function ProfileEditScreen() {
           <FieldLabel>Display name</FieldLabel>
           <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Your name" placeholderTextColor={SynthTokens.colors.neutral400} />
           <FieldLabel>Username</FieldLabel>
-          <TextInput value={username} onChangeText={setUsername} style={styles.input} placeholder="username" placeholderTextColor={SynthTokens.colors.neutral400} autoCapitalize="none" />
+          <TextInput value={username} onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 30))} style={styles.input} placeholder="username" placeholderTextColor={SynthTokens.colors.neutral400} autoCapitalize="none" />
           <FieldLabel>Instagram</FieldLabel>
           <TextInput value={instagramHandle} onChangeText={setInstagramHandle} style={styles.input} placeholder="@handle" placeholderTextColor={SynthTokens.colors.neutral400} autoCapitalize="none" />
           <FieldLabel>Gender (optional)</FieldLabel>

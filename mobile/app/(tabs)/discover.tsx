@@ -10,6 +10,7 @@ import { bottomSafeContentPadding } from '../../src/components/navigation/SynthT
 import { PickFiveConnection } from '../../src/components/partners/PickFiveConnection';
 import { ThreadReviewCard } from '../../src/components/Feed/ThreadReviewCard';
 import { supabase } from '../../src/integrations/supabase/client';
+import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
 import type { NetworkReview } from '../../src/services/homeFeedService';
 
 const PICK5_LOGO = require('../../assets/images/pick5-logo-mark.png');
@@ -80,8 +81,13 @@ export default function CommunityScreen() {
 
   const load = useCallback(async () => {
     const [{ data: { session } }, list] = await Promise.all([supabase.auth.getSession(), loadCommunityReviews()]);
-    setUserId(session?.user?.id ?? null);
-    setReviews(list);
+    const viewerId = session?.user?.id ?? null;
+    // Without this every heart rendered empty, so re-tapping a liked review showed a phantom +1.
+    const likedIds = viewerId
+      ? await ReviewEngagementService.getReviewIdsLikedByUser(viewerId, list.map((r) => r.id)).catch(() => new Set<string>())
+      : new Set<string>();
+    setUserId(viewerId);
+    setReviews(list.map((r) => ({ ...r, is_liked_by_user: likedIds.has(r.id) })));
     setLoading(false);
     setRefreshing(false);
   }, []);

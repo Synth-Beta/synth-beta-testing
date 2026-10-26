@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Music, X, Plus } from 'lucide-react';
 import type { ReviewCustomSetlist } from '@/hooks/useReviewForm';
 import { VideoUpload } from '@/components/ui/photo-upload';
+import { REVIEW_VIDEO_MAX_MB, REVIEW_VIDEO_MAX_SECONDS } from '@synth/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { ReviewImagesUpload } from '@/components/ui/review-images-upload';
 
@@ -206,10 +207,11 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
             onChange={(videos) => onUpdateFormData({ videos })}
             userId={user.id}
             bucket="review-videos"
-            maxVideos={3}
-            maxSizeMB={100}
+            maxVideos={1}
+            maxSizeMB={REVIEW_VIDEO_MAX_MB}
+            maxDurationSec={REVIEW_VIDEO_MAX_SECONDS}
             label="Videos (Optional)"
-            helperText="Add videos from the event (max 100MB per video)"
+            helperText={`One clip from the night, up to ${REVIEW_VIDEO_MAX_SECONDS} seconds`}
           />
         )}
 

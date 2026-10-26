@@ -65,3 +65,13 @@ for (const type of ['week1_nudge', 'reengagement']) {
 }
 
 console.log('notificationNavigation: day-after review routing OK');
+
+// Merged friend-interest rows (supabase/migrations/20261026150000) drop event_id: open the friend.
+assert.deepEqual(
+  resolveNotificationExpoPath('event_interest', { event_count: 3 }, { actorUserId: 'friend-1' }),
+  { path: '/user/friend-1' }
+);
+assert.deepEqual(
+  resolveNotificationExpoPath('event_interest', { event_id: 'ev-1' }, { actorUserId: 'friend-1' }),
+  { path: '/event/ev-1' }
+);

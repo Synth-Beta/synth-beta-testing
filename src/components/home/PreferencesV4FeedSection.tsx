@@ -157,6 +157,11 @@ const feedRef = useRef<HTMLDivElement>(null);
         }
         return event;
       }));
+      // Interested events leave the feed (they live in saved events) so more new shows
+      // surface; the short delay lets the user see the tap land.
+      if (newInterestState) {
+        setTimeout(() => setEvents(prev => prev.filter(event => event.id !== eventId)), 900);
+      }
 
       } catch (error) {
       console.error('Error toggling interest:', error);

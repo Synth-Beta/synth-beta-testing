@@ -315,7 +315,10 @@ export function createChatCore(deps: ChatCoreDeps) {
 
       const chatIds = participants.map((p: { chat_id: string }) => p.chat_id);
 
-      const { data: chats, error: chatsError } = await supabase
+      // Independent of each other, so fetched in parallel: one network round trip, not two.
+      const [{ data: chats, error: chatsError }, { data: allParticipants, error: allParticipantsError }] =
+        await Promise.all([
+        supabase
         .from('chats')
         .select(
           `
@@ -343,17 +346,17 @@ export function createChatCore(deps: ChatCoreDeps) {
         `
         )
         .in('id', chatIds)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false }),
+        supabase
+          .from('chat_participants')
+          .select('chat_id, user_id')
+          .in('chat_id', chatIds),
+      ]);
 
       if (chatsError) {
         console.error('Error fetching chats:', chatsError);
         return { data: null, error: chatsError };
       }
-
-      const { data: allParticipants, error: allParticipantsError } = await supabase
-        .from('chat_participants')
-        .select('chat_id, user_id')
-        .in('chat_id', chatIds);
 
       if (allParticipantsError) {
         console.error('Error fetching all participants:', allParticipantsError);

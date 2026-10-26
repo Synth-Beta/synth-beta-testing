@@ -468,6 +468,9 @@ export const NotificationsPage = ({
         // Navigate to event or discover feed
         if (data?.event_id && onNavigateToEvent) {
           onNavigateToEvent(data.event_id);
+        } else if (notification.type === 'event_interest' && data?.interested_user_id && onNavigateToProfile) {
+          // Merged "interested in N shows": open that friend's Interested tab.
+          onNavigateToProfile(String(data.interested_user_id), 'interested');
         } else if (onNavigateToDiscover) {
           onNavigateToDiscover();
         } else if (notification.event_title) {

@@ -6,9 +6,12 @@ import {
     StyleSheet,
     ActivityIndicator,
     Switch,
+    ScrollView,
+    Image,
 } from 'react-native';
-import { Users, X, Phone } from 'lucide-react-native';
+import { Users, X, Phone, Check } from 'lucide-react-native';
 import { supabase } from '../../integrations/supabase/client';
+import { getFriendsForProfile } from '../../services/friendsService';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 
@@ -22,42 +25,84 @@ interface Props {
     userId: string;
     metOnSynth: boolean;
     onMetOnSynthChange: (v: boolean) => void;
+    /** Lets the screen scroll the picker above the keyboard when search is focused. */
+    onSearchFocus?: () => void;
 }
 
 interface UserResult {
     user_id: string;
     name: string;
+    username?: string;
     avatar_url?: string;
 }
 
-export function MobileAttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnSynthChange }: Props) {
+function matches(u: UserResult, q: string): boolean {
+    return u.name.toLowerCase().includes(q) || (u.username ?? '').toLowerCase().includes(q);
+}
+
+function Avatar({ u, size }: { u: UserResult; size: number }) {
+    if (u.avatar_url) {
+        return <Image source={{ uri: u.avatar_url }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+    }
+    return (
+        <View style={[styles.initials, { width: size, height: size, borderRadius: size / 2 }]}>
+            <SynthText variant="meta" style={styles.initialsText}>{u.name.trim().charAt(0).toUpperCase() || '?'}</SynthText>
+        </View>
+    );
+}
+
+export function MobileAttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnSynthChange, onSearchFocus }: Props) {
     const [searchQ, setSearchQ] = useState('');
+    const [friends, setFriends] = useState<UserResult[]>([]);
+    const [friendsLoaded, setFriendsLoaded] = useState(false);
     const [results, setResults] = useState<UserResult[]>([]);
     const [searching, setSearching] = useState(false);
     const [phoneNum, setPhoneNum] = useState('');
     const [phoneName, setPhoneName] = useState('');
     const [showPhone, setShowPhone] = useState(false);
 
+    // Friends first: they are who you went with, so show them without any typing.
     useEffect(() => {
-        const q = searchQ.trim();
-        if (!q) { setResults([]); return; }
+        let cancelled = false;
+        void getFriendsForProfile(userId).then((list) => {
+            if (cancelled) return;
+            setFriends(list.map((f) => ({
+                user_id: f.user_id,
+                name: f.name,
+                username: f.username,
+                avatar_url: f.avatar_url ?? undefined,
+            })));
+            setFriendsLoaded(true);
+        });
+        return () => { cancelled = true; };
+    }, [userId]);
+
+    const q = searchQ.trim().toLowerCase();
+    const friendMatches = q ? friends.filter((f) => matches(f, q)) : friends;
+
+    // Everyone else only after 2+ characters, by name or @username, never repeating friends.
+    useEffect(() => {
+        // Strip PostgREST filter syntax so a typed comma or bracket can't break the query.
+        const term = searchQ.trim().replace(/^@/, '').replace(/[,()%*\\]/g, '');
+        if (term.length < 2) { setResults([]); return; }
         const t = setTimeout(async () => {
             setSearching(true);
             try {
                 const { data } = await supabase
                     .from('users')
-                    .select('user_id, name, avatar_url')
-                    .ilike('name', `%${q}%`)
+                    .select('user_id, name, username, avatar_url')
+                    .or(`name.ilike.%${term}%,username.ilike.%${term}%`)
                     .neq('user_id', userId)
                     .order('name', { ascending: true })
                     .limit(10);
-                setResults(data || []);
+                const friendIds = new Set(friends.map((f) => f.user_id));
+                setResults(((data || []) as UserResult[]).filter((u) => !friendIds.has(u.user_id)));
             } finally {
                 setSearching(false);
             }
         }, 300);
         return () => clearTimeout(t);
-    }, [searchQ, userId]);
+    }, [searchQ, userId, friends]);
 
     const addUser = useCallback((u: UserResult) => {
         const already = value.some(a => a.type === 'user' && a.user_id === u.user_id);
@@ -80,6 +125,25 @@ export function MobileAttendeeSelector({ value, onChange, userId, metOnSynth, on
         onChange(value.filter((_, idx) => idx !== i));
     }, [value, onChange]);
 
+    const isAdded = (u: UserResult) => value.some(a => a.type === 'user' && a.user_id === u.user_id);
+    const toggleUser = (u: UserResult) => {
+        if (isAdded(u)) onChange(value.filter(a => !(a.type === 'user' && a.user_id === u.user_id)));
+        else addUser(u);
+    };
+
+    const renderRow = (u: UserResult) => (
+        <Pressable key={u.user_id} style={styles.resultRow} onPress={() => toggleUser(u)}>
+            <Avatar u={u} size={32} />
+            <View style={styles.resultText}>
+                <SynthText variant="body" numberOfLines={1}>{u.name}</SynthText>
+                {u.username ? <SynthText variant="meta" color="secondary" numberOfLines={1}>@{u.username}</SynthText> : null}
+            </View>
+            {isAdded(u)
+                ? <Check size={18} color={SynthTokens.colors.brandPink500} />
+                : <SynthText variant="meta" color="brand">Add</SynthText>}
+        </Pressable>
+    );
+
     const hasUserAttendees = value.some(a => a.type === 'user');
 
     return (
@@ -89,33 +153,63 @@ export function MobileAttendeeSelector({ value, onChange, userId, metOnSynth, on
                 <SynthText variant="accent">Who tagged along? (Optional)</SynthText>
             </View>
 
-            {/* User search */}
+            {/* Friends: one tap, no typing */}
+            {!q && friends.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendStrip}>
+                    {friends.map((f) => (
+                        <Pressable key={f.user_id} style={styles.friendBubble} onPress={() => toggleUser(f)}>
+                            <View>
+                                <Avatar u={f} size={52} />
+                                {isAdded(f) && (
+                                    <View style={styles.bubbleCheck}>
+                                        <Check size={12} color="#FFFDFA" />
+                                    </View>
+                                )}
+                            </View>
+                            <SynthText variant="meta" numberOfLines={1} style={styles.bubbleName}>
+                                {f.name.split(' ')[0]}
+                            </SynthText>
+                            {f.username ? (
+                                <SynthText variant="meta" color="secondary" numberOfLines={1} style={styles.bubbleName}>
+                                    @{f.username}
+                                </SynthText>
+                            ) : null}
+                        </Pressable>
+                    ))}
+                </ScrollView>
+            )}
+            {!q && friendsLoaded && friends.length === 0 && (
+                <SynthText variant="meta" color="secondary">
+                    No friends on Synth yet. Search anyone by name or @username.
+                </SynthText>
+            )}
+
             <TextInput
                 style={styles.input}
-                placeholder="Search Synth users to tag…"
+                placeholder={friends.length > 0 ? 'Search friends or anyone on Synth…' : 'Search by name or @username…'}
                 placeholderTextColor={SynthTokens.colors.neutral600}
                 value={searchQ}
                 onChangeText={setSearchQ}
+                onFocus={onSearchFocus}
                 autoCapitalize="none"
+                autoCorrect={false}
             />
+            {q.length > 0 && friendMatches.length > 0 && (
+                <View>
+                    <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>Friends</SynthText>
+                    {friendMatches.map(renderRow)}
+                </View>
+            )}
+            {results.length > 0 && (
+                <View>
+                    <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>Others on Synth</SynthText>
+                    {results.map(renderRow)}
+                </View>
+            )}
             {searching && <ActivityIndicator size="small" color={SynthTokens.colors.brandPink500} style={styles.spinner} />}
-            {results.map(u => {
-                const already = value.some(a => a.type === 'user' && a.user_id === u.user_id);
-                return (
-                    <Pressable
-                        key={u.user_id}
-                        style={[styles.resultRow, already && styles.resultRowDimmed]}
-                        onPress={() => !already && addUser(u)}
-                        disabled={already}
-                    >
-                        <SynthText variant="body">{u.name}</SynthText>
-                        {already && <SynthText variant="meta" color="brand">Added</SynthText>}
-                    </Pressable>
-                );
-            })}
-            {searchQ.length > 0 && !searching && results.length === 0 && (
+            {q.length >= 2 && !searching && friendMatches.length === 0 && results.length === 0 && (
                 <SynthText variant="meta" color="secondary" style={styles.noResults}>
-                    No users found
+                    No one found. Add them by phone below.
                 </SynthText>
             )}
 
@@ -218,13 +312,36 @@ const styles = StyleSheet.create({
     spinner: { alignSelf: 'center' },
     resultRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        gap: 10,
         paddingVertical: 10,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: SynthTokens.colors.neutral200,
     },
-    resultRowDimmed: { opacity: 0.5 },
+    resultText: { flex: 1 },
+    sectionLabel: { marginTop: 4, marginBottom: 2 },
+    friendStrip: { gap: 14, paddingVertical: 4 },
+    friendBubble: { alignItems: 'center', width: 60 },
+    bubbleName: { marginTop: 4, maxWidth: 60, textAlign: 'center' },
+    bubbleCheck: {
+        position: 'absolute',
+        right: -2,
+        bottom: -2,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: SynthTokens.colors.brandPink500,
+        borderWidth: 2,
+        borderColor: '#FFFDFA',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    initials: {
+        backgroundColor: SynthTokens.colors.neutral200,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    initialsText: { fontWeight: '600' },
     noResults: { textAlign: 'center', marginTop: 4 },
     chips: {
         flexDirection: 'row',

@@ -120,6 +120,13 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
               {title}
             </SynthText>
             <View style={styles.authorRow}>
+              <Pressable
+                onPress={() => router.push(`/user/${review.author.id}` as any)}
+                style={styles.authorLink}
+                hitSlop={{ top: 9, bottom: 9 }}
+                accessibilityRole="link"
+                accessibilityLabel={`View ${review.author.name}'s profile`}
+              >
               {review.author.avatar_url ? (
                 <Image source={{ uri: review.author.avatar_url }} style={styles.avatar} contentFit="cover" />
               ) : (
@@ -128,6 +135,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
                 </View>
               )}
               <Text style={styles.authorName} numberOfLines={1}>{review.author.name}</Text>
+              </Pressable>
               {rating != null ? (
                 <View style={styles.stars} accessibilityLabel={`${rating} out of 5 stars`}>
                   {[1, 2, 3, 4, 5].map((n) => (
@@ -159,7 +167,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
             <Heart size={18} color={PINK} fill={isLiked ? PINK : 'transparent'} />
             <Text style={styles.likeTxt}>{likesCount > 0 ? likesCount : 'Like'}</Text>
           </Pressable>
-          <Pressable onPress={open} style={styles.commentBtn} accessibilityLabel={`Comments (${commentsCount})`}>
+          <Pressable onPress={() => router.push(`/review/${review.id}?comments=1` as any)} style={styles.commentBtn} accessibilityLabel={`Comments (${commentsCount})`}>
             <MessageCircle size={18} color={SynthTokens.colors.neutral900} />
             <Text style={styles.commentTxt}>{commentsCount > 0 ? commentsCount : 'Comment'}</Text>
           </Pressable>
@@ -245,6 +253,7 @@ const styles = StyleSheet.create({
   },
   headline: { fontSize: 18, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  authorLink: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
   avatar: { width: 26, height: 26, borderRadius: 13 },
   avatarFallback: { backgroundColor: SynthTokens.colors.neutral100, alignItems: 'center', justifyContent: 'center' },
   avatarLetter: { fontSize: 12, fontWeight: '700', color: SynthTokens.colors.neutral600 },

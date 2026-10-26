@@ -30,6 +30,7 @@ import {
 } from '../../hooks/useReviewForm';
 import { SearchService } from '../../services/searchService';
 import { MobileAttendeeSelector } from './MobileAttendeeSelector';
+import { ReviewVideoField } from './ReviewVideoField';
 import { MobileImageCropper, type CropResult } from './MobileImageCropper';
 import { PastDatePicker, formatEventDateLabel } from './PastDatePicker';
 import { Image } from 'expo-image';
@@ -226,6 +227,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
 
     const [userId, setUserId] = useState<string | null>(null);
     const draftChecked = useRef(false);
+    const scrollRef = useRef<ScrollView>(null);
+    // A video still uploading would be dropped if the step changed or the review submitted.
+    const [videoUploading, setVideoUploading] = useState(false);
     const skipDraft = !!(initialEventId || prefill?.artistId || prefill?.venueId || prefill?.eventDate);
     const [previousVenueReview, setPreviousVenueReview] = useState<UserReview | null>(null);
     const [eventQuery, setEventQuery] = useState('');
@@ -1184,17 +1188,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                     {errors.reviewText}
                                 </SynthText>
                             ) : null}
-                            <SynthText variant="meta" color="secondary" style={styles.mt12}>
-                                Video link (optional)
-                            </SynthText>
-                            <TextInput
-                                style={styles.input}
-                                autoCapitalize="none"
-                                placeholder="https://…"
-                                placeholderTextColor={SynthTokens.colors.neutral600}
-                                value={formData.videos[0] ?? ''}
-                                onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
-                            />
+                            {userId ? (
+                                <ReviewVideoField
+                                    value={formData.videos}
+                                    onChange={(videos) => updateFormData({ videos })}
+                                    userId={userId}
+                                    onUploadingChange={setVideoUploading}
+                                />
+                            ) : null}
                             {userId ? (
                                 <MobileAttendeeSelector
                                     value={formData.attendees}
@@ -1202,6 +1203,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                     userId={userId}
                                     metOnSynth={formData.metOnSynth}
                                     onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                                    onSearchFocus={scrollPickerIntoView}
                                 />
                             ) : null}
                         </View>
@@ -1242,6 +1244,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             value={formData.reviewText}
                             maxLength={max}
                             onChangeText={(t) => updateFormData({ reviewText: t })}
+                            // Grow with the text instead of scrolling inside the box, so a swipe
+                            // that starts on it scrolls the page.
+                            scrollEnabled={false}
                             placeholder="What made this night unforgettable? Any standout moments future fans should know?"
                             placeholderTextColor={SynthTokens.colors.neutral600}
                         />
@@ -1263,17 +1268,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             )}
                         </Pressable>
                         {renderPhotoStrip()}
-                        <SynthText variant="meta" color="secondary" style={styles.mt12}>
-                            Video link (optional)
-                        </SynthText>
-                        <TextInput
-                            style={styles.input}
-                            autoCapitalize="none"
-                            placeholder="https://…"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                            value={formData.videos[0] ?? ''}
-                            onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
-                        />
+                        {userId ? (
+                            <ReviewVideoField
+                                value={formData.videos}
+                                onChange={(videos) => updateFormData({ videos })}
+                                userId={userId}
+                                onUploadingChange={setVideoUploading}
+                            />
+                        ) : null}
                         {userId ? (
                             <MobileAttendeeSelector
                                 value={formData.attendees}
@@ -1281,6 +1283,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                 userId={userId}
                                 metOnSynth={formData.metOnSynth}
                                 onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                                onSearchFocus={scrollPickerIntoView}
                             />
                         ) : null}
                     </View>
@@ -1350,6 +1353,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             value={formData.reviewText}
                             maxLength={max}
                             onChangeText={(t) => updateFormData({ reviewText: t })}
+                            // Grow with the text instead of scrolling inside the box, so a swipe
+                            // that starts on it scrolls the page.
+                            scrollEnabled={false}
                             placeholder="What made this night unforgettable? Any standout moments future fans should know?"
                             placeholderTextColor={SynthTokens.colors.neutral600}
                         />
@@ -1371,17 +1377,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             )}
                         </Pressable>
                         {renderPhotoStrip()}
-                        <SynthText variant="meta" color="secondary" style={styles.mt12}>
-                            Video link (optional)
-                        </SynthText>
-                        <TextInput
-                            style={styles.input}
-                            autoCapitalize="none"
-                            placeholder="https://…"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                            value={formData.videos[0] ?? ''}
-                            onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
-                        />
+                        {userId ? (
+                            <ReviewVideoField
+                                value={formData.videos}
+                                onChange={(videos) => updateFormData({ videos })}
+                                userId={userId}
+                                onUploadingChange={setVideoUploading}
+                            />
+                        ) : null}
                         {userId ? (
                             <MobileAttendeeSelector
                                 value={formData.attendees}
@@ -1389,6 +1392,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                 userId={userId}
                                 metOnSynth={formData.metOnSynth}
                                 onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                                onSearchFocus={scrollPickerIntoView}
                             />
                         ) : null}
                     </View>
@@ -1400,6 +1404,11 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         }
 
         return null;
+    };
+
+    // Search results render under the input; after the keyboard opens, bring them into view.
+    const scrollPickerIntoView = () => {
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     };
 
     const stepContent = renderStep();
@@ -1453,14 +1462,21 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 <View style={styles.back} />
             </View>
             <ScrollView
+                ref={scrollRef}
                 contentContainerStyle={[styles.scroll, { paddingBottom: scrollPaddingBottom }]}
                 keyboardShouldPersistTaps="handled"
+                // Dragging the page dismisses the keyboard so the rest of the step is reachable.
+                keyboardDismissMode="on-drag"
             >
                 {stepContent}
             </ScrollView>
             <View style={[styles.footer, { paddingBottom: bottomSpacing }]}>
                 {showContinue ? (
-                    <Pressable style={styles.primaryBtn} onPress={() => nextStep()}>
+                    <Pressable
+                        style={[styles.primaryBtn, videoUploading && styles.primaryBtnDisabled]}
+                        onPress={() => nextStep()}
+                        disabled={videoUploading}
+                    >
                         <SynthText variant="body" style={styles.primaryBtnText}>
                             Continue
                         </SynthText>
@@ -1468,9 +1484,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 ) : null}
                 {showSubmit ? (
                     <Pressable
-                        style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
+                        style={[styles.primaryBtn, (isLoading || videoUploading) && styles.primaryBtnDisabled]}
                         onPress={() => void handleSubmit()}
-                        disabled={isLoading}
+                        disabled={isLoading || videoUploading}
                     >
                         {isLoading ? (
                             <ActivityIndicator color="#FFFDFA" />

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { PhotoUpload, VideoUpload } from '@/components/ui/photo-upload';
+import { REVIEW_VIDEO_MAX_MB, REVIEW_VIDEO_MAX_SECONDS } from '@synth/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { Users } from 'lucide-react';
 import { AttendeeSelector } from '@/components/reviews/AttendeeSelector';
@@ -102,10 +103,11 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, onThumbn
           onChange={(videos) => onUpdateFormData({ videos })}
           userId={user.id}
           bucket="review-videos"
-          maxVideos={3}
-          maxSizeMB={100}
+          maxVideos={1}
+          maxSizeMB={REVIEW_VIDEO_MAX_MB}
+          maxDurationSec={REVIEW_VIDEO_MAX_SECONDS}
           label="Videos (Optional)"
-          helperText="Add videos from the event (max 100MB per video)"
+          helperText={`One clip from the night, up to ${REVIEW_VIDEO_MAX_SECONDS} seconds`}
         />
       )}
 
