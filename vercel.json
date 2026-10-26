@@ -179,12 +179,20 @@
       "schedule": "0 21 * * *"
     },
     {
-      "path": "/api/cron?job=newsletter-send",
-      "schedule": "0 15 * * *"
+      "path": "/api/cron?job=newsletter-generate",
+      "schedule": "0 13 * * 1"
+    },
+    {
+      "path": "/api/cron?job=newsletter-generate",
+      "schedule": "0 14 * * 1"
     },
     {
       "path": "/api/cron?job=newsletter-send",
-      "schedule": "0 16 * * *"
+      "schedule": "0 14 * * 1"
+    },
+    {
+      "path": "/api/cron?job=newsletter-send",
+      "schedule": "0 15 * * 1"
     },
     {
       "path": "/api/cron?job=seo-indexnow",

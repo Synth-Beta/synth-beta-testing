@@ -65,8 +65,8 @@ assert.match(edition.yourSynth?.body ?? "", /2 nights/);
 assert.equal(edition.listen!.links!.some((link) => link.url === tracks[0].url), false);
 assert.equal(edition.listen?.eyebrow, "Your next listen");
 assert.doesNotMatch(edition.listen?.eyebrow ?? "", /evergreen/i);
-assert.equal(editionSendAt("2026-10-12").toISOString(), "2026-10-12T15:00:00.000Z");
-assert.equal(editionSendAt("2027-01-12").toISOString(), "2027-01-12T16:00:00.000Z");
+assert.equal(editionSendAt("2026-10-12").toISOString(), "2026-10-12T14:00:00.000Z");
+assert.equal(editionSendAt("2027-01-11").toISOString(), "2027-01-11T15:00:00.000Z");
 assert.notDeepEqual(editorialListens("2026-10-12"), editorialListens("2026-10-19"));
 assert.deepEqual(inferTasteGenres({ topArtists: ["Goose"], genres: [] }), ["jam", "rock"]);
 assert.notEqual(

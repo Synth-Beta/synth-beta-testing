@@ -281,12 +281,15 @@ assert.equal(isUpcoming("2026-10-07", sendAt, "DC"), false);
 assert.equal(isUpcoming("2026-10-07T00:00:00+00:00", sendAt, "TX"), false);
 assert.equal(isUpcoming("2026-10-08T00:00:00+00:00", sendAt, "TX"), true);
 assert.match(formatEventWhen("2026-10-09T00:00:00+00:00", "Texas"), /October 8/);
-assert.equal(isTenAmCentral(new Date("2026-10-07T15:00:00.000Z")), true);
-assert.equal(isTenAmCentral(new Date("2026-10-07T14:00:00.000Z")), false);
-assert.equal(isTenAmCentral(new Date("2027-01-07T16:00:00.000Z")), true);
-assert.equal(isTenAmCentral(new Date("2027-01-07T15:00:00.000Z")), false);
-assert.equal(nextEditionDate(new Date("2026-10-07T01:00:00.000Z")), "2026-10-07");
-assert.equal(nextEditionDate(new Date("2026-10-07T20:00:00.000Z")), "2026-10-08");
+// 2026-10-12 and 2027-01-11 are Mondays. EDT → 14:00 UTC; EST → 15:00 UTC.
+assert.equal(isTenAmCentral(new Date("2026-10-12T14:00:00.000Z")), true);
+assert.equal(isTenAmCentral(new Date("2026-10-12T15:00:00.000Z")), false);
+assert.equal(isTenAmCentral(new Date("2027-01-11T15:00:00.000Z")), true);
+assert.equal(isTenAmCentral(new Date("2027-01-11T14:00:00.000Z")), false);
+assert.equal(isTenAmCentral(new Date("2026-10-13T14:00:00.000Z")), false, "Tuesday is not a send day");
+assert.equal(nextEditionDate(new Date("2026-10-12T13:00:00.000Z")), "2026-10-12");
+assert.equal(nextEditionDate(new Date("2026-10-12T20:00:00.000Z")), "2026-10-19");
+assert.equal(nextEditionDate(new Date("2026-10-14T12:00:00.000Z")), "2026-10-19");
 
 const html = "<p>Reviewed copy</p>";
 const hash = await contentHash("Subject", html);

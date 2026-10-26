@@ -79,7 +79,8 @@ globalThis.fetch = async (input: any, init?: RequestInit) => {
 for (const [name, value] of Object.entries({ CRON_SECRET: "test-only-cron", SUPABASE_URL: "https://newsletter-test.invalid", SUPABASE_SERVICE_ROLE_KEY: "test-only-service", BREVO_API_KEY: "test-only-provider", NEWSLETTER_UNSUBSCRIBE_SECRET: "test-only-signing" })) process.env[name] = value;
 delete process.env.RESEND_API_KEY;
 delete process.env.RESEND_FROM_EMAIL;
-mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-12T15:00:00Z").getTime() });
+// Monday 2026-10-12 10:00 America/New_York (EDT) = 14:00 UTC
+mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-12T14:00:00Z").getTime() });
 const invoke = async (authorization = "Bearer test-only-cron") => {
   let code = 0; let body: any;
   const response: any = { status(status: number) { code = status; return response; }, json(json: any) { body = json; return response; } };
@@ -148,8 +149,10 @@ rows.push(toRow(base));
 deliveries = [];
 assert.equal((await invoke()).body.sent, 1);
 assert.ok(pages.includes("newsletter_drafts:500"));
-mock.timers.setTime(new Date("2026-10-12T16:00:00Z").getTime());
+mock.timers.setTime(new Date("2026-10-12T15:00:00Z").getTime());
 assert.equal((await invoke()).body.skipped, true);
 assert.equal(deliveries.length, 1, "second UTC cron must not send an hour late during DST");
+mock.timers.setTime(new Date("2026-10-13T14:00:00Z").getTime());
+assert.equal((await invoke()).body.skipped, true, "non-Monday must not send");
 mock.timers.reset();
-console.log("PASS: actual cron authorization; approval and content hashes; eligibility; paginated drafts and unsubscribes; fail-closed unsubscribe errors; provider failures and release; idempotent retry; unsubscribe injection; Central send window.");
+console.log("PASS: actual cron authorization; approval and content hashes; eligibility; paginated drafts and unsubscribes; fail-closed unsubscribe errors; provider failures and release; idempotent retry; unsubscribe injection; Eastern Monday send window.");
