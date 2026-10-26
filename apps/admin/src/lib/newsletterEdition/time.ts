@@ -146,3 +146,41 @@ export const isUpcoming = (eventDate: string, sendAt: Date, state?: string | nul
   const instant = new Date(eventDate);
   return !Number.isNaN(instant.getTime()) && instant.getTime() > sendAt.getTime();
 };
+
+export const calendarDay = (instant: Date, state?: string | null) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: timeZoneForState(state),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instant);
+
+const shiftIsoDate = (isoDate: string, days: number) => {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+};
+
+const weekdayIndex = (isoDate: string, timeZone: string) => {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const instant = new Date(Date.UTC(year, month - 1, day, 16));
+  const name = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(instant);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(name);
+};
+
+/** Friday–Sunday that already happened before this send. A Friday send uses the previous weekend. */
+export const recentWeekend = (sendAt: Date, state?: string | null) => {
+  const timeZone = timeZoneForState(state);
+  const sendDay = calendarDay(sendAt, state);
+  const dow = weekdayIndex(sendDay, timeZone);
+  const end = dow === 0 || dow === 6 ? sendDay : shiftIsoDate(sendDay, -dow);
+  const start = shiftIsoDate(end, dow === 6 ? -1 : -2);
+  return { start, end };
+};
+
+export const daysBetween = (laterDay: string, earlierDay: string) => {
+  const later = Date.parse(`${laterDay.slice(0, 10)}T00:00:00Z`);
+  const earlier = Date.parse(`${earlierDay.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(later) || !Number.isFinite(earlier)) return Number.POSITIVE_INFINITY;
+  return Math.round((later - earlier) / 86400000);
+};

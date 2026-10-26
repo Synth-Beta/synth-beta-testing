@@ -12,7 +12,7 @@ import { runEventQuery } from "../../../supabase/functions/newsletter-send/event
 import { fetchMusicNews, parseRssItems } from "../../../supabase/functions/newsletter-send/news";
 import { canSendDraft, contentHash, deliverApprovedDrafts, planSend, regenerateDecision, type StoredDraft } from "../src/lib/newsletterEdition/gate";
 import { renderEditionHtml } from "../src/lib/newsletterEdition/render";
-import { formatEventWhen, isTenAmCentral, isUpcoming, nextEditionDate } from "../src/lib/newsletterEdition/time";
+import { formatEventWhen, isTenAmCentral, isUpcoming, nextEditionDate, recentWeekend } from "../src/lib/newsletterEdition/time";
 import type { EditionEvent, EditionReader } from "../src/lib/newsletterEdition/types";
 
 if (process.env.NEWSLETTER_TEST_LIVE !== "1") {
@@ -151,10 +151,10 @@ assert.ok(laurenEdition.shows.some((show) => show.title === "Sylvan Esso" || sho
 assert.equal(laurenEdition.updates.some((update) => update.title.includes("Jon Batiste")), false, "the recap artist is not repeated in the news");
 assert.ok(laurenEdition.updates.some((update) => update.title.includes("fall calendar")));
 assert.doesNotMatch(laurenEdition.updates.map((update) => update.body).join(" "), /recent music story|details at the source/i);
-assert.ok(laurenEdition.yourSynth?.body.includes("Wolf Trap"));
-assert.equal(/Fur Elise/.test(laurenEdition.yourSynth?.body ?? ""), false, "the recap does not quote the review");
-assert.match(laurenEdition.yourSynth?.body ?? "", /five-star|timeline/);
-assert.equal(laurenEdition.yourSynth?.body.includes("this week"), false);
+assert.match(laurenEdition.headline, /did you see anyone new this weekend/i);
+assert.match(laurenEdition.intro, /write a review/i);
+assert.equal(laurenEdition.yourSynth, undefined, "a show from August is not recapped again in October");
+assert.doesNotMatch(renderEditionHtml(laurenEdition), /Fur Elise|Wolf Trap|newest night/);
 assert.equal(laurenEdition.shows.some((show) => /Fur Elise/.test(show.body)), false);
 assert.equal(laurenEdition.updates.some((update) => /Fur Elise/.test(update.body)), false);
 assert.equal(/Fur Elise/.test(laurenEdition.listen?.body ?? ""), false);
@@ -248,8 +248,9 @@ const jungleEdition = composeEdition({
 });
 assert.equal(jungleEdition.shows.some((show) => show.title === "Jungle"), false, "the last concert is not recommended again");
 assert.ok(jungleEdition.shows.some((show) => show.title === "Sylvan Esso"));
-assert.ok(jungleEdition.yourSynth?.body.includes("The Anthem"));
-assert.equal(/did not sit down/.test(jungleEdition.yourSynth?.body ?? ""), false);
+assert.match(jungleEdition.headline, /did you see anyone new this weekend/i);
+assert.equal(jungleEdition.yourSynth, undefined);
+assert.doesNotMatch(renderEditionHtml(jungleEdition), /did not sit down|newest night|logged Jungle/);
 assert.equal(jungleEdition.shows.some((show) => /did not sit down/.test(show.body)), false);
 assert.equal(/did not sit down/.test(jungleEdition.listen?.body ?? ""), false);
 assert.equal(/not a promise you’ll love it|Sample Jungle|show history|your latest log/i.test(renderEditionHtml(jungleEdition)), false);
@@ -274,6 +275,8 @@ assert.match(laurenHtml, /Open Synth/);
 assert.doesNotMatch(laurenHtml, /September 30, 2026/);
 assert.match(laurenHtml, /https:\/\/impconcerts.com\/event\/sylvan-esso-2\/|https:\/\/930.com\/glass-animals/);
 
+assert.deepEqual(recentWeekend(new Date("2026-10-13T15:00:00.000Z"), "DC"), { start: "2026-10-09", end: "2026-10-11" });
+assert.deepEqual(recentWeekend(new Date("2026-10-26T15:00:00.000Z"), "DC"), { start: "2026-10-23", end: "2026-10-25" });
 assert.equal(isUpcoming("2026-09-01T23:00:00.000Z", sendAt), false);
 assert.equal(isUpcoming("2026-10-20T23:00:00.000Z", sendAt), true);
 assert.equal(isUpcoming("2026-10-08", sendAt, "DC"), true);

@@ -32,6 +32,7 @@ export interface EditionReview {
   artistName: string;
   venueName?: string | null;
   eventDate?: string | null;
+  eventId?: string | null;
   rating?: number | null;
   text?: string | null;
 }
