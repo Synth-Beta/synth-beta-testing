@@ -139,7 +139,7 @@ export function MobileImageCropper({ visible, imageUri, initial, onDone, onCance
                     </Pressable>
                     <SynthText variant="accent">Crop Thumbnail</SynthText>
                     <Pressable onPress={handleDone} style={styles.doneBtn}>
-                        <Check size={20} color="#fff" />
+                        <Check size={20} color="#FFFDFA" />
                         <SynthText variant="meta" style={styles.doneTxt}>Done</SynthText>
                     </Pressable>
                 </View>
@@ -239,14 +239,14 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 10,
     },
-    doneTxt: { color: '#fff', fontWeight: '600' },
+    doneTxt: { color: '#FFFDFA', fontWeight: '600' },
     hint: {
         color: 'rgba(255,255,255,0.6)',
         marginBottom: 20,
         textAlign: 'center',
     },
     frameWrapper: {
-        shadowColor: '#000',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.5,
         shadowRadius: 20,
         shadowOffset: { width: 0, height: 4 },
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
         height: FRAME_SIZE,
         overflow: 'hidden',
         borderRadius: 4,
-        backgroundColor: '#000',
+        backgroundColor: '#0E0E0E',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         width: CORNER_SIZE,
         height: CORNER_SIZE,
-        borderColor: '#fff',
+        borderColor: '#FFFDFA',
     },
     tl: {
         top: 8,

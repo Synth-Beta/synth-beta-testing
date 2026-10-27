@@ -3,6 +3,7 @@ import {
   fetchUserStreamingStatsSnapshot,
   type UserStreamingStatsSnapshot,
 } from './streamingStatsCore';
+import { streamingRowHasData } from './spotifySyncGuard';
 
 export type StreamingProvider = 'spotify' | 'apple-music' | 'unknown';
 
@@ -46,7 +47,10 @@ export async function getStreamingLinkStatus(
 ): Promise<StreamingLinkStatus> {
   const [{ data: userRow }, { data: streamingRows }, statsSnapshot] = await Promise.all([
     client.from('users').select('music_streaming_profile').eq('user_id', userId).maybeSingle(),
-    client.from('streaming_profiles').select('service_type').eq('user_id', userId),
+    client
+      .from('streaming_profiles')
+      .select('service_type, a0:profile_data->topArtists->0, t0:profile_data->topTracks->0, me:profile_data->userProfile')
+      .eq('user_id', userId),
     fetchUserStreamingStatsSnapshot(client, userId),
   ]);
 
@@ -54,7 +58,9 @@ export async function getStreamingLinkStatus(
   const providerFromUrl = detectProviderFromProfileUrl(profileUrl);
 
   const serviceTypes = new Set(
-    (streamingRows ?? []).map((r: { service_type?: unknown }) => String(r.service_type ?? ''))
+    ((streamingRows ?? []) as Array<{ service_type?: unknown; a0?: unknown; t0?: unknown; me?: unknown }>)
+      .filter(streamingRowHasData)
+      .map((r) => String(r.service_type ?? ''))
   );
   const hasSpotifyRow = serviceTypes.has('spotify');
   const hasAppleRow = serviceTypes.has('apple-music');

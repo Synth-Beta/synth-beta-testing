@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { createSeoTarget, runSeoJob, type SeoDashboard } from '@/services/seoAdmin';
 import { fillDays, fmt, shortDay } from './seoFormat';
-import { Empty, ExtLink, Kpi, Section } from './seoUi';
+import { BarList, Empty, ExtLink, Kpi, Section } from './seoUi';
 
 const sum = (rows: Array<Record<string, unknown>>, key: string) => rows.reduce((n, r) => n + (Number(r[key]) || 0), 0);
 const shortPage = (url: string) => url.replace(/^https?:\/\/(www\.)?/, '').replace(/^getsynth\.app/, '');
@@ -19,7 +19,13 @@ export function SeoSearchTab({ data, onChanged }: { data: SeoDashboard; onChange
     () => fillDays(data.search_daily, data.days, { google_clicks: 0, google_impressions: 0, bing_clicks: 0, bing_impressions: 0 }),
     [data.search_daily, data.days],
   );
-  const hasData = data.search_daily.length > 0 || data.top_queries.length > 0;
+  const recordedDaily = useMemo(
+    () => fillDays(data.daily, data.days, { visits: 0, organic_search: 0, ai_assistant: 0, social: 0, referral: 0, direct: 0, other: 0 }),
+    [data.daily, data.days],
+  );
+  const hasConsole = data.search_daily.length > 0 || data.top_queries.length > 0;
+  const searchSources = data.sources.filter((row) => row.source_category === 'organic_search');
+  const searchPages = data.landing_pages.filter((page) => page.organic > 0);
 
   const sync = async () => {
     setSyncing(true);
@@ -54,23 +60,61 @@ export function SeoSearchTab({ data, onChanged }: { data: SeoDashboard; onChange
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi label="Google clicks" value={sum(data.search_daily, 'google_clicks')} />
-        <Kpi label="Google impressions" value={sum(data.search_daily, 'google_impressions')} />
-        <Kpi label="Bing clicks" value={sum(data.search_daily, 'bing_clicks')} />
-        <Kpi label="Bing impressions" value={sum(data.search_daily, 'bing_impressions')} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <Kpi label="Search visits" value={data.kpis.organic_visits} previous={data.kpis.organic_visits_prev} hint="Recorded on our sites" />
+        <Kpi label="Google clicks" value={sum(data.search_daily, 'google_clicks')} hint="Search Console" />
+        <Kpi label="Google impressions" value={sum(data.search_daily, 'google_impressions')} hint="Search Console" />
+        <Kpi label="Bing clicks" value={sum(data.search_daily, 'bing_clicks')} hint="Webmaster Tools" />
+        <Kpi label="Bing impressions" value={sum(data.search_daily, 'bing_impressions')} hint="Webmaster Tools" />
       </div>
       {message && <p className="text-sm text-muted-foreground">{message}</p>}
 
       <Section
-        title="Search performance"
-        description="Clicks and impressions from Google Search Console and Bing Webmaster Tools. Google data lags about two days."
+        title="Visits from search"
+        description="Sessions that arrived from a search engine, on getsynth.app and join.getsynth.app."
+      >
+        {data.kpis.organic_visits === 0 ? (
+          <Empty>No search visits in this range.</Empty>
+        ) : (
+          <div className="space-y-6">
+            <div className="h-56">
+              <ResponsiveContainer>
+                <LineChart data={recordedDaily}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" tickFormatter={shortDay} fontSize={12} minTickGap={24} />
+                  <YAxis allowDecimals={false} fontSize={12} width={40} />
+                  <Tooltip labelFormatter={(day) => shortDay(String(day))} />
+                  <Line type="monotone" dataKey="organic_search" name="Search visits" stroke="#2563eb" dot={false} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <BarList rows={searchSources.map((row) => ({ label: row.source_name || 'Search', value: row.visits }))} />
+              <BarList
+                color="#111827"
+                rows={searchPages.slice(0, 8).map((page) => ({
+                  label: (
+                    <ExtLink href={`https://${page.host}${page.path}`}>
+                      {page.host.replace(/\.?getsynth\.app$/, '') || 'getsynth.app'}
+                      {page.path}
+                    </ExtLink>
+                  ),
+                  value: page.organic,
+                }))}
+              />
+            </div>
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title="Search Console and Bing"
+        description="Clicks and impressions reported by Google and Bing. Google lags about two days, and it hides properties with almost no impressions."
         action={syncButton}
       >
-        {!hasData ? (
+        {!hasConsole ? (
           <Empty>
-            No search data yet. Set GSC_SERVICE_ACCOUNT_JSON and BING_WEBMASTER_API_KEY in Vercel, give the service account access to the Search Console
-            property, then press Sync now.
+            No Search Console rows yet. The account is connected to sc-domain:getsynth.app, which includes join.getsynth.app. Google is still processing that property, so clicks and impressions show up here after the next sync once the Performance report leaves the “check again in a day” state. Bing has no stats for https://getsynth.app/ yet.
           </Empty>
         ) : (
           <div className="h-72">

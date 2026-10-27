@@ -66,6 +66,7 @@ export interface ReviewFormData {
     valueFeedback: string;
     ticketPricePaid: string;
     recommendAtPrice: boolean | null; // would recommend at the price paid; null = unanswered
+    showTicketPrice: boolean; // false = keep the price private on a public review
     rating: number;
     reviewText: string;
     /** Public photo URLs (matches web `formData.photos`). */
@@ -126,6 +127,7 @@ const initialFormData: ReviewFormData = {
     valueFeedback: '',
     ticketPricePaid: '',
     recommendAtPrice: null,
+    showTicketPrice: true,
     rating: 0,
     reviewText: '',
     photos: [],

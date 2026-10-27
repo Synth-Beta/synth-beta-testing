@@ -7,8 +7,9 @@
  *   2) Signed-in client (web/mobile) after profile ensure
  *      Authorization: Bearer <user access token>
  *
- * Env: SLACK_SIGNUP_WEBHOOK_URL, SLACK_SIGNUP_WEBHOOK_SECRET,
- *      SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * Env: SLACK_ADMIN_BOT_TOKEN, SLACK_ADMIN_BOT_SIGNUP_CHANNEL,
+ *      SLACK_SIGNUP_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+ *      SLACK_SIGNUP_WEBHOOK_URL is only used when the admin bot is not configured.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';

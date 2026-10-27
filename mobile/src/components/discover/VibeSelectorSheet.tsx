@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral0,
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
-    shadowColor: '#000',
+    shadowColor: '#0E0E0E',
     shadowOpacity: 0.04,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },

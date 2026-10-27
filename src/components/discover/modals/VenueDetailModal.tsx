@@ -568,7 +568,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                     boxShadow: '0 8px 24px rgba(204, 36, 134, 0.3)',
                   }}
                 >
-                  <Building2 size={36} color="#fff" />
+                  <Building2 size={36} color="#FFFDFA" />
               </div>
                 
                 {/* Venue Name */}
@@ -691,7 +691,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                                   alignItems: 'center',
                                   gap: 4,
                                   background: 'var(--brand-pink-500)',
-                                  color: '#fff',
+                                  color: '#FFFDFA',
                                   padding: '4px 8px',
                                   borderRadius: 6,
                                   fontSize: 14,
@@ -764,7 +764,7 @@ export const VenueDetailModal: React.FC<VenueDetailModalProps> = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#fff',
+                                color: '#FFFDFA',
                                 fontSize: 11,
                                 fontWeight: 600,
                               }}>

@@ -897,10 +897,28 @@ export interface VideoUploadProps {
   bucket: BucketName;
   maxVideos?: number;
   maxSizeMB?: number;
+  /** Reject clips longer than this (seconds). */
+  maxDurationSec?: number;
   label?: string;
   helperText?: string;
   className?: string;
   disabled?: boolean;
+}
+
+/** Reads a local video's length in seconds, or null if the browser can't tell. */
+function readVideoDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    const done = (d: number | null) => {
+      URL.revokeObjectURL(url);
+      resolve(d);
+    };
+    v.onloadedmetadata = () => done(Number.isFinite(v.duration) ? v.duration : null);
+    v.onerror = () => done(null);
+    v.src = url;
+  });
 }
 
 export function VideoUpload({
@@ -910,6 +928,7 @@ export function VideoUpload({
   bucket,
   maxVideos = 3,
   maxSizeMB = 100,
+  maxDurationSec,
   label = 'Videos',
   helperText,
   className,
@@ -917,13 +936,21 @@ export function VideoUpload({
 }: VideoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  // Rejections used to return silently, so a too-big clip looked like a broken button.
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    setError(null);
+    const reject = (message: string) => {
+      setError(message);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
     // Check if adding these files would exceed max
     if (value.length + files.length > maxVideos) {
+      reject(maxVideos === 1 ? 'You can add one video. Remove it to pick another.' : `You can add up to ${maxVideos} videos.`);
       return;
     }
 
@@ -931,7 +958,16 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     for (const file of files) {
       const validation = storageService.validateVideo(file, { maxSizeMB });
       if (!validation.valid) {
+        reject(validation.error || "That video can't be uploaded.");
         return;
+      }
+      if (maxDurationSec != null) {
+        const seconds = await readVideoDuration(file);
+        // Players report 30.2s for a 30s clip; don't reject on rounding.
+        if (seconds != null && seconds > maxDurationSec + 0.5) {
+          reject(`Videos can be up to ${maxDurationSec} seconds. Trim it and try again.`);
+          return;
+        }
       }
     }
 
@@ -953,6 +989,7 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
       
       } catch (error) {
       console.error('Upload error:', error);
+      setError("Video didn't upload. Check your connection and try again.");
       } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -1007,7 +1044,7 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
             />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-black/50 rounded-full p-2">
-                <Play className="w-6 h-6 text-white" fill="white" />
+                <Play className="w-6 h-6 text-white" fill="#FFFDFA" />
               </div>
             </div>
             <button
@@ -1063,6 +1100,7 @@ const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
       />
 
       {/* Info Text */}
+      {error && <p className="text-xs text-destructive">{error}</p>}
       <p className="text-xs text-muted-foreground">
         {value.length} / {maxVideos} videos • Max {maxSizeMB}MB per video
       </p>

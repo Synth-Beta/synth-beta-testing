@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Pressable, SafeAreaView, TextInput, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,13 @@ import { ArtistService, Artist } from '../../src/services/artistService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
+import { pickPreselected } from '@synth/shared';
+import { PushPrimerSheet } from '../../src/components/PushPrimer';
+import { trackPushPrimer } from '../../src/services/onboardingTelemetry';
+import { getNotificationPermissionStatus } from '../../lib/registerPushNotifications';
+import { loadPrimerState, primerAllowed, recordPrimerShown } from '../../lib/pushPrimer';
+import { syncExpoPushTokenWithBackend } from '../../lib/pushTokenSync';
+import { InviteService } from '../../src/services/inviteService';
 
 const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
 const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
@@ -24,6 +31,10 @@ export default function ArtistsScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [loadFailed, setLoadFailed] = useState(false);
+    const [showPushAsk, setShowPushAsk] = useState(false);
+    // Pre-select once: clearing the search reloads suggestions and must not re-check
+    // artists the user deliberately unchecked.
+    const preselectedOnce = useRef(false);
 
     useEffect(() => {
         trackOnboardingStep('artists');
@@ -32,8 +43,13 @@ export default function ArtistsScreen() {
 
     const loadSuggestedArtists = async () => {
         setIsLoading(true);
-        const data = await ArtistService.getSuggestedArtists();
+        const data = await ArtistService.getOnboardingSuggestions();
         setArtists(data);
+        // Start with 3 checked so Continue works right away; they can uncheck or add.
+        if (!preselectedOnce.current && data.length > 0) {
+            preselectedOnce.current = true;
+            setSelectedArtistIds(prev => (prev.length ? prev : pickPreselected(data)));
+        }
         // getSuggestedArtists swallows its own error and returns [] (artistService.ts:23),
         // and `artists` is never legitimately empty, so an empty suggested list means the
         // query failed. This screen is the last step, has no skip and no back-out, and its
@@ -69,7 +85,8 @@ export default function ArtistsScreen() {
         );
     };
 
-    const MIN_ARTISTS = 3;
+    // 1 to finish (people quit at this step); the copy still recommends 3+.
+    const MIN_ARTISTS = 1;
     const enoughArtists = selectedArtistIds.length >= MIN_ARTISTS;
     // The 3-artist minimum holds whenever the list actually loaded. It is relaxed only
     // when the app itself failed to produce artists to pick from — a weak first feed is
@@ -115,6 +132,33 @@ export default function ArtistsScreen() {
         }
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // Push ask right as onboarding ends (their artists are picked, so "hear when they
+        // announce" is concrete). Only when iOS can still ask; any failure goes straight
+        // to Home. Counts toward the primer cap (3-day cooldown before the tabs ask can show).
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && (await getNotificationPermissionStatus()) === 'undetermined') {
+                const state = await loadPrimerState(user.id);
+                if (primerAllowed(state, Date.now())) {
+                    await recordPrimerShown(user.id, state);
+                    trackPushPrimer('shown', 'onboarding');
+                    setShowPushAsk(true);
+                    return;
+                }
+            }
+        } catch {
+            // Fall through to Home.
+        }
+        void goHome();
+    };
+
+    const goHome = async () => {
+        // Joined with a friend's invite code: land on "Tej invited you" first.
+        const inviteCode = await InviteService.getPending();
+        if (inviteCode) {
+            router.replace(`/i/${inviteCode}?welcome=1` as any);
+            return;
+        }
         // End onboarding on Home (feed), not Discover.
         // No trailing slash — '/(tabs)/' is not a valid typed route and every other
         // call site in the app uses this form (_layout, share, email-required, post).
@@ -123,12 +167,30 @@ export default function ArtistsScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            {showPushAsk ? (
+                <PushPrimerSheet
+                    reason="onboarding"
+                    onEnable={() => {
+                        trackPushPrimer('accepted', 'onboarding');
+                        setShowPushAsk(false);
+                        // Home now; the system prompt still shows over it. Not awaited: the token fetch has no
+                        // timeout and can hang on a bad network, which left them on this screen.
+                        void syncExpoPushTokenWithBackend({ prompt: true }).catch(() => undefined);
+                        void goHome();
+                    }}
+                    onDismiss={() => {
+                        trackPushPrimer('declined', 'onboarding');
+                        setShowPushAsk(false);
+                        void goHome();
+                    }}
+                />
+            ) : null}
             <View style={styles.header}>
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
                 <OnboardingProgress totalSteps={5} currentStep={5} />
-                {/* No skip — at least 3 artists is required so the feed has real signal. */}
+                {/* No skip — at least 1 artist is required so the feed has some signal. */}
                 <View style={styles.skipButton} />
             </View>
 
@@ -158,7 +220,7 @@ export default function ArtistsScreen() {
                     <View style={styles.textContent}>
                         <SynthText variant="h1" style={styles.title}>Follow your favorites</SynthText>
                         <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                            Pick at least 3 — this powers your personalized feed
+                            We picked a few to start. Tap to change — 3 or more makes your feed much better
                         </SynthText>
                     </View>
                 }
@@ -186,10 +248,10 @@ export default function ArtistsScreen() {
                         saving
                             ? 'Finishing…'
                             : enoughArtists
-                                ? `Follow ${selectedArtistIds.length} Artists`
+                                ? `Follow ${selectedArtistIds.length} Artist${selectedArtistIds.length === 1 ? '' : 's'}`
                                 : loadFailed
                                     ? 'Continue'
-                                    : `Pick at least 3 (${selectedArtistIds.length}/3)`
+                                    : 'Pick at least 1 artist'
                     }
                     onPress={handleContinue}
                     disabled={!canContinue || saving}
@@ -212,7 +274,7 @@ function ArtistCard({ artist, selected, onPress }: { artist: Artist, selected: b
                     </SynthText>
                 </View>
                 <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-                    {selected ? <Check color="white" size={16} strokeWidth={3} /> : null}
+                    {selected ? <Check color="#FFFDFA" size={16} strokeWidth={3} /> : null}
                 </View>
             </View>
         </Pressable>

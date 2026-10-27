@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     saveBtnDisabled: { opacity: 0.6 },
-    saveTxt: { color: '#fff', fontWeight: '800' },
+    saveTxt: { color: '#FFFDFA', fontWeight: '800' },
     deleteBtn: { marginTop: 10, alignItems: 'center', paddingVertical: 10 },
     deleteTxt: { color: SynthTokens.colors.error, fontWeight: '700' },
 });

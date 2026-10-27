@@ -1,3 +1,4 @@
+import { isEmptySpotifySync, SPOTIFY_EMPTY_SYNC_MESSAGE } from '@synth/shared';
 import {
   SpotifyUser,
   SpotifyTopTracksResponse,
@@ -320,6 +321,12 @@ export class SpotifyService {
         ...topTracksMed.items,
         ...topTracksLong.items
       ];
+
+      // An empty sync did not work (very likely Spotify Development Mode). Don't save it
+      // as "completed": that made the account look connected with nothing behind it.
+      if (isEmptySpotifySync({ hasProfile: !!userProfile, artistCount: allTopArtists.length, trackCount: allTopTracks.length })) {
+        throw new Error(SPOTIFY_EMPTY_SYNC_MESSAGE);
+      }
 
       // Save to streaming_profiles table to trigger database sync
       await this.saveToStreamingProfiles({

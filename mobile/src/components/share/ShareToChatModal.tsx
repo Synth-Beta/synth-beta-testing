@@ -71,7 +71,7 @@ function Avatar({ name, url, size = 36 }: { name: string; url?: string | null; s
                 justifyContent: 'center',
             }}
         >
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: size * 0.4 }}>{letter}</Text>
+            <Text style={{ color: '#FFFDFA', fontWeight: '700', fontSize: size * 0.4 }}>{letter}</Text>
         </View>
     );
 }
@@ -108,14 +108,13 @@ export function ShareToChatModal({
 
     const handleShareExternally = async () => {
         try {
-            // iOS reads `url`; Android typically uses `message`.
-            const message = title?.trim()
-                ? `${title.trim()}\n\n${shareUrl}`
-                : shareUrl;
+            // iOS sends `url` as its own item (iMessage/WhatsApp build the preview card
+            // from it), so the text must not repeat the link. Android only reads `message`.
+            const text = title?.trim() || '';
             await Share.share(
                 Platform.OS === 'ios'
-                    ? { title: title || 'Synth', message, url: shareUrl }
-                    : { title: title || 'Synth', message }
+                    ? { title: title || 'Synth', message: text, url: shareUrl }
+                    : { title: title || 'Synth', message: text ? `${text}\n\n${shareUrl}` : shareUrl }
             );
         } catch (err: any) {
             // ignore user cancel
@@ -210,7 +209,7 @@ export function ShareToChatModal({
                 <View style={styles.targetLeft}>
                     {item.type === 'group' ? (
                         <View style={[styles.groupIconBg, isSelected && styles.groupIconBgSelected]}>
-                            <Users size={18} color={isSelected ? '#fff' : PINK} />
+                            <Users size={18} color={isSelected ? '#FFFDFA' : PINK} />
                         </View>
                     ) : (
                         <Avatar name={item.name} url={item.avatar_url} size={38} />
@@ -224,7 +223,7 @@ export function ShareToChatModal({
                     </SynthText>
                 </View>
                 <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                    {isSelected ? <Check size={14} color="#fff" /> : null}
+                    {isSelected ? <Check size={14} color="#FFFDFA" /> : null}
                 </View>
             </Pressable>
         );
@@ -248,6 +247,7 @@ export function ShareToChatModal({
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.kvWrapper}
+                pointerEvents="box-none"
             >
                 <View style={[styles.sheet, { paddingBottom: insets.bottom + 8 }]}>
                     {/* Handle */}
@@ -298,7 +298,7 @@ export function ShareToChatModal({
                         <View style={styles.centered}>
                             <MessageCircle size={36} color={SynthTokens.colors.neutral200} />
                             <SynthText variant="body" color="secondary" style={{ marginTop: 12, textAlign: 'center' }}>
-                                No chats or friends yet.{'\n'}Start a conversation first.
+                                No chats or friends yet.{'\n'}Share the link instead 👇
                             </SynthText>
                         </View>
                     ) : (
@@ -327,8 +327,8 @@ export function ShareToChatModal({
                         />
                     )}
 
-                    {/* Custom message + send */}
-                    {!loading && targets.length > 0 ? (
+                    {/* External share is always offered so users with no chats can still spread the word. */}
+                    {!loading ? (
                         <View style={styles.footer}>
                             <View style={styles.externalRow}>
                                 <Pressable style={styles.externalBtn} onPress={() => void handleShareExternally()}>
@@ -340,6 +340,8 @@ export function ShareToChatModal({
                                     <Text style={styles.externalText}>Copy link</Text>
                                 </Pressable>
                             </View>
+                            {targets.length > 0 ? (
+                            <>
                             <View style={styles.messageRow}>
                                 <TextInput
                                     style={styles.messageInput}
@@ -361,18 +363,20 @@ export function ShareToChatModal({
                                 disabled={!selected.size || sending}
                             >
                                 {sending ? (
-                                    <ActivityIndicator color="#fff" size="small" />
+                                    <ActivityIndicator color="#FFFDFA" size="small" />
                                 ) : sent ? (
-                                    <Check size={20} color="#fff" />
+                                    <Check size={20} color="#FFFDFA" />
                                 ) : (
                                     <>
-                                        <Send size={18} color="#fff" />
+                                        <Send size={18} color="#FFFDFA" />
                                         <Text style={styles.sendBtnText}>
                                             Send{selected.size > 1 ? ` (${selected.size})` : ''}
                                         </Text>
                                     </>
                                 )}
                             </Pressable>
+                            </>
+                            ) : null}
                         </View>
                     ) : null}
                 </View>
@@ -386,19 +390,22 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.45)',
     },
+    // Full height so the sheet's percentage height resolves; box-none lets
+    // taps above the sheet reach the backdrop.
     kvWrapper: {
         position: 'absolute',
+        top: 0,
         bottom: 0,
         left: 0,
         right: 0,
+        justifyContent: 'flex-end',
     },
     sheet: {
         backgroundColor: SynthTokens.colors.neutral0,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        maxHeight: '85%',
-        minHeight: 300,
-        shadowColor: '#000',
+        height: '90%',
+        shadowColor: '#0E0E0E',
         shadowOpacity: 0.18,
         shadowRadius: 20,
         shadowOffset: { width: 0, height: -4 },
@@ -451,8 +458,7 @@ const styles = StyleSheet.create({
         padding: 0,
     },
     list: {
-        flexGrow: 0,
-        maxHeight: 280,
+        flex: 1,
     },
     sectionHeader: {
         paddingHorizontal: 20,
@@ -571,11 +577,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#22c55e',
     },
     sendBtnText: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontWeight: '700',
         fontSize: 16,
     },
     centered: {
+        flex: 1,
         paddingVertical: 32,
         alignItems: 'center',
         justifyContent: 'center',

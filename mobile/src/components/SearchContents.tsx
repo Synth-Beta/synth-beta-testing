@@ -247,7 +247,7 @@ function EmptySearch({ query, scope }: { query: string; scope: SearchScope }) {
 // ─── Main component ────────────────────────────────────────────────────────────
 
 interface SearchScreenProps {
-    /** Pre-populate the search bar (e.g. from discover bar navigation). */
+    /** Pre-populate the search bar (e.g. from the Home search bar). */
     initialQuery?: string;
 }
 
@@ -271,7 +271,7 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
         if (router.canGoBack()) {
             router.back();
         } else {
-            router.replace('/(tabs)/discover' as any);
+            router.replace('/(tabs)' as any);
         }
     }, [router]);
 

@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { isEmptySpotifySync, SPOTIFY_EMPTY_SYNC_MESSAGE } from '../_lib/spotifySync.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 function parseResponseJson(text: string): Record<string, unknown> {
@@ -301,6 +302,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const artistCount = artistsShort.length + artistsMed.length + artistsLong.length;
     const trackCount = tracksShort.length + tracksMed.length + tracksLong.length;
+
+    // Nothing came back (no profile, no listening data): the connection did not work.
+    // Don't write a "completed" row (that counts as linked); tell the client instead.
+    if (isEmptySpotifySync({ hasProfile: !!me, artistCount, trackCount })) {
+      console.warn('[spotify/sync-profile] empty sync, not saving', { userId });
+      return res.status(502).json({ error: 'spotify_no_data', message: SPOTIFY_EMPTY_SYNC_MESSAGE });
+    }
 
     if (artistCount > 0 && trackCount === 0) {
       return res.status(422).json({

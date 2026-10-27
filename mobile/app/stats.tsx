@@ -486,7 +486,7 @@ export default function StreamingStatsScreen() {
               >
                 <View style={styles.connectCardInner}>
                   <View style={styles.connectCardIcon}>
-                    <Music size={24} color="#fff" />
+                    <Music size={24} color="#FFFDFA" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.connectCardTitle}>Connect Spotify</Text>
@@ -507,7 +507,7 @@ export default function StreamingStatsScreen() {
               >
                 <View style={styles.connectCardInner}>
                   <View style={styles.connectCardIcon}>
-                    <Headphones size={24} color="#fff" />
+                    <Headphones size={24} color="#FFFDFA" />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.connectCardTitle}>Connect Apple Music</Text>
@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
   connectCardTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#fff',
+    color: '#FFFDFA',
     marginBottom: 3,
   },
   connectCardSub: {
@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: PINK,
   },
-  refreshBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  refreshBtnText: { color: '#FFFDFA', fontSize: 14, fontWeight: '800' },
   openWebBtn: {
     flex: 1,
     alignItems: 'center',
@@ -841,7 +841,7 @@ const styles = StyleSheet.create({
   bannerBtnPrimaryText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#fff',
+    color: '#FFFDFA',
   },
   bannerBtn: {
     flexDirection: 'row',
@@ -854,7 +854,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#fcd34d',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFDFA',
   },
   bannerBtnText: {
     fontSize: 13,

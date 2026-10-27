@@ -163,12 +163,14 @@ export class EventService {
     ): Promise<void> {
         const routeId = await this.toEventRouteId(eventId);
         const url = buildShareLandingUrl(getExpoSiteUrl(), 'event', routeId);
-        const message = `${meta.headline} — ${meta.formattedDate}\n\n${url}`;
+        // iOS: link only in `url` so iMessage/WhatsApp show one preview card, not a
+        // raw URL too. Android only reads `message`, so it carries the link.
+        const text = `${meta.headline} — ${meta.formattedDate}`;
         try {
             if (Platform.OS === 'ios') {
-                await Share.share({ message, title: meta.headline, url });
+                await Share.share({ message: text, title: meta.headline, url });
             } else {
-                await Share.share({ message, title: meta.headline });
+                await Share.share({ message: `${text}\n\n${url}`, title: meta.headline });
             }
         } catch {
             /* user dismissed share sheet */
@@ -181,14 +183,12 @@ export class EventService {
         meta: { headline: string; snippet?: string }
     ): Promise<void> {
         const url = buildShareLandingUrl(getExpoSiteUrl(), 'review', reviewId);
-        const message = meta.snippet
-            ? `${meta.headline}\n\n"${meta.snippet}"\n\n${url}`
-            : `${meta.headline}\n\n${url}`;
+        const text = meta.snippet ? `${meta.headline}\n\n"${meta.snippet}"` : meta.headline;
         try {
             if (Platform.OS === 'ios') {
-                await Share.share({ message, title: meta.headline, url });
+                await Share.share({ message: text, title: meta.headline, url });
             } else {
-                await Share.share({ message, title: meta.headline });
+                await Share.share({ message: `${text}\n\n${url}`, title: meta.headline });
             }
         } catch {
             /* user dismissed share sheet */

@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { EventReviewFlow } from '../../src/components/review/EventReviewFlow';
+import { reportTourAction } from '../../lib/tourProgress';
 
 export default function PostScreen() {
   const router = useRouter();
@@ -12,6 +13,11 @@ export default function PostScreen() {
       prefill={null}
       onClose={() => router.replace('/(tabs)')}
       onSubmitted={(eid) => {
+        // App tutorial's review step: back to Home, where the tutorial says thanks and moves on.
+        if (reportTourAction('review')) {
+          router.replace('/(tabs)');
+          return;
+        }
         Alert.alert('Thanks!', 'Your review was posted.', [
           {
             text: 'Done',

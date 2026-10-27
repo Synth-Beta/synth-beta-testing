@@ -26,6 +26,8 @@ export interface MainNavItem {
   isCTA?: boolean;
   hasUnread?: boolean;
   skipReloadWhenActive?: boolean;
+  /** data-tour anchor for the welcome tour (OnboardingTour). */
+  tourId?: string;
 }
 
 export type MainNavInteractionSource = 'bottom_nav' | 'web_rail';
@@ -201,6 +203,7 @@ export function useMainNavItems({
         },
         isActive: false,
         isCTA: true,
+        tourId: 'create-review',
       },
       {
         id: 'messages',
@@ -211,6 +214,7 @@ export function useMainNavItems({
           onViewChange('chat');
         },
         isActive: isMessages,
+        tourId: 'chat',
         hasUnread: !isMessages && unreadMessagesCount > 0,
       },
       {

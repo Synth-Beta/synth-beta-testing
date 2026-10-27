@@ -338,7 +338,7 @@ export function UniversalShareModal({
         style={{
           width: '100%',
           maxWidth: '100%',
-          maxHeight: '85vh',
+          height: '90vh',
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
@@ -504,13 +504,10 @@ export function UniversalShareModal({
                     <div
                       style={{
                         display: 'flex',
+                        flexWrap: 'wrap',
                         gap: '16px',
-                        overflowX: 'auto',
                         paddingBottom: '8px',
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none',
                       }}
-                      className="hide-scrollbar"
                     >
                       {friendTargets.map((target) => {
                         const isSelected = selectedTargets.has(target.id);
@@ -567,7 +564,7 @@ export function UniversalShareModal({
                                     border: '2px solid white',
                                   }}
                                 >
-                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFDFA' }} />
                                 </div>
                               )}
                             </div>
@@ -610,13 +607,10 @@ export function UniversalShareModal({
                     <div
                       style={{
                         display: 'flex',
+                        flexWrap: 'wrap',
                         gap: '16px',
-                        overflowX: 'auto',
                         paddingBottom: '8px',
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none',
                       }}
-                      className="hide-scrollbar"
                     >
                       {groupChatTargets.map((target) => {
                         const isSelected = selectedTargets.has(target.id);
@@ -673,7 +667,7 @@ export function UniversalShareModal({
                                     border: '2px solid white',
                                   }}
                                 >
-                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
+                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FFFDFA' }} />
                                 </div>
                               )}
                             </div>
@@ -702,6 +696,18 @@ export function UniversalShareModal({
             ) : null
           ) : null}
 
+          </div>
+
+        {/* Message + external share stay pinned under the scrolling chat grid. */}
+        <div
+          style={{
+            padding: '12px 20px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+          }}
+        >
           {/* Message text area */}
           <div
             style={{
@@ -919,7 +925,7 @@ export function UniversalShareModal({
                 borderRadius: '12px',
                 border: 'none',
                 backgroundColor: 'var(--brand-pink-500)',
-                color: 'white',
+                color: '#FFFDFA',
                 fontFamily: 'var(--font-family)',
                 fontSize: '16px',
                 fontWeight: '600',

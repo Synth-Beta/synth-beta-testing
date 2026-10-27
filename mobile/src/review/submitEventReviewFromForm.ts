@@ -153,6 +153,8 @@ export async function submitEventReviewFromForm(
         value_feedback: formData.valueFeedback.trim() || undefined,
         ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
         recommend_at_price: formData.recommendAtPrice ?? undefined,
+        // Only with a price: re-submitting without one must not flip a hidden price back to public.
+        show_ticket_price: formData.ticketPricePaid ? formData.showTicketPrice : undefined,
         review_text: formData.reviewText.trim() || undefined,
         photos: formData.photos?.length ? formData.photos : undefined,
         videos: formData.videos?.length ? formData.videos : undefined,

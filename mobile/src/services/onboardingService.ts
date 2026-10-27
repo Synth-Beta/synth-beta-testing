@@ -138,8 +138,12 @@ export class OnboardingService {
                 artist_id: artistId,
             }));
 
-            const { error } = await supabase.from('artist_follows').insert(follows);
-            if (error && error.code !== '23505') throw error; // Ignore duplicates
+            // Upsert-ignore: with insert, one already-followed artist (23505) rolled back the
+            // whole batch and the user finished onboarding following nobody.
+            const { error } = await supabase
+                .from('artist_follows')
+                .upsert(follows, { onConflict: 'user_id,artist_id', ignoreDuplicates: true });
+            if (error) throw error;
         } catch (error) {
             console.warn('Silent fail: Error following artists:', error);
         }

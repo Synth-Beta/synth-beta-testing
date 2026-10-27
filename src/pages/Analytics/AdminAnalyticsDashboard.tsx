@@ -831,7 +831,7 @@ export default function AdminAnalyticsDashboard() {
                     />
                     <YAxis stroke="#6b7280" />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                       labelFormatter={(value) => {
                         const date = new Date(value);
                         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -875,7 +875,7 @@ export default function AdminAnalyticsDashboard() {
                     />
                     <YAxis stroke="#6b7280" />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                       labelFormatter={(value) => {
                         const [year, month] = value.split('-');
                         const date = new Date(parseInt(year), parseInt(month) - 1);
@@ -920,7 +920,7 @@ export default function AdminAnalyticsDashboard() {
                     />
                     <YAxis stroke="#6b7280" />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                       labelFormatter={(value) => {
                         const date = new Date(value);
                         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -976,7 +976,7 @@ export default function AdminAnalyticsDashboard() {
                           />
                           <YAxis stroke="#6b7280" />
                           <Tooltip
-                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                            contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                             formatter={(value: any) => [value.toLocaleString(), 'Signups']}
                           />
                           <Bar dataKey="count" radius={[8, 8, 0, 0]}>
@@ -1016,7 +1016,7 @@ export default function AdminAnalyticsDashboard() {
                           />
                           <YAxis stroke="#6b7280" />
                           <Tooltip
-                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                            contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                             formatter={(value: any) => [value.toLocaleString(), 'Signups']}
                             labelFormatter={(value) => {
                               const date = new Date(value);
@@ -1180,7 +1180,7 @@ export default function AdminAnalyticsDashboard() {
                         width={120}
                       />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                        contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                         formatter={(value: any) => [value.toLocaleString(), 'Users']}
                       />
                       <Bar 
@@ -1316,7 +1316,7 @@ export default function AdminAnalyticsDashboard() {
                           />
                           <YAxis stroke="#6b7280" />
                           <Tooltip 
-                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                            contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                             labelFormatter={(value) => `${value}:00`}
                             formatter={(value: any) => [value.toLocaleString(), 'Sessions']}
                           />
@@ -1621,7 +1621,7 @@ export default function AdminAnalyticsDashboard() {
                         width={120}
                       />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                        contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                         formatter={(value: any) => [value.toLocaleString(), 'Users']}
                       />
                       <Bar 
@@ -1690,7 +1690,7 @@ export default function AdminAnalyticsDashboard() {
                       />
                       <YAxis stroke="#6b7280" />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                        contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                       />
                       <Area 
                         type="monotone" 
@@ -1729,7 +1729,7 @@ export default function AdminAnalyticsDashboard() {
                       />
                       <YAxis stroke="#6b7280" />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                        contentStyle={{ backgroundColor: '#FFFDFA', border: '1px solid #e5e7eb', borderRadius: '8px' }}
                       />
                       <Line 
                         type="monotone" 

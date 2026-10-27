@@ -33,6 +33,7 @@ const ArtistFollowingPage = React.lazy(() => import("./pages/ArtistFollowingPage
 const ResetPassword = React.lazy(() => import("./pages/ResetPassword").then(m => ({ default: m.default })));
 const NotFound = React.lazy(() => import("./pages/NotFound").then(m => ({ default: m.default })));
 const SharePage = React.lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
+const InvitePage = React.lazy(() => import("./pages/InvitePage"));
 
 // Component to handle deep links and auth callbacks
 /** Pick Five's Connect button lands here; MainApp opens Settings > Pick Five (after sign-in if needed). */
@@ -152,6 +153,7 @@ const App = () => {
               <Route path="/following/:userId" element={<ArtistFollowingPage />} />
               <Route path="/auth/spotify/callback" element={<SpotifyCallback />} />
               <Route path="/share" element={<SharePage />} />
+              <Route path="/i/:code" element={<InvitePage />} />
               <Route path="/connect/pickfive" element={<ConnectPickFiveLink />} />
               <Route path="/profile-edit" element={<ProfileEditLink />} />
               <Route path="/reset-password" element={<ResetPassword />} />

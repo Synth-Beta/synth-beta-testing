@@ -161,7 +161,19 @@ async function run() {
   assert.equal(storage.map.has(`chat_key_${chatId}`), false);
   assert.equal(await crypto.decryptMessage(fresh, chatId, userId), 'who has the tickets');
 
-  console.log('chatCrypto: 10 checks passed (subtle <-> noble wire compatible)');
+  // 11. A chat opening decrypts many rows at once; the key must be derived once, not per row.
+  const herdStorage = memoryStorage();
+  let keyWrites = 0;
+  const countingStorage = { ...herdStorage, setItem: async (k: string, v: string) => { keyWrites++; await herdStorage.setItem(k, v); } };
+  const herdCrypto = createChatCrypto({
+    storage: countingStorage,
+    randomBytes: (n) => webcrypto.getRandomValues(new Uint8Array(n)),
+  });
+  const herd = await Promise.all(Array.from({ length: 20 }, () => herdCrypto.decryptMessage(fresh, chatId, userId)));
+  assert.ok(herd.every((t) => t === 'who has the tickets'));
+  assert.equal(keyWrites, 1, 'concurrent decrypts must share one key derivation');
+
+  console.log('chatCrypto: 11 checks passed (subtle <-> noble wire compatible)');
 }
 
 run().catch((err) => {

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Music, X, Plus } from 'lucide-react';
 import type { ReviewCustomSetlist } from '@/hooks/useReviewForm';
 import { VideoUpload } from '@/components/ui/photo-upload';
+import { REVIEW_VIDEO_MAX_MB, REVIEW_VIDEO_MAX_SECONDS } from '@synth/shared';
 import { useAuth } from '@/hooks/useAuth';
 import { ReviewImagesUpload } from '@/components/ui/review-images-upload';
 
@@ -206,10 +207,11 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
             onChange={(videos) => onUpdateFormData({ videos })}
             userId={user.id}
             bucket="review-videos"
-            maxVideos={3}
-            maxSizeMB={100}
+            maxVideos={1}
+            maxSizeMB={REVIEW_VIDEO_MAX_MB}
+            maxDurationSec={REVIEW_VIDEO_MAX_SECONDS}
             label="Videos (Optional)"
-            helperText="Add videos from the event (max 100MB per video)"
+            helperText={`One clip from the night, up to ${REVIEW_VIDEO_MAX_SECONDS} seconds`}
           />
         )}
 
@@ -265,7 +267,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
                 style={{
                   backgroundColor: 'var(--brand-pink-500)',
                   borderColor: 'var(--brand-pink-500)',
-                  color: 'white',
+                  color: '#FFFDFA',
                   fontFamily: 'var(--font-family)',
                   fontSize: 'var(--typography-meta-size, 16px)',
                   fontWeight: 'var(--typography-meta-weight, 500)',
@@ -278,9 +280,9 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
                   e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
                 }}
               >
-                <Plus style={{ width: 24, height: 24, color: 'white' }} />
+                <Plus style={{ width: 24, height: 24, color: '#FFFDFA' }} />
                 <span style={{ 
-                  color: 'white',
+                  color: '#FFFDFA',
                   fontFamily: 'var(--font-family)',
                   fontSize: 'var(--typography-meta-size, 16px)',
                   fontWeight: 'var(--typography-meta-weight, 500)',

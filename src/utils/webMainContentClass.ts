@@ -6,6 +6,7 @@ export type MainAppViewForLayout =
   | 'feed'
   | 'search'
   | 'streaming-stats'
+  | 'calendar'
   | 'profile'
   | 'profile-edit'
   | 'settings'
@@ -35,6 +36,7 @@ export function getWebDesktopMainContentClass(currentView: MainAppViewForLayout)
     case 'events':
     case 'analytics':
     case 'streaming-stats':
+    case 'calendar':
       return 'w-full max-w-7xl mx-auto px-4 lg:px-8';
     case 'profile-edit':
     case 'settings':

@@ -196,6 +196,24 @@ export {
   BUCKET_LIST_TOP_LIMIT,
 } from './bucketListFeed';
 export {
+  type RatingHighlight,
+  type ReviewHighlights,
+  type HighlightReviewRow,
+  summarizeReviewHighlights,
+  fetchReviewHighlights,
+  EMPTY_REVIEW_HIGHLIGHTS,
+  QUOTE_MIN_RATING,
+} from './reviewHighlights';
+export {
+  type WovenEntry,
+  type NaturalWeaveOptions,
+  weaveNaturally,
+  planNaturalWeave,
+  seededRandom,
+  dailySeed,
+} from './naturalWeave';
+export { type ReviewMatch, reviewEventMatch, reviewQuoteFor } from './reviewMatch';
+export {
   weaveJustAnnouncedIntoFeed,
   JUST_ANNOUNCED_LABEL,
   JUST_ANNOUNCED_PIN_LIMIT,
@@ -240,3 +258,15 @@ export {
   type FuzzyEventRow,
   type ReviewEventSearchRow,
 } from './forgivingNameSearch';
+export {
+  PICK5_ORIGIN,
+  PICK5_BANDS,
+  pick5BandUrl,
+  findPick5Band,
+  type Pick5Band,
+} from './pick5';
+export { type ProfileSaveError, describeProfileSaveError } from './profileSaveError';
+export { type OnboardingProfileInput, type OnboardingField, ONBOARDING_MIN_AGE, ONBOARDING_BIO_MAX, validateOnboardingProfile, pickPreselected, normalizeBirthday, isPlaceholderName } from './onboardingRules';
+export { isEmptySpotifySync, streamingRowHasData, SPOTIFY_EMPTY_SYNC_MESSAGE } from './spotifySyncGuard';
+export { checkReviewVideo, REVIEW_VIDEO_MAX_SECONDS, REVIEW_VIDEO_MAX_MB } from './reviewVideo';
+export { isEmailNotConfirmedError, EMAIL_CONFIRM_RESEND_COOLDOWN_SEC, EMAIL_CONFIRM_POLL_MS, EMAIL_CONFIRM_POLL_MAX_MS } from './emailConfirm';

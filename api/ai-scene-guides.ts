@@ -82,6 +82,17 @@ async function readRawBody(req: VercelRequest): Promise<string> {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const job = resolveJob(req);
 
+  if (job === 'schedule' || job === 'publish' || job === 'shadow') {
+    try {
+      const { isCronAuthorized, probeUptime } = await import('./_lib/adminAlerts.js');
+      if (isCronAuthorized(req.headers.authorization)) {
+        await probeUptime();
+      }
+    } catch (err) {
+      console.warn('[ai-scene-guides] uptime probe failed', (err as Error).message);
+    }
+  }
+
   if (job === 'slack-commands') {
     const { default: slackCommands } = await import('./_lib/aiSceneGuides/handlers/slackCommands.js');
     return slackCommands(req, res);

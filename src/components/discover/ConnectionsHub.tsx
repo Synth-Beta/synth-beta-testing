@@ -1,33 +1,33 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { MessageCircle, Star } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PickFiveConnection } from '@/components/partners/PickFiveConnection';
 import { PICK5_LOGO_SRC } from '@/components/home/thread/pick5';
+import { ThreadReviewCard } from '@/components/home/thread/ThreadReviewCard';
+import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import type { ReviewWithEngagement } from '@/services/reviewService';
 import '@/components/home/thread/thread.css';
 
 interface CommunityReview {
-  id: string;
-  userId: string;
-  userName: string;
-  avatarUrl: string | null;
-  rating: number | null;
-  text: string;
-  subject: string;
-  createdAt: string;
+  review: ReviewWithEngagement;
+  author: { name: string; avatar_url?: string };
+  artistImageUrl?: string;
 }
 
+/** Community: Pick5 linking + recent public reviews from everyone on Synth. */
 export const ConnectionsHub: React.FC<{
   currentUserId: string;
   onNavigateToProfile?: (userId: string) => void;
-  onOpenMessages?: () => void;
-}> = ({ onNavigateToProfile, onOpenMessages }) => {
+}> = ({ currentUserId, onNavigateToProfile }) => {
   const [reviews, setReviews] = useState<CommunityReview[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
+  const [openReviewId, setOpenReviewId] = useState<string | null>(null);
 
   const loadReviews = useCallback(async () => {
     const { data, error } = await supabase
       .from('reviews')
-      .select('id, user_id, rating, review_text, created_at, artist_id, venue_id')
+      .select('id, user_id, event_id, rating, review_text, photos, created_at, artist_id, venue_id, likes_count, comments_count, "Event_date"')
       .or('is_public.eq.true,is_public.is.null')
       .or('is_draft.eq.false,is_draft.is.null')
       .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY')
@@ -38,7 +38,7 @@ export const ConnectionsHub: React.FC<{
       setLoadingReviews(false);
       return;
     }
-    const rows = data ?? [];
+    const rows = (data ?? []) as any[];
     const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))] as string[];
     const artistIds = [...new Set(rows.map((r) => r.artist_id).filter(Boolean))] as string[];
     const venueIds = [...new Set(rows.map((r) => r.venue_id).filter(Boolean))] as string[];
@@ -48,16 +48,16 @@ export const ConnectionsHub: React.FC<{
         ? supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds)
         : Promise.resolve({ data: [] as { user_id: string; name: string; avatar_url: string | null }[] }),
       artistIds.length
-        ? supabase.from('artists').select('id, name').in('id', artistIds)
-        : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+        ? supabase.from('artists').select('id, name, image_url').in('id', artistIds)
+        : Promise.resolve({ data: [] as { id: string; name: string; image_url: string | null }[] }),
       venueIds.length
         ? supabase.from('venues').select('id, name').in('id', venueIds)
         : Promise.resolve({ data: [] as { id: string; name: string }[] }),
     ]);
 
-    const userById = new Map((users.data ?? []).map((u) => [u.user_id, u]));
-    const artistById = new Map((artists.data ?? []).map((a) => [a.id, a.name]));
-    const venueById = new Map((venues.data ?? []).map((v) => [v.id, v.name]));
+    const userById = new Map((users.data ?? []).map((u: any) => [u.user_id, u]));
+    const artistById = new Map((artists.data ?? []).map((a: any) => [a.id, a]));
+    const venueById = new Map((venues.data ?? []).map((v: any) => [v.id, v.name as string]));
 
     setReviews(
       rows
@@ -68,20 +68,34 @@ export const ConnectionsHub: React.FC<{
         })
         .map((r) => {
           const user = userById.get(r.user_id);
-          const subject =
-            (r.artist_id && artistById.get(r.artist_id)) ||
-            (r.venue_id && venueById.get(r.venue_id)) ||
-            'a show';
-          const text = String(r.review_text ?? '').trim();
+          const artist = r.artist_id ? artistById.get(r.artist_id) : undefined;
           return {
-            id: r.id,
-            userId: r.user_id,
-            userName: user?.name || 'Synth member',
-            avatarUrl: user?.avatar_url ?? null,
-            rating: r.rating != null ? Number(r.rating) : null,
-            text: text || `Rated ${subject}`,
-            subject,
-            createdAt: r.created_at,
+            review: {
+              id: r.id,
+              user_id: r.user_id,
+              event_id: r.event_id || '',
+              artist_id: r.artist_id,
+              rating: r.rating != null ? Number(r.rating) : undefined,
+              review_text: String(r.review_text ?? '').trim(),
+              is_public: true,
+              created_at: r.created_at,
+              updated_at: r.created_at,
+              likes_count: r.likes_count ?? 0,
+              comments_count: r.comments_count ?? 0,
+              shares_count: 0,
+              is_liked_by_user: false,
+              reaction_emoji: '',
+              photos: r.photos || [],
+              videos: [],
+              mood_tags: [],
+              genre_tags: [],
+              context_tags: [],
+              artist_name: artist?.name,
+              venue_name: r.venue_id ? venueById.get(r.venue_id) : undefined,
+              Event_date: r.Event_date,
+            } as ReviewWithEngagement,
+            author: { name: user?.name || 'Synth member', avatar_url: user?.avatar_url || undefined },
+            artistImageUrl: artist?.image_url || undefined,
           };
         })
     );
@@ -94,7 +108,7 @@ export const ConnectionsHub: React.FC<{
 
   return (
     <div className="community-board" data-tour="discover-vibes">
-      <section className="community-tile" aria-label="Pick5">
+      <section className="community-tile community-tile--wide" aria-label="Pick5">
         <div style={{ padding: '14px 16px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <img src={PICK5_LOGO_SRC} alt="" width={28} height={28} style={{ borderRadius: 7 }} />
@@ -104,60 +118,75 @@ export const ConnectionsHub: React.FC<{
         </div>
       </section>
 
-      <section className="community-tile" aria-label="Messages">
-        <article className="connection-card">
-          <div>
-            <div className="connection-card__name">Messages</div>
-            <p className="connection-card__artists" style={{ marginTop: 8, lineHeight: 1.45 }}>
-              Genre communities and your chats are in Messages. Join a fan chat, then talk with the people you meet.
-            </p>
-          </div>
-          <div>
-            <button type="button" className="thread-btn thread-btn--interest" onClick={onOpenMessages}>
-              <MessageCircle size={15} aria-hidden="true" />
-              Open Messages
-            </button>
-          </div>
-        </article>
-      </section>
-
       <section className="community-tile community-tile--feed" aria-label="The community">
         <div className="feed-banner">
           <h2>The community</h2>
-          <p>Recent reviews from everyone on Synth.</p>
+          <p>What people on Synth are saying about the shows they went to. Tap one to read it and join in.</p>
         </div>
         {loadingReviews ? (
           <div className="community-board__empty connection-card__status connection-card__status--muted">Loading reviews…</div>
         ) : reviews.length === 0 ? (
           <div className="community-board__empty connection-card__status connection-card__status--muted">No public reviews yet.</div>
         ) : (
-          <div className="community-board__reviews">
-            {reviews.map((review) => (
-              <button
+          <div className="community-board__reviews community-board__reviews--cards">
+            {reviews.map(({ review, author, artistImageUrl }) => (
+              <ThreadReviewCard
                 key={review.id}
-                type="button"
-                className="community-review"
-                onClick={() => onNavigateToProfile?.(review.userId)}
-              >
-                <div className="community-review__who">
-                  <span className="community-review__avatar" aria-hidden="true">
-                    {review.avatarUrl ? <img src={review.avatarUrl} alt="" /> : review.userName.slice(0, 1)}
-                  </span>
-                  <span className="community-review__name">{review.userName}</span>
-                  <span className="community-review__on">on {review.subject}</span>
-                  {review.rating != null && (
-                    <span className="community-review__rating">
-                      <Star size={12} fill="currentColor" aria-hidden="true" />
-                      {review.rating.toFixed(1)}
-                    </span>
-                  )}
-                </div>
-                <p>{review.text.length > 180 ? `${review.text.slice(0, 180).replace(/\s+\S*$/, '')}…` : review.text}</p>
-              </button>
+                review={review}
+                author={author}
+                artistImageUrl={artistImageUrl}
+                currentUserId={currentUserId}
+                chipLabel="Review"
+                onOpen={() => setOpenReviewId(review.id)}
+              />
             ))}
           </div>
         )}
       </section>
+
+      {openReviewId &&
+        createPortal(
+          <Dialog open onOpenChange={(open) => !open && setOpenReviewId(null)}>
+            <DialogContent
+              className="fixed inset-0 z-[100] max-w-none w-full h-full m-0 p-0 overflow-hidden rounded-none"
+              style={{
+                left: 0,
+                top: 0,
+                transform: 'none',
+                width: '100vw',
+                height: '100vh',
+                maxWidth: '100vw',
+                maxHeight: '100vh',
+                borderRadius: 0,
+                border: 'none',
+                boxShadow: 'none',
+                backgroundColor: 'var(--neutral-50)',
+              }}
+            >
+              <DialogTitle className="sr-only">Review Details</DialogTitle>
+              <DialogDescription className="sr-only">Full review with comments and likes</DialogDescription>
+              <ReviewDetailView
+                reviewId={openReviewId}
+                currentUserId={currentUserId}
+                onBack={() => setOpenReviewId(null)}
+                onEdit={() => {
+                  const id = openReviewId;
+                  setOpenReviewId(null);
+                  window.dispatchEvent(new CustomEvent('synth-open-review-edit', { detail: { reviewId: id } }));
+                }}
+                onDelete={async () => {
+                  setOpenReviewId(null);
+                  await loadReviews();
+                }}
+                onOpenProfile={(userId) => {
+                  setOpenReviewId(null);
+                  onNavigateToProfile?.(userId);
+                }}
+              />
+            </DialogContent>
+          </Dialog>,
+          document.body
+        )}
     </div>
   );
 };

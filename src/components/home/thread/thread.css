@@ -1,3 +1,5 @@
+@import '../../feed/feedBanner.css';
+
 /* Synth wordmark used in the home header. */
 
 .synth-wordmark {
@@ -39,11 +41,11 @@
 .page-shell:has(.grouped-canvas),
 .grouped-canvas,
 [data-testid="web-app-shell"]:has(.grouped-canvas) {
-  background-color: #ffffff;
+  background-color: var(--neutral-0);
   background-image:
-    radial-gradient(ellipse 90% 60% at 100% -10%, rgba(204, 36, 134, 0.2), transparent 58%),
-    radial-gradient(ellipse 80% 55% at -10% 110%, rgba(255, 176, 214, 0.55), transparent 60%),
-    linear-gradient(180deg, #ffffff 0%, #fff6fa 36%, #f7cfe2 100%);
+    radial-gradient(ellipse 90% 60% at 100% -10%, rgba(204, 36, 134, 0.1), transparent 58%),
+    radial-gradient(ellipse 80% 55% at -10% 110%, rgba(255, 176, 214, 0.3), transparent 60%),
+    linear-gradient(180deg, var(--neutral-0) 0%, #fffafc 40%, #fce8f1 100%);
   background-attachment: fixed;
 }
 
@@ -66,28 +68,7 @@
   box-shadow: none;
 }
 
-.web-rail {
-  background: rgba(255, 255, 255, 0.38);
-  backdrop-filter: blur(28px) saturate(170%);
-  -webkit-backdrop-filter: blur(28px) saturate(170%);
-  border-right: 1px solid rgba(255, 255, 255, 0.62);
-  box-shadow: inset -1px 0 0 rgba(204, 36, 134, 0.08);
-}
-
-.web-rail__item {
-  background: transparent;
-}
-
-.web-rail__item:hover {
-  background: rgba(255, 255, 255, 0.38);
-}
-
-.web-rail__item--active {
-  background: rgba(255, 255, 255, 0.68);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 10px 24px -16px rgba(204, 36, 134, 0.55);
-}
+/* Desktop rail styles live in src/components/layout/WebDesktopRail.css. */
 
 .grouped-canvas .synth-search-bar {
   background: rgba(255, 255, 255, 0.55);
@@ -123,7 +104,7 @@
   justify-content: center;
   border-radius: 999px;
   background: var(--brand-pink-500);
-  color: #fff;
+  color: var(--neutral-0);
   font-size: 12px;
   letter-spacing: 0;
 }
@@ -151,28 +132,7 @@
   border: none;
 }
 
-.feed-banner {
-  padding: 14px 16px 8px;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  font-family: var(--font-family);
-}
-
-.feed-banner h2 {
-  font-size: 17px;
-  line-height: 1.2;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--neutral-900);
-}
-
-.feed-banner p {
-  margin-top: 4px;
-  font-size: 14px;
-  line-height: 1.4;
-  color: var(--neutral-600);
-}
+/* .feed-banner lives in src/components/feed/feedBanner.css (also used on Profile). */
 
 .connections-kicker {
   margin: 0 0 10px;
@@ -248,6 +208,15 @@
   gap: 12px;
   padding: 0 12px 12px;
   align-content: start;
+}
+
+/* Pick5 is the only tile above the feed now, so it spans the row. */
+.community-tile--wide { grid-column: 1 / -1; }
+
+/* Review cards (ThreadReviewCard): one column on phones, more as space allows. */
+.community-board__reviews--cards {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
 
 .community-board__reviews .community-review {
@@ -334,8 +303,8 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  background: var(--brand-pink-050);
-  color: var(--brand-pink-500);
+  background: var(--neutral-100);
+  color: var(--neutral-600);
   font-size: 13px;
   font-weight: 800;
 }
@@ -497,7 +466,7 @@
   font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.01em;
-  color: #fff;
+  color: var(--neutral-0);
   background: rgba(14, 14, 14, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(12px) saturate(140%);
@@ -508,8 +477,8 @@
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--chip-dot, var(--brand-pink-500));
-  box-shadow: 0 0 8px var(--chip-dot, var(--brand-pink-500));
+  background: var(--chip-dot, var(--neutral-200));
+  box-shadow: 0 0 8px var(--chip-dot, var(--neutral-200));
 }
 
 .thread-chip[data-reason='recommended'] { --chip-dot: #8b80ff; }
@@ -546,7 +515,7 @@
   color: var(--neutral-600);
 }
 
-.thread-card__date span:first-child { color: var(--brand-pink-500); }
+.thread-card__date span:first-child { color: var(--neutral-900); }
 
 .thread-card__date strong {
   font-size: 22px;
@@ -581,7 +550,7 @@
   margin-top: 3px;
   font-size: 14px;
   font-weight: 650;
-  color: var(--brand-pink-500);
+  color: var(--neutral-600);
 }
 
 .thread-card__where {
@@ -594,7 +563,7 @@
   color: var(--neutral-600);
 }
 
-.thread-card__where svg { color: var(--brand-pink-500); flex-shrink: 0; }
+.thread-card__where svg { color: var(--neutral-400); flex-shrink: 0; }
 
 .thread-card__review {
   padding: 10px 12px;
@@ -609,6 +578,60 @@
   gap: 4px;
   font-size: 13px;
   color: #92400e;
+}
+
+/* Review card (ThreadReviewCard): same shell as the event card. */
+.thread-chip[data-reason='review'] { --chip-dot: #facc15; }
+
+.thread-card__author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--neutral-800, #262626);
+}
+
+.thread-card__avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--neutral-0), 0 0 0 3px var(--neutral-200);
+}
+
+.thread-card__avatar--initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--neutral-600);
+  background: var(--neutral-100);
+}
+
+.thread-card__stars {
+  display: inline-flex;
+  gap: 1px;
+  margin-left: auto;
+  flex-shrink: 0;
+  color: #f59e0b;
+}
+
+.thread-card__stars .is-empty { color: var(--neutral-300, #d4d4d4); }
+
+.thread-card__quote {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--neutral-700, #404040);
+}
+
+.thread-card__rating + .thread-card__rating {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #fde68a;
 }
 
 .thread-card__review-meta svg { color: #f59e0b; }
@@ -647,6 +670,7 @@
   align-items: center;
   gap: 8px;
   padding-top: 2px;
+  container-type: inline-size;
 }
 
 .thread-btn {
@@ -676,10 +700,16 @@
 
 .thread-btn--interest { color: var(--brand-pink-500); background: var(--brand-pink-050); }
 .thread-btn--interest:hover { background: color-mix(in srgb, var(--brand-pink-500) 14%, var(--neutral-0)); }
-.thread-btn--interest.is-active { color: #fff; background: var(--brand-pink-500); }
+.thread-btn--interest.is-active { color: var(--neutral-0); background: var(--brand-pink-500); }
 .thread-btn--interest.is-active:hover { background: var(--brand-pink-600); }
 
 .thread-btn--ghost { background: transparent; border-color: var(--neutral-200); }
+
+/* Narrow cards (phones, Community grid columns): three buttons don't fit one row, so Share goes icon-only. */
+@container (max-width: 400px) {
+  .thread-btn--share { width: 38px; padding: 0; flex-shrink: 0; }
+  .thread-btn--share .thread-btn__label { display: none; }
+}
 
 /* ---------- Pick5 partner card: purple frame + logo strip ---------- */
 
@@ -704,7 +734,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  color: #fff;
+  color: var(--neutral-0);
   background:
     radial-gradient(120% 140% at 100% 0%, rgba(166, 71, 255, 0.45) 0%, transparent 60%),
     linear-gradient(160deg, var(--pick5-surface, #1a0b2e) 0%, var(--pick5-bg, #0a0514) 100%);
@@ -714,7 +744,7 @@
 .thread-card__partner img {
   flex-shrink: 0;
   border-radius: 7px;
-  background: #000;
+  background: var(--neutral-900);
   box-shadow: 0 0 0 1px rgba(201, 166, 255, 0.3), 0 0 14px rgba(166, 71, 255, 0.55);
 }
 
@@ -841,7 +871,8 @@
 }
 
 .inset-row--action {
-  color: var(--brand-pink-500);
+  color: var(--neutral-900);
   font-weight: 600;
   font-size: 17px;
 }
+

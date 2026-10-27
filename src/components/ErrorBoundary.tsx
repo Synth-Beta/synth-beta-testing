@@ -2,6 +2,7 @@
 
 import { Component, type ReactNode } from "react"
 import { AlertTriangle } from "lucide-react"
+import { reportClientIssue } from "@/services/clientIssueReporter"
 
 interface Props {
   children: ReactNode
@@ -25,6 +26,11 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: any) {
     console.error("[v0] Error caught by boundary:", error, errorInfo)
+    reportClientIssue({
+      message: error?.message || 'React render error',
+      stack: error?.stack,
+      context: typeof errorInfo?.componentStack === 'string' ? errorInfo.componentStack.slice(0, 300) : undefined,
+    })
   }
 
   render() {

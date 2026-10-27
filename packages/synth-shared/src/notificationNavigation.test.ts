@@ -58,10 +58,20 @@ for (const type of ['event_reminder_1_week', 'event_reminder_3_days', 'event_rem
   );
 }
 
-// 5. Week-1 / re-engagement nudges open the show when there is one, else Discover.
+// 5. Week-1 / re-engagement nudges open the show when there is one, else Home.
 for (const type of ['week1_nudge', 'reengagement']) {
   assert.deepEqual(resolveNotificationExpoPath(type, { event_id: EVENT_ID, step: 2 }), { path: `/event/${EVENT_ID}` });
-  assert.deepEqual(resolveNotificationExpoPath(type, { step: 3 }), { path: '/(tabs)/discover' });
+  assert.deepEqual(resolveNotificationExpoPath(type, { step: 3 }), { path: '/(tabs)' });
 }
 
 console.log('notificationNavigation: day-after review routing OK');
+
+// Merged friend-interest rows (supabase/migrations/20261026150000) drop event_id: open the friend.
+assert.deepEqual(
+  resolveNotificationExpoPath('event_interest', { event_count: 3 }, { actorUserId: 'friend-1' }),
+  { path: '/user/friend-1' }
+);
+assert.deepEqual(
+  resolveNotificationExpoPath('event_interest', { event_id: 'ev-1' }, { actorUserId: 'friend-1' }),
+  { path: '/event/ev-1' }
+);

@@ -20,8 +20,9 @@ import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
+import { InviteService, normalizeInviteCode } from '../../src/services/inviteService';
 import { getCurrentLatLng, reverseGeocode } from '../../src/services/locationService';
-import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail } from '@synth/shared';
+import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail, describeProfileSaveError, validateOnboardingProfile, normalizeBirthday, isPlaceholderName } from '@synth/shared';
 import type { User } from '@supabase/supabase-js';
 import { ContactEmailContext } from '../_layout';
 import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
@@ -43,26 +44,12 @@ const GENDER_OPTIONS = [
     { value: 'other', label: 'Other' },
 ] as const;
 
-function calcAge(birthday: string): number | null {
-    const d = new Date(birthday);
-    if (isNaN(d.getTime())) return null;
-    const today = new Date();
-    let age = today.getFullYear() - d.getFullYear();
-    const m = today.getMonth() - d.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
-    return age;
-}
-
 /** Sanitize text to valid username characters (lowercase, letters, numbers, _, .) */
 function sanitizeUsername(text: string): string {
     return text.toLowerCase().replace(/[^a-z0-9_.]/g, '').slice(0, 30);
 }
 
 /** Suggest a username from display name (first + last initial, then random digits if needed) */
-/** Values the signup trigger seeds when it creates the row - not a user's own choice. */
-function isPlaceholderName(name: string | null | undefined): boolean {
-    return !name || name.trim() === 'Synth User';
-}
 
 function isPlaceholderUsername(username: string | null | undefined): boolean {
     return !username || /^user_[0-9a-f]{8}$/.test(username);
@@ -97,6 +84,13 @@ export default function ProfileSetupScreen() {
     const [acquisitionSourceError, setAcquisitionSourceError] = useState('');
     const [contactEmail, setContactEmail] = useState('');
     const [contactEmailError, setContactEmailError] = useState('');
+    const [inviteCode, setInviteCode] = useState('');
+    const [inviteCodeError, setInviteCodeError] = useState('');
+
+    // Opened a friend's invite link before signing up: the code was saved by _layout.
+    useEffect(() => {
+        void InviteService.getPending().then((code) => code && setInviteCode(code));
+    }, []);
 
     const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,7 +112,7 @@ export default function ProfileSetupScreen() {
 
             // The signup trigger seeds name/username when the row is created, so a
             // stored value is only worth showing if a human actually chose it.
-            const storedName = isPlaceholderName(draft?.name) ? '' : (draft?.name ?? '');
+            const storedName = isPlaceholderName(draft?.name, user.email) ? '' : (draft?.name ?? '');
             const storedUsername = isPlaceholderUsername(draft?.username)
                 ? ''
                 : (draft?.username ?? '');
@@ -217,16 +211,11 @@ export default function ProfileSetupScreen() {
         scheduleUsernameCheck(sanitized);
     };
 
-    const validateBirthday = (val: string): string => {
-        // Accept YYYY-MM-DD
-        if (!val.trim()) return 'Birthday is required';
-        const d = new Date(val.trim());
-        if (isNaN(d.getTime())) return 'Enter a valid date (YYYY-MM-DD)';
-        const age = calcAge(val.trim());
-        if (age === null || age < 13) return 'You must be at least 13 years old';
-        if (age > 120) return 'Enter a valid birthday';
-        return '';
-    };
+    // Same rules as web (@synth/shared onboardingRules): required name, username,
+    // birthday (13+), how did you hear; city, gender, bio, photo optional.
+    const rules = validateOnboardingProfile({ name, username, birthday, acquisitionSource: acquisitionSource || null });
+    const validateBirthday = (val: string): string =>
+        validateOnboardingProfile({ name, username, birthday: val, acquisitionSource: acquisitionSource || null }).errors.birthday ?? '';
 
     const handleBirthdayBlur = () => {
         setBirthdayError(validateBirthday(birthday));
@@ -245,11 +234,7 @@ export default function ProfileSetupScreen() {
         // Apple Sign In users who decline name sharing arrive with no name in their auth
         // metadata, so this field starts blank. It used to be unvalidated, which sent an
         // empty name into a NOT NULL column and hard-stopped them on this screen.
-        name.trim().length > 0 &&
-        username.length >= 3 &&
-        (usernameStatus === 'available' || usernameStatus === 'idle') &&
-        !validateBirthday(birthday) &&
-        !!acquisitionSource;
+        rules.ok && (usernameStatus === 'available' || usernameStatus === 'idle');
 
     const handleContinue = async () => {
         // Final birthday validation
@@ -276,11 +261,6 @@ export default function ProfileSetupScreen() {
             setAcquisitionSourceError('Please select where you heard about Synth');
             return;
         }
-        if (acquisitionSource === 'Other' && !trimmedOtherSource) {
-            trackOnboardingBlock('acquisition_other_detail');
-            setAcquisitionSourceError('Please describe where you heard about Synth');
-            return;
-        }
 
         const trimmedContactEmail = contactEmail.trim();
         // Validate only what they actually typed: a blank passes through (the
@@ -304,12 +284,12 @@ export default function ProfileSetupScreen() {
             await OnboardingService.saveProfileSetup(user.id, {
                 name: name.trim() || undefined,
                 username: username.trim() || undefined,
-                birthday: birthday.trim() || undefined,
+                birthday: birthday.trim() ? normalizeBirthday(birthday) : undefined,
                 location_city: city.trim() || undefined,
                 gender: gender || undefined,
                 acquisition_source: acquisitionSource || undefined,
                 other_acquisition_source:
-                    acquisitionSource === 'Other' ? trimmedOtherSource : null,
+                    acquisitionSource === 'Other' ? trimmedOtherSource || null : null,
                 contact_email:
                     showContactEmailField && trimmedContactEmail ? trimmedContactEmail : undefined,
             });
@@ -320,13 +300,28 @@ export default function ProfileSetupScreen() {
                 markContactEmailSaved(trimmedContactEmail);
             }
         } catch (e) {
-            trackOnboardingBlock('profile_save_threw');
+            // Real reason + code instead of a generic retry loop (see describeProfileSaveError).
+            const { code, message } = describeProfileSaveError(e);
+            trackOnboardingBlock(`profile_save_threw_${code}`);
             console.warn('Profile setup write failed:', e);
             setSaving(false);
-            Alert.alert('Something went wrong', 'Could not save your profile. Please try again.');
+            Alert.alert('Could not save your profile', message);
             return;
         } finally {
             setSaving(false);
+        }
+
+        // Redeemed at the end of onboarding (artists step); here we only check it exists.
+        const code = normalizeInviteCode(inviteCode);
+        if (code) {
+            const invite = await InviteService.preview(code).catch(() => null);
+            if (!invite) {
+                setInviteCodeError("That invite code doesn't exist. Check it or leave it blank.");
+                return;
+            }
+            await InviteService.savePending(code);
+        } else {
+            await InviteService.clearPending();
         }
 
         router.push('/(onboarding)/connect');
@@ -422,7 +417,9 @@ export default function ProfileSetupScreen() {
                         <TextInput
                             style={[styles.input, birthdayError ? styles.inputError : null]}
                             value={birthday}
-                            onChangeText={v => { setBirthday(v); if (birthdayError) setBirthdayError(''); }}
+                            // Live error once a full date is typed: Continue greys out on a bad birthday, so
+                            // waiting for blur (keyboard still up) left a dead button with no reason.
+                            onChangeText={v => { setBirthday(v); setBirthdayError(v.trim().length >= 10 ? validateBirthday(v) : ''); }}
                             onBlur={handleBirthdayBlur}
                             placeholder="YYYY-MM-DD"
                             placeholderTextColor={SynthTokens.colors.neutral400}
@@ -439,7 +436,7 @@ export default function ProfileSetupScreen() {
                     {/* City */}
                     <View style={styles.fieldBlock}>
                         <View style={styles.cityLabelRow}>
-                            <Text style={styles.label}>City</Text>
+                            <Text style={styles.label}>City (optional)</Text>
                             <Pressable onPress={handleUseCurrentLocation} disabled={locatingCity} hitSlop={8}>
                                 {locatingCity ? (
                                     <ActivityIndicator size="small" color={PINK} />
@@ -490,7 +487,7 @@ export default function ProfileSetupScreen() {
                     </View>
                     {acquisitionSource === 'Other' && (
                         <View style={styles.fieldBlock}>
-                            <Text style={styles.label}>Share a bit more</Text>
+                            <Text style={styles.label}>Share a bit more (optional)</Text>
                             <TextInput
                                 style={[styles.input, styles.otherInput, acquisitionSourceError ? styles.inputError : null]}
                                 value={acquisitionSourceOther}
@@ -509,6 +506,26 @@ export default function ProfileSetupScreen() {
                             )}
                         </View>
                     )}
+
+                    <View style={styles.fieldBlock}>
+                        <Text style={styles.label}>Invite code (optional)</Text>
+                        <TextInput
+                            style={[styles.input, inviteCodeError ? styles.inputError : null]}
+                            value={inviteCode}
+                            onChangeText={text => {
+                                setInviteCode(text.toUpperCase());
+                                if (inviteCodeError) setInviteCodeError('');
+                            }}
+                            placeholder="e.g., K7M2QX"
+                            placeholderTextColor={SynthTokens.colors.neutral400}
+                            autoCapitalize="characters"
+                            autoCorrect={false}
+                            maxLength={12}
+                        />
+                        <Text style={[styles.hint, inviteCodeError ? { color: '#dc2626' } : null]}>
+                            {inviteCodeError || "Got a code from a friend? You'll be friends on Synth right away."}
+                        </Text>
+                    </View>
 
                     {showContactEmailField && (
                         <View style={styles.fieldBlock}>

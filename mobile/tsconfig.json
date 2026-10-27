@@ -4,6 +4,7 @@
     "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./*", "./src/*"],
       "@synth/shared": ["../packages/synth-shared/src/index.ts"]

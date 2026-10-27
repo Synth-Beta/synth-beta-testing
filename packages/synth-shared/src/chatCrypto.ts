@@ -93,7 +93,22 @@ export function createChatCrypto(deps: ChatCryptoDeps) {
    * Key is derived from the chat id alone, so it is the same for every participant
    * and every device. The cache only skips the 100k-iteration derivation.
    */
-  async function getChatKey(chatId: string): Promise<Uint8Array> {
+  // One in-flight/resolved key per chat. Opening a thread decrypts ~50 rows in parallel;
+  // without this, every row missed the storage cache at once and each ran its own
+  // 100k-iteration PBKDF2 in pure JS, which is what made chats slow to load.
+  const keyPromises = new Map<string, Promise<Uint8Array>>();
+
+  function getChatKey(chatId: string): Promise<Uint8Array> {
+    let pending = keyPromises.get(chatId);
+    if (!pending) {
+      pending = loadChatKey(chatId);
+      keyPromises.set(chatId, pending);
+      pending.catch(() => keyPromises.delete(chatId));
+    }
+    return pending;
+  }
+
+  async function loadChatKey(chatId: string): Promise<Uint8Array> {
     const storageKey = `chat_key_${chatId}`;
 
     try {
@@ -192,6 +207,7 @@ export function createChatCrypto(deps: ChatCryptoDeps) {
 
   /** Clears the cached key. It re-derives on next use — this does not revoke access. */
   async function deleteChatKey(chatId: string, _userId?: string): Promise<void> {
+    keyPromises.delete(chatId);
     await storage.removeItem(`chat_key_${chatId}`);
   }
 

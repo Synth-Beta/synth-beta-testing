@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { Alert, AppState, type AppStateStatus } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as Linking from 'expo-linking';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,7 +24,11 @@ import { InterestedProvider } from '../src/contexts/InterestedContext';
 import { BrowseLocationProvider } from '../src/contexts/BrowseLocationContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryService';
+import { InviteService, inviteCodeFromUrl } from '../src/services/inviteService';
+import { installAppIssueReporter, setAppIssueRoute } from '../src/services/clientIssueReporter';
 import { needsContactEmail, resolveNotificationExpoPath } from '@synth/shared';
+
+installAppIssueReporter();
 
 /**
  * Lets screens that write `contact_email` (onboarding's profile step, the
@@ -83,6 +89,10 @@ export default function RootLayout() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const segments = useSegments();
   const router = useRouter();
+
+  useEffect(() => {
+    setAppIssueRoute(segments.join('/') || '/');
+  }, [segments]);
 
   // Stable primitives derived from `session`. Supabase emits a NEW session object on
   // every auth event (INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED / USER_UPDATED),
@@ -188,6 +198,34 @@ export default function RootLayout() {
       subscription?.unsubscribe();
     };
   }, []);
+
+  // Magic links (sign-in screen) open synth://#access_token=...; detectSessionInUrl is off
+  // in React Native, so without this the link opened the app and left them on sign-in.
+  const authLinkUrl = Linking.useURL();
+  useEffect(() => {
+    if (!authLinkUrl) return;
+    // join.getsynth.app/i/CODE: keep the code even if routing bounces them to sign-in/onboarding.
+    const inviteCode = inviteCodeFromUrl(authLinkUrl);
+    if (inviteCode) {
+      void InviteService.savePending(inviteCode);
+      return;
+    }
+    const { params, errorCode } = QueryParams.getQueryParams(authLinkUrl);
+    if (errorCode || params.error_description) {
+      console.warn('[auth] sign-in link rejected', errorCode ?? params.error_description);
+      Alert.alert('Sign-in link expired', 'Request a new link from the sign-in screen.');
+      return;
+    }
+    if (params.access_token && params.refresh_token) {
+      void supabase.auth
+        .setSession({ access_token: params.access_token, refresh_token: params.refresh_token })
+        .then(({ error }) => error && console.warn('[auth] sign-in link setSession failed', error.message));
+    } else if (params.code) {
+      void supabase.auth
+        .exchangeCodeForSession(params.code)
+        .then(({ error }) => error && console.warn('[auth] sign-in link code exchange failed', error.message));
+    }
+  }, [authLinkUrl]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -479,9 +517,6 @@ export default function RootLayout() {
 
     const seg0 = segments[0];
 
-    // The feature tour works signed in or out (sign-in links to it); never redirect off it.
-    if (seg0 === 'tour') return;
-
     // `useSegments()` can be empty at `/` before `app/index.tsx` resolves — otherwise no branch matches and the UI can stall.
     if (seg0 === undefined) {
       void (async () => {
@@ -524,7 +559,8 @@ export default function RootLayout() {
       seg0 === 'connect' ||
       seg0 === 'user' ||
       seg0 === 'artist' ||
-      seg0 === 'venue';
+      seg0 === 'venue' ||
+      (seg0 as string) === 'i'; // new route: typed-routes list regenerates on next expo start
 
     if (!session && seg0 === 'profile-edit') pendingProfileEdit = true;
 
@@ -600,7 +636,7 @@ export default function RootLayout() {
       <Stack.Screen name="my-events" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="app-menu" options={{ headerShown: false, animation: 'slide_from_right' }} />
-      <Stack.Screen name="tour" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
+      <Stack.Screen name="i/[code]" options={{ headerShown: false, gestureEnabled: false }} />
     </Stack>
     </BrowseLocationProvider>
     </InterestedProvider>

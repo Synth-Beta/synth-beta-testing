@@ -19,13 +19,34 @@ import { fileURLToPath } from 'url';
 import JambaseSyncService from '../backend/jambase-sync-service.mjs';
 import { fetchGenresForArtist, isEmptyGenres } from './fetch-artist-genres.mjs';
 import { isUnchanged, stripServerOwned } from './sync-helpers.mjs';
+import { postEventIngestReport } from '../api/_lib/eventIngestReport.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
+ * JamBase concerts are titled "Artist at Venue". A festival bill is the
+ * festival name itself (Coachella, EDC Orlando, a cruise), so it has no " at ".
+ */
+function isFestivalListing(name) {
+  return !/(^|\s)at\s/i.test(String(name || ''));
+}
+
+function genreTagsFromPerformer(performer) {
+  const raw = performer?.genre;
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const tags = [];
+  for (const tag of list) {
+    const text = tag == null ? '' : String(tag).trim();
+    if (text && text.toLowerCase() !== 'small artist') tags.push(text);
+  }
+  return tags;
+}
+
+/**
  * Event genres: if and only if the event's genres are empty, use the artist's genres.
- * Never overwrite non-empty event genres.
+ * Never overwrite non-empty event genres. Festivals are the exception: their genres
+ * are the union of every performer on the bill.
  * @param {*} eventGenres - genres from the event
  * @param {*} artistGenres - genres from the artist (may be undefined if not fetched)
  * @returns genres to store on the event
@@ -1112,15 +1133,18 @@ class IncrementalSync3NF {
       }
     }
 
-    // Events whose own JamBase payload has no genre inherit their artist's
+    // Concerts whose own JamBase payload has no genre inherit their artist's
     // genre at write time (eventGenresFromArtistIfEmpty only fills in when
     // eventGenres is empty — never overwrites an event that already has one).
+    // Festivals always union every performer's genres onto the event.
     // 'small artist' is a placeholder default, not a real genre, so it's
     // excluded here the same way it's excluded from the SQL backfill.
     const artistIdsNeedingGenreFallback = [...new Set(
-      eventsData
-        .filter(e => isEmptyGenres(e.genres) && e.artist_id)
-        .map(e => e.artist_id)
+      eventsData.flatMap(e => {
+        if (Array.isArray(e.lineup_artist_ids) && e.lineup_artist_ids.length) return e.lineup_artist_ids;
+        if (isEmptyGenres(e.genres) && e.artist_id) return [e.artist_id];
+        return [];
+      })
     )];
     const artistGenresById = new Map();
     if (artistIdsNeedingGenreFallback.length > 0) {
@@ -1158,6 +1182,8 @@ class IncrementalSync3NF {
           artist_name,
           venue_name,
           genres: eventGenres,
+          lineup_genres: lineupGenres,
+          lineup_artist_ids: lineupArtistIds,
           ...eventDataClean
         } = eventData;
 
@@ -1170,7 +1196,17 @@ class IncrementalSync3NF {
         // Filter it out by value instead of testing the array's shape.
         const cleanedArtistGenres = (rawArtistGenres || []).filter((g) => g !== 'small artist');
         const usableArtistGenres = cleanedArtistGenres.length > 0 ? cleanedArtistGenres : undefined;
-        const resolvedGenres = eventGenresFromArtistIfEmpty(eventGenres, usableArtistGenres);
+        let resolvedGenres = eventGenresFromArtistIfEmpty(eventGenres, usableArtistGenres);
+        if (Array.isArray(lineupGenres)) {
+          const fromBill = [];
+          for (const artistId of lineupArtistIds || []) {
+            for (const tag of artistGenresById.get(artistId) || []) {
+              if (tag && tag !== 'small artist') fromBill.push(tag);
+            }
+          }
+          const merged = [...new Set([...lineupGenres, ...fromBill])];
+          if (merged.length > 0) resolvedGenres = merged;
+        }
 
         const isUpdate = existingByJambase.has(jambaseEventId);
         const row = {
@@ -1264,9 +1300,15 @@ class IncrementalSync3NF {
     const eventsData = [];
 
     for (const jambaseEvent of upcomingEvents) {
-      const headliner = jambaseEvent.performer?.find(p => p['x-isHeadliner']) || jambaseEvent.performer?.[0];
-      if (headliner) {
-        const artistData = this.syncService.extractArtistData(headliner);
+      const performers = Array.isArray(jambaseEvent.performer) ? jambaseEvent.performer : [];
+      const headliner = performers.find(p => p['x-isHeadliner']) || performers[0];
+      // Festivals keep every performer so the event can store the whole bill's genres.
+      // Concerts still persist the headliner only.
+      const selected = isFestivalListing(jambaseEvent.name)
+        ? performers
+        : [headliner].filter(Boolean);
+      for (const performer of selected) {
+        const artistData = this.syncService.extractArtistData(performer);
         if (artistData) {
           // extractArtistData only provides `identifier` (e.g. "jambase:252172").
           // upsertArtists3NF dedups/maps by `jambase_artist_id` (stripped), so derive
@@ -1337,12 +1379,25 @@ class IncrementalSync3NF {
       if (eventData) {
         // `extractEventData` returns `jambase_id`; the 3NF upsert path expects
         // explicit Jambase id fields for dedupe + FK resolution.
-        eventsData.push({
+        const row = {
           ...eventData,
           jambase_event_id: eventData.jambase_id,
           artist_jambase_id_text: jambaseArtistId || null,
           venue_jambase_id_text: jambaseVenueId || null,
-        });
+        };
+        if (isFestivalListing(jambaseEvent.name)) {
+          const lineupGenres = [];
+          const lineupArtistIds = [];
+          for (const performer of Array.isArray(jambaseEvent.performer) ? jambaseEvent.performer : []) {
+            lineupGenres.push(...genreTagsFromPerformer(performer));
+            const performerId = performer?.identifier?.replace(/^jambase:/, '');
+            const performerUuid = performerId ? artistUuidMap.get(performerId) : null;
+            if (performerUuid) lineupArtistIds.push(performerUuid);
+          }
+          row.lineup_genres = [...new Set(lineupGenres)];
+          row.lineup_artist_ids = [...new Set(lineupArtistIds)];
+        }
+        eventsData.push(row);
       }
     }
 
@@ -1826,6 +1881,10 @@ async function main() {
       console.error(`🚨 CRITICAL: failed to re-enable triggers after ${signal}: ${err.message}`);
       console.error('🚨 Manual fix: SELECT public.set_new_event_notification_triggers(true);');
     }
+    await postEventIngestReport({
+      kind: 'failure',
+      error: `Sync interrupted by ${signal} before the catalog refresh finished`,
+    });
     process.exit(1);
   };
   process.on('SIGINT', () => reenableTriggersAndExit('SIGINT'));
@@ -1834,11 +1893,23 @@ async function main() {
   await incrementalSync.run();
 
   console.log(`✅ Sync completed at: ${new Date().toISOString()}`);
+  const { error: snapshotError } = await syncService.supabase.rpc('refresh_jambase_ingest_snapshot');
+  if (snapshotError) {
+    console.error(`⚠️ Ingest snapshot refresh failed: ${snapshotError.message}`);
+    await postEventIngestReport({
+      kind: 'failure',
+      error: `Sync finished, but the stored report did not rebuild: ${snapshotError.message}`,
+    });
+  } else {
+    console.log('✅ Ingest snapshot refreshed');
+    await postEventIngestReport({ kind: 'success' });
+  }
 }
 
-main().catch(error => {
+main().catch(async (error) => {
   const errorMsg = `❌ Fatal error at ${new Date().toISOString()}: ${error.message}\n${error.stack}\n`;
   console.error(errorMsg);
+  await postEventIngestReport({ kind: 'failure', error: error.message });
   // Also write to error log file directly
   try {
     const projectRoot = path.resolve(__dirname, '..');

@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SkeletonFriendCard } from '@/components/skeleton/SkeletonFriendCard';
 import { hapticLight } from '@/utils/haptics';
 import { ProgressiveImage } from '@/components/ui/ProgressiveImage';
+import './feedBanner.css';
 
 export interface FriendSuggestion {
   user_id: string;
@@ -148,7 +149,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
   if (!exclusionsLoaded) {
     return (
       <div className="flex w-full flex-col">
-        <section className="feed-banner mb-3 w-full" aria-label="Who you should know">
+        <section className={cn('feed-banner mb-3 w-full', !onDismiss && 'text-center')} aria-label="Who you should know">
           <h2>Who You Should Know</h2>
           <p>People you may know</p>
         </section>
@@ -177,7 +178,10 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 
   return (
     <div className="flex w-full flex-col">
-      <section className="feed-banner mb-3 flex w-full items-start justify-between gap-3" aria-label="Who you should know">
+      <section
+        className={cn('feed-banner mb-3 flex w-full items-start gap-3', onDismiss ? 'justify-between' : 'justify-center text-center')}
+        aria-label="Who you should know"
+      >
         <div>
           <h2>Who You Should Know</h2>
           <p>People you may know</p>
@@ -196,7 +200,8 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
 
       {/* Horizontal Scrollable Rail */}
       <ScrollArea className="w-full">
-        <div className="flex justify-start gap-1 px-2 pb-2">
+        {/* w-max + mx-auto centers the row but still scrolls from the first card when it overflows */}
+        <div className="mx-auto flex w-max gap-1 px-2 pb-2">
           {visibleSuggestions.map((suggestion) => {
             const isSent = sentUserIds.has(suggestion.user_id);
             const isRemoving = removingUserIds.has(suggestion.user_id);

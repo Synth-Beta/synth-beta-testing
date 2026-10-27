@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     avatarLetter: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontWeight: '700',
         fontSize: 11,
     },

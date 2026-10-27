@@ -1,18 +1,21 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Home, Compass, Plus, MessageCircle, User } from 'lucide-react-native';
+import { Home, Users, Plus, MessageCircle, User } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { supabase } from '../../integrations/supabase/client';
 import { useUnreadMessageCount } from '../../hooks/useUnreadMessageCount';
+import { useTourTarget } from '../../../lib/tourTargets';
 
 /** Matches web [BottomNav.css](src/components/BottomNav/BottomNav.css): pink-050 bar, 2px top border, pill CTA 70×40, brand pink icons. */
 const CTA_WIDTH = 70;
 const CTA_HEIGHT = 40;
 const CTA_RADIUS = 20;
 const ICON_SIZE = 24;
+// Screen-reader names; same labels as the web nav.
+const TAB_LABELS: Record<string, string> = { index: 'Home', discover: 'Community', chat: 'Messages', profile: 'Profile' };
 const INACTIVE_ICON_OPACITY = 0.5;
 
 /** Tab routes that exist in the navigator but should not show a bar item (e.g. stack-like screens under Tabs). */
@@ -43,6 +46,13 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
   }, []);
 
   const unreadMessages = useUnreadMessageCount(uid);
+  // App tutorial spotlights these tab buttons.
+  const tourRefs: Record<string, ReturnType<typeof useTourTarget>> = {
+    discover: useTourTarget('tab-discover'),
+    post: useTourTarget('tab-post'),
+    chat: useTourTarget('tab-chat'),
+    profile: useTourTarget('tab-profile'),
+  };
   const tabBarTotalHeight = TAB_BAR_HEIGHT + insets.bottom;
 
   const onTabPress = (route: (typeof state.routes)[0], isFocused: boolean) => {
@@ -72,6 +82,7 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
             return (
               <View key={route.key} style={styles.tabItem}>
                 <TouchableOpacity
+                  ref={tourRefs.post}
                   onPress={() => onTabPress(route, isFocused)}
                   style={styles.ctaPill}
                   activeOpacity={0.85}
@@ -94,7 +105,7 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
               case 'index':
                 return <Home color={iconColor} size={ICON_SIZE} />;
               case 'discover':
-                return <Compass color={iconColor} size={ICON_SIZE} />;
+                return <Users color={iconColor} size={ICON_SIZE} />;
               case 'chat':
                 return <MessageCircle color={iconColor} size={ICON_SIZE} />;
               case 'profile':
@@ -107,10 +118,12 @@ export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) 
           return (
             <TouchableOpacity
               key={route.key}
+              ref={tourRefs[route.name]}
               onPress={() => onTabPress(route, isFocused)}
               style={styles.tabItem}
               activeOpacity={0.7}
               accessibilityRole="button"
+              accessibilityLabel={TAB_LABELS[route.name]}
               accessibilityState={{ selected: isFocused }}
             >
               <View style={styles.iconWrap}>

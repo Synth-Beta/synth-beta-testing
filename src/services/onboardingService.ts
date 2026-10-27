@@ -34,7 +34,8 @@ export class OnboardingService {
    * whichever platform it signs up on — the two diverging is what produced completed
    * users with zero artist signal.
    */
-  static readonly MIN_ARTIST_FOLLOWS = 3;
+  // 1 to finish (3 blocked people at the last step); the copy still recommends 3+.
+  static readonly MIN_ARTIST_FOLLOWS = 1;
 
   /**
    * Counts follows already on record, so progress carries across platforms and sessions:
@@ -59,6 +60,19 @@ export class OnboardingService {
    * different things once a minimum is enforced, and swallowing the difference is exactly
    * what let a broken query lock users out of the mobile app.
    */
+  /**
+   * Artist step list from onboarding_suggested_artists: the user's streaming top artists,
+   * then artists playing near them, then nationally, with `preselected` on the first 3.
+   * Falls back to getSuggestedArtists (first 3 pre-selected by the caller) if the RPC
+   * is missing or fails, so the step always has something to offer.
+   */
+  static async getOnboardingSuggestions(limit = 12): Promise<(ArtistOption & { preselected?: boolean })[]> {
+    const { data, error } = await supabase.rpc('onboarding_suggested_artists', { p_limit: limit });
+    if (!error && Array.isArray(data) && data.length > 0) return data;
+    if (error) console.warn('onboarding_suggested_artists failed, using fallback:', error.message);
+    return OnboardingService.getSuggestedArtists(limit);
+  }
+
   static async getSuggestedArtists(limit = 24): Promise<ArtistOption[]> {
     const { data, error } = await supabase
       .from('artists')
@@ -245,26 +259,16 @@ export class OnboardingService {
         // retry could only ever fire on an unrelated error - and when it did, it silently
         // discarded mandatory answers, wrote a half-filled row, and reported success to a
         // caller that had no way to know. Fail loudly instead.
-        if (error.code === 'PGRST204' || error.message?.includes('does not exist')) {
-          throw new Error(`Could not save your profile (${error.message}). Please try again.`);
-        }
-        
-        // Handle unique constraint violation for username
-        if (error.code === '23505' && error.message?.includes('username')) {
-          throw new Error('Username is already taken');
-        }
-        
+        // Throw the original error so its code survives: the caller turns it into a
+        // clear message (describeProfileSaveError) and logs the code. Wrapping it, or
+        // returning false, showed users a generic error they retried until they quit.
         throw error;
       }
 
       return true;
     } catch (error: any) {
       console.error('Error saving profile setup:', error);
-      // Re-throw username-specific errors so they can be displayed to the user
-      if (error?.message?.includes('Username is already taken')) {
-        throw error;
-      }
-      return false;
+      throw error;
     }
   }
 

@@ -22,6 +22,7 @@ interface AttendeeSelectorProps {
 interface UserProfile {
   user_id: string;
   name: string;
+  username?: string | null;
   avatar_url?: string;
 }
 
@@ -36,7 +37,9 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
 
   // Search users with debounce
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    // Strip PostgREST filter syntax so a typed comma or bracket can't break the query.
+    const term = searchQuery.trim().replace(/^@/, '').replace(/[,()%*\\]/g, '');
+    if (!term) {
       setSearchResults([]);
       return;
     }
@@ -46,8 +49,8 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
       try {
         const { data: profiles, error } = await supabase
           .from('users')
-          .select('user_id, name, avatar_url')
-          .ilike('name', `%${searchQuery}%`)
+          .select('user_id, name, username, avatar_url')
+          .or(`name.ilike.%${term}%,username.ilike.%${term}%`)
           .neq('user_id', userId) // Exclude current user
           .order('name', { ascending: true })
           .limit(10);
@@ -165,6 +168,7 @@ export function AttendeeSelector({ value, onChange, userId, metOnSynth, onMetOnS
                       </Avatar>
                       <div className="flex-1 text-left">
                         <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                        {user.username && <p className="text-xs text-gray-500">@{user.username}</p>}
                       </div>
                       {isAlreadyAdded && (
                         <span className="text-xs text-green-600">Added</span>

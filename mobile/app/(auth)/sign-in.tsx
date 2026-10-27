@@ -13,9 +13,8 @@ import {
 } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getAuthRedirectOrigin } from '@synth/shared';
+import { getAuthRedirectOrigin, isEmailNotConfirmedError } from '@synth/shared';
 import { isSupabaseConfigured, supabase } from '../../src/integrations/supabase/client';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { getAppleSignInCredential, persistAppleDisplayName } from '../../lib/appleAuth';
@@ -24,6 +23,7 @@ import {
   AndroidGoogleSignInPlaceholder,
   AndroidGoogleSignInRow,
 } from '../../src/components/auth/AndroidGoogleSignInRow';
+import { CheckEmailPanel } from '../../src/components/auth/CheckEmailPanel';
 
 /** Matches web `Auth.tsx` primary / link pink. */
 const AUTH_PINK = '#FF3399';
@@ -31,7 +31,6 @@ const AUTH_PINK = '#FF3399';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
-  const router = useRouter();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,6 +38,8 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Set when the account exists but the email isn't confirmed yet: shows CheckEmailPanel.
+  const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
 
   const androidGoogleClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim();
   const webGoogleClientId =
@@ -87,6 +88,10 @@ export default function SignInScreen() {
       const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (e) throw e;
     } catch (err: unknown) {
+      if (isEmailNotConfirmedError(err)) {
+        setPendingConfirmEmail(email.trim());
+        return;
+      }
       setError(formatAuthError(err));
     } finally {
       setLoading(false);
@@ -103,7 +108,7 @@ export default function SignInScreen() {
         siteUrlEnv: process.env.EXPO_PUBLIC_SITE_URL,
         fallback: 'https://join.getsynth.app',
       });
-      const { error: e } = await supabase.auth.signUp({
+      const { data, error: e } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -112,7 +117,14 @@ export default function SignInScreen() {
         },
       });
       if (e) throw e;
-      setMessage('Check your email to confirm, or sign in if confirmations are off.');
+      // Supabase answers success with no identities when the email is already registered.
+      if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+        setError('That email already has an account. Switch to Sign In.');
+        return;
+      }
+      // No session means a confirmation email went out; with a session the root layout
+      // takes over.
+      if (!data.session) setPendingConfirmEmail(email.trim());
     } catch (err: unknown) {
       setError(formatAuthError(err));
     } finally {
@@ -202,7 +214,7 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <LinearGradient
-        colors={['#fdf2f8', '#ffffff', '#fce7f3', '#ffffff', '#fdf2f8']}
+        colors={['#fdf2f8', '#FFFDFA', '#fce7f3', '#FFFDFA', '#fdf2f8']}
         locations={[0, 0.25, 0.5, 0.75, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -251,6 +263,14 @@ export default function SignInScreen() {
             </View>
           ) : null}
 
+          {pendingConfirmEmail ? (
+            <CheckEmailPanel
+              email={pendingConfirmEmail}
+              password={password}
+              onBack={() => setPendingConfirmEmail(null)}
+            />
+          ) : (
+          <>
           {mode === 'signup' ? (
             <TextInput
               style={styles.input}
@@ -315,10 +335,8 @@ export default function SignInScreen() {
               <Text style={styles.magicLinkText}>Email me a magic link</Text>
             </TouchableOpacity>
           ) : null}
-
-          <TouchableOpacity onPress={() => router.push('/tour')} style={styles.skip}>
-            <Text style={styles.skipText}>New to Synth? Take a quick tour</Text>
-          </TouchableOpacity>
+          </>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -332,7 +350,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.94)',
     borderRadius: 30,
     padding: 24,
-    shadowColor: '#000',
+    shadowColor: '#0E0E0E',
     shadowOpacity: 0.2,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -377,7 +395,7 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: AUTH_PINK },
   primaryText: { color: SynthTokens.colors.neutral0, fontWeight: '600', fontSize: 16 },
   apple: {
-    backgroundColor: '#000',
+    backgroundColor: '#0E0E0E',
     marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,6 +421,4 @@ const styles = StyleSheet.create({
   dividerText: { color: SynthTokens.colors.neutral600, marginHorizontal: 10, fontSize: 16, fontWeight: '500' },
   error: { color: '#dc2626', marginTop: 8 },
   message: { color: SynthTokens.colors.neutral600, marginTop: 8 },
-  skip: { marginTop: 22, alignItems: 'center' },
-  skipText: { color: '#8a236d', fontSize: 14, fontWeight: '500' },
 });

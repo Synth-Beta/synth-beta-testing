@@ -307,7 +307,7 @@ export default function ProfileScreen() {
 
         <View style={styles.actionRow}>
           <Pressable style={styles.editProfile} onPress={() => router.push('/profile-edit')}>
-            <Pencil size={18} color="#fff" />
+            <Pencil size={18} color="#FFFDFA" />
             <Text style={styles.editProfileText}>Edit Profile</Text>
           </Pressable>
           <Pressable style={styles.gearBtn} onPress={() => router.push('/settings')}>
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     padding: SynthTokens.spacing.lg,
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
-    shadowColor: '#000',
+    shadowColor: '#0E0E0E',
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   editProfileText: {
-    color: '#fff',
+    color: '#FFFDFA',
     fontWeight: '700',
     fontSize: 16,
   },
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: SynthTokens.colors.neutral0,
-    shadowColor: '#000',
+    shadowColor: '#0E0E0E',
     shadowOpacity: 0.06,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },

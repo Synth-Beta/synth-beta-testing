@@ -12,7 +12,6 @@ import type { User } from '@/types/database';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { notificationService } from '@/services/notificationService';
-import { ChevronRight, Link2 } from 'lucide-react';
 
 export interface SideMenuProps {
 /**
@@ -41,7 +40,7 @@ export interface SideMenuProps {
   onNavigateToNotifications?: (filter?: 'friends_only' | 'exclude_friends') => void;
   onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested' | 'passport') => void;
   onNavigateToSettings?: () => void;
-  onNavigateToPickFive?: () => void;
+  onNavigateToCalendar?: () => void;
   onNavigateToVerification?: () => void;
   onNavigateToStreamingStats?: () => void;
 
@@ -80,7 +79,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   onNavigateToSettings,
   onNavigateToVerification,
   onNavigateToStreamingStats,
-  onNavigateToPickFive,
+  onNavigateToCalendar,
   onSignOut,
   anchor = 'left',
 }) => {
@@ -90,17 +89,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [pendingFriendRequestsCount, setPendingFriendRequestsCount] = useState(0);
-  const [pickFiveConnected, setPickFiveConnected] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen || !user) return;
-    void supabase
-      .from('user_connections')
-      .select('service')
-      .eq('service', 'pickfive')
-      .limit(1)
-      .then(({ data }) => setPickFiveConnected((data ?? []).length > 0));
-  }, [isOpen, user]);
 
   // Fetch user profile data and notification counts when menu opens
   useEffect(() => {
@@ -294,6 +282,20 @@ export const SideMenu: React.FC<SideMenuProps> = ({
             />
 
             <MenuCategory
+              label="Calendar"
+              icon="calendar"
+              onPress={() => {
+                try {
+                  trackInteraction.click('view', 'side_menu_calendar', { source: 'side_menu' });
+                } catch (error) {
+                  console.error('Error tracking menu click:', error);
+                }
+                onNavigateToCalendar?.();
+                onClose();
+              }}
+            />
+
+            <MenuCategory
               label="Streaming Stats"
               icon="music"
               onPress={() => {
@@ -321,27 +323,6 @@ export const SideMenu: React.FC<SideMenuProps> = ({
               }}
             />
           </div>
-
-          {/* Pick Five */}
-          <button
-            type="button"
-            className="side-menu__pickfive"
-            onClick={() => {
-              onNavigateToPickFive?.();
-              onClose();
-            }}
-          >
-            <span className="side-menu__pickfive-icon" aria-hidden="true">
-              <Link2 size={20} />
-            </span>
-            <span className="side-menu__pickfive-text">
-              <span className="side-menu__pickfive-title">{pickFiveConnected ? 'Pick Five connected' : 'Connect Pick Five'}</span>
-              <span className="side-menu__pickfive-body">
-                {pickFiveConnected ? 'Your accounts are linked' : 'Link your Pick Five account'}
-              </span>
-            </span>
-            <ChevronRight size={20} aria-hidden="true" />
-          </button>
 
           {/* Verification */}
           {user && accountInfo?.verified && (

@@ -12,6 +12,7 @@ import {
     Platform,
     FlatList,
     Alert,
+    Switch,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { CalendarDays, ChevronLeft, X } from 'lucide-react-native';
@@ -29,6 +30,7 @@ import {
 } from '../../hooks/useReviewForm';
 import { SearchService } from '../../services/searchService';
 import { MobileAttendeeSelector } from './MobileAttendeeSelector';
+import { ReviewVideoField } from './ReviewVideoField';
 import { MobileImageCropper, type CropResult } from './MobileImageCropper';
 import { PastDatePicker, formatEventDateLabel } from './PastDatePicker';
 import { Image } from 'expo-image';
@@ -225,6 +227,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
 
     const [userId, setUserId] = useState<string | null>(null);
     const draftChecked = useRef(false);
+    const scrollRef = useRef<ScrollView>(null);
+    // A video still uploading would be dropped if the step changed or the review submitted.
+    const [videoUploading, setVideoUploading] = useState(false);
     const skipDraft = !!(initialEventId || prefill?.artistId || prefill?.venueId || prefill?.eventDate);
     const [previousVenueReview, setPreviousVenueReview] = useState<UserReview | null>(null);
     const [eventQuery, setEventQuery] = useState('');
@@ -597,7 +602,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             {/* Rating summary card */}
             <View style={styles.summaryCard}>
                 {formData.selectedArtist?.name && formData.selectedVenue?.name ? (
-                    <SynthText variant="accent" style={[styles.center, { color: '#fff' }]}>
+                    <SynthText variant="accent" style={[styles.center, { color: '#FFFDFA' }]}>
                         {formData.selectedArtist.name} @ {formData.selectedVenue.name}
                     </SynthText>
                 ) : null}
@@ -606,7 +611,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         {formData.eventDate}
                     </SynthText>
                 ) : null}
-                <SynthText variant="h2" style={[styles.center, styles.mt8, { color: '#fff' }]}>
+                <SynthText variant="h2" style={[styles.center, styles.mt8, { color: '#FFFDFA' }]}>
                     {averageRatingForSummary > 0 ? `${averageRatingForSummary.toFixed(1)} / 5` : '—'}
                 </SynthText>
                 {categoryBreakdown.length > 0 ? (
@@ -614,7 +619,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         {categoryBreakdown.map(c => (
                             <View key={c.label} style={styles.categoryItem}>
                                 <SynthText variant="meta" style={{ color: 'rgba(255,255,255,0.8)' }}>{c.label}</SynthText>
-                                <SynthText variant="accent" style={{ color: '#fff' }}>{c.rating ? c.rating.toFixed(1) : '—'}</SynthText>
+                                <SynthText variant="accent" style={{ color: '#FFFDFA' }}>{c.rating ? c.rating.toFixed(1) : '—'}</SynthText>
                             </View>
                         ))}
                     </View>
@@ -694,6 +699,25 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     </SynthText>
                 </Pressable>
             </View>
+
+            {formData.isPublic && formData.ticketPricePaid ? (
+                <View style={styles.priceToggleRow}>
+                    <View style={{ flex: 1 }}>
+                        <SynthText variant="body" style={styles.privacyCardTitle}>
+                            Show what I paid (${formData.ticketPricePaid})
+                        </SynthText>
+                        <SynthText variant="meta" color="secondary">
+                            Off keeps the price private. Your ratings and "worth it" answer stay public.
+                        </SynthText>
+                    </View>
+                    <Switch
+                        value={formData.showTicketPrice}
+                        onValueChange={(v) => updateFormData({ showTicketPrice: v })}
+                        trackColor={{ true: SynthTokens.colors.brandPink500 }}
+                        accessibilityLabel="Show what I paid on my review"
+                    />
+                </View>
+            ) : null}
 
             {/* Privacy info bullets (matches web) */}
             <View style={styles.privacyInfo}>
@@ -1164,17 +1188,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                     {errors.reviewText}
                                 </SynthText>
                             ) : null}
-                            <SynthText variant="meta" color="secondary" style={styles.mt12}>
-                                Video link (optional)
-                            </SynthText>
-                            <TextInput
-                                style={styles.input}
-                                autoCapitalize="none"
-                                placeholder="https://…"
-                                placeholderTextColor={SynthTokens.colors.neutral600}
-                                value={formData.videos[0] ?? ''}
-                                onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
-                            />
+                            {userId ? (
+                                <ReviewVideoField
+                                    value={formData.videos}
+                                    onChange={(videos) => updateFormData({ videos })}
+                                    userId={userId}
+                                    onUploadingChange={setVideoUploading}
+                                />
+                            ) : null}
                             {userId ? (
                                 <MobileAttendeeSelector
                                     value={formData.attendees}
@@ -1182,6 +1203,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                     userId={userId}
                                     metOnSynth={formData.metOnSynth}
                                     onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                                    onSearchFocus={scrollPickerIntoView}
                                 />
                             ) : null}
                         </View>
@@ -1222,6 +1244,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             value={formData.reviewText}
                             maxLength={max}
                             onChangeText={(t) => updateFormData({ reviewText: t })}
+                            // Grow with the text instead of scrolling inside the box, so a swipe
+                            // that starts on it scrolls the page.
+                            scrollEnabled={false}
                             placeholder="What made this night unforgettable? Any standout moments future fans should know?"
                             placeholderTextColor={SynthTokens.colors.neutral600}
                         />
@@ -1235,7 +1260,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         ) : null}
                         <Pressable style={styles.primaryBtn} onPress={pickPhotos} disabled={uploadingPhoto || formData.photos.length >= 5}>
                             {uploadingPhoto ? (
-                                <ActivityIndicator color="#fff" />
+                                <ActivityIndicator color="#FFFDFA" />
                             ) : (
                                 <SynthText variant="body" style={styles.primaryBtnText}>
                                     Add photos ({formData.photos.length}/5)
@@ -1243,17 +1268,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             )}
                         </Pressable>
                         {renderPhotoStrip()}
-                        <SynthText variant="meta" color="secondary" style={styles.mt12}>
-                            Video link (optional)
-                        </SynthText>
-                        <TextInput
-                            style={styles.input}
-                            autoCapitalize="none"
-                            placeholder="https://…"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                            value={formData.videos[0] ?? ''}
-                            onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
-                        />
+                        {userId ? (
+                            <ReviewVideoField
+                                value={formData.videos}
+                                onChange={(videos) => updateFormData({ videos })}
+                                userId={userId}
+                                onUploadingChange={setVideoUploading}
+                            />
+                        ) : null}
                         {userId ? (
                             <MobileAttendeeSelector
                                 value={formData.attendees}
@@ -1261,6 +1283,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                 userId={userId}
                                 metOnSynth={formData.metOnSynth}
                                 onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                                onSearchFocus={scrollPickerIntoView}
                             />
                         ) : null}
                     </View>
@@ -1330,6 +1353,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             value={formData.reviewText}
                             maxLength={max}
                             onChangeText={(t) => updateFormData({ reviewText: t })}
+                            // Grow with the text instead of scrolling inside the box, so a swipe
+                            // that starts on it scrolls the page.
+                            scrollEnabled={false}
                             placeholder="What made this night unforgettable? Any standout moments future fans should know?"
                             placeholderTextColor={SynthTokens.colors.neutral600}
                         />
@@ -1343,7 +1369,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                         ) : null}
                         <Pressable style={styles.primaryBtn} onPress={pickPhotos} disabled={uploadingPhoto || formData.photos.length >= 5}>
                             {uploadingPhoto ? (
-                                <ActivityIndicator color="#fff" />
+                                <ActivityIndicator color="#FFFDFA" />
                             ) : (
                                 <SynthText variant="body" style={styles.primaryBtnText}>
                                     Add photos ({formData.photos.length}/5)
@@ -1351,17 +1377,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                             )}
                         </Pressable>
                         {renderPhotoStrip()}
-                        <SynthText variant="meta" color="secondary" style={styles.mt12}>
-                            Video link (optional)
-                        </SynthText>
-                        <TextInput
-                            style={styles.input}
-                            autoCapitalize="none"
-                            placeholder="https://…"
-                            placeholderTextColor={SynthTokens.colors.neutral600}
-                            value={formData.videos[0] ?? ''}
-                            onChangeText={(t) => updateFormData({ videos: t.trim() ? [t.trim()] : [] })}
-                        />
+                        {userId ? (
+                            <ReviewVideoField
+                                value={formData.videos}
+                                onChange={(videos) => updateFormData({ videos })}
+                                userId={userId}
+                                onUploadingChange={setVideoUploading}
+                            />
+                        ) : null}
                         {userId ? (
                             <MobileAttendeeSelector
                                 value={formData.attendees}
@@ -1369,6 +1392,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                                 userId={userId}
                                 metOnSynth={formData.metOnSynth}
                                 onMetOnSynthChange={(v) => updateFormData({ metOnSynth: v })}
+                                onSearchFocus={scrollPickerIntoView}
                             />
                         ) : null}
                     </View>
@@ -1380,6 +1404,11 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         }
 
         return null;
+    };
+
+    // Search results render under the input; after the keyboard opens, bring them into view.
+    const scrollPickerIntoView = () => {
+        setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
     };
 
     const stepContent = renderStep();
@@ -1433,14 +1462,21 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 <View style={styles.back} />
             </View>
             <ScrollView
+                ref={scrollRef}
                 contentContainerStyle={[styles.scroll, { paddingBottom: scrollPaddingBottom }]}
                 keyboardShouldPersistTaps="handled"
+                // Dragging the page dismisses the keyboard so the rest of the step is reachable.
+                keyboardDismissMode="on-drag"
             >
                 {stepContent}
             </ScrollView>
             <View style={[styles.footer, { paddingBottom: bottomSpacing }]}>
                 {showContinue ? (
-                    <Pressable style={styles.primaryBtn} onPress={() => nextStep()}>
+                    <Pressable
+                        style={[styles.primaryBtn, videoUploading && styles.primaryBtnDisabled]}
+                        onPress={() => nextStep()}
+                        disabled={videoUploading}
+                    >
                         <SynthText variant="body" style={styles.primaryBtnText}>
                             Continue
                         </SynthText>
@@ -1448,12 +1484,12 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                 ) : null}
                 {showSubmit ? (
                     <Pressable
-                        style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}
+                        style={[styles.primaryBtn, (isLoading || videoUploading) && styles.primaryBtnDisabled]}
                         onPress={() => void handleSubmit()}
-                        disabled={isLoading}
+                        disabled={isLoading || videoUploading}
                     >
                         {isLoading ? (
-                            <ActivityIndicator color="#fff" />
+                            <ActivityIndicator color="#FFFDFA" />
                         ) : (
                             <SynthText variant="body" style={styles.primaryBtnText}>
                                 Submit Review
@@ -1495,7 +1531,7 @@ const styles = StyleSheet.create({
         minHeight: 48,
         justifyContent: 'center',
         fontSize: 16,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
         color: SynthTokens.colors.neutral900,
     },
     area: {
@@ -1506,7 +1542,7 @@ const styles = StyleSheet.create({
         minHeight: 120,
         textAlignVertical: 'top',
         fontSize: 16,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
         color: SynthTokens.colors.neutral900,
     },
     listRow: {
@@ -1548,7 +1584,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         marginRight: 8,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
     },
     durationCard: {
         borderWidth: 2,
@@ -1556,7 +1592,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 14,
         marginTop: 12,
-        backgroundColor: '#fff',
+        backgroundColor: '#FFFDFA',
     },
     durationCardOn: {
         borderColor: SynthTokens.colors.brandPink500,
@@ -1603,6 +1639,7 @@ const styles = StyleSheet.create({
         color: SynthTokens.colors.neutral900,
     },
     privacyGroup: { gap: 12, marginTop: 8 },
+    priceToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 },
     privacyCard: {
         borderWidth: 2,
         borderColor: SynthTokens.colors.neutral200,
@@ -1686,7 +1723,7 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         alignItems: 'center',
     },
-    primaryBtnText: { color: '#fff', fontWeight: '600' },
+    primaryBtnText: { color: '#FFFDFA', fontWeight: '600' },
     primaryBtnDisabled: { opacity: 0.7 },
     photoStrip: {
         flexDirection: 'row',
@@ -1719,7 +1756,7 @@ const styles = StyleSheet.create({
         paddingVertical: 1,
     },
     thumbnailBadgeText: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontSize: 9,
         fontWeight: '700',
     },
@@ -1740,7 +1777,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(180,0,0,0.6)',
     },
     photoActionTxt: {
-        color: '#fff',
+        color: '#FFFDFA',
         fontSize: 10,
         fontWeight: '600',
     },

@@ -35,6 +35,7 @@ import CreatorAnalyticsDashboard from '@/pages/Analytics/CreatorAnalyticsDashboa
 import BusinessAnalyticsDashboard from '@/pages/Analytics/BusinessAnalyticsDashboard';
 import AdminAnalyticsDashboard from '@/pages/Analytics/AdminAnalyticsDashboard';
 import { StreamingStatsPage } from '@/pages/StreamingStatsPage';
+import { CalendarPage } from '@/pages/CalendarPage';
 import { getFallbackEventImage } from '@/utils/eventImageFallbacks';
 import { DiscoverView } from './discover/DiscoverView';
 import { ConnectView } from './connect/ConnectView';
@@ -61,6 +62,7 @@ type ViewType =
   | 'feed'
   | 'search'
   | 'streaming-stats'
+  | 'calendar'
   | 'profile'
   | 'profile-edit'
   | 'settings'
@@ -968,7 +970,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToArtist={handleNavigateToArtist}
             onNavigateToVenue={handleNavigateToVenue}
             onNavigateToChat={handleNavigateToChat}
-            onNavigateToDiscover={() => setCurrentView('search')}
+            // Event-less notifications fall back to browsing shows, which live on Home now (not Community).
+            onNavigateToDiscover={() => setCurrentView('feed')}
             filter={notificationFilter}
           />
         );
@@ -986,6 +989,15 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         );
       case 'streaming-stats':
         return <StreamingStatsPage onBack={() => setCurrentView('feed')} />;
+      case 'calendar':
+        return (
+          <CalendarPage
+            currentUserId={user.id}
+            onBack={() => setCurrentView('feed')}
+            onNavigateToProfile={handleNavigateToProfile}
+            onNavigateToChat={handleNavigateToChat}
+          />
+        );
       case 'analytics':
         // Render the appropriate analytics dashboard based on account type
         if (!accountInfo) {
@@ -1247,7 +1259,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         onNavigateToNotifications={handleNavigateToNotifications}
         onNavigateToProfile={handleNavigateToProfile}
         onNavigateToSettings={() => openSettingsPage()}
-        onNavigateToPickFive={() => openSettingsPage('pickfive')}
+        onNavigateToCalendar={() => setCurrentView('calendar')}
         onNavigateToStreamingStats={() => setCurrentView('streaming-stats')}
         onNavigateToVerification={() => {
           handleNavigateToProfile(undefined, 'passport');

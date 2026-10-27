@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * one-shot iOS dialog. iOS never re-asks after a denial, so we only spend the
  * system prompt once the user has seen the app and said yes on our own screen.
  */
-export type PushPrimerReason = 'interested' | 'session';
+export type PushPrimerReason = 'interested' | 'session' | 'onboarding';
 type Listener = (reason: PushPrimerReason) => void;
 
 const requestListeners = new Set<Listener>();

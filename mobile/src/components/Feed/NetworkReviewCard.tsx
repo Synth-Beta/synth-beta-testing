@@ -342,7 +342,7 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                         )}
                     </Pressable>
 
-                    <Pressable onPress={openDetail} style={styles.actionBtn}>
+                    <Pressable onPress={() => router.push(`/review/${review.id}?comments=1` as any)} style={styles.actionBtn}>
                         <MessageCircle size={18} color={SynthTokens.colors.neutral600} />
                         <Text style={styles.actionCount}>{commentsCount}</Text>
                     </Pressable>

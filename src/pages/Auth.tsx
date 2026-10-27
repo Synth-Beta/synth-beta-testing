@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
+import { CheckEmailPanel } from '@/components/auth/CheckEmailPanel';
+import { isEmailNotConfirmedError } from '@synth/shared';
 
 // Add the elegant-shift animation keyframes
 const styles = `
@@ -39,6 +41,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   const [signupEmailAlreadyRegistered, setSignupEmailAlreadyRegistered] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [resetPasswordSent, setResetPasswordSent] = useState(false);
+  // Account exists but the email isn't confirmed yet: shows CheckEmailPanel.
+  const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
   const signInEmailInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleEmailChange = (value: string) => {
@@ -135,18 +139,10 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
         console.log("Sign-up success: user id:", data.user.id, "email confirmed:", !!data.user.email_confirmed_at);
       }
 
-      // Confirmations are OFF in this app: we must have a real session before proceeding.
-      let session = data?.session ?? null;
-      if (!session) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (signInError) throw signInError;
-        session = signInData?.session ?? null;
-      }
-
-      if (!session) {
+      // Email confirmation is on (since 2026-10-23): no session means the confirmation
+      // email went out, so show "check your email" instead of trying to sign in.
+      if (!data?.session) {
+        setPendingConfirmEmail(email.trim());
         return;
       }
 
@@ -194,6 +190,12 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
       });
 
       if (error) {
+        // Unconfirmed accounts get a 400 too, which the mapping below turns into
+        // "Invalid email or password". Send them to the check-your-email screen.
+        if (isEmailNotConfirmedError(error)) {
+          setPendingConfirmEmail(email.trim());
+          return;
+        }
         // Always log errors in production for debugging
         logSupabaseAuthError('signInWithPassword', error);
         if (import.meta.env.DEV) {
@@ -313,6 +315,15 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-10 pb-10">
+          {pendingConfirmEmail ? (
+            <CheckEmailPanel
+              email={pendingConfirmEmail}
+              password={password}
+              redirectTo={getRedirectUrl('/#onboarding')}
+              onConfirmed={onAuthSuccess}
+              onBack={() => setPendingConfirmEmail(null)}
+            />
+          ) : (
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'signin' | 'signup')}>
             <TabsList className="grid w-full grid-cols-2 bg-[#F5F5DC] rounded-xl p-1">
               <TabsTrigger
@@ -495,6 +506,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
               </div>
             </TabsContent>
           </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>

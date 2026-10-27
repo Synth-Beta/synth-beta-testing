@@ -446,7 +446,7 @@ export function ReviewDetailView({
             onClick={onBack}
             style={{
               background: 'var(--brand-pink-500, #e91e8c)',
-              color: '#fff',
+              color: '#FFFDFA',
               border: 'none',
               borderRadius: '10px',
               padding: '10px 24px',
@@ -468,35 +468,35 @@ export function ReviewDetailView({
       rating: reviewData.artist_performance_rating || 0,
       feedback: reviewData.artist_performance_feedback,
       icon: Music2,
-      iconColor: 'var(--brand-pink-500)', // Pink
+      iconColor: 'var(--neutral-400)',
     },
     {
       name: 'Production Quality',
       rating: reviewData.production_rating || 0,
       feedback: reviewData.production_feedback,
       icon: Lightbulb,
-      iconColor: '#8B5CF6', // Purple
+      iconColor: 'var(--neutral-400)',
     },
     {
       name: 'Venue Experience',
       rating: reviewData.venue_rating || 0,
       feedback: reviewData.venue_feedback,
       icon: Building2,
-      iconColor: '#3B82F6', // Blue
+      iconColor: 'var(--neutral-400)',
     },
     {
       name: 'Location & Logistics',
       rating: reviewData.location_rating || 0,
       feedback: reviewData.location_feedback,
       icon: Compass,
-      iconColor: '#10B981', // Green
+      iconColor: 'var(--neutral-400)',
     },
     {
       name: 'Value for Ticket',
       rating: reviewData.value_rating || 0,
       feedback: reviewData.value_feedback,
       icon: DollarSign,
-      iconColor: '#F59E0B', // Orange/Amber
+      iconColor: 'var(--neutral-400)',
     },
   ].filter(cat => cat.rating > 0);
 
@@ -710,8 +710,8 @@ export function ReviewDetailView({
                     gap: 8,
                     padding: '14px 20px',
                     borderRadius: 14,
-                    border: '2px solid var(--brand-pink-500)',
-                    background: 'var(--brand-pink-500)',
+                    border: '2px solid var(--neutral-900)',
+                    background: 'var(--neutral-900)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     width: 'fit-content',
@@ -719,7 +719,7 @@ export function ReviewDetailView({
                     overflow: 'hidden',
                   }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--brand-pink-050, #FDF2F8)', flexShrink: 0 }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--neutral-0)', flexShrink: 0 }}>
                     <path d="m11 7.601-5.994 8.19a1 1 0 0 0 .1 1.298l.817.818a1 1 0 0 0 1.314.087L15.09 12"/>
                     <path d="M16.5 21.174C15.5 20.5 14.372 20 13 20c-2.058 0-3.928 2.356-6 2-2.072-.356-2.775-3.369-1.5-4.5"/>
                     <circle cx="16" cy="7" r="5"/>
@@ -727,7 +727,7 @@ export function ReviewDetailView({
                   <span style={{ 
                     fontWeight: 600, 
                     fontSize: 16, 
-                    color: 'var(--brand-pink-050, #FDF2F8)',
+                    color: 'var(--neutral-0)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -749,8 +749,8 @@ export function ReviewDetailView({
                     gap: 8,
                     padding: '14px 20px',
                     borderRadius: 14,
-                    border: '2px solid var(--brand-pink-200, #FBCFE8)',
-                    background: 'var(--brand-pink-050, #FDF2F8)',
+                    border: '2px solid var(--neutral-200)',
+                    background: 'var(--neutral-100)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     width: 'fit-content',
@@ -758,11 +758,11 @@ export function ReviewDetailView({
                     overflow: 'hidden',
                   }}
                 >
-                  <MapPin size={20} style={{ color: 'var(--brand-pink-500)', flexShrink: 0 }} />
+                  <MapPin size={20} style={{ color: 'var(--neutral-600)', flexShrink: 0 }} />
                   <span style={{ 
                     fontWeight: 600, 
                     fontSize: 16, 
-                    color: 'var(--brand-pink-500)',
+                    color: 'var(--neutral-900)',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -811,18 +811,18 @@ export function ReviewDetailView({
                       gap: 8,
                       padding: '6px 12px',
                       borderRadius: 999,
-                      border: '2px solid var(--brand-pink-500)',
+                      border: '2px solid var(--neutral-200)',
                       background: 'var(--neutral-0)',
                       cursor: 'pointer',
                       maxWidth: '100%',
                     }}
                   >
-                    <Avatar className="w-7 h-7" style={{ border: '2px solid var(--brand-pink-500)' }}>
+                    <Avatar className="w-7 h-7" style={{ border: '2px solid var(--neutral-200)' }}>
                       <AvatarImage src={attendee.avatar_url || undefined} alt={attendee.name} />
                       <AvatarFallback
                         style={{
-                          background: 'var(--brand-pink-500)',
-                          color: 'var(--neutral-0)',
+                          background: 'var(--neutral-200)',
+                          color: 'var(--neutral-600)',
                           fontWeight: 600,
                         }}
                       >
@@ -835,7 +835,7 @@ export function ReviewDetailView({
                         fontSize: 'var(--typography-meta-size, 16px)',
                         fontWeight: 'var(--typography-meta-weight, 500)',
                         lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                        color: 'var(--brand-pink-500)',
+                        color: 'var(--neutral-900)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -860,7 +860,7 @@ export function ReviewDetailView({
               className="rounded-xl border-2"
               style={{
                 borderColor: 'var(--neutral-300, #c9c9c9)',
-                backgroundColor: 'white',
+                backgroundColor: '#FFFDFA',
                 padding: '16px',
               }}
             >
@@ -928,7 +928,7 @@ export function ReviewDetailView({
                     className="flex gap-6 items-center p-3 rounded-xl border-2"
                     style={{
                       borderColor: 'var(--neutral-300, #c9c9c9)',
-                      backgroundColor: 'white',
+                      backgroundColor: '#FFFDFA',
                     }}
                   >
                     {/* Category Info */}
@@ -1011,7 +1011,7 @@ export function ReviewDetailView({
           >
             <ThumbsUp 
               className={cn('w-4 h-4', isLiked && 'fill-current')} 
-              style={{ color: 'var(--neutral-50)' }} 
+              style={{ color: 'var(--neutral-600)' }} 
             />
             <span style={{ 
               color: 'var(--neutral-600)',
@@ -1038,7 +1038,7 @@ export function ReviewDetailView({
             }}
             onClick={handleComment}
           >
-            <MessageCircle className="w-4 h-4" style={{ color: 'var(--neutral-50)' }} />
+            <MessageCircle className="w-4 h-4" style={{ color: 'var(--neutral-600)' }} />
             <span style={{ 
               color: 'var(--neutral-600)',
               fontFamily: 'var(--font-family)',
@@ -1057,26 +1057,27 @@ export function ReviewDetailView({
 
           {/* Share Button */}
           <Button
-            className="btn-synth-primary shrink-0"
+            variant="secondary-neutral"
+            className="shrink-0"
             style={{
               width: 'var(--size-input-height, 44px)',
               height: 'var(--size-input-height, 44px)',
               padding: 0,
-              backgroundColor: 'var(--brand-pink-500)',
-              color: 'var(--neutral-50)',
+              backgroundColor: 'var(--neutral-0)',
+              color: 'var(--neutral-900)',
+              border: '1px solid var(--neutral-200)',
               borderRadius: 'var(--radius-corner, 10px)',
-              boxShadow: '0 4px 4px 0 var(--shadow-color)',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--brand-pink-600)';
+              e.currentTarget.style.backgroundColor = 'var(--neutral-100)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--brand-pink-500)';
+              e.currentTarget.style.backgroundColor = 'var(--neutral-0)';
             }}
             onClick={handleShare}
             aria-label="Share review"
           >
-            <Share2 className="w-6 h-6" style={{ color: 'var(--neutral-50)' }} />
+            <Share2 className="w-6 h-6" style={{ color: 'var(--neutral-600)' }} />
           </Button>
           </div>
         </div>
@@ -1237,7 +1238,7 @@ export function ReviewDetailView({
               onClick={confirmDelete}
               disabled={isDeleting}
               style={{
-                backgroundColor: 'var(--brand-pink-500)',
+                backgroundColor: 'var(--status-error-500)',
                 color: 'var(--neutral-50)',
                 height: 'var(--size-input-height, 44px)',
                 boxShadow: '0 4px 4px 0 var(--shadow-color)',

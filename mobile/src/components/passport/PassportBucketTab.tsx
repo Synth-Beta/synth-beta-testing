@@ -205,10 +205,10 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
                                                 accessibilityLabel={`Add ${hit.name}`}
                                             >
                                                 {addingId === hit.id ? (
-                                                    <ActivityIndicator size="small" color="#fff" />
+                                                    <ActivityIndicator size="small" color="#FFFDFA" />
                                                 ) : (
                                                     <>
-                                                        <Plus size={13} color="#fff" />
+                                                        <Plus size={13} color="#FFFDFA" />
                                                         <SynthText variant="meta" style={styles.addBtnTxt}>
                                                             Add
                                                         </SynthText>
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
         minWidth: 58,
         justifyContent: 'center',
     },
-    addBtnTxt: { color: '#fff', fontWeight: '800', fontSize: 13 },
+    addBtnTxt: { color: '#FFFDFA', fontWeight: '800', fontSize: 13 },
     noHits: { marginTop: 10, fontSize: 13.5 },
 
     itemRow: {

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { EventReviewFlow, type ReviewPrefill } from '../src/components/review/EventReviewFlow';
+import { reportTourAction } from '../lib/tourProgress';
 
 export default function ReviewComposeScreen() {
     const { eventId, prefillArtistId, prefillVenueId, prefillDate } = useLocalSearchParams<{
@@ -26,7 +27,10 @@ export default function ReviewComposeScreen() {
             prefill={prefill}
             onClose={() => router.back()}
             onSubmitted={(eid, reviewId) => {
-                if (reviewId) {
+                // App tutorial's review step: back to the tabs, where the tutorial moves on.
+                if (reportTourAction('review')) {
+                    router.back();
+                } else if (reviewId) {
                     router.replace(`/review/${reviewId}` as any);
                 } else if (eid) {
                     router.replace(`/event/${eid}` as any);

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export const SLACK_SIGNUP_ALERT_META_KEY = 'slack_signup_alerted_at';
-export const SLACK_SIGNUP_LOOKBACK_DAYS = 7;
+export const SLACK_SIGNUP_LOOKBACK_DAYS = 30;
 
 export interface UsersSignupRecord {
   id?: string;
@@ -41,6 +41,14 @@ export function getSlackSignupWebhookUrl(): string | null {
 
 export function getSlackSignupWebhookSecret(): string | null {
   return process.env.SLACK_SIGNUP_WEBHOOK_SECRET?.trim() || null;
+}
+
+export function getSlackAdminBotToken(): string | null {
+  return process.env.SLACK_ADMIN_BOT_TOKEN?.trim() || null;
+}
+
+export function getSlackAdminBotSignupChannel(): string | null {
+  return process.env.SLACK_ADMIN_BOT_SIGNUP_CHANNEL?.trim() || null;
 }
 
 export function getSupabaseService(): SupabaseClient | null {
@@ -144,24 +152,78 @@ export function alreadyAlerted(record: UsersSignupRecord): boolean {
   return typeof stamped === 'string' && stamped.length > 0;
 }
 
-export async function markSignupAlerted(record: UsersSignupRecord): Promise<void> {
-  const supabase = getSupabaseService();
+const ALERT_FLAG_PATH = `permissions_metadata->>${SLACK_SIGNUP_ALERT_META_KEY}`;
+
+// Stamp BEFORE posting, and only where the flag is still empty. The DB trigger and the
+// web + mobile client notify all fire within milliseconds of a signup; checking then
+// stamping after the post let every one of them through (one person, three alerts).
+// Postgres re-checks the WHERE under the row lock, so exactly one caller wins.
+async function claimSignupAlert(
+  supabase: SupabaseClient,
+  record: UsersSignupRecord,
+): Promise<'claimed' | 'taken' | 'unavailable'> {
   const userId = record.user_id || record.id;
-  if (!supabase || !userId) return;
+  if (!userId) return 'unavailable';
 
   const meta = { ...(record.permissions_metadata || {}) };
   meta[SLACK_SIGNUP_ALERT_META_KEY] = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('users')
     .update({ permissions_metadata: meta })
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .filter(ALERT_FLAG_PATH, 'is', null)
+    .select('user_id');
   if (error) {
-    console.warn('[slack-signup] failed to stamp alert flag', error.message);
+    console.warn('[slack-signup] failed to claim alert flag', error.message);
+    return 'unavailable';
   }
+  return data && data.length > 0 ? 'claimed' : 'taken';
 }
 
-export async function postSignupToSlack(
-  record: UsersSignupRecord,
+// Slack failed after we claimed: clear the flag so the client notify or catch-up retries.
+async function releaseSignupAlert(supabase: SupabaseClient, record: UsersSignupRecord): Promise<void> {
+  const userId = record.user_id || record.id;
+  if (!userId) return;
+  const meta = { ...(record.permissions_metadata || {}) };
+  delete meta[SLACK_SIGNUP_ALERT_META_KEY];
+  const { error } = await supabase.from('users').update({ permissions_metadata: meta }).eq('user_id', userId);
+  if (error) console.warn('[slack-signup] failed to release alert flag', error.message);
+}
+
+async function postViaAdminBot(
+  text: string,
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const token = getSlackAdminBotToken();
+  const channel = getSlackAdminBotSignupChannel();
+  if (!token || !channel) return { ok: false, error: 'Admin bot not configured' };
+
+  const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify({
+      channel,
+      text,
+      unfurl_links: false,
+      unfurl_media: false,
+    }),
+  });
+
+  const body = (await slackRes.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+  if (!slackRes.ok || !body?.ok) {
+    return {
+      ok: false,
+      error: (body?.error || `HTTP ${slackRes.status}`).slice(0, 500),
+      status: slackRes.status,
+    };
+  }
+  return { ok: true };
+}
+
+async function postViaIncomingWebhook(
+  text: string,
 ): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
   const slackUrl = getSlackSignupWebhookUrl();
   if (!slackUrl) return { ok: false, error: 'Slack webhook URL not configured' };
@@ -169,7 +231,7 @@ export async function postSignupToSlack(
   const slackRes = await fetch(slackUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: formatSignupMessage(record) }),
+    body: JSON.stringify({ text }),
   });
 
   if (!slackRes.ok) {
@@ -179,19 +241,39 @@ export async function postSignupToSlack(
   return { ok: true };
 }
 
+export async function postSignupToSlack(
+  record: UsersSignupRecord,
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const text = formatSignupMessage(record);
+  // The classic incoming webhook was revoked (Slack returns 404 no_service), so
+  // signups go out as the admin bot into #new-sign-ups. The webhook stays as a
+  // fallback for environments that have not set the bot token yet.
+  if (getSlackAdminBotToken() && getSlackAdminBotSignupChannel()) {
+    return postViaAdminBot(text);
+  }
+  return postViaIncomingWebhook(text);
+}
+
 export async function alertSignupIfNeeded(
   raw: Record<string, unknown> | UsersSignupRecord,
+  deps: { supabase: SupabaseClient | null; post: typeof postSignupToSlack } = {
+    supabase: getSupabaseService(),
+    post: postSignupToSlack,
+  },
 ): Promise<{ posted: boolean; skipped?: string }> {
   const record = selectSignupFields(raw);
   if (alreadyAlerted(record)) return { posted: false, skipped: 'already_alerted' };
 
-  const result = await postSignupToSlack(record);
+  const claim = deps.supabase ? await claimSignupAlert(deps.supabase, record) : 'unavailable';
+  if (claim === 'taken') return { posted: false, skipped: 'already_alerted' };
+
+  const result = await deps.post(record);
   if (result.ok === false) {
     console.error('[slack-signup] Slack post failed', result.status, result.error);
+    if (claim === 'claimed' && deps.supabase) await releaseSignupAlert(deps.supabase, record);
     return { posted: false, skipped: 'slack_failed' };
   }
 
-  await markSignupAlerted(record);
   console.log('[slack-signup] posted', {
     user_id: record.user_id || record.id,
     username: record.username,
@@ -223,13 +305,16 @@ export async function catchUpMissedSignups(): Promise<{ posted: number; skipped:
   if (!supabase) return { posted: 0, skipped: 0 };
 
   const since = new Date(Date.now() - SLACK_SIGNUP_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  // Only rows that were never stamped. Ordering the whole window and taking the
+  // oldest 50 kept re-reading people already posted and never reached newer signups.
   const { data, error } = await supabase
     .from('users')
     .select(SIGNUP_SELECT)
     .gte('created_at', since)
     .or('is_bot.is.null,is_bot.eq.false')
+    .filter('permissions_metadata->>slack_signup_alerted_at', 'is', null)
     .order('created_at', { ascending: true })
-    .limit(50);
+    .limit(100);
 
   if (error) {
     console.error('[slack-signup] catch-up query failed', error.message);
@@ -240,8 +325,12 @@ export async function catchUpMissedSignups(): Promise<{ posted: number; skipped:
   let skipped = 0;
   for (const row of data || []) {
     const result = await alertSignupIfNeeded(row as Record<string, unknown>);
-    if (result.posted) posted += 1;
-    else skipped += 1;
+    if (result.posted) {
+      posted += 1;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    } else {
+      skipped += 1;
+    }
   }
   return { posted, skipped };
 }

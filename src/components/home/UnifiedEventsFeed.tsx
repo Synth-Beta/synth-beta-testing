@@ -5,8 +5,7 @@ import { PersonalizationEngineV5, type PersonalizedEvent } from '@/services/pers
 import { UserEventService } from '@/services/userEventService';
 import { supabase } from '@/integrations/supabase/client';
 import type { EventReason } from './CompactEventCard';
-import { ThreadEventCard, type CardReviewHighlight } from './thread/ThreadEventCard';
-import { usePick5FeedEvents } from './thread/usePick5FeedEvents';
+import { ThreadEventCard, type CardRatings } from './thread/ThreadEventCard';
 import { findPick5Band } from './thread/pick5';
 import { useReviewHighlights } from './thread/useReviewHighlights';
 import { ArtistExclusionService } from '@/services/artistExclusionService';
@@ -25,9 +24,12 @@ import {
   getEventsFromRankedArtists,
   weaveBucketListIntoFeed,
   BUCKET_LIST_TOP_LIMIT,
-  weaveJustAnnouncedIntoFeed,
   JUST_ANNOUNCED_LABEL,
   logJustAnnounced,
+  planNaturalWeave,
+  dailySeed,
+  reviewEventMatch,
+  type ReviewMatch,
 } from '@synth/shared';
 import { toast } from '@/hooks/use-toast';
 // import { useViewportHeight } from '@/hooks/useViewportHeight';
@@ -49,6 +51,7 @@ interface UnifiedEventItem {
   poster_image_url?: string;
   images?: any;
   event_media_url?: string;
+  ticket_urls?: string[];
   reason: EventReason;
   /** Badge text override, e.g. "#1 on your bucket list". */
   reasonLabel?: string;
@@ -57,13 +60,21 @@ interface UnifiedEventItem {
   user_is_interested?: boolean;
   /** Just-announced show by an artist the viewer follows / has bucket-listed. */
   is_fan?: boolean;
+  /** Pinned to the top by get_personalized_feed_v5 (context.just_announced). */
+  just_announced?: boolean;
   distance_miles?: number | null;
 }
 
 /** Non-event stop on the thread (e.g. a friend's review). */
 export interface ThreadNode {
   key: string;
-  node: React.ReactNode;
+  /** Gets the side of the show it sits after (artist / venue), or null when unrelated. */
+  render: (match: ReviewMatch | null) => React.ReactNode;
+  /** Lets the card sit right after a show by the same artist / at the same venue. */
+  artistId?: string | null;
+  venueId?: string | null;
+  /** A venue-only pairing needs venue text (see reviewEventMatch). */
+  venueFeedback?: string | null;
 }
 
 type ThreadEntry =
@@ -71,13 +82,18 @@ type ThreadEntry =
   | { kind: 'review'; key: string; node: React.ReactNode }
   | { kind: 'section'; node: React.ReactNode };
 
-const PICK5_FIRST_AT = 2;
-const PICK5_EVERY = 5;
-const REVIEW_FIRST_AT = 4;
-const REVIEW_EVERY = 6;
+// Natural spacing for non-ranked cards (naturalWeave in @synth/shared): gaps vary inside
+// these ranges instead of a fixed every-Nth slot. Pick5 shows only arrive through the
+// ranker's groups (Trending gives Pick5 artists a lift server-side).
+const REVIEW_WEAVE = { firstAt: 4, minGap: 5, maxGap: 9 };
+const FRIEND_EVENT_WEAVE = { firstAt: 3, minGap: 4, maxGap: 7 };
+const BUCKET_SPACING = 4;
 
-const isWovenSlot = (eventsSoFar: number, firstAt: number, every: number) =>
-  eventsSoFar >= firstAt && (eventsSoFar - firstAt) % every === 0;
+/** Shows the RPC pinned (new shows from the user's own artists) stay on top after client re-ranking. */
+const keepPinnedFirst = (items: UnifiedEventItem[]) => [
+  ...items.filter((e) => e.just_announced),
+  ...items.filter((e) => !e.just_announced),
+];
 
 const formatDistance = (miles?: number | null) =>
   miles == null ? undefined : miles < 10 ? 'Near you' : `${Math.round(miles).toLocaleString()} mi away`;
@@ -95,6 +111,8 @@ interface UnifiedEventsFeedProps {
   reviewNodes?: ThreadNode[];
   /** Extra events to inject into the feed (e.g. friend-interested events labeled FRIENDS) */
   extraEvents?: UnifiedEventItem[];
+  /** True while the parent is still fetching reviewNodes/extraEvents; the first paint waits for them */
+  extrasLoading?: boolean;
 }
 
 const PAGE_SIZE = 20;
@@ -158,57 +176,6 @@ async function fetchBucketListTopEvents(
   }
 }
 
-/**
- * Shows JamBase first listed in the last 10 days near the browse location, the viewer's
- * own artists first (get_just_announced_events). Same RPC + weave helper as Expo.
- */
-async function fetchJustAnnouncedEvents(
-  loc: { lat: number; lng: number } | null,
-  radiusMiles?: number
-): Promise<UnifiedEventItem[]> {
-  if (!loc) return [];
-  try {
-    const { data, error } = await supabase.rpc('get_just_announced_events', {
-      p_latitude: loc.lat,
-      p_longitude: loc.lng,
-      p_radius_miles: Math.round(radiusMiles ?? 50),
-      p_limit: 20,
-    });
-    if (error) throw error;
-    return ((data as any[]) ?? []).map((e: any) => ({
-      event_id: String(e.id),
-      title: e.title || e.artist_name || 'Event',
-      artist_id: e.artist_id ?? undefined,
-      artist_name: e.artist_name || undefined,
-      venue_id: e.venue_id ?? undefined,
-      venue_name: e.venue_name || undefined,
-      venue_city: e.venue_city || undefined,
-      venue_state: e.venue_state || undefined,
-      event_date: String(e.event_date),
-      images: e.images,
-      event_media_url: e.event_media_url ?? undefined,
-      reason: 'recommended' as EventReason,
-      interested_count: 0,
-      friends_interested_count: 0,
-      user_is_interested: false,
-      is_fan: Boolean(e.is_fan),
-    }));
-  } catch (error) {
-    // Feed must still load if the RPC isn't deployed yet.
-    console.warn('Error loading just-announced events for feed:', error);
-    return [];
-  }
-}
-
-const withJustAnnounced = (events: UnifiedEventItem[], justAnnounced: UnifiedEventItem[]) =>
-  weaveJustAnnouncedIntoFeed(
-    events,
-    justAnnounced,
-    (e) => e.event_id,
-    (e) => Boolean(e.is_fan),
-    (e) => ({ ...e, reasonLabel: JUST_ANNOUNCED_LABEL })
-  );
-
 /** Later pages can return shows already woven/pinned into page 1 (bucket list, just announced). */
 const appendUnique = (existing: UnifiedEventItem[], next: UnifiedEventItem[]) => {
   const seen = new Set(existing.map((e) => e.event_id));
@@ -229,20 +196,22 @@ async function fetchFeedForLocations(
   if (filterLoc) locs.push(filterLoc);
   else if (userLoc) locs.push(userLoc);
 
-  const [affinity, bucketTop, justAnnounced] = await Promise.all([
+  const [affinity, bucketTop] = await Promise.all([
     getUserArtistAffinity(userId),
     fetchBucketListTopEvents(userId, locs[0] ?? null, baseFilters.radiusMiles),
-    fetchJustAnnouncedEvents(locs[0] ?? null, baseFilters.radiusMiles),
   ]);
+  const bucketSeed = dailySeed(`${userId}:bucket`);
 
   if (locs.length === 0) {
     const result = await PersonalizationEngineV5.getUnifiedFeed(userId, limit, 0, baseFilters);
     const boosted = boostEventsByArtistAffinity(result.events, affinity);
     return {
       events: weaveBucketListIntoFeed(
-        filterUpcomingFeedItems(boosted.map((e) => personalEventToItem(e, (e as any).event_type))),
+        keepPinnedFirst(filterUpcomingFeedItems(boosted.map((e) => personalEventToItem(e, (e as any).event_type)))),
         bucketTop,
-        (e) => e.event_id
+        (e) => e.event_id,
+        BUCKET_SPACING,
+        bucketSeed
       ),
       hasMore: result.hasMore,
     };
@@ -269,9 +238,11 @@ async function fetchFeedForLocations(
   const hasMore = results.some(r => r.hasMore) || merged.length >= limit;
   return {
     events: weaveBucketListIntoFeed(
-      withJustAnnounced(filterUpcomingFeedItems(merged), justAnnounced),
+      keepPinnedFirst(filterUpcomingFeedItems(merged)),
       bucketTop,
-      (e) => e.event_id
+      (e) => e.event_id,
+      BUCKET_SPACING,
+      bucketSeed
     ),
     hasMore,
   };
@@ -296,7 +267,11 @@ function personalEventToItem(event: PersonalizedEvent, eventType?: string): Unif
     poster_image_url: event.poster_image_url ?? undefined,
     images: event.images,
     event_media_url: event.event_media_url ?? event.poster_image_url ?? undefined,
+    ticket_urls: Array.isArray(event.ticket_urls) ? event.ticket_urls : undefined,
     reason,
+    ...(event.just_announced
+      ? { just_announced: true, is_fan: true, reasonLabel: JUST_ANNOUNCED_LABEL }
+      : {}),
     interested_count: event.interested_count ?? 0,
     friends_interested_count: event.friends_interested_count ?? 0,
     user_is_interested: event.user_is_interested ?? false,
@@ -313,6 +288,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   middleSection,
   reviewNodes,
   extraEvents,
+  extrasLoading = false,
 }) => {
   const queryClient = useQueryClient();
 
@@ -329,6 +305,10 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   const [interestedEvents, setInterestedEvents] = useState<Set<string>>(new Set());
   const [engagedAtLoad, setEngagedAtLoad] = useState<Set<string>>(new Set());
   const [excludedArtists, setExcludedArtists] = useState<Set<string>>(new Set());
+  const [relationsLoaded, setRelationsLoaded] = useState(false);
+  // Latches true once everything that reshapes the list (reviews, friend shows, saved
+  // shows, hidden artists) has arrived, so the feed draws once instead of shuffling.
+  const [firstPaintReady, setFirstPaintReady] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
 
@@ -430,22 +410,27 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   useEffect(() => {
     if (cachedFeed) {
-      // Merge friend events into the feed, interleaved every 4 events
+      // Mix friend-interested events in with natural spacing (after the pinned shows).
+      // Ones that don't fit wait for later pages rather than being dumped at the end.
       let merged = filterUpcomingFeedItems(cachedFeed.events);
       if (extraEvents && extraEvents.length > 0) {
         const seen = new Set(merged.map((e) => e.event_id));
         const fresh = filterUpcomingFeedItems(extraEvents).filter((e) => !seen.has(e.event_id));
-        // Cap injected friend events to at most 1 per 4 main events — no dumping remainder at end
-        const maxInjectable = Math.floor(merged.length / 4);
-        const toInject = fresh.slice(0, maxInjectable);
-        if (toInject.length > 0) {
-          const interleaved: UnifiedEventItem[] = [];
-          let fi = 0;
-          for (let i = 0; i < merged.length; i++) {
-            interleaved.push(merged[i]);
-            if ((i + 1) % 4 === 0 && fi < toInject.length) interleaved.push(toInject[fi++]);
-          }
-          merged = filterUpcomingFeedItems(interleaved);
+        if (fresh.length > 0) {
+          const pinnedCount = merged.findIndex((e) => !e.just_announced);
+          const head = pinnedCount < 0 ? merged : merged.slice(0, pinnedCount);
+          const rest = pinnedCount < 0 ? [] : merged.slice(pinnedCount);
+          const placed = planNaturalWeave(rest, fresh, {
+            seed: dailySeed(`${currentUserId}:friend-events`),
+            ...FRIEND_EVENT_WEAVE,
+          });
+          const interleaved: UnifiedEventItem[] = [...head];
+          rest.forEach((item, i) => {
+            interleaved.push(item);
+            const extra = placed.get(i);
+            if (extra) interleaved.push(extra);
+          });
+          merged = interleaved;
         }
       }
       setAllFetchedEvents(merged);
@@ -461,7 +446,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       }
       setLoading(false);
     }
-  }, [cachedFeed, extraEvents]);
+  }, [cachedFeed, extraEvents, currentUserId]);
 
   useEffect(() => {
     allFetchedEventsRef.current = allFetchedEvents;
@@ -523,6 +508,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         saveLastKnownLocation(loc.lat, loc.lng);
       }
         if (prefsResult.status === 'fulfilled' && prefsResult.value.data?.top_genres) {
+          // The feed RPC doesn't take genres, so refetching once they arrive only redraws the list.
+          hadGenresForReloadRef.current = true;
           setUserTopGenres(prefsResult.value.data.top_genres);
         }
       } else {
@@ -862,7 +849,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   // Load interested events
   useEffect(() => {
-    void Promise.resolve(
+    const interestedPromise = Promise.resolve(
       supabase
         .from('user_event_relationships')
         .select('event_id')
@@ -875,10 +862,21 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         setInterestedEvents(ids);
         // Snapshot, not live: a card the user taps "I'm in" on stays put until the next load.
         setEngagedAtLoad(new Set(ids));
-      })
-      .catch(() => {});
-    void ArtistExclusionService.list(currentUserId).then(setExcludedArtists);
+      });
+    const excludedPromise = ArtistExclusionService.list(currentUserId).then(setExcludedArtists);
+    void Promise.allSettled([interestedPromise, excludedPromise]).then(() => setRelationsLoaded(true));
   }, [currentUserId]);
+
+  useEffect(() => {
+    if (firstPaintReady) return;
+    if (relationsLoaded && !extrasLoading) {
+      setFirstPaintReady(true);
+      return;
+    }
+    // Never hold the feed hostage to a slow side request.
+    const timer = setTimeout(() => setFirstPaintReady(true), 4000);
+    return () => clearTimeout(timer);
+  }, [firstPaintReady, relationsLoaded, extrasLoading]);
 
   // Initial load is now handled in the location fetch effect above
 
@@ -1003,10 +1001,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   }, []); // Empty deps - only run once, uses refs for latest values
 
   const findEvent = (eventId: string): UnifiedEventItem | null => {
-    const fromFeed = allFetchedEvents.find((e) => e.event_id === eventId);
-    if (fromFeed) return fromFeed;
-    const partner = pick5Events.find((e) => e.event_id === eventId);
-    return partner ? { ...partner, reason: 'pick5' } : null;
+    return allFetchedEvents.find((e) => e.event_id === eventId) ?? null;
   };
 
   const handleInterestToggle = async (eventId: string, e: React.MouseEvent) => {
@@ -1084,41 +1079,37 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       image_url: event.image_url,
     });
 
-  const pick5Coords = useMemo(() => {
-    const f = filters as any;
-    if (f?.latitude != null && f?.longitude != null) return { lat: f.latitude, lng: f.longitude };
-    return userLocation ?? getLastKnownLocation(LOCATION_CACHE_MAX_AGE_MS);
-  }, [filters, userLocation]);
-  const pick5Events = usePick5FeedEvents(pick5Coords ? { lat: pick5Coords.lat, lng: pick5Coords.lng } : null);
-
   const threadEntries = useMemo<ThreadEntry[]>(() => {
     const isVisible = (e: UnifiedEventItem) =>
       !engagedAtLoad.has(e.event_id) && !(e.artist_id && excludedArtists.has(e.artist_id));
     const events = displayedEvents.filter(isVisible);
-    const seen = new Set(events.map((e) => e.event_id));
-    const partner: UnifiedEventItem[] = pick5Events
-      .map((p) => ({ ...p, reason: 'pick5' as EventReason }))
-      .filter((p) => isVisible(p) && !seen.has(p.event_id));
-    const reviews = reviewNodes ?? [];
     const insertAt = insertSectionAfterIndex != null && middleSection != null ? insertSectionAfterIndex : -1;
 
+    // Reviews go after the pinned new shows, spaced naturally, and next to a show by the
+    // same artist or at the same venue when one comes up.
+    const firstUnpinned = events.findIndex((e) => !e.just_announced);
+    const pinnedCount = firstUnpinned < 0 ? events.length : firstUnpinned;
+    const match = (review: ThreadNode, event: UnifiedEventItem) =>
+      reviewEventMatch(
+        { artist_id: review.artistId, venue_id: review.venueId, venue_feedback: review.venueFeedback },
+        event
+      );
+    const placed = planNaturalWeave(events.slice(pinnedCount), reviewNodes ?? [], {
+      seed: dailySeed(`${currentUserId}:reviews`),
+      ...REVIEW_WEAVE,
+      relatesTo: (review, event) => match(review, event) !== null,
+    });
+
     const entries: ThreadEntry[] = [];
-    let pi = 0;
-    let ri = 0;
     events.forEach((item, i) => {
       if (i === insertAt) entries.push({ kind: 'section', node: middleSection });
       entries.push({ kind: 'event', item });
-      const count = i + 1;
-      if (isWovenSlot(count, PICK5_FIRST_AT, PICK5_EVERY) && pi < partner.length) {
-        entries.push({ kind: 'event', item: partner[pi++] });
-      }
-      if (isWovenSlot(count, REVIEW_FIRST_AT, REVIEW_EVERY) && ri < reviews.length) {
-        entries.push({ kind: 'review', ...reviews[ri++] });
-      }
+      const review = i >= pinnedCount ? placed.get(i - pinnedCount) : undefined;
+      if (review) entries.push({ kind: 'review', key: review.key, node: review.render(match(review, item)) });
     });
     if (insertAt >= events.length) entries.push({ kind: 'section', node: middleSection });
     return entries;
-  }, [displayedEvents, pick5Events, reviewNodes, engagedAtLoad, excludedArtists, insertSectionAfterIndex, middleSection]);
+  }, [displayedEvents, reviewNodes, engagedAtLoad, excludedArtists, insertSectionAfterIndex, middleSection, currentUserId]);
 
   const threadEvents = threadEntries.flatMap((e) => (e.kind === 'event' ? [e.item] : []));
   const reviewHighlights = useReviewHighlights(
@@ -1126,12 +1117,16 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     threadEvents.flatMap((e) => (e.venue_id ? [e.venue_id] : []))
   );
 
-  const getReviewHighlight = (event: UnifiedEventItem): CardReviewHighlight | undefined => {
+  // Artist average + venue average (max one line each, no counts). The venue line only
+  // shows on a show at that venue, and only uses venue ratings/feedback.
+  const getRatings = (event: UnifiedEventItem): CardRatings | undefined => {
     const artist = event.artist_id ? reviewHighlights.artists.get(event.artist_id) : undefined;
-    if (artist) return { ...artist, scope: 'artist', name: event.artist_name };
     const venue = event.venue_id ? reviewHighlights.venues.get(event.venue_id) : undefined;
-    if (venue) return { ...venue, scope: 'venue', name: event.venue_name };
-    return undefined;
+    if (!artist && !venue) return undefined;
+    return {
+      artist: artist && event.artist_name ? { ...artist, name: event.artist_name } : undefined,
+      venue: venue && event.venue_name ? { ...venue, name: event.venue_name } : undefined,
+    };
   };
 
   const handleHideArtist = async (event: UnifiedEventItem) => {
@@ -1178,7 +1173,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     }
   };
 
-  if (loading && displayedEvents.length === 0) {
+  if (!firstPaintReady || (loading && displayedEvents.length === 0)) {
     return (
       <div className="swift-ui-feed-container">
         <SynthLoadingInline
@@ -1301,6 +1296,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                       venue_state: event.venue_state,
                       image_url: imageUrl,
                       poster_image_url: event.poster_image_url,
+                      ticket_urls: event.ticket_urls,
                     }}
                     reason={event.reason}
                     reasonLabel={event.reasonLabel}
@@ -1308,7 +1304,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
                     friendsInterestedCount={friendsInterestedCount}
                     distanceLabel={formatDistance(event.distance_miles)}
                     isInterested={isInterested}
-                    reviewHighlight={getReviewHighlight(event)}
+                    ratings={getRatings(event)}
                     onInterestClick={(e) => handleInterestToggle(event.event_id, e)}
                     onShareClick={(e) => onShareClick?.(event, e)}
                     onJoinChatClick={(e) => handleJoinEventChat(event.event_id, e)}

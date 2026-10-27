@@ -561,7 +561,7 @@ export function SwiftUIReviewCard({
                 <div className="flex items-center" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                   <Avatar className="w-5 h-5" style={{ border: '1.5px solid var(--brand-pink-500)' }}>
                     <AvatarImage src={userProfile?.avatar_url || undefined} />
-                    <AvatarFallback style={{ background: 'var(--brand-pink-500)', color: '#fff', fontSize: 10, fontWeight: 600 }}>
+                    <AvatarFallback style={{ background: 'var(--brand-pink-500)', color: '#FFFDFA', fontSize: 10, fontWeight: 600 }}>
                       {userProfile?.name?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
@@ -624,7 +624,7 @@ export function SwiftUIReviewCard({
                         <AvatarFallback
                           style={{
                             background: 'var(--brand-pink-500)',
-                            color: '#fff',
+                            color: '#FFFDFA',
                             fontSize: 10,
                             fontWeight: 600,
                           }}
@@ -824,7 +824,7 @@ export function SwiftUIReviewCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, justifyContent: 'center' }}>
             <Avatar className="w-10 h-10" style={{ border: '2px solid var(--brand-pink-500)' }}>
               <AvatarImage src={userProfile?.avatar_url || undefined} alt={userProfile?.name || 'User'} />
-              <AvatarFallback style={{ background: 'var(--brand-pink-500)', color: '#fff', fontWeight: 600 }}>
+              <AvatarFallback style={{ background: 'var(--brand-pink-500)', color: '#FFFDFA', fontWeight: 600 }}>
                 {userProfile?.name?.charAt(0).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
@@ -999,7 +999,7 @@ export function SwiftUIReviewCard({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#fff',
+                        color: '#FFFDFA',
                         fontSize: 24,
                         fontWeight: 700,
                       }}>
@@ -1138,7 +1138,7 @@ export function SwiftUIReviewCard({
                     >
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={c.user?.avatar_url} />
-                        <AvatarFallback style={{ background: 'var(--brand-pink-500)', color: '#fff', fontSize: 12 }}>
+                        <AvatarFallback style={{ background: 'var(--brand-pink-500)', color: '#FFFDFA', fontSize: 12 }}>
                           {(c.user?.name || 'U').charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -1182,9 +1182,9 @@ export function SwiftUIReviewCard({
                   }}
                 >
                   {submitting ? (
-                    <Loader2 size={20} className="animate-spin" style={{ color: '#fff' }} />
+                    <Loader2 size={20} className="animate-spin" style={{ color: '#FFFDFA' }} />
                   ) : (
-                    <Send size={20} style={{ color: '#fff' }} />
+                    <Send size={20} style={{ color: '#FFFDFA' }} />
                   )}
                 </button>
               </div>
@@ -1254,7 +1254,7 @@ export function SwiftUIReviewCard({
             style={{
               ...actionButtonStyle,
               background: 'var(--brand-pink-500)',
-              color: '#fff',
+              color: '#FFFDFA',
               flex: '0.5 1 0',
             }}
           >
@@ -1287,7 +1287,7 @@ export function SwiftUIReviewCard({
               borderRadius: '50%',
               background: 'rgba(255,255,255,0.1)',
               border: 'none',
-              color: '#fff',
+              color: '#FFFDFA',
               fontSize: 24,
               cursor: 'pointer',
             }}
@@ -1306,7 +1306,7 @@ export function SwiftUIReviewCard({
                   borderRadius: '50%',
                   background: 'rgba(255,255,255,0.1)',
                   border: 'none',
-                  color: '#fff',
+                  color: '#FFFDFA',
                   fontSize: 24,
                   cursor: 'pointer',
                 }}
@@ -1326,7 +1326,7 @@ export function SwiftUIReviewCard({
                   borderRadius: '50%',
                   background: 'rgba(255,255,255,0.1)',
                   border: 'none',
-                  color: '#fff',
+                  color: '#FFFDFA',
                   fontSize: 24,
                   cursor: 'pointer',
                 }}

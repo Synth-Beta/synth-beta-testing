@@ -41,7 +41,7 @@ export function VerificationBadge({
       <Icon
         className="w-full h-full text-white"
         strokeWidth={2.5}
-        fill="white"
+        fill="#FFFDFA"
       />
     </div>
   );

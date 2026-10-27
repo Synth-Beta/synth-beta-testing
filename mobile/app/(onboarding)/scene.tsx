@@ -265,7 +265,7 @@ export default function SceneScreen() {
                       </SynthText>
                     </View>
                     <View style={[styles.radio, selected && styles.radioSelected]}>
-                      {selected ? <Check color="white" size={14} strokeWidth={3} /> : null}
+                      {selected ? <Check color="#FFFDFA" size={14} strokeWidth={3} /> : null}
                     </View>
                   </Pressable>
                 );

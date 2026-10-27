@@ -1,4 +1,4 @@
-import { getSimilarUsersToFriend, rankFriendSuggestionsForRail, getEventsFromRankedArtists } from '@synth/shared';
+import { getSimilarUsersToFriend, rankFriendSuggestionsForRail, getEventsFromRankedArtists, JUST_ANNOUNCED_LABEL } from '@synth/shared';
 import { supabase } from '../integrations/supabase/client';
 import { BucketListService } from './bucketListService';
 import { ReviewEngagementService } from './reviewEngagementService';
@@ -27,6 +27,8 @@ export interface UnifiedPersonalizedEvent {
     friends_interested?: Array<{ id: string; name: string; avatar_url?: string | null }>;
     /** Just-announced show by an artist the viewer follows / has bucket-listed. */
     is_fan?: boolean;
+    /** Pinned by get_personalized_feed_v5: new show from an artist the user follows / bucket-listed. */
+    just_announced?: boolean;
 }
 
 export type ReviewThumbnailCrop = {
@@ -48,6 +50,8 @@ export interface NetworkReview {
     created_at: string;
     rating?: number;
     content?: string;
+    artist_performance_feedback?: string;
+    venue_feedback?: string;
     photos?: string[];
     /** Cover photo index when `photos` has multiple entries */
     thumbnail_index?: number;
@@ -162,12 +166,15 @@ export class HomeFeedService {
             venue_state: p.venue_state != null && String(p.venue_state).trim() ? String(p.venue_state).trim() : undefined,
             event_date: p.event_date != null ? String(p.event_date) : '',
             image_url,
-            feedLabel: this.getFeedLabelFromContext({
-                source: row.section,
-                because: p?.context?.because ?? ctx?.because,
-                category: p?.context?.category ?? ctx?.category,
-                kind: p?.context?.kind ?? ctx?.kind,
-            }),
+            feedLabel: ctx.just_announced === true
+                ? JUST_ANNOUNCED_LABEL
+                : this.getFeedLabelFromContext({
+                      source: row.section,
+                      because: p?.context?.because ?? ctx?.because,
+                      category: p?.context?.category ?? ctx?.category,
+                      kind: p?.context?.kind ?? ctx?.kind,
+                  }),
+            ...(ctx.just_announced === true ? { just_announced: true, is_fan: true } : {}),
             artist_id: p.artist_id != null && String(p.artist_id) ? String(p.artist_id) : undefined,
             venue_id: p.venue_id != null && String(p.venue_id) ? String(p.venue_id) : undefined,
             interested_count,
@@ -496,8 +503,8 @@ export class HomeFeedService {
     }
 
     /**
-     * Reviews from friends. Falls back to recent public reviews from all users
-     * when the user has no friends yet (discovery mode for new/beta users).
+     * Recent public reviews from everyone except the viewer. Friends only change
+     * connection_degree (1 = friend, 2 = anyone else) for the card label.
      */
     static async getNetworkReviews(userId: string, limit = 20): Promise<NetworkReview[]> {
         try {
@@ -510,10 +517,7 @@ export class HomeFeedService {
 
             if (friendsError) throw friendsError;
 
-            const friendIds = [userId, ...(friends ?? []).map(f => (f.user_id === userId ? f.related_user_id : f.user_id))];
-            // When the user has no friends yet, show recent public reviews from all users
-            // so the Reviews tab has content to discover (beta/new user experience).
-            const hasFriends = (friends ?? []).length > 0;
+            const friendIdSet = new Set((friends ?? []).map(f => (f.user_id === userId ? f.related_user_id : f.user_id)));
 
             const selectFields = `
           id,
@@ -523,6 +527,8 @@ export class HomeFeedService {
           venue_id,
           rating,
           review_text,
+          artist_performance_feedback,
+          venue_feedback,
           photos,
           likes_count,
           comments_count,
@@ -542,22 +548,14 @@ export class HomeFeedService {
           )
         `;
 
-            let query = supabase
+            const query = supabase
                 .from('reviews')
                 .select(selectFields)
-                // Align with review detail + web: treat NULL is_draft as published
+                // Align with review detail + web: treat NULL is_draft / is_public as published / public
                 .or('is_draft.eq.false,is_draft.is.null')
-                .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY');
-
-            // Filter by friend network when friends exist; otherwise show all public
-            // reviews from anyone (discovery fallback), which must stay public-only.
-            // Within the friend network, a friend's private review is allowed
-            // through by the reviews_select RLS policy - no is_public filter needed.
-            if (hasFriends) {
-                query = query.in('user_id', [...new Set(friendIds)]);
-            } else {
-                query = query.or('is_public.eq.true,is_public.is.null');
-            }
+                .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY')
+                .or('is_public.eq.true,is_public.is.null')
+                .neq('user_id', userId);
 
             const { data: reviews, error: reviewsError } = await query
                 .order('created_at', { ascending: false })
@@ -630,6 +628,8 @@ export class HomeFeedService {
                     created_at: review.created_at,
                     rating: review.rating ?? undefined,
                     content: review.review_text ?? undefined,
+                    artist_performance_feedback: review.artist_performance_feedback ?? undefined,
+                    venue_feedback: review.venue_feedback ?? undefined,
                     photos: review.photos ?? undefined,
                     artist_image_url: artistData?.image_url || undefined,
                     event_info: {
@@ -646,7 +646,7 @@ export class HomeFeedService {
                     comments_count: typeof review.comments_count === 'number' ? review.comments_count : 0,
                     shares_count: typeof review.shares_count === 'number' ? review.shares_count : 0,
                     is_liked_by_user: likedIds.has(String(review.id)),
-                    connection_degree: 1 as const,
+                    connection_degree: friendIdSet.has(review.user_id) ? (1 as const) : (2 as const),
                 };
             });
         } catch (error) {

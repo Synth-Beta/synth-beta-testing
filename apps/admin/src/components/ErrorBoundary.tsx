@@ -2,6 +2,7 @@
 
 import { Component, type ReactNode } from "react"
 import { AlertTriangle } from "lucide-react"
+import { supabase } from "@/integrations/supabase/client"
 
 interface Props {
   children: ReactNode
@@ -25,6 +26,34 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: any) {
     console.error("[v0] Error caught by boundary:", error, errorInfo)
+    const host = typeof window !== 'undefined' ? window.location.hostname : ''
+    if (host === 'localhost' || host === '127.0.0.1') return
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        const token = data.session?.access_token
+        await fetch('https://join.getsynth.app/api/ops-alert', {
+          method: 'POST',
+          keepalive: true,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            kind: 'client',
+            surface: 'admin',
+            severity: 'bug',
+            message: (error?.message || 'Admin render error').slice(0, 500),
+            stack: error?.stack?.slice(0, 1200),
+            context: typeof errorInfo?.componentStack === 'string' ? errorInfo.componentStack.slice(0, 300) : undefined,
+            url: window.location.href.slice(0, 300),
+            platform: 'web',
+          }),
+        })
+      } catch {
+        // Reporting must never take the admin down with it.
+      }
+    })()
   }
 
   render() {

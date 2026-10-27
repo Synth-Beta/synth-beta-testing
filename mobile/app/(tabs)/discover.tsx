@@ -1,691 +1,197 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  StyleSheet,
-  View,
-  Pressable,
-  ScrollView,
-  TextInput,
-  Text,
-  Keyboard,
-} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View, Pressable, Text, Image, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
+import { Menu } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Search,
-  Menu,
-  Sparkles,
-  MapPin,
-  X,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react-native';
-import { EventCard } from '../../src/components/Feed/EventCard';
-import { SearchService, type SearchResult } from '../../src/services/searchService';
-import { DiscoverCalEventsSkeleton } from '../../src/components/skeletons/DiscoverCalEventsSkeleton';
-import { type LatLng } from '../../src/services/locationService';
-import { toLocalYmd } from '../../src/utils/localYmd';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
-import { GenreChatsSection } from '../../src/components/discover/GenreChatsSection';
+import { PickFiveConnection } from '../../src/components/partners/PickFiveConnection';
+import { ThreadReviewCard } from '../../src/components/Feed/ThreadReviewCard';
+import { InviteFriendsCard } from '../../src/components/invite/InviteFriendsCard';
 import { supabase } from '../../src/integrations/supabase/client';
-import { VibeSelectorSheet, type VibeType } from '../../src/components/discover/VibeSelectorSheet';
-import { LocationSheet } from '../../src/components/discover/LocationSheet';
-import { useBrowseLocation } from '../../src/contexts/BrowseLocationContext';
+import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
+import type { NetworkReview } from '../../src/services/homeFeedService';
 
-const PINK = SynthTokens.colors.brandPink500;
-const PINK_SOFT = 'rgba(204, 36, 134, 0.12)';
+const PICK5_LOGO = require('../../assets/images/pick5-logo-mark.png');
+const REVIEW_LIMIT = 24;
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+/** Recent public reviews from everyone on Synth (same query as web ConnectionsHub). */
+async function loadCommunityReviews(): Promise<NetworkReview[]> {
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('id, user_id, event_id, rating, review_text, photos, created_at, artist_id, venue_id, likes_count, comments_count, "Event_date"')
+    .or('is_public.eq.true,is_public.is.null')
+    .or('is_draft.eq.false,is_draft.is.null')
+    .or('review_text.is.null,review_text.neq.ATTENDANCE_ONLY')
+    .order('created_at', { ascending: false })
+    .limit(REVIEW_LIMIT);
+  if (error) {
+    console.warn('[Community] reviews:', error.message);
+    return [];
+  }
+  const rows = (data ?? []) as any[];
+  const ids = (key: string) => [...new Set(rows.map((r) => r[key]).filter(Boolean))] as string[];
+  const [userIds, artistIds, venueIds] = [ids('user_id'), ids('artist_id'), ids('venue_id')];
+  const [users, artists, venues] = await Promise.all([
+    userIds.length ? supabase.from('users').select('user_id, name, avatar_url').in('user_id', userIds) : Promise.resolve({ data: [] as any[] }),
+    artistIds.length ? supabase.from('artists').select('id, name, image_url').in('id', artistIds) : Promise.resolve({ data: [] as any[] }),
+    venueIds.length ? supabase.from('venues').select('id, name').in('id', venueIds) : Promise.resolve({ data: [] as any[] }),
+  ]);
+  const userById = new Map((users.data ?? []).map((u: any) => [u.user_id, u]));
+  const artistById = new Map((artists.data ?? []).map((a: any) => [a.id, a]));
+  const venueById = new Map((venues.data ?? []).map((v: any) => [v.id, v.name as string]));
 
-/** Which calendar month/day is selected (full Y/M/D so day "15" in April does not highlight May 15). */
-type CalDaySelection = { year: number; month: number; day: number };
+  return rows
+    .filter((r) => String(r.review_text ?? '').trim().length > 0 || r.rating != null)
+    .map((r) => {
+      const user = userById.get(r.user_id) as any;
+      const artist = artistById.get(r.artist_id) as any;
+      return {
+        id: String(r.id),
+        event_id: r.event_id ?? undefined,
+        artist_id: r.artist_id ?? undefined,
+        venue_id: r.venue_id ?? undefined,
+        author: { id: r.user_id, name: user?.name || 'Synth member', avatar_url: user?.avatar_url || undefined },
+        created_at: r.created_at,
+        rating: r.rating != null ? Number(r.rating) : undefined,
+        content: String(r.review_text ?? '').trim() || undefined,
+        photos: r.photos ?? undefined,
+        artist_image_url: artist?.image_url || undefined,
+        event_info: {
+          artist_name: artist?.name,
+          venue_name: r.venue_id ? venueById.get(r.venue_id) : undefined,
+          event_date: r.Event_date ?? undefined,
+        },
+        likes_count: r.likes_count ?? 0,
+        comments_count: r.comments_count ?? 0,
+        connection_degree: 2 as const,
+      };
+    });
+}
 
-function DiscoverCalendar({
-  month,
-  year,
-  onPrev,
-  onNext,
-  selectedDate,
-  onSelectDay,
-  daysWithEvents,
-}: {
-  month: number;
-  year: number;
-  onPrev: () => void;
-  onNext: () => void;
-  selectedDate: CalDaySelection | null;
-  onSelectDay: (day: number) => void;
-  /** Day-of-month (1–31) that have at least one event in `calendarByDate`. */
-  daysWithEvents: Set<number>;
-}) {
-  const first = new Date(year, month, 1);
-  const last = new Date(year, month + 1, 0);
-  const startPad = first.getDay();
-  const daysInMonth = last.getDate();
-  const today = new Date();
-  const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
-  const todayDate = today.getDate();
+/** Community: Pick5 linking + recent public reviews from everyone on Synth. Mirrors web. */
+export default function CommunityScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<NetworkReview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < startPad; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-  const nextPad = 42 - cells.length;
-  for (let d = 1; d <= nextPad && cells.length < 42; d++) cells.push(-d);
+  const load = useCallback(async () => {
+    const [{ data: { session } }, list] = await Promise.all([supabase.auth.getSession(), loadCommunityReviews()]);
+    const viewerId = session?.user?.id ?? null;
+    // Without this every heart rendered empty, so re-tapping a liked review showed a phantom +1.
+    const likedIds = viewerId
+      ? await ReviewEngagementService.getReviewIdsLikedByUser(viewerId, list.map((r) => r.id)).catch(() => new Set<string>())
+      : new Set<string>();
+    setUserId(viewerId);
+    setReviews(list.map((r) => ({ ...r, is_liked_by_user: likedIds.has(r.id) })));
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
 
-  const label = first.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  return (
-    <View style={calStyles.card}>
-      <View style={calStyles.monthRow}>
-        <Pressable onPress={onPrev} style={calStyles.arrow}>
-          <ChevronLeft size={22} color={SynthTokens.colors.neutral900} />
-        </Pressable>
-        <Text style={calStyles.monthTitle}>{label}</Text>
-        <Pressable onPress={onNext} style={calStyles.arrow}>
-          <ChevronRight size={22} color={SynthTokens.colors.neutral900} />
-        </Pressable>
+  const header = (
+    <View style={styles.headerBlock}>
+      <View style={styles.pick5Card}>
+        <View style={styles.pick5Head}>
+          <Image source={PICK5_LOGO} style={styles.pick5Logo} />
+          <Text style={styles.pick5Name}>Pick5</Text>
+        </View>
+        <PickFiveConnection />
       </View>
-      <View style={calStyles.weekRow}>
-        {WEEKDAYS.map(w => (
-          <Text key={w} style={calStyles.weekday}>
-            {w}
-          </Text>
-        ))}
-      </View>
-      <View style={calStyles.grid}>
-        {cells.map((cell, idx) => {
-          if (cell === null) {
-            return <View key={`e-${idx}`} style={calStyles.cell} />;
-          }
-          if (cell < 0) {
-            return (
-              <View key={`n-${idx}`} style={calStyles.cell}>
-                <Text style={calStyles.dayMuted}>{-cell}</Text>
-              </View>
-            );
-          }
-          const isToday = isCurrentMonth && cell === todayDate;
-          const isPast = isCurrentMonth && cell < todayDate;
-          const isSelected =
-            selectedDate != null &&
-            year === selectedDate.year &&
-            month === selectedDate.month &&
-            cell === selectedDate.day;
-          const hasEvents = daysWithEvents.has(cell);
-          return (
-            <Pressable
-              key={`d-${idx}`}
-              style={calStyles.cell}
-              onPress={() => onSelectDay(cell)}
-              accessibilityRole="button"
-              accessibilityLabel={`Day ${cell}`}
-            >
-              <Text
-                style={[
-                  calStyles.dayNum,
-                  isPast && calStyles.dayPast,
-                  isToday && calStyles.dayToday,
-                  isSelected && calStyles.daySelected,
-                ]}
-              >
-                {cell}
-              </Text>
-              {hasEvents ? <View style={calStyles.eventDot} /> : null}
-            </Pressable>
-          );
-        })}
+      <InviteFriendsCard userId={userId} />
+      <View style={styles.banner}>
+        <Text style={styles.bannerTitle}>The community</Text>
+        <SynthText variant="meta" color="secondary" style={styles.bannerSub}>
+          What people on Synth are saying about the shows they went to. Tap one to read it and join in.
+        </SynthText>
       </View>
     </View>
   );
-}
-
-const calStyles = StyleSheet.create({
-  card: {
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderRadius: 16,
-    padding: SynthTokens.spacing.md,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  monthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SynthTokens.spacing.md,
-  },
-  monthTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: SynthTokens.colors.neutral900,
-  },
-  arrow: { padding: 8 },
-  weekRow: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  weekday: {
-    width: '14.28%',
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-    color: SynthTokens.colors.neutral600,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  cell: {
-    width: '14.28%',
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 4,
-  },
-  dayNum: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: SynthTokens.colors.neutral900,
-  },
-  dayPast: {
-    fontWeight: '500',
-    color: SynthTokens.colors.neutral600,
-  },
-  dayToday: {
-    color: PINK,
-  },
-  daySelected: {
-    color: SynthTokens.colors.neutral900,
-    backgroundColor: PINK_SOFT,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  dayMuted: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: SynthTokens.colors.neutral200,
-  },
-  eventDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: PINK,
-    marginTop: 2,
-  },
-});
-
-export default function DiscoverScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [searchQ, setSearchQ] = useState('');
-  const searchInputRef = useRef<TextInput>(null);
-  const {
-    coords,
-    label: locationLabel,
-    radiusMiles: discoverRadius,
-    isManual,
-    setManualLocation,
-    resetToCurrentLocation,
-  } = useBrowseLocation();
-  const [showLocationPill, setShowLocationPill] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isVibeSheetOpen, setIsVibeSheetOpen] = useState(false);
-  const [isLocationSheetOpen, setIsLocationSheetOpen] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUserId(session?.user?.id ?? null);
-    }).catch(() => {});
-  }, []);
-
-  // Pill only shows for an active manual override - clearing/resetting hides it,
-  // while the small X on the pill lets the user dismiss it without resetting the
-  // underlying browse location (see styles.locClear below).
-  useEffect(() => {
-    setShowLocationPill(isManual);
-  }, [isManual]);
-
-  const now = new Date();
-  const [calMonth, setCalMonth] = useState(now.getMonth());
-  const [calYear, setCalYear] = useState(now.getFullYear());
-  const [calDaySelection, setCalDaySelection] = useState<CalDaySelection | null>(null);
-  const [calendarByDate, setCalendarByDate] = useState<Record<string, SearchResult[]>>({});
-  const [calLoading, setCalLoading] = useState(false);
-  const [calLoadError, setCalLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCalDaySelection(null);
-  }, [calMonth, calYear]);
-
-  /** Months already paged in for the current location, so navigating back is free. */
-  const loadedMonthsRef = useRef<Set<string>>(new Set());
-  const calLocationKeyRef = useRef<string>('');
-
-  useEffect(() => {
-    // A location or radius change invalidates everything already loaded.
-    const locationKey = `${coords?.latitude ?? 'na'}|${coords?.longitude ?? 'na'}|${discoverRadius}`;
-    if (calLocationKeyRef.current !== locationKey) {
-      calLocationKeyRef.current = locationKey;
-      loadedMonthsRef.current = new Set();
-      setCalendarByDate({});
-    }
-
-    const monthKey = `${calYear}-${calMonth}`;
-    if (loadedMonthsRef.current.has(monthKey)) {
-      return;
-    }
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const monthStart = new Date(calYear, calMonth, 1);
-    const monthEnd = new Date(calYear, calMonth + 1, 0, 23, 59, 59, 999);
-    // Wholly past months have nothing upcoming in them — skip the round trip.
-    if (monthEnd < todayStart) {
-      return;
-    }
-
-    let cancelled = false;
-    setCalLoading(true);
-    setCalLoadError(null);
-    // Scoped to the month on screen. Loading "the next 1000 events" instead only
-    // reached about four weeks out, which left later months rendering empty.
-    void SearchService.loadDiscoverCalendarEvents({
-      latitude: coords?.latitude ?? null,
-      longitude: coords?.longitude ?? null,
-      radiusMiles: discoverRadius,
-      minDate: (monthStart < todayStart ? todayStart : monthStart).toISOString(),
-      until: monthEnd.toISOString(),
-    }).then(({ byDate, error }) => {
-      if (cancelled) return;
-      // Merge rather than replace so previously loaded months survive navigation.
-      setCalendarByDate(prev => ({ ...prev, ...byDate }));
-      setCalLoadError(error);
-      if (!error) loadedMonthsRef.current.add(monthKey);
-    }).finally(() => {
-      if (!cancelled) setCalLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [coords?.latitude, coords?.longitude, discoverRadius, calMonth, calYear]);
-
-  const daysWithEventsInMonth = useMemo(() => {
-    const set = new Set<number>();
-    const y = calYear;
-    const m = calMonth;
-    for (const ymd of Object.keys(calendarByDate)) {
-      if (!calendarByDate[ymd]?.length) continue;
-      const [ys, ms, ds] = ymd.split('-').map(Number);
-      if (ys === y && ms - 1 === m) set.add(ds);
-    }
-    return set;
-  }, [calendarByDate, calMonth, calYear]);
-
-  const selectedDayEvents = useMemo(() => {
-    if (calDaySelection == null) return [];
-    const ymd = toLocalYmd(
-      new Date(calDaySelection.year, calDaySelection.month, calDaySelection.day)
-    );
-    const list = calendarByDate[ymd] ?? [];
-    return [...list].sort(
-      (a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime()
-    );
-  }, [calDaySelection, calendarByDate]);
-
-  const calPrev = () => {
-    if (calMonth === 0) {
-      setCalMonth(11);
-      setCalYear(y => y - 1);
-    } else setCalMonth(m => m - 1);
-  };
-
-  const calNext = () => {
-    if (calMonth === 11) {
-      setCalMonth(0);
-      setCalYear(y => y + 1);
-    } else setCalMonth(m => m + 1);
-  };
-
-  const handleLocationApply = (newCoords: LatLng | null, label: string | null, radiusMiles: number) => {
-    if (newCoords) {
-      setManualLocation(newCoords, label ?? 'Custom location', radiusMiles);
-    } else {
-      resetToCurrentLocation();
-    }
-    setIsLocationSheetOpen(false);
-  };
-
-  const handleVibeSelect = useCallback((vibeType: VibeType) => {
-    console.log('Discover vibe selected:', vibeType);
-    setIsVibeSheetOpen(false);
-  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.searchRow}>
-        <View style={styles.searchBar}>
-          <Search size={20} color={SynthTokens.colors.neutral400} />
-          <TextInput
-            ref={searchInputRef}
-            placeholder='Try "Radiohead"'
-            placeholderTextColor={SynthTokens.colors.neutral400}
-            style={styles.searchInput}
-            value={searchQ}
-            onChangeText={setSearchQ}
-            onSubmitEditing={() => {
-              const q = searchQ.trim();
-              router.push(q ? (`/(tabs)/search?q=${encodeURIComponent(q)}` as any) : '/(tabs)/search');
-            }}
-            onFocus={() => {
-              // Blur first so returning from search doesn't immediately re-open it.
-              searchInputRef.current?.blur();
-              Keyboard.dismiss();
-              const q = searchQ.trim();
-              if (q) {
-                router.push(`/(tabs)/search?q=${encodeURIComponent(q)}` as any);
-              } else {
-                router.push('/(tabs)/search');
-              }
-            }}
-            returnKeyType="search"
-          />
-        </View>
-        <Pressable style={styles.iconCircle} onPress={() => router.push('/app-menu')}>
+      <View style={styles.topBar}>
+        <Text style={styles.title}>Community</Text>
+        <Pressable style={styles.iconCircle} onPress={() => router.push('/app-menu')} accessibilityLabel="Open menu">
           <Menu size={22} color={SynthTokens.colors.neutral900} />
         </Pressable>
       </View>
-
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: bottomSafeContentPadding(insets.bottom) },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.dualActions}>
-          <Pressable style={styles.browseVibes} onPress={() => setIsVibeSheetOpen(true)}>
-            <Sparkles size={18} color="#fff" />
-            <Text style={styles.browseVibesText}>Browse Vibes</Text>
-          </Pressable>
-          <Pressable style={styles.locationBtn} onPress={() => setIsLocationSheetOpen(true)}>
-            <MapPin size={18} color={SynthTokens.colors.neutral900} />
-            <Text style={styles.locationBtnText}>Location</Text>
-          </Pressable>
-        </View>
-
-        {showLocationPill ? (
-          <View style={styles.locPill}>
-            <MapPin size={16} color={PINK} />
-            <Text style={styles.locPillText} numberOfLines={1}>
-              {locationLabel}
-            </Text>
-            <Pressable
-              onPress={() => setShowLocationPill(false)}
-              hitSlop={8}
-              style={styles.locClear}
-            >
-              <X size={18} color={PINK} />
-            </Pressable>
-          </View>
-        ) : null}
-
-        <View style={styles.sectionHead}>
-          <SynthText variant="h2" style={styles.sectionTitle}>
-            Discover Events
+      <FlashList
+        data={reviews}
+        keyExtractor={(r) => r.id}
+        ListHeaderComponent={header}
+        renderItem={({ item }) => (
+          <ThreadReviewCard
+            review={item}
+            currentUserId={userId}
+            label="Review"
+            onPress={() => router.push(`/review/${item.id}` as any)}
+          />
+        )}
+        ListEmptyComponent={
+          <SynthText variant="meta" color="secondary" style={styles.empty}>
+            {loading ? 'Loading reviews…' : 'No public reviews yet.'}
           </SynthText>
-          <SynthText variant="meta" color="secondary" style={styles.sectionSub}>
-            Discover events by date.
-          </SynthText>
-        </View>
-
-
-            {calLoadError ? (
-              <SynthText variant="meta" color="secondary" style={styles.calError}>
-                Could not load events: {calLoadError}
-              </SynthText>
-            ) : null}
-            {calLoading && !calDaySelection ? (
-              <SynthText variant="meta" color="secondary" style={styles.calHint}>
-                Loading events…
-              </SynthText>
-            ) : null}
-            <DiscoverCalendar
-              month={calMonth}
-              year={calYear}
-              onPrev={calPrev}
-              onNext={calNext}
-              selectedDate={calDaySelection}
-              daysWithEvents={daysWithEventsInMonth}
-              onSelectDay={day => {
-                // Tapping the selected day again clears it, collapsing the results
-                // list back to the plain calendar.
-                setCalDaySelection(prev =>
-                  prev && prev.year === calYear && prev.month === calMonth && prev.day === day
-                    ? null
-                    : { year: calYear, month: calMonth, day }
-                );
-              }}
-            />
-            {calDaySelection != null ? (
-              <View style={styles.calResults}>
-                {/* Tapping the day again also clears it, but that gesture is invisible
-                    and needs a scroll back up once the list is long. */}
-                <View style={styles.calResultsHeader}>
-                  <SynthText variant="meta" style={styles.calResultsTitle}>
-                    {new Date(
-                      calDaySelection.year,
-                      calDaySelection.month,
-                      calDaySelection.day
-                    ).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </SynthText>
-                  <Pressable
-                    onPress={() => setCalDaySelection(null)}
-                    hitSlop={10}
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear selected date"
-                    style={styles.calClearButton}
-                  >
-                    <SynthText variant="meta" style={styles.calClearText}>
-                      Show all
-                    </SynthText>
-                    <X size={14} color={PINK} />
-                  </Pressable>
-                </View>
-                {calLoading ? (
-                  <DiscoverCalEventsSkeleton />
-                ) : selectedDayEvents.length === 0 ? (
-                  <SynthText variant="meta" color="secondary">
-                    No events on this date.
-                  </SynthText>
-                ) : (
-                  selectedDayEvents.map(ev => (
-                    <EventCard
-                      key={ev.id}
-                      id={ev.id}
-                      title={ev.title}
-                      artist_name={ev.artist_name}
-                      venue_name={ev.venue_name}
-                      venue_city={ev.venue_city}
-                      venue_state={ev.venue_state}
-                      event_date={ev.event_date}
-                      image_url={ev.image_url}
-                      ticket_url={ev.ticket_url}
-                      artist_id={ev.artist_id}
-                      venue_id={ev.venue_id}
-                    />
-                  ))
-                )}
-              </View>
-            ) : (
-              <SynthText variant="meta" color="secondary" style={styles.calHint}>
-                Tap a date to see shows that day. Days with a dot have events.
-              </SynthText>
-            )}
-
-        {/* Genre Communities — shown below the calendar */}
-        {userId ? (
-          <GenreChatsSection currentUserId={userId} />
-        ) : null}
-
-      </ScrollView>
-      <VibeSelectorSheet
-        visible={isVibeSheetOpen}
-        onClose={() => setIsVibeSheetOpen(false)}
-        onSelect={handleVibeSelect}
-      />
-      <LocationSheet
-        visible={isLocationSheetOpen}
-        onClose={() => setIsLocationSheetOpen(false)}
-        onApply={handleLocationApply}
-        initialCoords={coords}
-        initialLabel={locationLabel}
-        initialRadius={discoverRadius}
+        }
+        contentContainerStyle={{ paddingBottom: bottomSafeContentPadding(insets.bottom) }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void load();
+            }}
+            tintColor={SynthTokens.colors.neutral400}
+          />
+        }
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: SynthTokens.colors.neutral0,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: SynthTokens.spacing.md,
-    paddingBottom: SynthTokens.spacing.sm,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    backgroundColor: SynthTokens.colors.neutral50,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: SynthTokens.colors.neutral900,
-    paddingVertical: 0,
-  },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SynthTokens.colors.neutral0,
-  },
-  scroll: {
-    paddingHorizontal: SynthTokens.spacing.md,
-    gap: SynthTokens.spacing.md,
-  },
-  dualActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  browseVibes: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: PINK,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  browseVibesText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  locationBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: SynthTokens.colors.neutral0,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: SynthTokens.colors.neutral200,
-  },
-  locationBtnText: {
-    fontWeight: '700',
-    fontSize: 15,
-    color: SynthTokens.colors.neutral900,
-  },
-  locPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'stretch',
-    borderWidth: 2,
-    borderColor: PINK,
-    borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: SynthTokens.colors.neutral0,
-  },
-  locPillText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: SynthTokens.colors.neutral900,
-  },
-  locClear: { padding: 4 },
-  sectionHead: {
-    marginTop: 4,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: SynthTokens.colors.neutral900,
-  },
-  sectionSub: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  calHint: { marginTop: 4, marginBottom: 4 },
-  calError: { marginTop: 4, marginBottom: 4, color: SynthTokens.colors.brandPink500 },
-  calResults: { gap: 8, marginTop: 4 },
-  calResultsHeader: {
+  container: { flex: 1, backgroundColor: SynthTokens.colors.neutral50 },
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: SynthTokens.spacing.md,
+    paddingTop: SynthTokens.spacing.sm,
+    paddingBottom: SynthTokens.spacing.sm,
   },
-  calResultsTitle: { fontWeight: '700', fontSize: 15, marginBottom: 4 },
-  calClearButton: {
-    flexDirection: 'row',
+  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, color: SynthTokens.colors.neutral900 },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    marginBottom: 4,
+    justifyContent: 'center',
+    backgroundColor: SynthTokens.colors.neutral0,
   },
-  calClearText: { color: PINK, fontWeight: '600' },
+  headerBlock: { paddingHorizontal: SynthTokens.spacing.screenMarginX, gap: 16, marginBottom: 12 },
+  pick5Card: {
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: SynthTokens.colors.neutral200,
+    gap: 10,
+  },
+  pick5Head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  pick5Logo: { width: 28, height: 28, borderRadius: 7 },
+  pick5Name: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.neutral900 },
+  banner: { paddingTop: 4 },
+  bannerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3, color: SynthTokens.colors.neutral900 },
+  bannerSub: { marginTop: 4, fontSize: 14, lineHeight: 20 },
+  empty: { textAlign: 'center', paddingVertical: 32 },
 });

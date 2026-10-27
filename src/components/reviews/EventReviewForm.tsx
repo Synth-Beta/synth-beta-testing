@@ -399,6 +399,16 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           review = await ReviewService.getUserEventReview(userId, event.id);
         }
 
+        // A hidden ticket price lives in the author-only table; load it so editing keeps it.
+        if (review && (review as any).show_ticket_price === false && (review as any).ticket_price_paid == null) {
+          const { data: hidden } = await (supabase as any)
+            .from('review_ticket_prices')
+            .select('ticket_price_paid')
+            .eq('review_id', (review as any).id)
+            .maybeSingle();
+          if (hidden) review = { ...(review as any), ticket_price_paid: hidden.ticket_price_paid };
+        }
+
         // Load draft data from localStorage if no existing review
         if (!review) {
           // Draft key based on artist+venue from event (event_id not used)
@@ -466,6 +476,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             valueFeedback: review.value_feedback || '',
             ticketPricePaid: review.ticket_price_paid ? String(review.ticket_price_paid) : '',
             recommendAtPrice: review.recommend_at_price ?? null,
+            showTicketPrice: review.show_ticket_price ?? true,
             rating: review.rating,
             reviewText: review.review_text || '',
             photos: review.photos || [],
@@ -874,6 +885,8 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         value_feedback: valueFeedback,
         ticket_price_paid: typeof ticketPrice === 'number' && !Number.isNaN(ticketPrice) ? ticketPrice : undefined,
         recommend_at_price: formData.recommendAtPrice ?? undefined,
+        // Only with a price: re-submitting without one must not flip a hidden price back to public.
+        show_ticket_price: formData.ticketPricePaid ? formData.showTicketPrice : undefined,
         review_text: formData.reviewText.trim() || undefined,
         photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
         videos: formData.videos && formData.videos.length > 0 ? formData.videos : undefined,

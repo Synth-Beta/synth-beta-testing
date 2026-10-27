@@ -2,7 +2,10 @@ import './instrument'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary'
+import { installWebIssueReporter, markStaleBuildReload, reportClientIssue } from './services/clientIssueReporter'
 import './index.css'
+
+installWebIssueReporter()
 
 // Every deploy rewrites the hashed asset filenames, so a tab still running the previous
 // build 404s the moment it lazy-loads a chunk it hasn't fetched yet ("Failed to fetch
@@ -13,8 +16,16 @@ const RELOAD_KEY = 'synth:chunk-reload';
 window.addEventListener('vite:preloadError', (event) => {
   let last = 0;
   try { last = Number(sessionStorage.getItem(RELOAD_KEY)) || 0; } catch { /* storage blocked */ }
-  if (Date.now() - last < 10_000) return;
+  if (Date.now() - last < 10_000) {
+    reportClientIssue({
+      severity: 'failed_index',
+      message: 'Failed to load the app index after a reload',
+      context: 'vite:preloadError',
+    });
+    return;
+  }
   event.preventDefault();
+  markStaleBuildReload();
   try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch { /* storage blocked */ }
   console.warn('[chunk] stale build detected, reloading');
   window.location.reload();

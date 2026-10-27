@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
-  footerTitle: { fontWeight: '700', color: 'white' },
+  footerTitle: { fontWeight: '700', color: '#FFFDFA' },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',

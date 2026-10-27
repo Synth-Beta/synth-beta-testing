@@ -475,7 +475,6 @@ export const DiscoverView: React.FC<DiscoverViewProps> = ({
         <ConnectionsHub
           currentUserId={currentUserId}
           onNavigateToProfile={onNavigateToProfile}
-          onOpenMessages={() => onViewChange?.('chat')}
         />
       )}
 

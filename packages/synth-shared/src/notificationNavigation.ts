@@ -100,7 +100,10 @@ export function resolveNotificationExpoPath(
 
   if (EVENT_SUMMARY_TYPES.has(type)) {
     if (eventId) return { path: `/event/${eventId}` };
-    return { path: '/(tabs)/discover' };
+    // Merged "Sam is interested in 3 shows" drops event_id: show the friend, not one event.
+    if (type === 'event_interest' && actor) return { path: `/user/${actor}` };
+    // No single show: Home, where nearby shows live now that Community replaced Discover.
+    return { path: '/(tabs)' };
   }
 
   if (type === 'friend_accepted') {

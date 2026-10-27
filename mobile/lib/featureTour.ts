@@ -1,9 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../src/integrations/supabase/client';
+import { notifyFeatureTourClosed } from './pushPrimer';
+import { endTour } from './tourProgress';
 
 // Per-user so a shared device still shows the tour to each new account.
 const key = (userId: string) => `FEATURE_TOUR_DONE:${userId}`;
 
-/** Accounts older than this never get the tour auto-opened (it's still in the app menu). */
+/** Accounts older than this never get the tutorial auto-started (it's still in Settings). */
 export const FEATURE_TOUR_AUTO_MAX_ACCOUNT_AGE_DAYS = 14;
 
 export async function hasSeenFeatureTour(userId: string): Promise<boolean> {
@@ -27,5 +30,15 @@ export async function markFeatureTourSeen(userId: string): Promise<void> {
     await AsyncStorage.setItem(key(userId), 'true');
   } catch {
     // Best-effort.
+  }
+}
+
+/** Ends the tutorial, marks it seen and lets the push primer run. Used by TourOverlay. */
+export async function finishTour(): Promise<void> {
+  endTour();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    await markFeatureTourSeen(session.user.id);
+    notifyFeatureTourClosed();
   }
 }

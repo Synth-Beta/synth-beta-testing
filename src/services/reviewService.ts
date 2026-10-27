@@ -42,6 +42,7 @@ export interface ReviewData {
   value_feedback?: string;
   ticket_price_paid?: number;
   recommend_at_price?: boolean;
+  show_ticket_price?: boolean;
   artist_rating?: number; // Legacy field for backward compatibility
   review_type: 'event' | 'venue' | 'artist'; // Type of review
   review_text?: string;
@@ -77,6 +78,7 @@ export interface UserReview {
   value_feedback?: string;
   ticket_price_paid?: number;
   recommend_at_price?: boolean;
+  show_ticket_price?: boolean;
   artist_rating?: number; // Legacy field
   review_type?: 'event' | 'venue' | 'artist';
   review_text?: string;
@@ -276,89 +278,6 @@ export class ReviewService {
     } catch (error) {
       // Non-critical: image promotion shouldn't block review publishing.
       console.warn('⚠️ ReviewService: Failed to promote review photo to entity image:', error);
-    }
-  }
-
-  /**
-   * Notify friends tagged in a review so they receive a notification and can write their own
-   * review with artist, venue, date, and friends pre-filled.
-   */
-  static async notifyTaggedFriendsInReview(params: {
-    actorUserId: string;
-    reviewData: ReviewData;
-    savedReview: any;
-    artistId?: string;
-    venueId?: string;
-    eventDate: string;
-  }): Promise<void> {
-    const { actorUserId, reviewData, savedReview, artistId, venueId, eventDate } = params;
-    const attendees = reviewData.attendees ?? [];
-    const userAttendees = attendees.filter(
-      (a): a is { type: 'user'; user_id: string; name: string; avatar_url?: string } =>
-        typeof a === 'object' && a !== null && (a as any).type === 'user' && typeof (a as any).user_id === 'string'
-    );
-    const taggedFriendIds = userAttendees
-      .map((a) => a.user_id)
-      .filter((id) => id && id !== actorUserId && isValidUuid(id));
-
-    if (taggedFriendIds.length === 0) return;
-
-    // Fetch actor (reviewer) name
-    let actorName = 'Someone';
-    try {
-      const { data: actor, error: actorError } = await supabase
-        .from('users')
-        .select('name')
-        .eq('user_id', actorUserId)
-        .maybeSingle();
-      if (actorError) console.warn('[reviewService] actor query failed', actorError);
-      if (actor?.name) actorName = actor.name;
-    } catch {
-      // Non-fatal
-    }
-
-    // Fetch artist and venue names for notification message
-    let artistName = '';
-    let venueName = '';
-    try {
-      if (artistId) {
-        const { data: a, error: aError } = await supabase.from('artists').select('name').eq('id', artistId).maybeSingle();
-        if (aError) console.warn('[reviewService] a query failed', aError);
-        artistName = (a as any)?.name ?? '';
-      }
-      if (venueId) {
-        const { data: v, error: vError } = await supabase.from('venues').select('name').eq('id', venueId).maybeSingle();
-        if (vError) console.warn('[reviewService] v query failed', vError);
-        venueName = (v as any)?.name ?? '';
-      }
-    } catch {
-      // Non-fatal
-    }
-
-    const eventDesc = [artistName, venueName].filter(Boolean).join(' at ') || 'a show';
-    const notifications = taggedFriendIds.map((friendUserId) => ({
-      user_id: friendUserId,
-      type: 'friend_tagged_in_review',
-      title: 'You were tagged in a review',
-      message: `${actorName} tagged you in their review of ${eventDesc}. Write your own review!`,
-      data: {
-        review_id: savedReview?.id,
-        artist_id: artistId,
-        artist_name: artistName,
-        venue_id: venueId,
-        venue_name: venueName,
-        Event_date: eventDate,
-        actor_user_id: actorUserId,
-        actor_name: actorName,
-        attendees: userAttendees,
-      },
-      review_id: savedReview?.id,
-      actor_user_id: actorUserId,
-    }));
-
-    const { error } = await supabase.from('notifications').insert(notifications);
-    if (error) {
-      throw error;
     }
   }
 
@@ -669,6 +588,7 @@ export class ReviewService {
           // All 5 category recommendation fields
           ticket_price_paid: reviewData.ticket_price_paid,
           recommend_at_price: reviewData.recommend_at_price,
+          show_ticket_price: reviewData.show_ticket_price,
           artist_rating: reviewData.artist_rating, // Legacy field
           review_type: reviewData.review_type,
           venue_tags: reviewData.venue_tags,
@@ -841,16 +761,6 @@ export class ReviewService {
             isPublic: (data as any)?.is_public,
           });
 
-          const resolvedArtistId = (data as any)?.artist_id ?? (data as any)?.user_created_artist_id ?? normalizedArtistId ?? normalizedUserCreatedArtistId;
-          ReviewService.notifyTaggedFriendsInReview({
-            actorUserId: userId,
-            reviewData,
-            savedReview: data,
-            artistId: resolvedArtistId,
-            venueId: normalizedVenueId,
-            eventDate,
-          }).catch((err) => console.warn('Failed to notify tagged friends:', err));
-
           return data as any as UserReview;
         }
       }
@@ -888,6 +798,7 @@ export class ReviewService {
         // All 5 category recommendation fields
         ticket_price_paid: reviewData.ticket_price_paid,
         recommend_at_price: reviewData.recommend_at_price,
+        show_ticket_price: reviewData.show_ticket_price,
         artist_rating: reviewData.artist_rating, // Legacy field
         review_type: reviewData.review_type,
         venue_tags: reviewData.venue_tags,
@@ -998,6 +909,7 @@ export class ReviewService {
           value_feedback: reviewData.value_feedback?.trim() || undefined,
           ticket_price_paid: reviewData.ticket_price_paid,
           recommend_at_price: reviewData.recommend_at_price,
+          show_ticket_price: reviewData.show_ticket_price,
           photos: reviewData.photos,
           setlist: reviewData.setlist || null, // JSONB field (Supabase handles conversion)
           attendees: attendeesForDb,
@@ -1044,16 +956,6 @@ export class ReviewService {
         isPublic: (data as any)?.is_public,
       });
 
-      const resolvedArtistId = (data as any)?.artist_id ?? (data as any)?.user_created_artist_id ?? normalizedArtistId ?? normalizedUserCreatedArtistId;
-      ReviewService.notifyTaggedFriendsInReview({
-        actorUserId: userId,
-        reviewData,
-        savedReview: data,
-        artistId: resolvedArtistId,
-        venueId: (data as any)?.venue_id ?? (data as any)?.user_created_venue_id ?? normalizedVenueId ?? normalizedUserCreatedVenueId,
-        eventDate,
-      }).catch((err) => console.warn('Failed to notify tagged friends:', err));
-      
       // CRITICAL: Delete ALL drafts for this event immediately after creating published review
       // This is the nuclear option - delete ALL drafts, no exceptions
       // Only run when we have a valid eventId (event-based flow); artist+venue flow handles cleanup elsewhere
