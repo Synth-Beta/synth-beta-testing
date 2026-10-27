@@ -269,3 +269,4 @@ export { type ProfileSaveError, describeProfileSaveError } from './profileSaveEr
 export { type OnboardingProfileInput, type OnboardingField, ONBOARDING_MIN_AGE, ONBOARDING_BIO_MAX, validateOnboardingProfile, pickPreselected, normalizeBirthday, isPlaceholderName } from './onboardingRules';
 export { isEmptySpotifySync, streamingRowHasData, SPOTIFY_EMPTY_SYNC_MESSAGE } from './spotifySyncGuard';
 export { checkReviewVideo, REVIEW_VIDEO_MAX_SECONDS, REVIEW_VIDEO_MAX_MB } from './reviewVideo';
+export { isEmailNotConfirmedError, EMAIL_CONFIRM_RESEND_COOLDOWN_SEC, EMAIL_CONFIRM_POLL_MS, EMAIL_CONFIRM_POLL_MAX_MS } from './emailConfirm';

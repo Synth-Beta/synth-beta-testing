@@ -14,7 +14,7 @@ import {
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getAuthRedirectOrigin } from '@synth/shared';
+import { getAuthRedirectOrigin, isEmailNotConfirmedError } from '@synth/shared';
 import { isSupabaseConfigured, supabase } from '../../src/integrations/supabase/client';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { getAppleSignInCredential, persistAppleDisplayName } from '../../lib/appleAuth';
@@ -23,6 +23,7 @@ import {
   AndroidGoogleSignInPlaceholder,
   AndroidGoogleSignInRow,
 } from '../../src/components/auth/AndroidGoogleSignInRow';
+import { CheckEmailPanel } from '../../src/components/auth/CheckEmailPanel';
 
 /** Matches web `Auth.tsx` primary / link pink. */
 const AUTH_PINK = '#FF3399';
@@ -37,6 +38,8 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Set when the account exists but the email isn't confirmed yet: shows CheckEmailPanel.
+  const [pendingConfirmEmail, setPendingConfirmEmail] = useState<string | null>(null);
 
   const androidGoogleClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim();
   const webGoogleClientId =
@@ -85,6 +88,10 @@ export default function SignInScreen() {
       const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (e) throw e;
     } catch (err: unknown) {
+      if (isEmailNotConfirmedError(err)) {
+        setPendingConfirmEmail(email.trim());
+        return;
+      }
       setError(formatAuthError(err));
     } finally {
       setLoading(false);
@@ -101,7 +108,7 @@ export default function SignInScreen() {
         siteUrlEnv: process.env.EXPO_PUBLIC_SITE_URL,
         fallback: 'https://join.getsynth.app',
       });
-      const { error: e } = await supabase.auth.signUp({
+      const { data, error: e } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -110,7 +117,14 @@ export default function SignInScreen() {
         },
       });
       if (e) throw e;
-      setMessage('Check your email to confirm, or sign in if confirmations are off.');
+      // Supabase answers success with no identities when the email is already registered.
+      if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+        setError('That email already has an account. Switch to Sign In.');
+        return;
+      }
+      // No session means a confirmation email went out; with a session the root layout
+      // takes over.
+      if (!data.session) setPendingConfirmEmail(email.trim());
     } catch (err: unknown) {
       setError(formatAuthError(err));
     } finally {
@@ -249,6 +263,14 @@ export default function SignInScreen() {
             </View>
           ) : null}
 
+          {pendingConfirmEmail ? (
+            <CheckEmailPanel
+              email={pendingConfirmEmail}
+              password={password}
+              onBack={() => setPendingConfirmEmail(null)}
+            />
+          ) : (
+          <>
           {mode === 'signup' ? (
             <TextInput
               style={styles.input}
@@ -313,6 +335,8 @@ export default function SignInScreen() {
               <Text style={styles.magicLinkText}>Email me a magic link</Text>
             </TouchableOpacity>
           ) : null}
+          </>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
