@@ -32,9 +32,11 @@ const PINK = SynthTokens.colors.brandPink500;
 
 interface StreamingAccountSettingsProps {
   onNavigateToStats?: () => void;
+  /** False where the page renders MusicImportOptions in its own section (Connected Apps). */
+  showImports?: boolean;
 }
 
-export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccountSettingsProps) {
+export function StreamingAccountSettings({ onNavigateToStats, showImports = true }: StreamingAccountSettingsProps) {
   const router = useRouter();
   // Spotify's Development Mode only serves allowlisted accounts, so only admins see connect.
   const isAdmin = useIsAdmin();
@@ -287,7 +289,7 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
 
         {provider === 'spotify-export' ? (
           // An upload can't refresh itself: offer a newer file, or Last.fm to stay current.
-          <MusicImportOptions onImported={() => void refreshStatus()} />
+          showImports ? <MusicImportOptions onImported={() => void refreshStatus()} /> : null
         ) : (
           <Pressable
             style={[styles.btnPrimary, (syncing || disconnecting) && styles.btnDisabled]}
@@ -337,7 +339,7 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
         <Text style={styles.btnAppleText}>Connect Apple Music</Text>
       </Pressable>
 
-      <MusicImportOptions onImported={() => void refreshStatus()} />
+      {showImports ? <MusicImportOptions onImported={() => void refreshStatus()} /> : null}
 
       <Pressable
         style={styles.btnGhost}

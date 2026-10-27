@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
 import { ParentalControlsSettings } from '@/components/ParentalControlsSettings';
 import { StreamingAccountSettings } from '@/components/streaming/StreamingAccountSettings';
+import { MusicImportOptions } from '@/components/streaming/MusicImportOptions';
 import { PickFiveConnection } from '@/components/partners/PickFiveConnection';
 import {
   getUserSettingsPreferences,
@@ -593,7 +594,12 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
             <div className="px-5 py-5 space-y-4">
               <SettingsSection label="Spotify / Apple Music">
                 <div className="p-4">
-                  <StreamingAccountSettings compact />
+                  <StreamingAccountSettings compact showImports={false} />
+                </div>
+              </SettingsSection>
+              <SettingsSection label="Last.fm & Spotify data">
+                <div className="p-4">
+                  <MusicImportOptions onImported={() => undefined} />
                 </div>
               </SettingsSection>
               <SettingsSection label="Pick5">

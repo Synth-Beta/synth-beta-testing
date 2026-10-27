@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, Linking, ActivityIndicator } from 'react-native';
 import { Upload, Radio } from 'lucide-react-native';
 import { LASTFM_SPOTIFY_TIP, SPOTIFY_EXPORT_STEPS, SPOTIFY_EXPORT_URL, type MusicImportSource } from '@synth/shared';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
-import { importMusic, pickSpotifyExport } from '../../services/musicImportActions';
+import { fetchSavedLastfmUsername, importMusic, pickSpotifyExport } from '../../services/musicImportActions';
 
 const LASTFM_RED = '#D51007';
 
@@ -21,8 +21,16 @@ export function MusicImportOptions({
   showExport?: boolean;
 }) {
   const [username, setUsername] = useState('');
+  const [savedLastfm, setSavedLastfm] = useState<string | null>(null);
   const [busy, setBusy] = useState<MusicImportSource | null>(null);
   const [note, setNote] = useState<{ text: string; error: boolean } | null>(null);
+
+  useEffect(() => {
+    void fetchSavedLastfmUsername().then((name) => {
+      setSavedLastfm(name);
+      if (name) setUsername((current) => current || name);
+    });
+  }, []);
 
   const connectLastfm = async () => {
     if (!username.trim() || busy) return;
@@ -32,6 +40,7 @@ export function MusicImportOptions({
       const result = await importMusic({ source: 'lastfm', username });
       if (!result.ok) return setNote({ text: result.message ?? 'Import failed. Try again.', error: true });
       setNote({ text: `Last.fm connected · ${result.counts?.artists ?? 0} artists imported.`, error: false });
+      setSavedLastfm(username.trim().replace(/^@/, ''));
       onImported('lastfm');
     } finally {
       setBusy(null);
@@ -69,7 +78,11 @@ export function MusicImportOptions({
           <Radio size={16} color={LASTFM_RED} />
           <SynthText variant="accent">Last.fm</SynthText>
         </View>
-        <SynthText variant="meta" color="secondary" style={styles.hint}>{LASTFM_SPOTIFY_TIP}</SynthText>
+        {savedLastfm ? (
+          <Text style={styles.note}>Connected as {savedLastfm} · tap Sync for your latest listening</Text>
+        ) : (
+          <SynthText variant="meta" color="secondary" style={styles.hint}>{LASTFM_SPOTIFY_TIP}</SynthText>
+        )}
         <View style={styles.inputRow}>
           <TextInput
             value={username}
@@ -88,7 +101,7 @@ export function MusicImportOptions({
             onPress={() => void connectLastfm()}
             disabled={!username.trim() || busy !== null}
           >
-            {busy === 'lastfm' ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnText}>Connect</Text>}
+            {busy === 'lastfm' ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnText}>{savedLastfm && username.trim() === savedLastfm ? 'Sync' : 'Connect'}</Text>}
           </Pressable>
         </View>
         <Pressable onPress={() => void Linking.openURL('https://www.last.fm/join')}>

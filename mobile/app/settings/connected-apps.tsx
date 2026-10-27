@@ -7,6 +7,7 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { StreamingAccountSettings } from '../../src/components/streaming/StreamingAccountSettings';
 import { PickFiveConnection } from '../../src/components/partners/PickFiveConnection';
+import { MusicImportOptions } from '../../src/components/streaming/MusicImportOptions';
 
 /** Settings → Connected Apps: one place for every linked service (more coming). Same as web. */
 export default function ConnectedAppsScreen() {
@@ -28,7 +29,14 @@ export default function ConnectedAppsScreen() {
           Spotify / Apple Music
         </SynthText>
         <View style={styles.card}>
-          <StreamingAccountSettings onNavigateToStats={() => router.push('/stats')} />
+          <StreamingAccountSettings onNavigateToStats={() => router.push('/stats')} showImports={false} />
+        </View>
+
+        <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>
+          Last.fm & Spotify data
+        </SynthText>
+        <View style={styles.card}>
+          <MusicImportOptions onImported={() => undefined} />
         </View>
 
         <SynthText variant="meta" color="secondary" style={styles.sectionLabel}>

@@ -19,11 +19,14 @@ import { formatDistanceToNow } from 'date-fns';
 interface StreamingAccountSettingsProps {
   onNavigateToStreamingStats?: () => void;
   compact?: boolean;
+  /** False where the page renders MusicImportOptions in its own section (Connected Apps). */
+  showImports?: boolean;
 }
 
 export function StreamingAccountSettings({
   onNavigateToStreamingStats,
   compact = false,
+  showImports = true,
 }: StreamingAccountSettingsProps) {
   const { user } = useAuth();
   // Spotify's Development Mode only serves allowlisted accounts, so only admins see connect.
@@ -200,7 +203,7 @@ export function StreamingAccountSettings({
           <p className="text-xs text-muted-foreground">Stats linked — tap resync to pull latest data.</p>
         )}
 
-        {linkStatus.provider === 'spotify-export' ? (
+        {showImports && linkStatus.provider === 'spotify-export' ? (
           // An upload can't refresh itself: offer a newer file, or Last.fm to stay current.
           <MusicImportOptions onImported={() => void refreshStatus()} />
         ) : null}
@@ -263,7 +266,7 @@ export function StreamingAccountSettings({
           Connect Apple Music
         </Button>
       </div>
-      <MusicImportOptions onImported={() => void refreshStatus()} />
+      {showImports ? <MusicImportOptions onImported={() => void refreshStatus()} /> : null}
       <Button
         type="button"
         variant="ghost"

@@ -23,6 +23,20 @@ export async function importMusic(request: MusicImportRequest): Promise<MusicImp
   return result;
 }
 
+/** The username saved by the last successful Last.fm import, if any. */
+export async function fetchSavedLastfmUsername(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const userId = data?.session?.user.id;
+  if (!userId) return null;
+  const { data: row } = await supabase
+    .from('streaming_profiles')
+    .select('username:profile_data->>username')
+    .eq('user_id', userId)
+    .eq('service_type', 'lastfm')
+    .maybeSingle();
+  return (row as { username?: string | null } | null)?.username ?? null;
+}
+
 /** Parses the chosen .zip / .json files in the browser; nothing raw leaves the device. */
 export async function summarizeSpotifyExportFiles(files: File[]): Promise<SpotifyExportSummary | null> {
   const loaded = await Promise.all(

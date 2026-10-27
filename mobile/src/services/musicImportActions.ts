@@ -19,6 +19,20 @@ export async function importMusic(request: MusicImportRequest): Promise<MusicImp
   return postMusicImport(getExpoSiteUrl(), token, request);
 }
 
+/** The username saved by the last successful Last.fm import, if any. */
+export async function fetchSavedLastfmUsername(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const userId = data?.session?.user.id;
+  if (!userId) return null;
+  const { data: row } = await supabase
+    .from('streaming_profiles')
+    .select('username:profile_data->>username')
+    .eq('user_id', userId)
+    .eq('service_type', 'lastfm')
+    .maybeSingle();
+  return (row as { username?: string | null } | null)?.username ?? null;
+}
+
 /**
  * Lets the user pick the Spotify export (.zip or the .json files from it, e.g. from Files
  * or Mail) and parses it on the phone. Returns 'cancelled' if they backed out.

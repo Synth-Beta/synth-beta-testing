@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, Radio, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,11 @@ import {
   SPOTIFY_EXPORT_URL,
   type MusicImportSource,
 } from '@synth/shared';
-import { importMusic, summarizeSpotifyExportFiles } from '@/services/musicImportActions';
+import {
+  fetchSavedLastfmUsername,
+  importMusic,
+  summarizeSpotifyExportFiles,
+} from '@/services/musicImportActions';
 
 /**
  * Last.fm + Spotify-export connect, for everyone who can't use Spotify OAuth.
@@ -23,9 +27,17 @@ export function MusicImportOptions({
   showExport?: boolean;
 }) {
   const [username, setUsername] = useState('');
+  const [savedLastfm, setSavedLastfm] = useState<string | null>(null);
   const [busy, setBusy] = useState<MusicImportSource | null>(null);
   const [note, setNote] = useState<{ text: string; error: boolean } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    void fetchSavedLastfmUsername().then((name) => {
+      setSavedLastfm(name);
+      if (name) setUsername((current) => current || name);
+    });
+  }, []);
 
   const connectLastfm = async () => {
     if (!username.trim() || busy) return;
@@ -35,6 +47,7 @@ export function MusicImportOptions({
       const result = await importMusic({ source: 'lastfm', username });
       if (!result.ok) return setNote({ text: result.message ?? 'Import failed. Try again.', error: true });
       setNote({ text: `Last.fm connected · ${result.counts?.artists ?? 0} artists imported.`, error: false });
+      setSavedLastfm(username.trim().replace(/^@/, ''));
       onImported('lastfm');
     } finally {
       setBusy(null);
@@ -72,7 +85,11 @@ export function MusicImportOptions({
           <Radio className="w-4 h-4 text-[#D51007]" />
           Last.fm
         </div>
-        <p className="text-xs text-muted-foreground">{LASTFM_SPOTIFY_TIP}</p>
+        {savedLastfm ? (
+          <p className="text-xs font-medium text-emerald-700">Connected as {savedLastfm} · tap Sync for your latest listening</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">{LASTFM_SPOTIFY_TIP}</p>
+        )}
         <form
           className="flex gap-2"
           onSubmit={(e) => {
@@ -95,7 +112,7 @@ export function MusicImportOptions({
             className="bg-[#D51007] hover:bg-[#b30d06] text-white"
             disabled={!username.trim() || busy !== null}
           >
-            {busy === 'lastfm' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Connect'}
+            {busy === 'lastfm' ? <Loader2 className="w-4 h-4 animate-spin" /> : savedLastfm && username.trim() === savedLastfm ? 'Sync' : 'Connect'}
           </Button>
         </form>
         <a href="https://www.last.fm/join" target="_blank" rel="noreferrer" className="text-xs font-medium text-primary underline">
