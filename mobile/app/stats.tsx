@@ -47,6 +47,9 @@ import {
 } from '../src/services/streamingSyncActions';
 import { authenticateSpotifyInApp } from '../src/services/spotifyAuthService';
 import { runStreamingAutoSync } from '../src/services/streamingAutoSyncService';
+import { STREAMING_PROVIDER_LABELS } from '@synth/shared';
+import { useIsAdmin } from '../src/hooks/useIsAdmin';
+import { MusicImportOptions } from '../src/components/streaming/MusicImportOptions';
 import { formatRelativeTime } from '../src/utils/formatRelativeTime';
 import { StreamingTimeRangePicker } from '../src/components/streaming/StreamingTimeRangePicker';
 import {
@@ -60,17 +63,12 @@ import { StreamingGenreRow } from '../src/components/streaming/StreamingGenreRow
 const PINK = SynthTokens.colors.brandPink500;
 
 function providerLabel(provider: StreamingProvider): string {
-  switch (provider) {
-    case 'spotify':
-      return 'Spotify';
-    case 'apple-music':
-      return 'Apple Music';
-    default:
-      return 'Streaming';
-  }
+  return provider === 'unknown' ? 'Streaming' : STREAMING_PROVIDER_LABELS[provider];
 }
 
 export default function StreamingStatsScreen() {
+  // Spotify's Development Mode only serves allowlisted accounts, so only admins see connect.
+  const isAdmin = useIsAdmin();
   const [profileData, setProfileData] = useState<Record<string, unknown> | null>(null);
   const [serviceType, setServiceType] = useState<StreamingServiceType | null>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
@@ -201,6 +199,21 @@ export default function StreamingStatsScreen() {
           { text: 'Open web', onPress: () => openStreamingOnWeb('apple-music') },
         ]
       );
+      return;
+    }
+
+    if (linkStatus.provider === 'lastfm' || linkStatus.provider === 'spotify-export') {
+      setResyncing(true);
+      try {
+        const result = await syncStreamingProfile(user.id, linkStatus.provider, { manual: true });
+        await loadProfile(false);
+        Alert.alert(
+          result.ok ? 'Stats updated' : linkStatus.provider === 'lastfm' ? 'Sync failed' : 'Upload a new file',
+          result.ok ? 'Pulled your latest Last.fm listening.' : result.message
+        );
+      } finally {
+        setResyncing(false);
+      }
       return;
     }
 
@@ -344,15 +357,18 @@ export default function StreamingStatsScreen() {
   ]);
 
   const accentColor = providerAccentColor(linkStatus.provider);
+  // Spotify, Last.fm and the Spotify export all store per-time-range lists; Apple Music doesn't.
+  const rangedSource = serviceType !== null && serviceType !== 'apple-music';
+
   const isSpotify = serviceType === 'spotify';
   const hasTimeRanges =
-    isSpotify &&
+    rangedSource &&
     (hasPerRangeData(profileData, 'topArtistsByTimeRange') ||
       hasPerRangeData(profileData, 'topTracksByTimeRange'));
 
   const displayArtists = useMemo(() => {
     if (!profileData) return [];
-    if (serviceType === 'spotify') {
+    if (rangedSource) {
       return getSpotifyTimeRangeList(
         profileData,
         timeRange,
@@ -368,7 +384,7 @@ export default function StreamingStatsScreen() {
     if (!profileData) {
       return { items: [] as unknown[], needsResync: false };
     }
-    if (serviceType === 'spotify') {
+    if (rangedSource) {
       return getSpotifyTimeRangeList(
         profileData,
         timeRange,
@@ -387,7 +403,7 @@ export default function StreamingStatsScreen() {
     const toDisplay = (entries: TopGenreEntry[]) =>
       formatTopGenresForDisplay(entries).map((g) => ({ name: g.name, count: g.count, pct: g.pct }));
 
-    if (serviceType === 'spotify') {
+    if (rangedSource) {
       const perRange = computeTopGenresForTimeRange(profileData, timeRange);
       if (perRange.length > 0) return toDisplay(perRange);
 
@@ -473,6 +489,7 @@ export default function StreamingStatsScreen() {
             <SynthText variant="body" color="secondary" style={styles.connectCopy}>
               Import your listening history to see top artists, songs, and genres.
             </SynthText>
+            {isAdmin ? (
             <Pressable
               onPress={() => void handleConnectSpotifyInApp()}
               style={styles.connectCardWrapper}
@@ -489,7 +506,7 @@ export default function StreamingStatsScreen() {
                     <Music size={24} color="#FFFDFA" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.connectCardTitle}>Connect Spotify</Text>
+                    <Text style={styles.connectCardTitle}>Connect Spotify (admin)</Text>
                     <Text style={styles.connectCardSub}>
                       {resyncing ? 'Connecting…' : 'Stay in app · takes 30 seconds'}
                     </Text>
@@ -498,6 +515,7 @@ export default function StreamingStatsScreen() {
                 </View>
               </LinearGradient>
             </Pressable>
+            ) : null}
             <Pressable onPress={() => openStreamingOnWeb('apple-music')} style={styles.connectCardWrapper}>
               <LinearGradient
                 colors={['#fc3c44', '#b91c1c']}
@@ -517,6 +535,7 @@ export default function StreamingStatsScreen() {
                 </View>
               </LinearGradient>
             </Pressable>
+            <MusicImportOptions onImported={() => void loadProfile(false)} />
           </View>
         ) : null}
 

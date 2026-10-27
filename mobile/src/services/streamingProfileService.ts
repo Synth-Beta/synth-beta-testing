@@ -7,7 +7,9 @@ import {
 import { supabase } from '../integrations/supabase/client';
 import { getStreamingLinkStatus } from './streamingConnectionService';
 
-export type StreamingServiceType = 'spotify' | 'apple-music';
+export type StreamingServiceType = Exclude<StreamingProvider, 'unknown'>;
+
+const SERVICE_TYPES: StreamingServiceType[] = ['spotify', 'apple-music', 'lastfm', 'spotify-export'];
 
 export interface StreamingProfileLoadResult {
   linkStatus: StreamingLinkStatus;
@@ -43,6 +45,8 @@ export function hasAnyProfileStats(profileData: Record<string, unknown> | null |
 export function providerAccentColor(provider: StreamingProvider | null): string {
   if (provider === 'spotify') return '#1DB954';
   if (provider === 'apple-music') return '#FC3C44';
+  if (provider === 'lastfm') return '#D51007';
+  if (provider === 'spotify-export') return '#1DB954';
   return '#EC4899';
 }
 
@@ -66,8 +70,8 @@ export async function loadStreamingProfile(userId: string): Promise<StreamingPro
     null;
 
   const resolvedType: StreamingServiceType | null =
-    profileRow?.service_type === 'spotify' || profileRow?.service_type === 'apple-music'
-      ? profileRow.service_type
+    SERVICE_TYPES.includes(profileRow?.service_type as StreamingServiceType)
+      ? (profileRow!.service_type as StreamingServiceType)
       : linkStatus.provider !== 'unknown'
         ? linkStatus.provider
         : null;

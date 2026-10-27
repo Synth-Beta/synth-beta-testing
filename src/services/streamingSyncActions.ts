@@ -3,6 +3,7 @@ import { getApiBaseUrl } from '@/utils/apiBaseUrl';
 import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
 import { streamingSyncService } from '@/services/streamingSyncService';
+import { importMusic } from '@/services/musicImportActions';
 import {
   markAutoSynced,
   clearAutoSyncThrottle,
@@ -21,7 +22,8 @@ export type StreamingSyncResult = {
     | 'sync-failed'
     | 'partial-sync'
     | 'error'
-    | 'not-configured';
+    | 'not-configured'
+    | 'upload-required';
   message?: string;
   usedClient?: boolean;
   usedServer?: boolean;
@@ -233,9 +235,19 @@ async function tryClientSpotifySync(): Promise<{ ok: boolean; message?: string }
 
 export async function syncStreamingProfile(
   userId: string,
-  serviceType: 'spotify' | 'apple-music',
+  serviceType: 'spotify' | 'apple-music' | 'lastfm' | 'spotify-export',
   options?: { manual?: boolean }
 ): Promise<StreamingSyncResult> {
+  if (serviceType === 'spotify-export') {
+    return { ok: false, skipped: 'upload-required', message: 'Upload a newer Spotify data file to refresh these stats.' };
+  }
+  if (serviceType === 'lastfm') {
+    const result = await importMusic({ source: 'lastfm' });
+    return result.ok
+      ? { ok: true, usedServer: true, counts: result.counts }
+      : { ok: false, skipped: 'sync-failed', message: result.message, usedServer: true };
+  }
+
   if (options?.manual) {
     clearAutoSyncThrottle(userId);
     clearNoServerSpotifyTokenCache(userId);

@@ -15,6 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
+import { useAccountType } from '@/hooks/useAccountType';
+import { MusicImportOptions } from '@/components/streaming/MusicImportOptions';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { toast } from '@/hooks/use-toast';
 import { logger } from '@/utils/logger';
@@ -43,6 +45,8 @@ export const MusicTagsStep = ({
   initialGenres,
   initialArtists,
 }: MusicTagsStepProps) => {
+  // Spotify's Development Mode only serves allowlisted accounts, so only admins see it.
+  const { isAdmin } = useAccountType();
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [customGenre, setCustomGenre] = useState('');
@@ -501,6 +505,7 @@ export const MusicTagsStep = ({
           Connect your music (optional)
         </p>
         <div className="flex flex-wrap gap-3">
+          {isAdmin() ? (
           <Button
             type="button"
             variant="outline"
@@ -516,10 +521,11 @@ export const MusicTagsStep = ({
             ) : (
               <>
                 <LogIn className="w-4 h-4 var(--neutral-900)" />
-                Connect Spotify
+                Connect Spotify (admin)
               </>
             )}
           </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -540,6 +546,8 @@ export const MusicTagsStep = ({
             )}
           </Button>
         </div>
+        {/* The Spotify export takes days to arrive, so it lives in Settings only. */}
+        <MusicImportOptions showExport={false} onImported={() => undefined} />
       </div>
       ) : null}
 

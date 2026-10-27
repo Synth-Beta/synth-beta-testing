@@ -13,6 +13,7 @@ import {
   countPerRangeItems,
 } from '@synth/shared';
 import { authenticateSpotifyInApp } from './spotifyAuthService';
+import { importMusic } from './musicImportActions';
 
 export const STREAMING_AUTO_SYNC_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -25,7 +26,8 @@ export type StreamingSyncResult = {
     | 'partial-sync'
     | 'error'
     | 'not-configured'
-    | 'apple-music-web-only';
+    | 'apple-music-web-only'
+    | 'upload-required';
   message?: string;
   usedServer?: boolean;
   counts?: { artists: number; tracks: number };
@@ -274,7 +276,7 @@ export interface SyncStreamingProfileOptions {
  */
 export async function syncStreamingProfile(
   userId: string,
-  serviceType: 'spotify' | 'apple-music',
+  serviceType: 'spotify' | 'apple-music' | 'lastfm' | 'spotify-export',
   options?: SyncStreamingProfileOptions
 ): Promise<StreamingSyncResult> {
   if (serviceType === 'apple-music') {
@@ -283,6 +285,15 @@ export async function syncStreamingProfile(
       skipped: 'apple-music-web-only',
       message: 'Apple Music sync opens in your browser once.',
     };
+  }
+  if (serviceType === 'spotify-export') {
+    return { ok: false, skipped: 'upload-required', message: 'Upload a newer Spotify data file to refresh these stats.' };
+  }
+  if (serviceType === 'lastfm') {
+    const result = await importMusic({ source: 'lastfm' });
+    return result.ok
+      ? { ok: true, usedServer: true, counts: result.counts }
+      : { ok: false, skipped: 'sync-failed', message: result.message, usedServer: true };
   }
 
   const isManual = options?.manual ?? false;

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isEmptySpotifySync, SPOTIFY_EMPTY_SYNC_MESSAGE } from '../_lib/spotifySync.js';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { fetchLastfmProfile, LastfmError, normalizeLastfmUsername } from '../_lib/lastfm.js';
 
 function parseResponseJson(text: string): Record<string, unknown> {
   if (!text) return {};
@@ -242,7 +243,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!supabaseUrl || !supabaseServiceKey) {
     return res.status(500).json({ error: 'Server configuration error' });
   }
-  if (!spotifyClientId || !spotifyClientSecret) {
+  // ?source=lastfm|spotify-export share this function: the Hobby plan caps us at 12.
+  const source = typeof req.query.source === 'string' ? req.query.source : 'spotify';
+  if (source !== 'spotify' && source !== 'lastfm' && source !== 'spotify-export') {
+    return res.status(400).json({ error: 'Unknown source' });
+  }
+  if (source === 'spotify' && (!spotifyClientId || !spotifyClientSecret)) {
     return res.status(500).json({ error: 'Spotify server credentials not configured' });
   }
 
@@ -268,6 +274,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const userId = userData.user.id;
 
+    if (source === 'lastfm') return await handleLastfm(req, res, supabase, userId);
+    if (source === 'spotify-export') return await handleSpotifyExport(req, res, supabase, userId);
+
     const { data: tokenRow, error: tokenError } = await supabase
       .from('spotify_user_tokens')
       .select('refresh_token')
@@ -284,7 +293,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const accessToken = await getAccessToken(tokenRow.refresh_token, spotifyClientId, spotifyClientSecret);
+    const accessToken = await getAccessToken(tokenRow.refresh_token, spotifyClientId!, spotifyClientSecret!);
 
     const [artistsShort, artistsMed, artistsLong, tracksShort, tracksMed, tracksLong, recent, me] =
       await Promise.all([
@@ -350,96 +359,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       uri: me?.uri,
     };
 
-    const { error: upsertError } = await supabase.from('streaming_profiles').upsert(
-      {
-        user_id: userId,
-        service_type: 'spotify',
-        profile_data: profileData,
-        sync_status: 'completed',
-        last_updated: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,service_type' }
-    );
-
-    if (upsertError) {
-      // Never swallow this again. Returning only "Failed to save streaming profile"
-      // hid the actual Postgres error for several rounds of debugging: the write was
-      // dying on 57014 (statement timeout) inside the AFTER-UPDATE-OF-profile_data
-      // trigger cascade on streaming_profiles, which no amount of app-side change
-      // could have fixed because the app could not see it.
-      console.error('[spotify/sync-profile] streaming_profiles upsert failed', {
-        userId,
-        code: upsertError.code,
-        message: upsertError.message,
-        details: upsertError.details,
-        hint: upsertError.hint,
-        artistCount,
-        trackCount,
-        payloadBytes: Buffer.byteLength(JSON.stringify(profileData)),
-      });
-
-      // 57014 is the statement_timeout cancel. The Spotify half of the sync succeeded;
-      // what failed is the database write, so say that rather than blaming the user's
-      // Spotify connection and sending them back through OAuth (which can never fix it).
-      if (upsertError.code === '57014') {
-        return res.status(504).json({
-          error: 'save_timeout',
-          message:
-            'Spotify data loaded, but saving it timed out in the database. This is a server-side issue, not your Spotify connection — reconnecting will not help.',
-          code: upsertError.code,
-          counts: { artists: artistCount, tracks: trackCount },
-        });
-      }
-
-      return res.status(500).json({
-        error: `Failed to save streaming profile: ${upsertError.message}`,
-        code: upsertError.code,
-        counts: { artists: artistCount, tracks: trackCount },
-      });
-    }
-
     const externalUrls = me?.external_urls;
     const spotifyUrl =
       externalUrls && typeof externalUrls === 'object' && externalUrls !== null
         ? (externalUrls as { spotify?: string }).spotify
         : undefined;
-    if (spotifyUrl) {
-      await supabase
-        .from('users')
-        .update({ music_streaming_profile: spotifyUrl, updated_at: new Date().toISOString() })
-        .eq('user_id', userId);
-    }
 
-    // Belt-and-suspenders: triggers also refresh preferences; explicit call for mobile-only path.
-    // Non-fatal, but log it: this shares a statement_timeout budget with the trigger cascade
-    // above, so when that cascade is slow this silently fails and the feed never picks up the
-    // new taste data — a sync that looks successful but changes nothing.
-    const { error: refreshError } = await supabase.rpc('refresh_user_preferences_v5', {
-      p_user_id: userId,
-    });
-    if (refreshError) {
-      console.error('[spotify/sync-profile] refresh_user_preferences_v5 failed', {
-        userId,
-        code: refreshError.code,
-        message: refreshError.message,
-      });
-    }
-
-    const { error: cacheError } = await supabase
-      .from('personalized_feed_cache')
-      .delete()
-      .eq('user_id', userId);
-    if (cacheError) {
-      console.error('[spotify/sync-profile] feed cache invalidation failed', {
-        userId,
-        code: cacheError.code,
-        message: cacheError.message,
-      });
-    }
-
-    return res.status(200).json({
-      ok: true,
-      lastUpdated: new Date().toISOString(),
+    return await saveProfileAndRefresh(res, supabase, {
+      userId,
+      serviceType: 'spotify',
+      profileData,
+      profileUrl: spotifyUrl,
       counts: { artists: artistCount, tracks: trackCount },
     });
   } catch (error) {
@@ -447,4 +377,240 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('[spotify/sync-profile]', message);
     return res.status(500).json({ error: message });
   }
+}
+
+type StreamingServiceType = 'spotify' | 'lastfm' | 'spotify-export';
+
+/** Shared tail of every source: write the row, then make the feed pick it up. */
+async function saveProfileAndRefresh(
+  res: VercelResponse,
+  supabase: SupabaseClient,
+  {
+    userId,
+    serviceType,
+    profileData,
+    profileUrl,
+    counts,
+  }: {
+    userId: string;
+    serviceType: StreamingServiceType;
+    profileData: Record<string, unknown>;
+    profileUrl?: string;
+    counts: { artists: number; tracks: number };
+  }
+) {
+  const artistCount = counts.artists;
+  const trackCount = counts.tracks;
+  const { error: upsertError } = await supabase.from('streaming_profiles').upsert(
+    {
+      user_id: userId,
+      service_type: serviceType,
+      profile_data: profileData,
+      sync_status: 'completed',
+      last_updated: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,service_type' }
+  );
+
+  if (upsertError) {
+    // Never swallow this again. Returning only "Failed to save streaming profile"
+    // hid the actual Postgres error for several rounds of debugging: the write was
+    // dying on 57014 (statement timeout) inside the AFTER-UPDATE-OF-profile_data
+    // trigger cascade on streaming_profiles, which no amount of app-side change
+    // could have fixed because the app could not see it.
+    console.error('[spotify/sync-profile] streaming_profiles upsert failed', {
+      userId,
+      code: upsertError.code,
+      message: upsertError.message,
+      details: upsertError.details,
+      hint: upsertError.hint,
+      artistCount,
+      trackCount,
+      payloadBytes: Buffer.byteLength(JSON.stringify(profileData)),
+    });
+
+    // 57014 is the statement_timeout cancel. The Spotify half of the sync succeeded;
+    // what failed is the database write, so say that rather than blaming the user's
+    // Spotify connection and sending them back through OAuth (which can never fix it).
+    if (upsertError.code === '57014') {
+      return res.status(504).json({
+        error: 'save_timeout',
+        message:
+          'Spotify data loaded, but saving it timed out in the database. This is a server-side issue, not your Spotify connection — reconnecting will not help.',
+        code: upsertError.code,
+        counts: { artists: artistCount, tracks: trackCount },
+      });
+    }
+
+    return res.status(500).json({
+      error: `Failed to save streaming profile: ${upsertError.message}`,
+      code: upsertError.code,
+      counts: { artists: artistCount, tracks: trackCount },
+    });
+  }
+
+  if (profileUrl) {
+    await supabase
+      .from('users')
+      .update({ music_streaming_profile: profileUrl, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+  }
+
+  // Belt-and-suspenders: triggers also refresh preferences; explicit call for mobile-only path.
+  // Non-fatal, but log it: this shares a statement_timeout budget with the trigger cascade
+  // above, so when that cascade is slow this silently fails and the feed never picks up the
+  // new taste data — a sync that looks successful but changes nothing.
+  const { error: refreshError } = await supabase.rpc('refresh_user_preferences_v5', {
+    p_user_id: userId,
+  });
+  if (refreshError) {
+    console.error('[spotify/sync-profile] refresh_user_preferences_v5 failed', {
+      userId,
+      code: refreshError.code,
+      message: refreshError.message,
+    });
+  }
+
+  const { error: cacheError } = await supabase
+    .from('personalized_feed_cache')
+    .delete()
+    .eq('user_id', userId);
+  if (cacheError) {
+    console.error('[spotify/sync-profile] feed cache invalidation failed', {
+      userId,
+      code: cacheError.code,
+      message: cacheError.message,
+    });
+  }
+
+  return res.status(200).json({
+    ok: true,
+    lastUpdated: new Date().toISOString(),
+    counts: { artists: artistCount, tracks: trackCount },
+  });
+}
+
+async function handleLastfm(
+  req: VercelRequest,
+  res: VercelResponse,
+  supabase: SupabaseClient,
+  userId: string
+) {
+  const apiKey = process.env.LASTFM_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'Last.fm is not configured on the server' });
+
+  // No username = resync the one saved on the last successful import.
+  let username = normalizeLastfmUsername((req.body as { username?: unknown } | undefined)?.username);
+  if (!username) {
+    const { data } = await supabase
+      .from('streaming_profiles')
+      .select('username:profile_data->>username')
+      .eq('user_id', userId)
+      .eq('service_type', 'lastfm')
+      .maybeSingle();
+    username = normalizeLastfmUsername((data as { username?: unknown } | null)?.username);
+  }
+  if (!username) {
+    return res.status(400).json({ error: 'invalid_username', message: 'Enter a valid Last.fm username.' });
+  }
+
+  try {
+    const { profileData, profileUrl } = await fetchLastfmProfile(apiKey, username);
+    const byRange = profileData.topArtistsByTimeRange;
+    const artistCount = byRange.short_term.length + byRange.medium_term.length + byRange.long_term.length;
+    const trackCount = profileData.topTracks.length;
+    if (artistCount === 0) {
+      return res.status(422).json({
+        error: 'lastfm_empty',
+        message:
+          'That Last.fm account has no listening history yet. Link Spotify in Last.fm settings → Applications, listen for a bit, then sync again.',
+      });
+    }
+
+    await backfillArtistGenresFromDb(supabase, [byRange.short_term, byRange.medium_term, byRange.long_term]);
+    return await saveProfileAndRefresh(res, supabase, {
+      userId,
+      serviceType: 'lastfm',
+      profileData,
+      profileUrl,
+      counts: { artists: artistCount, tracks: trackCount },
+    });
+  } catch (error) {
+    if (error instanceof LastfmError) {
+      return res.status(error.status).json({ error: 'lastfm_error', message: error.message });
+    }
+    throw error;
+  }
+}
+
+const EXPORT_RANGES = ['short_term', 'medium_term', 'long_term'] as const;
+const EXPORT_MAX_ITEMS = 50;
+
+function cleanName(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 200) : null;
+}
+
+function cleanCount(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+}
+
+/**
+ * The client parses the export and sends a summary (see @synth/shared musicImports).
+ * It is user input, so rebuild it from known fields only and cap every list.
+ */
+async function handleSpotifyExport(
+  req: VercelRequest,
+  res: VercelResponse,
+  supabase: SupabaseClient,
+  userId: string
+) {
+  const summary = (req.body as { summary?: Record<string, unknown> } | undefined)?.summary;
+  const rawArtists = summary?.topArtistsByTimeRange as Record<string, unknown> | undefined;
+  const rawTracks = summary?.topTracksByTimeRange as Record<string, unknown> | undefined;
+
+  const artistsByRange: Record<string, Array<{ name: string; playcount: number; minutes: number; genres?: string[] }>> = {};
+  const tracksByRange: Record<string, Array<{ name: string; artists: Array<{ name: string }>; playcount: number; minutes: number }>> = {};
+  for (const range of EXPORT_RANGES) {
+    const artists = Array.isArray(rawArtists?.[range]) ? (rawArtists[range] as Array<Record<string, unknown>>) : [];
+    const tracks = Array.isArray(rawTracks?.[range]) ? (rawTracks[range] as Array<Record<string, unknown>>) : [];
+    artistsByRange[range] = artists.slice(0, EXPORT_MAX_ITEMS).flatMap((a) => {
+      const name = cleanName(a?.name);
+      return name ? [{ name, playcount: cleanCount(a.playcount), minutes: cleanCount(a.minutes) }] : [];
+    });
+    tracksByRange[range] = tracks.slice(0, EXPORT_MAX_ITEMS).flatMap((t) => {
+      const name = cleanName(t?.name);
+      const artist = cleanName((t?.artists as Array<{ name?: unknown }> | undefined)?.[0]?.name);
+      return name && artist
+        ? [{ name, artists: [{ name: artist }], playcount: cleanCount(t.playcount), minutes: cleanCount(t.minutes) }]
+        : [];
+    });
+  }
+
+  const allArtists = EXPORT_RANGES.flatMap((r) => artistsByRange[r]!);
+  const allTracks = EXPORT_RANGES.flatMap((r) => tracksByRange[r]!);
+  if (allArtists.length === 0) {
+    return res.status(422).json({
+      error: 'export_empty',
+      message: "We couldn't find any music plays in that file. Upload the zip from Spotify's \"Account data\" email.",
+    });
+  }
+
+  await backfillArtistGenresFromDb(supabase, EXPORT_RANGES.map((r) => artistsByRange[r]!));
+  return await saveProfileAndRefresh(res, supabase, {
+    userId,
+    serviceType: 'spotify-export',
+    profileData: {
+      source: 'spotify-export',
+      topArtists: allArtists,
+      topArtistsByTimeRange: artistsByRange,
+      topTracks: allTracks,
+      topTracksByTimeRange: tracksByRange,
+      periodStart: cleanName(summary?.periodStart),
+      periodEnd: cleanName(summary?.periodEnd),
+      totalPlays: cleanCount(summary?.totalPlays),
+      totalMinutes: cleanCount(summary?.totalMinutes),
+    },
+    counts: { artists: allArtists.length, tracks: allTracks.length },
+  });
 }

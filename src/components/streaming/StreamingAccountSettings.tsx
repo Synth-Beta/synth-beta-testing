@@ -4,7 +4,9 @@ import { Music, RefreshCw, CheckCircle, Loader2, Unlink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { getStreamingLinkStatus } from '@/services/streamingConnectionService';
-import type { StreamingLinkStatus } from '@synth/shared';
+import { STREAMING_PROVIDER_LABELS, type StreamingLinkStatus } from '@synth/shared';
+import { useAccountType } from '@/hooks/useAccountType';
+import { MusicImportOptions } from '@/components/streaming/MusicImportOptions';
 import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
 import {
@@ -24,6 +26,8 @@ export function StreamingAccountSettings({
   compact = false,
 }: StreamingAccountSettingsProps) {
   const { user } = useAuth();
+  // Spotify's Development Mode only serves allowlisted accounts, so only admins see connect.
+  const { isAdmin } = useAccountType();
   const [linkStatus, setLinkStatus] = useState<StreamingLinkStatus | null>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,11 +160,7 @@ export function StreamingAccountSettings({
   };
 
   const serviceLabel =
-    linkStatus?.provider === 'spotify'
-      ? 'Spotify'
-      : linkStatus?.provider === 'apple-music'
-        ? 'Apple Music'
-        : null;
+    linkStatus && linkStatus.provider !== 'unknown' ? STREAMING_PROVIDER_LABELS[linkStatus.provider] : null;
 
   if (loading && !linkStatus) {
     return (
@@ -200,17 +200,24 @@ export function StreamingAccountSettings({
           <p className="text-xs text-muted-foreground">Stats linked — tap resync to pull latest data.</p>
         )}
 
+        {linkStatus.provider === 'spotify-export' ? (
+          // An upload can't refresh itself: offer a newer file, or Last.fm to stay current.
+          <MusicImportOptions onImported={() => void refreshStatus()} />
+        ) : null}
+
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleResync}
-            disabled={syncing || disconnecting}
-            className="gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing…' : 'Resync stats'}
-          </Button>
+          {linkStatus.provider !== 'spotify-export' ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleResync}
+              disabled={syncing || disconnecting}
+              className="gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing…' : 'Resync stats'}
+            </Button>
+          ) : null}
           {onNavigateToStreamingStats ? (
             <Button
               type="button"
@@ -230,19 +237,21 @@ export function StreamingAccountSettings({
   return (
     <div className={compact ? 'space-y-3' : 'space-y-4'}>
       <p className="text-sm text-muted-foreground">
-        Connect Spotify or Apple Music to sync listening history and personalize your feed.
+        Connect your music to sync listening history and personalize your feed.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="gap-2 border-green-500 text-green-700 hover:bg-green-50"
-          onClick={handleConnectSpotify}
-        >
-          <Music className="w-4 h-4" />
-          Connect Spotify
-        </Button>
+        {isAdmin() ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2 border-green-500 text-green-700 hover:bg-green-50"
+            onClick={handleConnectSpotify}
+          >
+            <Music className="w-4 h-4" />
+            Connect Spotify (admin)
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant="outline"
@@ -254,6 +263,7 @@ export function StreamingAccountSettings({
           Connect Apple Music
         </Button>
       </div>
+      <MusicImportOptions onImported={() => void refreshStatus()} />
       <Button
         type="button"
         variant="ghost"

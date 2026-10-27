@@ -24,6 +24,9 @@ import {
 import { authenticateSpotifyInApp } from '../../services/spotifyAuthService';
 import { getExpoSiteUrl } from '../../utils/siteUrl';
 import { formatRelativeTime } from '../../utils/formatRelativeTime';
+import { STREAMING_PROVIDER_LABELS } from '@synth/shared';
+import { useIsAdmin } from '../../hooks/useIsAdmin';
+import { MusicImportOptions } from './MusicImportOptions';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -33,6 +36,8 @@ interface StreamingAccountSettingsProps {
 
 export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccountSettingsProps) {
   const router = useRouter();
+  // Spotify's Development Mode only serves allowlisted accounts, so only admins see connect.
+  const isAdmin = useIsAdmin();
   const [userId, setUserId] = useState<string | null>(null);
   const [linked, setLinked] = useState(false);
   const [provider, setProvider] = useState<StreamingProvider>('unknown');
@@ -123,8 +128,7 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
     }
   };
 
-  const serviceLabel =
-    provider === 'spotify' ? 'Spotify' : provider === 'apple-music' ? 'Apple Music' : null;
+  const serviceLabel = provider === 'unknown' ? null : STREAMING_PROVIDER_LABELS[provider];
 
   const openSpotifyReconnectOnWeb = () => {
     void (async () => {
@@ -144,6 +148,18 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
           { text: 'Open web', onPress: () => openConnectAppleMusic() },
         ]
       );
+      return;
+    }
+
+    if (provider === 'lastfm') {
+      setSyncing(true);
+      try {
+        const result = await syncStreamingProfile(userId, 'lastfm', { manual: true });
+        Alert.alert(result.ok ? 'Stats updated' : 'Sync failed', result.ok ? 'Pulled your latest Last.fm listening.' : result.message);
+        if (result.ok) await refreshStatus();
+      } finally {
+        setSyncing(false);
+      }
       return;
     }
 
@@ -269,14 +285,19 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
           </SynthText>
         )}
 
-        <Pressable
-          style={[styles.btnPrimary, (syncing || disconnecting) && styles.btnDisabled]}
-          onPress={() => void handleResync()}
-          disabled={syncing || disconnecting}
-        >
-          <RefreshCw size={16} color={SynthTokens.colors.neutral0} />
-          <Text style={styles.btnPrimaryText}>{syncing ? 'Syncing…' : 'Resync stats'}</Text>
-        </Pressable>
+        {provider === 'spotify-export' ? (
+          // An upload can't refresh itself: offer a newer file, or Last.fm to stay current.
+          <MusicImportOptions onImported={() => void refreshStatus()} />
+        ) : (
+          <Pressable
+            style={[styles.btnPrimary, (syncing || disconnecting) && styles.btnDisabled]}
+            onPress={() => void handleResync()}
+            disabled={syncing || disconnecting}
+          >
+            <RefreshCw size={16} color={SynthTokens.colors.neutral0} />
+            <Text style={styles.btnPrimaryText}>{syncing ? 'Syncing…' : 'Resync stats'}</Text>
+          </Pressable>
+        )}
 
         {onNavigateToStats ? (
           <Pressable style={styles.btnOutline} onPress={onNavigateToStats} disabled={syncing}>
@@ -294,17 +315,19 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
   return (
     <View style={styles.block}>
       <SynthText variant="meta" color="secondary" style={styles.hint}>
-        Connect Spotify or Apple Music to sync listening history and personalize your feed.
+        Connect your music to sync listening history and personalize your feed.
       </SynthText>
 
-      <Pressable
-        style={[styles.btnSpotify, syncing && styles.btnDisabled]}
-        onPress={() => void handleConnectSpotifyInApp()}
-        disabled={syncing}
-      >
-        <Music size={16} color={SynthTokens.colors.neutral0} />
-        <Text style={styles.btnSpotifyText}>{syncing ? 'Connecting…' : 'Connect Spotify'}</Text>
-      </Pressable>
+      {isAdmin ? (
+        <Pressable
+          style={[styles.btnSpotify, syncing && styles.btnDisabled]}
+          onPress={() => void handleConnectSpotifyInApp()}
+          disabled={syncing}
+        >
+          <Music size={16} color={SynthTokens.colors.neutral0} />
+          <Text style={styles.btnSpotifyText}>{syncing ? 'Connecting…' : 'Connect Spotify (admin)'}</Text>
+        </Pressable>
+      ) : null}
 
       <Pressable
         style={styles.btnApple}
@@ -313,6 +336,8 @@ export function StreamingAccountSettings({ onNavigateToStats }: StreamingAccount
         <Music size={16} color={SynthTokens.colors.neutral900} />
         <Text style={styles.btnAppleText}>Connect Apple Music</Text>
       </Pressable>
+
+      <MusicImportOptions onImported={() => void refreshStatus()} />
 
       <Pressable
         style={styles.btnGhost}

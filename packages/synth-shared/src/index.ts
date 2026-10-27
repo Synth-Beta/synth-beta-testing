@@ -49,6 +49,7 @@ export {
   type StreamingProvider,
   type StreamingLinkStatus,
   getStreamingLinkStatus,
+  STREAMING_PROVIDER_LABELS,
 } from './streamingLinkStatus';
 export {
   type SpotifyTimeRange,
@@ -270,3 +271,18 @@ export { type OnboardingProfileInput, type OnboardingField, ONBOARDING_MIN_AGE, 
 export { isEmptySpotifySync, streamingRowHasData, SPOTIFY_EMPTY_SYNC_MESSAGE } from './spotifySyncGuard';
 export { checkReviewVideo, REVIEW_VIDEO_MAX_SECONDS, REVIEW_VIDEO_MAX_MB } from './reviewVideo';
 export { isEmailNotConfirmedError, EMAIL_CONFIRM_RESEND_COOLDOWN_SEC, EMAIL_CONFIRM_POLL_MS, EMAIL_CONFIRM_POLL_MAX_MS } from './emailConfirm';
+export {
+  type MusicImportSource,
+  type MusicImportArtist,
+  type MusicImportTrack,
+  type SpotifyExportSummary,
+  type MusicImportResult,
+  type MusicImportRequest,
+  SPOTIFY_EXPORT_URL,
+  SPOTIFY_EXPORT_STEPS,
+  LASTFM_SPOTIFY_TIP,
+  isSpotifyHistoryFile,
+  readSpotifyExportFiles,
+  summarizeSpotifyExport,
+  postMusicImport,
+} from './musicImports';

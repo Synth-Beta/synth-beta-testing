@@ -10,6 +10,9 @@ import { appleMusicService } from '@/services/appleMusicService';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { runStreamingAutoSync } from '@/services/streamingAutoSyncService';
 import { syncStreamingProfile } from '@/services/streamingSyncActions';
+import { STREAMING_PROVIDER_LABELS, type StreamingProvider } from '@synth/shared';
+import { useAccountType } from '@/hooks/useAccountType';
+import { MusicImportOptions } from '@/components/streaming/MusicImportOptions';
 import { getStreamingLinkStatus } from '@/services/streamingConnectionService';
 import {
   fetchUserStreamingStatsSnapshot,
@@ -44,7 +47,9 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [connectingSpotify, setConnectingSpotify] = useState(false);
-  const [serviceType, setServiceType] = useState<'spotify' | 'apple-music' | null>(null);
+  // Spotify's Development Mode only serves allowlisted accounts, so only admins see connect.
+  const { isAdmin } = useAccountType();
+  const [serviceType, setServiceType] = useState<Exclude<StreamingProvider, 'unknown'> | null>(null);
   const [profileData, setProfileData] = useState<any>(null);
   const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [needsConnection, setNeedsConnection] = useState(false);
@@ -183,6 +188,8 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   // Background refresh: one-time song-period migration + weekly stale refresh
   useEffect(() => {
     if (!user || loading || needsConnection || !serviceType || autoSyncAttempted) return;
+    // Last.fm resyncs on demand; an uploaded export can't refresh itself.
+    if (serviceType !== 'spotify' && serviceType !== 'apple-music') return;
 
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     if (params.get('action') === 'resync') return;
@@ -235,9 +242,9 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
         streamingRows?.[0] ??
         null;
 
-      const resolvedType: 'spotify' | 'apple-music' | null =
-        profileRow?.service_type === 'spotify' || profileRow?.service_type === 'apple-music'
-          ? profileRow.service_type
+      const resolvedType: Exclude<StreamingProvider, 'unknown'> | null =
+        profileRow?.service_type && profileRow.service_type in STREAMING_PROVIDER_LABELS
+          ? (profileRow.service_type as Exclude<StreamingProvider, 'unknown'>)
           : linkStatus.provider !== 'unknown'
             ? linkStatus.provider
             : null;
@@ -469,9 +476,12 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
 
   // ─── Derived data ───────────────────────────────────────────────────────────
 
+  // Spotify, Last.fm and the Spotify export all store per-time-range lists; Apple Music doesn't.
+  const rangedSource = serviceType !== null && serviceType !== 'apple-music';
+
   const displayArtists = useMemo<any[]>(() => {
     if (!profileData) return [];
-    if (serviceType === 'spotify') {
+    if (rangedSource) {
       return getSpotifyTimeRangeList(
         profileData,
         timeRange,
@@ -486,7 +496,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
     if (!profileData) {
       return { items: [] as any[], needsResync: false };
     }
-    if (serviceType === 'spotify') {
+    if (rangedSource) {
       const result = getSpotifyTimeRangeList(
         profileData,
         timeRange,
@@ -502,7 +512,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   const genres = useMemo<{ name: string; count: number; pct: number }[]>(() => {
     if (!profileData) return [];
 
-    if (serviceType === 'spotify') {
+    if (rangedSource) {
       return formatTopGenresForDisplay(
         computeTopGenresForTimeRange(profileData, timeRange)
       );
@@ -513,10 +523,11 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
   }, [profileData, timeRange, serviceType]);
 
   const isSpotify = serviceType === 'spotify';
-  const accentColor = isSpotify ? '#1DB954' : '#FC3C44';
-  const serviceName = isSpotify ? 'Spotify' : 'Apple Music';
+  const accentColor =
+    serviceType === 'lastfm' ? '#D51007' : serviceType === 'apple-music' ? '#FC3C44' : '#1DB954';
+  const serviceName = serviceType ? STREAMING_PROVIDER_LABELS[serviceType] : 'Streaming';
   const hasTimeRanges =
-    isSpotify &&
+    rangedSource &&
     (hasPerRangeData(profileData, 'topArtistsByTimeRange') ||
       hasPerRangeData(profileData, 'topTracksByTimeRange'));
   const showSongResyncBanner = isSpotify && songsNeedResync && !syncing;
@@ -569,8 +580,9 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
           </p>
 
           <div className="space-y-3">
+            {isAdmin() ? (
             <button
-              onClick={handleConnectSpotify}
+              onClick={() => void handleConnectSpotify()}
               disabled={connectingSpotify}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#1DB954]/10 hover:bg-[#1DB954]/20 active:scale-[0.98] transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed"
             >
@@ -583,11 +595,12 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
               </div>
               <div>
                 <p className="font-semibold text-sm">
-                  {connectingSpotify ? 'Connecting...' : 'Connect Spotify'}
+                  {connectingSpotify ? 'Connecting...' : 'Connect Spotify (admin)'}
                 </p>
                 <p className="text-xs text-muted-foreground">Top artists, songs, and genres</p>
               </div>
             </button>
+            ) : null}
 
             <button
               onClick={handleConnectAppleMusic}
@@ -606,6 +619,9 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
                 <p className="text-xs text-muted-foreground">Library stats and listening history</p>
               </div>
             </button>
+            <div className="text-left">
+              <MusicImportOptions onImported={() => void loadProfile()} />
+            </div>
           </div>
         </div>
       </div>

@@ -232,6 +232,8 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
         if (!linkStatus.linked || linkStatus.provider === 'unknown') return;
 
         const serviceType = linkStatus.provider;
+        // Last.fm resyncs from Settings; an uploaded export can't refresh itself.
+        if (serviceType !== 'spotify' && serviceType !== 'apple-music') return;
         const { data: row } = await supabase
           .from('streaming_profiles')
           .select('profile_data, last_updated')

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, Pressable, SafeAreaView, Text, Alert } from 'react-native';
+import { StyleSheet, View, Pressable, SafeAreaView, Text, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
@@ -15,9 +15,13 @@ import { authenticateSpotifyInApp } from '../../src/services/spotifyAuthService'
 import { syncStreamingProfile, withSessionHash } from '../../src/services/streamingSyncActions';
 import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
 import { SPOTIFY_EMPTY_SYNC_MESSAGE } from '@synth/shared';
+import { useIsAdmin } from '../../src/hooks/useIsAdmin';
+import { MusicImportOptions } from '../../src/components/streaming/MusicImportOptions';
 
 export default function ConnectScreen() {
     const router = useRouter();
+    // Spotify's Development Mode only serves allowlisted accounts, so only admins see it.
+    const isAdmin = useIsAdmin();
     const [isLinked, setIsLinked] = useState(false);
     const [checking, setChecking] = useState(false);
     // Shown when a connection attempt didn't take, so nobody waits on a silent failure.
@@ -123,21 +127,23 @@ export default function ConnectScreen() {
                 </Pressable>
             </View>
 
-            <View style={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
                 <SynthText variant="h1" style={styles.title}>Connect your music</SynthText>
                 <SynthText variant="meta" color="secondary" style={styles.subtitle}>
                     Recommended: we'll pick artists and shows for you from your library. Optional, you can skip.
                 </SynthText>
 
                 <View style={styles.cardsContainer}>
-                    <ServiceCard
-                        name="Spotify"
-                        color="#1DB954"
-                        isConnected={isLinked}
-                        connecting={checking}
-                        onConnect={() => void handleConnectSpotify()}
-                        subtitle={checking ? 'Connecting…' : 'Stay in app · takes 30 seconds'}
-                    />
+                    {isAdmin ? (
+                        <ServiceCard
+                            name="Spotify (admin)"
+                            color="#1DB954"
+                            isConnected={isLinked}
+                            connecting={checking}
+                            onConnect={() => void handleConnectSpotify()}
+                            subtitle={checking ? 'Connecting…' : 'Stay in app · takes 30 seconds'}
+                        />
+                    ) : null}
                     <ServiceCard
                         name="Apple Music"
                         color="#FA243C"
@@ -145,6 +151,17 @@ export default function ConnectScreen() {
                         onConnect={() => void openConnectAppleMusic()}
                         subtitle="Opens on web · same quick flow"
                     />
+                    {isLinked ? null : (
+                        // The Spotify export takes days to arrive, so it lives in Settings only.
+                        <MusicImportOptions
+                            showExport={false}
+                            onImported={() => {
+                                setIsLinked(true);
+                                setConnectNote(null);
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            }}
+                        />
+                    )}
                 </View>
 
                 <Pressable onPress={() => void checkStatus()} style={styles.refreshRow} disabled={checking}>
@@ -153,7 +170,7 @@ export default function ConnectScreen() {
                         {checking ? 'Checking…' : 'Refresh status'}
                     </Text>
                 </Pressable>
-            </View>
+            </ScrollView>
 
             <View style={styles.footer}>
                 {connectNote && !isLinked ? (
@@ -211,7 +228,7 @@ const styles = StyleSheet.create({
     },
     backButton: { padding: 8 },
     skipButton: { padding: 8 },
-    content: { padding: SynthTokens.spacing.xl, flex: 1 },
+    content: { padding: SynthTokens.spacing.xl, flexGrow: 1 },
     title: { marginBottom: 8 },
     subtitle: { marginBottom: 40, opacity: 0.8 },
     cardsContainer: { gap: 14 },

@@ -5,7 +5,17 @@ import {
 } from './streamingStatsCore';
 import { streamingRowHasData } from './spotifySyncGuard';
 
-export type StreamingProvider = 'spotify' | 'apple-music' | 'unknown';
+export type StreamingProvider = 'spotify' | 'apple-music' | 'lastfm' | 'spotify-export' | 'unknown';
+
+/** Order used when a user has several sources and no profile URL decides. */
+const PROVIDER_PRIORITY: StreamingProvider[] = ['spotify', 'apple-music', 'lastfm', 'spotify-export'];
+
+export const STREAMING_PROVIDER_LABELS: Record<Exclude<StreamingProvider, 'unknown'>, string> = {
+  spotify: 'Spotify',
+  'apple-music': 'Apple Music',
+  lastfm: 'Last.fm',
+  'spotify-export': 'Spotify (uploaded data)',
+};
 
 export interface StreamingLinkStatus {
   linked: boolean;
@@ -24,6 +34,7 @@ function detectProviderFromProfileUrl(profileUrl: string | null | undefined): St
   if (v.includes('music.apple.com') || v.includes('apple.com/music') || v.includes('applemusic')) {
     return 'apple-music';
   }
+  if (v.includes('last.fm/user/')) return 'lastfm';
   return 'unknown';
 }
 
@@ -62,24 +73,19 @@ export async function getStreamingLinkStatus(
       .filter(streamingRowHasData)
       .map((r) => String(r.service_type ?? ''))
   );
-  const hasSpotifyRow = serviceTypes.has('spotify');
-  const hasAppleRow = serviceTypes.has('apple-music');
-
+  // The profile URL wins when a row backs it; otherwise the first source with data (an
+  // export user can still carry an old Spotify URL from a failed Spotify connect).
+  const rowProvider = PROVIDER_PRIORITY.find((p) => serviceTypes.has(p)) ?? 'unknown';
   const provider: StreamingProvider =
-    providerFromUrl !== 'unknown'
+    providerFromUrl !== 'unknown' && serviceTypes.has(providerFromUrl)
       ? providerFromUrl
-      : hasSpotifyRow
-        ? 'spotify'
-        : hasAppleRow
-          ? 'apple-music'
-          : 'unknown';
+      : rowProvider !== 'unknown'
+        ? rowProvider
+        : providerFromUrl;
 
   const hasStats = hasAnyStatsSnapshot(statsSnapshot);
 
-  const hasProviderRow =
-    provider === 'spotify' ? hasSpotifyRow : provider === 'apple-music' ? hasAppleRow : false;
-
-  const linked = provider !== 'unknown' && (hasProviderRow || hasStats);
+  const linked = provider !== 'unknown' && (serviceTypes.has(provider) || hasStats);
 
   return {
     linked,
