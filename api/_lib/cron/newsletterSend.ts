@@ -1,9 +1,10 @@
 /**
- * Sends the approved newsletter edition at 10:00 America/Chicago.
+ * Sends the approved newsletter edition at 10:00 America/New_York on Mondays.
  *
- * Vercel cron expressions are UTC and do not follow Central daylight time, so the
- * job is scheduled at both 15:00 and 16:00 UTC. This handler sends only when the
- * current America/Chicago hour is 10. It never generates or approves drafts.
+ * Vercel cron expressions are UTC and do not follow Eastern daylight time, so the
+ * job is scheduled at both 14:00 and 15:00 UTC on Mondays. This handler sends only
+ * when the current America/New_York weekday is Monday and the hour is 10. It never
+ * generates or approves drafts.
  */
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -15,12 +16,17 @@ import {
   type StoredDraft,
   deliveryKey,
 } from '../newsletterDelivery.js';
-const SEND_TIME_ZONE = 'America/Chicago';
-const isTenAmCentral = (now: Date) => {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: SEND_TIME_ZONE, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now);
-  return Number(parts.find((part) => part.type === 'hour')?.value) === 10
-    && Number(parts.find((part) => part.type === 'minute')?.value) < 15;
-};
+import {
+  SEND_TIME_ZONE,
+  editionCalendarDate,
+  isNewsletterSendWindow,
+} from '../newsletterSchedule.js';
+
+function secureEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 const readAll = async (makeQuery: () => any) => {
   const rows: any[] = [];
@@ -31,20 +37,6 @@ const readAll = async (makeQuery: () => any) => {
     if (!data || data.length < 500) return rows;
   }
 };
-
-function secureEquals(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return ab.length === bb.length && timingSafeEqual(ab, bb);
-}
-
-const editionDateCentral = (now: Date) =>
-  new Intl.DateTimeFormat('en-CA', {
-    timeZone: SEND_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
 
 const injectUnsubscribeLink = (html: string, unsubscribeUrl: string) => {
   if (/>\s*Unsubscribe\s*</i.test(html)) {
@@ -69,11 +61,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const now = new Date();
-  if (!isTenAmCentral(now)) {
+  if (!isNewsletterSendWindow(now)) {
     return res.status(200).json({
       ok: true,
       skipped: true,
-      reason: 'Newsletter send runs at 10:00 America/Chicago.',
+      reason: 'Newsletter send runs at 10:00 America/New_York on Mondays.',
     });
   }
 
@@ -88,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const db = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const editionDate = editionDateCentral(now);
+  const editionDate = editionCalendarDate(now);
   try {
     await reconcileNewsletterDelivery(db, editionDate);
     const rows = await readAll(() => db

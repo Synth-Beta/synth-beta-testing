@@ -96,9 +96,11 @@ const activeEdition = compose(active, activeEvents, {
 });
 const activeHtml = renderEditionHtml(activeEdition);
 noFiller(activeHtml);
-assert.ok(activeEdition.yourSynth?.body.includes("Penelope Road"));
-assert.equal(/singing/.test(activeEdition.yourSynth?.body ?? ""), false);
-assert.match(activeEdition.yourSynth?.body ?? "", /Goose|Anthem/);
+assert.match(activeEdition.headline, /did you see anyone new this weekend/i);
+assert.match(activeEdition.intro, /write a review/i);
+assert.equal(activeEdition.yourSynth, undefined);
+assert.doesNotMatch(renderEditionHtml(activeEdition), /Penelope Road|logged Goose|2 times|newest night/);
+assert.equal(/singing/.test(renderEditionHtml(activeEdition)), false);
 assert.doesNotMatch(renderEditionHtml(activeEdition), /no saved city|saved shows cluster|sourced summary|account has no/i);
 assert.ok(activeEdition.shows.some((card) => card.title === "KETTAMA"));
 assert.ok(activeEdition.shows.some((card) => card.body.includes("saved")));
@@ -110,7 +112,7 @@ assert.equal(activeEdition.listen?.eyebrow, "Your next listen");
 assert.doesNotMatch(activeEdition.listen?.body ?? "", /saved listening|logged .+ live|evergreen/i);
 assert.match(activeEdition.listen?.body ?? "", /Circles Around the Sun|Lettuce|Medeski Martin|Alabama Shakes|Hiss Golden|Wilco/);
 assert.equal(new Set(artistsOf(activeEdition)).size, artistsOf(activeEdition).length);
-assert.ok(activeEdition.qualityReport.sections.includes("yourSynth"));
+assert.equal(activeEdition.qualityReport.sections.includes("yourSynth"), false);
 assert.ok(activeEdition.qualityReport.sections.includes("onYourRadar"));
 assert.ok(activeEdition.qualityReport.personalizationEvidence.some((line) => /logged shows|Listening artists|saved shows|Taste genres/.test(line)));
 
@@ -122,7 +124,9 @@ const reviewsOnly = compose(baseReader({
     { artistName: "Jason Isbell", venueName: "Ryman Auditorium", eventDate: "2025-08-01T00:00:00.000Z", rating: 5, text: "The quiet songs carried farther than the loud ones in that room." },
   ],
 }), [show({ id: "isbell", artistName: "Jason Isbell", city: "Washington" })]);
-assert.ok(reviewsOnly.yourSynth?.body.includes("Wilco"));
+assert.equal(reviewsOnly.yourSynth, undefined);
+assert.match(reviewsOnly.headline, /did you see anyone new this weekend/i);
+assert.doesNotMatch(renderEditionHtml(reviewsOnly), /newest night|logged Wilco/);
 assert.equal(reviewsOnly.shows.some((card) => card.title === "Jason Isbell"), true);
 assert.equal(reviewsOnly.history?.title === "Wilco" || reviewsOnly.history?.title === "Jason Isbell", false);
 assert.equal(reviewsOnly.listen?.eyebrow, "Your next listen");
@@ -248,7 +252,7 @@ const blocked = await generateDraftsFromSource({
     { id: "expired", artist_name: "Expired Act", artists: { name: "Expired Act" }, venues: { name: "Club" }, venue_city: "Washington", venue_state: "DC", event_date: "2026-09-01T00:00:00.000Z", ticket_urls: ["https://www.axs.com/events/expired"], latitude: 38.9, longitude: -77.0 },
     { id: "sold", artist_name: "Sold Act", artists: { name: "Sold Act" }, venues: { name: "Club" }, venue_city: "Washington", venue_state: "DC", event_date: "2026-11-04T00:00:00.000Z", event_status: "sold out", ticket_available: false, ticket_urls: ["https://www.ticketmaster.com/sold"], latitude: 38.9, longitude: -77.0 },
   ],
-}, sendAt, editionDate);
+}, sendAt, "2026-10-19");
 const blockedHtml = blocked.drafts[0].html;
 assert.doesNotMatch(blockedHtml, /Resale Act|Canceled Act|Expired Act|stubhub|vivid-seats/);
 assert.match(blockedHtml, /Official Act/);
@@ -325,5 +329,82 @@ assert.doesNotMatch(`${clustered.intro} ${clustered.showsDek}`, /no saved city|s
 assert.ok(clustered.shows.every((card) => /saved/i.test(card.body)));
 assert.ok(clustered.qualityReport.missingData.some((line) => /saved city/i.test(line)));
 assert.ok(clustered.qualityReport.personalizationEvidence.some((line) => /cluster around Washington/.test(line)));
+
+const gooseReviews = [
+  { artistName: "Goose", venueName: "The Anthem", eventDate: "2026-06-11T00:00:00.000Z", rating: 5, text: "The second set opened with a long jam that the whole floor knew." },
+  { artistName: "Goose", venueName: "Merriweather", eventDate: "2025-08-01T00:00:00.000Z", rating: 4, text: "Another Goose night, and the second set ran long again." },
+];
+const withReturn = compose(baseReader({
+  firstName: "Sam",
+  lifetimeShowCount: 3,
+  fiveStarCount: 2,
+  goingEventIds: ["goose-weekend"],
+  interestedEventIds: ["reviewed-weekend"],
+  reviews: [
+    ...gooseReviews,
+    { artistName: "Khruangbin", eventId: "reviewed-weekend", venueName: "9:30 Club", eventDate: "2026-10-10T00:00:00.000Z", rating: 5, text: "Already wrote this one up while the room was still loud." },
+  ],
+}), [
+  show({ id: "goose-weekend", artistName: "Goose", eventDate: "2026-10-10T00:00:00.000Z", venueName: "The Anthem", genres: ["jam"] }),
+  show({ id: "reviewed-weekend", artistName: "Khruangbin", eventDate: "2026-10-10T00:00:00.000Z", venueName: "9:30 Club", genres: ["funk"] }),
+  show({ id: "goose-next", artistName: "Goose", eventDate: "2026-12-02T00:00:00.000Z", venueName: "The Anthem", genres: ["jam"] }),
+]);
+assert.match(withReturn.intro, /Goose at The Anthem as going/);
+assert.doesNotMatch(withReturn.intro, /Khruangbin/);
+assert.ok(withReturn.shows.some((card) => card.title === "Goose" && /next Goose date near you is at The Anthem/.test(card.body)));
+assert.doesNotMatch(renderEditionHtml(withReturn), /logged Goose|2 times|twice/);
+
+const attendanceOnly = compose(baseReader({
+  goingEventIds: ["goose-weekend"],
+  reviews: [{ artistName: "Goose", eventId: "goose-weekend", eventDate: "2026-10-10T00:00:00.000Z", text: null }],
+}), [
+  show({ id: "goose-weekend", artistName: "Goose", eventDate: "2026-10-10T00:00:00.000Z", venueName: "The Anthem" }),
+]);
+assert.match(attendanceOnly.intro, /Goose at The Anthem as going/);
+
+const alreadyWritten = compose(baseReader({
+  goingEventIds: ["goose-weekend"],
+  reviews: [{ artistName: "Goose", eventDate: "2026-10-10", text: "Wrote the review the next morning." }],
+}), [
+  show({ id: "goose-weekend", artistName: "Goose", eventDate: "2026-10-10T00:00:00.000Z", venueName: "The Anthem" }),
+]);
+assert.doesNotMatch(alreadyWritten.intro, /as going/);
+assert.match(alreadyWritten.intro, /If you did, write a review/);
+
+const similarReader = baseReader({
+  firstName: "Sam",
+  lifetimeShowCount: 2,
+  fiveStarCount: 1,
+  reviews: gooseReviews,
+});
+const similarEvents = [
+  show({ id: "eggy", artistName: "Eggy", genres: ["jam"], venueName: "The Atlantis", eventDate: "2026-11-18T00:00:00.000Z" }),
+  show({ id: "spafford", artistName: "Spafford", genres: ["jam"], venueName: "9:30 Club", eventDate: "2026-11-19T00:00:00.000Z" }),
+  show({ id: "pop", artistName: "Pop Act", genres: ["pop"], venueName: "Echostage", eventDate: "2026-11-20T00:00:00.000Z" }),
+];
+const similarNow = compose(similarReader, similarEvents);
+const similarLater = composeEdition({
+  reader: similarReader,
+  events: similarEvents,
+  news: [],
+  listens: [],
+  sendAt,
+  editionDate: "2026-10-20",
+  issueNumber: 5,
+  retrievedAt,
+})!;
+const lane = (edition: NonNullable<ReturnType<typeof compose>>) =>
+  edition.shows.find((card) => /similar lane/.test(card.body) && /Goose/.test(card.body))?.title;
+assert.ok(lane(similarNow));
+assert.equal(lane(similarNow) === "Pop Act", false);
+assert.notEqual(lane(similarNow), lane(similarLater));
+assert.doesNotMatch(renderEditionHtml(similarNow), /logged Goose|2 times|newest night/);
+
+const fresh = compose(baseReader({
+  reviews: [{ artistName: "Goose", venueName: "The Anthem", eventDate: "2026-10-11T00:00:00.000Z", rating: 5, text: "The room stayed loud." }],
+}), []);
+assert.match(fresh.yourSynth?.body ?? "", /newest night/);
+assert.match(fresh.yourSynth?.body ?? "", /Goose/);
+assert.doesNotMatch(fresh.yourSynth?.body ?? "", /2 times|logged Goose/);
 
 console.log("newsletter quality checks passed");

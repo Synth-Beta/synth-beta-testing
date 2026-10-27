@@ -52,7 +52,29 @@ const STATE_TIME_ZONE: Record<string, string> = {
   WY: "America/Denver",
 };
 
-export const SEND_TIME_ZONE = "America/Chicago";
+export {
+  SEND_TIME_ZONE,
+  editionCalendarDate,
+  editionSendAt,
+  isNewsletterGenerateWindow,
+  isNewsletterSendWindow,
+  nextEditionDate,
+  sendZoneParts,
+} from "../../../../../api/_lib/newsletterSchedule";
+
+import { SEND_TIME_ZONE, editionCalendarDate, isNewsletterSendWindow, sendZoneParts } from "../../../../../api/_lib/newsletterSchedule";
+
+/** @deprecated Use sendZoneParts — kept for existing call sites. */
+export const centralParts = (now: Date) => {
+  const { year, month, day, hour, minute } = sendZoneParts(now);
+  return { year, month, day, hour, minute };
+};
+
+/** @deprecated Use isNewsletterSendWindow. */
+export const isTenAmCentral = isNewsletterSendWindow;
+
+/** @deprecated Use editionCalendarDate. */
+export const centralCalendarDate = editionCalendarDate;
 
 export const timeZoneForState = (state?: string | null) => {
   if (!state) return "America/New_York";
@@ -61,49 +83,10 @@ export const timeZoneForState = (state?: string | null) => {
   return (key && STATE_TIME_ZONE[key]) || "America/New_York";
 };
 
-export const centralParts = (now: Date) => {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: SEND_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const get = (type: string) => Number(parts.find((item) => item.type === type)?.value ?? "0");
-  return { year: get("year"), month: get("month"), day: get("day"), hour: get("hour"), minute: get("minute") };
-};
-
-export const isTenAmCentral = (now: Date) => {
-  const { hour, minute } = centralParts(now);
-  return hour === 10 && minute < 15;
-};
-
-const ymd = (year: number, month: number, day: number) =>
-  `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-const addDays = (year: number, month: number, day: number, days: number) => {
-  const date = new Date(Date.UTC(year, month - 1, day + days));
-  return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
-};
-
-export const centralCalendarDate = (now: Date) => {
-  const current = centralParts(now);
-  return ymd(current.year, current.month, current.day);
-};
-
-/** Calendar date of the next 10:00 America/Chicago send. At 10:00 the date is today. */
-export const nextEditionDate = (now: Date) => {
-  const current = centralParts(now);
-  const rolled = current.hour > 10 || (current.hour === 10 && current.minute >= 15);
-  const date = rolled ? addDays(current.year, current.month, current.day, 1) : current;
-  return ymd(date.year, date.month, date.day);
-};
-
 export const formatIssueDate = (isoDate: string) => {
   const [year, month, day] = isoDate.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day, 15));
+  // Noon UTC keeps the calendar date stable across Eastern offsets.
+  const date = new Date(Date.UTC(year, month - 1, day, 12));
   return new Intl.DateTimeFormat("en-US", {
     timeZone: SEND_TIME_ZONE,
     weekday: "long",
@@ -164,11 +147,40 @@ export const isUpcoming = (eventDate: string, sendAt: Date, state?: string | nul
   return !Number.isNaN(instant.getTime()) && instant.getTime() > sendAt.getTime();
 };
 
-/** Resolve 10 a.m. on the edition date, including the Central DST offset. */
-export const editionSendAt = (editionDate: string) => {
-  for (const hour of [15, 16]) {
-    const candidate = new Date(`${editionDate}T${hour}:00:00.000Z`);
-    if (isTenAmCentral(candidate)) return candidate;
-  }
-  throw new Error("Invalid newsletter edition date.");
+export const calendarDay = (instant: Date, state?: string | null) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: timeZoneForState(state),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instant);
+
+const shiftIsoDate = (isoDate: string, days: number) => {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+};
+
+const weekdayIndex = (isoDate: string, timeZone: string) => {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const instant = new Date(Date.UTC(year, month - 1, day, 16));
+  const name = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(instant);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(name);
+};
+
+/** Friday–Sunday that already happened before this send. A Friday send uses the previous weekend. */
+export const recentWeekend = (sendAt: Date, state?: string | null) => {
+  const timeZone = timeZoneForState(state);
+  const sendDay = calendarDay(sendAt, state);
+  const dow = weekdayIndex(sendDay, timeZone);
+  const end = dow === 0 || dow === 6 ? sendDay : shiftIsoDate(sendDay, -dow);
+  const start = shiftIsoDate(end, dow === 6 ? -1 : -2);
+  return { start, end };
+};
+
+export const daysBetween = (laterDay: string, earlierDay: string) => {
+  const later = Date.parse(`${laterDay.slice(0, 10)}T00:00:00Z`);
+  const earlier = Date.parse(`${earlierDay.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(later) || !Number.isFinite(earlier)) return Number.POSITIVE_INFINITY;
+  return Math.round((later - earlier) / 86400000);
 };

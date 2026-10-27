@@ -15,7 +15,7 @@ import { editorialListens, inferTasteGenres, storyTasteScore } from "../../../..
 import { eventWithinSavedLocation, hubForEvent, milesBetween, NEARBY_MILES } from "../../../../../supabase/functions/newsletter-send/nearby";
 import { meaningfulSummary } from "../../../../../supabase/functions/newsletter-send/news";
 import { rankArtists } from "../../../../../supabase/functions/newsletter-send/taste";
-import { formatEventWhen, formatIssueDate, isUpcoming } from "./time";
+import { calendarDay, daysBetween, formatEventWhen, formatIssueDate, isUpcoming, recentWeekend } from "./time";
 
 const APP_URL = "https://join.getsynth.app/";
 const PROFILE_EDIT_URL = "https://join.getsynth.app/profile-edit";
@@ -95,6 +95,51 @@ const newsInterestNames = (reader: EditionReader) => uniqueNames([
 const alreadyLogged = (reader: EditionReader, artistName: string) =>
   reader.reviews.some((review) => sameName(review.artistName, artistName));
 
+const timesSeen = (reader: EditionReader, artistName: string) =>
+  reader.reviews.filter((review) => sameName(review.artistName, artistName)).length;
+
+const eventDay = (value?: string | null) => String(value ?? "").slice(0, 10);
+
+const FRESH_SHOW_DAYS = 7;
+
+const hasWrittenReview = (reader: EditionReader, event: EditionEvent) =>
+  reader.reviews.some((review) => {
+    if (!review.text?.trim()) return false;
+    if (review.eventId && review.eventId === event.id) return true;
+    return sameName(review.artistName, event.artistName) && eventDay(review.eventDate) === eventDay(event.eventDate);
+  });
+
+const genreScore = (event: EditionEvent, genres: string[]) =>
+  (event.genres ?? []).reduce((total, genre) => {
+    const key = genre.toLowerCase();
+    const hit = genres.some((known) => known === key || known.includes(key) || key.includes(known));
+    if (!hit) return total;
+    return total + (key === "rock" || key === "pop" || key === "indie" ? 1 : 3);
+  }, 0);
+
+/** Nearby bills that share a taste lane with an artist the reader already knows. */
+const similarShows = (artistName: string, pool: EditionEvent[], catalog: EditionEvent[]) => {
+  const genres = new Set(
+    inferTasteGenres({ topArtists: [artistName], genres: [], reviews: [] }).map((genre) => genre.toLowerCase())
+  );
+  for (const event of catalog) {
+    if (!sameName(event.artistName, artistName)) continue;
+    for (const genre of event.genres ?? []) genres.add(genre.toLowerCase());
+  }
+  if (!genres.size) return [];
+  const scored = pool
+    .filter((event) => !sameName(event.artistName, artistName))
+    .map((event) => ({ event, score: genreScore(event, [...genres]) }))
+    .filter((row) => row.score > 0)
+    .sort((left, right) =>
+      right.score - left.score
+      || left.event.eventDate.localeCompare(right.event.eventDate)
+      || left.event.artistName.localeCompare(right.event.artistName)
+    );
+  const strong = scored.filter((row) => row.score >= 3);
+  return (strong.length ? strong : scored).slice(0, 4).map((row) => row.event);
+};
+
 const latestReview = (reader: EditionReader) =>
   [...reader.reviews].sort((left, right) => String(right.eventDate ?? "").localeCompare(String(left.eventDate ?? "")))[0];
 
@@ -172,6 +217,7 @@ const reasonFor = (event: EditionEvent, reader: EditionReader) => {
   const logged = alreadyLogged(reader, event.artistName);
   const listening = reader.topArtists.some((artist) => sameName(artist, event.artistName));
   if (!logged && listening) return `${event.artistName} is in your saved listening, and this date is at ${event.venueName}.`;
+  if (logged && timesSeen(reader, event.artistName) > 1) return `The next ${event.artistName} date near you is at ${event.venueName}.`;
   if (logged) return `You have seen ${event.artistName} before. This date is at ${event.venueName}.`;
   const knownVenue = reader.reviews.find((review) => review.venueName && sameName(review.venueName, event.venueName));
   if (knownVenue) return `You have already spent a night at ${event.venueName}. ${event.artistName} is on a later bill there.`;
@@ -217,6 +263,7 @@ export const composeEdition = ({
   const sources: EditionSource[] = [];
   const used = new Set<string>();
   const featuredArtists: string[] = [];
+  const cardReasons = new Map<string, string>();
   const claim = (artist?: string | null) => {
     const name = artist?.trim();
     if (!name) return false;
@@ -225,6 +272,14 @@ export const composeEdition = ({
     used.add(key);
     featuredArtists.push(name);
     return true;
+  };
+  const release = (artist?: string | null) => {
+    const name = artist?.trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (!used.delete(key)) return;
+    const index = featuredArtists.findIndex((item) => item.toLowerCase() === key);
+    if (index >= 0) featuredArtists.splice(index, 1);
   };
   const taken = (artist?: string | null) => Boolean(artist && used.has(artist.trim().toLowerCase()));
 
@@ -235,20 +290,49 @@ export const composeEdition = ({
     ? { ...reader, city: inferred.city, state: inferred.state, latitude: inferred.latitude, longitude: inferred.longitude }
     : reader;
   const place = located.city?.trim() || "";
+  const week = Math.floor(Date.parse(`${editionDate}T12:00:00Z`) / (7 * 86400000));
+  const rotateIndex = (length: number) => {
+    if (!length) return 0;
+    const offset = Number.isFinite(week) ? week : 0;
+    return ((offset % length) + length) % length;
+  };
   const latest = latestReview(reader);
   const latestIsPast = Boolean(
     latest?.artistName && latest.eventDate && !isUpcoming(latest.eventDate, new Date(retrievedAt), reader.state)
   );
-  if (latestIsPast) claim(latest?.artistName);
-
-  const upcoming = events.filter((event) =>
+  const sendDay = calendarDay(sendAt, reader.state);
+  const latestIsFresh = Boolean(
+    latestIsPast
+    && latest?.eventDate
+    && daysBetween(sendDay, latest.eventDate) >= 0
+    && daysBetween(sendDay, latest.eventDate) <= FRESH_SHOW_DAYS
+  );
+  const recapLatest = Boolean(latestIsFresh && latest?.artistName && timesSeen(reader, latest.artistName) < 2);
+  const repeatArtists = rankArtists(reader.reviews).filter((artist) => artist.mentions > 1);
+  const anchor = repeatArtists.length ? repeatArtists[rotateIndex(repeatArtists.length)] : null;
+  const nearReader = (event: EditionEvent) => savedPlace(located) && eventWithinSavedLocation(located, event);
+  const ticketedUpcoming = events.filter((event) =>
     isUpcoming(event.eventDate, sendAt, event.state) &&
     httpUrl(event.ticketUrl) &&
     event.artistName &&
     event.venueName &&
-    event.city &&
-    !taken(event.artistName)
+    event.city
   );
+  const returnShow = anchor
+    ? ticketedUpcoming
+      .filter((event) => sameName(event.artistName, anchor.name) && nearReader(event))
+      .sort((left, right) => left.eventDate.localeCompare(right.eventDate))[0] ?? null
+    : null;
+  if (latestIsPast && latest?.artistName && !(returnShow && anchor && sameName(anchor.name, latest.artistName))) {
+    claim(latest.artistName);
+  }
+  const similarOptions = !returnShow && anchor
+    ? similarShows(anchor.name, ticketedUpcoming.filter((event) => nearReader(event) && !taken(event.artistName)), events)
+    : [];
+  const similarShow = similarOptions.length ? similarOptions[rotateIndex(similarOptions.length)] : null;
+  if (similarShow && anchor) claim(anchor.name);
+
+  const upcoming = ticketedUpcoming.filter((event) => !taken(event.artistName));
   const byInterest = (left: EditionEvent, right: EditionEvent) => {
     const score = (event: EditionEvent) => {
       const saved = savedRelationship(event, reader);
@@ -288,8 +372,27 @@ export const composeEdition = ({
     }
   }
 
+  const pinShow = (event: EditionEvent | null) => {
+    if (!event) return;
+    const index = shows.findIndex((item) => item.id === event.id);
+    if (index === 0) return;
+    const sameArtist = shows.findIndex((item) => sameName(item.artistName, event.artistName));
+    if (index > 0 || sameArtist >= 0) {
+      shows.splice(index > 0 ? index : sameArtist, 1);
+      shows.unshift(event);
+      return;
+    }
+    if (!claim(event.artistName)) return;
+    if (shows.length >= 3) release(shows.pop()?.artistName);
+    shows.unshift(event);
+  };
+  const featuredReturn = returnShow ?? similarShow;
+  pinShow(featuredReturn);
+  if (similarShow && anchor && featuredReturn === similarShow) {
+    cardReasons.set(similarShow.id, `No ${anchor.name} date is nearby. ${similarShow.artistName} plays ${similarShow.venueName}, in a similar lane.`);
+  }
+
   const rankedHistory = rankArtists(reader.reviews).filter((artist) => !taken(artist.name));
-  const week = Math.floor(Date.parse(`${editionDate}T12:00:00Z`) / (7 * 86400000));
   const historyPool = (rankedHistory.some((artist) => !artist.shortOnly) ? rankedHistory.filter((artist) => !artist.shortOnly) : rankedHistory).slice(0, 4);
   const historyArtist = historyPool.length
     ? historyPool[((Number.isFinite(week) ? week : 0) % historyPool.length + historyPool.length) % historyPool.length]
@@ -362,7 +465,7 @@ export const composeEdition = ({
     return {
       eyebrow: [when, listed.venueName, listed.city].filter(Boolean).join(" · "),
       title: listed.artistName,
-      body: scrub(reasonFor(listed, located)),
+      body: scrub(cardReasons.get(listed.id) ?? reasonFor(listed, located)),
       availabilityNote: availabilityNote(availability),
       ctaLabel: ctaLabel(availability),
       ctaUrl: url,
@@ -429,8 +532,6 @@ export const composeEdition = ({
   const usedFacts = new Set<string>();
   const extraFact = (review: EditionReview) => {
     const candidates: string[] = [];
-    const repeats = reader.reviews.filter((item) => sameName(item.artistName, review.artistName)).length;
-    if (repeats > 1) candidates.push(`You have logged ${review.artistName} ${repeats} times.`);
     const venueMates = [...new Set(reader.reviews
       .filter((item) => review.venueName && item.venueName && sameName(item.venueName, review.venueName) && !sameName(item.artistName, review.artistName))
       .map((item) => item.artistName))];
@@ -448,7 +549,7 @@ export const composeEdition = ({
   };
 
   let yourSynth: ComposedEdition["yourSynth"];
-  if (latestIsPast && latest?.artistName) {
+  if (recapLatest && latest?.artistName) {
     const when = formatEventWhen(latest.eventDate || "", reader.state);
     const fact = extraFact(latest);
     const headline = reader.lifetimeShowCount > 0 && reader.fiveStarCount > 0
@@ -528,20 +629,37 @@ export const composeEdition = ({
   const savedShows = shows.filter((event) => savedRelationship(event, reader));
   const showNames = shows.map((event) => event.artistName);
   const where = genericShows ? "" : place ? `around ${place}` : "";
+  const weekend = recentWeekend(sendAt, located.state ?? reader.state);
+  const weekendShows = events.filter((event, index, list) => {
+    const day = eventDay(event.eventDate);
+    if (!day || day < weekend.start || day > weekend.end) return false;
+    if (!event.artistName || !savedRelationship(event, reader)) return false;
+    if (isUpcoming(event.eventDate, sendAt, event.state ?? located.state)) return false;
+    if (hasWrittenReview(reader, event)) return false;
+    return list.findIndex((other) => other.id === event.id || sameName(other.artistName, event.artistName)) === index;
+  });
+  const marked = weekendShows.slice(0, 2).map((event) => {
+    const venue = event.venueName ? ` at ${event.venueName}` : "";
+    const how = savedRelationship(event, reader) === "going" ? "going" : "interested";
+    return `${event.artistName}${venue} as ${how}`;
+  });
+  const reviewLead = marked.length
+    ? `You marked ${joinList(marked)}. If you went, write a review while the night is still fresh.`
+    : "If you did, write a review while the night is still fresh.";
   const introSentences = [
+    reviewLead,
     showNames.length
       ? `${joinList(showNames)} ${showNames.length === 1 ? "is" : "are"} ${savedShows.length === shows.length ? "already saved" : "coming up"}${where ? ` ${where}` : ""}.`
       : "",
     historyArtist ? `${historyArtist.name} is an earlier night still on your timeline.` : "",
-    !showNames.length && !historyArtist && latest?.artistName ? `${latest.artistName} is the newest night on your timeline.` : "",
-    !showNames.length && !historyArtist && !latest?.artistName && listenPool[0]?.artistName
+    !showNames.length && !historyArtist && recapLatest && latest?.artistName ? `${latest.artistName} is the newest night on your timeline.` : "",
+    !showNames.length && !historyArtist && !recapLatest && listenPool[0]?.artistName
       ? `${listenPool[0].artistName} is worth a play this week.`
       : "",
   ].filter(Boolean);
-  const intro = introSentences.join(" ")
-    || (name ? `${name}, a few things in music are worth your time this week.` : "A few things in music are worth your time this week.");
+  const intro = introSentences.join(" ");
 
-  const headline = name ? `${name}, here is a week drawn from your music.` : "Here is a week drawn from your music.";
+  const headline = name ? `${name}, did you see anyone new this weekend?` : "Did you see anyone new this weekend?";
   const lead = showCards[0]?.title || historyArtist?.name || listenPool[0]?.artistName;
   const subject = (lead
     ? `${name ? `${name}, ` : ""}${lead} and a few things worth your time`

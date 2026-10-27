@@ -38,7 +38,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     const ids = userIds.slice(index, index + 40);
     if (!ids.length) continue;
     reviews.push(...await readAll(() => db.from("reviews")
-      .select("id, user_id, rating, review_text, Event_date, setlist, user_created_artist_id, artists(name), venues(name)")
+      .select("id, user_id, event_id, rating, review_text, Event_date, setlist, user_created_artist_id, artists(name), venues(name)")
       .in("user_id", ids).eq("is_draft", false)
       .order("Event_date", { ascending: false }).order("id"), "Load review history"));
   }

@@ -27,6 +27,7 @@ type Job =
   | 'seed-bot-messages'
   | 'slack-pm-digest'
   | 'engagement-notifications'
+  | 'newsletter-generate'
   | 'newsletter-send'
   | 'seo-indexnow'
   | 'seo-content'
@@ -40,6 +41,7 @@ const JOBS: Job[] = [
   'seed-bot-messages',
   'slack-pm-digest',
   'engagement-notifications',
+  'newsletter-generate',
   'newsletter-send',
   'seo-indexnow',
   'seo-content',
@@ -86,6 +88,7 @@ function resolveJob(req: VercelRequest): Job {
   if (path.includes('seed-bot-messages')) return 'seed-bot-messages';
   if (path.includes('slack-pm-digest')) return 'slack-pm-digest';
   if (path.includes('engagement-notifications')) return 'engagement-notifications';
+  if (path.includes('newsletter-generate')) return 'newsletter-generate';
   if (path.includes('newsletter-send')) return 'newsletter-send';
   if (path.includes('seo-indexnow')) return 'seo-indexnow';
   if (path.includes('seo-content')) return 'seo-content';
@@ -120,6 +123,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (job === 'engagement-notifications') {
     const { default: engagementNotifications } = await import('../_lib/cron/engagementNotifications.js');
     return engagementNotifications(req, res);
+  }
+  if (job === 'newsletter-generate') {
+    const { default: newsletterGenerate } = await import('../_lib/cron/newsletterGenerate.js');
+    return newsletterGenerate(req, res);
   }
   if (job === 'newsletter-send') {
     const { default: newsletterSend } = await import('../_lib/cron/newsletterSend.js');
