@@ -9,7 +9,7 @@ import {
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { bottomSafeContentPadding } from '../navigation/SynthTabBar';
+import { overlaySheetBottomPadding } from '../navigation/SynthTabBar';
 
 export type VibeType =
   | 'similar-artists'
@@ -102,7 +102,7 @@ export function VibeSelectorSheet({ visible, onClose, onSelect }: Props) {
   const insets = useSafeAreaInsets();
   if (!visible) return null;
 
-  const sheetMarginBottom = bottomSafeContentPadding(insets.bottom);
+  const sheetPaddingBottom = overlaySheetBottomPadding(insets.bottom);
 
   return (
     <Modal
@@ -114,7 +114,7 @@ export function VibeSelectorSheet({ visible, onClose, onSelect }: Props) {
     >
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { marginBottom: sheetMarginBottom }]}>
+        <View style={[styles.sheet, { paddingBottom: sheetPaddingBottom }]}>
           <View style={styles.handle} />
           <SynthText variant="h2" style={styles.title}>
             Browse Vibes
@@ -173,7 +173,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: SynthTokens.radius.large,
     paddingHorizontal: SynthTokens.spacing.md,
     paddingTop: SynthTokens.spacing.sm,
-    paddingBottom: SynthTokens.spacing.lg,
     maxHeight: '85%',
   },
   handle: {

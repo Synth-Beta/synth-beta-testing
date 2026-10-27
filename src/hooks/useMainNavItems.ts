@@ -26,7 +26,6 @@ export interface MainNavItem {
   isActive: boolean;
   isCTA?: boolean;
   hasUnread?: boolean;
-  skipReloadWhenActive?: boolean;
   /** data-tour anchor for the welcome tour (OnboardingTour). */
   tourId?: string;
 }
@@ -41,11 +40,11 @@ interface UseMainNavItemsOptions {
   /** Passed as `source` on all main-nav `trackInteraction` calls (rail vs bottom bar). */
   interactionSource?: MainNavInteractionSource;
   /**
-   * Soft-refresh the home feed (remount / refetch). Called whenever the Home tab is
-   * tapped — including when already on home. Avoids `window.location.reload()`, which
+   * Soft-refresh the tab's page (remount / refetch). Called whenever that tab is
+   * tapped — including when already active. Avoids `window.location.reload()`, which
    * tears down the Capacitor webview listeners on iOS.
    */
-  onHomeRefresh?: () => void;
+  onTabRefresh?: (tabId: string) => void;
 }
 
 /**
@@ -57,7 +56,7 @@ export function useMainNavItems({
   onOpenEventReview,
   profileUserId,
   interactionSource = 'bottom_nav',
-  onHomeRefresh,
+  onTabRefresh,
 }: UseMainNavItemsOptions) {
   const { user } = useAuth();
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -234,7 +233,6 @@ export function useMainNavItems({
           onViewChange('profile');
         },
         isActive: isProfile,
-        skipReloadWhenActive: true,
       },
     ];
   }, [
@@ -253,23 +251,14 @@ export function useMainNavItems({
       return;
     }
 
-    // Home: always scroll to top and soft-refresh (even when already on the feed).
-    if (item.id === 'home') {
-      scrollAppToTop(item.isActive ? 'smooth' : 'auto');
-      onHomeRefresh?.();
-      if (!item.isActive) {
-        item.onActivate();
-      }
-      return;
-    }
-
-    if (item.isActive && !item.skipReloadWhenActive) {
-      scrollAppToTop('smooth');
-      // Soft scroll only — no window.location.reload() (breaks Capacitor tab listeners on iOS).
-    } else {
+    // Every main tab: scroll to top + soft-refresh (even when already on that page).
+    // Soft remount only — no window.location.reload() (breaks Capacitor tab listeners on iOS).
+    scrollAppToTop(item.isActive ? 'smooth' : 'auto');
+    onTabRefresh?.(item.id);
+    if (!item.isActive) {
       item.onActivate();
     }
-  }, [onHomeRefresh]);
+  }, [onTabRefresh]);
 
   return { items, handleItemClick };
 }

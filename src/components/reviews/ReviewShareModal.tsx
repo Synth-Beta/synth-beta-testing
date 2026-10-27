@@ -259,13 +259,6 @@ const modalRef = useRef<HTMLDivElement>(null);
   );
 
   const allTargets = [
-    ...filteredChats.map(chat => ({
-      id: chat.id,
-      name: chat.name,
-      avatar_url: chat.avatar_url,
-      type: 'group',
-      isGroup: true
-    })),
     ...filteredFriends.map(friend => ({
       id: `friend-${friend.user_id}`,
       name: friend.name,
@@ -273,7 +266,14 @@ const modalRef = useRef<HTMLDivElement>(null);
       type: 'friend',
       isGroup: false,
       user_id: friend.user_id
-    }))
+    })),
+    ...filteredChats.map(chat => ({
+      id: chat.id,
+      name: chat.name,
+      avatar_url: chat.avatar_url,
+      type: 'group',
+      isGroup: true
+    })),
   ];
 
   if (!isOpen) return null;
@@ -316,6 +316,8 @@ const modalRef = useRef<HTMLDivElement>(null);
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          // Flush to screen bottom; keep breathing room as internal whitespace.
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--spacing-bottom-nav-gap, 32px))',
         }}
         onClick={(e) => e.stopPropagation()}
       >

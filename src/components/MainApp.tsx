@@ -95,7 +95,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [shareTarget, setShareTarget] = useState<{ type: 'artist' | 'venue'; id: string; name: string } | null>(null);
   const [runTour, setRunTour] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
-  const [homeFeedKey, setHomeFeedKey] = useState(0); // Remount HomeFeed on home-tab tap (soft refresh)
+  // Remount the active tab's view on bottom-nav / rail re-tap (soft refresh).
+  const [homeFeedKey, setHomeFeedKey] = useState(0);
+  const [discoverKey, setDiscoverKey] = useState(0);
+  const [chatKey, setChatKey] = useState(0);
+  const [profileKey, setProfileKey] = useState(0);
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const layoutMode = useWebLayoutMode();
@@ -610,7 +614,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     onOpenEventReview: () => setShowEventReviewModal(true),
     profileUserId,
     interactionSource: layoutMode === 'web-desktop' ? 'web_rail' : 'bottom_nav',
-    onHomeRefresh: () => setHomeFeedKey((prev) => prev + 1),
+    onTabRefresh: (tabId) => {
+      if (tabId === 'home') setHomeFeedKey((prev) => prev + 1);
+      else if (tabId === 'discover') setDiscoverKey((prev) => prev + 1);
+      else if (tabId === 'messages') {
+        setIsChatSelected(false);
+        setChatKey((prev) => prev + 1);
+      } else if (tabId === 'profile') setProfileKey((prev) => prev + 1);
+    },
   });
 
   const handleProfileEdit = () => {
@@ -909,6 +920,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'search':
         return (
           <DiscoverView
+            key={discoverKey}
             currentUserId={user.id}
             onBack={handleBack}
             onNavigateToProfile={handleNavigateToProfile}
@@ -923,6 +935,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'profile':
         return (
           <ProfileView
+            key={profileKey}
             currentUserId={user.id}
             profileUserId={profileUserId}
             onBack={handleBack}
@@ -978,12 +991,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToChat={handleNavigateToChat}
             // Event-less notifications fall back to browsing shows, which live on Home now (not Community).
             onNavigateToDiscover={() => setCurrentView('feed')}
+            onNavigateToVerification={() => openSettingsPage('verification')}
             filter={notificationFilter}
           />
         );
       case 'chat':
         return (
           <UnifiedChatView
+            key={chatKey}
             currentUserId={user.id}
             onBack={handleBack}
             menuOpen={menuOpen}

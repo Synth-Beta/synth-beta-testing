@@ -161,9 +161,12 @@ export interface ReviewWithEngagement extends UserReview {
 
 // Comment with user data
 export interface CommentWithUser extends ReviewComment {
+  parent_comment_id?: string | null;
+  mentioned_user_ids?: string[] | null;
   user: {
     id: string;
     name: string;
+    username?: string | null;
     avatar_url?: string;
   };
 }
@@ -1803,7 +1806,8 @@ export class ReviewService {
     userId: string, 
     reviewId: string, 
     commentText: string, 
-    parentCommentId?: string
+    parentCommentId?: string,
+    mentionedUserIds?: string[]
   ): Promise<ReviewComment> {
     try {
       // Get or create entity for this review
@@ -1815,14 +1819,19 @@ export class ReviewService {
 
       if (entityError) throw entityError;
 
+      const insertPayload: Record<string, unknown> = {
+        user_id: userId,
+        entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
+        comment_text: commentText,
+        parent_comment_id: parentCommentId ?? null,
+      };
+      if (mentionedUserIds && mentionedUserIds.length > 0) {
+        insertPayload.mentioned_user_ids = mentionedUserIds;
+      }
+
       const { data, error } = await supabase
         .from('comments')
-        .insert({
-          user_id: userId,
-          entity_id: entityId, // FK to entities.id (replaces entity_type + entity_id)
-          comment_text: commentText,
-          parent_comment_id: parentCommentId
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
@@ -1840,6 +1849,7 @@ export class ReviewService {
         review_id: reviewId, // Add review_id for ReviewComment compatibility
         comment_text: data.comment_text,
         parent_comment_id: data.parent_comment_id,
+        mentioned_user_ids: data.mentioned_user_ids ?? mentionedUserIds ?? [],
         created_at: data.created_at,
         updated_at: data.updated_at,
         likes_count: data.likes_count || 0,
@@ -1890,17 +1900,19 @@ export class ReviewService {
       // Fetch user profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('users')
-        .select('id, name, avatar_url, user_id')
+        .select('id, name, username, avatar_url, user_id')
         .in('user_id', userIds);
 
       if (profilesError) throw profilesError;
 
       // Create a map of user_id to profile data
+      // Prefer auth user_id for profile navigation / mentions
       const profileMap = new Map();
       profiles?.forEach(profile => {
         profileMap.set(profile.user_id, {
-          id: profile.id,
+          id: profile.user_id,
           name: profile.name,
+          username: profile.username ?? null,
           avatar_url: profile.avatar_url
         });
       });
@@ -1908,9 +1920,12 @@ export class ReviewService {
       // Combine comments with user data
       const commentsWithUsers: CommentWithUser[] = comments.map(comment => ({
         ...comment,
+        parent_comment_id: comment.parent_comment_id ?? null,
+        mentioned_user_ids: comment.mentioned_user_ids ?? [],
         user: profileMap.get(comment.user_id) || {
           id: comment.user_id,
           name: 'Unknown User',
+          username: null,
           avatar_url: undefined
         }
       }));

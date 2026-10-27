@@ -78,6 +78,26 @@ export {
   type NotificationNavResult,
   type NotificationNavContext,
 } from './notificationNavigation';
+export {
+  COMMENT_MENTION_TOKEN_RE,
+  buildCommentMentionToken,
+  buildReplyMentionPrefill,
+  extractMentionedUserIds,
+  materializeReplyMention,
+  parseCommentMentionSegments,
+  commentTextToPlain,
+  type CommentMentionSegment,
+} from './commentMentions';
+export {
+  buildCommentThreads,
+  resolveThreadRootId,
+  visibleReplyCountForFocus,
+  nextVisibleReplyCount,
+  DEFAULT_VISIBLE_REPLIES,
+  SEE_MORE_REPLY_BATCH,
+  type ThreadableComment,
+  type CommentThread,
+} from './commentThreads';
 export { getOrCreateDirectChat } from './directChat';
 export { getOrCreateGenreChat } from './genreChat';
 export {

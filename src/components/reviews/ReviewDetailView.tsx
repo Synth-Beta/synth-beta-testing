@@ -86,6 +86,7 @@ export function ReviewDetailView({
   const [likesCount, setLikesCount] = useState(0);
   const [isLiking, setIsLiking] = useState(false);
   const [commentsModalOpen, setCommentsModalOpen] = useState(false);
+  const [focusCommentId, setFocusCommentId] = useState<string | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
@@ -308,6 +309,17 @@ export function ReviewDetailView({
   const handleComment = () => {
     setCommentsModalOpen(true);
   };
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ reviewId?: string; commentId?: string }>).detail;
+      if (!detail?.reviewId || detail.reviewId !== reviewId) return;
+      setFocusCommentId(detail.commentId?.trim() || null);
+      setCommentsModalOpen(true);
+    };
+    window.addEventListener('open-review-comments', handler);
+    return () => window.removeEventListener('open-review-comments', handler);
+  }, [reviewId]);
 
   const handleShare = () => {
     setShareModalOpen(true);
@@ -1088,10 +1100,14 @@ export function ReviewDetailView({
         <ReviewCommentsModal
           reviewId={reviewId}
           isOpen={commentsModalOpen}
-          onClose={() => setCommentsModalOpen(false)}
+          onClose={() => {
+            setCommentsModalOpen(false);
+            setFocusCommentId(null);
+          }}
           currentUserId={currentUserId}
           onCommentAdded={handleCommentAdded}
           onCommentsLoaded={handleCommentsLoaded}
+          focusCommentId={focusCommentId}
         />
       )}
 

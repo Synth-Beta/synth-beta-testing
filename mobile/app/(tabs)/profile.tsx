@@ -18,7 +18,7 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { Settings, Pencil, Menu, Instagram, Music2 } from 'lucide-react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { FriendSuggestionsRail } from '../../src/components/Feed/FriendSuggestionsRail';
 import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScreenSkeleton';
 import { SafeImage } from '../../src/components/SafeImage';
@@ -63,11 +63,14 @@ export default function ProfileScreen() {
   const [friendSuggestions, setFriendSuggestions] = useState<FriendSuggestion[]>([]);
   const [listRefreshing, setListRefreshing] = useState(false);
   const eventsPanelRef = useRef<ProfileMyEventsPanelHandle>(null);
+  const reviewsListRef = useRef<FlatList<{ key: string }>>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const hasLoadedOnceRef = useRef(false);
   const interestedLoadedRef = useRef(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const navigation = useNavigation();
 
   const loadInterested = useCallback(async (userId: string) => {
     interestedLoadedRef.current = true; // lock at entry — prevents concurrent/double loads
@@ -236,6 +239,16 @@ export default function ProfileScreen() {
     }
   }, [loadProfile, loadInterested]);
 
+  // Profile tab tap: scroll to top and refresh.
+  useEffect(() => {
+    const unsub = navigation.addListener('tabPress', () => {
+      reviewsListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      void onEventsRefresh();
+    });
+    return unsub;
+  }, [navigation, onEventsRefresh]);
+
   const upcomingInterested = useMemo(
     () => filterInterestedRowsForSegment(interested, true),
     [interested]
@@ -355,6 +368,7 @@ export default function ProfileScreen() {
     return (
       <View style={styles.container}>
         <FlatList
+          ref={reviewsListRef}
           data={[{ key: 'my-events-panel' }]}
           keyExtractor={item => item.key}
           showsVerticalScrollIndicator={false}
@@ -383,6 +397,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomSafeContentPadding(insets.bottom) }}
       >

@@ -18,6 +18,16 @@ import { format } from 'date-fns';
 // JamBaseService removed - using database queries directly
 import { EventReviewModal } from '../reviews/EventReviewModal';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ReviewDetailView } from '../reviews/ReviewDetailView';
 import type { Artist } from '@/types/concertSearch';
 import { ReviewService } from '@/services/reviewService';
@@ -189,6 +199,7 @@ export const ProfileView = ({ currentUserId, profileUserId, onBack, onEdit, onSe
   const friendButtonRef = useRef<HTMLButtonElement>(null);
   const messageButtonRef = useRef<HTMLButtonElement>(null);
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [friendActionConfirm, setFriendActionConfirm] = useState<'unfriend' | 'cancel_request' | null>(null);
   const [followedArtistsCount, setFollowedArtistsCount] = useState(0);
   const [followedVenuesCount, setFollowedVenuesCount] = useState(0);
   const [passportProgress, setPassportProgress] = useState({
@@ -1522,7 +1533,6 @@ const { user, sessionExpired } = useAuth();
       logger.debug('Unfriending user:', friendUserId);
       
       // Use FriendsService to unfriend (which calls the RPC function)
-      // No confirmation needed - quick unfriend as requested
       await FriendsService.unfriendUser(friendUserId);
 
       // Update local state - remove from friends list immediately
@@ -1732,12 +1742,15 @@ const { user, sessionExpired } = useAuth();
     onBack();
   };
 
+  // Header lives in scrolling content (Friends hub pattern) so it scrolls away with the page
+  // instead of staying pinned via PageShell's fixed header slot + sticky <header> CSS.
   const profileHeader = !hideHeader && !webDesktopChrome ? (
     !isViewingOwnProfile ? (
       <DropdownMenu>
-        <MobileHeader 
-          menuOpen={menuOpen} 
-          onMenuClick={onMenuClick} 
+        <MobileHeader
+          className="mobile-header--in-flow"
+          menuOpen={menuOpen}
+          onMenuClick={onMenuClick}
           alignLeft={true}
           leftIcon="left"
           onLeftIconClick={handleHeaderBack}
@@ -1776,9 +1789,10 @@ const { user, sessionExpired } = useAuth();
         </DropdownMenuContent>
       </DropdownMenu>
     ) : (
-      <MobileHeader 
-        menuOpen={menuOpen} 
-        onMenuClick={onMenuClick} 
+      <MobileHeader
+        className="mobile-header--in-flow"
+        menuOpen={menuOpen}
+        onMenuClick={onMenuClick}
         alignLeft={true}
       >
         <h1
@@ -1792,18 +1806,23 @@ const { user, sessionExpired } = useAuth();
   ) : undefined;
 
   return (
-    <PageShell header={profileHeader}>
+    <PageShell contentPaddingTop="0px">
       <div
         className="min-h-screen w-full overflow-x-clip overflow-y-visible"
         style={{ backgroundColor: 'var(--neutral-50)' }}
       >
+        {/* Same chrome as before — now inside the scroll pane so it moves with content. */}
+        {profileHeader ? (
+          <div className="mobile-header--in-flow-bleed">{profileHeader}</div>
+        ) : null}
         {!hideHeader && webDesktopChrome && profile && (
           !isViewingOwnProfile ? (
             <DropdownMenu>
               <header
-                className="sticky z-30 flex items-center gap-3 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
+                className="z-30 flex items-center gap-3 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
                 style={{
-                  top: 'var(--onboarding-banner-height, 0px)',
+                  position: 'relative',
+                  top: 'auto',
                   paddingTop: 'var(--mobile-header-padding-top, env(safe-area-inset-top, 0px))',
                 }}
               >
@@ -2025,18 +2044,9 @@ const { user, sessionExpired } = useAuth();
                     )}
                     {friendStatus === 'pending_sent' && (
                       <Button
-                        onClick={async () => {
-                          if (!pendingRequestId) {
-                            return;
-                          }
-
-                          try {
-                            await FriendsService.cancelFriendRequest(pendingRequestId);
-                            setFriendStatus('none');
-                            setPendingRequestId(null);
-                          } catch (error: any) {
-                            // cancel failed
-                          }
+                        onClick={() => {
+                          if (!pendingRequestId) return;
+                          setFriendActionConfirm('cancel_request');
                         }}
                         disabled={!pendingRequestId}
                         variant="outline"
@@ -2081,7 +2091,7 @@ const { user, sessionExpired } = useAuth();
                     )}
                     {friendStatus === 'friends' && (
                       <Button 
-                        onClick={() => unfriendUser(targetUserId)} 
+                        onClick={() => setFriendActionConfirm('unfriend')} 
                         variant="secondary" 
                         size="sm"
                         style={{ 
@@ -2097,9 +2107,9 @@ const { user, sessionExpired } = useAuth();
                           flex: 1,
                           minWidth: 0,
                         }}
-                        aria-label="Unfriend user"
+                        aria-label="Friends"
                       >
-                        Unfriend
+                        Friends
                       </Button>
                     )}
                     {(friendStatus === 'none' || friendStatus === 'friends') && (
@@ -3219,6 +3229,54 @@ const { user, sessionExpired } = useAuth();
           </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog
+        open={friendActionConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) setFriendActionConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {friendActionConfirm === 'cancel_request'
+                ? `Are you sure you want to cancel your friend request to ${profile?.name || 'this user'}?`
+                : `Are you sure you want to unfriend ${profile?.name || 'this user'}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="sr-only">
+              {friendActionConfirm === 'cancel_request'
+                ? 'Confirm canceling this friend request.'
+                : 'Confirm removing this person from your friends list.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setFriendActionConfirm(null)}>
+              No
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const action = friendActionConfirm;
+                setFriendActionConfirm(null);
+                if (action === 'unfriend') {
+                  await unfriendUser(targetUserId);
+                  return;
+                }
+                if (action === 'cancel_request' && pendingRequestId) {
+                  try {
+                    await FriendsService.cancelFriendRequest(pendingRequestId);
+                    setFriendStatus('none');
+                    setPendingRequestId(null);
+                  } catch {
+                    // cancel failed
+                  }
+                }
+              }}
+            >
+              Yes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Friends Modal */}
       <FollowersModal

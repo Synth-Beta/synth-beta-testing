@@ -38,7 +38,10 @@ export type NotificationType =
   | 'user_restricted'
   | 'user_suspended'
   | 'reengagement'
-  | 'week1_nudge';
+  | 'week1_nudge'
+  | 'stamp_unlocked'
+  | 'achievement_unlocked'
+  | 'verification_status';
 
 export interface Notification {
   id: string;

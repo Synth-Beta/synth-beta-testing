@@ -31,6 +31,7 @@ export type ChatAuthorType = 'human' | 'ai_scene_guide' | 'system';
 
 export interface ChatSenderProfile {
   name: string;
+  username: string | null;
   avatar_url: string | null;
   bio: string | null;
   account_type: string | null;
@@ -114,6 +115,7 @@ export function normalizeChatSenderProfile(row: {
   const username = row.username?.trim() ?? '';
   return {
     name: name || username || CHAT_SENDER_NAME_FALLBACK,
+    username: username || null,
     avatar_url: row.avatar_url ?? null,
     bio: row.bio ?? null,
     account_type: row.account_type ?? null,

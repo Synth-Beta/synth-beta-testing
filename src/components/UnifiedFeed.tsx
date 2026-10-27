@@ -244,6 +244,7 @@ export const UnifiedFeed = ({
   const [selectedEventInterested, setSelectedEventInterested] = useState<boolean>(false);
   const [openEventCommentsFor, setOpenEventCommentsFor] = useState<string | null>(null);
   const [openReviewCommentsFor, setOpenReviewCommentsFor] = useState<string | null>(null);
+  const [focusReviewCommentId, setFocusReviewCommentId] = useState<string | null>(null);
   const [openLikersFor, setOpenLikersFor] = useState<string | null>(null);
   const [openReportFor, setOpenReportFor] = useState<string | null>(null);
   const [reportContentType, setReportContentType] = useState<'event' | 'review'>('review');
@@ -870,10 +871,13 @@ export const UnifiedFeed = ({
   }, []);
 
   // Share deep links: ?review= → open review detail modal
+  // Comment notifications may also pass commentId to open the thread afterward.
   useEffect(() => {
     const handleOpenReviewById = async (e: Event) => {
-      const reviewId = (e as CustomEvent<{ reviewId?: string }>).detail?.reviewId;
+      const detail = (e as CustomEvent<{ reviewId?: string; commentId?: string }>).detail;
+      const reviewId = detail?.reviewId;
       if (!reviewId?.trim()) return;
+      const commentId = detail?.commentId?.trim() || null;
 
       try {
         const item = await UnifiedFeedService.getReviewFeedItemById(reviewId.trim());
@@ -883,6 +887,18 @@ export const UnifiedFeed = ({
         }
         setSelectedReviewDetail(item);
         setShowReviewDetailModal(true);
+        if (commentId) {
+          setFocusReviewCommentId(commentId);
+          // Open comments after the detail modal is up
+          setTimeout(() => {
+            setOpenReviewCommentsFor(reviewId.trim());
+            window.dispatchEvent(
+              new CustomEvent('open-review-comments', {
+                detail: { reviewId: reviewId.trim(), commentId },
+              })
+            );
+          }, 50);
+        }
       } catch (err) {
         console.error('Error opening review from share link:', err);
       }
@@ -890,6 +906,19 @@ export const UnifiedFeed = ({
 
     window.addEventListener('open-review-by-id', handleOpenReviewById);
     return () => window.removeEventListener('open-review-by-id', handleOpenReviewById);
+  }, []);
+
+  // Deep-link from comment / reply notifications → open comments modal on the thread
+  useEffect(() => {
+    const handleOpenReviewComments = (e: Event) => {
+      const detail = (e as CustomEvent<{ reviewId?: string; commentId?: string }>).detail;
+      const reviewId = detail?.reviewId?.trim();
+      if (!reviewId) return;
+      setFocusReviewCommentId(detail?.commentId?.trim() || null);
+      setOpenReviewCommentsFor(reviewId);
+    };
+    window.addEventListener('open-review-comments', handleOpenReviewComments);
+    return () => window.removeEventListener('open-review-comments', handleOpenReviewComments);
   }, []);
 
   // Note: Interested events are now loaded immediately on mount via loadAllInterestedEvents()
@@ -3433,7 +3462,12 @@ export const UnifiedFeed = ({
       <ReviewCommentsModal
         reviewId={openReviewCommentsFor}
         isOpen={Boolean(openReviewCommentsFor)}
-        onClose={() => setOpenReviewCommentsFor(null)}
+        onClose={() => {
+          setOpenReviewCommentsFor(null);
+          setFocusReviewCommentId(null);
+        }}
+        currentUserId={currentUserId}
+        focusCommentId={focusReviewCommentId}
         />
       )}
 

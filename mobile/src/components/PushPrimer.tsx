@@ -20,6 +20,7 @@ import {
   recordPrimerShown,
   requestPushPrimer,
 } from '../../lib/pushPrimer';
+import { overlaySheetBottomPadding } from './navigation/SynthTabBar';
 
 // How long someone uses the app (after the tour) before the session-based ask.
 const SESSION_DELAY_MS = 45_000;
@@ -113,22 +114,31 @@ export function PushPrimerSheet({
   const { title, body } = PUSH_PRIMER_COPY[reason];
   return (
     <Modal transparent animationType="slide" visible onRequestClose={onDismiss}>
-      <Pressable style={styles.backdrop} onPress={onDismiss} accessibilityLabel="Dismiss" />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + SynthTokens.spacing.md }]}>
-        <View style={styles.iconWrap}>
-          <BellRing size={28} color={SynthTokens.colors.brandPink500} />
+      <View style={styles.root}>
+        <Pressable style={styles.backdrop} onPress={onDismiss} accessibilityLabel="Dismiss" />
+        <View style={[styles.sheet, { paddingBottom: overlaySheetBottomPadding(insets.bottom) }]}>
+          <View style={styles.iconWrap}>
+            <BellRing size={28} color={SynthTokens.colors.brandPink500} />
+          </View>
+          <SynthText variant="h2" style={styles.title} accessibilityRole="header">{title}</SynthText>
+          <SynthText variant="meta" color="secondary" style={styles.body}>{body}</SynthText>
+          <SynthButton title="Turn on notifications" variant="primary" onPress={onEnable} style={styles.button} />
+          <SynthButton title="Not now" variant="ghost" onPress={onDismiss} style={styles.button} />
         </View>
-        <SynthText variant="h2" style={styles.title} accessibilityRole="header">{title}</SynthText>
-        <SynthText variant="meta" color="secondary" style={styles.body}>{body}</SynthText>
-        <SynthButton title="Turn on notifications" variant="primary" onPress={onEnable} style={styles.button} />
-        <SynthButton title="Not now" variant="ghost" onPress={onDismiss} style={styles.button} />
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: SynthTokens.colors.overlay50 },
+  root: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: SynthTokens.colors.overlay50,
+  },
   sheet: {
     backgroundColor: SynthTokens.colors.neutral0,
     borderTopLeftRadius: 24,

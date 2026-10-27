@@ -37,6 +37,7 @@ import { SynthTokens } from '../../tokens/SynthTokens';
 import { InAppShareService, type ShareTarget } from '../../services/inAppShareService';
 import { buildShareLandingUrl } from '@synth/shared';
 import { getExpoSiteUrl } from '../../utils/siteUrl';
+import { overlaySheetBottomPadding } from '../navigation/SynthTabBar';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -130,7 +131,7 @@ export function ShareToChatModal({
                 InAppShareService.getGroupChatTargets(currentUserId),
                 InAppShareService.getFriendTargets(currentUserId),
             ]);
-            setTargets([...groups, ...friends]);
+            setTargets([...friends, ...groups]);
         } catch (err) {
             console.error('[ShareToChatModal] loadTargets', err);
         } finally {
@@ -249,7 +250,7 @@ export function ShareToChatModal({
                 style={styles.kvWrapper}
                 pointerEvents="box-none"
             >
-                <View style={[styles.sheet, { paddingBottom: insets.bottom + 8 }]}>
+                <View style={[styles.sheet, { paddingBottom: overlaySheetBottomPadding(insets.bottom) }]}>
                     {/* Handle */}
                     <View style={styles.handle} />
 
@@ -307,12 +308,12 @@ export function ShareToChatModal({
                             renderItem={null}
                             ListHeaderComponent={
                                 <>
-                                    {renderSectionHeader('GROUP CHATS', groups.length)}
-                                    {groups.map(item => (
-                                        <View key={item.id}>{renderTarget({ item })}</View>
-                                    ))}
                                     {renderSectionHeader('FRIENDS', friends.length)}
                                     {friends.map(item => (
+                                        <View key={item.id}>{renderTarget({ item })}</View>
+                                    ))}
+                                    {renderSectionHeader('GROUP CHATS', groups.length)}
+                                    {groups.map(item => (
                                         <View key={item.id}>{renderTarget({ item })}</View>
                                     ))}
                                     {filtered.length === 0 ? (

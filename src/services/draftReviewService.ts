@@ -33,7 +33,9 @@ export interface DraftReviewData {
   venueRating?: number;
   overallExperienceRating?: number;
   reviewText?: string;
+  /** @deprecated Prefer `images`; kept for older drafts. */
   photos?: string[];
+  images?: Array<{ id: string; url: string; isThumbnail?: boolean; thumbnailCrop?: unknown }>;
   videos?: string[];
   moodTags?: string[];
   genreTags?: string[];

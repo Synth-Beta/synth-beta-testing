@@ -5,6 +5,11 @@ import type { AdminBugTask, AdminBugTaskRow } from './types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
+function throwDbError(error: { message?: string; details?: string; hint?: string; code?: string } | null): never {
+  const parts = [error?.message, error?.details, error?.hint].filter(Boolean);
+  throw new Error(parts.join(' — ') || 'Database request failed');
+}
+
 function firstName(name: string | null | undefined): string {
   const trimmed = (name ?? '').trim();
   if (!trimmed) return 'Unknown';
@@ -20,7 +25,7 @@ async function fetchNameMap(userIds: string[]): Promise<Record<string, string>> 
     .select('user_id, name')
     .in('user_id', unique);
 
-  if (error) throw error;
+  if (error) throwDbError(error);
 
   const map: Record<string, string> = {};
   for (const row of data ?? []) {
@@ -49,7 +54,7 @@ export async function listBugTasks(): Promise<AdminBugTask[]> {
     .select('id, description, author_id, assignee_id, status, created_at, fixed_at')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throwDbError(error);
 
   const rows = (data ?? []) as AdminBugTaskRow[];
   const names = await fetchNameMap(
@@ -72,7 +77,7 @@ export async function createBugTask(description: string, authorId: string): Prom
     .select('id, description, author_id, assignee_id, status, created_at, fixed_at')
     .single();
 
-  if (error) throw error;
+  if (error) throwDbError(error);
 
   const row = data as AdminBugTaskRow;
   const names = await fetchNameMap([row.author_id]);
@@ -86,7 +91,7 @@ export async function claimBugTask(taskId: string, userId: string): Promise<Admi
     .eq('id', taskId)
     .single();
 
-  if (fetchError) throw fetchError;
+  if (fetchError) throwDbError(fetchError);
   const current = existing as AdminBugTaskRow;
   if (current.status !== 'open') throw new Error('Only open tasks can be claimed');
   if (current.assignee_id) throw new Error('This task is already claimed');
@@ -100,7 +105,7 @@ export async function claimBugTask(taskId: string, userId: string): Promise<Admi
     .select('id, description, author_id, assignee_id, status, created_at, fixed_at')
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throwDbError(error);
   if (!data) throw new Error('Could not claim task — it may have just been claimed');
 
   const row = data as AdminBugTaskRow;
@@ -115,7 +120,7 @@ export async function unclaimBugTask(taskId: string, userId: string): Promise<Ad
     .eq('id', taskId)
     .single();
 
-  if (fetchError) throw fetchError;
+  if (fetchError) throwDbError(fetchError);
   const current = existing as AdminBugTaskRow;
   if (current.status !== 'open') throw new Error('Only open tasks can be unclaimed');
   if (current.assignee_id !== userId) throw new Error('You can only unclaim your own tasks');
@@ -129,7 +134,7 @@ export async function unclaimBugTask(taskId: string, userId: string): Promise<Ad
     .select('id, description, author_id, assignee_id, status, created_at, fixed_at')
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throwDbError(error);
   if (!data) throw new Error('Could not unclaim task');
 
   const row = data as AdminBugTaskRow;
@@ -144,7 +149,7 @@ export async function markBugTaskFixed(taskId: string, userId: string): Promise<
     .eq('id', taskId)
     .single();
 
-  if (fetchError) throw fetchError;
+  if (fetchError) throwDbError(fetchError);
   const current = existing as AdminBugTaskRow;
   if (current.status !== 'open') throw new Error('Task is already fixed');
   if (current.assignee_id !== userId) throw new Error('Only the assignee can mark a task as fixed');
@@ -158,7 +163,7 @@ export async function markBugTaskFixed(taskId: string, userId: string): Promise<
     .select('id, description, author_id, assignee_id, status, created_at, fixed_at')
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throwDbError(error);
   if (!data) throw new Error('Could not mark task as fixed');
 
   const row = data as AdminBugTaskRow;
@@ -175,7 +180,7 @@ export async function unfixBugTask(taskId: string): Promise<AdminBugTask> {
     .select('id, description, author_id, assignee_id, status, created_at, fixed_at')
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throwDbError(error);
   if (!data) throw new Error('Could not reopen task');
 
   const row = data as AdminBugTaskRow;
@@ -190,7 +195,7 @@ export async function fetchCurrentAdminProfile(userId: string): Promise<{ name: 
     .eq('user_id', userId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) throwDbError(error);
   if (!data) return null;
   return { name: firstName(data.name) };
 }

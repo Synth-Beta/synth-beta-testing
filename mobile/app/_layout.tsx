@@ -544,6 +544,7 @@ export default function RootLayout() {
     const needsAuth =
       seg0 === '(tabs)' ||
       seg0 === 'chat' ||
+      seg0 === 'chat-members' ||
       seg0 === 'event' ||
       seg0 === 'review' ||
       seg0 === 'notifications' ||

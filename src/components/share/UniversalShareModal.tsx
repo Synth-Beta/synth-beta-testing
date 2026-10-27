@@ -349,6 +349,8 @@ export function UniversalShareModal({
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          // Flush to screen bottom; keep breathing room as internal whitespace.
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--spacing-bottom-nav-gap, 32px))',
         }}
         onClick={(e) => e.stopPropagation()}
       >

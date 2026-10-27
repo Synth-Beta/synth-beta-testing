@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,7 +14,7 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { ChatService, ChatThread } from '../../src/services/chatService';
 import { supabase } from '../../src/integrations/supabase/client';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Menu, Trash2 } from 'lucide-react-native';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
@@ -37,6 +37,8 @@ export default function ChatListScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
+  const navigation = useNavigation();
+  const listRef = useRef<FlatList<ChatThread>>(null);
   const insets = useSafeAreaInsets();
 
   const loadChats = useCallback(async () => {
@@ -67,10 +69,19 @@ export default function ChatListScreen() {
     }, [loadChats])
   );
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     void loadChats();
-  };
+  }, [loadChats]);
+
+  // Messages tab tap: scroll to top and refresh.
+  useEffect(() => {
+    const unsub = navigation.addListener('tabPress', () => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      onRefresh();
+    });
+    return unsub;
+  }, [navigation, onRefresh]);
 
   const confirmDelete = (item: ChatThread) => {
     Alert.alert('Remove chat', `Remove "${item.chat_name}" from your list?`, [
@@ -163,6 +174,7 @@ export default function ChatListScreen() {
       </TouchableOpacity>
 
       <FlatList
+        ref={listRef}
         data={chats}
         renderItem={renderItem}
         keyExtractor={item => item.id}

@@ -561,7 +561,10 @@ export class NotificationService {
           flag_reviewed: 0,
           user_warned: 0,
           user_restricted: 0,
-          user_suspended: 0
+          user_suspended: 0,
+          stamp_unlocked: 0,
+          achievement_unlocked: 0,
+          verification_status: 0,
         } as Record<NotificationType, number>
       };
 
@@ -1060,6 +1063,8 @@ export class NotificationService {
         return '⭐';
       case 'venue_new_event':
         return '🏛️';
+      case 'verification_status':
+        return '✨';
       default:
         return '🔔';
     }
@@ -1099,6 +1104,8 @@ export class NotificationService {
       case 'friends_event_interest_summary':
       case 'bucket_list_new_events_summary':
         return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'verification_status':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }

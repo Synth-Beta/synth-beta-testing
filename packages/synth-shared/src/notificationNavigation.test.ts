@@ -75,3 +75,42 @@ assert.deepEqual(
   resolveNotificationExpoPath('event_interest', { event_id: 'ev-1' }, { actorUserId: 'friend-1' }),
   { path: '/event/ev-1' }
 );
+
+const REVIEW_ID = 'dddddddd-1111-4222-8333-444444444444';
+const COMMENT_ID = 'eeeeeeee-1111-4222-8333-444444444444';
+assert.deepEqual(
+  resolveNotificationExpoPath('comment_replied', {
+    review_id: REVIEW_ID,
+    comment_id: COMMENT_ID,
+  }),
+  { path: `/review/${REVIEW_ID}?commentId=${COMMENT_ID}` }
+);
+assert.deepEqual(
+  resolveNotificationExpoPath('review_liked', { review_id: REVIEW_ID }),
+  { path: `/review/${REVIEW_ID}` }
+);
+
+// Verification status opens the verification settings screen.
+assert.deepEqual(
+  resolveNotificationExpoPath('verification_status', { verified: true }),
+  { path: '/settings/verification' }
+);
+
+// Stamp / achievement unlocks open the user's passport (profile tab).
+assert.deepEqual(
+  resolveNotificationExpoPath('stamp_unlocked', {
+    entity_name: 'Brooklyn Steel',
+    stamp_type: 'venue',
+    is_first: true,
+    passport_section: 'stamps',
+  }),
+  { path: '/(tabs)/profile' }
+);
+assert.deepEqual(
+  resolveNotificationExpoPath('achievement_unlocked', {
+    achievement_name: 'Venue Hopper',
+    tier: 'bronze',
+    passport_section: 'achievements',
+  }),
+  { path: '/(tabs)/profile' }
+);

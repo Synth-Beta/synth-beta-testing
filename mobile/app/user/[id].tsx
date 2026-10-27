@@ -38,6 +38,7 @@ export default function PublicUserProfileScreen() {
   const [profileStats, setProfileStats] = useState<ProfileStats | null>(null);
   const [friendStatus, setFriendStatus] = useState<FriendStatus>('none');
   const [friendLoading, setFriendLoading] = useState(false);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -45,6 +46,7 @@ export default function PublicUserProfileScreen() {
     try {
       setProfileStats(null);
       setFriendStatus('none');
+      setPendingRequestId(null);
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -98,16 +100,26 @@ export default function PublicUserProfileScreen() {
           )
           .limit(1);
         if (relRows && relRows.length > 0) {
-          const rel = relRows[0] as { user_id: string; related_user_id: string; status: string };
+          const rel = relRows[0] as {
+            id: string;
+            user_id: string;
+            related_user_id: string;
+            status: string;
+          };
           if (rel.status === 'accepted') {
             setFriendStatus('friends');
+            setPendingRequestId(null);
           } else if (rel.status === 'pending') {
-            setFriendStatus(rel.user_id === user.id ? 'pending_sent' : 'pending_received');
+            const sentByMe = rel.user_id === user.id;
+            setFriendStatus(sentByMe ? 'pending_sent' : 'pending_received');
+            setPendingRequestId(sentByMe ? rel.id : null);
           } else {
             setFriendStatus('none');
+            setPendingRequestId(null);
           }
         } else {
           setFriendStatus('none');
+          setPendingRequestId(null);
         }
       }
     } finally {
@@ -132,9 +144,90 @@ export default function PublicUserProfileScreen() {
     );
   };
 
+  const displayName = profile?.name || profile?.username || 'this user';
+
+  const confirmAndUnfriend = useCallback(() => {
+    if (!id || !selfId || id === selfId) return;
+    Alert.alert(
+      `Are you sure you want to unfriend ${displayName}?`,
+      undefined,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setFriendLoading(true);
+              try {
+                const { error } = await supabase.rpc('unfriend_user', {
+                  friend_user_id: id,
+                });
+                if (!error) {
+                  setFriendStatus('none');
+                  setPendingRequestId(null);
+                  try {
+                    const updatedStats = await PassportService.getProfileStats(id);
+                    setProfileStats(updatedStats);
+                  } catch {
+                    // ignore secondary error
+                  }
+                }
+              } catch (e) {
+                console.warn('[publicProfile] unfriend', e);
+              } finally {
+                setFriendLoading(false);
+              }
+            })();
+          },
+        },
+      ]
+    );
+  }, [id, selfId, displayName]);
+
+  const confirmAndCancelRequest = useCallback(() => {
+    if (!id || !selfId || id === selfId || !pendingRequestId) return;
+    Alert.alert(
+      `Are you sure you want to cancel your friend request to ${displayName}?`,
+      undefined,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setFriendLoading(true);
+              try {
+                const { error } = await supabase.rpc('cancel_friend_request', {
+                  request_id: pendingRequestId,
+                });
+                if (!error) {
+                  setFriendStatus('none');
+                  setPendingRequestId(null);
+                }
+              } catch (e) {
+                console.warn('[publicProfile] cancel friend request', e);
+              } finally {
+                setFriendLoading(false);
+              }
+            })();
+          },
+        },
+      ]
+    );
+  }, [id, selfId, pendingRequestId, displayName]);
+
   const handleFriendAction = useCallback(async () => {
     if (!id || !selfId || id === selfId) return;
-    if (friendStatus === 'friends' || friendStatus === 'pending_sent') return;
+    if (friendStatus === 'friends') {
+      confirmAndUnfriend();
+      return;
+    }
+    if (friendStatus === 'pending_sent') {
+      confirmAndCancelRequest();
+      return;
+    }
     setFriendLoading(true);
     try {
     if (friendStatus === 'pending_received') {
@@ -147,6 +240,7 @@ export default function PublicUserProfileScreen() {
         .eq('relationship_type', 'friend');
       if (!error) {
         setFriendStatus('friends');
+        setPendingRequestId(null);
         try {
           const updatedStats = await PassportService.getProfileStats(id);
           setProfileStats(updatedStats);
@@ -157,14 +251,29 @@ export default function PublicUserProfileScreen() {
     } else {
       // Send a new friend request
       const result = await createFriendRequest(supabase as any, id);
-      if (result.ok) setFriendStatus('pending_sent');
+      if (result.ok) {
+        setFriendStatus('pending_sent');
+        if (result.requestId) {
+          setPendingRequestId(result.requestId);
+        } else {
+          const { data } = await supabase
+            .from('user_relationships')
+            .select('id')
+            .eq('user_id', selfId)
+            .eq('related_user_id', id)
+            .eq('relationship_type', 'friend')
+            .eq('status', 'pending')
+            .maybeSingle();
+          setPendingRequestId((data as { id?: string } | null)?.id ?? null);
+        }
+      }
     }
     } catch (e) {
       console.warn('[publicProfile] friend action', e);
     } finally {
       setFriendLoading(false);
     }
-  }, [id, selfId, friendStatus]);
+  }, [id, selfId, friendStatus, confirmAndUnfriend, confirmAndCancelRequest]);
 
   const isOwnProfile = !!selfId && !!id && id === selfId;
   // Matches web ProfileView `canViewInterested` and the rule
@@ -259,7 +368,7 @@ export default function PublicUserProfileScreen() {
               {id && selfId && id !== selfId ? (
                 <Pressable
                   onPress={() => void handleFriendAction()}
-                  disabled={friendLoading || friendStatus === 'friends' || friendStatus === 'pending_sent'}
+                  disabled={friendLoading}
                   style={[
                     styles.friendBtn,
                     friendStatus === 'friends' && styles.friendBtnDone,
