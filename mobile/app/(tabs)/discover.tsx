@@ -9,6 +9,7 @@ import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { PickFiveConnection } from '../../src/components/partners/PickFiveConnection';
 import { ThreadReviewCard } from '../../src/components/Feed/ThreadReviewCard';
+import { InviteFriendsCard } from '../../src/components/invite/InviteFriendsCard';
 import { supabase } from '../../src/integrations/supabase/client';
 import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
 import type { NetworkReview } from '../../src/services/homeFeedService';
@@ -105,6 +106,7 @@ export default function CommunityScreen() {
         </View>
         <PickFiveConnection />
       </View>
+      <InviteFriendsCard userId={userId} />
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>The community</Text>
         <SynthText variant="meta" color="secondary" style={styles.bannerSub}>

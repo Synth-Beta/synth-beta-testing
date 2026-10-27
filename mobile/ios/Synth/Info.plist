@@ -65,6 +65,8 @@
     <string>Synth uses your camera to take photos for chat messages.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Synth uses your location while you are using the app to show concerts and events near you—for example, on your Home feed and in Discover.</string>
+    <key>NSContactsUsageDescription</key>
+    <string>Synth uses your contacts so you can text friends an invite to Synth. Contacts stay on your phone.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Synth uses photos you choose to send in chats and attach to concert reviews.</string>
     <key>NSUserActivityTypes</key>

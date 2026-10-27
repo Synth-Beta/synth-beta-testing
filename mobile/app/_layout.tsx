@@ -24,6 +24,7 @@ import { InterestedProvider } from '../src/contexts/InterestedContext';
 import { BrowseLocationProvider } from '../src/contexts/BrowseLocationContext';
 import { AppLoadingSkeleton } from '../src/components/AppLoadingSkeleton';
 import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryService';
+import { InviteService, inviteCodeFromUrl } from '../src/services/inviteService';
 import { installAppIssueReporter, setAppIssueRoute } from '../src/services/clientIssueReporter';
 import { needsContactEmail, resolveNotificationExpoPath } from '@synth/shared';
 
@@ -203,6 +204,12 @@ export default function RootLayout() {
   const authLinkUrl = Linking.useURL();
   useEffect(() => {
     if (!authLinkUrl) return;
+    // join.getsynth.app/i/CODE: keep the code even if routing bounces them to sign-in/onboarding.
+    const inviteCode = inviteCodeFromUrl(authLinkUrl);
+    if (inviteCode) {
+      void InviteService.savePending(inviteCode);
+      return;
+    }
     const { params, errorCode } = QueryParams.getQueryParams(authLinkUrl);
     if (errorCode || params.error_description) {
       console.warn('[auth] sign-in link rejected', errorCode ?? params.error_description);
@@ -552,7 +559,8 @@ export default function RootLayout() {
       seg0 === 'connect' ||
       seg0 === 'user' ||
       seg0 === 'artist' ||
-      seg0 === 'venue';
+      seg0 === 'venue' ||
+      (seg0 as string) === 'i'; // new route: typed-routes list regenerates on next expo start
 
     if (!session && seg0 === 'profile-edit') pendingProfileEdit = true;
 
@@ -628,6 +636,7 @@ export default function RootLayout() {
       <Stack.Screen name="my-events" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="app-menu" options={{ headerShown: false, animation: 'slide_from_right' }} />
+      <Stack.Screen name="i/[code]" options={{ headerShown: false, gestureEnabled: false }} />
     </Stack>
     </BrowseLocationProvider>
     </InterestedProvider>

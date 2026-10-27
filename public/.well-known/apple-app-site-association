@@ -4,7 +4,7 @@
     "details": [
       {
         "appID": "R6JXB945ND.com.tejpatel.synth",
-        "paths": ["/share", "/share/*", "/event/*", "/review/*", "/connect/*", "/profile-edit"]
+        "paths": ["/share", "/share/*", "/event/*", "/review/*", "/connect/*", "/profile-edit", "/i/*"]
       }
     ]
   }

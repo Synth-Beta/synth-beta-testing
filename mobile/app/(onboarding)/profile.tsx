@@ -20,6 +20,7 @@ import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
+import { InviteService, normalizeInviteCode } from '../../src/services/inviteService';
 import { getCurrentLatLng, reverseGeocode } from '../../src/services/locationService';
 import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail, describeProfileSaveError, validateOnboardingProfile, normalizeBirthday, isPlaceholderName } from '@synth/shared';
 import type { User } from '@supabase/supabase-js';
@@ -83,6 +84,13 @@ export default function ProfileSetupScreen() {
     const [acquisitionSourceError, setAcquisitionSourceError] = useState('');
     const [contactEmail, setContactEmail] = useState('');
     const [contactEmailError, setContactEmailError] = useState('');
+    const [inviteCode, setInviteCode] = useState('');
+    const [inviteCodeError, setInviteCodeError] = useState('');
+
+    // Opened a friend's invite link before signing up: the code was saved by _layout.
+    useEffect(() => {
+        void InviteService.getPending().then((code) => code && setInviteCode(code));
+    }, []);
 
     const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -303,6 +311,19 @@ export default function ProfileSetupScreen() {
             setSaving(false);
         }
 
+        // Redeemed at the end of onboarding (artists step); here we only check it exists.
+        const code = normalizeInviteCode(inviteCode);
+        if (code) {
+            const invite = await InviteService.preview(code).catch(() => null);
+            if (!invite) {
+                setInviteCodeError("That invite code doesn't exist. Check it or leave it blank.");
+                return;
+            }
+            await InviteService.savePending(code);
+        } else {
+            await InviteService.clearPending();
+        }
+
         router.push('/(onboarding)/connect');
     };
 
@@ -485,6 +506,26 @@ export default function ProfileSetupScreen() {
                             )}
                         </View>
                     )}
+
+                    <View style={styles.fieldBlock}>
+                        <Text style={styles.label}>Invite code (optional)</Text>
+                        <TextInput
+                            style={[styles.input, inviteCodeError ? styles.inputError : null]}
+                            value={inviteCode}
+                            onChangeText={text => {
+                                setInviteCode(text.toUpperCase());
+                                if (inviteCodeError) setInviteCodeError('');
+                            }}
+                            placeholder="e.g., K7M2QX"
+                            placeholderTextColor={SynthTokens.colors.neutral400}
+                            autoCapitalize="characters"
+                            autoCorrect={false}
+                            maxLength={12}
+                        />
+                        <Text style={[styles.hint, inviteCodeError ? { color: '#dc2626' } : null]}>
+                            {inviteCodeError || "Got a code from a friend? You'll be friends on Synth right away."}
+                        </Text>
+                    </View>
 
                     {showContactEmailField && (
                         <View style={styles.fieldBlock}>

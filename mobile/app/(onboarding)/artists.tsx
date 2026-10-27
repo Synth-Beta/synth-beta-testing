@@ -18,6 +18,7 @@ import { trackPushPrimer } from '../../src/services/onboardingTelemetry';
 import { getNotificationPermissionStatus } from '../../lib/registerPushNotifications';
 import { loadPrimerState, primerAllowed, recordPrimerShown } from '../../lib/pushPrimer';
 import { syncExpoPushTokenWithBackend } from '../../lib/pushTokenSync';
+import { InviteService } from '../../src/services/inviteService';
 
 const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
 const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
@@ -148,10 +149,16 @@ export default function ArtistsScreen() {
         } catch {
             // Fall through to Home.
         }
-        goHome();
+        void goHome();
     };
 
-    const goHome = () => {
+    const goHome = async () => {
+        // Joined with a friend's invite code: land on "Tej invited you" first.
+        const inviteCode = await InviteService.getPending();
+        if (inviteCode) {
+            router.replace(`/i/${inviteCode}?welcome=1` as any);
+            return;
+        }
         // End onboarding on Home (feed), not Discover.
         // No trailing slash — '/(tabs)/' is not a valid typed route and every other
         // call site in the app uses this form (_layout, share, email-required, post).
@@ -169,12 +176,12 @@ export default function ArtistsScreen() {
                         // Home now; the system prompt still shows over it. Not awaited: the token fetch has no
                         // timeout and can hang on a bad network, which left them on this screen.
                         void syncExpoPushTokenWithBackend({ prompt: true }).catch(() => undefined);
-                        goHome();
+                        void goHome();
                     }}
                     onDismiss={() => {
                         trackPushPrimer('declined', 'onboarding');
                         setShowPushAsk(false);
-                        goHome();
+                        void goHome();
                     }}
                 />
             ) : null}
