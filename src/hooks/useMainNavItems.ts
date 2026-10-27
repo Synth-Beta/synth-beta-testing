@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { trackInteraction } from '@/services/interactionTrackingService';
+import { scrollAppToTop } from '@/utils/scrollAppToTop';
 
 export type MainNavCurrentView =
   | 'feed'
@@ -39,6 +40,12 @@ interface UseMainNavItemsOptions {
   profileUserId?: string;
   /** Passed as `source` on all main-nav `trackInteraction` calls (rail vs bottom bar). */
   interactionSource?: MainNavInteractionSource;
+  /**
+   * Soft-refresh the home feed (remount / refetch). Called whenever the Home tab is
+   * tapped — including when already on home. Avoids `window.location.reload()`, which
+   * tears down the Capacitor webview listeners on iOS.
+   */
+  onHomeRefresh?: () => void;
 }
 
 /**
@@ -50,6 +57,7 @@ export function useMainNavItems({
   onOpenEventReview,
   profileUserId,
   interactionSource = 'bottom_nav',
+  onHomeRefresh,
 }: UseMainNavItemsOptions) {
   const { user } = useAuth();
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
@@ -244,15 +252,24 @@ export function useMainNavItems({
       item.onActivate();
       return;
     }
+
+    // Home: always scroll to top and soft-refresh (even when already on the feed).
+    if (item.id === 'home') {
+      scrollAppToTop(item.isActive ? 'smooth' : 'auto');
+      onHomeRefresh?.();
+      if (!item.isActive) {
+        item.onActivate();
+      }
+      return;
+    }
+
     if (item.isActive && !item.skipReloadWhenActive) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      // Do not call window.location.reload() — on iOS native it tears down
-      // the React app and removes the synthNativeTabSelected event listener,
-      // causing subsequent tab taps to be silently dropped during the reload.
+      scrollAppToTop('smooth');
+      // Soft scroll only — no window.location.reload() (breaks Capacitor tab listeners on iOS).
     } else {
       item.onActivate();
     }
-  }, []);
+  }, [onHomeRefresh]);
 
   return { items, handleItemClick };
 }

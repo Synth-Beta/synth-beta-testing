@@ -6,6 +6,7 @@ import { WebDesktopRail } from '@/components/layout/WebDesktopRail';
 import { useWebLayoutMode } from '@/hooks/useWebLayoutMode';
 import { useMainNavItems, type MainNavCurrentView } from '@/hooks/useMainNavItems';
 import { getWebDesktopMainContentClass, type MainAppViewForLayout } from '@/utils/webMainContentClass';
+import { scrollAppToTop } from '@/utils/scrollAppToTop';
 import { useMenuNotificationBadgeCount } from '@/hooks/useMenuNotificationBadgeCount';
 import { useLockBodyScroll, releaseScrollLockIfUnheld } from '@/hooks/useLockBodyScroll';
 import { ConcertFeed } from './events/ConcertFeed';
@@ -94,6 +95,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [shareTarget, setShareTarget] = useState<{ type: 'artist' | 'venue'; id: string; name: string } | null>(null);
   const [runTour, setRunTour] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
+  const [homeFeedKey, setHomeFeedKey] = useState(0); // Remount HomeFeed on home-tab tap (soft refresh)
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const layoutMode = useWebLayoutMode();
@@ -550,7 +552,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   // Scroll to top whenever the view changes
   useEffect(() => {
-    window.scrollTo(0, 0);
+    scrollAppToTop('auto');
     // Update prevView ref AFTER the render cycle so it reflects the just-left view
     return () => { prevViewRef.current = currentView; };
   }, [currentView]);
@@ -608,6 +610,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     onOpenEventReview: () => setShowEventReviewModal(true),
     profileUserId,
     interactionSource: layoutMode === 'web-desktop' ? 'web_rail' : 'bottom_nav',
+    onHomeRefresh: () => setHomeFeedKey((prev) => prev + 1),
   });
 
   const handleProfileEdit = () => {
@@ -883,6 +886,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'feed':
         return (
           <HomeFeed
+            key={homeFeedKey}
             currentUserId={user.id}
             onNavigateToNotifications={handleNavigateToNotifications}
             onNavigateToProfile={handleNavigateToProfile}

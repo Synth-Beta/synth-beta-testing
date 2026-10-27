@@ -86,6 +86,8 @@ export interface SharedUserChat {
   /** 'scene' added by migration 20260825120000 (scene rooms / density onboarding). */
   entity_type: 'event' | 'artist' | 'venue' | 'genre' | 'scene' | null;
   entity_uuid: string | null;
+  /** Direct-chat peer `users.avatar_url`; null for groups / missing photo. */
+  peer_avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -373,6 +375,7 @@ export function createChatCore(deps: ChatCoreDeps) {
       // Batch the peer lookup for direct chats — one query, not one per row.
       const list = chats || [];
       const peerNameByChat = new Map<string, string>();
+      const peerAvatarByChat = new Map<string, string | null>();
       const directPeerIds = new Map<string, string>();
       for (const chat of list) {
         if (chat.is_group_chat) continue;
@@ -382,18 +385,23 @@ export function createChatCore(deps: ChatCoreDeps) {
       if (directPeerIds.size > 0) {
         const { data: peers } = await supabase
           .from('users')
-          .select('user_id, name, username')
+          .select('user_id, name, username, avatar_url')
           .in('user_id', [...new Set(directPeerIds.values())]);
         const nameById = new Map<string, string>();
+        const avatarById = new Map<string, string | null>();
         for (const u of peers || []) {
           const name =
             (typeof u.name === 'string' && u.name.trim()) ||
             (typeof u.username === 'string' && u.username.trim() ? `@${u.username.trim()}` : '');
           if (name) nameById.set(u.user_id, name);
+          const avatar =
+            typeof u.avatar_url === 'string' && u.avatar_url.trim() ? u.avatar_url.trim() : null;
+          avatarById.set(u.user_id, avatar);
         }
         for (const [chatId, peerId] of directPeerIds) {
           const name = nameById.get(peerId);
           if (name) peerNameByChat.set(chatId, name);
+          peerAvatarByChat.set(chatId, avatarById.get(peerId) ?? null);
         }
       }
 
@@ -428,6 +436,7 @@ export function createChatCore(deps: ChatCoreDeps) {
             group_admin_id: chat.group_admin_id ?? null,
             entity_type: chat.entity_type ?? null,
             entity_uuid: chat.entity_uuid ?? null,
+            peer_avatar_url: chat.is_group_chat ? null : (peerAvatarByChat.get(chat.id) ?? null),
             created_at: chat.created_at,
             updated_at: chat.updated_at,
           } satisfies SharedUserChat;

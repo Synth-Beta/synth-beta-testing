@@ -118,6 +118,7 @@ export class ChatService {
             chat_name: chat.display_name,
             latest_message: chat.latest_message ?? 'No messages yet',
             latest_message_at: chat.latest_message_created_at ?? chat.updated_at,
+            image_url: chat.peer_avatar_url ?? undefined,
             // ponytail: unread is still computed by useUnreadMessageCount, not here.
             unread_count: 0,
         }));

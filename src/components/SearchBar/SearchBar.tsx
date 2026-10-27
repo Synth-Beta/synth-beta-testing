@@ -31,8 +31,9 @@ export interface SearchBarProps {
   showClear?: boolean;
 
   /**
-   * Called when the clear (X) button is pressed, after the value is cleared.
-   * When provided, the input blurs instead of refocusing so the parent can dismiss search.
+   * Called when the clear (X) button is pressed while the field is already empty
+   * (or on Escape), so the parent can dismiss search mode. When the field has
+   * text, X only clears it and keeps focus.
    */
   onClear?: () => void;
   
@@ -142,32 +143,46 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     onChange?.(newValue);
   };
   
-  const handleClear = () => {
+  const hasValue = value.length > 0;
+  const showClearButton = hasValue || showClear;
+
+  const clearValue = () => {
     if (!isControlled) {
       setInternalValue('');
     }
     onChange?.('');
+  };
+
+  const dismiss = () => {
+    clearValue();
     onClear?.();
-    if (onClear) {
-      inputRef.current?.blur();
-    } else {
+    inputRef.current?.blur();
+  };
+
+  const handleClear = () => {
+    if (hasValue) {
+      clearValue();
       inputRef.current?.focus();
+      return;
     }
+    if (onClear) {
+      dismiss();
+      return;
+    }
+    clearValue();
+    inputRef.current?.focus();
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape' && onClear) {
       e.preventDefault();
-      handleClear();
+      dismiss();
       return;
     }
     if (e.key === 'Enter' && onSubmit) {
       onSubmit(value);
     }
   };
-  
-  const hasValue = value.length > 0;
-  const showClearButton = hasValue || showClear;
   
   // Build class names
   const baseClasses = 'synth-search-bar';

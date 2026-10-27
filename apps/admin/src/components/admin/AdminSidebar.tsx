@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   BookOpen,
+  Bug,
   CalendarDays,
   CheckCircle,
   Flag,
@@ -44,6 +45,7 @@ const ADMIN_NAV: { label: string; items: AdminNavItem[] }[] = [
       { tab: 'ai-scene-guides', label: 'AI Scene Guides', icon: Music },
       { tab: 'content-calendar', label: 'Content Calendar', icon: CalendarDays },
       { tab: 'news', label: 'In the News', icon: Newspaper },
+      { tab: 'bug-fix', label: 'Bug Fix List', icon: Bug },
       { tab: 'style-guide', label: 'Style Guide', icon: BookOpen },
     ],
   },

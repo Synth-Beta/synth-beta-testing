@@ -176,6 +176,8 @@ interface Chat {
   last_activity_at?: string | null;
   // Event image URL (for group chats)
   event_image_url?: string | null;
+  /** Direct-chat peer profile photo from shared chat fetch */
+  peer_avatar_url?: string | null;
 }
 
 interface Message {
@@ -1653,6 +1655,11 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         entity_uuid: chat.entity_uuid
       });
       return imageUrl || null;
+    }
+
+    // Prefer avatar from the chat fetch so list rows don't depend on friends state
+    if (chat.peer_avatar_url) {
+      return chat.peer_avatar_url;
     }
     
     // For direct chats, find the specific other user for this chat (Bug 1 fix)

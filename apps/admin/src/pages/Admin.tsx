@@ -78,6 +78,7 @@ import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnal
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
 import ContentCalendarDashboard from '@/components/admin/content-calendar/ContentCalendarDashboard';
 import { AiSceneGuidesAdminPanel } from '@/components/admin/AiSceneGuidesAdminPanel';
+import { BugFixListPanel } from '@/components/admin/bug-fix/BugFixListPanel';
 import NewsletterBuilder from '@/components/admin/newsletter/NewsletterBuilder';
 import NewsletterProofreader from '@/components/admin/newsletter/NewsletterProofreader';
 import {
@@ -250,6 +251,7 @@ export default function Admin() {
         'events',
         'moderation',
         'news',
+        'bug-fix',
         'newsletter-builder',
         ...(canProofreadNewsletters ? ['newsletter-proof'] : []),
         'style-guide',
@@ -3590,6 +3592,10 @@ export default function Admin() {
               <NewsletterProofreader />
             </TabsContent>
           ) : null}
+
+          <TabsContent value="bug-fix" className="space-y-6">
+            <BugFixListPanel />
+          </TabsContent>
 
           <TabsContent value="style-guide" className="space-y-6">
             <AdminStyleGuidePanel />

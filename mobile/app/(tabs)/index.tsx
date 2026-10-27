@@ -16,9 +16,10 @@ import {
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, View, RefreshControl, Platform, Pressable, Text } from 'react-native';
 import { Search } from 'lucide-react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlashList, type FlashListRef } from '@shopify/flash-list';
+import type { EventArg } from '@react-navigation/native';
 import { useTour } from '../../lib/tourProgress';
 import { FeedHeader } from '../../src/components/Feed/FeedHeader';
 import { EventCard, type CardRatingLine } from '../../src/components/Feed/EventCard';
@@ -56,6 +57,7 @@ const FRIEND_EVENT_WEAVE = { firstAt: 3, minGap: 4, maxGap: 7 };
 const JUST_ANNOUNCED_VIEWABILITY = { itemVisiblePercentThreshold: 50, minimumViewTime: 500 };
 export default function FeedScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [events, setEvents] = useState<UnifiedPersonalizedEvent[]>([]);
   const [reviews, setReviews] = useState<NetworkReview[]>([]);
@@ -346,13 +348,24 @@ export default function FeedScreen() {
     return () => clearTimeout(t);
   }, [feedLoading, refreshing, events.length, fetchFeed]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     void fetchFeed();
-  };
+  }, [fetchFeed]);
 
   // App tutorial: the first show is the one it spotlights; bring it into view for those steps.
   const listRef = useRef<FlashListRef<ListItem>>(null);
+
+  // Home tab tap: scroll to top and refresh (same as web bottom-nav home).
+  useEffect(() => {
+    const onTabPress = (_e: EventArg<'tabPress', true>) => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      onRefresh();
+    };
+    const unsub = navigation.addListener('tabPress', onTabPress);
+    return unsub;
+  }, [navigation, onRefresh]);
+
   const tourStep = useTour()?.step;
   const tourCardIndex = listData.findIndex((i) => i.kind === 'event');
   useEffect(() => {
