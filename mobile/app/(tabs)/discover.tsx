@@ -7,9 +7,8 @@ import { Menu } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
-import { PickFiveConnection } from '../../src/components/partners/PickFiveConnection';
 import { ThreadReviewCard } from '../../src/components/Feed/ThreadReviewCard';
-import { InviteFriendsCard } from '../../src/components/invite/InviteFriendsCard';
+import { InviteFriendsButton } from '../../src/components/invite/InviteFriendsCard';
 import { supabase } from '../../src/integrations/supabase/client';
 import { ReviewEngagementService } from '../../src/services/reviewEngagementService';
 import type { NetworkReview } from '../../src/services/homeFeedService';
@@ -99,14 +98,19 @@ export default function CommunityScreen() {
 
   const header = (
     <View style={styles.headerBlock}>
-      <View style={styles.pick5Card}>
-        <View style={styles.pick5Head}>
+      {/* Two compact actions; the full Pick5 connect flow lives in settings. */}
+      <View style={styles.quickRow}>
+        <Pressable
+          style={styles.pick5Pill}
+          onPress={() => router.push('/settings/pickfive')}
+          accessibilityRole="button"
+          accessibilityLabel="Pick5"
+        >
           <Image source={PICK5_LOGO} style={styles.pick5Logo} />
           <Text style={styles.pick5Name}>Pick5</Text>
-        </View>
-        <PickFiveConnection />
+        </Pressable>
+        <InviteFriendsButton userId={userId} />
       </View>
-      <InviteFriendsCard userId={userId} />
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>The community</Text>
         <SynthText variant="meta" color="secondary" style={styles.bannerSub}>
@@ -179,17 +183,20 @@ const styles = StyleSheet.create({
     backgroundColor: SynthTokens.colors.neutral0,
   },
   headerBlock: { paddingHorizontal: SynthTokens.spacing.screenMarginX, gap: 16, marginBottom: 12 },
-  pick5Card: {
+  quickRow: { flexDirection: 'row', gap: 10 },
+  pick5Pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 44,
+    borderRadius: 22,
+    paddingHorizontal: 14,
     backgroundColor: SynthTokens.colors.neutral0,
-    borderRadius: 16,
-    padding: 16,
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
-    gap: 10,
   },
-  pick5Head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pick5Logo: { width: 28, height: 28, borderRadius: 7 },
-  pick5Name: { fontSize: 16, fontWeight: '700', color: SynthTokens.colors.neutral900 },
+  pick5Logo: { width: 24, height: 24, borderRadius: 6 },
+  pick5Name: { fontSize: 15, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   banner: { paddingTop: 4 },
   bannerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3, color: SynthTokens.colors.neutral900 },
   bannerSub: { marginTop: 4, fontSize: 14, lineHeight: 20 },
