@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountType } from '@/hooks/useAccountType';
 import { supabase } from '@/integrations/supabase/client';
+import { GrowthMetricsCards } from '@/components/admin/GrowthMetricsCards';
 // Tables like users, events, interactions, etc. exist in DB but not in generated types — use untyped client for those.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -322,7 +323,6 @@ export default function Admin() {
   const [dau, setDau] = useState(0);
   const [mau, setMau] = useState(0);
   const [wau, setWau] = useState(0);
-  const [weeklyShares, setWeeklyShares] = useState(0);
   const [eciPerUser, setEciPerUser] = useState(0);
   const [networkDensity, setNetworkDensity] = useState(0);
   const [appMetrics, setAppMetrics] = useState<AppMetrics | null>(null);
@@ -1250,6 +1250,19 @@ export default function Admin() {
       // 1. Fetch interactions (use occurred_at or created_at) — used for DAU/MAU and WAU
       // Paginate to fetch ALL rows — Supabase defaults to 1000 per request
       const PAGE_SIZE = 1000;
+      // Supabase returns at most 1,000 rows per request; page until a short page so the
+      // activity counts below don't silently stop at 1,000.
+      const fetchAllPages = async (
+        page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: any }>
+      ): Promise<{ data: any[]; error: any }> => {
+        let rows: any[] = [];
+        for (let start = 0; ; start += PAGE_SIZE) {
+          const { data, error } = await page(start, start + PAGE_SIZE - 1);
+          if (error) return { data: rows, error };
+          rows = rows.concat(data ?? []);
+          if (!data || data.length < PAGE_SIZE) return { data: rows, error: null };
+        }
+      };
       let interactions: { user_id: string; occurred_at?: string; created_at?: string }[] = [];
       let interactionsError: Error | null = null;
       let from = 0;
@@ -1312,31 +1325,41 @@ export default function Admin() {
         { data: engagements, error: engagementsError }
       ] = await Promise.all([
         // 2. Fetch reviews (non-draft only)
-        db
+        fetchAllPages((f, t) => db
           .from('reviews')
           .select('user_id, created_at, event_id')
           .eq('is_draft', false)
-          .gte('created_at', activityStartISO),
+          .gte('created_at', activityStartISO)
+          .order('created_at', { ascending: true })
+          .range(f, t)),
         // 3. Fetch user_event_relationships
-        db
+        fetchAllPages((f, t) => db
           .from('user_event_relationships')
           .select('user_id, created_at, updated_at, relationship_type, event_id')
-          .gte('created_at', activityStartISO),
+          .gte('created_at', activityStartISO)
+          .order('created_at', { ascending: true })
+          .range(f, t)),
         // 4. Fetch messages
-        db
+        fetchAllPages((f, t) => db
           .from('messages')
           .select('sender_id, created_at')
-          .gte('created_at', activityStartISO),
+          .gte('created_at', activityStartISO)
+          .order('created_at', { ascending: true })
+          .range(f, t)),
         // 5. Fetch comments
-        db
+        fetchAllPages((f, t) => db
           .from('comments')
           .select('user_id, created_at')
-          .gte('created_at', activityStartISO),
+          .gte('created_at', activityStartISO)
+          .order('created_at', { ascending: true })
+          .range(f, t)),
         // 6. Fetch engagements
-        db
+        fetchAllPages((f, t) => db
           .from('engagements')
           .select('user_id, created_at')
           .gte('created_at', activityStartISO)
+          .order('created_at', { ascending: true })
+          .range(f, t))
       ]);
       
       // Process reviews
@@ -1470,14 +1493,6 @@ export default function Admin() {
       });
       setUserShareCounts(shareCountByUser);
 
-      // Weekly shares: referral_shares in the last 7 days
-      const weeklySharesCount = referralSharesList.filter(r => {
-        if (!r.shared_at) return false;
-        const d = new Date(r.shared_at);
-        return d >= sevenDaysAgo && d <= endDate;
-      }).length;
-      setWeeklyShares(weeklySharesCount);
-
       // Fetch full interaction data (for ECI shares + breakdown); need created_at for ECI trend by date
       const breakdownPageSize = 1000;
       let fullInteractionsList: { event_type: string; entity_type: string; entity_id: string | null; created_at?: string }[] = [];
@@ -1522,9 +1537,11 @@ export default function Admin() {
         r => r.relationship_type === 'interested'
       ).length;
       const reviewsPosted = reviewsList.length;
-      const shareCountFromInteractions = fullInteractionsList.filter(
-        i => (i.event_type || '').toLowerCase() === 'share'
-      ).length;
+      // Web logs every referral share twice (referral_shares + an interactions row with
+      // entity_id 'referral_<source>'), so only count share interactions without a twin.
+      const isUntwinnedShare = (i: { event_type?: string | null; entity_id?: string | null }) =>
+        (i.event_type || '').toLowerCase() === 'share' && !(i.entity_id || '').startsWith('referral_');
+      const shareCountFromInteractions = fullInteractionsList.filter(isUntwinnedShare).length;
       const eventsShared = shareCountFromInteractions + referralSharesList.length;
 
       setEventsInterested(eventsInterested);
@@ -1594,7 +1611,7 @@ export default function Admin() {
 
       // Process share-type interactions by date for ECI trend (same 30-day range)
       fullInteractionsList
-        .filter(i => (i.event_type || '').toLowerCase() === 'share' && i.created_at)
+        .filter(i => isUntwinnedShare(i) && i.created_at)
         .forEach(row => {
           try {
             const dateKey = row.created_at!.split('T')[0];
@@ -1724,11 +1741,13 @@ export default function Admin() {
       // Calculate Retention Metrics (D1, D7, D30)
       // Get all users with signup dates (going back 60 days to have enough data for D30)
       const sixtyDaysAgo = subDays(endDate, 60);
-      const { data: allUsersForRetention, error: retentionUsersError } = await db
+      const { data: allUsersForRetention, error: retentionUsersError } = await fetchAllPages((f, t) => db
         .from('users')
         .select('user_id, created_at')
         .gte('created_at', sixtyDaysAgo.toISOString())
-        .lte('created_at', endISO);
+        .lte('created_at', endISO)
+        .order('created_at', { ascending: true })
+        .range(f, t));
 
       if (retentionUsersError && retentionUsersError.code !== 'PGRST205') {
         console.warn('⚠️ Error fetching users for retention:', retentionUsersError);
@@ -1931,7 +1950,6 @@ export default function Admin() {
       setDau(0);
       setMau(0);
       setWau(0);
-      setWeeklyShares(0);
       setUserShareCounts({});
       setEciPerUser(0);
       setNetworkDensity(0);
@@ -2178,8 +2196,8 @@ export default function Admin() {
 
                 <Card className="shadow-sm">
                   <CardHeader className="py-3 px-4">
-                    <CardTitle className="text-sm">Users · Shares</CardTitle>
-                    <CardDescription className="text-xs">Name and external share count (#)</CardDescription>
+                    <CardTitle className="text-sm">Users · Shares outside app</CardTitle>
+                    <CardDescription className="text-xs">Links and share-sheet shares per person (#)</CardDescription>
                   </CardHeader>
                   <CardContent className="px-4 pb-4 pt-0">
                     {referralSharesError ? (
@@ -2432,7 +2450,7 @@ export default function Admin() {
                 {/* Engagement */}
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">Engagement</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <Card className="shadow-sm border-2 border-primary">
                       <CardHeader className="p-3 pb-1">
                         <CardTitle className="text-xs font-medium flex items-center gap-1">
@@ -2442,15 +2460,6 @@ export default function Admin() {
                       <CardContent className="p-3 pt-0">
                         <div className="text-xl font-bold text-primary">{eciPerUser.toFixed(2)}</div>
                         <p className="text-xs text-muted-foreground">North Star Metric</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="shadow-sm">
-                      <CardHeader className="p-3 pb-1">
-                        <CardTitle className="text-xs font-medium text-muted-foreground">Weekly Shares</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-3 pt-0">
-                        <div className="text-xl font-bold">{weeklyShares.toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">External/referral (7d)</p>
                       </CardContent>
                     </Card>
                     <Card className="shadow-sm">
@@ -2467,8 +2476,8 @@ export default function Admin() {
 
                 {/* Retention & Network */}
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Retention & Network</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Retention</p>
+                  <div className="grid grid-cols-3 gap-3">
                     <Card className="shadow-sm">
                       <CardHeader className="p-3 pb-1">
                         <CardTitle className="text-xs font-medium text-muted-foreground">D1</CardTitle>
@@ -2494,15 +2503,6 @@ export default function Admin() {
                       <CardContent className="p-3 pt-0">
                         <div className="text-lg font-bold">{d30Retention.toFixed(1)}%</div>
                         <p className="text-xs text-muted-foreground">Back within 30 days</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="shadow-sm">
-                      <CardHeader className="p-3 pb-1">
-                        <CardTitle className="text-xs font-medium text-muted-foreground">Network Density</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-3 pt-0">
-                        <div className="text-lg font-bold">{networkDensity.toFixed(4)}</div>
-                        <p className="text-xs text-muted-foreground">0–1 scale</p>
                       </CardContent>
                     </Card>
                   </div>
@@ -2547,6 +2547,8 @@ export default function Admin() {
                   </div>
                 )}
 
+                <GrowthMetricsCards />
+
             {/* ECI/U Detail Section (North Star Metric) */}
             <Card className="border-2 border-primary">
               <CardHeader>
@@ -2590,7 +2592,7 @@ export default function Admin() {
                         </CardHeader>
                         <CardContent>
                           <div className="text-2xl font-bold">{eventsShared.toLocaleString()}</div>
-                          <p className="text-xs text-muted-foreground">With friends</p>
+                          <p className="text-xs text-muted-foreground">Links & share sheet</p>
                         </CardContent>
                       </Card>
                     </div>
@@ -2681,90 +2683,6 @@ export default function Admin() {
                 )}
               </CardContent>
             </Card>
-
-
-            {/* Top Content Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Star className="h-5 w-5" />
-                    Top Reviewed Events
-                  </CardTitle>
-                  <CardDescription>
-                    Most reviewed events in the last 30 days
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {analyticsLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    </div>
-                  ) : topReviewedEvents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No reviewed events in the last 30 days
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {topReviewedEvents.map((event, index) => (
-                        <div key={event.event_id} className="flex items-center justify-between p-2 rounded-lg border">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">{event.title}</p>
-                              <p className="text-xs text-muted-foreground">Event ID: {event.event_id.substring(0, 8)}...</p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">{event.count} reviews</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Heart className="h-5 w-5" />
-                    Top Interested Events
-                  </CardTitle>
-                  <CardDescription>
-                    Most interested events in the last 30 days
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {analyticsLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    </div>
-                  ) : topInterestedEvents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No interested events in the last 30 days
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {topInterestedEvents.map((event, index) => (
-                        <div key={event.event_id} className="flex items-center justify-between p-2 rounded-lg border">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">{event.title}</p>
-                              <p className="text-xs text-muted-foreground">Event ID: {event.event_id.substring(0, 8)}...</p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">{event.count} interested</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
 
             {/* Comprehensive Interaction Analytics */}
             <div className="space-y-6">
@@ -3154,6 +3072,88 @@ export default function Admin() {
           </TabsContent>
 
           <TabsContent value="events" className="space-y-6">
+            {/* Top events (last 30 days) — computed with the Users & Analytics data */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5" />
+                    Top Reviewed Events
+                  </CardTitle>
+                  <CardDescription>
+                    Most reviewed events in the last 30 days
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {analyticsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : topReviewedEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No reviewed events in the last 30 days
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {topReviewedEvents.map((event, index) => (
+                        <div key={event.event_id} className="flex items-center justify-between p-2 rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{event.title}</p>
+                              <p className="text-xs text-muted-foreground">Event ID: {event.event_id.substring(0, 8)}...</p>
+                            </div>
+                          </div>
+                          <Badge variant="secondary">{event.count} reviews</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Heart className="h-5 w-5" />
+                    Top Interested Events
+                  </CardTitle>
+                  <CardDescription>
+                    Most interested events in the last 30 days
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {analyticsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : topInterestedEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      No interested events in the last 30 days
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {topInterestedEvents.map((event, index) => (
+                        <div key={event.event_id} className="flex items-center justify-between p-2 rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{event.title}</p>
+                              <p className="text-xs text-muted-foreground">Event ID: {event.event_id.substring(0, 8)}...</p>
+                            </div>
+                          </div>
+                          <Badge variant="secondary">{event.count} interested</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
             <EventAnalyticsDashboard />
           </TabsContent>
 

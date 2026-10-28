@@ -20,6 +20,7 @@ import { ThreadReviewCard } from './thread/ThreadReviewCard';
 import type { ReviewWithEngagement } from '@/services/reviewService';
 import { ReviewDetailView } from '@/components/reviews/ReviewDetailView';
 import { PreferencesV4FeedSection } from './PreferencesV4FeedSection';
+import { GetAppBanner } from './GetAppBanner';
 import { UnifiedEventsFeed, type ThreadNode } from './UnifiedEventsFeed';
 import { JamBaseHeaderAttribution } from './JamBaseHeaderAttribution';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -1957,6 +1958,7 @@ interface FriendEventInterest {
           transition: 'margin-top 0.2s ease-out',
         }}
       >
+        {!isSearchMode && <GetAppBanner />}
         <div style={{ marginBottom: 16 }}>
           <SearchBar
             value={searchQuery}

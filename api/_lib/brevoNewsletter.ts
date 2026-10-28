@@ -42,14 +42,17 @@ export interface BrevoNewsletterMessage {
   html: string;
   unsubscribeUrl: string;
   deliveryKey: string;
+  /** Defaults to the newsletter sender name and "synth-setlist" tag. */
+  senderName?: string;
+  tag?: string;
 }
 
 export const brevoPayload = (message: BrevoNewsletterMessage) => ({
-  sender: { name: NEWSLETTER_SENDER.name, email: NEWSLETTER_SENDER.email },
+  sender: { name: message.senderName ?? NEWSLETTER_SENDER.name, email: NEWSLETTER_SENDER.email },
   to: [{ email: message.to }],
   subject: message.subject,
   htmlContent: message.html,
-  tags: ["synth-setlist"],
+  tags: [message.tag ?? "synth-setlist"],
   headers: {
     "X-Mailin-custom": message.deliveryKey,
     "List-Unsubscribe": `<${message.unsubscribeUrl}>`,

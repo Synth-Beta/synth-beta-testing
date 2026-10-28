@@ -135,6 +135,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron?job=notification-emails",
+      "schedule": "0 17 * * *"
+    },
+    {
       "path": "/api/cron?job=sync-events",
       "schedule": "30 9 * * *"
     },

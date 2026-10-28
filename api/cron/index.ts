@@ -34,7 +34,8 @@ type Job =
   | 'seo-search-data'
   | 'seo-ai-visibility'
   | 'seo-recap'
-  | 'jambase-ingest-report';
+  | 'jambase-ingest-report'
+  | 'notification-emails';
 
 const JOBS: Job[] = [
   'sync-events',
@@ -49,6 +50,7 @@ const JOBS: Job[] = [
   'seo-ai-visibility',
   'seo-recap',
   'jambase-ingest-report',
+  'notification-emails',
 ];
 
 function queryJob(req: VercelRequest): string {
@@ -96,6 +98,7 @@ function resolveJob(req: VercelRequest): Job {
   if (path.includes('seo-ai-visibility')) return 'seo-ai-visibility';
   if (path.includes('seo-recap')) return 'seo-recap';
   if (path.includes('jambase-ingest-report')) return 'jambase-ingest-report';
+  if (path.includes('notification-emails')) return 'notification-emails';
 
   return jobFromHour();
 }
@@ -151,6 +154,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (job === 'seo-recap') {
     const { default: seoRecap } = await import('../_lib/cron/seoRecap.js');
     return seoRecap(req, res);
+  }
+  if (job === 'notification-emails') {
+    const { default: notificationEmails } = await import('../_lib/cron/notificationEmails.js');
+    return notificationEmails(req, res);
   }
   if (job === 'jambase-ingest-report') {
     const { default: jambaseIngestReport } = await import('../_lib/cron/jambaseIngestReport.js');
