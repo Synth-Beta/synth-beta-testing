@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import type { JamBaseEvent } from '@/types/eventTypes';
-import { useReviewForm, REVIEW_FORM_TOTAL_STEPS, getTotalSteps } from '@/hooks/useReviewForm';
+import { useReviewForm, REVIEW_FORM_TOTAL_STEPS, getTotalSteps, type ReviewImageItem } from '@/hooks/useReviewForm';
 import { ReviewService, type ReviewData, type UserReview, type PublicReviewWithProfile } from '@/services/reviewService';
 import { TimeSelectionStep } from './ReviewFormSteps/TimeSelectionStep';
 import { EventDetailsStep } from './ReviewFormSteps/EventDetailsStep';
@@ -61,6 +61,32 @@ const VALUE_SUGGESTIONS: CategoryConfig['suggestions'] = [
   { id: 'value-overpriced', label: 'Overpriced', description: 'Fun night, but tickets were overpriced.', sentiment: 'negative' },
   { id: 'value-hidden-fees', label: 'Too many fees', description: 'Fees and merch prices added up fast.', sentiment: 'negative' },
 ];
+
+/** Convert legacy `photos: string[]` drafts/edits into the `images` shape the form uses. */
+function photosToReviewImages(photos: string[] | null | undefined): ReviewImageItem[] {
+  if (!Array.isArray(photos) || photos.length === 0) return [];
+  return photos.filter(Boolean).map((url, index) => ({
+    id: `existing-${index}-${url}`,
+    url,
+    isThumbnail: index === 0,
+    thumbnailCrop: null,
+  }));
+}
+
+function normalizeReviewFormImages(data: Record<string, unknown>) {
+  const existingImages = data.images;
+  if (Array.isArray(existingImages) && existingImages.length > 0) {
+    const { photos: _legacyPhotos, ...rest } = data;
+    return rest;
+  }
+  const legacyPhotos = data.photos;
+  if (Array.isArray(legacyPhotos) && legacyPhotos.length > 0) {
+    const { photos: _legacyPhotos, ...rest } = data;
+    return { ...rest, images: photosToReviewImages(legacyPhotos as string[]) };
+  }
+  const { photos: _legacyPhotos, ...rest } = data;
+  return rest;
+}
 
 // Helper to get step labels based on flow
 const getStepLabels = (flow: 'quick' | 'standard' | 'detailed' | null): string[] => {
@@ -418,7 +444,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
           const draftData = loadDraft(loadDraftKey);
           if (draftData) {
             logger.debug('📂 Loaded draft from localStorage for event:', event.id);
-            setFormData(draftData as any);
+            setFormData(normalizeReviewFormImages(draftData as any) as any);
           }
         }
 
@@ -479,7 +505,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             showTicketPrice: review.show_ticket_price ?? true,
             rating: review.rating,
             reviewText: review.review_text || '',
-            photos: review.photos || [],
+            images: photosToReviewImages(review.photos),
             videos: review.videos || [],
             selectedSetlist: review.setlist || null,
             customSetlists: (review as any).custom_setlist || [],
@@ -888,7 +914,11 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
         // Only with a price: re-submitting without one must not flip a hidden price back to public.
         show_ticket_price: formData.ticketPricePaid ? formData.showTicketPrice : undefined,
         review_text: formData.reviewText.trim() || undefined,
-        photos: formData.photos && formData.photos.length > 0 ? formData.photos : undefined,
+        // Form stores rich image items; DB column is a URL array.
+        photos: (() => {
+          const urls = (formData.images || []).map((img) => img.url).filter(Boolean);
+          return urls.length > 0 ? urls : undefined;
+        })(),
         videos: formData.videos && formData.videos.length > 0 ? formData.videos : undefined,
         // Preserve existing setlist when editing if not explicitly changed
         // If selectedSetlist is null, user cleared it; if undefined, preserve existing
@@ -1050,7 +1080,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
 
       // Upload client-generated review thumbnail to storage (no DB fields).
       // Path: `${reviewId}/thumbnail.jpg` in bucket `review-photos`.
-      if (pendingReviewThumbnailBlob && review?.id && Array.isArray(formData.photos) && formData.photos.length > 0) {
+      if (pendingReviewThumbnailBlob && review?.id && Array.isArray(formData.images) && formData.images.length > 0) {
         try {
           const fileType = pendingReviewThumbnailBlob.type || 'image/jpeg';
           const thumbFile = new File([pendingReviewThumbnailBlob], 'thumbnail.jpg', { type: fileType });
@@ -1479,6 +1509,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               formData={formData}
               errors={errors}
               onUpdateFormData={updateFormData}
+              onThumbnailBlobChange={setPendingReviewThumbnailBlob}
               artistName={formData.selectedArtist?.name}
               venueName={formData.selectedVenue?.name}
               eventDate={formData.eventDate}
@@ -1733,7 +1764,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             onSelectDraft={(draft) => {
               setCurrentDraft(draft);
               if (draft.draft_data) {
-                setFormData(draft.draft_data as any);
+                setFormData(normalizeReviewFormImages(draft.draft_data as any) as any);
               }
               if (onClose) {
                 onClose();

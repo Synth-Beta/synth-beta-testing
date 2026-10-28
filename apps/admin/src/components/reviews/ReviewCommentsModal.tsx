@@ -158,7 +158,7 @@ export function ReviewCommentsModal({ reviewId, isOpen, onClose, currentUserId, 
               )}
             </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="hidden md:block text-xs text-gray-500 mt-2">
             Press Ctrl+Enter to submit
           </p>
         </div>

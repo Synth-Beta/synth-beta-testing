@@ -215,7 +215,7 @@ export default function NewsletterProofreader() {
       await load();
       toast({
         title: status === "approved" ? "Approved" : "Approval removed",
-        description: status === "approved" ? "This exact version can send at 10:00 a.m. Central." : "This newsletter will stay unsent.",
+        description: status === "approved" ? "This exact version can send at 10:00 a.m. Eastern on Mondays." : "This newsletter will stay unsent.",
       });
     } catch (error: unknown) {
       toast({
@@ -271,7 +271,7 @@ export default function NewsletterProofreader() {
         <div>
           <h2 className="text-2xl font-bold">Proofread</h2>
           <p className="text-sm text-muted-foreground">
-            Showing edition {editionDate}. Create new edition starts at the next 10 a.m. Chicago send date. Regenerate selected edition refreshes unsent content and removes its approvals. A refresh opens the newest edition.
+            Showing edition {editionDate}. Drafts auto-generate Mondays at 9:00 a.m. Eastern; Create new edition still works anytime and targets the next Monday 10 a.m. Eastern send. Regenerate selected edition refreshes unsent content and removes its approvals. A refresh opens the newest edition.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
@@ -311,7 +311,7 @@ export default function NewsletterProofreader() {
           {approvedCount} of {drafts.length} stored drafts approved{eligibleCount !== null ? ` · ${eligibleCount} eligible recipients` : ""}
         </AlertTitle>
         <AlertDescription>
-          The 10:00 a.m. Central send uses only approved drafts whose reviewed content still matches. Unapproved drafts stay unsent. Use “Send approved now” to send this edition immediately after review. Sent means Brevo accepted the message, not that it reached the inbox.{unconfirmedCount ? ` ${unconfirmedCount} ${unconfirmedCount === 1 ? "send was" : "sends were"} not confirmed and will not be retried automatically.` : ""}
+          The Monday 10:00 a.m. Eastern send uses only approved drafts whose reviewed content still matches. Unapproved drafts stay unsent. Use “Send approved now” to send this edition immediately after review. Sent means Brevo accepted the message, not that it reached the inbox.{unconfirmedCount ? ` ${unconfirmedCount} ${unconfirmedCount === 1 ? "send was" : "sends were"} not confirmed and will not be retried automatically.` : ""}
         </AlertDescription>
       </Alert>
 

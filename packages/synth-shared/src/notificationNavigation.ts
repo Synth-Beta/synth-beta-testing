@@ -112,11 +112,31 @@ export function resolveNotificationExpoPath(
     return null;
   }
 
+  if (type === 'verification_status') {
+    return { path: '/settings/verification' };
+  }
+
   if (type === 'review_liked' || type === 'review_commented' || type === 'comment_replied') {
     const reviewId = str(d.review_id);
-    if (reviewId) return { path: `/review/${reviewId}` };
+    if (reviewId) {
+      const commentId = str(d.comment_id);
+      if (
+        commentId &&
+        (type === 'review_commented' || type === 'comment_replied')
+      ) {
+        return {
+          path: `/review/${reviewId}?commentId=${encodeURIComponent(commentId)}`,
+        };
+      }
+      return { path: `/review/${reviewId}` };
+    }
     if (eventId) return { path: `/event/${eventId}` };
     return null;
+  }
+
+  if (type === 'stamp_unlocked' || type === 'achievement_unlocked') {
+    // Own passport lives on the profile tab; section hint is in notification data.
+    return { path: '/(tabs)/profile' };
   }
 
   if (eventId) return { path: `/event/${eventId}` };

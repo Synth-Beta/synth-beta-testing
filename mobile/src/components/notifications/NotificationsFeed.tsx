@@ -16,7 +16,7 @@ import { NotificationService, Notification } from '../../services/notificationSe
 import { supabase } from '../../integrations/supabase/client';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bell, ChevronLeft, UserPlus, Heart, MessageSquare, Menu, Music2, MapPin, CheckCheck } from 'lucide-react-native';
+import { Bell, ChevronLeft, UserPlus, Heart, MessageSquare, Menu, Music2, MapPin, CheckCheck, Award, Stamp, CheckCircle } from 'lucide-react-native';
 import { NotificationsSkeleton } from '../skeletons/NotificationsSkeleton';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -165,6 +165,12 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
       case 'event_reminder_1_day':
       case 'event_reminder_day_after':
         return <MapPin size={20} color={PINK} />;
+      case 'stamp_unlocked':
+        return <Stamp size={20} color={PINK} />;
+      case 'achievement_unlocked':
+        return <Award size={20} color={PINK} />;
+      case 'verification_status':
+        return <CheckCircle size={20} color={PINK} />;
       default:
         return <Bell size={20} color={SynthTokens.colors.neutral600} />;
     }

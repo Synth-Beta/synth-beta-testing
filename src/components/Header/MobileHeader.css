@@ -20,6 +20,21 @@
  padding-top: var(--mobile-header-padding-top, env(safe-area-inset-top, 0px));
 }
 
+/* In-flow header (e.g. Profile): scrolls away with page content like Friends hub.
+   Overrides both .mobile-header sticky and the global `header { sticky }` rule in index.css. */
+.mobile-header.mobile-header--in-flow {
+  position: relative;
+  top: auto;
+  z-index: 1;
+}
+
+/* When nested under PageShell content padding, cancel the inset so the bar stays edge-to-edge. */
+.page-shell__content > * > .mobile-header--in-flow-bleed,
+.page-shell__content .mobile-header--in-flow-bleed {
+  margin-left: calc(-1 * var(--spacing-screen-margin-x, 20px));
+  margin-right: calc(-1 * var(--spacing-screen-margin-x, 20px));
+}
+
 .mobile-header__container {
   display: flex;
   align-items: center;

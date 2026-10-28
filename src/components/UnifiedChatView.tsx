@@ -78,6 +78,7 @@ import { toast } from '@/hooks/use-toast';
 import { buildChatImageStoragePath, resolveChatImageDisplayUrl } from '@/utils/chatImageStorage';
 import PageShell from '@/components/layout/PageShell';
 import { GenreChatsSection } from '@/components/discover/GenreChatsSection';
+import { ChatMembersPage } from '@/components/chats/ChatMembersPage';
 import '@/components/home/thread/thread.css';
 import { MessageReactions, ReactionPicker } from '@/components/chat/MessageReactions';
 import { ReplyQuote } from '@/components/chat/ReplyQuote';
@@ -176,6 +177,8 @@ interface Chat {
   last_activity_at?: string | null;
   // Event image URL (for group chats)
   event_image_url?: string | null;
+  /** Direct-chat peer profile photo from shared chat fetch */
+  peer_avatar_url?: string | null;
 }
 
 interface Message {
@@ -1654,6 +1657,11 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       });
       return imageUrl || null;
     }
+
+    // Prefer avatar from the chat fetch so list rows don't depend on friends state
+    if (chat.peer_avatar_url) {
+      return chat.peer_avatar_url;
+    }
     
     // For direct chats, find the specific other user for this chat (Bug 1 fix)
     const otherUserId = getOtherUserId(chat);
@@ -1864,8 +1872,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
   const handleViewUsers = () => {
     if (!selectedChat || !selectedChat.is_group_chat) return;
-    // Fetch latest participants before showing modal
-    fetchChatParticipants(selectedChat.id);
+    setShowSettingsMenu(false);
     setShowUsersModal(true);
   };
 
@@ -1996,6 +2003,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     >
       <button
         onClick={() => {
+          setShowUsersModal(false);
           setSelectedChat(null);
           window.scrollTo(0, 0);
         }}
@@ -2764,6 +2772,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     } catch (error) {
                       console.error('Error tracking chat open:', error);
                     }
+                    setShowUsersModal(false);
                     setSelectedChat(chat);
                   }}
                   onMouseEnter={(e) => {
@@ -2881,6 +2890,16 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         onTouchEnd={handleChatTouchEnd}
         onTouchCancel={handleChatTouchCancel}
       >{selectedChat ? (
+          showUsersModal && selectedChat.is_group_chat ? (
+            <ChatMembersPage
+              chatId={selectedChat.id}
+              currentUserId={currentUserId}
+              onBack={() => setShowUsersModal(false)}
+              onOpenProfile={(userId) => {
+                handleViewProfile(userId);
+              }}
+            />
+          ) : (
           <>
             {threadTopBar}
             {selectedChat.entity_type === 'genre' && selectedChat.entity_id && (
@@ -3130,6 +3149,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                 </div>
               </div>
           </>
+          )
         ) : (
           /* Desktop empty state when no chat is selected */
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px', color: 'var(--neutral-500)' }}>
@@ -3658,117 +3678,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           });
         }}
       />
-
-      {/* Chat Participants Modal - Group Chat Users */}
-      {showUsersModal && selectedChat && selectedChat.is_group_chat && (
-        <Dialog open={showUsersModal} onOpenChange={setShowUsersModal}>
-          <DialogContent className="max-w-[393px] max-h-[80vh] overflow-y-auto" style={{ backgroundColor: 'var(--neutral-50)' }}>
-            <DialogHeader>
-              <DialogTitle className="text-[20px] font-bold" style={{ color: 'var(--neutral-900)' }}>
-                Group Members ({chatParticipants.length})
-              </DialogTitle>
-              <DialogDescription className="text-[16px]" style={{ color: 'var(--neutral-600)' }}>
-                Members of this group chat
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 mt-4">
-              {chatParticipants.length === 0 ? (
-                <div className="flex flex-col gap-[6px] items-center justify-center py-8">
-                  {/* Large icon (60px), dark grey */}
-                  <Users className="w-[60px] h-[60px] mx-auto" style={{ color: 'var(--neutral-600)' }} />
-                  {/* Description - Meta typography, dark grey */}
-                  <p style={{ 
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-meta-size, 16px)',
-                    fontWeight: 'var(--typography-meta-weight, 500)',
-                    lineHeight: 'var(--typography-meta-line-height, 1.5)',
-                    color: 'var(--neutral-600)',
-                    margin: 0,
-                    textAlign: 'center'
-                  }}>No members found</p>
-                </div>
-              ) : (
-                chatParticipants.map((participant) => {
-                  const isCurrentUser = participant.user_id === currentUserId;
-                  const isAdmin = participant.is_admin;
-                  
-                  return (
-                    <div
-                      key={participant.id || participant.user_id}
-                      className="flex items-center justify-between p-3 border rounded-[10px] transition-colors" style={{ borderColor: 'var(--neutral-200)', backgroundColor: 'var(--neutral-100)' }}
-                    >
-                      <div
-                        className="flex items-center gap-3 flex-1 cursor-pointer"
-                        onClick={() => {
-                          handleViewProfile(participant.user_id);
-                          setShowUsersModal(false);
-                        }}
-                      >
-                        <Avatar className="w-10 h-10 flex-shrink-0">
-                          <AvatarImage 
-                            src={participant.avatar_url || undefined} 
-                            alt={`${participant.name}'s profile picture`} 
-                          />
-                          <AvatarFallback className="font-medium" style={{ backgroundImage: 'var(--gradient-brand)', color: 'var(--neutral-50)' }}>
-                            {participant.name.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-[16px] truncate" style={{ color: 'var(--neutral-900)' }}>
-                              {participant.name}
-                              {isCurrentUser && (
-                                <span className="text-[14px] font-normal ml-1" style={{ color: 'var(--neutral-600)' }}>(You)</span>
-                              )}
-                            </h3>
-                            {participant.verified && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-900)', border: '2px solid var(--neutral-200)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                                ✓ Verified
-                              </span>
-                            )}
-                          </div>
-                          {participant.bio && (
-                            <p className="text-[14px] truncate mt-1" style={{ color: 'var(--neutral-600)' }}>
-                              {participant.bio}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-3 mt-1">
-                            {isAdmin && (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--neutral-100)', color: 'var(--neutral-900)', border: '2px solid var(--neutral-200)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
-                                Admin
-                              </span>
-                            )}
-                            <span className="text-[12px]" style={{ color: 'var(--neutral-600)' }}>
-                              Joined {format(parseISO(participant.joined_at), 'MMM d, yyyy')}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      {!isCurrentUser && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewProfile(participant.user_id);
-                            setShowUsersModal(false);
-                          }}
-                          className="p-2 flex-shrink-0"
-                          style={{ color: 'var(--neutral-600)' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--neutral-900)'; e.currentTarget.style.backgroundColor = 'var(--neutral-100)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--neutral-600)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                        >
-                          <User className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
 
       {/* Delete Chat Confirmation Modal (custom, fixed + centered to guarantee visibility) */}
       {isDeleteChatModalOpen && (

@@ -648,11 +648,8 @@ export default function ChatThreadScreen() {
     };
 
     const handleViewUsers = () => {
-        const list = chatParticipants
-            .map((p) => p.name)
-            .filter(Boolean)
-            .join('\n');
-        Alert.alert('Chat members', list || 'No members found.');
+        if (!id) return;
+        router.push(`/chat-members/${id}` as any);
     };
 
     const handleHeaderMenuPress = (action: HeaderMenuAction) => {

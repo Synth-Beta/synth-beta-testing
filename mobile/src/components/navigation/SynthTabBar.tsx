@@ -31,6 +31,15 @@ export function bottomSafeContentPadding(safeAreaBottom: number, extraGap = 32):
   return safeAreaBottom + TAB_BAR_HEIGHT + extraGap;
 }
 
+/**
+ * Bottom padding for overlay sheets/modals that cover the tab bar.
+ * Sheet sits flush to the screen edge; the 32px breathing room becomes internal whitespace
+ * (plus the home-indicator inset) instead of an external gap under the sheet.
+ */
+export function overlaySheetBottomPadding(safeAreaBottom: number, extraGap = 32): number {
+  return safeAreaBottom + extraGap;
+}
+
 export const SynthTabBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
   const insets = useSafeAreaInsets();
   const [uid, setUid] = React.useState<string | undefined>(undefined);

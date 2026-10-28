@@ -21,7 +21,7 @@ import {
 } from '../../services/locationService';
 import { CityData, searchCities } from '../../services/cityService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { bottomSafeContentPadding } from '../navigation/SynthTabBar';
+import { overlaySheetBottomPadding } from '../navigation/SynthTabBar';
 
 interface Props {
   visible: boolean;
@@ -153,7 +153,7 @@ export function LocationSheet({
 
   if (!visible) return null;
 
-  const sheetMarginBottom = bottomSafeContentPadding(insets.bottom);
+  const sheetPaddingBottom = overlaySheetBottomPadding(insets.bottom);
 
   return (
     <Modal
@@ -168,7 +168,7 @@ export function LocationSheet({
         style={styles.overlay}
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { marginBottom: sheetMarginBottom }]}>
+        <View style={[styles.sheet, { paddingBottom: sheetPaddingBottom }]}>
           <View style={styles.handle} />
           <SynthText variant="h2" style={styles.title}>
             Set Location
@@ -266,7 +266,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: SynthTokens.radius.large,
     paddingHorizontal: SynthTokens.spacing.md,
     paddingTop: SynthTokens.spacing.sm,
-    paddingBottom: SynthTokens.spacing.lg,
     maxHeight: '90%',
   },
   handle: {

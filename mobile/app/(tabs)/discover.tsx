@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, Pressable, Text, Image, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { Menu } from 'lucide-react-native';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -73,7 +73,9 @@ async function loadCommunityReviews(): Promise<NetworkReview[]> {
 /** Community: Pick5 linking + recent public reviews from everyone on Synth. Mirrors web. */
 export default function CommunityScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const listRef = useRef<FlashListRef<NetworkReview>>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [reviews, setReviews] = useState<NetworkReview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +97,20 @@ export default function CommunityScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void load();
+  }, [load]);
+
+  // Community tab tap: scroll to top and refresh.
+  useEffect(() => {
+    const unsub = navigation.addListener('tabPress', () => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      onRefresh();
+    });
+    return unsub;
+  }, [navigation, onRefresh]);
 
   const header = (
     <View style={styles.headerBlock}>
@@ -129,6 +145,7 @@ export default function CommunityScreen() {
         </Pressable>
       </View>
       <FlashList
+        ref={listRef}
         data={reviews}
         keyExtractor={(r) => r.id}
         ListHeaderComponent={header}
@@ -149,10 +166,7 @@ export default function CommunityScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              void load();
-            }}
+            onRefresh={onRefresh}
             tintColor={SynthTokens.colors.neutral400}
           />
         }

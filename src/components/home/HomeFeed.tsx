@@ -530,10 +530,13 @@ interface FriendEventInterest {
   }, [currentUserId]);
 
   // Share deep links: ?review= → review detail modal
+  // Comment/reply notifications may include commentId to open the thread.
   useEffect(() => {
     const handleOpenReviewById = async (e: Event) => {
-      const reviewId = (e as CustomEvent<{ reviewId?: string }>).detail?.reviewId;
+      const detail = (e as CustomEvent<{ reviewId?: string; commentId?: string }>).detail;
+      const reviewId = detail?.reviewId;
       if (!reviewId?.trim()) return;
+      const commentId = detail?.commentId?.trim();
 
       try {
         const item = await UnifiedFeedService.getReviewFeedItemById(reviewId.trim());
@@ -543,6 +546,15 @@ interface FriendEventInterest {
         }
         setSelectedReview(item);
         setReviewDetailOpen(true);
+        if (commentId) {
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent('open-review-comments', {
+                detail: { reviewId: reviewId.trim(), commentId },
+              })
+            );
+          }, 50);
+        }
       } catch (err) {
         console.error('Error opening review from share link:', err);
       }

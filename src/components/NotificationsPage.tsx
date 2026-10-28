@@ -15,6 +15,8 @@ import {
   Check,
   X,
   ChevronLeft,
+  Award,
+  Stamp,
 } from 'lucide-react';
 import {
   acceptFriendRequest as acceptFriendRequestShared,
@@ -34,12 +36,13 @@ import PageShell from '@/components/layout/PageShell';
 interface NotificationsPageProps {
   currentUserId: string;
   onBack: () => void;
-  onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested') => void;
+  onNavigateToProfile?: (userId?: string, tab?: 'timeline' | 'interested' | 'passport') => void;
   onNavigateToEvent?: (eventId: string) => void;
   onNavigateToArtist?: (artistId: string) => void;
   onNavigateToVenue?: (venueName: string) => void;
   onNavigateToChat?: (chatId: string) => void;
   onNavigateToDiscover?: () => void;
+  onNavigateToVerification?: () => void;
   filter?: 'friends_only' | 'exclude_friends';
 }
 
@@ -52,6 +55,7 @@ export const NotificationsPage = ({
   onNavigateToVenue,
   onNavigateToChat,
   onNavigateToDiscover,
+  onNavigateToVerification,
   filter,
 }: NotificationsPageProps) => {
   // Track notifications view
@@ -318,6 +322,12 @@ export const NotificationsPage = ({
         return <Calendar className="w-4 h-4" />;
       case 'event_reminder_day_after':
         return <Star className="w-4 h-4" />;
+      case 'stamp_unlocked':
+        return <Stamp className="w-4 h-4" />;
+      case 'achievement_unlocked':
+        return <Award className="w-4 h-4" />;
+      case 'verification_status':
+        return <Award className="w-4 h-4" />;
       default:
         return <Bell className="w-4 h-4" />;
     }
@@ -340,6 +350,11 @@ export const NotificationsPage = ({
         return 'text-purple-600';
       case 'event_reminder_day_after':
         return 'text-yellow-600';
+      case 'stamp_unlocked':
+      case 'achievement_unlocked':
+        return 'text-amber-600';
+      case 'verification_status':
+        return 'text-emerald-600';
       default:
         return 'var(--neutral-600)';
     }
@@ -499,27 +514,34 @@ export const NotificationsPage = ({
 
       case 'review_liked':
       case 'review_commented':
-      case 'comment_replied':
-        // Navigate to event (reviews are associated with events)
+      case 'comment_replied': {
+        const reviewId = data?.review_id || notification.review_id;
+        const commentId =
+          notification.type === 'review_liked'
+            ? undefined
+            : data?.comment_id || notification.comment_id;
+        if (reviewId) {
+          // Open the review (and comments thread when a comment_id is present)
+          window.dispatchEvent(
+            new CustomEvent('open-review-by-id', {
+              detail: { reviewId, commentId: commentId || undefined },
+            })
+          );
+          if (commentId) {
+            // Also broadcast for surfaces that already have the review open
+            window.dispatchEvent(
+              new CustomEvent('open-review-comments', {
+                detail: { reviewId, commentId },
+              })
+            );
+          }
+          break;
+        }
         if (data?.event_id && onNavigateToEvent) {
           onNavigateToEvent(data.event_id);
-        } else if (notification.review_id) {
-          // Try to fetch review to get event_id
-          try {
-            const { data: reviewData } = await supabase
-              .from('reviews')
-              .select('event_id')
-              .eq('id', notification.review_id)
-              .single();
-            
-            if (reviewData?.event_id && onNavigateToEvent) {
-              onNavigateToEvent(reviewData.event_id);
-            }
-          } catch (error) {
-            console.error('Error fetching review event:', error);
-          }
         }
         break;
+      }
 
       case 'week1_nudge':
       case 'reengagement':
@@ -528,6 +550,18 @@ export const NotificationsPage = ({
         } else if (onNavigateToDiscover) {
           onNavigateToDiscover();
         }
+        break;
+
+      case 'stamp_unlocked':
+      case 'achievement_unlocked':
+        // Own passport — stamps / achievements live under the profile passport tab.
+        if (onNavigateToProfile) {
+          onNavigateToProfile(undefined, 'passport');
+        }
+        break;
+
+      case 'verification_status':
+        onNavigateToVerification?.();
         break;
 
       default:

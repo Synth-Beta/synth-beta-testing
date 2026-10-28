@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,8 +25,20 @@ import {
   Calendar,
   MapPin,
 } from 'lucide-react';
+import {
+  buildCommentThreads,
+  DEFAULT_VISIBLE_REPLIES,
+  nextVisibleReplyCount,
+} from '@synth/shared';
 import { ReviewWithEngagement, ReviewService, CommentWithUser } from '@/services/reviewService';
 import { ReviewShareModal } from '@/components/reviews/ReviewShareModal';
+import { CommentMentionText } from '@/components/comments/CommentMentionText';
+import {
+  buildReplyTarget,
+  prepareReplySubmission,
+  replyInputPrefill,
+  type ReplyTarget,
+} from '@/utils/commentDisplay';
 import { formatDistanceToNow, format } from 'date-fns';
 import { SetlistDisplay } from './SetlistDisplay';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
@@ -98,9 +110,13 @@ export function SwiftUIReviewCard({
   const [loadingComments, setLoadingComments] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
+  const [visibleReplies, setVisibleReplies] = useState<Record<string, number>>({});
+  const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
+  const commentThreads = useMemo(() => buildCommentThreads(comments), [comments]);
   
   // Photo viewer state
   const photos: string[] = Array.isArray((review as any)?.photos) ? (review as any).photos : [];
@@ -255,23 +271,59 @@ export function SwiftUIReviewCard({
     }
   };
 
+  const startReply = (comment: CommentWithUser) => {
+    if (!currentUserId) return;
+    const target = buildReplyTarget(comment as any, comments as any);
+    setReplyTo(target);
+    setNewComment(replyInputPrefill(target));
+    requestAnimationFrame(() => {
+      commentInputRef.current?.focus();
+      const len = commentInputRef.current?.value.length ?? 0;
+      commentInputRef.current?.setSelectionRange(len, len);
+    });
+  };
+
   const handleAddComment = async () => {
     if (!currentUserId || !newComment.trim() || submitting) return;
     try {
       setSubmitting(true);
-      const created = await ReviewService.addComment(currentUserId, review.id, newComment.trim());
-      setComments(prev => [
-        ...prev,
-        {
-          ...created,
-          user: {
-            id: created.user_id,
-            name: userProfile?.name || 'You',
-            avatar_url: userProfile?.avatar_url
-          }
-        } as CommentWithUser
-      ]);
+      const prepared = prepareReplySubmission(newComment, replyTo);
+      const created = await ReviewService.addComment(
+        currentUserId,
+        review.id,
+        prepared.commentText,
+        prepared.parentCommentId,
+        prepared.mentionedUserIds
+      );
+      const withUser = {
+        ...created,
+        parent_comment_id: created.parent_comment_id ?? prepared.parentCommentId ?? null,
+        mentioned_user_ids: prepared.mentionedUserIds,
+        user: {
+          id: created.user_id,
+          name: userProfile?.name || 'You',
+          username: null,
+          avatar_url: userProfile?.avatar_url
+        }
+      } as CommentWithUser;
+      setComments(prev => [...prev, withUser]);
+      if (prepared.parentCommentId) {
+        setVisibleReplies((prev) => {
+          const thread = buildCommentThreads([...comments, withUser]).find(
+            (t) => t.root.id === prepared.parentCommentId
+          );
+          const total = thread?.replies.length ?? 1;
+          return {
+            ...prev,
+            [prepared.parentCommentId!]: Math.max(
+              prev[prepared.parentCommentId!] ?? DEFAULT_VISIBLE_REPLIES,
+              total
+            ),
+          };
+        });
+      }
       setNewComment('');
+      setReplyTo(null);
       setCommentsCount(prev => prev + 1);
     } finally {
       setSubmitting(false);
@@ -1126,42 +1178,134 @@ export function SwiftUIReviewCard({
                 </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {comments.map((c: any) => (
-                    <div 
-                      key={c.id} 
-                      style={{ 
-                        ...glassCardLight, 
-                        padding: 12,
-                        display: 'flex',
-                        gap: 12,
-                      }}
-                    >
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={c.user?.avatar_url} />
-                        <AvatarFallback style={{ background: 'var(--brand-pink-500)', color: '#FFFDFA', fontSize: 12 }}>
-                          {(c.user?.name || 'U').charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-                          <span style={{ ...textStyles.subhead, fontWeight: 600 }}>{c.user?.name || 'User'}</span>
-                          <span style={{ ...textStyles.caption }}>
-                            {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
-                          </span>
+                  {commentThreads.map((thread) => {
+                    const totalReplies = thread.replies.length;
+                    const visible = Math.min(
+                      visibleReplies[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
+                      totalReplies
+                    );
+                    const shown = thread.replies.slice(0, visible);
+                    const renderRow = (c: CommentWithUser, isReply: boolean) => (
+                      <div
+                        key={c.id}
+                        style={{
+                          ...glassCardLight,
+                          padding: 12,
+                          display: 'flex',
+                          gap: 12,
+                          marginLeft: isReply ? 20 : 0,
+                          borderLeft: isReply ? '2px solid var(--neutral-200)' : undefined,
+                        }}
+                      >
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={c.user?.avatar_url} />
+                          <AvatarFallback style={{ background: 'var(--brand-pink-500)', color: '#FFFDFA', fontSize: 12 }}>
+                            {(c.user?.name || 'U').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+                            <span style={{ ...textStyles.subhead, fontWeight: 600 }}>{c.user?.name || 'User'}</span>
+                            <span style={{ ...textStyles.caption }}>
+                              {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
+                            </span>
+                          </div>
+                          <CommentMentionText
+                            text={c.comment_text}
+                            style={{ ...textStyles.body, fontSize: 14 }}
+                          />
+                          {currentUserId ? (
+                            <button
+                              type="button"
+                              onClick={() => startReply(c)}
+                              style={{
+                                ...textStyles.caption,
+                                marginTop: 4,
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                cursor: 'pointer',
+                                color: 'var(--neutral-500)',
+                              }}
+                            >
+                              Reply
+                            </button>
+                          ) : null}
                         </div>
-                        <p style={{ ...textStyles.body, margin: 0, fontSize: 14 }}>{c.comment_text}</p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                    return (
+                      <div key={thread.root.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {renderRow(thread.root, false)}
+                        {shown.map((r) => renderRow(r, true))}
+                        {visible < totalReplies ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVisibleReplies((prev) => ({
+                                ...prev,
+                                [thread.root.id]: nextVisibleReplyCount(
+                                  prev[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
+                                  totalReplies
+                                ),
+                              }))
+                            }
+                            style={{
+                              ...textStyles.caption,
+                              marginLeft: 20,
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              cursor: 'pointer',
+                              color: 'var(--neutral-500)',
+                              textAlign: 'left',
+                            }}
+                          >
+                            See More
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               
               {/* Add Comment Form */}
+              {replyTo ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginTop: 12,
+                    ...textStyles.caption,
+                    color: 'var(--neutral-500)',
+                  }}
+                >
+                  <span>
+                    Replying to{' '}
+                    <span style={{ color: 'var(--brand-pink-500)', fontWeight: 500 }}>@{replyTo.username}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setReplyTo(null); setNewComment(''); }}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--neutral-500)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : null}
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <Textarea
+                  ref={commentInputRef}
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder={currentUserId ? 'Write a comment...' : 'Sign in to comment'}
+                  placeholder={
+                    currentUserId
+                      ? replyTo
+                        ? `Reply to @${replyTo.username}...`
+                        : 'Write a comment...'
+                      : 'Sign in to comment'
+                  }
                   disabled={!currentUserId || submitting}
                   style={{ 
                     flex: 1, 

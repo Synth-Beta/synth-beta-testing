@@ -6,6 +6,7 @@ import { WebDesktopRail } from '@/components/layout/WebDesktopRail';
 import { useWebLayoutMode } from '@/hooks/useWebLayoutMode';
 import { useMainNavItems, type MainNavCurrentView } from '@/hooks/useMainNavItems';
 import { getWebDesktopMainContentClass, type MainAppViewForLayout } from '@/utils/webMainContentClass';
+import { scrollAppToTop } from '@/utils/scrollAppToTop';
 import { useMenuNotificationBadgeCount } from '@/hooks/useMenuNotificationBadgeCount';
 import { useLockBodyScroll, releaseScrollLockIfUnheld } from '@/hooks/useLockBodyScroll';
 import { ConcertFeed } from './events/ConcertFeed';
@@ -94,6 +95,11 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
   const [shareTarget, setShareTarget] = useState<{ type: 'artist' | 'venue'; id: string; name: string } | null>(null);
   const [runTour, setRunTour] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Trigger to refresh views when review is submitted
+  // Remount the active tab's view on bottom-nav / rail re-tap (soft refresh).
+  const [homeFeedKey, setHomeFeedKey] = useState(0);
+  const [discoverKey, setDiscoverKey] = useState(0);
+  const [chatKey, setChatKey] = useState(0);
+  const [profileKey, setProfileKey] = useState(0);
   const [isChatSelected, setIsChatSelected] = useState(false); // Track if a chat is selected in UnifiedChatView
   const { user, session, loading, sessionExpired, signOut, resetSessionExpired } = useAuth();
   const layoutMode = useWebLayoutMode();
@@ -550,7 +556,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
 
   // Scroll to top whenever the view changes
   useEffect(() => {
-    window.scrollTo(0, 0);
+    scrollAppToTop('auto');
     // Update prevView ref AFTER the render cycle so it reflects the just-left view
     return () => { prevViewRef.current = currentView; };
   }, [currentView]);
@@ -608,6 +614,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
     onOpenEventReview: () => setShowEventReviewModal(true),
     profileUserId,
     interactionSource: layoutMode === 'web-desktop' ? 'web_rail' : 'bottom_nav',
+    onTabRefresh: (tabId) => {
+      if (tabId === 'home') setHomeFeedKey((prev) => prev + 1);
+      else if (tabId === 'discover') setDiscoverKey((prev) => prev + 1);
+      else if (tabId === 'messages') {
+        setIsChatSelected(false);
+        setChatKey((prev) => prev + 1);
+      } else if (tabId === 'profile') setProfileKey((prev) => prev + 1);
+    },
   });
 
   const handleProfileEdit = () => {
@@ -883,6 +897,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'feed':
         return (
           <HomeFeed
+            key={homeFeedKey}
             currentUserId={user.id}
             onNavigateToNotifications={handleNavigateToNotifications}
             onNavigateToProfile={handleNavigateToProfile}
@@ -905,6 +920,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'search':
         return (
           <DiscoverView
+            key={discoverKey}
             currentUserId={user.id}
             onBack={handleBack}
             onNavigateToProfile={handleNavigateToProfile}
@@ -919,6 +935,7 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
       case 'profile':
         return (
           <ProfileView
+            key={profileKey}
             currentUserId={user.id}
             profileUserId={profileUserId}
             onBack={handleBack}
@@ -974,12 +991,14 @@ export const MainApp = ({ onSignOut }: MainAppProps) => {
             onNavigateToChat={handleNavigateToChat}
             // Event-less notifications fall back to browsing shows, which live on Home now (not Community).
             onNavigateToDiscover={() => setCurrentView('feed')}
+            onNavigateToVerification={() => openSettingsPage('verification')}
             filter={notificationFilter}
           />
         );
       case 'chat':
         return (
           <UnifiedChatView
+            key={chatKey}
             currentUserId={user.id}
             onBack={handleBack}
             menuOpen={menuOpen}

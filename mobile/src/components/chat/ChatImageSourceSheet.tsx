@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import type { ChatImagePickerSource } from '../../utils/launchChatImagePicker';
+import { overlaySheetBottomPadding } from '../navigation/SynthTabBar';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -64,7 +65,7 @@ export function ChatImageSourceSheet({ visible, onClose, onChoose }: ChatImageSo
     return (
         <View style={styles.root} pointerEvents="box-none">
             <Pressable style={styles.backdrop} onPress={onClose} />
-            <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={[styles.sheet, { paddingBottom: overlaySheetBottomPadding(insets.bottom) }]}>
                 <View style={styles.handle} />
                 <SynthText variant="h2" style={styles.title}>
                     Send Image

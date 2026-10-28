@@ -11,10 +11,12 @@ import {
     View,
 } from 'react-native';
 import { X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import type { ProfileTimelineItem } from '../../services/passportService';
 import { PassportTimelineService, type TimelineMeta } from '../../services/passportTimelineService';
+import { overlaySheetBottomPadding } from '../navigation/SynthTabBar';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -57,6 +59,7 @@ export function TimelineMilestoneSheet({
     onClose: () => void;
     onSaved: () => void;
 }) {
+    const insets = useSafeAreaInsets();
     const hasExisting = !!existingMeta?.significance;
     const [milestoneType, setMilestoneType] = useState<MilestoneType>('best_setlist');
     const [customName, setCustomName] = useState('');
@@ -141,7 +144,7 @@ export function TimelineMilestoneSheet({
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
             <Pressable style={styles.backdrop} onPress={onClose} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.kav}>
-                <View style={styles.sheet}>
+                <View style={[styles.sheet, { paddingBottom: overlaySheetBottomPadding(insets.bottom) }]}>
                     <View style={styles.grabber} />
                     <View style={styles.headerRow}>
                         <SynthText variant="h2" style={styles.headerTitle}>
@@ -250,7 +253,6 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 22,
         paddingHorizontal: 20,
         paddingTop: 8,
-        paddingBottom: Platform.OS === 'ios' ? 34 : 20,
         maxHeight: '85%',
     },
     grabber: {

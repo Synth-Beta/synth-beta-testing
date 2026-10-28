@@ -68,7 +68,7 @@ const toEvent = (row: any): EditionEvent | null => {
   const ticketUrl = firstTicketUrl(row.ticket_urls);
   const status = String(row.event_status ?? "");
   if (/cancel/i.test(status)) return null;
-  if (!ticketUrl || !artistName || !venueName || !row.venue_city || !row.event_date) return null;
+  if (!artistName || !venueName || !row.venue_city || !row.event_date) return null;
   const soldOut = /sold.?out/i.test(status);
   return {
     id: String(row.id),
@@ -139,6 +139,7 @@ export const generateDraftsFromSource = async (
       artistName,
       venueName: row.venueName ?? row.venues?.name ?? row.setlist?.venue?.name ?? null,
       eventDate: row.eventDate ?? row.Event_date ?? row.setlist?.eventDate ?? null,
+      eventId: (row.eventId ?? row.event_id) ? String(row.eventId ?? row.event_id) : null,
       rating: row.rating ?? null,
       text: row.text ?? (row.review_text && row.review_text !== "ATTENDANCE_ONLY" ? row.review_text : null),
     });
@@ -167,7 +168,7 @@ export const generateDraftsFromSource = async (
   const seen = new Set<string>();
   for (const row of source.events ?? []) {
     const mapped = row.artistName ? (row as EditionEvent) : toEvent(row);
-    if (!mapped?.ticketUrl || seen.has(mapped.id)) continue;
+    if (!mapped || seen.has(mapped.id)) continue;
     seen.add(mapped.id);
     events.push(mapped);
   }

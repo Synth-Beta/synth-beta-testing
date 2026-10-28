@@ -389,7 +389,8 @@ export interface Comment {
   user_id: string; // UUID - references users(user_id)
   entity_id: string; // UUID - FK to entities.id (replaces entity_type + entity_id)
   // Note: To get entity_type, join with entities table: JOIN entities ON entities.id = comments.entity_id
-  parent_comment_id: string | null; // UUID - references comments(id)
+  parent_comment_id: string | null; // UUID - references comments(id); root of flattened reply thread
+  mentioned_user_ids?: string[]; // UUID[] - @mention targets (auth user ids)
   comment_text: string;
   likes_count: number;
   created_at: string; // TIMESTAMPTZ

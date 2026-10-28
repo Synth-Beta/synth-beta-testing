@@ -36,6 +36,18 @@ import {
     Send,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { overlaySheetBottomPadding } from '../../src/components/navigation/SynthTabBar';
+import {
+    buildCommentThreads,
+    DEFAULT_VISIBLE_REPLIES,
+    nextVisibleReplyCount,
+    parseCommentMentionSegments,
+    visibleReplyCountForFocus,
+    buildReplyMentionPrefill,
+    materializeReplyMention,
+    extractMentionedUserIds,
+    resolveThreadRootId,
+} from '@synth/shared';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
@@ -167,7 +179,10 @@ type CommentRow = {
     user_id: string;
     comment_text: string;
     created_at: string;
+    parent_comment_id?: string | null;
+    mentioned_user_ids?: string[] | null;
     author_name?: string;
+    author_username?: string | null;
     author_avatar?: string | null;
 };
 
@@ -265,34 +280,86 @@ const catStyles = StyleSheet.create({
 
 // ─── Comments Sheet ────────────────────────────────────────────────────────────
 
+function mentionHandle(user: { author_username?: string | null; author_name?: string }) {
+    const fromUsername = user.author_username?.replace(/^@/, '').trim();
+    if (fromUsername) return fromUsername;
+    const fromName = (user.author_name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9._]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 30);
+    return fromName || 'user';
+}
+
+function CommentBodyText({ text }: { text: string }) {
+    const segments = parseCommentMentionSegments(text || '');
+    return (
+        <Text style={cmtStyles.cmtText}>
+            {segments.map((seg, i) =>
+                seg.type === 'mention' ? (
+                    <Text key={i} style={cmtStyles.cmtMention}>@{seg.username}</Text>
+                ) : (
+                    <Text key={i}>{seg.value}</Text>
+                )
+            )}
+        </Text>
+    );
+}
+
 function CommentsSheet({
     reviewId,
     sessionUserId,
     visible,
     onClose,
     onCommentAdded,
+    focusCommentId,
 }: {
     reviewId: string;
     sessionUserId: string | null;
     visible: boolean;
     onClose: () => void;
     onCommentAdded: () => void;
+    focusCommentId?: string | null;
 }) {
     const insets = useSafeAreaInsets();
     const [comments, setComments] = useState<CommentRow[]>([]);
     const [loadingComments, setLoadingComments] = useState(false);
     const [newComment, setNewComment] = useState('');
     const [posting, setPosting] = useState(false);
+    const [replyTo, setReplyTo] = useState<{
+        commentId: string;
+        rootParentId: string;
+        userId: string;
+        username: string;
+    } | null>(null);
+    const [visibleReplies, setVisibleReplies] = useState<Record<string, number>>({});
+    const inputRef = React.useRef<TextInput>(null);
+    const listRef = React.useRef<FlatList>(null);
 
     useEffect(() => {
         if (!visible) return;
         void fetchComments();
     }, [visible, reviewId]);
 
+    const threads = React.useMemo(() => buildCommentThreads(comments), [comments]);
+
+    useEffect(() => {
+        if (!focusCommentId || comments.length === 0) return;
+        const next: Record<string, number> = {};
+        for (const thread of threads) {
+            if (thread.replies.some((r) => r.id === focusCommentId)) {
+                next[thread.root.id] = visibleReplyCountForFocus(thread.replies, focusCommentId);
+            }
+        }
+        if (Object.keys(next).length) {
+            setVisibleReplies((prev) => ({ ...prev, ...next }));
+        }
+    }, [focusCommentId, comments, threads]);
+
     const fetchComments = async () => {
         setLoadingComments(true);
         try {
-            // Get entity_id for this review
             const { data: entityData, error: entityDataError } = await supabase
                 .from('entities')
                 .select('id')
@@ -308,7 +375,7 @@ function CommentsSheet({
 
             const { data: commentsData, error: commentsDataError } = await supabase
                 .from('comments')
-                .select('id, user_id, comment_text, created_at')
+                .select('id, user_id, comment_text, created_at, parent_comment_id, mentioned_user_ids')
                 .eq('entity_id', entityData.id)
                 .order('created_at', { ascending: true });
             if (commentsDataError) console.warn('[[id]] commentsData query failed', commentsDataError);
@@ -321,7 +388,7 @@ function CommentsSheet({
             const userIds = [...new Set(commentsData.map(c => c.user_id))];
             const { data: profiles, error: profilesError } = await supabase
                 .from('users')
-                .select('user_id, name, avatar_url')
+                .select('user_id, name, username, avatar_url')
                 .in('user_id', userIds);
             if (profilesError) console.warn('[[id]] profiles query failed', profilesError);
 
@@ -332,7 +399,10 @@ function CommentsSheet({
                 user_id: c.user_id,
                 comment_text: c.comment_text,
                 created_at: c.created_at,
+                parent_comment_id: c.parent_comment_id ?? null,
+                mentioned_user_ids: c.mentioned_user_ids ?? [],
                 author_name: profileMap.get(c.user_id)?.name || 'User',
+                author_username: profileMap.get(c.user_id)?.username || null,
                 author_avatar: profileMap.get(c.user_id)?.avatar_url || null,
             })));
         } catch (err) {
@@ -342,13 +412,34 @@ function CommentsSheet({
         }
     };
 
+    const startReply = (item: CommentRow) => {
+        if (!sessionUserId) return;
+        const byId = new Map(comments.map((c) => [c.id, c]));
+        const rootParentId = resolveThreadRootId(item, byId);
+        const username = mentionHandle(item);
+        setReplyTo({
+            commentId: item.id,
+            rootParentId,
+            userId: item.user_id,
+            username,
+        });
+        setNewComment(buildReplyMentionPrefill(username));
+        requestAnimationFrame(() => inputRef.current?.focus());
+    };
+
     const postComment = async () => {
         if (!sessionUserId || !newComment.trim() || posting) return;
         setPosting(true);
-        const text = newComment.trim();
+        const preparedText = materializeReplyMention(newComment.trim(), replyTo);
+        const mentionedUserIds = extractMentionedUserIds(preparedText);
+        if (replyTo?.userId && !mentionedUserIds.includes(replyTo.userId)) {
+            mentionedUserIds.unshift(replyTo.userId);
+        }
+        const parentCommentId = replyTo?.rootParentId;
         setNewComment('');
+        const replySnapshot = replyTo;
+        setReplyTo(null);
         try {
-            // Get or create entity
             const { data: entityId, error: entityIdError } = await supabase.rpc('get_or_create_entity', {
                 p_entity_type: 'review',
                 p_entity_uuid: reviewId,
@@ -356,11 +447,18 @@ function CommentsSheet({
             });
             if (entityIdError) console.warn('[[id]] entityId query failed', entityIdError);
 
-            await supabase
-                .from('comments')
-                .insert({ user_id: sessionUserId, entity_id: entityId, comment_text: text });
+            const insertPayload: Record<string, unknown> = {
+                user_id: sessionUserId,
+                entity_id: entityId,
+                comment_text: preparedText,
+                parent_comment_id: parentCommentId ?? null,
+            };
+            if (mentionedUserIds.length > 0) {
+                insertPayload.mentioned_user_ids = mentionedUserIds;
+            }
 
-            // Update comments_count
+            await supabase.from('comments').insert(insertPayload);
+
             try {
                 await supabase.rpc('increment_review_count', {
                     p_review_id: reviewId,
@@ -371,8 +469,35 @@ function CommentsSheet({
                 // RPC may not exist — ignore and just refresh
             }
 
+            if (parentCommentId) {
+                setVisibleReplies((prev) => ({
+                    ...prev,
+                    [parentCommentId]: Math.max(
+                        prev[parentCommentId] ?? DEFAULT_VISIBLE_REPLIES,
+                        (prev[parentCommentId] ?? DEFAULT_VISIBLE_REPLIES) + 1
+                    ),
+                }));
+            }
+
             onCommentAdded();
             await fetchComments();
+            // After refresh, expand the whole thread so the new reply is visible
+            if (replySnapshot?.rootParentId) {
+                setVisibleReplies((prev) => {
+                    const thread = buildCommentThreads(comments).find(
+                        (t) => t.root.id === replySnapshot.rootParentId
+                    );
+                    // +1 for the reply we just added (comments state may lag one tick)
+                    const total = (thread?.replies.length ?? 0) + 1;
+                    return {
+                        ...prev,
+                        [replySnapshot.rootParentId]: Math.max(
+                            prev[replySnapshot.rootParentId] ?? DEFAULT_VISIBLE_REPLIES,
+                            total
+                        ),
+                    };
+                });
+            }
         } catch (err) {
             console.error('Error posting comment:', err);
         } finally {
@@ -393,6 +518,65 @@ function CommentsSheet({
         return `${diffD}d ago`;
     };
 
+    const renderComment = (item: CommentRow, isReply: boolean) => (
+        <View
+            key={item.id}
+            style={[cmtStyles.commentRow, isReply && cmtStyles.replyRow]}
+        >
+            {item.author_avatar ? (
+                <Image source={{ uri: item.author_avatar }} style={cmtStyles.cmtAvatar} contentFit="cover" />
+            ) : (
+                <View style={[cmtStyles.cmtAvatar, cmtStyles.cmtAvatarFallback]}>
+                    <Text style={cmtStyles.cmtAvatarLetter}>
+                        {(item.author_name || '?').charAt(0).toUpperCase()}
+                    </Text>
+                </View>
+            )}
+            <View style={cmtStyles.commentBubble}>
+                <View style={cmtStyles.cmtNameRow}>
+                    <Text style={cmtStyles.cmtAuthor}>{item.author_name}</Text>
+                    <Text style={cmtStyles.cmtTime}>{formatTime(item.created_at)}</Text>
+                </View>
+                <CommentBodyText text={item.comment_text} />
+                {sessionUserId ? (
+                    <Pressable onPress={() => startReply(item)} hitSlop={8}>
+                        <Text style={cmtStyles.replyBtn}>Reply</Text>
+                    </Pressable>
+                ) : null}
+            </View>
+        </View>
+    );
+
+    type ListItem =
+        | { kind: 'root'; threadRootId: string; comment: CommentRow }
+        | { kind: 'reply'; threadRootId: string; comment: CommentRow }
+        | { kind: 'seeMore'; threadRootId: string; total: number; visible: number };
+
+    const listData: ListItem[] = threads.flatMap((thread) => {
+        const total = thread.replies.length;
+        const visible = Math.min(
+            visibleReplies[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
+            total
+        );
+        const items: ListItem[] = [
+            { kind: 'root', threadRootId: thread.root.id, comment: thread.root },
+            ...thread.replies.slice(0, visible).map((r) => ({
+                kind: 'reply' as const,
+                threadRootId: thread.root.id,
+                comment: r,
+            })),
+        ];
+        if (visible < total) {
+            items.push({
+                kind: 'seeMore',
+                threadRootId: thread.root.id,
+                total,
+                visible,
+            });
+        }
+        return items;
+    });
+
     return (
         <Modal
             visible={visible}
@@ -405,8 +589,7 @@ function CommentsSheet({
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={cmtStyles.sheetWrapper}
             >
-                <View style={[cmtStyles.sheet, { paddingBottom: insets.bottom + 8 }]}>
-                    {/* Handle + header */}
+                <View style={[cmtStyles.sheet, { paddingBottom: overlaySheetBottomPadding(insets.bottom) }]}>
                     <View style={cmtStyles.handle} />
                     <View style={cmtStyles.header}>
                         <SynthText variant="h2" style={cmtStyles.headerTitle}>Comments</SynthText>
@@ -415,7 +598,6 @@ function CommentsSheet({
                         </Pressable>
                     </View>
 
-                    {/* Comments list */}
                     {loadingComments ? (
                         <View style={cmtStyles.centered}>
                             <ActivityIndicator size="small" color={PINK} />
@@ -426,58 +608,77 @@ function CommentsSheet({
                         </View>
                     ) : (
                         <FlatList
-                            data={comments}
-                            keyExtractor={item => item.id}
+                            ref={listRef}
+                            data={listData}
+                            keyExtractor={(item, index) =>
+                                item.kind === 'seeMore'
+                                    ? `more-${item.threadRootId}`
+                                    : item.comment.id || String(index)
+                            }
                             style={cmtStyles.list}
-                            contentContainerStyle={{ padding: 16 }}
-                            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-                            renderItem={({ item }) => (
-                                <View style={cmtStyles.commentRow}>
-                                    {item.author_avatar ? (
-                                        <Image source={{ uri: item.author_avatar }} style={cmtStyles.cmtAvatar} contentFit="cover" />
-                                    ) : (
-                                        <View style={[cmtStyles.cmtAvatar, cmtStyles.cmtAvatarFallback]}>
-                                            <Text style={cmtStyles.cmtAvatarLetter}>
-                                                {(item.author_name || '?').charAt(0).toUpperCase()}
-                                            </Text>
-                                        </View>
-                                    )}
-                                    <View style={cmtStyles.commentBubble}>
-                                        <View style={cmtStyles.cmtNameRow}>
-                                            <Text style={cmtStyles.cmtAuthor}>{item.author_name}</Text>
-                                            <Text style={cmtStyles.cmtTime}>{formatTime(item.created_at)}</Text>
-                                        </View>
-                                        <Text style={cmtStyles.cmtText}>{item.comment_text}</Text>
-                                    </View>
-                                </View>
-                            )}
+                            contentContainerStyle={{ padding: 16, gap: 12 }}
+                            renderItem={({ item }) => {
+                                if (item.kind === 'seeMore') {
+                                    return (
+                                        <Pressable
+                                            onPress={() =>
+                                                setVisibleReplies((prev) => ({
+                                                    ...prev,
+                                                    [item.threadRootId]: nextVisibleReplyCount(
+                                                        prev[item.threadRootId] ?? DEFAULT_VISIBLE_REPLIES,
+                                                        item.total
+                                                    ),
+                                                }))
+                                            }
+                                            style={cmtStyles.seeMoreWrap}
+                                        >
+                                            <Text style={cmtStyles.seeMore}>See More</Text>
+                                        </Pressable>
+                                    );
+                                }
+                                return renderComment(item.comment, item.kind === 'reply');
+                            }}
                         />
                     )}
 
-                    {/* Input row */}
                     {sessionUserId ? (
-                        <View style={cmtStyles.inputRow}>
-                            <TextInput
-                                style={cmtStyles.input}
-                                placeholder="Add a comment…"
-                                placeholderTextColor={SynthTokens.colors.neutral400}
-                                value={newComment}
-                                onChangeText={setNewComment}
-                                multiline
-                                returnKeyType="send"
-                                onSubmitEditing={postComment}
-                            />
-                            <Pressable
-                                onPress={postComment}
-                                disabled={!newComment.trim() || posting}
-                                style={[cmtStyles.sendBtn, (!newComment.trim() || posting) && cmtStyles.sendBtnDisabled]}
-                            >
-                                {posting ? (
-                                    <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
-                                ) : (
-                                    <Send size={18} color={SynthTokens.colors.neutral0} />
-                                )}
-                            </Pressable>
+                        <View>
+                            {replyTo ? (
+                                <View style={cmtStyles.replyBanner}>
+                                    <Text style={cmtStyles.replyBannerText}>
+                                        Replying to <Text style={cmtStyles.cmtMention}>@{replyTo.username}</Text>
+                                    </Text>
+                                    <Pressable onPress={() => { setReplyTo(null); setNewComment(''); }}>
+                                        <Text style={cmtStyles.replyBannerCancel}>Cancel</Text>
+                                    </Pressable>
+                                </View>
+                            ) : null}
+                            <View style={cmtStyles.inputRow}>
+                                <TextInput
+                                    ref={inputRef}
+                                    style={cmtStyles.input}
+                                    placeholder={
+                                        replyTo ? `Reply to @${replyTo.username}…` : 'Add a comment…'
+                                    }
+                                    placeholderTextColor={SynthTokens.colors.neutral400}
+                                    value={newComment}
+                                    onChangeText={setNewComment}
+                                    multiline
+                                    returnKeyType="send"
+                                    onSubmitEditing={postComment}
+                                />
+                                <Pressable
+                                    onPress={postComment}
+                                    disabled={!newComment.trim() || posting}
+                                    style={[cmtStyles.sendBtn, (!newComment.trim() || posting) && cmtStyles.sendBtnDisabled]}
+                                >
+                                    {posting ? (
+                                        <ActivityIndicator size="small" color={SynthTokens.colors.neutral0} />
+                                    ) : (
+                                        <Send size={18} color={SynthTokens.colors.neutral0} />
+                                    )}
+                                </Pressable>
+                            </View>
                         </View>
                     ) : null}
                 </View>
@@ -575,6 +776,47 @@ const cmtStyles = StyleSheet.create({
         color: SynthTokens.colors.neutral900,
         lineHeight: 20,
     },
+    cmtMention: {
+        color: SynthTokens.colors.brandPink500,
+        fontWeight: '600',
+    },
+    replyRow: {
+        marginLeft: 28,
+        paddingLeft: 8,
+        borderLeftWidth: 2,
+        borderLeftColor: SynthTokens.colors.neutral200,
+    },
+    replyBtn: {
+        marginTop: 4,
+        fontSize: 12,
+        color: SynthTokens.colors.neutral400,
+        fontWeight: '600',
+    },
+    seeMoreWrap: {
+        marginLeft: 28,
+        paddingVertical: 2,
+    },
+    seeMore: {
+        fontSize: 12,
+        color: SynthTokens.colors.neutral400,
+        fontWeight: '600',
+    },
+    replyBanner: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 8,
+    },
+    replyBannerText: {
+        fontSize: 12,
+        color: SynthTokens.colors.neutral400,
+    },
+    replyBannerCancel: {
+        fontSize: 12,
+        color: SynthTokens.colors.neutral600,
+        fontWeight: '600',
+    },
     inputRow: {
         flexDirection: 'row',
         alignItems: 'flex-end',
@@ -612,7 +854,11 @@ const cmtStyles = StyleSheet.create({
 
 export default function ReviewDetailScreen() {
     // comments=1: opened from a card's comment button, so start with the comments sheet up.
-    const { id, comments } = useLocalSearchParams<{ id: string; comments?: string }>();
+    const { id, comments, commentId } = useLocalSearchParams<{
+        id: string;
+        comments?: string;
+        commentId?: string;
+    }>();
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [review, setReview] = useState<ReviewRow | null>(null);
@@ -623,9 +869,19 @@ export default function ReviewDetailScreen() {
     const [commentsCount, setCommentsCount] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
     const [liking, setLiking] = useState(false);
-    const [commentsOpen, setCommentsOpen] = useState(comments === '1');
+    const [commentsOpen, setCommentsOpen] = useState(comments === '1' || Boolean(commentId));
+    const [focusCommentId, setFocusCommentId] = useState<string | null>(
+        typeof commentId === 'string' ? commentId : null
+    );
     const [shareToChatOpen, setShareToChatOpen] = useState(false);
     const [lastError, setLastError] = useState<{ code?: string; message?: string } | null>(null);
+
+    useEffect(() => {
+        if (typeof commentId === 'string' && commentId.trim()) {
+            setFocusCommentId(commentId.trim());
+            setCommentsOpen(true);
+        }
+    }, [commentId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1363,8 +1619,12 @@ export default function ReviewDetailScreen() {
                 reviewId={review.id}
                 sessionUserId={sessionUserId}
                 visible={commentsOpen}
-                onClose={() => setCommentsOpen(false)}
+                onClose={() => {
+                    setCommentsOpen(false);
+                    setFocusCommentId(null);
+                }}
                 onCommentAdded={() => setCommentsCount(c => c + 1)}
+                focusCommentId={focusCommentId}
             />
 
             {/* Share to Chat */}
