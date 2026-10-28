@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { SYNTH_APP_STORE_URL } from '@/services/shareService';
+import { useInAppBrowserEscape } from '@/hooks/useInAppBrowserEscape';
+import { InAppBrowserFallbackModal } from '@/components/InAppBrowserFallbackModal';
 
 type Invite = {
   code: string;
@@ -21,6 +23,8 @@ export default function InvitePage() {
   const { code = '' } = useParams();
   const [invite, setInvite] = useState<Invite | null | undefined>(undefined);
   const [copied, setCopied] = useState(false);
+  // Invite links get shared in Messenger/Instagram, whose in-app browsers drop App Store taps.
+  const { tryEscape, showFallback, dismissFallback } = useInAppBrowserEscape();
   const normalized = code.replace(/[^a-z0-9]/gi, '').toUpperCase();
 
   useEffect(() => {
@@ -76,6 +80,9 @@ export default function InvitePage() {
 
         <a
           href={SYNTH_APP_STORE_URL}
+          onClick={(e) => {
+            if (tryEscape(SYNTH_APP_STORE_URL)) e.preventDefault();
+          }}
           className="mt-6 w-full rounded-full bg-[#CC2486] py-3.5 text-lg font-bold text-[#FFFDFA]"
         >
           Get Synth on the App Store
@@ -92,6 +99,15 @@ export default function InvitePage() {
         )}
         <p className="mt-2 text-sm text-neutral-500">You'll be friends with {first} on Synth right away.</p>
       </div>
+      <InAppBrowserFallbackModal
+        open={showFallback}
+        url={SYNTH_APP_STORE_URL}
+        onRetry={() => {
+          dismissFallback();
+          tryEscape(SYNTH_APP_STORE_URL);
+        }}
+        onClose={dismissFallback}
+      />
     </main>
   );
 }

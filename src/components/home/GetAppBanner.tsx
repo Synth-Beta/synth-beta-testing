@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { BellRing, X } from 'lucide-react';
 import { SYNTH_APP_STORE_URL } from '@/services/shareService';
+import { useInAppBrowserEscape } from '@/hooks/useInAppBrowserEscape';
+import { InAppBrowserFallbackModal } from '@/components/InAppBrowserFallbackModal';
 
 const DISMISS_KEY = 'synth_get_app_banner_dismissed';
 
@@ -9,6 +11,8 @@ const DISMISS_KEY = 'synth_get_app_banner_dismissed';
  * signups land on web. Point them at the iPhone app, where show alerts work.
  */
 export function GetAppBanner() {
+  // Facebook/Instagram's in-app browser silently drops App Store taps.
+  const { tryEscape, showFallback, dismissFallback } = useInAppBrowserEscape();
   const [hidden, setHidden] = useState(() => {
     try {
       return localStorage.getItem(DISMISS_KEY) === '1';
@@ -40,6 +44,9 @@ export function GetAppBanner() {
         href={SYNTH_APP_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={(e) => {
+          if (tryEscape(SYNTH_APP_STORE_URL)) e.preventDefault();
+        }}
         className="shrink-0 rounded-full bg-[#CC2486] px-3 py-2 text-xs font-bold text-[#FFFDFA]"
       >
         Get the app
@@ -52,6 +59,15 @@ export function GetAppBanner() {
       >
         <X className="h-4 w-4" />
       </button>
+      <InAppBrowserFallbackModal
+        open={showFallback}
+        url={SYNTH_APP_STORE_URL}
+        onRetry={() => {
+          dismissFallback();
+          tryEscape(SYNTH_APP_STORE_URL);
+        }}
+        onClose={dismissFallback}
+      />
     </div>
   );
 }
