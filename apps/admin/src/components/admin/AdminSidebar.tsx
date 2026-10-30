@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  BarChart3,
   BookOpen,
   Bug,
   CalendarDays,
@@ -50,8 +51,9 @@ const ADMIN_NAV: { label: string; items: AdminNavItem[] }[] = [
     ],
   },
   {
-    label: 'Newsletter',
+    label: 'Emails',
     items: [
+      { tab: 'email-analytics', label: 'Email Analytics', icon: BarChart3 },
       { tab: 'newsletter-builder', label: 'Newsletter Builder', icon: Newspaper },
       { tab: 'newsletter-proof', label: 'Proofread', icon: CheckCircle, proofreadOnly: true },
     ],

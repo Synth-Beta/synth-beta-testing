@@ -82,6 +82,7 @@ import { AiSceneGuidesAdminPanel } from '@/components/admin/AiSceneGuidesAdminPa
 import { BugFixListPanel } from '@/components/admin/bug-fix/BugFixListPanel';
 import NewsletterBuilder from '@/components/admin/newsletter/NewsletterBuilder';
 import NewsletterProofreader from '@/components/admin/newsletter/NewsletterProofreader';
+import { EmailAnalyticsDashboard } from '@/components/admin/emails/EmailAnalyticsDashboard';
 import {
   PlatformComparison,
   RecentPostRow,
@@ -253,6 +254,7 @@ export default function Admin() {
         'moderation',
         'news',
         'bug-fix',
+        'email-analytics',
         'newsletter-builder',
         ...(canProofreadNewsletters ? ['newsletter-proof'] : []),
         'style-guide',
@@ -3581,6 +3583,10 @@ export default function Admin() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="email-analytics" className="space-y-6">
+            <EmailAnalyticsDashboard />
           </TabsContent>
 
           <TabsContent value="newsletter-builder" className="space-y-6">

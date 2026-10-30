@@ -43,9 +43,32 @@ npm run admin:install && npm run admin:dev
 | `BACKEND_URL` | If using cron sync | Express backend for JamBase sync |
 | `SETLIST_FM_API_KEY` | Optional | Setlist search API |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Optional | Spotify sync API |
+| `BREVO_API_KEY` | Yes (newsletter / digests) | Brevo transactional send |
+| `BREVO_WEBHOOK_SECRET` | Yes (email analytics) | Token for Brevo outbound webhook |
 
 3. **Redeploy** production after changing env vars (Deployments → Redeploy).
 4. Verify push webhook: `npm run push:test-webhook` (expects 401 without secret, 200 with valid secret).
+
+### Brevo outbound webhook (email analytics)
+
+Apply migration `20261030170000_brevo_email_events.sql`, then in Brevo → Integrations → Webhooks → Outbound:
+
+- **URL:** `https://join.getsynth.app/api/brevo-webhook` (not `/admin`)
+- **Auth:** Token = same value as Vercel `BREVO_WEBHOOK_SECRET`
+- **Optional header:** `x-webhook-secret` = same token
+- **Events:** Transactional email — sent/request, delivered, opened, uniqueOpened, click, softBounce, hardBounce, blocked, spam, invalid, deferred, unsubscribed
+- **Admin UI:** `/admin?tab=email-analytics` on getsynth.app
+
+Smoke test after deploy:
+
+```bash
+curl -sS -X POST https://join.getsynth.app/api/brevo-webhook \
+  -H "Authorization: Bearer $BREVO_WEBHOOK_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"event":"delivered","email":"test@example.com","message-id":"<test@brevo>","ts_epoch":1700000000000,"subject":"Test","tags":["synth-setlist"]}'
+```
+
+Expect `{"ok":true,...}`. Without the secret, expect `401`.
 
 ### Supabase Database Webhook (push notifications)
 

@@ -111,6 +111,9 @@
     "api/slack-signup-webhook.ts": {
       "maxDuration": 10
     },
+    "api/brevo-webhook.ts": {
+      "maxDuration": 10
+    },
     "api/slack-pm/commands.ts": {
       "maxDuration": 30
     },
