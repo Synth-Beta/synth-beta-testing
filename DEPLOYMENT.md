@@ -70,6 +70,14 @@ curl -sS -X POST https://join.getsynth.app/api/brevo-webhook \
 
 Expect `{"ok":true,...}`. Without the secret, expect `401`.
 
+**Backfill from Brevo UI export:** Transactional → Logs → Export CSV, then:
+
+```bash
+node scripts/import-brevo-logs-csv.mjs path/to/logs.csv
+```
+
+Uses the same `brevo_email_events` table and idempotency keys as the webhook (safe to re-run).
+
 ### Supabase Database Webhook (push notifications)
 
 In Supabase Dashboard → Database → Webhooks:
