@@ -1,0 +1,28 @@
+From df44ba6f86e391892dddaf145562156c622b3731 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 30 Oct 2026 17:18:49 +0000
+Subject: [PATCH 2/2] Keep Newsletter nav group label for email analytics tab
+
+Email Analytics stays alongside Builder and Proofread under Newsletter.
+
+Co-authored-by: samloiterstein <samloiterstein@gmail.com>
+---
+ apps/admin/src/components/admin/AdminSidebar.tsx | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/admin/src/components/admin/AdminSidebar.tsx b/apps/admin/src/components/admin/AdminSidebar.tsx
+index 748ff03d..4824aead 100644
+--- a/apps/admin/src/components/admin/AdminSidebar.tsx
++++ b/apps/admin/src/components/admin/AdminSidebar.tsx
+@@ -51,7 +51,7 @@ const ADMIN_NAV: { label: string; items: AdminNavItem[] }[] = [
+     ],
+   },
+   {
+-    label: 'Emails',
++    label: 'Newsletter',
+     items: [
+       { tab: 'email-analytics', label: 'Email Analytics', icon: BarChart3 },
+       { tab: 'newsletter-builder', label: 'Newsletter Builder', icon: Newspaper },
+-- 
+2.43.0
+

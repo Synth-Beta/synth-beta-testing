@@ -1,15 +1,3 @@
-/**
- * Brevo outbound / transactional email webhook.
- *
- * Brevo UI (Integrations → Webhooks → Outbound):
- *   URL:  https://join.getsynth.app/api/brevo-webhook
- *   Auth: Token = BREVO_WEBHOOK_SECRET
- *   Optional header: x-webhook-secret = same value
- *
- * Vercel env:
- *   BREVO_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
- */
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { timingSafeEqual } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
@@ -34,7 +22,6 @@ function getBrevoWebhookSecret(): string | null {
   return process.env.BREVO_WEBHOOK_SECRET?.trim() || null;
 }
 
-/** Normalize Brevo camelCase / snake_case event names into stable snake_case. */
 function normalizeEventType(raw: unknown): string | null {
   if (typeof raw !== 'string' || !raw.trim()) return null;
   const key = raw.trim();
@@ -81,7 +68,6 @@ function eventAtFromPayload(payload: Record<string, unknown>): string {
   }
   const tsEvent = payload.ts_event ?? payload.ts;
   if (typeof tsEvent === 'number' && Number.isFinite(tsEvent) && tsEvent > 0) {
-    // Brevo docs: ts / ts_event are seconds
     const ms = tsEvent > 1e12 ? tsEvent : tsEvent * 1000;
     return new Date(ms).toISOString();
   }
@@ -136,7 +122,6 @@ function extractPayloads(body: unknown): Record<string, unknown>[] {
   if (!body || typeof body !== 'object') return [];
 
   const obj = body as Record<string, unknown>;
-  // Batched outbound webhooks may wrap events
   for (const key of ['events', 'items', 'data']) {
     const nested = obj[key];
     if (Array.isArray(nested)) {
@@ -147,86 +132,99 @@ function extractPayloads(body: unknown): Record<string, unknown>[] {
   return [];
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  try {
-    if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Method not allowed' });
-    }
+export function isBrevoWebhookRequest(req: VercelRequest): boolean {
+  const url = `${req.url ?? ''}`;
+  if (url.includes('/api/brevo-webhook')) return true;
 
-    const webhookSecret = getBrevoWebhookSecret();
-    if (!webhookSecret) {
-      console.error('[brevo-webhook] BREVO_WEBHOOK_SECRET not configured');
-      return res.status(500).json({ error: 'Webhook not configured' });
-    }
+  const body = req.body;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+  const obj = body as Record<string, unknown>;
+  if (obj.type === 'INSERT' || obj.table || obj.record) return false;
+  return typeof obj.event === 'string';
+}
 
-    const headerSecret = req.headers['x-webhook-secret'];
-    const authHeader = req.headers.authorization;
-    const bearerSecret =
-      typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
-        ? authHeader.slice('Bearer '.length).trim()
-        : null;
-    const providedSecret =
-      typeof headerSecret === 'string' && headerSecret.length > 0 ? headerSecret : bearerSecret;
-
-    if (!providedSecret || !secureEquals(providedSecret, webhookSecret)) {
-      console.warn('[brevo-webhook] Unauthorized webhook attempt');
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const supabaseConfig = getSupabaseServerConfig();
-    if (!supabaseConfig) {
-      console.error('[brevo-webhook] Missing Supabase server config');
-      return res.status(500).json({ error: 'Server configuration error' });
-    }
-
-    const payloads = extractPayloads(req.body);
-    if (payloads.length === 0) {
-      return res.status(200).json({ ok: true, inserted: 0, skipped: 'no events in body' });
-    }
-
-    const rows = payloads
-      .map(normalizeEvent)
-      .filter((row): row is NormalizedEvent => row !== null)
-      .map((row) => {
-        const link = row.link ?? '';
-        const email = row.email ?? '';
-        const messageId = row.brevo_message_id ?? '';
-        return {
-          event_type: row.event_type,
-          email: row.email,
-          brevo_message_id: row.brevo_message_id,
-          event_at: row.event_at,
-          subject: row.subject,
-          tags: row.tags,
-          link: link || null,
-          reason: row.reason,
-          custom_delivery_key: row.custom_delivery_key,
-          raw: row.raw,
-          idempotency_key: [messageId, row.event_type, row.event_at, email, link].join('|'),
-        };
-      });
-
-    if (rows.length === 0) {
-      return res.status(200).json({ ok: true, inserted: 0, skipped: 'no recognizable events' });
-    }
-
-    const supabase = createClient(supabaseConfig.url, supabaseConfig.serviceRoleKey);
-    const { error, count } = await supabase
-      .from('brevo_email_events')
-      .upsert(rows, {
-        onConflict: 'idempotency_key',
-        ignoreDuplicates: true,
-        count: 'exact',
-      });
-
-    if (error) {
-      console.error('[brevo-webhook] insert failed:', error.message);
-      return res.status(500).json({ error: 'Failed to store events' });
-    }
-
-    return res.status(200).json({ ok: true, received: rows.length, inserted: count ?? rows.length });
-  } catch (error) {
-    console.error('[brevo-webhook] unhandled:', error instanceof Error ? error.message : error);
-    return res.status(500).json({ error: 'Internal error' });
+export async function handleBrevoWebhook(req: VercelRequest, res: VercelResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
+
+  const webhookSecret = getBrevoWebhookSecret();
+  if (!webhookSecret) {
+    console.error('[brevo-webhook] BREVO_WEBHOOK_SECRET not configured');
+    res.status(500).json({ error: 'Webhook not configured' });
+    return;
+  }
+
+  const headerSecret = req.headers['x-webhook-secret'];
+  const authHeader = req.headers.authorization;
+  const bearerSecret =
+    typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : null;
+  const providedSecret =
+    typeof headerSecret === 'string' && headerSecret.length > 0 ? headerSecret : bearerSecret;
+
+  if (!providedSecret || !secureEquals(providedSecret, webhookSecret)) {
+    console.warn('[brevo-webhook] Unauthorized webhook attempt');
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const supabaseConfig = getSupabaseServerConfig();
+  if (!supabaseConfig) {
+    console.error('[brevo-webhook] Missing Supabase server config');
+    res.status(500).json({ error: 'Server configuration error' });
+    return;
+  }
+
+  const payloads = extractPayloads(req.body);
+  if (payloads.length === 0) {
+    res.status(200).json({ ok: true, inserted: 0, skipped: 'no events in body' });
+    return;
+  }
+
+  const rows = payloads
+    .map(normalizeEvent)
+    .filter((row): row is NormalizedEvent => row !== null)
+    .map((row) => {
+      const link = row.link ?? '';
+      const email = row.email ?? '';
+      const messageId = row.brevo_message_id ?? '';
+      return {
+        event_type: row.event_type,
+        email: row.email,
+        brevo_message_id: row.brevo_message_id,
+        event_at: row.event_at,
+        subject: row.subject,
+        tags: row.tags,
+        link: link || null,
+        reason: row.reason,
+        custom_delivery_key: row.custom_delivery_key,
+        raw: row.raw,
+        idempotency_key: [messageId, row.event_type, row.event_at, email, link].join('|'),
+      };
+    });
+
+  if (rows.length === 0) {
+    res.status(200).json({ ok: true, inserted: 0, skipped: 'no recognizable events' });
+    return;
+  }
+
+  const supabase = createClient(supabaseConfig.url, supabaseConfig.serviceRoleKey);
+  const { error, count } = await supabase
+    .from('brevo_email_events')
+    .upsert(rows, {
+      onConflict: 'idempotency_key',
+      ignoreDuplicates: true,
+      count: 'exact',
+    });
+
+  if (error) {
+    console.error('[brevo-webhook] insert failed:', error.message);
+    res.status(500).json({ error: 'Failed to store events' });
+    return;
+  }
+
+  res.status(200).json({ ok: true, received: rows.length, inserted: count ?? rows.length });
 }

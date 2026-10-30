@@ -17,6 +17,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { timingSafeEqual } from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { handleBrevoWebhook, isBrevoWebhookRequest } from './_lib/brevoWebhookHandler.js';
 
 // Constant-time comparison so response timing can't leak secret prefixes
 function secureEquals(a: string, b: string): boolean {
@@ -246,6 +247,11 @@ async function getApnProvider(): Promise<{ provider: InstanceType<typeof import(
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+  if (isBrevoWebhookRequest(req)) {
+    await handleBrevoWebhook(req, res);
+    return;
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

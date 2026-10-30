@@ -53,7 +53,7 @@ npm run admin:install && npm run admin:dev
 
 Apply migration `20261030170000_brevo_email_events.sql`, then in Brevo → Integrations → Webhooks → Outbound:
 
-- **URL:** `https://join.getsynth.app/api/brevo-webhook` (not `/admin`)
+- **URL:** `https://join.getsynth.app/api/brevo-webhook` (rewrites to the push webhook handler; not `/admin`)
 - **Auth:** Token = same value as Vercel `BREVO_WEBHOOK_SECRET`
 - **Optional header:** `x-webhook-secret` = same token
 - **Events:** Transactional email — sent/request, delivered, opened, uniqueOpened, click, softBounce, hardBounce, blocked, spam, invalid, deferred, unsubscribed

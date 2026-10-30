@@ -14,6 +14,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/brevo-webhook",
+      "destination": "/api/push-notification-webhook"
+    },
+    {
       "source": "/api/ops-alert",
       "destination": "/api/ai-scene-guides?job=ops-alert"
     },
@@ -109,9 +113,6 @@
       "maxDuration": 15
     },
     "api/slack-signup-webhook.ts": {
-      "maxDuration": 10
-    },
-    "api/brevo-webhook.ts": {
       "maxDuration": 10
     },
     "api/slack-pm/commands.ts": {
