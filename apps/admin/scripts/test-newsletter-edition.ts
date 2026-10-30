@@ -1,6 +1,6 @@
 /**
- * Focused checks for editorial newsletter generation and the send gate.
- * Run: npx vite-node scripts/test-newsletter-edition.ts
+ * Focused checks for recommendation-first newsletter generation and the send gate.
+ * Run: npx tsx scripts/test-newsletter-edition.ts
  */
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -136,10 +136,10 @@ const base = {
   retrievedAt,
 };
 
-const laurenEdition = composeEdition({ ...base, reader: lauren });
-const chicagoEdition = composeEdition({ ...base, reader: chicago });
-const sparseEdition = composeEdition({ ...base, reader: sparse });
-const noLocationEdition = composeEdition({ ...base, reader: noLocation });
+const laurenEdition = composeEdition({ ...base, reader: lauren })!;
+const chicagoEdition = composeEdition({ ...base, reader: chicago })!;
+const sparseEdition = composeEdition({ ...base, reader: sparse })!;
+const noLocationEdition = composeEdition({ ...base, reader: noLocation })!;
 
 assert.ok(laurenEdition);
 assert.ok(chicagoEdition);
@@ -148,22 +148,20 @@ assert.ok(noLocationEdition);
 
 assert.equal(laurenEdition.shows.some((show) => show.title === "Jon Batiste"), false, "past shows are not upcoming");
 assert.ok(laurenEdition.shows.some((show) => show.title === "Sylvan Esso" || show.title === "Glass Animals"));
-assert.equal(laurenEdition.updates.some((update) => update.title.includes("Jon Batiste")), false, "the recap artist is not repeated in the news");
-assert.ok(laurenEdition.updates.some((update) => update.title.includes("fall calendar")));
+assert.ok(laurenEdition.updates.some((update) => update.title.includes("Jon Batiste")), "artist-matched news is allowed");
+assert.equal(laurenEdition.updates.some((update) => update.title.includes("fall calendar")), false, "Chicago scene news is not forced onto a DC reader");
 assert.doesNotMatch(laurenEdition.updates.map((update) => update.body).join(" "), /recent music story|details at the source/i);
-assert.match(laurenEdition.headline, /did you see anyone new this weekend/i);
-assert.match(laurenEdition.intro, /write a review/i);
-assert.equal(laurenEdition.yourSynth, undefined, "a show from August is not recapped again in October");
-assert.doesNotMatch(renderEditionHtml(laurenEdition), /Fur Elise|Wolf Trap|newest night/);
+assert.match(laurenEdition.headline, /Glass Animals|Sylvan Esso/);
+assert.doesNotMatch(laurenEdition.intro, /write a review|newest night|22 nights|85 saved/i);
+assert.equal(laurenEdition.yourSynth, undefined);
+assert.equal(laurenEdition.history, undefined);
+assert.doesNotMatch(renderEditionHtml(laurenEdition), /Fur Elise|Wolf Trap|newest night|After the encore/);
 assert.equal(laurenEdition.shows.some((show) => /Fur Elise/.test(show.body)), false);
-assert.equal(laurenEdition.updates.some((update) => /Fur Elise/.test(update.body)), false);
-assert.equal(/Fur Elise/.test(laurenEdition.listen?.body ?? ""), false);
-assert.equal(/Fur Elise/.test(laurenEdition.connect.body), false);
-assert.equal(laurenEdition.updates.every((update) => /show history|your listening/i.test(update.body)), false);
-assert.equal(laurenEdition.connect.title.includes("Jon Batiste"), false);
-assert.ok(laurenEdition.shows.length >= 2);
+assert.ok((laurenEdition.listens?.length ?? 0) >= 2);
+assert.ok(laurenEdition.listens?.every((listen) => listen.eyebrow === "On your next listen"));
 
-assert.equal(chicagoEdition.shows.some((show) => show.title === "Wilco"), false, "the last concert is not recommended again");
+assert.ok(chicagoEdition.shows.some((show) => show.title === "Wilco"), "repeat artists are recommended when a nearby date exists");
+assert.match(chicagoEdition.shows.find((show) => show.title === "Wilco")?.body ?? "", /seen Wilco before/i);
 assert.equal(chicagoEdition.shows.some((show) => show.title === "Sylvan Esso"), false);
 const chicagoPoint = { latitude: 41.8781, longitude: -87.6298 };
 const evanston = event({
@@ -190,27 +188,23 @@ const locatedChicago = composeEdition({
   ...base,
   events: [...events, evanston, newYork],
   reader: { ...chicago, ...chicagoPoint },
-});
+})!;
 assert.ok(locatedChicago.shows.some((show) => show.title === "Horsegirl"));
 assert.equal(locatedChicago.shows.some((show) => show.title === "Wilco" && /New York/.test(show.eyebrow)), false);
 assert.equal(eventWithinSavedLocation({ ...chicago, ...chicagoPoint }, newYork), false);
-assert.equal(locatedChicago.showsHeading, "On your radar in Chicago");
+assert.match(locatedChicago.showsHeading ?? "", /Actually worth a look near Chicago/);
 assert.equal(locatedChicago.locationPrompt, undefined);
-assert.ok(chicagoEdition.updates.length > 0, "readers also get honestly labeled general music news");
+assert.ok(chicagoEdition.updates.some((update) => /Chicago/i.test(update.title)), "local scene news may appear when it matches the city");
 
 assert.ok(sparseEdition.shows.some((show) => show.title === "Local Natives"));
 assert.equal(sparseEdition.yourSynth, undefined);
 assert.equal(/inactive|haven't used|no shows yet/i.test(renderEditionHtml(sparseEdition)), false);
 
-assert.equal(noLocationEdition.showsHeading, "On your radar");
-assert.equal(/nearby|near you|no saved city|sourced summary|saved shows cluster/i.test(noLocationEdition.intro + (noLocationEdition.showsDek ?? "") + noLocationEdition.shows.map((show) => show.body).join(" ")), false);
-assert.doesNotMatch(`${noLocationEdition.intro} ${noLocationEdition.showsDek ?? ""}`, /Chicago|Washington|New York/);
+assert.equal(noLocationEdition.shows.length, 0, "no far-away city is substituted when location is unknown");
+assert.equal(noLocationEdition.showsHeading, undefined);
 assert.equal(noLocationEdition.locationPrompt?.url, "https://join.getsynth.app/profile-edit");
-assert.match(noLocationEdition.locationPrompt?.label ?? "", /Add your location in the app/);
-assert.ok(noLocationEdition.shows.some((show) => show.title === "Wilco"));
-assert.ok(noLocationEdition.shows.some((show) => /DC/.test(show.eyebrow)));
-assert.equal(noLocationEdition.shows.some((show) => /Washington/.test(show.eyebrow)), false);
-assert.equal(noLocationEdition.shows.some((show) => show.title === "Phoebe Bridgers"), false);
+assert.match(noLocationEdition.locationPrompt?.label ?? "", /Set your city/);
+assert.ok((noLocationEdition.listens?.length ?? 0) >= 2);
 assert.match(renderEditionHtml(noLocationEdition), /join\.getsynth\.app\/profile-edit/);
 
 const jungleReader: EditionReader = {
@@ -245,20 +239,15 @@ const jungleEdition = composeEdition({
     { artistName: "Jungle" },
     { artistName: "Sylvan Esso", trackName: "Coffee", url: "https://open.spotify.com/search/Sylvan%20Esso%20Coffee" },
   ],
-});
-assert.equal(jungleEdition.shows.some((show) => show.title === "Jungle"), false, "the last concert is not recommended again");
+})!;
+assert.ok(jungleEdition.shows.some((show) => show.title === "Jungle"), "a past Jungle show is a reason to recommend the next nearby date");
 assert.ok(jungleEdition.shows.some((show) => show.title === "Sylvan Esso"));
-assert.match(jungleEdition.headline, /did you see anyone new this weekend/i);
+assert.match(jungleEdition.headline, /Jungle/);
 assert.equal(jungleEdition.yourSynth, undefined);
-assert.doesNotMatch(renderEditionHtml(jungleEdition), /did not sit down|newest night|logged Jungle/);
+assert.doesNotMatch(renderEditionHtml(jungleEdition), /did not sit down|newest night/);
 assert.equal(jungleEdition.shows.some((show) => /did not sit down/.test(show.body)), false);
-assert.equal(/did not sit down/.test(jungleEdition.listen?.body ?? ""), false);
-assert.equal(/not a promise you’ll love it|Sample Jungle|show history|your latest log/i.test(renderEditionHtml(jungleEdition)), false);
-assert.equal(jungleEdition.connect.title.includes("Jungle"), false);
-assert.equal(jungleEdition.updates.every((update) => update.title.includes("Jungle")), false);
-assert.doesNotMatch(jungleEdition.listen?.body ?? "", /Coffee|Jungle/);
-assert.equal(jungleEdition.listen?.eyebrow, "Your next listen");
-assert.doesNotMatch(jungleEdition.listen?.body ?? "", /saved listening|logged .+ live|evergreen/i);
+assert.ok((jungleEdition.listens?.length ?? 0) >= 2);
+assert.doesNotMatch((jungleEdition.listens ?? []).map((listen) => listen.body).join(" "), /Coffee|Sample Jungle|show history|your latest log/i);
 
 const soldOut = laurenEdition.shows.find((show) => show.title === "Glass Animals");
 if (soldOut) {
@@ -271,8 +260,11 @@ const chicagoHtml = renderEditionHtml(chicagoEdition);
 assert.notEqual(laurenHtml, chicagoHtml);
 assert.match(laurenHtml, /max-width:680px/);
 assert.match(laurenHtml, /#CC2486/);
-assert.match(laurenHtml, /Open Synth/);
-assert.doesNotMatch(laurenHtml, /September 30, 2026/);
+assert.match(laurenHtml, /Explore concerts on Synth/);
+assert.match(laurenHtml, /synth-newsletter-writer-8/);
+assert.match(laurenHtml, /upcoming_shows\.png/);
+assert.match(laurenHtml, /\{\{unsubscribe_url\}\}/);
+assert.doesNotMatch(laurenHtml, /After the encore|Open Synth|September 30, 2026/);
 assert.match(laurenHtml, /https:\/\/impconcerts.com\/event\/sylvan-esso-2\/|https:\/\/930.com\/glass-animals/);
 
 assert.deepEqual(recentWeekend(new Date("2026-10-13T15:00:00.000Z"), "DC"), { start: "2026-10-09", end: "2026-10-11" });
@@ -284,7 +276,6 @@ assert.equal(isUpcoming("2026-10-07", sendAt, "DC"), false);
 assert.equal(isUpcoming("2026-10-07T00:00:00+00:00", sendAt, "TX"), false);
 assert.equal(isUpcoming("2026-10-08T00:00:00+00:00", sendAt, "TX"), true);
 assert.match(formatEventWhen("2026-10-09T00:00:00+00:00", "Texas"), /October 8/);
-// 2026-10-12 and 2027-01-11 are Mondays. EDT → 14:00 UTC; EST → 15:00 UTC.
 assert.equal(isTenAmCentral(new Date("2026-10-12T14:00:00.000Z")), true);
 assert.equal(isTenAmCentral(new Date("2026-10-12T15:00:00.000Z")), false);
 assert.equal(isTenAmCentral(new Date("2027-01-11T15:00:00.000Z")), true);
@@ -360,12 +351,12 @@ const staleNews = parseRssItems(
 assert.deepEqual(staleNews.map((story) => story.title), ["Wilco announces a fall tour"]);
 const museum = composeEdition({
   ...base,
-  news: [{ id: "museum", title: "The museum opens a new wing", url: "https://pitchfork.com/news/museum", source: "Pitchfork", publishedAt: "2026-10-01T12:00:00.000Z" }],
+  news: [{ id: "museum", title: "The museum opens a new wing", url: "https://pitchfork.com/news/museum", source: "Pitchfork", publishedAt: "2026-10-01T12:00:00.000Z", summary: "The museum opened a new wing with no music angle at all in the writeup." }],
   reader: { ...noLocation, topArtists: ["Muse"], genres: [] },
-});
-assert.equal(museum?.updates.length ?? 0, 0);
-assert.ok((museum?.features ?? []).length > 0);
-assert.doesNotMatch(renderEditionHtml(museum!), /recent music story|details at the source/i);
+})!;
+assert.equal(museum.updates.length, 0);
+assert.equal(museum.features?.length ?? 0, 0);
+assert.doesNotMatch(renderEditionHtml(museum), /recent music story|details at the source/i);
 
 const calls: Array<{ table: string; filters: Record<string, unknown> }> = [];
 const catalog = [
@@ -384,6 +375,7 @@ const db = {
       ilike(column: string, value: unknown) { filters[`ilike:${column}`] = value; return api; },
       gte(column: string, value: unknown) { filters[`gte:${column}`] = value; return api; },
       lte(column: string, value: unknown) { filters[`lte:${column}`] = value; return api; },
+      lt(column: string, value: unknown) { filters[`lt:${column}`] = value; return api; },
       order() { return api; },
       limit() { return api; },
       range() { return api; },
@@ -392,6 +384,8 @@ const db = {
         let data: unknown[] = [];
         if (table === "users") {
           data = [{ user_id: "sam", email: "sam@example.com", name: "Sam", username: "sam", location_city: "Chicago", location_state: "IL" }];
+        } else if (table === "newsletter_drafts") {
+          data = [];
         } else if (table === "events" && filters["ilike:venue_city"] === "Chicago") {
           data = [{ latitude: 41.8781, longitude: -87.6298, venue_state: "IL" }];
         } else if (table === "events" && filters["gte:latitude"] != null) {
@@ -417,10 +411,10 @@ assert.match(locatedDraft?.html ?? "", /Horsegirl/);
 assert.doesNotMatch(locatedDraft?.html ?? "", /Beacon Theatre/);
 
 if (process.env.NEWSLETTER_TEST_LIVE === "1") {
-const liveNews = await fetchMusicNews(new Date());
-assert.ok(liveNews.length > 0, "music feeds returned no current stories");
-assert.ok(liveNews.every((story) => /^https?:\/\//.test(story.url)));
-assert.ok(liveNews.every((story) => Date.now() - Date.parse(story.publishedAt) <= 21 * 24 * 60 * 60 * 1000));
+  const liveNews = await fetchMusicNews(new Date());
+  assert.ok(liveNews.length > 0, "music feeds returned no current stories");
+  assert.ok(liveNews.every((story) => /^https?:\/\//.test(story.url)));
+  assert.ok(liveNews.every((story) => Date.now() - Date.parse(story.publishedAt) <= 14 * 24 * 60 * 60 * 1000));
 }
 
 const outDir = resolve(process.cwd(), "public/newsletter-demos/generated");

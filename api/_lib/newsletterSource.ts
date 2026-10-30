@@ -7,7 +7,7 @@ import { runEventQuery } from "../../supabase/functions/newsletter-send/eventQue
 import { lookupRecordings } from "../../supabase/functions/newsletter-send/tracks.js";
 import { loadEventsNearPlaces, placeKey, rankedArtistNames, withHubPlaces, type EventQuery } from "../../supabase/functions/newsletter-send/nearby.js";
 import { fetchMusicNews } from "../../supabase/functions/newsletter-send/news.js";
-import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals } from "../../supabase/functions/newsletter-send/queries.js";
+import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals, loadRecentNewsletterSignals } from "../../supabase/functions/newsletter-send/queries.js";
 
 type Db = { from: (table: string) => any };
 
@@ -43,6 +43,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
       .order("Event_date", { ascending: false }).order("id"), "Load review history"));
   }
   const stats = await loadListeningStats(db, userIds);
+  const priorSelections = await loadRecentNewsletterSignals(db, userIds, now.toISOString().slice(0, 10));
 
   const enrichedReviews = await enrichReviewArtists(db, reviews);
   const artistNames = rankedArtistNames(userIds.map((id: string) => {
@@ -73,6 +74,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     const mine = signals.interests.filter((row) => row.user_id === user.user_id);
     return {
       ...user,
+      ...(priorSelections.get(user.user_id) ?? { recentSourceUrls: [], recentListenKeys: [] }),
       latitude: center?.latitude ?? null,
       longitude: center?.longitude ?? null,
       interestedEventIds: mine.filter((row) => row.relationship_type !== "going").map((row) => String(row.event_id)),

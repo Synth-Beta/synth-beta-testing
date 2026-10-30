@@ -15,10 +15,12 @@ import {
   Bell,
   Music2,
   Settings,
+  Shield,
   Sparkles,
   Check,
   CalendarDays,
 } from 'lucide-react-native';
+import { isSecretAdminMenuAllowed } from '@synth/shared';
 import { supabase } from '../src/integrations/supabase/client';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 
@@ -29,6 +31,8 @@ export default function AppMenuScreen() {
   const [username, setUsername] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<string | null>(null);
+  // TOP SECRET: Lauren-only Admin tab. Default false — never flash for others.
+  const [showSecretAdmin, setShowSecretAdmin] = useState(false);
   const [friendReqUnread, setFriendReqUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
 
@@ -49,6 +53,13 @@ export default function AppMenuScreen() {
     setUsername(row?.username ? `@${row.username}` : user.email?.split('@')[0] || '');
     setAvatarUrl(row?.avatar_url ?? null);
     setAccountType((row as { account_type?: string } | null)?.account_type ?? null);
+    setShowSecretAdmin(
+      isSecretAdminMenuAllowed({
+        email: user.email,
+        username: (row as { username?: string } | null)?.username,
+        accountType: (row as { account_type?: string } | null)?.account_type,
+      }),
+    );
 
     const { count: frCount } = await supabase
       .from('notifications')
@@ -136,6 +147,20 @@ export default function AppMenuScreen() {
             router.push('/stats');
           }}
         />
+        {/*
+          TOP SECRET — Admin tab for pesceelauren@gmail.com / @lauren ONLY.
+          Do not show for other admins or users. See secretAdminAccess.ts.
+        */}
+        {showSecretAdmin ? (
+          <MenuRow
+            icon={<Shield size={22} color={SynthTokens.colors.neutral900} />}
+            label="Admin"
+            onPress={() => {
+              close();
+              router.push('/admin' as any);
+            }}
+          />
+        ) : null}
         <MenuRow
           icon={<Settings size={22} color={SynthTokens.colors.neutral900} />}
           label="Settings"

@@ -12,6 +12,10 @@ import type { User } from '@/types/database';
 import { VerificationStatusCard } from '@/components/verification/VerificationStatusCard';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { notificationService } from '@/services/notificationService';
+import {
+  SECRET_ADMIN_PORTAL_URL,
+  isSecretAdminMenuAllowed,
+} from '@synth/shared';
 
 export interface SideMenuProps {
 /**
@@ -87,6 +91,8 @@ export const SideMenu: React.FC<SideMenuProps> = ({
   const { user } = useAuth();
   const { accountInfo } = useAccountType();
   const [userProfile, setUserProfile] = useState<User | null>(null);
+  // TOP SECRET: Lauren-only Admin tab. Default false — never flash for others.
+  const [showSecretAdmin, setShowSecretAdmin] = useState(false);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [pendingFriendRequestsCount, setPendingFriendRequestsCount] = useState(0);
 
@@ -97,31 +103,48 @@ export const SideMenu: React.FC<SideMenuProps> = ({
 
       if (!user) {
         setUserProfile(null);
+        setShowSecretAdmin(false);
         return;
       }
 
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('name, username, avatar_url')
+          .select('name, username, avatar_url, account_type')
           .eq('user_id', user.id)
           .maybeSingle();
 
         if (error && error.code === 'PGRST116') {
           const { data: fallbackData } = await supabase
             .from('users')
-            .select('name, username, avatar_url')
+            .select('name, username, avatar_url, account_type')
             .eq('id', user.id)
             .maybeSingle();
           setUserProfile(fallbackData || null);
+          setShowSecretAdmin(
+            isSecretAdminMenuAllowed({
+              email: user.email,
+              username: fallbackData?.username,
+              accountType: (fallbackData as { account_type?: string } | null)?.account_type,
+            }),
+          );
         } else if (!error) {
           setUserProfile(data || null);
+          setShowSecretAdmin(
+            isSecretAdminMenuAllowed({
+              email: user.email,
+              username: data?.username,
+              accountType: (data as { account_type?: string } | null)?.account_type,
+            }),
+          );
         } else {
           setUserProfile(null);
+          setShowSecretAdmin(false);
         }
       } catch (error) {
         console.error('SideMenu: Error fetching user profile', error);
         setUserProfile(null);
+        setShowSecretAdmin(false);
       }
     };
 
@@ -308,6 +331,26 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                 onClose();
               }}
             />
+
+            {/*
+              TOP SECRET — Admin tab for pesceelauren@gmail.com / @lauren ONLY.
+              Do not show for other admins or users. See secretAdminAccess.ts.
+            */}
+            {showSecretAdmin ? (
+              <MenuCategory
+                label="Admin"
+                icon="shield"
+                onPress={() => {
+                  try {
+                    trackInteraction.click('view', 'side_menu_admin', { source: 'side_menu' });
+                  } catch (error) {
+                    console.error('Error tracking menu click:', error);
+                  }
+                  onClose();
+                  window.location.assign(SECRET_ADMIN_PORTAL_URL);
+                }}
+              />
+            ) : null}
 
             <MenuCategory
               label="Settings"

@@ -1,3 +1,7 @@
+## TOP SECRET — consumer Admin hamburger tab
+
+The Expo/web consumer hamburger **Admin** item is hard-allowlisted to **pesceelauren@gmail.com / @lauren only** (`packages/synth-shared/src/secretAdminAccess.ts`). Do not expand it to other admins or users. See `.cursor/rules/secret-admin-menu.mdc`.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

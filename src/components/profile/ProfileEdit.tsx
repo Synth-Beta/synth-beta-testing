@@ -362,23 +362,31 @@ useEffect(() => {
                 // Auto-save avatar URL to database immediately after upload
                 if (url && profile && profile.id) {
                   try {
-                    await supabase
+                    const { data, error } = await supabase
                       .from('users')
                       .update({ avatar_url: url })
-                      .eq('user_id', currentUserId);
+                      .eq('user_id', currentUserId)
+                      .select('avatar_url')
+                      .maybeSingle();
+                    if (error) throw error;
+                    if (!data) throw new Error('Avatar did not save');
                     // Update local profile state to reflect change
                     setProfile({ ...profile, avatar_url: url });
                   } catch (error) {
                     console.error('Error auto-saving avatar:', error);
-                    // Don't show error toast here as upload already succeeded
+                    toast({
+                      title: 'Photo uploaded, but profile did not save',
+                      description: 'Try Save Changes, or sign in again and retry.',
+                      variant: 'destructive',
+                    });
                   }
                 }
               }}
               userId={currentUserId}
               bucket="profile-avatars"
-              maxSizeMB={25}
+              maxSizeMB={8}
               label="Profile Picture"
-              helperText="Upload a photo to personalize your profile. Max 25MB. Your avatar saves automatically."
+              helperText="Upload a photo to personalize your profile. Max 8MB. Your avatar saves automatically."
               aspectRatio="circle"
             />
 

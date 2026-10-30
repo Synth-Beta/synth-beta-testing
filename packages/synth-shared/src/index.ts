@@ -306,3 +306,9 @@ export {
   summarizeSpotifyExport,
   postMusicImport,
 } from './musicImports';
+export {
+  SECRET_ADMIN_PORTAL_URL,
+  SECRET_ADMIN_ALLOWLIST,
+  isSecretAdminMenuAllowed,
+  type SecretAdminAccessInput,
+} from './secretAdminAccess';

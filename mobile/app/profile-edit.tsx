@@ -116,17 +116,23 @@ export default function ProfileEditScreen() {
     void load();
   }, [load]);
 
-  const handleAvatarUpload = async (uri: string) => {
+  const handleAvatarUpload = async (
+    uri: string,
+    meta?: { mimeType?: string | null; fileName?: string | null }
+  ) => {
     if (!userId) return;
     setUploadingAvatar(true);
     try {
-      const url = await uploadProfileAvatarFromUri(userId, uri);
+      const url = await uploadProfileAvatarFromUri(userId, uri, meta);
       if (!url) throw new Error('Failed to upload avatar');
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('users')
         .update({ avatar_url: url, updated_at: new Date().toISOString() })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select('avatar_url')
+        .maybeSingle();
       if (error) throw error;
+      if (!data) throw new Error('Avatar upload did not save to your profile');
       setAvatarUrl(url);
     } catch (error) {
       console.warn('[profile-edit] avatar upload failed', error);
@@ -159,7 +165,10 @@ export default function ProfileEditScreen() {
     if (!result || result.canceled) return;
     const asset = result.assets?.[0];
     if (!asset?.uri) return;
-    await handleAvatarUpload(asset.uri);
+    await handleAvatarUpload(asset.uri, {
+      mimeType: asset.mimeType,
+      fileName: asset.fileName,
+    });
   };
 
   const promptAvatarAction = () => {
@@ -279,7 +288,7 @@ export default function ProfileEditScreen() {
             <Text style={styles.sectionTitle}>Profile photo</Text>
           </View>
           <SynthText variant="meta" color="secondary" style={styles.avatarHint}>
-            Tap to add or change your avatar (max 2MB, JPG/PNG/WEBP/HEIC).
+            Tap to add or change your avatar (max 8MB, JPG/PNG/WEBP/HEIC).
           </SynthText>
           <Pressable
             style={[

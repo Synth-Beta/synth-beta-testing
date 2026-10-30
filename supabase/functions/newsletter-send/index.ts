@@ -5,7 +5,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { loadEventsNearPlaces, placeKey, rankedArtistNames, withHubPlaces, type EventQuery } from "./nearby.ts";
 import { fetchMusicNews } from "./news.ts";
-import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals } from "./queries.ts";
+import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals, loadRecentNewsletterSignals } from "./queries.ts";
 import { sendBrevoNewsletter } from "../../../api/_lib/brevoNewsletter.ts";
 import { deliverApprovedDrafts, reconcileNewsletterDelivery, deliveryKey, type StoredDraft } from "../../../api/_lib/newsletterDelivery.ts";
 
@@ -72,6 +72,11 @@ const buildUnsubscribeUrl = async (email: string, newsletterSlug: string) => {
 };
 
 const injectUnsubscribeLink = (html: string, unsubscribeUrl: string) => {
+  // New and old templates both use a literal unsubscribe placeholder.
+  // Replacing it directly avoids dependence on inline CSS formatting.
+  if (html.includes("{{unsubscribe_url}}")) {
+    return html.replaceAll("{{unsubscribe_url}}", unsubscribeUrl.replace(/&/g, "&amp;").replace(/"/g, "&quot;"));
+  }
   if (/>\s*Unsubscribe\s*</i.test(html)) {
     return html.replace(
       /href="[^"]*"\s*style="color:#8A8F98;text-decoration:underline;">Unsubscribe<\/a>/i,
@@ -363,6 +368,7 @@ serve(async (req) => {
           .order("Event_date", { ascending: false }).order("id"), "Load review history"));
       }
       const stats = await loadListeningStats(adminClient, userIds);
+      const priorSelections = await loadRecentNewsletterSignals(adminClient, userIds, new Date().toISOString().slice(0, 10));
       const enrichedReviews = await enrichReviewArtists(adminClient, reviews);
       const artistNames = rankedArtistNames(userIds.map((id) => {
         const fromReviews = historyArtists(enrichedReviews.filter((row: any) => row.user_id === id));
@@ -395,6 +401,7 @@ serve(async (req) => {
           const mine = signals.interests.filter((row) => row.user_id === user.user_id);
           return {
             ...user,
+            ...(priorSelections.get(user.user_id) ?? { recentSourceUrls: [], recentListenKeys: [] }),
             latitude: center?.latitude ?? null,
             longitude: center?.longitude ?? null,
             interestedEventIds: mine.filter((row) => row.relationship_type !== "going").map((row) => String(row.event_id)),

@@ -70,6 +70,12 @@ export interface EditionReader {
   otherFiveStarArtists: string[];
   interestedEventIds?: string[];
   goingEventIds?: string[];
+  /** Past newsletter sources, used to avoid repeating URLs week after week. */
+  recentSourceUrls?: string[];
+  /** Already featured artist/track pairs, e.g. "Artist, Track". */
+  recentListenKeys?: string[];
+  /** Artists appearing in this reader's own recorded streaming tracks. */
+  listenedArtists?: string[];
 }
 
 export interface EditionQualityReport {
@@ -130,7 +136,8 @@ export interface ComposedEdition {
   shows: ShowCard[];
   updates: StoryCard[];
   features?: StoryCard[];
-  listen?: StoryCard;
+  listen?: StoryCard; // Legacy shape, still supported by renderer
+  listens?: StoryCard[]; // Two separate, actionable music recommendations
   history?: StoryCard;
   connect?: StoryCard;
   sources: EditionSource[];

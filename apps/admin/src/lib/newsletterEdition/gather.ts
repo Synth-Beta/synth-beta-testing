@@ -216,6 +216,9 @@ export const generateDraftsFromSource = async (
         }),
       interestedEventIds: Array.isArray(user.interestedEventIds) ? user.interestedEventIds.map(String) : [],
       goingEventIds: Array.isArray(user.goingEventIds) ? user.goingEventIds.map(String) : [],
+      recentSourceUrls: Array.isArray(user.recentSourceUrls) ? user.recentSourceUrls.map(String) : [],
+      recentListenKeys: Array.isArray(user.recentListenKeys) ? user.recentListenKeys.map(String) : [],
+      listenedArtists: [...new Set((listensByUser.get(userId) ?? []).map((track) => track.artistName).filter(Boolean))],
     };
     const composed = composeEdition({
       reader,

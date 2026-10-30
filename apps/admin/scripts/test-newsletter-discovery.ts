@@ -15,13 +15,14 @@ const drafts = await generateDraftsFromSource(empty, now, "2026-10-12");
 assert.equal(drafts.drafts.length, 135);
 assert.equal(drafts.held, 0);
 for (const draft of drafts.drafts) {
-  assert.match(draft.html, /Your next listen/);
-  assert.doesNotMatch(draft.html, /evergreen/i);
-  assert.match(draft.html, /The album detour/);
-  assert.match(draft.html, /synth-newsletter-writer-7/);
+  assert.match(draft.html, /The listening detour/);
+  assert.match(draft.html, /On your next listen/);
+  assert.doesNotMatch(draft.html, /evergreen|After the encore|Your Synth|newest night/i);
+  assert.match(draft.html, /synth-newsletter-writer-8/);
+  assert.match(draft.html, /upcoming_shows\.png/);
+  assert.match(draft.html, /\{\{unsubscribe_url\}\}/);
   assert.ok(draft.sources.filter((source) => source.kind === "listen").length === 2);
-  assert.ok(draft.sources.some((source) => source.kind === "editorial"));
-  assert.doesNotMatch(draft.html, /This week in live music|Your latest was|Tickets are listed as available/);
+  assert.doesNotMatch(draft.html, /This week in live music|Your latest was|Tickets are listed as available|85 saved shows/);
 }
 const eligibility = await generateDraftsFromSource({ ...empty, users: [
   users[0], { ...users[1], is_bot: true }, { ...users[2], account_status: "inactive" },
@@ -55,17 +56,18 @@ const edition = composeEdition({ reader, events: [], listens: [...tracks,
   { id: "general", title: "A festival reveals its lineup", url: "https://example.com/general", publishedAt: "2026-10-08T12:00:00Z", summary: "The festival published its lineup and the daily schedule on its own site." },
   { id: "future", title: "Unpublished story", url: "https://example.com/future", publishedAt: "2026-10-12T01:00:00Z", summary: "This story is dated after the edition and should stay out of the newsletter." },
 ], sendAt: editionSendAt("2026-10-12"), editionDate: "2026-10-12", issueNumber: 1, retrievedAt: now.toISOString() })!;
-assert.equal(edition.updates[0].title, "Older favorite shares a recording");
-assert.equal(edition.updates.some((story) => story.title.includes("Latest")), false);
+assert.ok(edition.updates.some((story) => /Older favorite|Latest/.test(story.title)));
 assert.equal(edition.updates.some((story) => story.title === "Unpublished story"), false);
-assert.doesNotMatch(edition.listen!.body, /Last show's song|Wrong city|Older favorite/);
+assert.equal(edition.updates.some((story) => story.title === "A festival reveals its lineup"), false);
 assert.equal((renderEditionHtml(edition).match(/LAST_REVIEW/g) ?? []).length, 0);
 assert.equal(edition.yourSynth, undefined);
-assert.doesNotMatch(edition.intro, /newest night|2 nights/);
-assert.match(edition.headline, /did you see anyone new this weekend/i);
-assert.equal(edition.listen!.links!.some((link) => link.url === tracks[0].url), false);
-assert.equal(edition.listen?.eyebrow, "Your next listen");
-assert.doesNotMatch(edition.listen?.eyebrow ?? "", /evergreen/i);
+assert.equal(edition.history, undefined);
+assert.equal(edition.shows.length, 0);
+assert.doesNotMatch(edition.intro, /newest night|2 nights|85 saved/);
+assert.match(edition.headline, /outside your usual rotation|new sounds|rabbit hole/i);
+assert.ok((edition.listens?.length ?? 0) >= 2);
+assert.ok(edition.listens?.every((listen) => listen.eyebrow === "On your next listen"));
+assert.doesNotMatch((edition.listens ?? []).map((listen) => `${listen.title} ${listen.body}`).join(" "), /Last show's song|Wrong city|Older favorite|A real title/);
 assert.equal(editionSendAt("2026-10-12").toISOString(), "2026-10-12T14:00:00.000Z");
 assert.equal(editionSendAt("2027-01-11").toISOString(), "2027-01-11T15:00:00.000Z");
 assert.notDeepEqual(editorialListens("2026-10-12"), editorialListens("2026-10-19"));
@@ -90,14 +92,25 @@ assert.equal(found[0].artistName, "Correct artist");
 globalThis.fetch = async () => { throw new Error("Feed or catalog unavailable"); };
 assert.deepEqual(await lookupRecordings(["Someone"]), []);
 
-// The deployed API source must use the same listening schema and return accounts with no history.
 const profile = { user_id: users[0].user_id, service_type: "spotify", profile_data: { topArtists: [{ name: "Older favorite" }], topTracks: [{ name: "A real title", artists: [{ name: "Older favorite" }] }] } };
-const tables: Record<string, any[]> = { users, streaming_profiles: [profile, { user_id: users[0].user_id, service_type: "apple_music", profile_data: { topArtists: [{ attributes: { name: "Apple favorite" } }], topTracks: [{ attributes: { name: "Apple recording", artistName: "Apple favorite", url: "https://music.apple.com/us/song/456" } }] } }], user_preferences: [], newsletter_unsubscribes: [{ email: users[134].email }], reviews: [], news_items: [], events: [] };
+const tables: Record<string, any[]> = {
+  users,
+  streaming_profiles: [
+    profile,
+    { user_id: users[0].user_id, service_type: "apple_music", profile_data: { topArtists: [{ attributes: { name: "Apple favorite" } }], topTracks: [{ attributes: { name: "Apple recording", artistName: "Apple favorite", url: "https://music.apple.com/us/song/456" } }] } },
+  ],
+  user_preferences: [],
+  newsletter_unsubscribes: [{ email: users[134].email }],
+  reviews: [],
+  news_items: [],
+  events: [],
+  newsletter_drafts: [],
+};
 const queried: string[] = [];
 const db = { from(table: string) {
   queried.push(table);
   const query: any = { then(resolve: any, reject: any) { return Promise.resolve({ data: tables[table] ?? [], error: null }).then(resolve, reject); } };
-  for (const method of ["select", "eq", "or", "not", "order", "range", "in", "ilike", "gte", "lte", "limit"]) query[method] = () => query;
+  for (const method of ["select", "eq", "or", "not", "order", "range", "in", "ilike", "gte", "lte", "limit", "lt"]) query[method] = () => query;
   return query;
 } };
 const source = await apiSource(db, now);
@@ -105,5 +118,6 @@ assert.equal(source.users.length, 134);
 assert.equal(source.stats[0].listens[0].trackName, "A real title");
 assert.ok(source.stats.some((stat) => stat.listens?.[0]?.trackName === "Apple recording"), "both streaming services survive loading");
 assert.equal(queried.includes("user_streaming_stats_summary"), false);
+assert.ok(queried.includes("newsletter_drafts"), "recent-source rotation loads prior drafts");
 assert.equal((await loadListeningStats(db, [users[0].user_id]))[0].listens[0].trackName, "A real title");
-console.log("PASS: 135 full empty-account editions; eligibility; sourced recordings; full-history ranking; recap isolation; feed outage; catalog artist matching; API source; DST and weekly rotation.");
+console.log("PASS: 135 empty-account discovery editions; eligibility; sourced recordings; news relevance; API source rotation; DST and weekly rotation.");

@@ -48,8 +48,19 @@ export const meaningfulSummary = (value?: string | null) => {
   const text = plainText(String(value ?? ""));
   if (text.length < 40 || BOILERPLATE.test(text)) return null;
   if (/recent music story|details at the source|current artist update|the other picks are different/i.test(text)) return null;
-  const sentence = text.match(/^.{40,240}?[.!](\s|$)/);
-  return (sentence ? sentence[0] : text.slice(0, 200)).trim();
+  // Do not split "D.C." or "U.S." in half; this previously produced teaser
+  // text ending with "at the D.C.". Prefer a complete thought over a hard cut.
+  const boundary = /[.!?](?=\s+[A-Z0-9“"']|$)/g;
+  for (const match of text.matchAll(boundary)) {
+    const end = (match.index ?? 0) + 1;
+    const candidate = text.slice(0, end);
+    if (/(?:\bD\.C\.|\bU\.S\.|\bMr\.|\bMs\.|\bDr\.|\bSt\.|\be\.g\.)$/i.test(candidate)) continue;
+    if (candidate.length >= 40 && candidate.length <= 280) return candidate;
+    if (candidate.length > 280) break;
+  }
+  if (text.length <= 240) return text;
+  const excerpt = text.slice(0, 237).replace(/\s+\S*$/, "").trim();
+  return `${excerpt}…`;
 };
 
 const summaryOf = (block: string) => {

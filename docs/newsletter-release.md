@@ -1,39 +1,42 @@
-# Newsletter discovery and delivery
+# The Synth Setlist — recommendation-first update (Oct 29, 2026)
 
-The Setlist now draws on saved listening and stronger review history, confines the latest review to its recap, and favors new artists. Song recommendations require actual recording titles. Upcoming shows are checked against the edition's Monday 10 a.m. Eastern send time, not its generation time. Drafts auto-generate Mondays at 9 a.m. Eastern; admin Create/Regenerate remains available.
+## What changed
 
-Every eligible account gets a draft even without reviews, listening, or a saved location. Those readers receive two hand-edited listening picks, current sourced news when available, and an explicitly evergreen album feature when news is unavailable. No activity or location is invented. The evergreen library rotates weekly; it is a small initial collection that can be expanded in `supabase/functions/newsletter-send/editorial.ts`.
+The weekly issue is now a **discovery email**, not a recap of the reader's account.
 
-## Release for October 12, 2026
+- Rank actual upcoming concerts within the existing 75-mile saved-location check, prioritizing repeated live artists, followed/listened artists, then matching genres and saved dates. Never substitute a far-away city when location is unknown.
+- Mention concert history **only as a reason for a recommendation** (for example, "You've logged 3 Goose shows. Here's another chance to see them"). No recurring "latest review", "22 nights", or "85 saved shows" cards.
+- If no safe nearby ticket/event link exists, **omit the concert cards** instead of inventing a nearby show or ticket availability. Still produce two listening recommendations.
+- Use up to one real, sourced recording from a nearby relevant event artist (when an eligible recording exists) plus curated editorial songs. Unverified ticket links are never sent as tickets.
+- Show news only if it genuinely matches an artist, a high-confidence genre headline, or a specifically supported local scene. No unrelated news just to fill space.
+- Read source URLs and track picks from the previous 28 days' `newsletter_drafts.sources` JSON and avoid repeats where enough alternatives exist. This uses the existing database schema.
+- Show a fan connection card only when another account really has a public five-star review of the same artist. Otherwise omit the entire card.
+- Replace the repetitive black "After the encore" marketing closer with a single smaller app preview containing the already-hosted Upcoming Shows phone screenshot.
+- Preserve unsubscribe placeholders and teach the Edge Function to replace them without depending on the old inline CSS string.
 
-1. Deploy the updated repository to the existing Vercel project. Newsletter generation runs Mondays at 13:00 and 14:00 UTC; send runs Mondays at 14:00 and 15:00 UTC. Handlers only act in the 9 a.m. / 10 a.m. America/New_York windows. On October 12 (EDT) generation is 13:00 UTC and send is 14:00 UTC. The consolidated cron function's duration is 300 seconds to accommodate paced delivery of the current-sized edition.
-2. In the existing Supabase project, verify that `20261007010000_create_newsletter_drafts.sql` and `20261007180000_fix_newsletter_regeneration.sql` have been applied, and deploy `newsletter-send` (including its new supporting modules). Do not re-run unrelated migrations blindly. `newsletter-unsubscribe` must also be deployed.
-3. Verify the existing production bindings for `SUPABASE_URL` (or `VITE_SUPABASE_URL`), `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `NEWSLETTER_UNSUBSCRIBE_SECRET`. Vercel and the Edge Function must use the same sender and unsubscribe signing settings. The sender must be verified in Resend. Enter credentials in the providers' secure settings, never in source or chat.
-4. Open `https://getsynth.app/admin?tab=newsletter-proof` as the existing authorized reviewer. Select **2026-10-12**. Use **Create new edition** if empty, or **Regenerate selected edition** if it already has unsent drafts. Regeneration updates unsent drafts, clears approvals, and keeps sent rows.
-5. Compare the stored draft count with the eligible account count, inspect examples with full history, listening only, and no data, then approve the exact drafts intended for delivery. Scheduled and manual generation never send or approve. The automatic Monday 10 a.m. Eastern send includes only those approved drafts. **Send N approved now** is an explicit immediate-send action, not a scheduling control.
-6. Check Vercel cron results and Resend delivery records. `sent` counts provider acceptance, not inbox delivery. Provider failures return a non-success response; failed drafts are released for retry. Manual and scheduled delivery use the same provider idempotency key. Resend's idempotency window is finite; inspect provider records before retrying an ambiguous result after that window.
+## Files to deploy
 
-Installation, production deployment, database migration state, live recipient coverage, and actual delivery are separate checks. Local validation does not establish production readiness. This workspace has no production Supabase/Resend/Vercel credentials; no real emails or production drafts were created during validation.
+Copy files from this archive onto the **matching paths in the Synth repository**. These are not the same paths as the original CHAT_NEWS handoff folders.
 
-## Validation
+- `apps/admin/src/lib/newsletterEdition/{compose,render,types,gather}.ts`
+- `supabase/functions/newsletter-send/{index,queries,news}.ts`
+- `api/_lib/newsletterSource.ts`
 
-Use Node 24. From `apps/admin`:
+**Deploy the Vercel/admin app and Supabase `newsletter-send` Edge Function** so the admin loader, scheduled generator and live draft source agree. No migration is needed for the past-issue repeat filter.
 
-```sh
-node --import ./scripts/newsletter-test-hooks.mjs scripts/test-newsletter-edition.ts
-node --import ./scripts/newsletter-test-hooks.mjs scripts/test-newsletter-regeneration.ts
-node --import ./scripts/newsletter-test-hooks.mjs scripts/test-newsletter-discovery.ts
-node --import ./scripts/newsletter-test-hooks.mjs scripts/test-newsletter-delivery.ts
-```
+## Screenshot
 
-The new coverage includes 135 empty accounts, Spotify and Apple Music recordings, recap isolation, full-history ranking, catalog and feed outages, future-news exclusion, weekly rotation, Eastern Monday DST windows, and the real cron handler with mocked Supabase/Brevo responses. The delivery tests cover authorization, approval/content hashes, account eligibility, paginated drafts/unsubscribes, subscription-query failures, provider failures, unsubscribe injection, and a stable retry key.
+The new renderer uses the supplied, signed Supabase Storage URL for `email-pictures/upcoming_shows.png`, linking the screenshot back to `https://join.getsynth.app/`. For best long-term reliability, host that asset at a **permanent public read-only URL** and replace `PHONE_IMAGE` in `render.ts` before release; private signed URLs can stop working if signing keys or access rules change. Specific in-app deep links are not claimed until actual routes are confirmed.
 
-From the repository root, `npm run build:vercel` builds both applications. The newsletter modules also pass a focused TypeScript check. The full admin type check has pre-existing failures; comparison with the unchanged checkout found no new diagnostics.
+## Validation before sending
 
-## Sources and limits
+1. Merge the files, type-check/build the full repo, deploy the Edge Function and Vercel app.
+2. Generate/regenerate an **unsent** edition in `/admin?tab=newsletter-proof`. Regeneration may clear prior approvals; reapprove the exact new content.
+3. Preview at least: repeat-show artist with nearby date; repeat-show artist with no date; accounts with no location; no reviews; streaming-only accounts; accounts with a recent prior issue.
+4. Confirm only genuinely relevant news appears, all sources point to valid content, image loads in Gmail/Apple Mail, ticket notices are accurate, and mobile layout fits.
+5. Send a TEST EMAIL and verify the unsubscribe URL is a real individualized link (not the literal `{{unsubscribe_url}}`). Verify delivery provider is Brevo in your live settings.
+6. Approve/send only after review. These files do not send email just by being copied.
 
-Live news comes from the configured RSS feeds. Discovery recording lookups use the public iTunes catalog, are capped at 24 distinct artists per source load, require an exact artist match, and have bounded concurrency and request deadlines. Failed lookups retain the editorial fallback. The hand-edited evergreen entries carry album/recording references and named-song Spotify search links; they are not claimed as this week's releases or live-verified ticket listings.
+## Local test results
 
-Newsletter source loading requires outbound access to its existing news feeds and `itunes.apple.com`. The cloud workspace's network proxy rejected live source and GitHub API checks; the required domains have been added to its configuration draft for review. That draft update does not change production networking or prove live sources are reachable.
-
-The sender still claims a draft using the existing `sent` status before contacting the provider. A process killed after that claim can require manual reconciliation with Resend. The duration and pacing changes support a modest edition, not an unlimited audience; a large rollout should use a durable queue/outbox and provider-aware batching.
+Focused TypeScript checks and representative unit-level fixture cases passed for local repeat-artist shows, no location, no local ticket links, news filtering, source rotation, and HTML escaping. This archive does **not** include the rest of the live repo, production credentials, actual subscriber data, or end-to-end email delivery tests; therefore deployment and deliverability have not been verified here.

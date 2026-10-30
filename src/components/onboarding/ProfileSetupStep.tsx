@@ -382,9 +382,9 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
             onChange={(url) => setFormData((prev) => ({ ...prev, avatar_url: url ?? '' }))}
             userId={user?.id ?? ''}
             bucket="profile-avatars"
-            maxSizeMB={5}
+            maxSizeMB={8}
             label=""
-            helperText="Upload and crop a photo (optional)"
+            helperText="Upload and crop a photo (optional, max 8MB)"
             disabled={!user}
             aspectRatio="circle"
           />

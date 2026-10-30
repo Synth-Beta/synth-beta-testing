@@ -7,6 +7,12 @@ Marketing site + `/admin` ops portal. Lives in this monorepo at `apps/admin/`.
 
 **Do not change `/admin` behavior here unless you intend to change production admin.**
 
+> **TOP SECRET (consumer app menu):** The hamburger **Admin** tab in the Expo app /
+> consumer SideMenu is hard-allowlisted to **pesceelauren@gmail.com / @lauren only**
+> (`packages/synth-shared/src/secretAdminAccess.ts`). Do **not** expand that tab to
+> other admins or users. The web portal here still uses normal `account_type === 'admin'`
+> gating for ops work.
+
 | | |
 |---|---|
 | **Live** | https://getsynth.app (`/admin` = ops portal) |

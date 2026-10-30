@@ -29,7 +29,7 @@ const artistNamesFromProfile = (profileData: any) => {
   return names;
 };
 
-const genresFromPreferences = (row: any) => {
+const genresFromPreferences = (row: any): string[] => {
   if (Array.isArray(row?.top_genres) && row.top_genres.length) {
     return row.top_genres.map((genre: any) => String(genre)).filter(Boolean).slice(0, 6);
   }
@@ -56,7 +56,7 @@ export const loadListeningStats = async (db: { from: (table: string) => any }, u
       .select("user_id, top_genres, genre_preference_scores")
       .in("user_id", ids)
       .order("user_id"), "Load listening genres");
-    const genresByUser = new Map(preferences.map((row) => [row.user_id, genresFromPreferences(row)]));
+    const genresByUser = new Map<string, string[]>(preferences.map((row: any) => [String(row.user_id), genresFromPreferences(row)]));
     const seen = new Set<string>();
     const seenServices = new Set<string>();
     for (const profile of profiles) {
@@ -152,4 +152,46 @@ export const enrichReviewArtists = async (db: { from: (table: string) => any }, 
   return reviews.map((row) => ({ ...row,
     artistName: row.artists?.name ?? names.get(row.user_created_artist_id) ?? row.setlist?.artist?.name,
   }));
+};
+
+/**
+ * A four-week exclusion window prevents the same links/tracks from recurring
+ * every Monday. Uses existing newsletter_drafts.sources JSON, no migration.
+ * Generated-but-unsent past drafts count too; regenerated same-date drafts do
+ * not count because edition_date must be strictly before this issue.
+ */
+export const loadRecentNewsletterSignals = async (
+  db: { from: (table: string) => any },
+  userIds: string[],
+  targetEditionDate: string,
+) => {
+  const windowStart = new Date(Date.parse(`${targetEditionDate}T12:00:00Z`) - 28 * 86400000).toISOString().slice(0, 10);
+  const result = new Map<string, { recentSourceUrls: string[]; recentListenKeys: string[] }>();
+  for (let index = 0; index < userIds.length; index += 40) {
+    const ids = userIds.slice(index, index + 40);
+    if (!ids.length) continue;
+    const prior = await readAll(() => db.from("newsletter_drafts")
+      .select("user_id, edition_date, sources")
+      .in("user_id", ids)
+      .gte("edition_date", windowStart)
+      .lt("edition_date", targetEditionDate)
+      .order("edition_date", { ascending: false }), "Load recent newsletter selections");
+    for (const draft of prior) {
+      const userId = String(draft.user_id ?? "");
+      if (!userId) continue;
+      const entry = result.get(userId) ?? { recentSourceUrls: [], recentListenKeys: [] };
+      const items = Array.isArray(draft.sources) ? draft.sources : [];
+      for (const item of items) {
+        if (!item || !["news", "listen", "event", "editorial"].includes(String(item.kind))) continue;
+        const url = String(item.url ?? "");
+        if (url && !entry.recentSourceUrls.includes(url)) entry.recentSourceUrls.push(url);
+        if (item.kind === "listen") {
+          const label = String(item.label ?? "");
+          if (label && !entry.recentListenKeys.includes(label)) entry.recentListenKeys.push(label);
+        }
+      }
+      result.set(userId, entry);
+    }
+  }
+  return result;
 };

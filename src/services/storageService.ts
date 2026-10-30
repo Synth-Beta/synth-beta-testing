@@ -103,11 +103,26 @@ class StorageService {
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
 
-    // Upload to Supabase storage
+    // Upload to Supabase storage. Always send an allowed image contentType —
+    // bucket MIME whitelists reject application/octet-stream. storage-js also
+    // prefers Blob.type over the contentType option, so rewrite bad Blobs to bytes.
+    const contentType =
+      processedFile.type && processedFile.type !== 'application/octet-stream'
+        ? processedFile.type
+        : file.type && file.type !== 'application/octet-stream'
+          ? file.type
+          : 'image/jpeg';
+
+    const uploadBody: Blob | File | Uint8Array =
+      !processedFile.type || processedFile.type === 'application/octet-stream'
+        ? new Uint8Array(await processedFile.arrayBuffer())
+        : processedFile;
+
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(filePath, processedFile, {
+      .upload(filePath, uploadBody, {
         cacheControl: '3600',
+        contentType,
         upsert: false,
       });
 

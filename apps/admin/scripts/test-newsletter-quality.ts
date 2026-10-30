@@ -1,6 +1,6 @@
 /**
- * Editorial quality checks for realistic newsletter inputs.
- * Run: npx vite-node scripts/test-newsletter-quality.ts
+ * Editorial quality checks for recommendation-first newsletter inputs.
+ * Run: npx tsx scripts/test-newsletter-quality.ts
  */
 import assert from "node:assert/strict";
 import { generateDraftsFromSource } from "../src/lib/newsletterEdition/gather";
@@ -58,10 +58,13 @@ const compose = (reader: EditionReader, events: EditionEvent[] = [], extra: { ne
   })!;
 
 const artistsOf = (edition: NonNullable<ReturnType<typeof composeEdition>>) => edition.qualityReport.featuredArtists.map((artist) => artist.toLowerCase());
+const listenBodies = (edition: NonNullable<ReturnType<typeof composeEdition>>) => (edition.listens ?? []).map((card) => card.body).join(" ");
+const listenTitles = (edition: NonNullable<ReturnType<typeof composeEdition>>) => (edition.listens ?? []).map((card) => card.title).join(" ");
 
 const noFiller = (html: string) => {
   assert.doesNotMatch(html, /recent music story|details at the source|current artist update|the other picks are different/i);
   assert.doesNotMatch(html, /\u2014/);
+  assert.doesNotMatch(html, /After the encore|85 saved shows|22 nights|Your Synth/i);
 };
 
 const active = baseReader({
@@ -96,25 +99,23 @@ const activeEdition = compose(active, activeEvents, {
 });
 const activeHtml = renderEditionHtml(activeEdition);
 noFiller(activeHtml);
-assert.match(activeEdition.headline, /did you see anyone new this weekend/i);
-assert.match(activeEdition.intro, /write a review/i);
+assert.match(activeEdition.headline, /Goose|KETTAMA/);
+assert.doesNotMatch(activeEdition.intro, /write a review|newest night/i);
 assert.equal(activeEdition.yourSynth, undefined);
-assert.doesNotMatch(renderEditionHtml(activeEdition), /Penelope Road|logged Goose|2 times|newest night/);
-assert.equal(/singing/.test(renderEditionHtml(activeEdition)), false);
-assert.doesNotMatch(renderEditionHtml(activeEdition), /no saved city|saved shows cluster|sourced summary|account has no/i);
-assert.ok(activeEdition.shows.some((card) => card.title === "KETTAMA"));
-assert.ok(activeEdition.shows.some((card) => card.body.includes("saved")));
+assert.equal(activeEdition.history, undefined);
+assert.doesNotMatch(activeHtml, /Penelope Road|singing|newest night/);
+assert.ok(activeEdition.shows.some((card) => card.title === "Goose"));
+assert.ok(activeEdition.shows.some((card) => card.title === "KETTAMA" && /saved/i.test(card.body)));
 assert.equal(activeEdition.shows.some((card) => card.title === "Wilco"), false);
 assert.equal(activeEdition.shows.some((card) => card.title === "Penelope Road"), false);
-assert.equal(activeEdition.history?.title === "Penelope Road", false);
-assert.doesNotMatch(activeEdition.listen?.body ?? "", /Arcadia|Time \(You and I\)|Khruangbin|Goose/);
-assert.equal(activeEdition.listen?.eyebrow, "Your next listen");
-assert.doesNotMatch(activeEdition.listen?.body ?? "", /saved listening|logged .+ live|evergreen/i);
-assert.match(activeEdition.listen?.body ?? "", /Circles Around the Sun|Lettuce|Medeski Martin|Alabama Shakes|Hiss Golden|Wilco/);
+assert.ok((activeEdition.listens?.length ?? 0) >= 2);
+assert.doesNotMatch(listenTitles(activeEdition), /Arcadia|Time \(You and I\)|Khruangbin|Goose/);
+assert.ok(activeEdition.listens?.every((card) => card.eyebrow === "On your next listen"));
 assert.equal(new Set(artistsOf(activeEdition)).size, artistsOf(activeEdition).length);
 assert.equal(activeEdition.qualityReport.sections.includes("yourSynth"), false);
 assert.ok(activeEdition.qualityReport.sections.includes("onYourRadar"));
-assert.ok(activeEdition.qualityReport.personalizationEvidence.some((line) => /logged shows|Listening artists|saved shows|Taste genres/.test(line)));
+assert.ok(activeEdition.qualityReport.sections.includes("yourNextListen"));
+assert.ok(activeEdition.qualityReport.personalizationEvidence.some((line) => /Taste genres|local linked event|Repeated artist|Taste anchor/.test(line)));
 
 const reviewsOnly = compose(baseReader({
   lifetimeShowCount: 4,
@@ -125,11 +126,10 @@ const reviewsOnly = compose(baseReader({
   ],
 }), [show({ id: "isbell", artistName: "Jason Isbell", city: "Washington" })]);
 assert.equal(reviewsOnly.yourSynth, undefined);
-assert.match(reviewsOnly.headline, /did you see anyone new this weekend/i);
-assert.doesNotMatch(renderEditionHtml(reviewsOnly), /newest night|logged Wilco/);
-assert.equal(reviewsOnly.shows.some((card) => card.title === "Jason Isbell"), true);
-assert.equal(reviewsOnly.history?.title === "Wilco" || reviewsOnly.history?.title === "Jason Isbell", false);
-assert.equal(reviewsOnly.listen?.eyebrow, "Your next listen");
+assert.ok(reviewsOnly.shows.some((card) => card.title === "Jason Isbell"));
+assert.match(reviewsOnly.shows.find((card) => card.title === "Jason Isbell")?.body ?? "", /seen Jason Isbell before/i);
+assert.equal(reviewsOnly.history, undefined);
+assert.ok((reviewsOnly.listens?.length ?? 0) >= 2);
 assert.ok(reviewsOnly.qualityReport.missingData.some((line) => /streaming/i.test(line)));
 
 const streamingOnly = compose(baseReader({
@@ -143,11 +143,10 @@ const streamingOnly = compose(baseReader({
   listens: [{ artistName: "Wilco", trackName: "Jesus, Etc.", url: "https://open.spotify.com/track/wilco" }],
 });
 assert.equal(streamingOnly.yourSynth, undefined);
-assert.doesNotMatch(streamingOnly.listen?.body ?? "", /Jesus, Etc\.|Wilco/);
-assert.equal(streamingOnly.listen?.eyebrow, "Your next listen");
+assert.ok(streamingOnly.shows.some((card) => card.title === "Wilco"));
+assert.doesNotMatch(listenTitles(streamingOnly), /Jesus, Etc\.|Wilco/);
 assert.match(renderEditionHtml(streamingOnly), /Wilco/);
-assert.doesNotMatch(`${streamingOnly.listen?.eyebrow ?? ""} ${streamingOnly.listen?.body ?? ""}`, /saved listening|evergreen/i);
-assert.ok(streamingOnly.qualityReport.missingData.some((line) => /reviews/i.test(line)));
+assert.ok(streamingOnly.qualityReport.missingData.some((line) => /concert history|reviews/i.test(line)));
 
 const empty = compose(baseReader({
   firstName: "Riley",
@@ -158,11 +157,12 @@ const empty = compose(baseReader({
 }));
 const emptyHtml = renderEditionHtml(empty);
 assert.equal(empty.yourSynth, undefined);
-assert.match(emptyHtml, /Your next listen/);
-assert.doesNotMatch(emptyHtml, /evergreen/i);
-assert.match(emptyHtml, /The album detour/);
-assert.match(emptyHtml, /Build your live music timeline/);
-assert.doesNotMatch(emptyHtml, /your latest|because you love|your favorite artist/i);
+assert.equal(empty.shows.length, 0);
+assert.match(emptyHtml, /The listening detour/);
+assert.match(emptyHtml, /On your next listen/);
+assert.match(emptyHtml, /Set your city to get upcoming concerts near you/);
+assert.match(emptyHtml, /Explore concerts on Synth/);
+assert.doesNotMatch(emptyHtml, /your latest|because you love|your favorite artist|After the encore/i);
 noFiller(emptyHtml);
 
 const jamSam = compose(baseReader({
@@ -179,16 +179,17 @@ const jamSam = compose(baseReader({
   news: [
     { id: "pop-a", title: "A pop star drops a glittery single", url: "https://pitchfork.com/news/pop-a", source: "Pitchfork", publishedAt: "2026-10-12T12:00:00.000Z", summary: "The pop star released a glittery single, with the video and credits posted at the source." },
     { id: "pop-b", title: "Another chart act announces a stadium tour", url: "https://pitchfork.com/news/pop-b", source: "Pitchfork", publishedAt: "2026-10-11T18:00:00.000Z", summary: "The chart act announced stadium dates, and the routing is listed on the official page." },
-    { id: "billy", title: "Billy Strings expands a fall run", url: "https://pitchfork.com/news/billy", source: "Pitchfork", publishedAt: "2026-10-10T12:00:00.000Z", summary: "Billy Strings added fall dates, with the routing and on-sale note published at the source." },
-    { id: "panic", title: "Widespread Panic plots another spring route", url: "https://relix.com/news/panic", source: "Relix", publishedAt: "2026-10-09T12:00:00.000Z", summary: "Widespread Panic plotted another spring route, and the dates are listed on the band site." },
+    { id: "billy", title: "Billy Strings expands a jam-band fall run", url: "https://pitchfork.com/news/billy", source: "Pitchfork", publishedAt: "2026-10-10T12:00:00.000Z", summary: "Billy Strings added fall jam-band dates, with the routing and on-sale note published at the source." },
+    { id: "panic", title: "Widespread Panic plots another jam-band spring route", url: "https://relix.com/news/panic", source: "Relix", publishedAt: "2026-10-09T12:00:00.000Z", summary: "Widespread Panic plotted another jam-band spring route, and the dates are listed on the band site." },
+    { id: "goose", title: "Goose shares a rehearsal clip", url: "https://relix.com/news/goose-clip", source: "Relix", publishedAt: "2026-10-11T12:00:00.000Z", summary: "Goose shared a rehearsal clip ahead of the next run, with the full video posted by the band." },
   ],
 });
-assert.equal(jamSam.updates.length, 2);
-assert.ok(jamSam.updates.every((story) => /Billy Strings|Widespread Panic/i.test(story.title)));
+assert.ok(jamSam.updates.length >= 1);
+assert.ok(jamSam.updates.every((story) => /Billy Strings|Widespread Panic|Goose|jam-band/i.test(story.title)));
 assert.equal(jamSam.updates.some((story) => /pop star|chart act/i.test(story.title)), false);
-assert.match(jamSam.listen?.body ?? "", /Circles Around the Sun|Lettuce|Medeski Martin/);
-assert.notEqual(jamSam.listen?.body, empty.listen?.body);
-assert.doesNotMatch(jamSam.listen?.body ?? "", /Goose|Phish|Arcadia/);
+assert.ok((jamSam.listens?.length ?? 0) >= 2);
+assert.match(listenTitles(jamSam) + listenBodies(jamSam), /jam-band|rock direction|Circles Around the Sun|Lettuce|Medeski|Talking Heads|Alabama Shakes|Hiss Golden|My Morning Jacket|Umphrey|Twiddle|Lotus/i);
+assert.doesNotMatch(listenTitles(jamSam), /Goose|Phish|Arcadia/);
 
 const followNews = compose(baseReader({
   userId: "follow-reader",
@@ -208,7 +209,7 @@ const followNews = compose(baseReader({
   ],
 });
 assert.ok(followNews.updates.some((story) => /Japanese Breakfast/i.test(story.title)));
-assert.ok(followNews.updates.some((story) => /9:30 Club|Good Show|Lincoln Theatre/i.test(story.title)));
+assert.ok(followNews.updates.some((story) => /Good Show|Lincoln Theatre/i.test(story.title)));
 assert.equal(followNews.updates.some((story) => /Bad Show/i.test(story.title)), false);
 assert.equal(followNews.updates.some((story) => /pop star/i.test(story.title)), false);
 
@@ -218,7 +219,6 @@ const sparseNearby = compose(active, [
 ]);
 assert.equal(sparseNearby.shows.length, 1);
 assert.equal(sparseNearby.shows.some((card) => card.title === "Phish"), false);
-assert.ok(sparseNearby.qualityReport.warnings.some((line) => /Fewer than two/.test(line)));
 
 const encoded = parseRssItems(
   `<rss><channel><item><title>Useful session note</title><link>https://www.billboard.com/music/example</link><pubDate>Tue, 06 Oct 2026 12:00:00 GMT</pubDate><description>Read more</description><content:encoded><![CDATA[<p>The band explained the new arrangement and why they brought the song back into the set.</p>]]></content:encoded></item><item><title>Comments on: a post</title><link>https://www.nme.com/comment</link><pubDate>Tue, 06 Oct 2026 12:00:00 GMT</pubDate><description>This comment is long enough to look like a summary but it is not a story.</description></item></channel></rss>`,
@@ -228,16 +228,16 @@ const encoded = parseRssItems(
 assert.equal(encoded.length, 1);
 assert.match(encoded[0].summary ?? "", /new arrangement/);
 assert.equal(meaningfulSummary("Read more at the source website today please"), null);
+assert.equal(meaningfulSummary("A long enough music note about the D.C. scene that used to truncate awkwardly."), "A long enough music note about the D.C. scene that used to truncate awkwardly.");
 const unsourced = compose(baseReader({ topArtists: ["Muse"] }), [], {
   news: [{ id: "bare", title: "Muse posts a photo", url: "https://pitchfork.com/news/bare", source: "Pitchfork", publishedAt: "2026-10-10T12:00:00.000Z" }],
 });
 assert.equal(unsourced.updates.length, 0);
-assert.ok(unsourced.qualityReport.warnings.some((line) => /reliable summary/.test(line)));
+assert.ok(unsourced.qualityReport.warnings.some((line) => /lacked useful summaries|No genuinely relevant/i.test(line)));
 
-const richHtml = activeHtml;
 const featured = artistsOf(activeEdition);
 assert.equal(new Set(featured).size, featured.length);
-assert.doesNotMatch(richHtml, /Penelope Road[\s\S]*Penelope Road/);
+assert.doesNotMatch(activeHtml, /Penelope Road[\s\S]*Penelope Road/);
 
 const blocked = await generateDraftsFromSource({
   users: [{ user_id: "sam", email: "sam@example.com", name: "Sam", location_city: "Washington", location_state: "DC" }],
@@ -258,7 +258,7 @@ assert.doesNotMatch(blockedHtml, /Resale Act|Canceled Act|Expired Act|stubhub|vi
 assert.match(blockedHtml, /Official Act/);
 assert.match(blockedHtml, /https:\/\/www\.axs\.com\/events\/official/);
 assert.match(blockedHtml, /Sold Act/);
-assert.match(blockedHtml, /Currently listed as sold out/);
+assert.match(blockedHtml, /Listed as sold out/);
 
 const wrongGeo = compose(baseReader({ city: "Chicago", state: "IL", latitude: 41.8781, longitude: -87.6298 }), [
   show({ id: "dc-show", artistName: "Local Natives", city: "Washington", state: "DC", latitude: 38.9, longitude: -77.0 }),
@@ -309,7 +309,7 @@ assert.equal(regenerateDecision({ status: "sent" }), "keep");
 assert.equal(canSendDraft(draft({ status: "sent", sentAt: retrievedAt }), new Set()).reason, "already sent");
 assert.equal(canSendDraft(draft({ status: "needs_approval", approvedContentHash: null }), new Set()).ok, false);
 
-const clustered = compose(baseReader({
+const noLocationSaved = compose(baseReader({
   city: null,
   state: null,
   latitude: null,
@@ -321,14 +321,9 @@ const clustered = compose(baseReader({
   show({ id: "dc-3", artistName: "Dark Star Orchestra", eventDate: "2026-11-22T00:00:00.000Z" }),
   show({ id: "chi", artistName: "Wilco", city: "Chicago", state: "IL", latitude: 41.88, longitude: -87.63, venueName: "Chicago Theatre" }),
 ]);
-assert.equal(clustered.shows.some((card) => card.title === "Wilco"), false);
-assert.ok(clustered.shows.length >= 2);
-assert.match(clustered.showsHeading ?? "", /Washington/);
-assert.match(clustered.showsDek ?? "", /Dates around Washington/);
-assert.doesNotMatch(`${clustered.intro} ${clustered.showsDek}`, /no saved city|saved shows cluster|sourced summary/);
-assert.ok(clustered.shows.every((card) => /saved/i.test(card.body)));
-assert.ok(clustered.qualityReport.missingData.some((line) => /saved city/i.test(line)));
-assert.ok(clustered.qualityReport.personalizationEvidence.some((line) => /cluster around Washington/.test(line)));
+assert.equal(noLocationSaved.shows.length, 0, "saved interests never invent a city when location is missing");
+assert.ok(noLocationSaved.locationPrompt);
+assert.ok(noLocationSaved.qualityReport.missingData.some((line) => /No location/i.test(line)));
 
 const gooseReviews = [
   { artistName: "Goose", venueName: "The Anthem", eventDate: "2026-06-11T00:00:00.000Z", rating: 5, text: "The second set opened with a long jam that the whole floor knew." },
@@ -349,62 +344,40 @@ const withReturn = compose(baseReader({
   show({ id: "reviewed-weekend", artistName: "Khruangbin", eventDate: "2026-10-10T00:00:00.000Z", venueName: "9:30 Club", genres: ["funk"] }),
   show({ id: "goose-next", artistName: "Goose", eventDate: "2026-12-02T00:00:00.000Z", venueName: "The Anthem", genres: ["jam"] }),
 ]);
-assert.match(withReturn.intro, /Goose at The Anthem as going/);
-assert.doesNotMatch(withReturn.intro, /Khruangbin/);
-assert.ok(withReturn.shows.some((card) => card.title === "Goose" && /next Goose date near you is at The Anthem/.test(card.body)));
-assert.doesNotMatch(renderEditionHtml(withReturn), /logged Goose|2 times|twice/);
-
-const attendanceOnly = compose(baseReader({
-  goingEventIds: ["goose-weekend"],
-  reviews: [{ artistName: "Goose", eventId: "goose-weekend", eventDate: "2026-10-10T00:00:00.000Z", text: null }],
-}), [
-  show({ id: "goose-weekend", artistName: "Goose", eventDate: "2026-10-10T00:00:00.000Z", venueName: "The Anthem" }),
-]);
-assert.match(attendanceOnly.intro, /Goose at The Anthem as going/);
-
-const alreadyWritten = compose(baseReader({
-  goingEventIds: ["goose-weekend"],
-  reviews: [{ artistName: "Goose", eventDate: "2026-10-10", text: "Wrote the review the next morning." }],
-}), [
-  show({ id: "goose-weekend", artistName: "Goose", eventDate: "2026-10-10T00:00:00.000Z", venueName: "The Anthem" }),
-]);
-assert.doesNotMatch(alreadyWritten.intro, /as going/);
-assert.match(alreadyWritten.intro, /If you did, write a review/);
-
-const similarReader = baseReader({
+assert.match(withReturn.headline, /Goose is back on the calendar/);
+assert.match(withReturn.intro, /reviewed Goose 2 times/i);
+assert.ok(withReturn.shows.some((card) => card.title === "Goose" && /reviewed Goose 2 times|another chance/i.test(card.body)));
+assert.equal(withReturn.shows.some((card) => card.title === "Goose" && /2026-10-10/.test(card.eyebrow)), false, "past going date is not recommended as upcoming");
+const goingSoon = compose(baseReader({
   firstName: "Sam",
-  lifetimeShowCount: 2,
-  fiveStarCount: 1,
+  goingEventIds: ["goose-next"],
   reviews: gooseReviews,
+}), [
+  show({ id: "goose-next", artistName: "Goose", eventDate: "2026-12-02T00:00:00.000Z", venueName: "The Anthem", genres: ["jam"] }),
+]);
+assert.match(goingSoon.shows.find((card) => card.title === "Goose")?.body ?? "", /Already marked going/i);
+
+const rotation = compose(baseReader({
+  topArtists: ["Goose"],
+  genres: ["jam"],
+  recentSourceUrls: ["https://pitchfork.com/news/goose"],
+  recentListenKeys: ["Circles Around the Sun, Hallucinate"],
+}), [], {
+  news: [
+    { id: "goose-news", title: "Goose announces a winter run", url: "https://pitchfork.com/news/goose", source: "Pitchfork", publishedAt: "2026-10-10T12:00:00.000Z", summary: "Goose added winter dates, with the routing and on-sale note published at the source." },
+    { id: "fresh", title: "Goose shares a new rehearsal clip", url: "https://relix.com/news/goose-fresh", source: "Relix", publishedAt: "2026-10-11T12:00:00.000Z", summary: "Goose shared a rehearsal clip ahead of the next run, with the full video posted by the band." },
+  ],
 });
-const similarEvents = [
-  show({ id: "eggy", artistName: "Eggy", genres: ["jam"], venueName: "The Atlantis", eventDate: "2026-11-18T00:00:00.000Z" }),
-  show({ id: "spafford", artistName: "Spafford", genres: ["jam"], venueName: "9:30 Club", eventDate: "2026-11-19T00:00:00.000Z" }),
-  show({ id: "pop", artistName: "Pop Act", genres: ["pop"], venueName: "Echostage", eventDate: "2026-11-20T00:00:00.000Z" }),
-];
-const similarNow = compose(similarReader, similarEvents);
-const similarLater = composeEdition({
-  reader: similarReader,
-  events: similarEvents,
-  news: [],
-  listens: [],
-  sendAt,
-  editionDate: "2026-10-20",
-  issueNumber: 5,
-  retrievedAt,
-})!;
-const lane = (edition: NonNullable<ReturnType<typeof compose>>) =>
-  edition.shows.find((card) => /similar lane/.test(card.body) && /Goose/.test(card.body))?.title;
-assert.ok(lane(similarNow));
-assert.equal(lane(similarNow) === "Pop Act", false);
-assert.notEqual(lane(similarNow), lane(similarLater));
-assert.doesNotMatch(renderEditionHtml(similarNow), /logged Goose|2 times|newest night/);
+assert.equal(rotation.updates.some((story) => story.ctaUrl === "https://pitchfork.com/news/goose"), false);
+assert.ok(rotation.updates.some((story) => story.ctaUrl === "https://relix.com/news/goose-fresh"));
+assert.ok(rotation.qualityReport.personalizationEvidence.some((line) => /Recent-edition repeat filter/.test(line)));
 
 const fresh = compose(baseReader({
   reviews: [{ artistName: "Goose", venueName: "The Anthem", eventDate: "2026-10-11T00:00:00.000Z", rating: 5, text: "The room stayed loud." }],
 }), []);
-assert.match(fresh.yourSynth?.body ?? "", /newest night/);
-assert.match(fresh.yourSynth?.body ?? "", /Goose/);
-assert.doesNotMatch(fresh.yourSynth?.body ?? "", /2 times|logged Goose/);
+assert.equal(fresh.yourSynth, undefined);
+assert.equal(fresh.history, undefined);
+assert.doesNotMatch(renderEditionHtml(fresh), /newest night|Fur Elise|85 saved/);
+assert.match(fresh.headline, /outside your usual rotation|Goose|new sounds|rabbit hole/i);
 
 console.log("newsletter quality checks passed");

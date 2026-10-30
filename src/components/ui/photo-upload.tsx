@@ -550,7 +550,7 @@ export function SinglePhotoUpload({
   onChange,
   userId,
   bucket,
-  maxSizeMB = 25,
+  maxSizeMB = 8,
   label = 'Photo',
   helperText,
   className,
@@ -559,9 +559,10 @@ export function SinglePhotoUpload({
 }: SinglePhotoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [showUploadOptions, setShowUploadOptions] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
+  const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
   const [isCropOpen, setIsCropOpen] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -608,10 +609,14 @@ const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
 
     // Close upload options modal
     setShowUploadOptions(false);
+    setError(null);
 
     // Validate file
     const validation = storageService.validateImage(file, { maxSizeMB });
     if (!validation.valid) {
+      setError(validation.error || "That photo can't be uploaded.");
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
       return;
     }
 
@@ -619,6 +624,7 @@ const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
     reader.onload = () => {
       const src = reader.result as string | null;
       if (!src) {
+        setError("Couldn't read that photo. Try another file.");
         resetCropState();
         return;
       }
@@ -626,6 +632,7 @@ const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
       setIsCropOpen(true);
     };
     reader.onerror = () => {
+      setError("Couldn't read that photo. Try another file.");
       resetCropState();
     };
     reader.readAsDataURL(file);
@@ -635,21 +642,23 @@ const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
     if (!value) return;
 
     try {
+      setError(null);
       const path = storageService.getPathFromUrl(value, bucket);
       if (path) {
         await storageService.deletePhoto(bucket, path);
       }
       onChange(null);
-
-      } catch (error) {
-      console.error('Delete error:', error);
-      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError("Couldn't remove that photo. Try again.");
+    }
   };
 
   const handleCropSave = async () => {
     if (!pendingImageSrc || !croppedAreaPixels) return;
 
     setUploading(true);
+    setError(null);
     try {
       const blob = await getCroppedBlob(pendingImageSrc, croppedAreaPixels, {
         mimeType: 'image/jpeg',
@@ -671,9 +680,17 @@ const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
       }
 
       resetCropState();
-    } catch (error) {
-      console.error('Upload error:', error);
-      } finally {
+    } catch (err) {
+      console.error('Upload error:', err);
+      const message = err instanceof Error ? err.message : '';
+      if (/exceeds|too large|entitytoo large|413/i.test(message)) {
+        setError(`Photo is too large. Maximum size is ${maxSizeMB}MB.`);
+      } else if (/mime|file type|invalid/i.test(message)) {
+        setError('That file type is not supported. Use JPG, PNG, or WEBP.');
+      } else {
+        setError("Photo didn't upload. Check your connection and try again.");
+      }
+    } finally {
       setUploading(false);
     }
   };
@@ -741,6 +758,7 @@ const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
             )}
           </Button>
           {helperText && <p className="text-xs text-muted-foreground mt-2">{helperText}</p>}
+          {error && <p className="text-xs text-destructive mt-2">{error}</p>}
         </div>
       </div>
 
@@ -861,6 +879,7 @@ const [pendingImageSrc, setPendingImageSrc] = useState<string | null>(null);
             </div>
 
             <div className="px-5 pb-6 bg-background">
+              {error && <p className="text-xs text-destructive text-center mb-3">{error}</p>}
               <div className="flex items-center justify-center gap-1.5">
                 <Button
                   type="button"

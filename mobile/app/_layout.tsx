@@ -557,6 +557,7 @@ export default function RootLayout() {
       seg0 === 'my-events' ||
       seg0 === 'settings' ||
       seg0 === 'app-menu' ||
+      seg0 === 'admin' || // TOP SECRET Lauren-only; still requires auth before gate
       seg0 === 'connect' ||
       seg0 === 'user' ||
       seg0 === 'artist' ||
@@ -637,6 +638,8 @@ export default function RootLayout() {
       <Stack.Screen name="my-events" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="app-menu" options={{ headerShown: false, animation: 'slide_from_right' }} />
+      {/* TOP SECRET: Lauren-only admin WebView. Route is fail-safe gated in admin.tsx. */}
+      <Stack.Screen name="admin" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="i/[code]" options={{ headerShown: false, gestureEnabled: false }} />
     </Stack>
     </BrowseLocationProvider>

@@ -1,4 +1,4 @@
-/** Offline regression checks. Run with Node 24 + supplied extension resolver (see README). */
+/** Offline regression checks for recommendation-first generation. Run: npx tsx scripts/test-newsletter-regeneration.ts */
 import assert from 'node:assert/strict';
 import { generateDraftsFromSource } from '../src/lib/newsletterEdition/gather';
 import { regenerateDecision, canSendDraft } from '../src/lib/newsletterEdition/gate';
@@ -11,14 +11,14 @@ const generated = await generateDraftsFromSource(empty, now, '2026-10-12');
 assert.equal(generated.editionDate, '2026-10-12', 'explicit edition must not roll to another day');
 assert.equal(generated.drafts.length, 135, 'every eligible sparse reader must receive a reviewable draft');
 assert.equal(generated.held, 0);
-assert.match(generated.drafts[0].html, /Build your live music timeline/);
-assert.doesNotMatch(generated.drafts[0].html, /Tickets are listed as available/);
+assert.match(generated.drafts[0].html, /The listening detour|Explore concerts on Synth|Set your city/);
+assert.match(generated.drafts[0].html, /synth-newsletter-writer-8/);
+assert.doesNotMatch(generated.drafts[0].html, /Tickets are listed as available|After the encore|Build your live music timeline/);
 assert.notEqual(generated.drafts[0].html, generated.drafts[1].html);
 
 const news = [{ id: 'story', title: 'Festival announces its lineup', url: 'https://example.com/music', created_at: '2026-10-06T12:00:00Z', summary: 'The festival posted its lineup and ticket links on the official site this week.' }];
 const general = await generateDraftsFromSource({ ...empty, news }, now);
-assert.match(general.drafts[0].html, /Festival announces its lineup/);
-assert.match(general.drafts[0].html, /posted its lineup/);
+assert.doesNotMatch(general.drafts[0].html, /Festival announces its lineup/, 'unrelated filler news is omitted for empty accounts');
 assert.doesNotMatch(general.drafts[0].html, /artist you already follow|recent music story/);
 const bare = await generateDraftsFromSource({ ...empty, news: [{ id: 'bare', title: 'Untitled blurb', url: 'https://example.com/bare', created_at: '2026-10-06T12:00:00Z' }] }, now);
 assert.doesNotMatch(bare.drafts[0].html, /Untitled blurb|recent music story/);
@@ -27,16 +27,14 @@ assert.doesNotMatch(stale.drafts[0].html, /Festival announces its lineup/);
 
 const reviews = Array.from({ length: 13 }, (_, index) => ({ user_id: users[0].user_id, user_created_artists: { name: `Manual artist ${index}` }, venues: { name: 'Venue' }, Event_date: '2026-09-01', rating: index < 7 ? 5 : 4 }));
 const active = await generateDraftsFromSource({ ...empty, reviews }, now);
-assert.match(active.drafts[0].html, /did you see anyone new this weekend/i);
-assert.match(active.drafts[0].html, /write a review/i);
-assert.doesNotMatch(active.drafts[0].html, /newest night on your timeline|13 shows logged/);
-assert.match(active.drafts[0].html, /Manual artist/);
+assert.doesNotMatch(active.drafts[0].html, /did you see anyone new this weekend|write a review|newest night|13 shows logged/i);
+assert.match(active.drafts[0].html, /Manual artist|outside your usual rotation|new sounds|rabbit hole/i);
 const streaming = await generateDraftsFromSource({ ...empty, stats: [
   { user_id: users[0].user_id, top_artists: ['Wilco'], top_genres: ['rock'], listens: [{ artistName: 'Wilco', trackName: 'Jesus, Etc.', url: 'https://open.spotify.com/search/Wilco%20Jesus%20Etc' }] },
   { user_id: users[0].user_id, top_artists: [{ name: 'Goose' }], top_genres: [{ genre: 'jam' }], listens: [{ artistName: 'Goose', trackName: 'Arcadia', url: 'https://open.spotify.com/search/Goose%20Arcadia' }] },
 ] }, now);
 assert.doesNotMatch(streaming.drafts[0].html, /Jesus, Etc\.|Arcadia/);
-assert.match(streaming.drafts[0].html, /Circles Around the Sun|Lettuce|Medeski Martin|Wilco|Khruangbin|Alabama Shakes/);
+assert.match(streaming.drafts[0].html, /On your next listen|The listening detour/);
 assert.notEqual(streaming.drafts[0].html, generated.drafts[0].html);
 const duplicates = await generateDraftsFromSource({ ...empty, users: [...users, { user_id: 'duplicate', email: 'USER0@example.com' }] }, now);
 assert.equal(duplicates.drafts.length, 135);
@@ -52,4 +50,4 @@ const rows = await readAll(() => ({ range: async (from: number, to: number) => {
 assert.equal(rows.length, 1201);
 assert.equal(pages, 3);
 await assert.rejects(readAll(() => ({ range: async () => ({ data: null, error: { message: 'database unavailable' } }) }), 'Reviews'), /Reviews: database unavailable/);
-console.log('PASS: 135 recipients; explicit edition; honest fallback; full history; custom artists; streaming merge; deduplication; approval reset; pagination; query errors.');
+console.log('PASS: 135 recipients; explicit edition; recommendation-first fallback; custom artists; streaming merge; deduplication; approval reset; pagination; query errors.');
