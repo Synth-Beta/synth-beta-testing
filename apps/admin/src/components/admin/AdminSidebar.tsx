@@ -51,7 +51,7 @@ const ADMIN_NAV: { label: string; items: AdminNavItem[] }[] = [
     ],
   },
   {
-    label: 'Emails',
+    label: 'Newsletter',
     items: [
       { tab: 'email-analytics', label: 'Email Analytics', icon: BarChart3 },
       { tab: 'newsletter-builder', label: 'Newsletter Builder', icon: Newspaper },
