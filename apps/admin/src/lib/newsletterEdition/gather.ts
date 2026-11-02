@@ -4,6 +4,7 @@ import { renderEditionHtml } from "./render";
 import { contentHash } from "./gate";
 import { nextEditionDate, editionSendAt } from "./time";
 import type { ComposedEdition, EditionEvent, EditionListen, EditionNews, EditionReader, EditionReview } from "./types";
+import { excludesFromVetoes, type NewsletterContentVeto } from "./vetoes";
 
 type Db = { from: (table: string) => any };
 
@@ -108,9 +109,11 @@ export const generateDraftsFromSource = async (
     events: any[];
     publicFives: any[];
     listens?: EditionListen[];
+    vetoes?: NewsletterContentVeto[];
   },
   now = new Date(),
-  targetEditionDate = nextEditionDate(now)
+  targetEditionDate = nextEditionDate(now),
+  options: { userIds?: string[] } = {},
 ): Promise<{
   editionDate: string;
   retrievedAt: string;
@@ -119,6 +122,8 @@ export const generateDraftsFromSource = async (
 }> => {
   const editionDate = targetEditionDate;
   const retrievedAt = now.toISOString();
+  const onlyUsers = options.userIds?.length ? new Set(options.userIds) : null;
+  const vetoes = source.vetoes ?? [];
   const news: EditionNews[] = (source.news ?? [])
     .filter((row) => httpUrl(row.url) && row.title)
     .map((row) => ({
@@ -190,7 +195,9 @@ export const generateDraftsFromSource = async (
     const email = String(user.email ?? "").trim().toLowerCase();
     if (!userId || user.is_bot === true || (user.account_status && user.account_status !== "active")
       || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || seenEmails.has(email)) continue;
+    if (onlyUsers && !onlyUsers.has(userId)) continue;
     seenEmails.add(email);
+    const excludes = excludesFromVetoes(vetoes, userId);
     const reviews = reviewsByUser.get(userId) ?? [];
     const reader: EditionReader = {
       userId,
@@ -229,6 +236,9 @@ export const generateDraftsFromSource = async (
       editionDate,
       issueNumber: 1,
       retrievedAt,
+      excludedUrls: excludes.urls,
+      excludedListenKeys: excludes.listenKeys,
+      excludedConnectArtists: excludes.connectArtists,
     });
     if (!composed) {
       held += 1;

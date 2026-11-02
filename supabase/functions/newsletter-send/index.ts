@@ -25,6 +25,8 @@ type NewsletterSendAction =
   | "upsert_drafts"
   | "set_draft_approval"
   | "approve_all_drafts"
+  | "record_content_veto"
+  | "list_content_vetoes"
   | "send_test"
   | "send_batch";
 
@@ -395,6 +397,11 @@ serve(async (req) => {
       }
       const listens = await lookupRecordings(loaded.events.map((event) => String(event.artists?.name ?? event.artist_name ?? "")));
       const publicFives = await readAll(() => adminClient.from("reviews").select("user_id, artists(name)").eq("is_public", true).eq("is_draft", false).gte("rating", 5).order("user_id"), "Load community reviews");
+      const vetoRows = await adminClient
+        .from("newsletter_content_vetoes")
+        .select("content_key, kind, scope, user_id, reason, label")
+        .order("created_at", { ascending: false });
+      if (vetoRows.error) return json(500, { ok: false, error: `Load newsletter vetoes: ${vetoRows.error.message}` });
       return json(200, {
         ok: true,
         users: recipients.map((user) => {
@@ -417,7 +424,60 @@ serve(async (req) => {
         events: loaded.events,
         listens,
         publicFives,
+        vetoes: vetoRows.data ?? [],
       });
+    }
+
+    if (action === "list_content_vetoes") {
+      const { data, error } = await adminClient
+        .from("newsletter_content_vetoes")
+        .select("id, content_key, kind, scope, user_id, reason, label, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) return json(500, { ok: false, error: error.message });
+      return json(200, { ok: true, vetoes: data ?? [] });
+    }
+
+    if (action === "record_content_veto") {
+      const reason = String(body?.reason ?? "").trim();
+      const kind = String(body?.kind ?? "").trim();
+      const label = String(body?.label ?? "").trim();
+      const userId = body?.userId ? String(body.userId).trim() : null;
+      const keys = Array.isArray(body?.contentKeys)
+        ? [...new Set(body.contentKeys.map((value: unknown) => String(value ?? "").trim()).filter(Boolean))]
+        : [];
+      if (reason !== "bad" && reason !== "unfit") {
+        return json(400, { ok: false, error: "reason must be bad or unfit." });
+      }
+      if (!["event", "news", "listen", "account"].includes(kind)) {
+        return json(400, { ok: false, error: "kind must be event, news, listen, or account." });
+      }
+      if (!keys.length) return json(400, { ok: false, error: "contentKeys are required." });
+      if (reason === "unfit" && !userId) {
+        return json(400, { ok: false, error: "userId is required for an unfit veto." });
+      }
+      const scope = reason === "bad" ? "global" : "user";
+      const inserted = [];
+      for (const content_key of keys) {
+        const attempt = await adminClient
+          .from("newsletter_content_vetoes")
+          .insert({
+            content_key,
+            kind,
+            scope,
+            user_id: scope === "user" ? userId : null,
+            reason,
+            label,
+            created_by: auth.userId,
+          })
+          .select("id, content_key, kind, scope, user_id, reason, label")
+          .maybeSingle();
+        if (attempt.error && !/duplicate|unique/i.test(attempt.error.message)) {
+          return json(500, { ok: false, error: attempt.error.message });
+        }
+        if (attempt.data) inserted.push(attempt.data);
+      }
+      return json(200, { ok: true, vetoes: inserted, recorded: inserted.length });
     }
 
     if (action === "list_drafts") {

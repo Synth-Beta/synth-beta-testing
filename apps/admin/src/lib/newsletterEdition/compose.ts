@@ -50,7 +50,8 @@ const localStory = (news: EditionNews, reader: EditionReader) => {
   return Boolean(location.length >= 4 && artistMention(news.title, location));
 };
 
-export const composeEdition = ({ reader, events, news, listens, sendAt, editionDate, issueNumber, retrievedAt }: {
+export const composeEdition = ({ reader, events, news, listens, sendAt, editionDate, issueNumber, retrievedAt,
+  excludedUrls = [], excludedListenKeys = [], excludedConnectArtists = [] }: {
   reader: EditionReader;
   events: EditionEvent[];
   news: EditionNews[];
@@ -59,14 +60,21 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   editionDate: string;
   issueNumber: number;
   retrievedAt: string;
+  /** Hard bans (vetoes + caller excludes). Never featured, unlike soft recent-url skips. */
+  excludedUrls?: string[];
+  excludedListenKeys?: string[];
+  excludedConnectArtists?: string[];
 }): ComposedEdition | null => {
   const sources: EditionSource[] = [];
   const warnings: string[] = [];
   const featuredArtists: string[] = [];
   const usedArtists = new Set<string>();
   const useArtist = (artist: string) => { const id = key(artist); if (!id || usedArtists.has(id)) return false; usedArtists.add(id); featuredArtists.push(artist); return true; };
+  const bannedUrls = new Set(excludedUrls.map((url) => url.trim()).filter(Boolean));
   const pastUrls = new Set((reader.recentSourceUrls ?? []).map((url) => url.trim()));
-  const pastListenKeys = new Set((reader.recentListenKeys ?? []).map(key));
+  const bannedListenKeys = new Set(excludedListenKeys.map(key).filter(Boolean));
+  const pastListenKeys = new Set((reader.recentListenKeys ?? []).map(key).filter(Boolean));
+  const bannedConnect = new Set(excludedConnectArtists.map(key).filter(Boolean));
   const tasteGenres = inferTasteGenres(reader).map(key);
   const ranked = rankArtists(reader.reviews);
   const preferred = readerArtists(reader);
@@ -79,7 +87,8 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   // Factual local event recommendations only. Never borrow a different city's
   // concert listings or promote a resale site as an official ticket link.
   const candidates = events.filter((event) => event.id && event.artistName && event.venueName && event.city &&
-    isUpcoming(event.eventDate, sendAt, event.state) && validUrl(event.ticketUrl) && isNear(event));
+    isUpcoming(event.eventDate, sendAt, event.state) && validUrl(event.ticketUrl) && isNear(event) &&
+    !bannedUrls.has(event.ticketUrl ?? ""));
   const valueOf = (event: EditionEvent) => {
     const n = repeatCount(reader, event.artistName);
     const followed = (reader.followedArtists ?? []).some((artist) => key(artist) === key(event.artistName));
@@ -127,7 +136,7 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   // News only appears when there is a defensible personal or local connection.
   // A generic rock/pop headline must not be sent to a jam fan as "their news".
   // Sports / football coverage is excluded unless the story also has a music angle.
-  const recent = news.filter((item) => validUrl(item.url) && !pastUrls.has(item.url) &&
+  const recent = news.filter((item) => validUrl(item.url) && !bannedUrls.has(item.url) && !pastUrls.has(item.url) &&
     isMusicRelatedStory(item) &&
     Number.isFinite(Date.parse(item.publishedAt)) && Date.parse(item.publishedAt) <= sendAt.getTime() &&
     sendAt.getTime() - Date.parse(item.publishedAt) <= NEWS_WINDOW_MS);
@@ -166,6 +175,7 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   // to the recording, never invents a ticket URL or a deep link.
   const localDiscoveries = listens
     .filter((pick) => pick.artistName && pick.trackName && validUrl(pick.url) &&
+      !bannedUrls.has(pick.url ?? "") && !bannedUrls.has(pick.sourceUrl ?? "") &&
       !preferred.includes(key(pick.artistName)) && !usedArtists.has(key(pick.artistName)))
     .map((pick) => ({ pick, event: events.find((event) => key(event.artistName) === key(pick.artistName) &&
         isUpcoming(event.eventDate, sendAt, event.state) && isNear(event) &&
@@ -174,14 +184,17 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
     .filter((row): row is { pick: EditionListen; event: EditionEvent } => Boolean(row.event))
     .sort((a, b) => Number(Boolean(b.event.ticketUrl)) - Number(Boolean(a.event.ticketUrl)) ||
       a.event.eventDate.localeCompare(b.event.eventDate))
-    .filter(({ pick }) => !pastListenKeys.has(key(`${pick.artistName}, ${pick.trackName}`)))
-    .slice(0, 1)
-    .map(({ pick, event }) => ({ ...pick, albumName: "", evergreen: false,
+      .filter(({ pick }) => !bannedListenKeys.has(key(`${pick.artistName}, ${pick.trackName}`)) &&
+        !pastListenKeys.has(key(`${pick.artistName}, ${pick.trackName}`)))
+      .slice(0, 1)
+      .map(({ pick, event }) => ({ ...pick, albumName: "", evergreen: false,
       sourceUrl: validUrl(pick.sourceUrl) || validUrl(pick.url)!, genres: event.genres ?? [],
       reason: `There's a ${pick.artistName} show listed around ${event.city}. This is a way to check out the sound before you make plans. Ticket details need to be checked separately.` }));
   const playlist = [...localDiscoveries, ...editorialListens(editionDate, tasteGenres, reader.userId)].filter((pick) =>
     Boolean(pick.trackName && validUrl(pick.url)) && !usedArtists.has(key(pick.artistName)) &&
-    !preferred.includes(key(pick.artistName)));
+    !preferred.includes(key(pick.artistName)) &&
+    !bannedUrls.has(pick.url ?? "") && !bannedUrls.has(pick.sourceUrl ?? "") &&
+    !bannedListenKeys.has(key(`${pick.artistName}, ${pick.trackName}`)));
   const freshPicks = playlist.filter((pick) => !pastListenKeys.has(key(`${pick.artistName}, ${pick.trackName}`)));
   const choices = freshPicks.length >= 2 ? freshPicks : [...freshPicks, ...playlist.filter((pick) => !freshPicks.includes(pick))];
   const picks = choices.filter((pick, index, arr) => arr.findIndex((other) => key(other.artistName) === key(pick.artistName)) === index).slice(0, 2);
@@ -206,6 +219,7 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   // Only make a social claim when there is actually cross-user public review evidence.
   // No more saved-count filler or a second generic app invitation.
   const sharedArtist = reader.otherFiveStarArtists.find((artist) => !usedArtists.has(key(artist)) &&
+    !bannedConnect.has(key(artist)) &&
     reader.reviews.some((review) => key(review.artistName) === key(artist) && (review.rating ?? 0) >= 5));
   const connect: StoryCard | undefined = sharedArtist ? {
     eyebrow: "Your people are here",
