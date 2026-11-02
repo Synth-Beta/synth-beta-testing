@@ -1,6 +1,6 @@
 /**
- * Daily JamBase ingest report for Synth Admin Bot.
- * Reads the stored jambase_ingest_snapshot row — no sync-run table.
+ * JamBase ingest Slack reports for Synth Admin Bot.
+ * Posts when a sync starts and when it finishes (success or failure).
  * Channel: SLACK_ADMIN_BOT_EVENT_HYGIENE_CHANNEL, default C0CBGCHC325.
  */
 
@@ -21,7 +21,7 @@ const ISSUE_LABELS = {
   identifier: 'missing JamBase identifier',
 };
 
-let postedThisProcess = false;
+const postedKinds = new Set();
 
 function escapeSlack(text) {
   return String(text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -54,7 +54,30 @@ function gapLines(missing, whole) {
   return lines;
 }
 
-export function formatIngestSuccess(health, samples = []) {
+function formatDuration(startedAt) {
+  if (!startedAt) return null;
+  const ms = Date.now() - new Date(startedAt).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const totalSec = Math.round(ms / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
+export function formatIngestStarted(health, startedAt) {
+  const events = health?.events || {};
+  return [
+    '*JamBase ingest started*',
+    `*Started at:* ${when(startedAt || new Date().toISOString())}`,
+    `*Last event write:* ${when(events.latest_updated_at)}`,
+    `*JamBase watermark:* ${when(events.latest_modified_at)}`,
+  ].join('\n');
+}
+
+export function formatIngestSuccess(health, samples = [], startedAt) {
   const events = health?.events || {};
   const artists = health?.artists || {};
   const venues = health?.venues || {};
@@ -66,8 +89,10 @@ export function formatIngestSuccess(health, samples = []) {
   const failed = Number(health?.failed_pages || 0);
   const clean = eventGaps.length === 0 && artistGaps.length === 0 && venueGaps.length === 0 && failed === 0;
 
+  const duration = formatDuration(startedAt);
   const lines = [
     '*JamBase ingest complete*',
+    duration ? `*Duration:* ${duration}` : null,
     `*Events:* ${count(events.created_26h)} new, ${count(events.updated_26h)} updated in the last 26 hours`,
     `*Artists:* ${count(artists.created_26h)} new, ${count(artists.updated_26h)} updated`,
     `*Venues:* ${count(venues.created_26h)} new, ${count(venues.updated_26h)} updated`,
@@ -78,7 +103,7 @@ export function formatIngestSuccess(health, samples = []) {
     `*Upcoming events clean:* ${events.clean_pct ?? 0}% (${count(events.clean)} / ${count(hygieneUpcoming)})`,
     `*Artists clean:* ${artists.clean_pct ?? 0}% (${count(artists.clean)} / ${count(artists.total)})`,
     `*Venues clean:* ${venues.clean_pct ?? 0}% (${count(venues.clean)} / ${count(venues.total)})`,
-  ];
+  ].filter((line) => line != null);
   if (festivalsExcluded > 0) {
     lines.push(`*Festivals excluded:* ${count(festivalsExcluded)}`);
   }
@@ -107,19 +132,6 @@ export function formatIngestFailure(errorText) {
   return [
     '*JamBase ingest failed*',
     `*Error:* ${escapeSlack(errorText || 'unknown error')}`,
-  ].join('\n');
-}
-
-export function formatIngestMissed(health) {
-  const events = health?.events || {};
-  const hygieneUpcoming = Number(events.hygiene_upcoming ?? events.upcoming ?? 0);
-  return [
-    '*JamBase ingest did not update the catalog*',
-    `No JamBase event has been updated since ${when(health?.cron_start)}.`,
-    `*Last event write:* ${when(events.latest_updated_at)}`,
-    `*JamBase watermark:* ${when(events.latest_modified_at)}`,
-    `*Unresolved failed pages:* ${count(health?.failed_pages)}`,
-    `*Upcoming events clean:* ${events.clean_pct ?? 0}% (${count(events.clean)} / ${count(hygieneUpcoming)})`,
   ].join('\n');
 }
 
@@ -171,23 +183,32 @@ async function postSlack(text) {
 }
 
 /**
- * @param {{ kind: 'success' | 'failure' | 'missed', error?: string, health?: object }} opts
+ * @param {{ kind: 'started' | 'success' | 'failure', error?: string, health?: object, startedAt?: string }} opts
  */
 export async function postEventIngestReport(opts) {
-  if (postedThisProcess) return { ok: false, error: 'already posted' };
-  postedThisProcess = true;
+  const kind = opts.kind || 'success';
+  if (postedKinds.has(kind)) return { ok: false, error: `already posted ${kind}` };
+  postedKinds.add(kind);
 
   try {
     let text;
-    if (opts.kind === 'failure') {
+    if (kind === 'failure') {
       text = formatIngestFailure(opts.error);
-    } else if (opts.kind === 'missed') {
-      text = formatIngestMissed(opts.health || (await fetchIngestHealth()));
+    } else if (kind === 'started') {
+      let health = opts.health;
+      if (!health) {
+        try {
+          health = await fetchIngestHealth();
+        } catch (err) {
+          console.warn('[event-ingest-report] start health lookup failed', err.message);
+        }
+      }
+      text = formatIngestStarted(health, opts.startedAt);
     } else {
       try {
         const health = opts.health || (await fetchIngestHealth());
         const samples = await fetchHygieneSamples();
-        text = formatIngestSuccess(health, samples);
+        text = formatIngestSuccess(health, samples, opts.startedAt);
       } catch (err) {
         text = formatIngestFailure(`Sync finished, but the hygiene report failed: ${err.message}`);
       }
@@ -197,19 +218,11 @@ export async function postEventIngestReport(opts) {
     if (!posted.ok) {
       console.warn('[event-ingest-report] Slack post failed', posted.error);
     } else {
-      console.log(`[event-ingest-report] posted ${opts.kind} to ${posted.channel}`);
+      console.log(`[event-ingest-report] posted ${kind} to ${posted.channel}`);
     }
     return posted;
   } catch (err) {
     console.warn('[event-ingest-report] report failed', err.message);
     return { ok: false, error: err.message };
   }
-}
-
-/** Missed-run check. Posts only when today's 09:30 UTC window has no event write. */
-export async function postMissedIngestIfStale() {
-  const health = await fetchIngestHealth();
-  if (health?.fresh) return { ok: true, skipped: true, fresh: true };
-  const posted = await postEventIngestReport({ kind: 'missed', health });
-  return { ...posted, skipped: false, fresh: false };
 }

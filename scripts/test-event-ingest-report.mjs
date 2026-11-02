@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_HYGIENE_CHANNEL,
   formatIngestFailure,
-  formatIngestMissed,
+  formatIngestStarted,
   formatIngestSuccess,
   hygieneChannel,
 } from '../api/_lib/eventIngestReport.mjs';
@@ -70,9 +70,13 @@ assert.match(dirty, /Festivals excluded:\* 12/);
 assert.match(dirty, /Sample Show/);
 assert.doesNotMatch(dirty, /No hygiene errors/);
 
-const missed = formatIngestMissed(health);
-assert.match(missed, /did not update the catalog/);
-assert.match(missed, /09:30:00 UTC/);
+const started = formatIngestStarted(health, '2026-11-02T18:06:00.000Z');
+assert.match(started, /JamBase ingest started/);
+assert.match(started, /2026-11-02 18:06:00 UTC/);
+assert.match(started, /Last event write/);
+
+const complete = formatIngestSuccess(health, [], new Date(Date.now() - 90_000).toISOString());
+assert.match(complete, /Duration:\*/);
 
 const failed = formatIngestFailure('timeout <db>');
 assert.match(failed, /JamBase ingest failed/);

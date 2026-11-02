@@ -1815,6 +1815,7 @@ class IncrementalSync3NF {
 }
 
 // Main execution
+let ingestStartedAt = null;
 async function main() {
   // Ensure output is not buffered for launchd
   if (process.stdout.isTTY === false) {
@@ -1858,8 +1859,10 @@ async function main() {
     // dotenv not installed, assume env vars are already set
   }
 
+  ingestStartedAt = new Date().toISOString();
   console.log(`🔄 Starting Daily Incremental Sync (3NF Compliant)...`);
-  console.log(`📅 Started at: ${new Date().toISOString()}`);
+  console.log(`📅 Started at: ${ingestStartedAt}`);
+  await postEventIngestReport({ kind: 'started', startedAt: ingestStartedAt });
 
   const syncService = new JambaseSyncService();
   const incrementalSync = new IncrementalSync3NF(syncService);
@@ -1884,6 +1887,7 @@ async function main() {
     await postEventIngestReport({
       kind: 'failure',
       error: `Sync interrupted by ${signal} before the catalog refresh finished`,
+      startedAt: ingestStartedAt,
     });
     process.exit(1);
   };
@@ -1899,17 +1903,18 @@ async function main() {
     await postEventIngestReport({
       kind: 'failure',
       error: `Sync finished, but the stored report did not rebuild: ${snapshotError.message}`,
+      startedAt: ingestStartedAt,
     });
   } else {
     console.log('✅ Ingest snapshot refreshed');
-    await postEventIngestReport({ kind: 'success' });
+    await postEventIngestReport({ kind: 'success', startedAt: ingestStartedAt });
   }
 }
 
 main().catch(async (error) => {
   const errorMsg = `❌ Fatal error at ${new Date().toISOString()}: ${error.message}\n${error.stack}\n`;
   console.error(errorMsg);
-  await postEventIngestReport({ kind: 'failure', error: error.message });
+  await postEventIngestReport({ kind: 'failure', error: error.message, startedAt: ingestStartedAt });
   // Also write to error log file directly
   try {
     const projectRoot = path.resolve(__dirname, '..');

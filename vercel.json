@@ -225,10 +225,6 @@
     {
       "path": "/api/cron?job=seo-recap",
       "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron?job=jambase-ingest-report",
-      "schedule": "30 18 * * *"
     }
   ]
 }
