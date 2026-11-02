@@ -77,10 +77,6 @@ import {
 import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@synth/shared';
 import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnalyticsDashboard';
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
-import ContentCalendarDashboard from '@/components/admin/content-calendar/ContentCalendarDashboard';
-import { AiSceneGuidesAdminPanel } from '@/components/admin/AiSceneGuidesAdminPanel';
-import { BugFixListPanel } from '@/components/admin/bug-fix/BugFixListPanel';
-import NewsletterBuilder from '@/components/admin/newsletter/NewsletterBuilder';
 import NewsletterProofreader from '@/components/admin/newsletter/NewsletterProofreader';
 import { EmailAnalyticsDashboard } from '@/components/admin/emails/EmailAnalyticsDashboard';
 import {
@@ -247,24 +243,20 @@ export default function Admin() {
     () =>
       new Set([
         'users',
-        'content-calendar',
         'social',
         'seo',
         'events',
         'moderation',
         'news',
-        'bug-fix',
         'email-analytics',
-        'newsletter-builder',
         ...(canProofreadNewsletters ? ['newsletter-proof'] : []),
         'style-guide',
-        'ai-scene-guides',
       ]),
     [canProofreadNewsletters],
   );
   const activeAdminTab = ADMIN_TABS.has(searchParams.get('tab') || '')
     ? (searchParams.get('tab') as string)
-    : 'ai-scene-guides';
+    : 'users';
   const setActiveAdminTab = (tab: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -3039,10 +3031,6 @@ export default function Admin() {
             </div>
           </TabsContent>
 
-          <TabsContent value="content-calendar" className="space-y-6">
-            <ContentCalendarDashboard />
-          </TabsContent>
-
           <TabsContent value="social" className="space-y-6">
             <div className="rounded-3xl border border-pink-100 bg-pink-50/60 p-6 shadow-lg shadow-pink-50/60 space-y-6">
               <div className="flex flex-col gap-0">
@@ -3589,26 +3577,14 @@ export default function Admin() {
             <EmailAnalyticsDashboard />
           </TabsContent>
 
-          <TabsContent value="newsletter-builder" className="space-y-6">
-            <NewsletterBuilder />
-          </TabsContent>
-
           {canProofreadNewsletters ? (
             <TabsContent value="newsletter-proof" className="space-y-6">
               <NewsletterProofreader />
             </TabsContent>
           ) : null}
 
-          <TabsContent value="bug-fix" className="space-y-6">
-            <BugFixListPanel />
-          </TabsContent>
-
           <TabsContent value="style-guide" className="space-y-6">
             <AdminStyleGuidePanel />
-          </TabsContent>
-
-          <TabsContent value="ai-scene-guides" className="space-y-6">
-            <AiSceneGuidesAdminPanel />
           </TabsContent>
 
           <TabsContent value="seo" className="space-y-6">
