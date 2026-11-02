@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { editorialListens, inferTasteGenres, storyTasteScore } from "../../../../../supabase/functions/newsletter-send/editorial";
 import { eventWithinSavedLocation, NEARBY_MILES } from "../../../../../supabase/functions/newsletter-send/nearby";
-import { meaningfulSummary } from "../../../../../supabase/functions/newsletter-send/news";
+import { isMusicRelatedStory, meaningfulSummary } from "../../../../../supabase/functions/newsletter-send/news";
 import { rankArtists } from "../../../../../supabase/functions/newsletter-send/taste";
 import { formatEventWhen, formatIssueDate, isUpcoming } from "./time";
 
@@ -126,7 +126,9 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
 
   // News only appears when there is a defensible personal or local connection.
   // A generic rock/pop headline must not be sent to a jam fan as "their news".
+  // Sports / football coverage is excluded unless the story also has a music angle.
   const recent = news.filter((item) => validUrl(item.url) && !pastUrls.has(item.url) &&
+    isMusicRelatedStory(item) &&
     Number.isFinite(Date.parse(item.publishedAt)) && Date.parse(item.publishedAt) <= sendAt.getTime() &&
     sendAt.getTime() - Date.parse(item.publishedAt) <= NEWS_WINDOW_MS);
   const cleanedNews = recent.map((item) => ({ ...item, summary: meaningfulSummary(item.summary) })).filter((item) => item.summary);

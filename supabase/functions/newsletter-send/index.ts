@@ -6,8 +6,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { loadEventsNearPlaces, placeKey, rankedArtistNames, withHubPlaces, type EventQuery } from "./nearby.ts";
 import { fetchMusicNews } from "./news.ts";
 import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals, loadRecentNewsletterSignals } from "./queries.ts";
-import { sendBrevoNewsletter } from "../../../api/_lib/brevoNewsletter.ts";
-import { deliverApprovedDrafts, reconcileNewsletterDelivery, deliveryKey, type StoredDraft } from "../../../api/_lib/newsletterDelivery.ts";
+// Edge deploy only bundles this function folder — do not import from repo-root api/_lib.
+import { sendBrevoNewsletter } from "./brevoNewsletter.ts";
+import { deliverApprovedDrafts, reconcileNewsletterDelivery, deliveryKey, type StoredDraft } from "./newsletterDelivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

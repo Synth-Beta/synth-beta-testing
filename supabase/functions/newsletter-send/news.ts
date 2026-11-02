@@ -4,8 +4,53 @@ export const MUSIC_NEWS_FEEDS = [
   { source: "Pitchfork", url: "https://pitchfork.com/rss/news/" },
   { source: "Rolling Stone", url: "https://www.rollingstone.com/music/rss/" },
   { source: "NME", url: "https://www.nme.com/news/music/feed" },
-  { source: "Billboard", url: "https://www.billboard.com/feed/" },
+  // Prefer the music-news feed over the sitewide feed so sports/culture noise stays out.
+  { source: "Billboard", url: "https://www.billboard.com/music/music-news/feed/" },
 ] as const;
+
+const TRUSTED_MUSIC_SOURCES = new Set(
+  MUSIC_NEWS_FEEDS.map((feed) => feed.source.toLowerCase()),
+);
+
+/** League/sport coverage that should not appear unless the story also has a music angle. */
+const SPORTS_SIGNAL =
+  /\b(?:nfl|nba|mlb|nhl|mls|fifa|uefa|ncaa|premier league|la liga|serie a|bundesliga|champions league|super bowl|world series|stanley cup|march madness|touchdown|quarterback|wide receiver|running back|field goal|gridiron|kickoff|box score|matchday|relegation|transfer window|goalkeeper|striker|midfielder|clean sheet|playoff(?:s)?|football(?:\s+club)?|soccer|rugby|cricket|formula\s*1|\bf1\b|ufc|boxing)\b/i;
+
+/** Clear music angle, including sports crossovers like a Super Bowl / NFL halftime show. */
+const STRONG_MUSIC_SIGNAL =
+  /\b(?:songs?|singles?|albums?|eps?|lps?|mixtapes?|tracks?|playlist|remix|soundtrack|film score|music video|grammys?|billboard hot|streaming|spotify|vinyl|setlist|concerts?|festivals?|tours?|gigs?|headliners?|headlining|musicians?|singers?|songwriter|rapper|vocalist|dj set|orchestra|symphony|philharmonic|opera|jazz|punk|indie rock|jam-?bands?|new music|live album|record label|a&r|rehearsal|the band|halftime(?:\s+show)?|musical guest|national anthem|pregame performance|stadium (?:show|concert|tour))\b/i;
+
+/** Soft local-scene cues (venue calendars) — not enough to excuse a sports story. */
+const WEAK_MUSIC_SIGNAL =
+  /\b(?:music venue|concert hall|concert calendar|tour dates|on[-\s]?sale|lineup|doors open|\d{1,2}:\d{2}\s*club|club\b[^.?]{0,48}\bcalendar|calendar\b[^.?]{0,48}\bclub)\b/i;
+
+const MUSIC_JOURNALISM_URL =
+  /(?:pitchfork\.com|rollingstone\.com\/music|nme\.com\/(?:news\/)?music|billboard\.com\/(?:music|c\/music)|relix\.com|consequence\.net|stereogum\.com|thefader\.com|complex\.com\/music)/i;
+
+const storyText = (item: { title?: string | null; summary?: string | null; url?: string | null }) =>
+  `${item.title ?? ""} ${item.summary ?? ""} ${item.url ?? ""}`;
+
+/**
+ * Newsletter news must stay music-related.
+ * Football / sports stories only pass when they also have a music angle
+ * (halftime show, soundtrack, musical guest, etc.).
+ */
+export const isMusicRelatedStory = (item: {
+  title?: string | null;
+  summary?: string | null;
+  url?: string | null;
+  source?: string | null;
+}) => {
+  const text = storyText(item);
+  const sports = SPORTS_SIGNAL.test(text);
+  const strongMusic = STRONG_MUSIC_SIGNAL.test(text);
+  const weakMusic = WEAK_MUSIC_SIGNAL.test(text);
+  const musicUrl = MUSIC_JOURNALISM_URL.test(String(item.url ?? ""));
+  const trusted = TRUSTED_MUSIC_SOURCES.has(String(item.source ?? "").trim().toLowerCase());
+  if (sports) return strongMusic || musicUrl;
+  if (strongMusic || weakMusic || musicUrl || trusted) return true;
+  return false;
+};
 
 export interface RssStory {
   id: string;
@@ -104,6 +149,8 @@ export const parseRssItems = (xml: string, source: string, now = new Date()): Rs
     if (published > now.getTime() + 24 * 60 * 60 * 1000) continue;
     if (now.getTime() - published > NEWS_WINDOW_MS) continue;
     if (seen.has(link)) continue;
+    const summary = summaryOf(block);
+    if (!isMusicRelatedStory({ title, summary, url: link, source })) continue;
     seen.add(link);
     stories.push({
       id: link,
@@ -111,7 +158,7 @@ export const parseRssItems = (xml: string, source: string, now = new Date()): Rs
       url: link,
       source,
       publishedAt: new Date(published).toISOString(),
-      summary: summaryOf(block),
+      summary,
     });
   }
   return stories;

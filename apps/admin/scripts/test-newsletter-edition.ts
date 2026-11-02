@@ -9,7 +9,7 @@ import { generateEditionDrafts } from "../src/lib/newsletterEdition/gather";
 import { composeEdition } from "../src/lib/newsletterEdition/compose";
 import { eventWithinSavedLocation, milesBetween, NEARBY_MILES } from "../../../supabase/functions/newsletter-send/nearby";
 import { runEventQuery } from "../../../supabase/functions/newsletter-send/eventQuery";
-import { fetchMusicNews, parseRssItems } from "../../../supabase/functions/newsletter-send/news";
+import { fetchMusicNews, isMusicRelatedStory, parseRssItems } from "../../../supabase/functions/newsletter-send/news";
 import { canSendDraft, contentHash, deliverApprovedDrafts, planSend, regenerateDecision, type StoredDraft } from "../src/lib/newsletterEdition/gate";
 import { renderEditionHtml } from "../src/lib/newsletterEdition/render";
 import { formatEventWhen, isTenAmCentral, isUpcoming, nextEditionDate, recentWeekend } from "../src/lib/newsletterEdition/time";
@@ -357,6 +357,43 @@ const museum = composeEdition({
 assert.equal(museum.updates.length, 0);
 assert.equal(museum.features?.length ?? 0, 0);
 assert.doesNotMatch(renderEditionHtml(museum), /recent music story|details at the source/i);
+
+assert.equal(isMusicRelatedStory({
+  title: "Washington Commanders clinch a playoff berth",
+  summary: "The Commanders sealed a playoff spot with a late touchdown in a crowded NFC race.",
+  source: "DCist",
+  url: "https://dcist.com/story/commanders-playoff",
+}), false, "football-only stories stay out of the newsletter");
+assert.equal(isMusicRelatedStory({
+  title: "Wu-Tang Clan to headline Detroit Lions Thanksgiving Game halftime show",
+  summary: "The group will perform a short set during the NFL Thanksgiving halftime show.",
+  source: "Billboard",
+  url: "https://www.billboard.com/music/music-news/wu-tang-lions-halftime",
+}), true, "football stories with a real music angle still qualify");
+const footballEdition = composeEdition({
+  ...base,
+  news: [
+    {
+      id: "sports",
+      title: "Washington Commanders clinch a playoff berth",
+      url: "https://dcist.com/story/commanders-playoff",
+      source: "DCist",
+      publishedAt: "2026-10-01T12:00:00.000Z",
+      summary: "The Commanders sealed a playoff spot with a late touchdown in front of a home crowd in Washington.",
+    },
+    {
+      id: "anthem",
+      title: "Jon Batiste performs the national anthem at Commanders playoff game",
+      url: "https://www.billboard.com/music/music-news/jon-batiste-commanders-anthem",
+      source: "Billboard",
+      publishedAt: "2026-10-01T12:00:00.000Z",
+      summary: "Jon Batiste sang the national anthem before the NFL playoff kickoff in Washington.",
+    },
+  ],
+  reader: lauren,
+})!;
+assert.equal(footballEdition.updates.some((update) => /clinch a playoff berth/i.test(update.title)), false);
+assert.ok(footballEdition.updates.some((update) => /Jon Batiste|national anthem/i.test(update.title)));
 
 const calls: Array<{ table: string; filters: Record<string, unknown> }> = [];
 const catalog = [
