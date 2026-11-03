@@ -61,7 +61,7 @@ router.post('/internal/sync-events', createRateLimiter('moderate'), (req, res) =
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  // The script posts when it finishes. If it dies before that line, post from here.
+  // The script posts start + complete. If it dies before those lines, post failure from here.
   let slackReported = false;
   const noteSlack = (chunk) => {
     if (String(chunk).includes('[event-ingest-report] posted')) slackReported = true;

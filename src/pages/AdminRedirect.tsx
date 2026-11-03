@@ -12,13 +12,13 @@ function resolveCanonicalAdminUrl(): string {
   if (fromEnv) {
     return fromEnv.includes('?') || fromEnv.includes('#')
       ? fromEnv
-      : `${fromEnv.replace(/\/$/, '')}?tab=ai-scene-guides`;
+      : `${fromEnv.replace(/\/$/, '')}?tab=users`;
   }
   const base =
     import.meta.env.DEV || window.location.hostname === 'localhost'
       ? CANONICAL_ADMIN_LOCAL
       : CANONICAL_ADMIN_PROD;
-  return `${base}?tab=ai-scene-guides`;
+  return `${base}?tab=users`;
 }
 
 export default function AdminRedirect() {
@@ -49,7 +49,7 @@ export default function AdminRedirect() {
         <code>apps/admin</code>.
       </p>
       <a href={href} style={{ color: '#CC2486', fontWeight: 600 }}>
-        Continue to admin (AI Scene Guides)
+        Continue to admin
       </a>
     </div>
   );

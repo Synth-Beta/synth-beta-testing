@@ -2,12 +2,9 @@ import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3,
   BookOpen,
-  Bug,
-  CalendarDays,
   CheckCircle,
   Flag,
   LogOut,
-  Music,
   Newspaper,
   Search,
   Share2,
@@ -43,10 +40,7 @@ const ADMIN_NAV: { label: string; items: AdminNavItem[] }[] = [
   {
     label: 'Content',
     items: [
-      { tab: 'ai-scene-guides', label: 'AI Scene Guides', icon: Music },
-      { tab: 'content-calendar', label: 'Content Calendar', icon: CalendarDays },
       { tab: 'news', label: 'In the News', icon: Newspaper },
-      { tab: 'bug-fix', label: 'Bug Fix List', icon: Bug },
       { tab: 'style-guide', label: 'Style Guide', icon: BookOpen },
     ],
   },
@@ -54,7 +48,6 @@ const ADMIN_NAV: { label: string; items: AdminNavItem[] }[] = [
     label: 'Newsletter',
     items: [
       { tab: 'email-analytics', label: 'Email Analytics', icon: BarChart3 },
-      { tab: 'newsletter-builder', label: 'Newsletter Builder', icon: Newspaper },
       { tab: 'newsletter-proof', label: 'Proofread', icon: CheckCircle, proofreadOnly: true },
     ],
   },

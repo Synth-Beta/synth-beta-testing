@@ -111,7 +111,7 @@ export interface NewsletterDraftRow {
   preheader: string;
   html: string;
   content_hash: string;
-  sources: Array<{ label: string; url: string; retrievedAt?: string }>;
+  sources: Array<{ label: string; url: string; retrievedAt?: string; kind?: string }>;
   retrieved_at: string;
   status: "needs_approval" | "approved" | "sent";
   approved_content_hash: string | null;
@@ -161,3 +161,35 @@ export const approveDrafts = async (editionDate: string, draftIds?: string[]) =>
 /** Explicit admin action; sends only already approved exact-content drafts. */
 export const sendApprovedEditionNow = async (editionDate: string) =>
   invokeNewsletter({ action: "send_batch", editionDate, requestId: newRequestId() });
+
+export type NewsletterVetoReason = "bad" | "unfit";
+
+export const recordContentVeto = async (input: {
+  contentKeys: string[];
+  kind: "event" | "news" | "listen" | "account";
+  reason: NewsletterVetoReason;
+  label?: string;
+  userId?: string | null;
+}) =>
+  invokeNewsletter({
+    action: "record_content_veto",
+    contentKeys: input.contentKeys,
+    kind: input.kind,
+    reason: input.reason,
+    label: input.label ?? "",
+    userId: input.userId ?? null,
+  });
+
+export const listContentVetoes = async () => {
+  const data = await invokeNewsletter({ action: "list_content_vetoes" });
+  return (data.vetoes ?? []) as Array<{
+    id: string;
+    content_key: string;
+    kind: string;
+    scope: string;
+    user_id: string | null;
+    reason: string;
+    label: string;
+    created_at: string;
+  }>;
+};

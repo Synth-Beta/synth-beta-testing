@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { generateEditionDrafts } from "../src/lib/newsletterEdition/gather";
+import { generateDraftsFromSource, generateEditionDrafts } from "../src/lib/newsletterEdition/gather";
 import { composeEdition } from "../src/lib/newsletterEdition/compose";
 import { eventWithinSavedLocation, milesBetween, NEARBY_MILES } from "../../../supabase/functions/newsletter-send/nearby";
 import { runEventQuery } from "../../../supabase/functions/newsletter-send/eventQuery";
@@ -14,6 +14,7 @@ import { canSendDraft, contentHash, deliverApprovedDrafts, planSend, regenerateD
 import { renderEditionHtml } from "../src/lib/newsletterEdition/render";
 import { formatEventWhen, isTenAmCentral, isUpcoming, nextEditionDate, recentWeekend } from "../src/lib/newsletterEdition/time";
 import type { EditionEvent, EditionReader } from "../src/lib/newsletterEdition/types";
+import { connectVetoKey, contentKeysForSource, excludesFromVetoes } from "../src/lib/newsletterEdition/vetoes";
 
 if (process.env.NEWSLETTER_TEST_LIVE !== "1") {
   globalThis.fetch = async () => new Response("", { status: 503 });
@@ -495,5 +496,89 @@ const namedEvents = await runEventQuery({
 });
 assert.equal(namedEvents[0]?.artists?.name, "Horsegirl");
 assert.equal(namedEvents[0]?.venues?.name, "SPACE");
+
+const batisteNewsUrl = "https://www.msg.com/events/jon-batiste";
+assert.ok(laurenEdition.sources.some((source) => source.url === batisteNewsUrl));
+const bannedNews = composeEdition({
+  ...base,
+  reader: lauren,
+  excludedUrls: [batisteNewsUrl],
+})!;
+assert.equal(bannedNews.sources.some((source) => source.url === batisteNewsUrl), false, "global URL veto removes the news card");
+assert.equal(bannedNews.updates.some((update) => update.ctaUrl === batisteNewsUrl), false);
+
+const sylvanTicket = "https://impconcerts.com/event/sylvan-esso-2/";
+const bannedShow = composeEdition({
+  ...base,
+  reader: lauren,
+  excludedUrls: [sylvanTicket],
+})!;
+assert.equal(bannedShow.shows.some((show) => show.ctaUrl === sylvanTicket), false, "global URL veto removes the show card");
+
+const connectBanned = composeEdition({
+  ...base,
+  reader: { ...lauren, otherFiveStarArtists: ["Pitbull"] },
+  excludedConnectArtists: ["Pitbull"],
+})!;
+assert.equal(connectBanned.connect, undefined, "connect artist veto omits the connect card");
+assert.equal(connectBanned.sources.some((source) => source.kind === "account"), false);
+
+const vetoExcludes = excludesFromVetoes([
+  { content_key: batisteNewsUrl, kind: "news", scope: "global", user_id: null, reason: "bad" },
+  { content_key: "Glass Animals, Heat Waves", kind: "listen", scope: "user", user_id: "lauren", reason: "unfit" },
+  { content_key: connectVetoKey("Pitbull"), kind: "account", scope: "global", user_id: null, reason: "bad" },
+  { content_key: "https://other.example/listen", kind: "listen", scope: "user", user_id: "sam", reason: "unfit" },
+], "lauren");
+assert.deepEqual(vetoExcludes.urls.sort(), [batisteNewsUrl].sort());
+assert.deepEqual(vetoExcludes.listenKeys, ["glass animals, heat waves"]);
+assert.deepEqual(vetoExcludes.connectArtists, ["pitbull"]);
+assert.deepEqual(
+  contentKeysForSource({ kind: "listen", url: "https://open.spotify.com/track/1", label: "Sylvan Esso, Coffee" }).sort(),
+  ["https://open.spotify.com/track/1", "Sylvan Esso, Coffee"].sort(),
+);
+assert.deepEqual(
+  contentKeysForSource({ kind: "account", url: "https://join.getsynth.app/", label: "Other five-star fans of Pitbull" }),
+  [connectVetoKey("Pitbull")],
+);
+
+const vetoSource = {
+  users: [
+    { user_id: "lauren", email: "lauren@example.com", name: "Lauren", location_city: "Washington", location_state: "DC", account_status: "active" },
+    { user_id: "sam", email: "sam@example.com", name: "Sam", location_city: "Chicago", location_state: "IL", account_status: "active" },
+  ],
+  news: base.news,
+  reviews: [
+    { user_id: "lauren", artistName: "Jon Batiste", rating: 5, Event_date: "2026-08-21T23:00:00.000Z", venues: { name: "Wolf Trap" } },
+    { user_id: "sam", artistName: "Wilco", rating: 5, Event_date: "2025-06-01T00:00:00.000Z", venues: { name: "Riviera Theatre" } },
+  ],
+  stats: [
+    { user_id: "lauren", topArtists: ["Jon Batiste", "Glass Animals"], genres: ["pop"] },
+    { user_id: "sam", topArtists: ["Wilco"], genres: ["rock"] },
+  ],
+  events,
+  publicFives: [
+    { user_id: "other", artists: { name: "Jon Batiste" } },
+    { user_id: "other", artists: { name: "Wilco" } },
+  ],
+  listens: [],
+  vetoes: [
+    { content_key: batisteNewsUrl, kind: "news" as const, scope: "global" as const, user_id: null, reason: "bad" as const },
+    { content_key: "https://metrochicago.com/wilco", kind: "event" as const, scope: "user" as const, user_id: "sam", reason: "unfit" as const },
+  ],
+};
+const vetoEditionDate = "2026-10-05";
+const bothDrafts = await generateDraftsFromSource(vetoSource, sendAt, vetoEditionDate);
+assert.equal(bothDrafts.drafts.length, 2);
+assert.ok(bothDrafts.drafts.every((draft) => !draft.sources.some((source) => source.url === batisteNewsUrl)), "global veto applies to every draft");
+const samDraft = bothDrafts.drafts.find((draft) => draft.userId === "sam")!;
+const laurenDraft = bothDrafts.drafts.find((draft) => draft.userId === "lauren")!;
+assert.equal(samDraft.sources.some((source) => source.url === "https://metrochicago.com/wilco"), false, "user veto removes the unfit show for Sam");
+assert.ok(
+  laurenDraft.sources.some((source) => source.kind === "event") || laurenDraft.subject.length > 0,
+  "Lauren still gets a draft when only Sam has a user veto",
+);
+const onlyLauren = await generateDraftsFromSource(vetoSource, sendAt, vetoEditionDate, { userIds: ["lauren"] });
+assert.equal(onlyLauren.drafts.length, 1);
+assert.equal(onlyLauren.drafts[0]?.userId, "lauren");
 
 console.log("newsletter edition checks passed");

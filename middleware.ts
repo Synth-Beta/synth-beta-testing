@@ -85,7 +85,7 @@ export default function middleware(request: Request) {
   if (!getsynth) return next();
 
   if (path === '/admin' && !url.searchParams.has('tab')) {
-    url.searchParams.set('tab', 'ai-scene-guides');
+    url.searchParams.set('tab', 'users');
     return Response.redirect(url, 307);
   }
 

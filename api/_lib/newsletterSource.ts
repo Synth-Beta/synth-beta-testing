@@ -92,6 +92,11 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     .eq("is_draft", false)
     .gte("rating", 5)
     .order("user_id"), "Load community reviews");
+  const vetoRows = await db
+    .from("newsletter_content_vetoes")
+    .select("content_key, kind, scope, user_id, reason, label")
+    .order("created_at", { ascending: false });
+  if (vetoRows.error) throw new Error(`Load newsletter vetoes: ${vetoRows.error.message}`);
 
   return {
     users: usersWithLocation,
@@ -101,5 +106,6 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     events,
     listens,
     publicFives,
+    vetoes: vetoRows.data ?? [],
   };
 };

@@ -10,17 +10,30 @@ import { useToast } from "@/hooks/use-toast";
 import { generateDraftsFromSource } from "@/lib/newsletterEdition/gather";
 import { NEWSLETTER_WRITER_MARK } from "@/lib/newsletterEdition/render";
 import { centralCalendarDate, nextEditionDate } from "@/lib/newsletterEdition/time";
+import { contentKeysForSource } from "@/lib/newsletterEdition/vetoes";
 import {
   approveDrafts,
   listNewsletterDrafts,
   loadNewsletterSource,
   NewsletterDraftRow,
+  NewsletterVetoReason,
+  recordContentVeto,
   saveNewsletterDrafts,
   setDraftApproval,
   sendApprovedEditionNow,
 } from "@/services/newsletterSendService";
 
 type ReviewFilter = "pending" | "approved" | "sent" | "all";
+
+type VetoableSource = {
+  kind?: string;
+  label: string;
+  url: string;
+  retrievedAt?: string;
+};
+
+const VETOABLE_KINDS = new Set(["event", "news", "listen", "account"]);
+
 
 const statusLabel = (draft: NewsletterDraftRow) => {
   if (draft.status === "sent" || draft.brevo_message_id) return "Sent";
@@ -67,6 +80,7 @@ export default function NewsletterProofreader() {
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [vetoingKey, setVetoingKey] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState("");
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -265,6 +279,69 @@ export default function NewsletterProofreader() {
     }
   };
 
+  const vetoCard = async (draft: NewsletterDraftRow, source: VetoableSource, reason: NewsletterVetoReason) => {
+    const kind = source.kind as "event" | "news" | "listen" | "account";
+    if (!VETOABLE_KINDS.has(kind)) return;
+    const contentKeys = contentKeysForSource(source);
+    if (!contentKeys.length) {
+      toast({ title: "Could not veto", description: "This card has no durable content key.", variant: "destructive" });
+      return;
+    }
+    const vetoToken = `${draft.id}:${contentKeys.join("|")}:${reason}`;
+    const view = ++viewToken.current;
+    setVetoingKey(vetoToken);
+    setGenerationError(null);
+    setProgress(reason === "bad"
+      ? "Banning this card everywhere and regenerating unsent drafts…"
+      : "Marking unfit for this reader and regenerating their draft…");
+    try {
+      await recordContentVeto({
+        contentKeys,
+        kind,
+        reason,
+        label: source.label,
+        userId: reason === "unfit" ? draft.user_id : null,
+      });
+      const sourcePayload = await loadNewsletterSource();
+      // Bad content can still be selected for readers who do not have it yet, so
+      // regenerate every unsent draft in the edition once the global ban is stored.
+      const targets = reason === "bad"
+        ? drafts
+          .filter((row) => row.status !== "sent" && !row.brevo_message_id && !row.send_claimed_at)
+          .map((row) => row.user_id)
+        : [draft.user_id];
+      const uniqueTargets = [...new Set(targets)];
+      if (!uniqueTargets.length) throw new Error("No unsent drafts were available to regenerate.");
+      setProgress(`Rebuilding ${uniqueTargets.length} draft${uniqueTargets.length === 1 ? "" : "s"}…`);
+      const generated = await generateDraftsFromSource(sourcePayload, new Date(), editionDate, { userIds: uniqueTargets });
+      if (!generated.drafts.length) throw new Error("No replacement drafts were built.");
+      let replaced = 0;
+      for (let index = 0; index < generated.drafts.length; index += 5) {
+        setProgress(`Saving ${index + 1}–${Math.min(index + 5, generated.drafts.length)} of ${generated.drafts.length}…`);
+        const result = await saveNewsletterDrafts(editionDate, generated.drafts.slice(index, index + 5));
+        replaced += Number(result.replaced ?? 0);
+      }
+      if (view !== viewToken.current) return;
+      await load(editionDate);
+      toast({
+        title: reason === "bad" ? "Card banned" : "Card replaced for this reader",
+        description: reason === "bad"
+          ? `Banned permanently and refreshed ${replaced} unsent draft${replaced === 1 ? "" : "s"}.`
+          : "Rebuilt this newsletter without that card.",
+      });
+    } catch (error: unknown) {
+      setGenerationError(error instanceof Error ? error.message : "Could not veto this card.");
+      toast({
+        title: "Could not veto card",
+        description: error instanceof Error ? error.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setVetoingKey(null);
+      setProgress("");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -430,6 +507,68 @@ export default function NewsletterProofreader() {
                   <iframe title="Recipient newsletter" srcDoc={selected.html} className="h-[760px] w-full bg-white" />
                 </div>
                 {(() => {
+                  const cards = (selected.sources ?? []).filter((source) => VETOABLE_KINDS.has(String((source as VetoableSource).kind ?? ""))) as VetoableSource[];
+                  const canVeto = selected.status !== "sent"
+                    && selected.delivery_state !== "uncertain"
+                    && !selected.send_claimed_at
+                    && !selected.brevo_message_id;
+                  if (!cards.length) return null;
+                  return (
+                    <div className="space-y-3 rounded-md border p-3">
+                      <div>
+                        <p className="text-sm font-medium">Cards</p>
+                        <p className="text-xs text-muted-foreground">
+                          Ban a bad card everywhere, or retry one that does not fit this reader.
+                        </p>
+                      </div>
+                      {cards.map((source) => {
+                        const keys = contentKeysForSource(source);
+                        const busy = Boolean(vetoingKey) || regenerating || saving || sending;
+                        const thisBusy = vetoingKey?.startsWith(`${selected.id}:${keys.join("|")}:`);
+                        return (
+                          <div key={`${source.kind}:${source.label}:${source.url}`} className="space-y-2 rounded-md border bg-muted/30 p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <Badge variant="secondary">{source.kind}</Badge>
+                                <p className="mt-1 text-sm font-medium">{source.label}</p>
+                                {source.url ? (
+                                  <a className="break-all text-xs text-muted-foreground underline" href={source.url} target="_blank" rel="noreferrer">
+                                    {source.url}
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
+                            {canVeto ? (
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="destructive"
+                                  disabled={busy}
+                                  onClick={() => void vetoCard(selected, source, "bad")}
+                                >
+                                  {thisBusy && vetoingKey?.endsWith(":bad") ? "Banning…" : "Bad — ban everywhere"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={busy}
+                                  onClick={() => void vetoCard(selected, source, "unfit")}
+                                >
+                                  {thisBusy && vetoingKey?.endsWith(":unfit") ? "Retrying…" : "Doesn’t fit — try again"}
+                                </Button>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Sent drafts cannot be vetoed.</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                {(() => {
                   const report = (selected.sources ?? []).find((source) => (source as { kind?: string }).kind === "quality") as { report?: {
                     sections?: string[];
                     sourceCounts?: Record<string, number>;
@@ -452,14 +591,6 @@ export default function NewsletterProofreader() {
                 })()}
                 <div className="space-y-1 text-xs text-muted-foreground">
                   <p>Retrieved {new Date(selected.retrieved_at).toLocaleString()}</p>
-                  {(selected.sources ?? []).filter((source) => (source as { kind?: string }).kind !== "quality").map((source) => (
-                    <p key={`${source.label}:${source.url}`}>
-                      {source.label}:{" "}
-                      <a className="underline" href={source.url} target="_blank" rel="noreferrer">
-                        {source.url}
-                      </a>
-                    </p>
-                  ))}
                 </div>
               </>
             ) : null}
