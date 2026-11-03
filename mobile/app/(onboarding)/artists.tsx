@@ -45,7 +45,7 @@ export default function ArtistsScreen() {
         setIsLoading(true);
         const data = await ArtistService.getOnboardingSuggestions();
         setArtists(data);
-        // Start with 3 checked so Continue works right away; they can uncheck or add.
+        // Only their own listening starts checked; checked means followed.
         if (!preselectedOnce.current && data.length > 0) {
             preselectedOnce.current = true;
             setSelectedArtistIds(prev => (prev.length ? prev : pickPreselected(data)));
@@ -220,7 +220,7 @@ export default function ArtistsScreen() {
                     <View style={styles.textContent}>
                         <SynthText variant="h1" style={styles.title}>Follow your favorites</SynthText>
                         <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                            We picked a few to start. Tap to change — 3 or more makes your feed much better
+                            Tap artists you love — 3 or more makes your feed much better
                         </SynthText>
                     </View>
                 }

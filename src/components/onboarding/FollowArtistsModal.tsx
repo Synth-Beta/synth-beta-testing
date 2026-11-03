@@ -92,7 +92,7 @@ export const FollowArtistsModal = ({
           merged.push({ id: artist.id, name: artist.name, image_url: artist.image_url ?? undefined });
         }
         setVisibleArtists(merged);
-        // Start with 3 checked (server picks, else the first 3) so Done works immediately.
+        // Only their own listening starts checked; checked means followed.
         const preIds = new Set(
           pickPreselected(
             suggested.map((a) => ({ id: a.id, preselected: (a as { preselected?: boolean }).preselected }))
@@ -228,7 +228,7 @@ export const FollowArtistsModal = ({
             <p className="text-center text-sm text-muted-foreground">
               {loadFailed
                 ? "We couldn't load artists right now — you can continue and follow artists later."
-                : `We picked a few to start. Tap to change — 3 or more makes your feed much better (${followedCount + selected.size} selected)`}
+                : `Tap artists you love — 3 or more makes your feed much better (${followedCount + selected.size} selected)`}
             </p>
 
             {!loadFailed && (

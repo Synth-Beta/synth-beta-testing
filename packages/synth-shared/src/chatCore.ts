@@ -87,6 +87,7 @@ export interface SharedUserChat {
   /** 'scene' added by migration 20260825120000 (scene rooms / density onboarding). */
   entity_type: 'event' | 'artist' | 'venue' | 'genre' | 'scene' | null;
   entity_uuid: string | null;
+  entity_id: string | null;
   /** Direct-chat peer `users.avatar_url`; null for groups / missing photo. */
   peer_avatar_url: string | null;
   created_at: string;
@@ -331,6 +332,7 @@ export function createChatCore(deps: ChatCoreDeps) {
           is_group_chat,
           entity_type,
           entity_uuid,
+          entity_id,
           latest_message_id,
           group_admin_id,
           created_at,
@@ -438,6 +440,7 @@ export function createChatCore(deps: ChatCoreDeps) {
             group_admin_id: chat.group_admin_id ?? null,
             entity_type: chat.entity_type ?? null,
             entity_uuid: chat.entity_uuid ?? null,
+            entity_id: chat.entity_id ?? null,
             peer_avatar_url: chat.is_group_chat ? null : (peerAvatarByChat.get(chat.id) ?? null),
             created_at: chat.created_at,
             updated_at: chat.updated_at,

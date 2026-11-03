@@ -173,7 +173,21 @@ async function run() {
   assert.ok(herd.every((t) => t === 'who has the tickets'));
   assert.equal(keyWrites, 1, 'concurrent decrypts must share one key derivation');
 
-  console.log('chatCrypto: 11 checks passed (subtle <-> noble wire compatible)');
+  // Without crypto.subtle (React Native) key derivation falls back to pure JS.
+  const forFallback = await legacyWebEncrypt('no subtle here', chatId);
+  const realCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto')!;
+  Object.defineProperty(globalThis, 'crypto', { value: undefined, configurable: true });
+  try {
+    const pureJs = createChatCrypto({
+      storage: memoryStorage(),
+      randomBytes: (n) => webcrypto.getRandomValues(new Uint8Array(n)),
+    });
+    assert.equal(await pureJs.decryptMessage(forFallback, chatId, userId), 'no subtle here');
+  } finally {
+    Object.defineProperty(globalThis, 'crypto', realCrypto);
+  }
+
+  console.log('chatCrypto: 12 checks passed (subtle <-> noble wire compatible)');
 }
 
 run().catch((err) => {

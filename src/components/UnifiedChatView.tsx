@@ -226,6 +226,25 @@ interface UnifiedChatViewProps {
   onChatSelected?: (isSelected: boolean) => void;
 }
 
+// Outlives the component (it unmounts on every tab switch) so returning to chat paints
+// instantly while a refresh runs. Memory only, so decrypted text never reaches disk.
+const chatViewCache = {
+  userId: null as string | null,
+  chats: null as Chat[] | null,
+  messages: new Map<string, Message[]>(),
+  eventImages: new Map<string, string | null>(),
+};
+
+function getChatViewCache(userId: string) {
+  if (chatViewCache.userId !== userId) {
+    chatViewCache.userId = userId;
+    chatViewCache.chats = null;
+    chatViewCache.messages.clear();
+    chatViewCache.eventImages.clear();
+  }
+  return chatViewCache;
+}
+
 export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMenuClick, hideHeader = false, onChatSelected }: UnifiedChatViewProps) => {
   const COPY_FEEDBACK_MS = 140;
   // Track chat view
@@ -235,7 +254,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   // Messages end 6px above the safety box (the safety box itself accounts for all its own space)
   const composerReservedSpace = `var(--spacing-grouped, 24px)`;
 
-  const [chats, setChats] = useState<Chat[]>([]);
+  const [chats, setChats] = useState<Chat[]>(() => getChatViewCache(currentUserId).chats ?? []);
   const [chatFetchError, setChatFetchError] = useState(false);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -249,7 +268,7 @@ export const UnifiedChatView = ({ currentUserId, onBack, menuOpen = false, onMen
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
   const [groupName, setGroupName] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getChatViewCache(currentUserId).chats);
   const [isFetchingMessages, setIsFetchingMessages] = useState(false);
   const [didLoadMessages, setDidLoadMessages] = useState(false);
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
@@ -381,6 +400,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
   // Auto-scroll ref for messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const openChatIdRef = useRef<string | null>(null);
+  const chatListRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const messageLongPressTimerRef = useRef<number | null>(null);
@@ -634,8 +655,10 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
   }, [selectedChat, onChatSelected]);
 
   useEffect(() => {
+    openChatIdRef.current = selectedChat?.id ?? null;
     if (selectedChat) {
       setDidLoadMessages(false);
+      setMessages(getChatViewCache(currentUserId).messages.get(selectedChat.id) ?? []);
       fetchMessages(selectedChat.id);
       fetchChatParticipants(selectedChat.id);
       fetchLinkedEvent(selectedChat.id);
@@ -649,6 +672,17 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
     if (!didLoadMessages) return;
     scrollMessagesToBottom();
   }, [didLoadMessages, selectedChat?.id, scrollMessagesToBottom]);
+
+  // Both realtime channels fire for one message; refresh the list once.
+  const scheduleChatListRefresh = () => {
+    if (chatListRefreshTimer.current) clearTimeout(chatListRefreshTimer.current);
+    chatListRefreshTimer.current = setTimeout(() => void fetchChats(), 250);
+  };
+
+  // Keep the cache current, including local changes such as marking a chat read.
+  useEffect(() => {
+    if (!loading && !chatFetchError) getChatViewCache(currentUserId).chats = chats;
+  }, [chats, loading, chatFetchError, currentUserId]);
 
   // Real-time subscription for messages in selected chat
   useEffect(() => {
@@ -677,7 +711,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
             fetchMessages(selectedChat.id);
             // Refresh chat list to update latest message
-            fetchChats();
+            scheduleChatListRefresh();
           }
         }
       )
@@ -730,7 +764,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
           console.log('📨 New message in any chat:', payload);
           // Refresh chat list to update latest message timestamps
           // This will be handled by the get_user_chats function which updates latest_message fields
-          fetchChats();
+          scheduleChatListRefresh();
         }
       )
       .subscribe((status) => {
@@ -915,181 +949,45 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
   const fetchChats = async (): Promise<Chat[] | null> => {
     try {
-      const { data, error } = await fetchUserChats(currentUserId);
+      // Together, so the list paints once with its final unread order.
+      const [{ data, error }, { data: unreadRows, error: unreadError }] = await Promise.all([
+        fetchUserChats(currentUserId),
+        (supabase as any).rpc('get_my_chat_unread_counts'),
+      ]);
 
       if (error) {
         console.error('Error fetching chats:', error);
         setChatFetchError(true);
+        setLoading(false);
         return null;
       }
+      if (unreadError) console.error('Error fetching unread counts:', unreadError);
 
-      // Get user's last_read_at for each chat from chat_participants
-      const { data: participantData } = await supabase
-        .from('chat_participants')
-        .select('chat_id, last_read_at')
-        .eq('user_id', currentUserId);
-      
-      const lastReadMap = new Map<string, string | null>();
-      participantData?.forEach(p => {
-        lastReadMap.set(p.chat_id, p.last_read_at);
+      const unreadByChat = new Map<string, number>(
+        ((unreadRows || []) as Array<{ chat_id: string; unread_count: number }>).map(r => [r.chat_id, Number(r.unread_count)])
+      );
+      const chatsWithUnread = (data || []).map(chat => {
+        const unreadCount = unreadByChat.get(chat.id) ?? 0;
+        return { ...chat, has_unread: unreadCount > 0, unread_count: unreadCount };
       });
-      
-      // Count unread messages per chat
-      const chatsWithUnread = await Promise.all((data || []).map(async (chat) => {
-        try {
-          const lastReadAt = lastReadMap.get(chat.id);
-          
-          // Build query to count unread messages
-          let countQuery = supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('chat_id', chat.id)
-            .neq('sender_id', currentUserId);
-          
-          // If we have a last_read_at timestamp, only count messages after that
-          if (lastReadAt) {
-            countQuery = countQuery.gt('created_at', lastReadAt);
-          }
-          
-          const { count, error: countError } = await countQuery;
-          
-          if (countError) {
-            console.error('Error counting unread messages for chat:', chat.id, countError);
-            return {
-              ...chat,
-              has_unread: false,
-              unread_count: 0
-            };
-          }
-          
-          const unreadCount = count || 0;
-          
-          return {
-            ...chat,
-            has_unread: unreadCount > 0,
-            unread_count: unreadCount
-          };
-        } catch (error) {
-          console.error('Error checking unread status for chat:', chat.id, error);
-          return {
-            ...chat,
-            has_unread: false,
-            unread_count: 0
-          };
-        }
-      }));
 
       // Sort: unread messages first, then by latest message time
       const sortedChats = chatsWithUnread.sort((a, b) => {
         // First sort by has_unread (unread first)
         if (a.has_unread && !b.has_unread) return -1;
         if (!a.has_unread && b.has_unread) return 1;
-        
+
         // Then sort by latest message time
         const aTime = a.latest_message_created_at ? new Date(a.latest_message_created_at).getTime() : 0;
         const bTime = b.latest_message_created_at ? new Date(b.latest_message_created_at).getTime() : 0;
         return bTime - aTime; // Descending order
       });
 
-      // Fetch entity data for group chats (to get event images from artists table)
-      const groupChatIds = sortedChats.filter(chat => chat.is_group_chat).map(chat => chat.id);
-      const entityDataMap = new Map<string, { entity_type?: string; entity_uuid?: string; entity_id?: string; event_image_url?: string }>();
-
-      console.log('🔍 fetchChats: Group chat IDs:', groupChatIds);
-
-      if (groupChatIds.length > 0) {
-        const { data: chatEntities, error: chatEntitiesError } = await supabase
-          .from('chats')
-          .select('id, entity_type, entity_uuid, entity_id')
-          .in('id', groupChatIds);
-
-        console.log('🔍 fetchChats: Chat entities:', chatEntities, 'Error:', chatEntitiesError);
-
-        // Populate entity_type/entity_uuid/entity_id for all group chats (event, artist, venue, genre)
-        chatEntities?.forEach((c) => {
-          if (c.id) {
-            entityDataMap.set(c.id, {
-              entity_type: c.entity_type ?? undefined,
-              entity_uuid: c.entity_uuid ?? undefined,
-              entity_id: c.entity_id ?? undefined,
-            });
-          }
-        });
-        
-        // For event-type chats, fetch artist image from artists table via event's artist relationship
-        const eventChats = chatEntities?.filter(c => c.entity_type === 'event' && c.entity_uuid) || [];
-        console.log('🔍 fetchChats: Event chats:', eventChats);
-        
-        if (eventChats.length > 0) {
-          const eventIds = eventChats.map(c => c.entity_uuid).filter(Boolean) as string[];
-          console.log('🔍 fetchChats: Event IDs:', eventIds);
-          
-          // Fetch events with artist_id (UUID - direct foreign key to artists.id)
-          const { data: events, error: eventsError } = await supabase
-            .from('events')
-            .select('id, artist_id')
-            .in('id', eventIds);
-          
-          console.log('🔍 fetchChats: Events with artist_id:', events, 'Error:', eventsError);
-          
-          // Get unique artist_ids (UUIDs - direct foreign keys to artists.id)
-          const artistUuids = events ? [...new Set(events.map(e => e.artist_id).filter(Boolean) as string[])] : [];
-          console.log('🔍 fetchChats: Artist UUIDs:', artistUuids);
-          
-          if (artistUuids.length > 0) {
-            // Directly query artists by their UUID primary key (id)
-            const { data: artists, error: artistsError } = await supabase
-              .from('artists')
-              .select('id, image_url')
-              .in('id', artistUuids);
-            
-            console.log('🔍 fetchChats: Artists fetched by UUID:', artists, 'Error:', artistsError);
-            
-            if (artists && artists.length > 0) {
-              // Create a map: artist_id (UUID from events) -> image_url
-              const artistImageMap = new Map<string, string>();
-              artists.forEach(artist => {
-                if (artist.image_url && artist.id) {
-                  artistImageMap.set(artist.id, artist.image_url);
-                  console.log(`🔍 Mapped artist UUID: ${artist.id} -> image_url: ${artist.image_url}`);
-                }
-              });
-              
-              console.log('🔍 fetchChats: Artist image map:', Array.from(artistImageMap.entries()));
-              
-              // Map artist images to chat IDs via event -> artist relationship
-              events?.forEach(event => {
-                const chat = eventChats.find(c => c.entity_uuid === event.id);
-                if (chat && event.artist_id) {
-                  const artistImageUrl = artistImageMap.get(event.artist_id);
-                  console.log(`🔍 fetchChats: Mapping chat ${chat.id} to artist image:`, {
-                    eventId: event.id,
-                    artist_id: event.artist_id,
-                    imageUrl: artistImageUrl
-                  });
-                  if (artistImageUrl) {
-                    entityDataMap.set(chat.id, {
-                      entity_type: chat.entity_type,
-                      entity_uuid: chat.entity_uuid,
-                      entity_id: chat.entity_id ?? undefined,
-                      event_image_url: artistImageUrl
-                    });
-                  }
-                }
-              });
-              
-              console.log('🔍 fetchChats: Final entityDataMap:', Array.from(entityDataMap.entries()));
-            } else {
-              console.log('🔍 fetchChats: No artists found for UUIDs:', artistUuids);
-            }
-          }
-        }
-      }
+      const eventImages = getChatViewCache(currentUserId).eventImages;
 
       // Ensure all required fields are present
       const normalizedChats: Chat[] = sortedChats.map(chat => {
         const chatAny = chat as any;
-        const entityData = entityDataMap.get(chat.id);
         return {
         ...chat,
         latest_message_id: chat.latest_message_id ?? null,
@@ -1098,85 +996,80 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
         latest_message_sender_name: chat.latest_message_sender_name ?? null,
         group_admin_id: chat.group_admin_id ?? null,
           member_count: chatAny.member_count ?? null, // member_count from RPC
-          entity_type: entityData?.entity_type ?? chatAny.entity_type ?? null,
-          entity_uuid: entityData?.entity_uuid ?? chatAny.entity_uuid ?? null,
-          entity_id: entityData?.entity_id ?? chatAny.entity_id ?? null,
-          event_image_url: entityData?.event_image_url ?? null,
+          event_image_url: eventImages.get(chat.id) ?? null,
         created_at: chat.created_at ?? new Date().toISOString(),
         updated_at: chat.updated_at ?? new Date().toISOString(),
         };
       });
-      
+
       setChatFetchError(false);
       setChats(normalizedChats);
-
-      // Fetch user profiles for direct chat participants (to improve getChatDisplayName)
-      // Query chat_participants for direct chats instead of using users array
-      const directChatIds = sortedChats
-        .filter(chat => !chat.is_group_chat)
-        .map(chat => chat.id);
-      
-      if (directChatIds.length > 0) {
-        const { data: participants, error: participantsError } = await supabase
-          .from('chat_participants')
-          .select('chat_id, user_id')
-          .in('chat_id', directChatIds)
-          .neq('user_id', currentUserId);
-        
-        if (participantsError) {
-          console.error('Error fetching chat participants for direct chats:', participantsError);
-          // Continue with empty map if error occurs
-        }
-        
-        // Build map of chat_id -> other_user_id for direct chats (Bug 1 fix)
-        const chatToUserMap = new Map<string, string>();
-        const directChatUserIds = new Set<string>();
-        participants?.forEach(p => {
-          chatToUserMap.set(p.chat_id, p.user_id);
-          directChatUserIds.add(p.user_id);
-        });
-        setChatToOtherUserMap(chatToUserMap);
-        
-        // Fetch profiles for direct chat users if not already in users state
-        if (directChatUserIds.size > 0) {
-          const userIdsToFetch = Array.from(directChatUserIds).filter(
-            userId => !users.some(u => u.user_id === userId)
-          );
-          
-          if (userIdsToFetch.length > 0) {
-            const { data: profiles } = await supabase
-              .from('users')
-              .select('user_id, name, avatar_url, bio')
-              .in('user_id', userIdsToFetch);
-            
-            if (profiles && profiles.length > 0) {
-              // Add to users state if not already present
-              setUsers(prev => {
-                const existingIds = new Set(prev.map(u => u.user_id));
-                const newUsers = profiles.filter(p => !existingIds.has(p.user_id));
-                return [...prev, ...newUsers];
-              });
-            }
-          }
-        }
-      }
-      
-      // Identify event-created group chats (parallel)
-      const groupChats = sortedChats.filter(c => c.is_group_chat);
-      const eventCreatedResults = groupChats.length > 0
-        ? await Promise.all(groupChats.map(c => isEventCreatedGroupChat(c.id)))
-        : [];
-      const eventCreatedChatIds = new Set<string>();
-      groupChats.forEach((chat, i) => {
-        if (eventCreatedResults[i]) eventCreatedChatIds.add(chat.id);
-      });
-      setEventCreatedChats(eventCreatedChatIds);
       setLoading(false);
+
+      // Build map of chat_id -> other_user_id for direct chats (Bug 1 fix)
+      const chatToUserMap = new Map<string, string>();
+      normalizedChats.forEach(chat => {
+        const otherUserId = chat.is_group_chat ? undefined : chat.users.find(id => id !== currentUserId);
+        if (otherUserId) chatToUserMap.set(chat.id, otherUserId);
+      });
+      setChatToOtherUserMap(chatToUserMap);
+
+      // Images and extra profiles fill in after the list is on screen.
+      void loadEventChatImages(normalizedChats);
+      void loadDirectChatProfiles([...chatToUserMap.values()]);
+
       return normalizedChats;
     } catch (error) {
       console.error('Error fetching chats:', error);
       setLoading(false);
       return null;
+    }
+  };
+
+  // Event group chats show the artist's image. Looked up once per chat per session.
+  const loadEventChatImages = async (list: Chat[]) => {
+    const eventImages = getChatViewCache(currentUserId).eventImages;
+    const eventChats = list.filter(c => c.is_group_chat && c.entity_type === 'event' && c.entity_uuid && !eventImages.has(c.id));
+    if (eventChats.length === 0) return;
+
+    const { data: events, error: eventsError } = await supabase
+      .from('events')
+      .select('id, artist_id')
+      .in('id', eventChats.map(c => c.entity_uuid as string));
+    if (eventsError) return;
+
+    const artistUuids = [...new Set((events || []).map(e => e.artist_id).filter(Boolean) as string[])];
+    const { data: artists, error: artistsError } = artistUuids.length > 0
+      ? await supabase.from('artists').select('id, image_url').in('id', artistUuids)
+      : { data: [], error: null };
+    if (artistsError) return;
+
+    const imageByArtist = new Map((artists || []).map(a => [a.id, a.image_url]));
+    const artistByEvent = new Map((events || []).map(e => [e.id, e.artist_id]));
+    eventChats.forEach(c => {
+      const artistId = artistByEvent.get(c.entity_uuid as string);
+      eventImages.set(c.id, (artistId && imageByArtist.get(artistId)) || null);
+    });
+    setChats(prev => prev.map(c => (eventImages.get(c.id) ? { ...c, event_image_url: eventImages.get(c.id) } : c)));
+  };
+
+  // Fetch profiles for direct chat users if not already in users state
+  const loadDirectChatProfiles = async (userIds: string[]) => {
+    const userIdsToFetch = userIds.filter(userId => !users.some(u => u.user_id === userId));
+    if (userIdsToFetch.length === 0) return;
+
+    const { data: profiles } = await supabase
+      .from('users')
+      .select('user_id, name, avatar_url, bio')
+      .in('user_id', userIdsToFetch);
+
+    if (profiles && profiles.length > 0) {
+      // Add to users state if not already present
+      setUsers(prev => {
+        const existingIds = new Set(prev.map(u => u.user_id));
+        const newUsers = profiles.filter(p => !existingIds.has(p.user_id));
+        return [...prev, ...newUsers];
+      });
     }
   };
 
@@ -1190,7 +1083,11 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
 
       console.log('✅ Friends fetched successfully:', friendsList);
       console.log('✅ Number of friends:', friendsList.length);
-      setUsers(friendsList);
+      // Keep direct-chat peers that loaded first; they may not be friends.
+      setUsers(prev => {
+        const friendIds = new Set(friendsList.map(f => f.user_id));
+        return [...friendsList, ...prev.filter(u => !friendIds.has(u.user_id))];
+      });
     } catch (error) {
       console.error('Error fetching friends:', error);
       setUsers([]);
@@ -1205,19 +1102,24 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
       // Query, decryption, event_shares fallback and message_type derivation all live
       // in @synth/shared so this screen and the mobile thread stay in step.
       const { data, error } = await fetchChatMessages(chatId, currentUserId);
+      if (!error) getChatViewCache(currentUserId).messages.set(chatId, data);
+      // The user moved to another chat while this was loading.
+      if (openChatIdRef.current !== chatId) return;
       if (error) {
         setLiveAnnouncement('Failed to load messages.');
         return;
       }
 
       setMessages(data);
-      setDidLoadMessages(true);
       setLiveAnnouncement('Messages loaded.');
     } catch (error) {
       console.error('Error fetching messages:', error);
       setLiveAnnouncement('Failed to load messages.');
     } finally {
-      setIsFetchingMessages(false);
+      if (openChatIdRef.current === chatId) {
+        setDidLoadMessages(true);
+        setIsFetchingMessages(false);
+      }
     }
   };
   
@@ -2935,7 +2837,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                   }}
                 />
               )}
-              {messages.length === 0 ? (
+              {messages.length === 0 && didLoadMessages ? (
                 <div className="flex flex-col items-center justify-center h-full" style={{ gap: 'var(--spacing-inline, 6px)' }}>
                   {/* Large icon (60px), dark grey */}
                   <MessageCircle size={60} strokeWidth={2} style={{ color: 'var(--neutral-600)' }} />

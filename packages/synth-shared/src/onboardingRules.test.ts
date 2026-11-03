@@ -42,11 +42,11 @@ test('bio is optional but capped at 120', () => {
   assert.ok(validateOnboardingProfile({ ...valid, bio: 'x'.repeat(121) }, now).errors.bio);
 });
 
-test('pickPreselected uses server flags, else the first 3', () => {
+test('pickPreselected uses server flags only', () => {
   const flagged = [{ id: 'a' }, { id: 'b', preselected: true }, { id: 'c', preselected: true }, { id: 'd' }];
   assert.deepEqual(pickPreselected(flagged), ['b', 'c']);
   const plain = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
-  assert.deepEqual(pickPreselected(plain), ['a', 'b', 'c']);
+  assert.deepEqual(pickPreselected(plain), []);
   assert.deepEqual(pickPreselected([]), []);
 });
 

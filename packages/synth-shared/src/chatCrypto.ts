@@ -11,6 +11,8 @@
  * Pure JS via @noble/* on both platforms: React Native has no `crypto.subtle`, and
  * pulling in react-native-quick-crypto would put a Nitro native module on the app's
  * startup path. Storage and CSPRNG differ per platform, so they are injected.
+ * Key derivation alone prefers `crypto.subtle` where it exists: same bytes, off the
+ * main thread, and much faster.
  *
  * NOTE: this is at-rest obfuscation, not end-to-end encryption. The key derives from
  * the chat id plus a constant salt, both of which the server knows, so anyone with
@@ -81,6 +83,20 @@ export function createChatCrypto(deps: ChatCryptoDeps) {
   const { storage, randomBytes } = deps;
 
   async function deriveKeyBytes(chatId: string): Promise<Uint8Array> {
+    const subtle = globalThis.crypto?.subtle;
+    if (subtle) {
+      try {
+        const material = await subtle.importKey('raw', new TextEncoder().encode(chatId), 'PBKDF2', false, ['deriveBits']);
+        const bits = await subtle.deriveBits(
+          { name: 'PBKDF2', hash: 'SHA-256', salt: KEY_DERIVATION_SALT, iterations: PBKDF2_ITERATIONS },
+          material,
+          KEY_LENGTH_BYTES * 8
+        );
+        return new Uint8Array(bits);
+      } catch {
+        /* insecure context or partial polyfill: fall through to pure JS */
+      }
+    }
     return pbkdf2Async(sha256, new TextEncoder().encode(chatId), KEY_DERIVATION_SALT, {
       c: PBKDF2_ITERATIONS,
       dkLen: KEY_LENGTH_BYTES,
