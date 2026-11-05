@@ -32,8 +32,9 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
     // Desktop / large-screen: simple centered card, no iPhone chrome
     return (
       <div className="flex justify-center py-6">
-        <div data-review-scroll="true" className="w-full max-w-3xl rounded-xl border border-gray-200 bg-[var(--neutral-50)] shadow-md max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4">
+        <div data-review-scroll="true" className="w-full max-w-3xl rounded-xl border border-gray-200 bg-[var(--neutral-50)] shadow-md max-h-[min(80vh,calc(90dvh-96px))] overflow-y-auto px-6 pt-4">
           {children}
+          <div aria-hidden="true" className="h-8 shrink-0" />
         </div>
       </div>
     );
@@ -60,8 +61,11 @@ export function ReviewMobileShell({ children }: ReviewMobileShellProps) {
         </div>
 
         {/* Scrollable content area */}
-        <div data-review-scroll="true" className="max-h-[calc(100vh-140px)] overflow-y-auto px-4 pb-24 pt-4">
+        <div data-review-scroll="true" className="max-h-[calc(90dvh-180px)] overflow-y-auto px-4 pt-4">
           {children}
+          {/* Clears the decorative nav and leaves space under the last field.
+              A padding-bottom on this scroller is not part of the WebKit scroll range. */}
+          <div aria-hidden="true" className="h-28 shrink-0" />
         </div>
 
         {/* Bottom nav – purely visual, uses existing navigation outside this shell */}

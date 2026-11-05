@@ -11,6 +11,7 @@ export default function PostScreen() {
     <EventReviewFlow
       initialEventId={null}
       prefill={null}
+      reserveTabBar
       onClose={() => router.replace('/(tabs)')}
       onSubmitted={(eid) => {
         // App tutorial's review step: back to Home, where the tutorial says thanks and moves on.

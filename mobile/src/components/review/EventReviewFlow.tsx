@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { supabase } from '../../integrations/supabase/client';
-import { bottomSafeContentPadding } from '../navigation/SynthTabBar';
+import { TAB_BAR_HEIGHT } from '../navigation/SynthTabBar';
 import {
     useReviewForm,
     REVIEW_FORM_INITIAL_DATA,
@@ -204,12 +204,17 @@ interface EventReviewFlowProps {
     prefill?: ReviewPrefill | null;
     onClose: () => void;
     onSubmitted?: (eventIdForReturn?: string, reviewId?: string) => void;
+    /** Post tab draws the tab bar over this screen. The pushed compose screen does not. */
+    reserveTabBar?: boolean;
 }
 
-export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted }: EventReviewFlowProps) {
+/** Breathing room between the last field and the footer or screen edge. */
+const CONTENT_END_GAP = 32;
+
+export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted, reserveTabBar = false }: EventReviewFlowProps) {
     const insets = useSafeAreaInsets();
-    const bottomSpacing = bottomSafeContentPadding(insets.bottom);
-    const scrollPaddingBottom = bottomSpacing;
+    const tabBarOffset = reserveTabBar ? TAB_BAR_HEIGHT + insets.bottom : 0;
+    const [footerHeight, setFooterHeight] = useState(0);
     const {
         formData,
         errors,
@@ -1429,6 +1434,17 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
         (flow === 'standard' && currentStep === 6) ||
         (flow === 'detailed' && currentStep === 9);
 
+    const hasFooterAction = showContinue || showSubmit;
+    const footerBottomPad = reserveTabBar ? 12 : insets.bottom + 12;
+    // Measured footer includes its own padding. Until layout, estimate the button row
+    // so the first frame can already scroll past it.
+    const effectiveFooterHeight = hasFooterAction ? Math.max(footerHeight, 12 + 56 + footerBottomPad) : 0;
+    const scrollPaddingBottom =
+        tabBarOffset +
+        effectiveFooterHeight +
+        CONTENT_END_GAP +
+        (hasFooterAction || reserveTabBar ? 0 : insets.bottom);
+
     return (
         <>
         {formData.photos[cropPhotoIndex] ? (
@@ -1463,6 +1479,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             </View>
             <ScrollView
                 ref={scrollRef}
+                style={styles.scrollView}
                 contentContainerStyle={[styles.scroll, { paddingBottom: scrollPaddingBottom }]}
                 keyboardShouldPersistTaps="handled"
                 // Dragging the page dismisses the keyboard so the rest of the step is reachable.
@@ -1470,7 +1487,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
             >
                 {stepContent}
             </ScrollView>
-            <View style={[styles.footer, { paddingBottom: bottomSpacing }]}>
+            {hasFooterAction ? (
+            <View
+                onLayout={(e) => {
+                    const next = Math.round(e.nativeEvent.layout.height);
+                    setFooterHeight((prev) => (prev === next ? prev : next));
+                }}
+                style={[styles.footer, { bottom: tabBarOffset, paddingBottom: footerBottomPad }]}
+            >
                 {showContinue ? (
                     <Pressable
                         style={[styles.primaryBtn, videoUploading && styles.primaryBtnDisabled]}
@@ -1498,6 +1522,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
                     </Pressable>
                 ) : null}
             </View>
+            ) : null}
         </KeyboardAvoidingView>
         </>
     );
@@ -1505,6 +1530,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted 
 
 const styles = StyleSheet.create({
     root: { flex: 1, backgroundColor: SynthTokens.colors.neutral50 },
+    scrollView: { flex: 1 },
     header: {
         flexDirection: 'row',
         alignItems: 'center',

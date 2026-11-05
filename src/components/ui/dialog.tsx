@@ -80,6 +80,9 @@ const DialogContent = React.forwardRef<
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        // minHeight:auto would refuse to shrink below the form, so a height-capped
+        // dialog clips the end instead of scrolling it.
+        minHeight: 0,
         maxHeight: resolvedMaxHeight,
         overflow: 'hidden'
       }}>

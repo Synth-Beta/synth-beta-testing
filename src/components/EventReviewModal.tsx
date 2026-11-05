@@ -29,20 +29,26 @@ export function EventReviewModal({
   // Get event title for modal header
   const eventTitle = event && 'title' in event ? event.title : event && 'event_name' in event ? event.event_name : 'Create Review';
 
+  // Fixed height so the body is a real scrollport. A max-height-only dialog
+  // grows with the form and then clips, which hides the end of the form.
+  const dialogHeight =
+    'calc(100dvh - (env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 24px))';
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
+        className="!flex !flex-col"
         style={{
           top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
           transform: 'translate(-50%, 0)',
-          maxHeight:
-            'calc(100dvh - (env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 24px))',
+          height: dialogHeight,
+          maxHeight: dialogHeight,
         }}
       >
         <DialogHeader>
           <DialogTitle>{eventTitle}</DialogTitle>
         </DialogHeader>
-        <DialogBody data-review-scroll="true">
+        <DialogBody data-review-scroll="true" className="min-h-0">
           <EventReviewForm
             event={event as any}
             userId={userId}
@@ -67,6 +73,9 @@ export function EventReviewModal({
               onClose();
             }}
           />
+          {/* In-flow spacer: padding-bottom on the scrollport is dropped from the
+              scroll range in WebKit, so the end of the form never clears the edge. */}
+          <div aria-hidden="true" style={{ height: 'var(--spacing-bottom-nav, 32px)', flexShrink: 0 }} />
         </DialogBody>
       </DialogContent>
     </Dialog>

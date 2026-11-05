@@ -310,10 +310,25 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const isSearchMode = isSearchFocused || isSearchActive;
+  // A tap that starts on the search bar (the X, especially) must not also hit
+  // the empty-state dismiss target once the keyboard or layout shifts.
+  const suppressSearchDismissRef = useRef(false);
+  const suppressSearchDismissTimerRef = useRef<number | null>(null);
   const dismissSearch = () => {
     setSearchQuery('');
     setIsSearchActive(false);
     setIsSearchFocused(false);
+  };
+  const markSearchBarGesture = () => {
+    suppressSearchDismissRef.current = true;
+    if (suppressSearchDismissTimerRef.current != null) {
+      window.clearTimeout(suppressSearchDismissTimerRef.current);
+    }
+    // Cover a delayed click after the mobile keyboard resizes the page.
+    suppressSearchDismissTimerRef.current = window.setTimeout(() => {
+      suppressSearchDismissRef.current = false;
+      suppressSearchDismissTimerRef.current = null;
+    }, 400);
   };
 
   const navigate = useNavigate();
@@ -1959,7 +1974,10 @@ interface FriendEventInterest {
         }}
       >
         {!isSearchMode && <GetAppBanner />}
-        <div style={{ marginBottom: 16 }}>
+        <div
+          style={{ marginBottom: 16 }}
+          onPointerDown={markSearchBarGesture}
+        >
           <SearchBar
             value={searchQuery}
             onChange={(value) => {
@@ -2014,7 +2032,13 @@ interface FriendEventInterest {
           ) : (
             <div
               style={{ minHeight: '50vh' }}
-              onClick={dismissSearch}
+              onClick={() => {
+                if (suppressSearchDismissRef.current) {
+                  suppressSearchDismissRef.current = false;
+                  return;
+                }
+                dismissSearch();
+              }}
               role="button"
               tabIndex={0}
               aria-label="Dismiss search"

@@ -43,7 +43,7 @@ export function EventReviewModal({
             : 'Fill out the concert review form to share your experience.'}
         </DialogDescription>
         {isEditFlow ? (
-          <div className="relative flex-1 overflow-y-auto bg-[var(--neutral-50)]">
+          <div data-review-scroll="true" className="relative min-h-0 flex-1 overflow-y-auto bg-[var(--neutral-50)]">
             {/* Close X (matches default dialog close affordance) */}
             <button
               type="button"
@@ -92,6 +92,7 @@ export function EventReviewModal({
               }}
               onClose={onClose}
             />
+            <div aria-hidden="true" style={{ height: 'var(--spacing-bottom-nav, 32px)', flexShrink: 0 }} />
           </div>
         ) : (
           <ReviewMobileShell>

@@ -253,6 +253,7 @@ interface SearchScreenProps {
 
 export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
     const [keyword, setKeyword] = useState(initialQuery);
+    const inputRef = useRef<TextInput>(null);
     const [scope, setScope] = useState<SearchScope>('all');
     const [results, setResults] = useState<AllResults>({
         events: [],
@@ -274,6 +275,16 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
             router.replace('/(tabs)' as any);
         }
     }, [router]);
+
+    const handleClearOrClose = useCallback(() => {
+        // A space or a single letter still counts as text: clear it and stay open.
+        if (keyword.length > 0) {
+            setKeyword('');
+            inputRef.current?.focus();
+            return;
+        }
+        dismissSearch();
+    }, [keyword, dismissSearch]);
 
     // Sync with initialQuery when it changes (e.g. deep link or back navigation)
     useEffect(() => {
@@ -507,6 +518,7 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
                 <View style={styles.searchBar}>
                     <SearchIcon size={20} color={SynthTokens.colors.neutral400} />
                     <TextInput
+                        ref={inputRef}
                         placeholder='Try "Radiohead" or "Madison Square Garden"'
                         placeholderTextColor={SynthTokens.colors.neutral400}
                         style={styles.input}
@@ -518,10 +530,10 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
                         onSubmitEditing={() => Keyboard.dismiss()}
                     />
                     <Pressable
-                        onPress={dismissSearch}
+                        onPress={handleClearOrClose}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel="Close search"
+                        accessibilityLabel={keyword.length > 0 ? 'Clear search' : 'Close search'}
                     >
                         <X size={20} color={SynthTokens.colors.neutral400} />
                     </Pressable>

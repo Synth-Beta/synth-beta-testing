@@ -1742,13 +1742,14 @@ const { user, sessionExpired } = useAuth();
     onBack();
   };
 
-  // Header lives in scrolling content (Friends hub pattern) so it scrolls away with the page
-  // instead of staying pinned via PageShell's fixed header slot + sticky <header> CSS.
-  const profileHeader = !hideHeader && !webDesktopChrome ? (
+  // Same pinned chrome as Home, Community, and Messages: PageShell's header slot
+  // stays put while the page content scrolls.
+  const profileHeader = hideHeader
+    ? undefined
+    : !webDesktopChrome ? (
     !isViewingOwnProfile ? (
       <DropdownMenu>
         <MobileHeader
-          className="mobile-header--in-flow"
           menuOpen={menuOpen}
           onMenuClick={onMenuClick}
           alignLeft={true}
@@ -1790,7 +1791,6 @@ const { user, sessionExpired } = useAuth();
       </DropdownMenu>
     ) : (
       <MobileHeader
-        className="mobile-header--in-flow"
         menuOpen={menuOpen}
         onMenuClick={onMenuClick}
         alignLeft={true}
@@ -1803,71 +1803,62 @@ const { user, sessionExpired } = useAuth();
         </h1>
       </MobileHeader>
     )
+  ) : !isViewingOwnProfile ? (
+    <DropdownMenu>
+      <header
+        className="z-30 flex items-center gap-3 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
+        style={{
+          paddingTop: 'var(--mobile-header-padding-top, env(safe-area-inset-top, 0px))',
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleHeaderBack}
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--neutral-100)]"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-6 w-6" style={{ color: 'var(--neutral-900)' }} />
+        </button>
+        <h1
+          className="min-w-0 flex-1 truncate font-bold"
+          style={{
+            fontFamily: 'var(--font-family)',
+            fontSize: 'var(--typography-h2-size, 24px)',
+            fontWeight: 'var(--typography-h2-weight, 700)',
+            color: 'var(--neutral-900)',
+          }}
+        >
+          {profile.name || profile.username || 'Profile'}
+        </h1>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--neutral-100)]"
+            aria-label="More options"
+          >
+            <MoreVertical className="h-5 w-5" style={{ color: 'var(--neutral-900)' }} />
+          </button>
+        </DropdownMenuTrigger>
+      </header>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setBlockModalOpen(true)}>
+          <Ban size={16} className="mr-2" />
+          Block
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setReportModalOpen(true)}>
+          <Flag size={16} className="mr-2" />
+          Report
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   ) : undefined;
 
   return (
-    <PageShell contentPaddingTop="0px">
+    <PageShell header={profileHeader} contentPaddingTop="0px">
       <div
         className="min-h-screen w-full overflow-x-clip overflow-y-visible"
         style={{ backgroundColor: 'var(--neutral-50)' }}
       >
-        {/* Same chrome as before — now inside the scroll pane so it moves with content. */}
-        {profileHeader ? (
-          <div className="mobile-header--in-flow-bleed">{profileHeader}</div>
-        ) : null}
-        {!hideHeader && webDesktopChrome && profile && (
-          !isViewingOwnProfile ? (
-            <DropdownMenu>
-              <header
-                className="z-30 flex items-center gap-3 border-b border-[var(--neutral-200)] bg-[var(--neutral-50)] px-4 py-2 shadow-sm"
-                style={{
-                  position: 'relative',
-                  top: 'auto',
-                  paddingTop: 'var(--mobile-header-padding-top, env(safe-area-inset-top, 0px))',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleHeaderBack}
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--neutral-100)]"
-                  aria-label="Back"
-                >
-                  <ArrowLeft className="h-6 w-6" style={{ color: 'var(--neutral-900)' }} />
-                </button>
-                <h1
-                  className="min-w-0 flex-1 truncate font-bold"
-                  style={{
-                    fontFamily: 'var(--font-family)',
-                    fontSize: 'var(--typography-h2-size, 24px)',
-                    fontWeight: 'var(--typography-h2-weight, 700)',
-                    color: 'var(--neutral-900)',
-                  }}
-                >
-                  {profile.name || profile.username || 'Profile'}
-                </h1>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-[var(--neutral-100)]"
-                    aria-label="More options"
-                  >
-                    <MoreVertical className="h-5 w-5" style={{ color: 'var(--neutral-900)' }} />
-                  </button>
-                </DropdownMenuTrigger>
-              </header>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setBlockModalOpen(true)}>
-                  <Ban size={16} className="mr-2" />
-                  Block
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setReportModalOpen(true)}>
-                  <Flag size={16} className="mr-2" />
-                  Report
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null
-        )}
         <div className="pt-[12px]">
           <div style={{ position: 'relative' }}>
             <div

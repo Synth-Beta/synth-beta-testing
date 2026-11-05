@@ -145,6 +145,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   
   const hasValue = value.length > 0;
   const showClearButton = hasValue || showClear;
+  // Pointer and click can both fire for one tap. Handle the action once.
+  const clearHandledOnPointerRef = useRef(false);
 
   const clearValue = () => {
     if (!isControlled) {
@@ -160,7 +162,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   const handleClear = () => {
-    if (hasValue) {
+    // Read the field itself so a space or a single letter counts, even if
+    // React state has not caught up with the keystroke yet.
+    const current = inputRef.current?.value ?? value;
+    if (current.length > 0) {
       clearValue();
       inputRef.current?.focus();
       return;
@@ -171,6 +176,28 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }
     clearValue();
     inputRef.current?.focus();
+  };
+
+  const handleClearPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    // Keep the input focused so the keyboard does not dismiss and shift the
+    // tap onto the "close search" area underneath.
+    e.preventDefault();
+    e.stopPropagation();
+    clearHandledOnPointerRef.current = true;
+    handleClear();
+    window.setTimeout(() => {
+      clearHandledOnPointerRef.current = false;
+    }, 500);
+  };
+
+  const handleClearClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (clearHandledOnPointerRef.current) {
+      clearHandledOnPointerRef.current = false;
+      return;
+    }
+    handleClear();
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -222,8 +249,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       {showClearButton && (
         <button
           type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={handleClear}
+          onPointerDown={handleClearPointerDown}
+          onClick={handleClearClick}
           className="synth-search-bar__clear"
           aria-label={hasValue ? 'Clear search' : 'Close search'}
           id={`${id || 'search-input'}-clear-button`}

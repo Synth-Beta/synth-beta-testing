@@ -270,7 +270,7 @@ export default function ProfileScreen() {
     </View>
   );
 
-  const listHeaderAboveTabs = (
+  const topNav = (
     <>
       <View style={[styles.topHeader, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.handleTop} numberOfLines={1}>
@@ -281,7 +281,11 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
       <View style={styles.headerRule} />
+    </>
+  );
 
+  const listHeaderAboveTabs = (
+    <>
       <View style={styles.profileCard}>
         <View style={styles.cardTop}>
           <SafeImage
@@ -367,8 +371,10 @@ export default function ProfileScreen() {
   if (profileTab === 'reviews' && authUserId) {
     return (
       <View style={styles.container}>
+        {topNav}
         <FlatList
           ref={reviewsListRef}
+          style={styles.scrollBody}
           data={[{ key: 'my-events-panel' }]}
           keyExtractor={item => item.key}
           showsVerticalScrollIndicator={false}
@@ -396,8 +402,10 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
+      {topNav}
       <ScrollView
         ref={scrollRef}
+        style={styles.scrollBody}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomSafeContentPadding(insets.bottom) }}
       >
@@ -465,12 +473,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: SynthTokens.colors.neutral0,
   },
+  scrollBody: {
+    flex: 1,
+  },
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SynthTokens.spacing.md,
     paddingBottom: 10,
+    backgroundColor: SynthTokens.colors.neutral0,
   },
   handleTop: {
     flex: 1,

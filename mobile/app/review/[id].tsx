@@ -373,12 +373,17 @@ function CommentsSheet({
                 return;
             }
 
+            // Do not select mentioned_user_ids: that column is not on production yet,
+            // and requesting it makes PostgREST fail the whole read (empty sheet).
             const { data: commentsData, error: commentsDataError } = await supabase
                 .from('comments')
-                .select('id, user_id, comment_text, created_at, parent_comment_id, mentioned_user_ids')
+                .select('id, user_id, comment_text, created_at, parent_comment_id')
                 .eq('entity_id', entityData.id)
                 .order('created_at', { ascending: true });
-            if (commentsDataError) console.warn('[[id]] commentsData query failed', commentsDataError);
+            if (commentsDataError) {
+                console.warn('[[id]] commentsData query failed', commentsDataError);
+                return;
+            }
 
             if (!commentsData?.length) {
                 setComments([]);
@@ -400,7 +405,7 @@ function CommentsSheet({
                 comment_text: c.comment_text,
                 created_at: c.created_at,
                 parent_comment_id: c.parent_comment_id ?? null,
-                mentioned_user_ids: c.mentioned_user_ids ?? [],
+                mentioned_user_ids: [],
                 author_name: profileMap.get(c.user_id)?.name || 'User',
                 author_username: profileMap.get(c.user_id)?.username || null,
                 author_avatar: profileMap.get(c.user_id)?.avatar_url || null,
