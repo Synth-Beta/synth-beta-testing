@@ -6,15 +6,15 @@ export interface Artist {
     name: string;
     image_url?: string;
     genres?: string[];
-    /** Onboarding: the server's pick to start checked (first 3). */
+    /** Present on RPC rows; ignored by the artist step (no auto-follow from suggestions). */
     preselected?: boolean;
 }
 
 export class ArtistService {
     /**
-     * Artist step list (onboarding_suggested_artists): streaming top artists, then artists
-     * playing nearby, then nationally; first 3 flagged preselected. Falls back to the plain
-     * suggested list so the step always has something to offer.
+     * Artist step browse list (onboarding_suggested_artists): streaming top artists, then
+     * artists playing nearby, then nationally. Falls back to the plain suggested list so
+     * the step always has something to offer. Never auto-followed — UI only follows taps.
      */
     static async getOnboardingSuggestions(limit = 12): Promise<Artist[]> {
         const { data, error } = await supabase.rpc('onboarding_suggested_artists', { p_limit: limit });

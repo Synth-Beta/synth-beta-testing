@@ -4,10 +4,11 @@ import { lookupRecordings } from "./tracks.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { loadEventsNearPlaces, placeKey, rankedArtistNames, withHubPlaces, type EventQuery } from "./nearby.ts";
-import { fetchMusicNews } from "./news.ts";
+import { fetchMusicNews, isMusicRelatedStory } from "./news.ts";
 import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals, loadRecentNewsletterSignals } from "./queries.ts";
 // Edge deploy only bundles this function folder — do not import from repo-root api/_lib.
 import { sendBrevoNewsletter } from "./brevoNewsletter.ts";
+import { ensureNewsletterDarkModeHead } from "./darkMode.ts";
 import { deliverApprovedDrafts, reconcileNewsletterDelivery, deliveryKey, type StoredDraft } from "./newsletterDelivery.ts";
 
 const corsHeaders = {
@@ -27,6 +28,8 @@ type NewsletterSendAction =
   | "approve_all_drafts"
   | "record_content_veto"
   | "list_content_vetoes"
+  | "list_section_statuses"
+  | "set_section_status"
   | "send_test"
   | "send_batch";
 
@@ -92,6 +95,9 @@ const injectUnsubscribeLink = (html: string, unsubscribeUrl: string) => {
   }
   return `${html}\n${fallbackSnippet}`;
 };
+
+const prepareHtmlForSend = (html: string, unsubscribeUrl: string) =>
+  ensureNewsletterDarkModeHead(injectUnsubscribeLink(html, unsubscribeUrl));
 
 const authenticateAdmin = async (authorizationHeader: string | null) => {
   if (!authorizationHeader?.startsWith("Bearer ")) {
@@ -309,7 +315,7 @@ serve(async (req) => {
         }
 
         const unsubscribeUrl = await buildUnsubscribeUrl(toEmail, newsletterSlug);
-        const htmlWithUnsubscribe = injectUnsubscribeLink(html, unsubscribeUrl);
+        const htmlWithUnsubscribe = prepareHtmlForSend(html, unsubscribeUrl);
         const brevoMessageId = await sendBrevoNewsletter(brevoApiKey, {
           to: toEmail,
           subject,
@@ -360,7 +366,14 @@ serve(async (req) => {
       const recipients = (users ?? []).filter((user) => user.email && isValidEmail(user.email) && !unsubscribed.has(normalizeEmail(user.email)));
       const storedNews = await adminClient.from("news_items").select("id, title, url, source, created_at, seo_description").order("created_at", { ascending: false }).limit(40);
       const rss = await fetchMusicNews();
-      const news = [...rss, ...requireRows(storedNews, "Load stored news")];
+      // Same headline music gate for curated news_items as for RSS ingest.
+      const curated = requireRows(storedNews, "Load stored news").filter((row: any) => isMusicRelatedStory({
+        title: row.title,
+        summary: row.seo_description ?? row.summary ?? null,
+        url: row.url,
+        source: row.source,
+      }));
+      const news = [...rss, ...curated];
       const userIds = recipients.map((user) => user.user_id);
       const reviews: unknown[] = [];
       for (let index = 0; index < userIds.length; index += 40) {
@@ -409,7 +422,7 @@ serve(async (req) => {
           const mine = signals.interests.filter((row) => row.user_id === user.user_id);
           return {
             ...user,
-            ...(priorSelections.get(user.user_id) ?? { recentSourceUrls: [], recentListenKeys: [] }),
+            ...(priorSelections.get(user.user_id) ?? { recentSourceUrls: [], recentSourceLabels: [], recentListenKeys: [] }),
             latitude: center?.latitude ?? null,
             longitude: center?.longitude ?? null,
             interestedEventIds: mine.filter((row) => row.relationship_type !== "going").map((row) => String(row.event_id)),
@@ -478,6 +491,81 @@ serve(async (req) => {
         if (attempt.data) inserted.push(attempt.data);
       }
       return json(200, { ok: true, vetoes: inserted, recorded: inserted.length });
+    }
+
+    if (action === "list_section_statuses") {
+      const { data, error } = await adminClient
+        .from("newsletter_section_statuses")
+        .select("id, content_key, kind, label, status, updated_at, created_at")
+        .order("updated_at", { ascending: false })
+        .limit(2000);
+      if (error) return json(500, { ok: false, error: error.message });
+      return json(200, { ok: true, statuses: data ?? [] });
+    }
+
+    if (action === "set_section_status") {
+      const status = String(body?.status ?? "").trim();
+      const kind = String(body?.kind ?? "").trim();
+      const label = String(body?.label ?? "").trim();
+      const applyVeto = body?.applyVeto === true;
+      const keys = Array.isArray(body?.contentKeys)
+        ? [...new Set(body.contentKeys.map((value: unknown) => String(value ?? "").trim()).filter(Boolean))]
+        : [];
+      if (!["pending", "approved", "rejected"].includes(status)) {
+        return json(400, { ok: false, error: "status must be pending, approved, or rejected." });
+      }
+      if (!["event", "news", "listen", "account"].includes(kind)) {
+        return json(400, { ok: false, error: "kind must be event, news, listen, or account." });
+      }
+      if (!keys.length) return json(400, { ok: false, error: "contentKeys are required." });
+
+      const updated = [];
+      for (const content_key of keys) {
+        const upsert = await adminClient
+          .from("newsletter_section_statuses")
+          .upsert(
+            {
+              content_key,
+              kind,
+              label,
+              status,
+              updated_by: auth.userId,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "content_key" },
+          )
+          .select("id, content_key, kind, label, status, updated_at")
+          .maybeSingle();
+        if (upsert.error) return json(500, { ok: false, error: upsert.error.message });
+        if (upsert.data) updated.push(upsert.data);
+
+        if (status === "pending" || status === "approved") {
+          const cleared = await adminClient
+            .from("newsletter_content_vetoes")
+            .delete()
+            .eq("content_key", content_key)
+            .eq("scope", "global");
+          if (cleared.error) return json(500, { ok: false, error: cleared.error.message });
+        } else if (applyVeto) {
+          const veto = await adminClient
+            .from("newsletter_content_vetoes")
+            .insert({
+              content_key,
+              kind,
+              scope: "global",
+              user_id: null,
+              reason: "bad",
+              label,
+              created_by: auth.userId,
+            })
+            .select("id")
+            .maybeSingle();
+          if (veto.error && !/duplicate|unique/i.test(veto.error.message)) {
+            return json(500, { ok: false, error: veto.error.message });
+          }
+        }
+      }
+      return json(200, { ok: true, statuses: updated });
     }
 
     if (action === "list_drafts") {
@@ -684,7 +772,7 @@ serve(async (req) => {
             return sendBrevoNewsletter(brevoApiKey, {
               to: toEmail,
               subject: draft.subject,
-              html: injectUnsubscribeLink(draft.html, unsubscribeUrl),
+              html: prepareHtmlForSend(draft.html, unsubscribeUrl),
               unsubscribeUrl,
               deliveryKey: deliveryKey(draft),
             });

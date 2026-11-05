@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { Pressable, Text, View, StyleSheet } from 'react-native';
+import { Pressable, View, StyleSheet } from 'react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 
 export const AI_AUTHOR_TYPE = 'ai_scene_guide';
-export const AI_DISCLOSURE_LABEL = 'AI Scene Guide';
-export const AI_ROOM_NOTICE =
-  'This room includes AI Scene Guides that share sourced concert updates and conversation starters.';
+/** User-facing label — do not say "AI". */
+export const AI_DISCLOSURE_LABEL = 'Scene Guide';
+/** Older messages may still carry this metadata value. */
+export const LEGACY_AI_DISCLOSURE_LABEL = 'AI Scene Guide';
+export const AI_ROOM_NOTICE = '';
 
 export const AI_PROFILE_COPY = {
-  operatedBy: 'AI Scene Guide operated by Synth',
+  operatedBy: 'Scene Guide operated by Synth',
   whatItDoes:
     'Shares sourced concert updates, artist context, and conversation starters. It does not attend shows or speak as a real person.',
   whySeeingThis:
-    'Why am I seeing this? Genre rooms use disclosed AI guides so new rooms are not empty while real fans join the conversation.',
+    'Scene guides keep genre rooms from going quiet so fans have something to react to while the conversation grows.',
 };
 
 export function isAiSceneGuideMessage(message: {
@@ -22,15 +24,16 @@ export function isAiSceneGuideMessage(message: {
 }): boolean {
   if (message.author_type === AI_AUTHOR_TYPE) return true;
   const meta = message.metadata ?? {};
-  return meta.author_type === AI_AUTHOR_TYPE || meta.disclosure_label === AI_DISCLOSURE_LABEL;
+  return (
+    meta.author_type === AI_AUTHOR_TYPE ||
+    meta.disclosure_label === AI_DISCLOSURE_LABEL ||
+    meta.disclosure_label === LEGACY_AI_DISCLOSURE_LABEL
+  );
 }
 
+/** @deprecated Kept for imports; no longer rendered in consumer chat. */
 export function AiBadge() {
-  return (
-    <View style={styles.badge}>
-      <SynthText style={styles.badgeText}>AI</SynthText>
-    </View>
-  );
+  return null;
 }
 
 export function AiSceneGuideRoomNotice({
@@ -40,14 +43,12 @@ export function AiSceneGuideRoomNotice({
   muted?: boolean;
   onMute?: () => void;
 }) {
+  if (!onMute) return null;
   return (
     <View style={styles.notice}>
-      <SynthText style={styles.noticeText}>{AI_ROOM_NOTICE}</SynthText>
-      {onMute ? (
-        <Pressable onPress={onMute} style={styles.muteBtn}>
-          <SynthText style={styles.muteText}>{muted ? 'AI muted' : 'Mute AI Scene Guides'}</SynthText>
-        </Pressable>
-      ) : null}
+      <Pressable onPress={onMute} style={styles.muteBtn}>
+        <SynthText style={styles.muteText}>{muted ? 'Guides muted' : 'Mute scene guides'}</SynthText>
+      </Pressable>
     </View>
   );
 }
@@ -55,7 +56,6 @@ export function AiSceneGuideRoomNotice({
 export function AiGuideMessageBubble({
   content,
   containsSetlistSpoiler,
-  senderName,
 }: {
   content: string;
   containsSetlistSpoiler?: boolean;
@@ -64,10 +64,6 @@ export function AiGuideMessageBubble({
   const [revealed, setRevealed] = useState(false);
   return (
     <View style={styles.bubble}>
-      <View style={styles.row}>
-        <AiBadge />
-        <SynthText style={styles.label}>{senderName ? `${senderName} · ` : ''}{AI_DISCLOSURE_LABEL}</SynthText>
-      </View>
       {containsSetlistSpoiler && !revealed ? (
         <Pressable onPress={() => setRevealed(true)} style={styles.spoiler}>
           <SynthText style={styles.spoilerText}>Show setlist spoiler</SynthText>
@@ -82,10 +78,7 @@ export function AiGuideMessageBubble({
 export function AiSceneGuideProfileCopy() {
   return (
     <View style={{ gap: 8, padding: 16 }}>
-      <View style={styles.row}>
-        <AiBadge />
-        <SynthText style={{ fontWeight: '700' }}>{AI_DISCLOSURE_LABEL}</SynthText>
-      </View>
+      <SynthText style={{ fontWeight: '700' }}>{AI_DISCLOSURE_LABEL}</SynthText>
       <SynthText>{AI_PROFILE_COPY.operatedBy}</SynthText>
       <SynthText style={{ color: SynthTokens.colors.neutral600 }}>{AI_PROFILE_COPY.whatItDoes}</SynthText>
       <SynthText style={{ color: SynthTokens.colors.neutral600 }}>{AI_PROFILE_COPY.whySeeingThis}</SynthText>
@@ -94,33 +87,14 @@ export function AiSceneGuideProfileCopy() {
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    backgroundColor: SynthTokens.colors.neutral200,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: SynthTokens.colors.neutral900,
-  },
   notice: {
     marginHorizontal: 12,
     marginVertical: 8,
-    padding: 12,
-    backgroundColor: SynthTokens.colors.neutral100,
-    borderRadius: 8,
-    gap: 8,
-  },
-  noticeText: {
-    fontSize: 13,
-    color: SynthTokens.colors.neutral600,
-    lineHeight: 18,
+    padding: 4,
+    alignItems: 'flex-end',
   },
   muteBtn: {
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
     borderRadius: 6,
@@ -138,8 +112,6 @@ const styles = StyleSheet.create({
     opacity: 0.95,
     gap: 6,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  label: { fontSize: 11, color: SynthTokens.colors.neutral600 },
   body: { fontSize: 14, lineHeight: 20, color: SynthTokens.colors.neutral900 },
   spoiler: {
     backgroundColor: SynthTokens.colors.neutral200,

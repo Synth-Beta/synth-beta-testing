@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Pressable, SafeAreaView, TextInput, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -12,7 +12,6 @@ import { ArtistService, Artist } from '../../src/services/artistService';
 import { supabase } from '../../src/integrations/supabase/client';
 import { OnboardingService } from '../../src/services/onboardingService';
 import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
-import { pickPreselected } from '@synth/shared';
 import { PushPrimerSheet } from '../../src/components/PushPrimer';
 import { trackPushPrimer } from '../../src/services/onboardingTelemetry';
 import { getNotificationPermissionStatus } from '../../lib/registerPushNotifications';
@@ -32,9 +31,6 @@ export default function ArtistsScreen() {
     const [saving, setSaving] = useState(false);
     const [loadFailed, setLoadFailed] = useState(false);
     const [showPushAsk, setShowPushAsk] = useState(false);
-    // Pre-select once: clearing the search reloads suggestions and must not re-check
-    // artists the user deliberately unchecked.
-    const preselectedOnce = useRef(false);
 
     useEffect(() => {
         trackOnboardingStep('artists');
@@ -45,15 +41,12 @@ export default function ArtistsScreen() {
         setIsLoading(true);
         const data = await ArtistService.getOnboardingSuggestions();
         setArtists(data);
-        // Only their own listening starts checked; checked means followed.
-        if (!preselectedOnce.current && data.length > 0) {
-            preselectedOnce.current = true;
-            setSelectedArtistIds(prev => (prev.length ? prev : pickPreselected(data)));
-        }
+        // Suggestions are for browsing only — never auto-check taste/ranking picks.
+        // Follows on Continue are exactly what the user tapped.
         // getSuggestedArtists swallows its own error and returns [] (artistService.ts:23),
         // and `artists` is never legitimately empty, so an empty suggested list means the
         // query failed. This screen is the last step, has no skip and no back-out, and its
-        // button is gated on picking 3 — so a failed load used to lock the user out of the
+        // button is gated on picking artists — so a failed load used to lock the user out of the
         // app permanently with a blank list. That shipped once already, when this query
         // ordered by a `popularity` column that does not exist.
         if (data.length === 0) {
@@ -220,7 +213,7 @@ export default function ArtistsScreen() {
                     <View style={styles.textContent}>
                         <SynthText variant="h1" style={styles.title}>Follow your favorites</SynthText>
                         <SynthText variant="meta" color="secondary" style={styles.subtitle}>
-                            Tap artists you love — 3 or more makes your feed much better
+                            Pick artists you actually like — 3 or more makes your feed much better
                         </SynthText>
                     </View>
                 }

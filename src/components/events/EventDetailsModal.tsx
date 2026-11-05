@@ -48,7 +48,7 @@ import { EventMap } from '@/components/EventMap';
 const ArtistDetailModal = React.lazy(() => import('@/components/discover/modals/ArtistDetailModal').then(m => ({ default: m.ArtistDetailModal })));
 const VenueDetailModal = React.lazy(() => import('@/components/discover/modals/VenueDetailModal').then(m => ({ default: m.VenueDetailModal })));
 import type { JamBaseEvent } from '@/types/eventTypes';
-import { createFriendRequest } from '@synth/shared';
+import { buildGoogleCalendarUrl, createFriendRequest } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
 import { trackInteraction } from '@/services/interactionTrackingService';
 import { PromotionTrackingService } from '@/services/promotionTrackingService';
@@ -1006,6 +1006,28 @@ export function EventDetailsModal({
     }
     return getLocationString();
   };
+
+  const eventShareUrl = ShareService.getEventUrl(actualEvent.id);
+  let eventShareSiteUrl = 'https://join.getsynth.app';
+  try {
+    eventShareSiteUrl = new URL(eventShareUrl).origin;
+  } catch {
+    // keep fallback
+  }
+  const googleCalendarUrl =
+    buildGoogleCalendarUrl({
+      id: actualEvent.id,
+      title: actualEvent.title,
+      artistName: actualEvent.artist_name,
+      eventDate: actualEvent.event_date,
+      venueTimezone: actualEvent.venue_timezone,
+      venueName: actualEvent.venue_name,
+      venueAddress: actualEvent.venue_address,
+      venueCity: actualEvent.venue_city,
+      venueState: actualEvent.venue_state,
+      description: actualEvent.description,
+      siteUrl: eventShareSiteUrl,
+    })?.url ?? null;
 
   const loadAttendanceData = async () => {
     try {
@@ -2924,9 +2946,10 @@ export function EventDetailsModal({
         <UniversalShareModal
           type="event"
           title={actualEvent.title || 'Event'}
-          url={ShareService.getEventUrl(actualEvent.id)}
+          url={eventShareUrl}
           currentUserId={currentUserId}
           eventId={actualEvent.id}
+          googleCalendarUrl={googleCalendarUrl}
           isOpen={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
         />

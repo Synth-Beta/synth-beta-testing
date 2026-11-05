@@ -1,20 +1,23 @@
 /**
- * Shared constants/helpers for AI Scene Guide disclosure in chat UI.
+ * Shared constants/helpers for Scene Guide messages in chat UI.
  * Keep in sync with ai-scene-guides trust rules.
  */
 
 export const AI_AUTHOR_TYPE = 'ai_scene_guide' as const;
-export const AI_DISCLOSURE_LABEL = 'AI Scene Guide' as const;
+/** User-facing label — do not say "AI". */
+export const AI_DISCLOSURE_LABEL = 'Scene Guide' as const;
+/** Older messages may still carry this metadata value. */
+export const LEGACY_AI_DISCLOSURE_LABEL = 'AI Scene Guide' as const;
 
-export const AI_ROOM_NOTICE =
-  'This room includes AI Scene Guides that share sourced concert updates and conversation starters.';
+/** Mute control only — no room-level AI marketing. */
+export const AI_ROOM_NOTICE = '';
 
 export const AI_PROFILE_COPY = {
-  operatedBy: 'AI Scene Guide operated by Synth',
+  operatedBy: 'Scene Guide operated by Synth',
   whatItDoes:
     'Shares sourced concert updates, artist context, and conversation starters. It does not attend shows or speak as a real person.',
   whySeeingThis:
-    'Why am I seeing this? Genre rooms use disclosed AI guides so new rooms are not empty while real fans join the conversation.',
+    'Scene guides keep genre rooms from going quiet so fans have something to react to while the conversation grows.',
 } as const;
 
 export function isAiSceneGuideMessage(message: {
@@ -23,7 +26,11 @@ export function isAiSceneGuideMessage(message: {
 }): boolean {
   if (message.author_type === AI_AUTHOR_TYPE) return true;
   const meta = message.metadata ?? {};
-  return meta.author_type === AI_AUTHOR_TYPE || meta.disclosure_label === AI_DISCLOSURE_LABEL;
+  return (
+    meta.author_type === AI_AUTHOR_TYPE ||
+    meta.disclosure_label === AI_DISCLOSURE_LABEL ||
+    meta.disclosure_label === LEGACY_AI_DISCLOSURE_LABEL
+  );
 }
 
 export type SourceChipFact = {

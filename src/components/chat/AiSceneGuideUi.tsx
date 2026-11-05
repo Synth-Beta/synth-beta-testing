@@ -1,34 +1,12 @@
 import React from 'react';
 import {
-  AI_DISCLOSURE_LABEL,
-  AI_ROOM_NOTICE,
   AI_PROFILE_COPY,
   type SourceChipFact,
 } from './aiSceneGuideConstants';
 
-export function AiBadge({ compact = false }: { compact?: boolean }) {
-  return (
-    <span
-      title={AI_DISCLOSURE_LABEL}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        padding: compact ? '1px 6px' : '2px 8px',
-        borderRadius: 4,
-        background: 'var(--neutral-200, #e5e5e5)',
-        color: 'var(--neutral-800, #262626)',
-        fontSize: compact ? 10 : 11,
-        fontWeight: 700,
-        letterSpacing: '0.04em',
-        textTransform: 'uppercase',
-        lineHeight: 1.2,
-        flexShrink: 0,
-      }}
-    >
-      AI
-    </span>
-  );
+/** @deprecated Kept for imports; no longer rendered in consumer chat. */
+export function AiBadge(_props?: { compact?: boolean }) {
+  return null;
 }
 
 export function AiSceneGuideRoomNotice({
@@ -38,41 +16,36 @@ export function AiSceneGuideRoomNotice({
   onMute?: () => void;
   muted?: boolean;
 }) {
+  if (!onMute) return null;
   return (
     <div
       role="status"
       style={{
         margin: '8px 12px',
-        padding: '10px 12px',
-        background: 'var(--neutral-100, #f5f5f5)',
-        border: '1px solid var(--neutral-200, #e5e5e5)',
-        borderRadius: 8,
-        fontSize: 13,
-        color: 'var(--neutral-700, #404040)',
+        padding: '8px 12px',
+        background: 'transparent',
         display: 'flex',
         gap: 12,
-        alignItems: 'flex-start',
-        justifyContent: 'space-between',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
       }}
     >
-      <p style={{ margin: 0, lineHeight: 1.4 }}>{AI_ROOM_NOTICE}</p>
-      {onMute && (
-        <button
-          type="button"
-          onClick={onMute}
-          style={{
-            flexShrink: 0,
-            border: '1px solid var(--neutral-300)',
-            background: '#FFFDFA',
-            borderRadius: 6,
-            padding: '4px 8px',
-            fontSize: 12,
-            cursor: 'pointer',
-          }}
-        >
-          {muted ? 'AI muted' : 'Mute AI Scene Guides'}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={onMute}
+        style={{
+          flexShrink: 0,
+          border: '1px solid var(--neutral-300)',
+          background: '#FFFDFA',
+          borderRadius: 6,
+          padding: '4px 8px',
+          fontSize: 12,
+          cursor: 'pointer',
+          color: 'var(--neutral-700, #404040)',
+        }}
+      >
+        {muted ? 'Guides muted' : 'Mute scene guides'}
+      </button>
     </div>
   );
 }
@@ -151,7 +124,6 @@ export function AiSceneGuideProfileDrawer({
     <div style={{ padding: 16, maxWidth: 360 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <strong>{displayName}</strong>
-        <AiBadge />
       </div>
       <p style={{ margin: '0 0 8px', fontSize: 14 }}>{AI_PROFILE_COPY.operatedBy}</p>
       <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--neutral-600)' }}>
@@ -195,10 +167,6 @@ export function AiGuideMessageBubble({
         opacity: 0.92,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <AiBadge compact />
-        <span style={{ fontSize: 11, color: 'var(--neutral-600)' }}>{AI_DISCLOSURE_LABEL}</span>
-      </div>
       <p
         style={{
           fontFamily: 'var(--font-family)',

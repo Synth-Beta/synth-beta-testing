@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Search, X } from 'lucide-react';
-import { pickPreselected } from '@synth/shared';
 
 import {
   Dialog,
@@ -48,12 +47,11 @@ export const FollowArtistsModal = ({
   const MIN_FOLLOWS = OnboardingService.MIN_ARTIST_FOLLOWS;
 
   const [visibleArtists, setVisibleArtists] = useState<FollowArtistOption[]>(artists);
-  // Select, then save on Done (same model as the iOS artist step). The old follow-on-tap
-  // model could not show pre-selected artists without silently following them.
+  // Select, then save on Done (same model as the iOS artist step). Never auto-check
+  // taste/suggestion rows — only artists the user already named (music tags) or taps here.
   const [selected, setSelected] = useState<Map<string, FollowArtistOption>>(new Map());
-  // Pre-select once: on a reopen (finish failed, retry) the RPC returns 3 new picks, which
-  // would be followed without the user ever choosing them.
-  const preselectedOnce = useRef(false);
+  // Seed music-tag favorites once. Reopening must not re-check suggestion rows.
+  const seededOnce = useRef(false);
   const [saving, setSaving] = useState(false);
   const [followedCount, setFollowedCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -92,16 +90,14 @@ export const FollowArtistsModal = ({
           merged.push({ id: artist.id, name: artist.name, image_url: artist.image_url ?? undefined });
         }
         setVisibleArtists(merged);
-        // Only their own listening starts checked; checked means followed.
-        const preIds = new Set(
-          pickPreselected(
-            suggested.map((a) => ({ id: a.id, preselected: (a as { preselected?: boolean }).preselected }))
-          )
-        );
-        if (!preselectedOnce.current) {
-          preselectedOnce.current = true;
+        // Only pre-check artists the user already named in music tags — never suggestion/
+        // taste rows. Signup follows must match what they chose, not a ranked fallback list.
+        if (!seededOnce.current) {
+          seededOnce.current = true;
           setSelected((prev) =>
-            prev.size > 0 ? prev : new Map(merged.filter((a) => a.id && preIds.has(a.id)).map((a) => [getArtistKey(a), a]))
+            prev.size > 0
+              ? prev
+              : new Map(artists.map((a) => [getArtistKey(a), a]))
           );
         }
         setLoadFailed(false);
@@ -228,7 +224,7 @@ export const FollowArtistsModal = ({
             <p className="text-center text-sm text-muted-foreground">
               {loadFailed
                 ? "We couldn't load artists right now — you can continue and follow artists later."
-                : `Tap artists you love — 3 or more makes your feed much better (${followedCount + selected.size} selected)`}
+                : `Pick artists you actually like — 3 or more makes your feed much better (${followedCount + selected.size} selected)`}
             </p>
 
             {!loadFailed && (

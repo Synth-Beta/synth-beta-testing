@@ -5,16 +5,43 @@ import { regenerateDecision, canSendDraft } from '../src/lib/newsletterEdition/g
 import { readAll } from '../../../supabase/functions/newsletter-send/queries';
 
 const now = new Date('2026-10-07T18:00:00Z');
-const users = Array.from({ length: 135 }, (_, index) => ({ user_id: `user-${index}`, email: `user${index}@example.com`, name: `Reader${index}` }));
-const empty = { users, news: [], reviews: [], stats: [], events: [], publicFives: [] };
+const users = Array.from({ length: 135 }, (_, index) => ({
+  user_id: `user-${index}`,
+  email: `user${index}@example.com`,
+  name: `Reader${index}`,
+  location_city: 'Washington',
+  location_state: 'DC',
+  latitude: 38.9072,
+  longitude: -77.0369,
+}));
+const events = Array.from({ length: 10 }, (_, index) => ({
+  id: `regen-show-${index}`,
+  artist_name: `Regen Act ${index}`,
+  artists: { name: `Regen Act ${index}` },
+  venues: { name: '9:30 Club' },
+  venue_city: 'Washington',
+  venue_state: 'DC',
+  event_date: `2026-11-${String(5 + index).padStart(2, '0')}T00:00:00.000Z`,
+  ticket_urls: [`https://www.axs.com/events/regen-${index}`],
+  ticket_available: true,
+  latitude: 38.9072,
+  longitude: -77.0369,
+  genres: ['rock'],
+}));
+const empty = { users, news: [], reviews: [], stats: [], events, publicFives: [] };
 const generated = await generateDraftsFromSource(empty, now, '2026-10-12');
 assert.equal(generated.editionDate, '2026-10-12', 'explicit edition must not roll to another day');
-assert.equal(generated.drafts.length, 135, 'every eligible sparse reader must receive a reviewable draft');
+assert.equal(generated.drafts.length, 135, 'every eligible reader with a local show receives a reviewable draft');
 assert.equal(generated.held, 0);
-assert.match(generated.drafts[0].html, /The listening detour|Explore concerts on Synth|Set your city/);
-assert.match(generated.drafts[0].html, /synth-newsletter-writer-8/);
+assert.match(generated.drafts[0].html, /The listening detour|Explore concerts on Synth|Open this show on Synth/);
+assert.match(generated.drafts[0].html, /synth-newsletter-writer-9/);
+assert.match(generated.drafts[0].html, /join\.getsynth\.app\/share\?event=/);
 assert.doesNotMatch(generated.drafts[0].html, /Tickets are listed as available|After the encore|Build your live music timeline/);
 assert.notEqual(generated.drafts[0].html, generated.drafts[1].html);
+
+const held = await generateDraftsFromSource({ ...empty, events: [] }, now, '2026-10-12');
+assert.equal(held.drafts.length, 0);
+assert.equal(held.held, 135, 'no local show inventory holds the edition');
 
 const news = [{ id: 'story', title: 'Festival announces its lineup', url: 'https://example.com/music', created_at: '2026-10-06T12:00:00Z', summary: 'The festival posted its lineup and ticket links on the official site this week.' }];
 const general = await generateDraftsFromSource({ ...empty, news }, now);
@@ -28,7 +55,7 @@ assert.doesNotMatch(stale.drafts[0].html, /Festival announces its lineup/);
 const reviews = Array.from({ length: 13 }, (_, index) => ({ user_id: users[0].user_id, user_created_artists: { name: `Manual artist ${index}` }, venues: { name: 'Venue' }, Event_date: '2026-09-01', rating: index < 7 ? 5 : 4 }));
 const active = await generateDraftsFromSource({ ...empty, reviews }, now);
 assert.doesNotMatch(active.drafts[0].html, /did you see anyone new this weekend|write a review|newest night|13 shows logged/i);
-assert.match(active.drafts[0].html, /Manual artist|outside your usual rotation|new sounds|rabbit hole/i);
+assert.match(active.drafts[0].html, /Manual artist|Open this show on Synth|Regen Act|outside your usual rotation|new sounds|rabbit hole/i);
 const streaming = await generateDraftsFromSource({ ...empty, stats: [
   { user_id: users[0].user_id, top_artists: ['Wilco'], top_genres: ['rock'], listens: [{ artistName: 'Wilco', trackName: 'Jesus, Etc.', url: 'https://open.spotify.com/search/Wilco%20Jesus%20Etc' }] },
   { user_id: users[0].user_id, top_artists: [{ name: 'Goose' }], top_genres: [{ genre: 'jam' }], listens: [{ artistName: 'Goose', trackName: 'Arcadia', url: 'https://open.spotify.com/search/Goose%20Arcadia' }] },
@@ -36,7 +63,7 @@ const streaming = await generateDraftsFromSource({ ...empty, stats: [
 assert.doesNotMatch(streaming.drafts[0].html, /Jesus, Etc\.|Arcadia/);
 assert.match(streaming.drafts[0].html, /On your next listen|The listening detour/);
 assert.notEqual(streaming.drafts[0].html, generated.drafts[0].html);
-const duplicates = await generateDraftsFromSource({ ...empty, users: [...users, { user_id: 'duplicate', email: 'USER0@example.com' }] }, now);
+const duplicates = await generateDraftsFromSource({ ...empty, users: [...users, { user_id: 'duplicate', email: 'USER0@example.com', location_city: 'Washington', location_state: 'DC' }] }, now);
 assert.equal(duplicates.drafts.length, 135);
 
 assert.equal(regenerateDecision({ status: 'approved' }), 'replace');
@@ -50,4 +77,4 @@ const rows = await readAll(() => ({ range: async (from: number, to: number) => {
 assert.equal(rows.length, 1201);
 assert.equal(pages, 3);
 await assert.rejects(readAll(() => ({ range: async () => ({ data: null, error: { message: 'database unavailable' } }) }), 'Reviews'), /Reviews: database unavailable/);
-console.log('PASS: 135 recipients; explicit edition; recommendation-first fallback; custom artists; streaming merge; deduplication; approval reset; pagination; query errors.');
+console.log('PASS: 135 recipients with show gate; zero-show hold; explicit edition; recommendation-first fallback; custom artists; streaming merge; deduplication; approval reset; pagination; query errors.');

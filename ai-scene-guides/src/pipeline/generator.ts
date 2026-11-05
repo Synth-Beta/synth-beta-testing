@@ -26,7 +26,7 @@ const LIVED_EXPERIENCE =
 const VAGUE =
   /\b(this act|this bill|this listing|the listing|the venue page|that show)\b/i;
 
-const SYSTEM_PROMPT = `You are an AI Scene Guide message generator for Synth genre chat rooms.
+const SYSTEM_PROMPT = `You are a Scene Guide message generator for Synth genre chat rooms.
 Rules:
 - Use ONLY the supplied grounded facts and room context.
 - Always name artist, venue, and date from the event fact. Never say "this act", "this bill", "the listing", or "the venue page".
@@ -37,10 +37,11 @@ Rules:
 - If facts are insufficient, return {"messages":[]}.
 - Never claim firsthand attendance, personal memories, friendships, purchases, or private knowledge.
 - Never imitate a real person.
+- Do not mention AI, artificial intelligence, or that messages are generated.
 - Produce a linked conversation of 3–4 messages with replyToDraftIndex on replies.
 - Two or more distinct personas. At least one reply must disagree or add a new detail.
 - 8–35 words default; max 70. One question mark max. No em dashes.
-- authorType must be "ai_scene_guide" and disclosureLabel "AI Scene Guide" on every message.
+- authorType must be "ai_scene_guide" and disclosureLabel "Scene Guide" on every message.
 - Output strict JSON matching {"messages":[{"personaId","text","citedFactIds","containsSetlistSpoiler","intent","confidence","authorType","disclosureLabel","replyToDraftIndex"?}]}`;
 
 export async function generateConversation(options: {

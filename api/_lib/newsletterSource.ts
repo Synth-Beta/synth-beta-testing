@@ -6,10 +6,19 @@ import { historyArtists } from "../../supabase/functions/newsletter-send/editori
 import { runEventQuery } from "../../supabase/functions/newsletter-send/eventQuery.js";
 import { lookupRecordings } from "../../supabase/functions/newsletter-send/tracks.js";
 import { loadEventsNearPlaces, placeKey, rankedArtistNames, withHubPlaces, type EventQuery } from "../../supabase/functions/newsletter-send/nearby.js";
-import { fetchMusicNews } from "../../supabase/functions/newsletter-send/news.js";
+import { fetchMusicNews, isMusicRelatedStory } from "../../supabase/functions/newsletter-send/news.js";
 import { readAll, requireRows, enrichReviewArtists, loadListeningStats, loadTasteSignals, loadRecentNewsletterSignals } from "../../supabase/functions/newsletter-send/queries.js";
 
 type Db = { from: (table: string) => any };
+
+const asEditionNews = (row: any) => ({
+  id: String(row.id),
+  title: String(row.title ?? ""),
+  url: String(row.url ?? ""),
+  source: row.source ?? null,
+  publishedAt: String(row.publishedAt ?? row.created_at ?? ""),
+  summary: row.summary ?? row.seo_description ?? null,
+});
 
 export const loadEditionSource = async (db: Db, now = new Date()) => {
   const users = await readAll(() => db.from("users")
@@ -30,7 +39,11 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     .select("id, title, url, source, created_at, seo_description")
     .order("created_at", { ascending: false })
     .limit(40);
-  const news = [...rss, ...requireRows(storedNews, "Load stored news")];
+  // Apply the same headline music gate to curated news_items as RSS.
+  const curated = requireRows(storedNews, "Load stored news")
+    .map(asEditionNews)
+    .filter((item) => isMusicRelatedStory(item));
+  const news = [...rss, ...curated];
 
   const userIds = recipients.map((user: any) => user.user_id);
   const reviews: any[] = [];
@@ -74,7 +87,7 @@ export const loadEditionSource = async (db: Db, now = new Date()) => {
     const mine = signals.interests.filter((row) => row.user_id === user.user_id);
     return {
       ...user,
-      ...(priorSelections.get(user.user_id) ?? { recentSourceUrls: [], recentListenKeys: [] }),
+      ...(priorSelections.get(user.user_id) ?? { recentSourceUrls: [], recentSourceLabels: [], recentListenKeys: [] }),
       latitude: center?.latitude ?? null,
       longitude: center?.longitude ?? null,
       interestedEventIds: mine.filter((row) => row.relationship_type !== "going").map((row) => String(row.event_id)),

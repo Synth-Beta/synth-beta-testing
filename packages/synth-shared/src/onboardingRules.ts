@@ -85,11 +85,3 @@ export function isPlaceholderName(name: string | null | undefined, email?: strin
   const prefix = email?.split('@')[0]?.trim();
   return !!prefix && n.toLowerCase() === prefix.toLowerCase();
 }
-
-/**
- * Artist step: ids to start checked. Server flags only, which it sets for the user's own
- * listening. Checked means followed, so unflagged rows never start checked.
- */
-export function pickPreselected<T extends { id: string; preselected?: boolean }>(rows: T[], n = 3): string[] {
-  return rows.filter(r => r.preselected).map(r => r.id).slice(0, n);
-}

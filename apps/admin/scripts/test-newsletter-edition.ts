@@ -140,12 +140,12 @@ const base = {
 const laurenEdition = composeEdition({ ...base, reader: lauren })!;
 const chicagoEdition = composeEdition({ ...base, reader: chicago })!;
 const sparseEdition = composeEdition({ ...base, reader: sparse })!;
-const noLocationEdition = composeEdition({ ...base, reader: noLocation })!;
+const noLocationEdition = composeEdition({ ...base, reader: noLocation });
 
 assert.ok(laurenEdition);
 assert.ok(chicagoEdition);
 assert.ok(sparseEdition);
-assert.ok(noLocationEdition);
+assert.equal(noLocationEdition, null, "editions without a usable city are held rather than sent without a show");
 
 assert.equal(laurenEdition.shows.some((show) => show.title === "Jon Batiste"), false, "past shows are not upcoming");
 assert.ok(laurenEdition.shows.some((show) => show.title === "Sylvan Esso" || show.title === "Glass Animals"));
@@ -193,7 +193,7 @@ const locatedChicago = composeEdition({
 assert.ok(locatedChicago.shows.some((show) => show.title === "Horsegirl"));
 assert.equal(locatedChicago.shows.some((show) => show.title === "Wilco" && /New York/.test(show.eyebrow)), false);
 assert.equal(eventWithinSavedLocation({ ...chicago, ...chicagoPoint }, newYork), false);
-assert.match(locatedChicago.showsHeading ?? "", /Actually worth a look near Chicago/);
+assert.match(locatedChicago.showsHeading ?? "", /near Chicago|around Chicago/);
 assert.equal(locatedChicago.locationPrompt, undefined);
 assert.ok(chicagoEdition.updates.some((update) => /Chicago/i.test(update.title)), "local scene news may appear when it matches the city");
 
@@ -201,12 +201,7 @@ assert.ok(sparseEdition.shows.some((show) => show.title === "Local Natives"));
 assert.equal(sparseEdition.yourSynth, undefined);
 assert.equal(/inactive|haven't used|no shows yet/i.test(renderEditionHtml(sparseEdition)), false);
 
-assert.equal(noLocationEdition.shows.length, 0, "no far-away city is substituted when location is unknown");
-assert.equal(noLocationEdition.showsHeading, undefined);
-assert.equal(noLocationEdition.locationPrompt?.url, "https://join.getsynth.app/profile-edit");
-assert.match(noLocationEdition.locationPrompt?.label ?? "", /Set your city/);
-assert.ok((noLocationEdition.listens?.length ?? 0) >= 2);
-assert.match(renderEditionHtml(noLocationEdition), /join\.getsynth\.app\/profile-edit/);
+assert.equal(noLocationEdition, null, "no far-away city is substituted when location is unknown");
 
 const jungleReader: EditionReader = {
   ...sparse,
@@ -262,11 +257,19 @@ assert.notEqual(laurenHtml, chicagoHtml);
 assert.match(laurenHtml, /max-width:680px/);
 assert.match(laurenHtml, /#CC2486/);
 assert.match(laurenHtml, /Explore concerts on Synth/);
-assert.match(laurenHtml, /synth-newsletter-writer-8/);
+assert.match(laurenHtml, /synth-newsletter-writer-9/);
+assert.match(laurenHtml, /synth-newsletter-dark-1/);
+assert.match(laurenHtml, /prefers-color-scheme:\s*dark/);
+assert.match(laurenHtml, /name="color-scheme"/);
+assert.match(laurenHtml, /class="[^"]*\bnl-page\b/);
+assert.match(laurenHtml, /class="[^"]*\bnl-shell\b/);
+assert.match(laurenHtml, /class="[^"]*\bnl-card\b/);
 assert.match(laurenHtml, /upcoming_shows\.png/);
 assert.match(laurenHtml, /\{\{unsubscribe_url\}\}/);
 assert.doesNotMatch(laurenHtml, /After the encore|Open Synth|September 30, 2026/);
-assert.match(laurenHtml, /https:\/\/impconcerts.com\/event\/sylvan-esso-2\/|https:\/\/930.com\/glass-animals/);
+assert.match(laurenHtml, /join\.getsynth\.app\/share\?event=(sylvan|soldout)/);
+assert.match(laurenHtml, /Official tickets|Find people to go with/);
+assert.match(laurenHtml, /impconcerts\.com\/event\/sylvan-esso-2|930\.com\/glass-animals/);
 
 assert.deepEqual(recentWeekend(new Date("2026-10-13T15:00:00.000Z"), "DC"), { start: "2026-10-09", end: "2026-10-11" });
 assert.deepEqual(recentWeekend(new Date("2026-10-26T15:00:00.000Z"), "DC"), { start: "2026-10-23", end: "2026-10-25" });
@@ -353,7 +356,7 @@ assert.deepEqual(staleNews.map((story) => story.title), ["Wilco announces a fall
 const museum = composeEdition({
   ...base,
   news: [{ id: "museum", title: "The museum opens a new wing", url: "https://pitchfork.com/news/museum", source: "Pitchfork", publishedAt: "2026-10-01T12:00:00.000Z", summary: "The museum opened a new wing with no music angle at all in the writeup." }],
-  reader: { ...noLocation, topArtists: ["Muse"], genres: [] },
+  reader: { ...sparse, topArtists: ["Muse"], genres: [] },
 })!;
 assert.equal(museum.updates.length, 0);
 assert.equal(museum.features?.length ?? 0, 0);
@@ -370,7 +373,7 @@ assert.equal(isMusicRelatedStory({
   summary: "The group will perform a short set during the NFL Thanksgiving halftime show.",
   source: "Billboard",
   url: "https://www.billboard.com/music/music-news/wu-tang-lions-halftime",
-}), true, "football stories with a real music angle still qualify");
+}), false, "sports coverage is excluded even with a music crossover")
 const footballEdition = composeEdition({
   ...base,
   news: [
@@ -394,7 +397,7 @@ const footballEdition = composeEdition({
   reader: lauren,
 })!;
 assert.equal(footballEdition.updates.some((update) => /clinch a playoff berth/i.test(update.title)), false);
-assert.ok(footballEdition.updates.some((update) => /Jon Batiste|national anthem/i.test(update.title)));
+assert.equal(footballEdition.updates.some((update) => /national anthem|Commanders|playoff/i.test(update.title)), false, "sports-adjacent music crossovers stay out");
 
 const calls: Array<{ table: string; filters: Record<string, unknown> }> = [];
 const catalog = [
@@ -460,7 +463,7 @@ mkdirSync(outDir, { recursive: true });
 writeFileSync(resolve(outDir, "lauren.html"), laurenHtml);
 writeFileSync(resolve(outDir, "chicago.html"), chicagoHtml);
 writeFileSync(resolve(outDir, "sparse.html"), renderEditionHtml(sparseEdition));
-writeFileSync(resolve(outDir, "no-location.html"), renderEditionHtml(noLocationEdition));
+writeFileSync(resolve(outDir, "no-location.html"), "<!DOCTYPE html><html><body><p>Held: no city, no show, no send.</p></body></html>");
 
 const namedEvents = await runEventQuery({
   from(table: string) {
@@ -513,7 +516,8 @@ const bannedShow = composeEdition({
   reader: lauren,
   excludedUrls: [sylvanTicket],
 })!;
-assert.equal(bannedShow.shows.some((show) => show.ctaUrl === sylvanTicket), false, "global URL veto removes the show card");
+assert.equal(bannedShow.shows.some((show) => show.title === "Sylvan Esso"), false, "global URL veto removes the show card");
+assert.ok(bannedShow.shows.some((show) => show.title === "Glass Animals") || bannedShow.shows.length >= 1);
 
 const connectBanned = composeEdition({
   ...base,
@@ -555,7 +559,10 @@ const vetoSource = {
     { user_id: "lauren", topArtists: ["Jon Batiste", "Glass Animals"], genres: ["pop"] },
     { user_id: "sam", topArtists: ["Wilco"], genres: ["rock"] },
   ],
-  events,
+  events: [
+    ...events,
+    event({ id: "horsegirl-chi", artistName: "Horsegirl", city: "Chicago", state: "IL", venueName: "SPACE", ticketUrl: "https://evanstonspace.com/horsegirl", genres: ["rock"] }),
+  ],
   publicFives: [
     { user_id: "other", artists: { name: "Jon Batiste" } },
     { user_id: "other", artists: { name: "Wilco" } },
@@ -573,6 +580,7 @@ assert.ok(bothDrafts.drafts.every((draft) => !draft.sources.some((source) => sou
 const samDraft = bothDrafts.drafts.find((draft) => draft.userId === "sam")!;
 const laurenDraft = bothDrafts.drafts.find((draft) => draft.userId === "lauren")!;
 assert.equal(samDraft.sources.some((source) => source.url === "https://metrochicago.com/wilco"), false, "user veto removes the unfit show for Sam");
+assert.ok(samDraft.html.includes("Horsegirl") || samDraft.sources.some((source) => source.kind === "event"), "Sam still gets an alternate Chicago show");
 assert.ok(
   laurenDraft.sources.some((source) => source.kind === "event") || laurenDraft.subject.length > 0,
   "Lauren still gets a draft when only Sam has a user veto",

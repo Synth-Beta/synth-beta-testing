@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import NewsletterColorPreview from "@/components/admin/newsletter/NewsletterColorPreview";
 import { generateDraftsFromSource } from "@/lib/newsletterEdition/gather";
 import { NEWSLETTER_WRITER_MARK } from "@/lib/newsletterEdition/render";
 import { centralCalendarDate, nextEditionDate } from "@/lib/newsletterEdition/time";
@@ -20,6 +21,7 @@ import {
   recordContentVeto,
   saveNewsletterDrafts,
   setDraftApproval,
+  setSectionStatus,
   sendApprovedEditionNow,
 } from "@/services/newsletterSendService";
 
@@ -302,6 +304,16 @@ export default function NewsletterProofreader() {
         label: source.label,
         userId: reason === "unfit" ? draft.user_id : null,
       });
+      if (reason === "bad") {
+        await setSectionStatus({
+          contentKeys,
+          kind,
+          label: source.label,
+          status: "rejected",
+        }).catch(() => {
+          // Status sync is best-effort; the veto and rebuild still matter most.
+        });
+      }
       const sourcePayload = await loadNewsletterSource();
       // Bad content can still be selected for readers who do not have it yet, so
       // regenerate every unsent draft in the edition once the global ban is stored.
@@ -503,8 +515,11 @@ export default function NewsletterProofreader() {
                 {selected.brevo_message_id ? (
                   <p className="text-xs text-muted-foreground">Brevo message ID: {selected.brevo_message_id}</p>
                 ) : null}
-                <div className="overflow-hidden rounded-md border bg-[#F5F5F5]">
-                  <iframe title="Recipient newsletter" srcDoc={selected.html} className="h-[760px] w-full bg-white" />
+                <div className="overflow-hidden rounded-md border bg-[#F5F5F5] p-3">
+                  <NewsletterColorPreview
+                    html={selected.html}
+                    title={`Recipient newsletter (${selected.email})`}
+                  />
                 </div>
                 {(() => {
                   const cards = (selected.sources ?? []).filter((source) => VETOABLE_KINDS.has(String((source as VetoableSource).kind ?? ""))) as VetoableSource[];

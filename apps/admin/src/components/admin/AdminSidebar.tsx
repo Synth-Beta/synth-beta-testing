@@ -4,6 +4,7 @@ import {
   BookOpen,
   CheckCircle,
   Flag,
+  LayoutList,
   LogOut,
   Newspaper,
   Search,
@@ -49,6 +50,7 @@ const ADMIN_NAV: { label: string; items: AdminNavItem[] }[] = [
     items: [
       { tab: 'email-analytics', label: 'Email Analytics', icon: BarChart3 },
       { tab: 'newsletter-proof', label: 'Proofread', icon: CheckCircle, proofreadOnly: true },
+      { tab: 'newsletter-sections', label: 'Sections', icon: LayoutList, proofreadOnly: true },
     ],
   },
   {

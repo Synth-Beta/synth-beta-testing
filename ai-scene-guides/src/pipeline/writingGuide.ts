@@ -3,6 +3,8 @@
  * Gate status is calculated from evidence only — never from model-authored ok strings.
  */
 
+import { DISCLOSURE_LABEL, LEGACY_DISCLOSURE_LABEL } from '../types.js';
+
 export const RULE_VERSION = 'contextual-1.0';
 export const WRITING_GUIDE_VERSION = '1.2';
 export const GENERATOR_VERSION = 'contextual-seed-1.0';
@@ -340,7 +342,10 @@ export function validateCandidateEvidence(ctx: CandidateContext): {
   const gates: GateResult[] = [];
 
   const idEv: Evidence[] = [];
-  if (ctx.authorType !== 'ai_scene_guide' || ctx.disclosureLabel !== 'AI Scene Guide') {
+  if (
+    ctx.authorType !== 'ai_scene_guide' ||
+    (ctx.disclosureLabel !== DISCLOSURE_LABEL && ctx.disclosureLabel !== LEGACY_DISCLOSURE_LABEL)
+  ) {
     idEv.push({
       code: 'IDENTITY_MISSING',
       field: 'authorType',

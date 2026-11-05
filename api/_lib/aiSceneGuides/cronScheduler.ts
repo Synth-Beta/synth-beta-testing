@@ -483,7 +483,7 @@ export async function publishDueScheduledPosts(
         contains_setlist_spoiler: Boolean(row.contains_setlist_spoiler),
         metadata: {
           author_type: 'ai_scene_guide',
-          disclosure_label: 'AI Scene Guide',
+          disclosure_label: 'Scene Guide',
           persona_id: row.persona_id,
           scheduled_post_id: row.id,
           intent: row.intent,

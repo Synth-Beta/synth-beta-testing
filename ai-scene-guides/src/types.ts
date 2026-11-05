@@ -47,7 +47,9 @@ export const GroundedFactSchema = z.object({
 export type GroundedFact = z.infer<typeof GroundedFactSchema>;
 
 export const AUTHOR_TYPE_AI = 'ai_scene_guide' as const;
-export const DISCLOSURE_LABEL = 'AI Scene Guide' as const;
+/** User-facing label — do not say "AI" in product copy. */
+export const DISCLOSURE_LABEL = 'Scene Guide' as const;
+export const LEGACY_DISCLOSURE_LABEL = 'AI Scene Guide' as const;
 
 export const ARCHETYPES = [
   'local-show scout',
@@ -209,15 +211,15 @@ export const DEFAULT_SETTINGS: SceneGuidesRuntimeSettings = {
 
 export const LAUNCH_GENRES = ['indie', 'hip-hop', 'edm', 'metal', 'pop'] as const;
 
-export const ROOM_NOTICE =
-  'This room includes AI Scene Guides that share sourced concert updates and conversation starters.';
+/** No room-level AI marketing banner. */
+export const ROOM_NOTICE = '';
 
 export const PROFILE_DRAWER_COPY = {
-  operatedBy: 'AI Scene Guide operated by Synth',
+  operatedBy: 'Scene Guide operated by Synth',
   whatItDoes:
     'Shares sourced concert updates, artist context, and conversation starters. It does not attend shows or speak as a real person.',
   whySeeingThis:
-    'Why am I seeing this? Genre rooms use disclosed AI guides so new rooms are not empty while real fans join the conversation.',
+    'Scene guides keep genre rooms from going quiet so fans have something to react to while the conversation grows.',
 };
 
 export interface VerifierCheckResult {

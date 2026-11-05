@@ -551,6 +551,7 @@ export default function RootLayout() {
       seg0 === 'friend-requests' ||
       seg0 === 'profile-friends' ||
       seg0 === 'profile-following' ||
+      seg0 === 'entity-followers' ||
       seg0 === 'stats' ||
       seg0 === 'modal' ||
       seg0 === 'profile-edit' ||

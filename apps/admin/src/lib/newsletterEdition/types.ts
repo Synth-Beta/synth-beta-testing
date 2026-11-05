@@ -72,6 +72,8 @@ export interface EditionReader {
   goingEventIds?: string[];
   /** Past newsletter sources, used to avoid repeating URLs week after week. */
   recentSourceUrls?: string[];
+  /** Past source labels (show IDs, action markers, headlines) for 56-day diversity. */
+  recentSourceLabels?: string[];
   /** Already featured artist/track pairs, e.g. "Artist, Track". */
   recentListenKeys?: string[];
   /** Artists appearing in this reader's own recorded streaming tracks. */
@@ -110,6 +112,8 @@ export interface ShowCard {
   ctaLabel: string;
   ctaUrl: string;
   caution: boolean;
+  /** Secondary actions (official tickets, find people) when grounded in real data. */
+  links?: Array<{ label: string; url: string }>;
 }
 
 export interface StoryCard {

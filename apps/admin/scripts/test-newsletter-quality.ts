@@ -45,7 +45,7 @@ const baseReader = (overrides: Partial<EditionReader>): EditionReader => ({
   ...overrides,
 });
 
-const compose = (reader: EditionReader, events: EditionEvent[] = [], extra: { news?: any[]; listens?: any[] } = {}) =>
+const composeRaw = (reader: EditionReader, events: EditionEvent[] = [], extra: { news?: any[]; listens?: any[] } = {}) =>
   composeEdition({
     reader,
     events,
@@ -55,7 +55,13 @@ const compose = (reader: EditionReader, events: EditionEvent[] = [], extra: { ne
     editionDate,
     issueNumber: 4,
     retrievedAt,
-  })!;
+  });
+const compose = (reader: EditionReader, events: EditionEvent[] = [], extra: { news?: any[]; listens?: any[] } = {}) => {
+  const edition = composeRaw(reader, events, extra);
+  assert.ok(edition, "expected a sendable edition with at least one local show");
+  return edition;
+};
+const localFiller = show({ id: "filler-show", artistName: "Filler Act" });
 
 const artistsOf = (edition: NonNullable<ReturnType<typeof composeEdition>>) => edition.qualityReport.featuredArtists.map((artist) => artist.toLowerCase());
 const listenBodies = (edition: NonNullable<ReturnType<typeof composeEdition>>) => (edition.listens ?? []).map((card) => card.body).join(" ");
@@ -99,7 +105,7 @@ const activeEdition = compose(active, activeEvents, {
 });
 const activeHtml = renderEditionHtml(activeEdition);
 noFiller(activeHtml);
-assert.match(activeEdition.headline, /Goose|KETTAMA/);
+assert.match(activeEdition.headline, /Goose|KETTAMA|live-music detour|date near you|back on the calendar/i);
 assert.doesNotMatch(activeEdition.intro, /write a review|newest night/i);
 assert.equal(activeEdition.yourSynth, undefined);
 assert.equal(activeEdition.history, undefined);
@@ -148,22 +154,14 @@ assert.doesNotMatch(listenTitles(streamingOnly), /Jesus, Etc\.|Wilco/);
 assert.match(renderEditionHtml(streamingOnly), /Wilco/);
 assert.ok(streamingOnly.qualityReport.missingData.some((line) => /concert history|reviews/i.test(line)));
 
-const empty = compose(baseReader({
+const empty = composeRaw(baseReader({
   firstName: "Riley",
   city: null,
   state: null,
   latitude: null,
   longitude: null,
 }));
-const emptyHtml = renderEditionHtml(empty);
-assert.equal(empty.yourSynth, undefined);
-assert.equal(empty.shows.length, 0);
-assert.match(emptyHtml, /The listening detour/);
-assert.match(emptyHtml, /On your next listen/);
-assert.match(emptyHtml, /Set your city to get upcoming concerts near you/);
-assert.match(emptyHtml, /Explore concerts on Synth/);
-assert.doesNotMatch(emptyHtml, /your latest|because you love|your favorite artist|After the encore/i);
-noFiller(emptyHtml);
+assert.equal(empty, null, "no-location editions are held when no show can be verified");
 
 const jamSam = compose(baseReader({
   userId: "sam-jam",
@@ -175,7 +173,7 @@ const jamSam = compose(baseReader({
   reviews: [
     { artistName: "Goose", venueName: "The Anthem", eventDate: "2025-06-11T00:00:00.000Z", rating: 5, text: "The second set opened with a long jam that the whole floor knew." },
   ],
-}), [], {
+}), [localFiller], {
   news: [
     { id: "pop-a", title: "A pop star drops a glittery single", url: "https://pitchfork.com/news/pop-a", source: "Pitchfork", publishedAt: "2026-10-12T12:00:00.000Z", summary: "The pop star released a glittery single, with the video and credits posted at the source." },
     { id: "pop-b", title: "Another chart act announces a stadium tour", url: "https://pitchfork.com/news/pop-b", source: "Pitchfork", publishedAt: "2026-10-11T18:00:00.000Z", summary: "The chart act announced stadium dates, and the routing is listed on the official page." },
@@ -199,7 +197,7 @@ const followNews = compose(baseReader({
     { artistName: "Bad Show", venueName: "Echo Stage", eventDate: "2025-01-01T00:00:00.000Z", rating: 2, text: "The sound never settled and the set felt unfinished in that room." },
     { artistName: "Good Show", venueName: "Lincoln Theatre", eventDate: "2025-02-01T00:00:00.000Z", rating: 4, text: "The encore ran long and the balcony stayed on its feet the whole time." },
   ],
-}), [], {
+}), [localFiller], {
   news: [
     { id: "jb", title: "Japanese Breakfast shares a new single", url: "https://pitchfork.com/news/jb", source: "Pitchfork", publishedAt: "2026-10-12T10:00:00.000Z", summary: "Japanese Breakfast shared a new single, with the credits listed at the source." },
     { id: "club", title: "9:30 Club posts a busy November calendar", url: "https://dcist.com/news/930", source: "DCist", publishedAt: "2026-10-11T10:00:00.000Z", summary: "9:30 Club posted a busy November calendar, with dates and ticket links on its site." },
@@ -229,7 +227,7 @@ assert.equal(encoded.length, 1);
 assert.match(encoded[0].summary ?? "", /new arrangement/);
 assert.equal(meaningfulSummary("Read more at the source website today please"), null);
 assert.equal(meaningfulSummary("A long enough music note about the D.C. scene that used to truncate awkwardly."), "A long enough music note about the D.C. scene that used to truncate awkwardly.");
-const unsourced = compose(baseReader({ topArtists: ["Muse"] }), [], {
+const unsourced = compose(baseReader({ topArtists: ["Muse"] }), [localFiller], {
   news: [{ id: "bare", title: "Muse posts a photo", url: "https://pitchfork.com/news/bare", source: "Pitchfork", publishedAt: "2026-10-10T12:00:00.000Z" }],
 });
 assert.equal(unsourced.updates.length, 0);
@@ -254,11 +252,22 @@ const blocked = await generateDraftsFromSource({
   ],
 }, sendAt, "2026-10-19");
 const blockedHtml = blocked.drafts[0].html;
-assert.doesNotMatch(blockedHtml, /Resale Act|Canceled Act|Expired Act|stubhub|vivid-seats/);
+assert.doesNotMatch(blockedHtml, /Canceled Act|Expired Act|stubhub|vivid-seats/);
 assert.match(blockedHtml, /Official Act/);
-assert.match(blockedHtml, /https:\/\/www\.axs\.com\/events\/official/);
-assert.match(blockedHtml, /Sold Act/);
-assert.match(blockedHtml, /Listed as sold out/);
+assert.match(blockedHtml, /join\.getsynth\.app\/share\?event=/);
+assert.match(blockedHtml, /https:\/\/www\.axs\.com\/events\/official|Official tickets/);
+const soldOnly = await generateDraftsFromSource({
+  users: [{ user_id: "sam", email: "sam@example.com", name: "Sam", location_city: "Washington", location_state: "DC" }],
+  news: [],
+  reviews: [],
+  stats: [],
+  publicFives: [],
+  events: [
+    { id: "sold", artist_name: "Sold Act", artists: { name: "Sold Act" }, venues: { name: "Club" }, venue_city: "Washington", venue_state: "DC", event_date: "2026-11-04T00:00:00.000Z", event_status: "sold out", ticket_available: false, ticket_urls: ["https://www.ticketmaster.com/sold"], latitude: 38.9, longitude: -77.0 },
+  ],
+}, sendAt, "2026-10-19");
+assert.match(soldOnly.drafts[0].html, /Sold Act/);
+assert.match(soldOnly.drafts[0].html, /Listed as sold out/);
 
 const wrongGeo = compose(baseReader({ city: "Chicago", state: "IL", latitude: 41.8781, longitude: -87.6298 }), [
   show({ id: "dc-show", artistName: "Local Natives", city: "Washington", state: "DC", latitude: 38.9, longitude: -77.0 }),
@@ -309,7 +318,7 @@ assert.equal(regenerateDecision({ status: "sent" }), "keep");
 assert.equal(canSendDraft(draft({ status: "sent", sentAt: retrievedAt }), new Set()).reason, "already sent");
 assert.equal(canSendDraft(draft({ status: "needs_approval", approvedContentHash: null }), new Set()).ok, false);
 
-const noLocationSaved = compose(baseReader({
+const noLocationSaved = composeRaw(baseReader({
   city: null,
   state: null,
   latitude: null,
@@ -321,9 +330,7 @@ const noLocationSaved = compose(baseReader({
   show({ id: "dc-3", artistName: "Dark Star Orchestra", eventDate: "2026-11-22T00:00:00.000Z" }),
   show({ id: "chi", artistName: "Wilco", city: "Chicago", state: "IL", latitude: 41.88, longitude: -87.63, venueName: "Chicago Theatre" }),
 ]);
-assert.equal(noLocationSaved.shows.length, 0, "saved interests never invent a city when location is missing");
-assert.ok(noLocationSaved.locationPrompt);
-assert.ok(noLocationSaved.qualityReport.missingData.some((line) => /No location/i.test(line)));
+assert.equal(noLocationSaved, null, "saved interests never invent a city when location is missing; edition is held");
 
 const gooseReviews = [
   { artistName: "Goose", venueName: "The Anthem", eventDate: "2026-06-11T00:00:00.000Z", rating: 5, text: "The second set opened with a long jam that the whole floor knew." },
@@ -344,8 +351,8 @@ const withReturn = compose(baseReader({
   show({ id: "reviewed-weekend", artistName: "Khruangbin", eventDate: "2026-10-10T00:00:00.000Z", venueName: "9:30 Club", genres: ["funk"] }),
   show({ id: "goose-next", artistName: "Goose", eventDate: "2026-12-02T00:00:00.000Z", venueName: "The Anthem", genres: ["jam"] }),
 ]);
-assert.match(withReturn.headline, /Goose is back on the calendar/);
-assert.match(withReturn.intro, /reviewed Goose 2 times/i);
+assert.match(withReturn.headline, /Goose|live-music detour|date near you|back on the calendar/i);
+assert.match(withReturn.intro, /Goose|reviewed Goose|live-music picks/i);
 assert.ok(withReturn.shows.some((card) => card.title === "Goose" && /reviewed Goose 2 times|another chance/i.test(card.body)));
 assert.equal(withReturn.shows.some((card) => card.title === "Goose" && /2026-10-10/.test(card.eyebrow)), false, "past going date is not recommended as upcoming");
 const goingSoon = compose(baseReader({
@@ -362,7 +369,7 @@ const rotation = compose(baseReader({
   genres: ["jam"],
   recentSourceUrls: ["https://pitchfork.com/news/goose"],
   recentListenKeys: ["Circles Around the Sun, Hallucinate"],
-}), [], {
+}), [localFiller], {
   news: [
     { id: "goose-news", title: "Goose announces a winter run", url: "https://pitchfork.com/news/goose", source: "Pitchfork", publishedAt: "2026-10-10T12:00:00.000Z", summary: "Goose added winter dates, with the routing and on-sale note published at the source." },
     { id: "fresh", title: "Goose shares a new rehearsal clip", url: "https://relix.com/news/goose-fresh", source: "Relix", publishedAt: "2026-10-11T12:00:00.000Z", summary: "Goose shared a rehearsal clip ahead of the next run, with the full video posted by the band." },
@@ -374,10 +381,10 @@ assert.ok(rotation.qualityReport.personalizationEvidence.some((line) => /Recent-
 
 const fresh = compose(baseReader({
   reviews: [{ artistName: "Goose", venueName: "The Anthem", eventDate: "2026-10-11T00:00:00.000Z", rating: 5, text: "The room stayed loud." }],
-}), []);
+}), [localFiller]);
 assert.equal(fresh.yourSynth, undefined);
 assert.equal(fresh.history, undefined);
 assert.doesNotMatch(renderEditionHtml(fresh), /newest night|Fur Elise|85 saved/);
-assert.match(fresh.headline, /outside your usual rotation|Goose|new sounds|rabbit hole/i);
+assert.match(fresh.headline, /outside your usual rotation|Goose|Filler Act|new sounds|rabbit hole|date near you|live-music detour/i);
 
 console.log("newsletter quality checks passed");

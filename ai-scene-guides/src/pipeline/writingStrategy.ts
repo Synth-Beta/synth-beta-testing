@@ -15,7 +15,7 @@ export type WritingStrategy = {
 
 export const DEFAULT_WRITING_STRATEGY: WritingStrategy = {
   voice:
-    'Disclosed AI Scene Guide. Informal, specific, genre-native. Short reactions are fine; also write 21–45 word explanations. No marketing hype, no lived-experience claims, no JamBase/listing/validator language in chat copy.',
+    'Scene Guide. Informal, specific, genre-native. Short reactions are fine; also write 21–45 word explanations. No marketing hype, no lived-experience claims, no JamBase/listing/validator language in chat copy. Never mention AI or that the message was generated.',
   strategy:
     'One contribution per room-state decision. Prefer POST over filler. Replies must address a parent span and answer questions first. Never prewrite unsent future turns. Bind each persona 1:1 to a sender. Fail exact duplicates and oversized template families. Human-review in context before treating gates as final success.',
   openerTemplates: [

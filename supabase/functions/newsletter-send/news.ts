@@ -8,48 +8,37 @@ export const MUSIC_NEWS_FEEDS = [
   { source: "Billboard", url: "https://www.billboard.com/music/music-news/feed/" },
 ] as const;
 
-const TRUSTED_MUSIC_SOURCES = new Set(
-  MUSIC_NEWS_FEEDS.map((feed) => feed.source.toLowerCase()),
-);
-
-/** League/sport coverage that should not appear unless the story also has a music angle. */
-const SPORTS_SIGNAL =
-  /\b(?:nfl|nba|mlb|nhl|mls|fifa|uefa|ncaa|premier league|la liga|serie a|bundesliga|champions league|super bowl|world series|stanley cup|march madness|touchdown|quarterback|wide receiver|running back|field goal|gridiron|kickoff|box score|matchday|relegation|transfer window|goalkeeper|striker|midfielder|clean sheet|playoff(?:s)?|football(?:\s+club)?|soccer|rugby|cricket|formula\s*1|\bf1\b|ufc|boxing)\b/i;
-
-/** Clear music angle, including sports crossovers like a Super Bowl / NFL halftime show. */
-const STRONG_MUSIC_SIGNAL =
-  /\b(?:songs?|singles?|albums?|eps?|lps?|mixtapes?|tracks?|playlist|remix|soundtrack|film score|music video|grammys?|billboard hot|streaming|spotify|vinyl|setlist|concerts?|festivals?|tours?|gigs?|headliners?|headlining|musicians?|singers?|songwriter|rapper|vocalist|dj set|orchestra|symphony|philharmonic|opera|jazz|punk|indie rock|jam-?bands?|new music|live album|record label|a&r|rehearsal|the band|halftime(?:\s+show)?|musical guest|national anthem|pregame performance|stadium (?:show|concert|tour))\b/i;
-
-/** Soft local-scene cues (venue calendars) — not enough to excuse a sports story. */
-const WEAK_MUSIC_SIGNAL =
-  /\b(?:music venue|concert hall|concert calendar|tour dates|on[-\s]?sale|lineup|doors open|\d{1,2}:\d{2}\s*club|club\b[^.?]{0,48}\bcalendar|calendar\b[^.?]{0,48}\bclub)\b/i;
-
-const MUSIC_JOURNALISM_URL =
-  /(?:pitchfork\.com|rollingstone\.com\/music|nme\.com\/(?:news\/)?music|billboard\.com\/(?:music|c\/music)|relix\.com|consequence\.net|stereogum\.com|thefader\.com|complex\.com\/music)/i;
-
-const storyText = (item: { title?: string | null; summary?: string | null; url?: string | null }) =>
-  `${item.title ?? ""} ${item.summary ?? ""} ${item.url ?? ""}`;
-
 /**
- * Newsletter news must stay music-related.
- * Football / sports stories only pass when they also have a music angle
- * (halftime show, soundtrack, musical guest, etc.).
+ * Editorial relevance must be established by the HEADLINE, not a generic page
+ * description, publisher domain or one passing mention of a song. Fail closed.
+ * Sports coverage is completely excluded from Synth newsletters — even music
+ * crossovers (halftime shows, anthems) stay out so the Setlist never reads like
+ * a sports digest.
  */
+const SPORTS_TOPIC = /\b(?:nfl|nba|mlb|nhl|mls|fifa|uefa|ncaa|football|soccer|basketball|baseball|hockey|golf|tennis|rugby|cricket|quarterback|touchdown|fantasy (?:football|sports)|football tips|betting|odds|picks|predictions|playoffs?|super bowl|world series|stanley cup|march madness|champions league|premier league|la liga|serie a|bundesliga|formula[ -]?1|\bf1\b|ufc|boxing|wrestling|matchday|coach|linebacker|wide receiver|running back|field goal|kickoff|gridiron|box score|stadium food|transfer window|goalkeeper|striker|midfielder|clean sheet|relegation)\b/i;
+const MUSIC_HEADLINE = /\b(?:song|single|album|ep|mixtape|track|playlist|remix|soundtrack|music|musician|singer|songwriter|rapper|band|artist|recording|vinyl|concert|festival|tour|gig|setlist|performance|performer|headlin(?:e|er|ing)|grammy|spotify|jazz|orchestra|punk|indie|metal|hip.hop|r&b|dj|live show|lineup|on[-\s]?sale|residency|birthday bill|\bbill\b)\b/i;
+/** Local-scene headlines that are music-adjacent without naming a genre word. */
+export const LOCAL_MUSIC_HEADLINE = /\b(?:song|single|album|ep|mixtape|track|playlist|remix|soundtrack|music|musician|singer|songwriter|rapper|band|artist|recording|vinyl|concert|festival|tour|gig|setlist|performance|performer|headlin(?:e|er|ing)|grammy|spotify|jazz|orchestra|punk|indie|metal|hip.hop|r&b|dj|live show|venue|club|lineup|calendar|on[-\s]?sale|residency)\b/i;
+const NON_MUSIC_ADVICE = /\b(?:tips?|advice|best bets?|betting|odds|predictions?|fantasy|how to watch|live score|results?|power rankings?|analysis|preview|recap)\b/i;
+const MUSIC_JOURNALISM_URL = /(?:pitchfork\.com|rollingstone\.com\/music|nme\.com\/(?:news\/)?music|billboard\.com\/(?:music|c\/music)|relix\.com|consequence\.net|stereogum\.com|thefader\.com|complex\.com\/music)/i;
+
+/** Headline-grounded editorial eligibility; a trusted domain alone never qualifies. */
 export const isMusicRelatedStory = (item: {
   title?: string | null;
   summary?: string | null;
   url?: string | null;
   source?: string | null;
 }) => {
-  const text = storyText(item);
-  const sports = SPORTS_SIGNAL.test(text);
-  const strongMusic = STRONG_MUSIC_SIGNAL.test(text);
-  const weakMusic = WEAK_MUSIC_SIGNAL.test(text);
-  const musicUrl = MUSIC_JOURNALISM_URL.test(String(item.url ?? ""));
-  const trusted = TRUSTED_MUSIC_SOURCES.has(String(item.source ?? "").trim().toLowerCase());
-  if (sports) return strongMusic || musicUrl;
-  if (strongMusic || weakMusic || musicUrl || trusted) return true;
-  return false;
+  const title = String(item.title ?? "").trim();
+  if (!title) return false;
+  const text = `${title} ${String(item.summary ?? "")}`;
+  // Completely exclude sports — no Super Bowl / NFL / league crossover exceptions.
+  if (SPORTS_TOPIC.test(title) || SPORTS_TOPIC.test(text)) return false;
+  if (MUSIC_HEADLINE.test(title)) return true;
+  // Artist-name headlines may omit the word 'music'. Only permit them on a
+  // clearly music-specific URL path; final personalization still requires a
+  // matching reader artist or taste signal.
+  return MUSIC_JOURNALISM_URL.test(String(item.url ?? "")) && !NON_MUSIC_ADVICE.test(title);
 };
 
 export interface RssStory {

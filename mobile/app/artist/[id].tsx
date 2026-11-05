@@ -455,12 +455,24 @@ export default function ArtistDetailScreen() {
 
             {/* Stats row */}
             <View style={styles.statsRow}>
-              <View style={styles.statItem}>
+              <Pressable
+                style={styles.statItem}
+                disabled={!artistId}
+                onPress={() => {
+                  if (!artistId) return;
+                  router.push({
+                    pathname: '/entity-followers',
+                    params: { type: 'artist', id: artistId, name },
+                  });
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`${followerCount} ${followerCount === 1 ? 'follower' : 'followers'}`}
+              >
                 <Users size={15} color={SynthTokens.colors.neutral600} />
-                <SynthText variant="meta" color="secondary">
+                <SynthText variant="meta" color="secondary" style={styles.followersLink}>
                   {followerCount.toLocaleString()} {followerCount === 1 ? 'follower' : 'followers'}
                 </SynthText>
-              </View>
+              </Pressable>
               {avgRating != null ? (
                 <View style={styles.statItem}>
                   <Star size={15} color="#F5A623" fill="#F5A623" />
@@ -490,7 +502,7 @@ export default function ArtistDetailScreen() {
                 disabled={followLoading}
               >
                 {followLoading ? (
-                  <ActivityIndicator size="small" color={isFollowing ? PINK : SynthTokens.colors.neutral0} />
+                  <ActivityIndicator size="small" color={isFollowing ? SynthTokens.colors.neutral0 : PINK} />
                 ) : (
                   <Text style={[styles.followBtnTxt, isFollowing && styles.followBtnTxtOn]}>
                     {isFollowing ? 'Following' : 'Follow'}
@@ -651,6 +663,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
   },
+  followersLink: {
+    textDecorationLine: 'underline',
+  },
   genreRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -672,23 +687,24 @@ const styles = StyleSheet.create({
   followBtn: {
     height: 48,
     borderRadius: SynthTokens.radius.corner,
-    backgroundColor: PINK,
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderWidth: 2,
+    borderColor: PINK,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
   },
   followBtnOn: {
-    backgroundColor: SynthTokens.colors.neutral0,
-    borderWidth: 2,
+    backgroundColor: PINK,
     borderColor: PINK,
   },
   followBtnTxt: {
     fontSize: 16,
     fontWeight: '700',
-    color: SynthTokens.colors.neutral0,
+    color: PINK,
   },
   followBtnTxtOn: {
-    color: PINK,
+    color: SynthTokens.colors.neutral0,
   },
   sectionLabel: {
     marginBottom: 4,

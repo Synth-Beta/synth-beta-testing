@@ -193,3 +193,37 @@ export const listContentVetoes = async () => {
     created_at: string;
   }>;
 };
+
+export type NewsletterSectionStatusValue = "pending" | "approved" | "rejected";
+
+export interface NewsletterSectionStatusRow {
+  id: string;
+  content_key: string;
+  kind: string;
+  label: string;
+  status: NewsletterSectionStatusValue;
+  updated_at: string;
+  created_at?: string;
+}
+
+export const listSectionStatuses = async () => {
+  const data = await invokeNewsletter({ action: "list_section_statuses" });
+  return (data.statuses ?? []) as NewsletterSectionStatusRow[];
+};
+
+export const setSectionStatus = async (input: {
+  contentKeys: string[];
+  kind: "event" | "news" | "listen" | "account";
+  label?: string;
+  status: NewsletterSectionStatusValue;
+  /** When rejecting via Refresh, also write a permanent global content veto. */
+  applyVeto?: boolean;
+}) =>
+  invokeNewsletter({
+    action: "set_section_status",
+    contentKeys: input.contentKeys,
+    kind: input.kind,
+    label: input.label ?? "",
+    status: input.status,
+    applyVeto: input.applyVeto === true,
+  });

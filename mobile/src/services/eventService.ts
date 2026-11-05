@@ -19,6 +19,8 @@ export interface EventDetail {
     venue_address?: string;
     venue_state?: string | null;
     venue_zip?: string | null;
+    /** IANA timezone for the venue when available (e.g. America/New_York). */
+    venue_timezone?: string | null;
     ticket_url?: string;
     latitude?: number | null;
     longitude?: number | null;
@@ -322,6 +324,7 @@ export class EventService {
                           ? venueRow.longitude
                           : null,
                 doors_time: typeof row.doors_time === 'string' ? row.doors_time : null,
+                venue_timezone: typeof row.venue_timezone === 'string' ? row.venue_timezone : null,
                 genres,
                 price_range: typeof row.price_range === 'string' ? row.price_range : null,
                 price_min: numOrNull(row.price_min) ?? numOrNull(row.ticket_price_min),

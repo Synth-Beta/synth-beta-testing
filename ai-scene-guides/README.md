@@ -1,10 +1,10 @@
 # AI Scene Guides
 
-Transparent, disclosed AI conversation starters for Synth genre rooms — grounded in JamBase and aggregate Reddit topic signals. **Not** human-impersonating bots.
+Conversation starters for Synth genre rooms — grounded in JamBase and aggregate Reddit topic signals. **Not** human-impersonating bots. Do not advertise AI in consumer UI.
 
 ## Trust rules
 
-- Every message has `author_type = ai_scene_guide` and visible **AI Scene Guide** disclosure.
+- Every message has `author_type = ai_scene_guide` and metadata `disclosure_label = Scene Guide` (internal; not announced in room banners).
 - No lived-experience claims, fake consumer accounts, Reddit usernames, or social-proof metrics.
 - Production posting defaults **OFF** (`AI_SCENE_GUIDES_ENABLED=false`, DB `ai_scene_guides_settings.enabled=false`).
 - Slack shadow mode has **no path** that inserts into Synth `messages`.

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, Link2, MessageSquare, Mail, ArrowRight } from 'lucide-react';
+import { X, Search, Link2, MessageSquare, Mail, ArrowRight, CalendarPlus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { InAppShareService, type ShareTarget } from '@/services/inAppShareService';
 import { Users } from 'lucide-react';
@@ -14,6 +14,11 @@ interface UniversalShareModalProps {
   imageUrl?: string | null;
   currentUserId?: string;
   eventId?: string;
+  /**
+   * Prefill URL for Google Calendar (event detail only).
+   * When set, shows an "Add to Google Calendar" action in the external share row.
+   */
+  googleCalendarUrl?: string | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -25,6 +30,7 @@ export function UniversalShareModal({
   imageUrl,
   currentUserId,
   eventId,
+  googleCalendarUrl,
   isOpen,
   onClose
 }: UniversalShareModalProps) {
@@ -276,6 +282,13 @@ export function UniversalShareModal({
         console.error('Error sharing:', error);
       }
     }
+  };
+
+  const handleAddToGoogleCalendar = () => {
+    const calendarUrl = googleCalendarUrl?.trim();
+    if (!calendarUrl) return;
+    // target=_blank / window.open works on web and the Capacitor WKWebView shell.
+    window.open(calendarUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Combine and filter chats and friends
@@ -870,6 +883,45 @@ export function UniversalShareModal({
                   Email
                 </span>
               </button>
+
+              {/* Google Calendar — only when event detail supplies a prefilled URL */}
+              {googleCalendarUrl ? (
+                <button
+                  onClick={handleAddToGoogleCalendar}
+                  type="button"
+                  aria-label="Add to Google Calendar"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                    minWidth: '80px',
+                    padding: '4px',
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    borderRadius: '12px',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0, 0, 0, 0.06)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
+                    <CalendarPlus size={28} style={{ color: 'var(--neutral-700)' }} aria-hidden="true" />
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-family)', fontSize: '12px', color: 'var(--neutral-700)', textAlign: 'center' }}>
+                    Google Calendar
+                  </span>
+                </button>
+              ) : null}
 
               {/* More options */}
               <button

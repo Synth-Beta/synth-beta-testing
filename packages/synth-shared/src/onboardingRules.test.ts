@@ -3,7 +3,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateOnboardingProfile, pickPreselected, normalizeBirthday, isPlaceholderName } from './onboardingRules.ts';
+import { validateOnboardingProfile, normalizeBirthday, isPlaceholderName } from './onboardingRules.ts';
 
 const now = new Date('2026-10-24T12:00:00Z');
 const valid = { name: 'Tej', username: 'tej_p', birthday: '1995-05-01', acquisitionSource: 'Instagram' };
@@ -40,14 +40,6 @@ test('how did you hear is required', () => {
 test('bio is optional but capped at 120', () => {
   assert.equal(validateOnboardingProfile({ ...valid, bio: '' }, now).ok, true);
   assert.ok(validateOnboardingProfile({ ...valid, bio: 'x'.repeat(121) }, now).errors.bio);
-});
-
-test('pickPreselected uses server flags only', () => {
-  const flagged = [{ id: 'a' }, { id: 'b', preselected: true }, { id: 'c', preselected: true }, { id: 'd' }];
-  assert.deepEqual(pickPreselected(flagged), ['b', 'c']);
-  const plain = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
-  assert.deepEqual(pickPreselected(plain), []);
-  assert.deepEqual(pickPreselected([]), []);
 });
 
 test('birthday accepts common typed formats and normalizes to YYYY-MM-DD', () => {

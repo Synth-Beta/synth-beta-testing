@@ -16,6 +16,8 @@ export interface JamBaseEventResponse {
   venue_city?: string;
   venue_state?: string;
   venue_zip?: string;
+  /** IANA timezone for the venue when available (e.g. America/New_York). */
+  venue_timezone?: string | null;
   latitude?: number;
   longitude?: number;
   ticket_available?: boolean;

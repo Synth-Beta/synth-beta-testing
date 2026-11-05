@@ -7,6 +7,16 @@ export {
   type ShareContentType,
   type PendingShareLink,
 } from './shareUrl';
+export {
+  GOOGLE_CALENDAR_DEFAULT_DURATION_MS,
+  buildGoogleCalendarUrl,
+  buildGoogleCalendarTitle,
+  buildGoogleCalendarLocation,
+  buildGoogleCalendarDetails,
+  isDateOnlyEventDate,
+  type GoogleCalendarEventInput,
+  type GoogleCalendarBuildResult,
+} from './googleCalendar';
 export { getAuthRedirectOrigin } from './siteOrigin';
 export type { SynthSupabaseClient } from './supabaseClientType';
 export {
@@ -287,7 +297,7 @@ export {
   type Pick5Band,
 } from './pick5';
 export { type ProfileSaveError, describeProfileSaveError } from './profileSaveError';
-export { type OnboardingProfileInput, type OnboardingField, ONBOARDING_MIN_AGE, ONBOARDING_BIO_MAX, validateOnboardingProfile, pickPreselected, normalizeBirthday, isPlaceholderName } from './onboardingRules';
+export { type OnboardingProfileInput, type OnboardingField, ONBOARDING_MIN_AGE, ONBOARDING_BIO_MAX, validateOnboardingProfile, normalizeBirthday, isPlaceholderName } from './onboardingRules';
 export { isEmptySpotifySync, streamingRowHasData, SPOTIFY_EMPTY_SYNC_MESSAGE } from './spotifySyncGuard';
 export { checkReviewVideo, REVIEW_VIDEO_MAX_SECONDS, REVIEW_VIDEO_MAX_MB } from './reviewVideo';
 export {

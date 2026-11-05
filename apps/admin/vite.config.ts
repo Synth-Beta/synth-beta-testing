@@ -37,8 +37,9 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@synth/shared": path.resolve(__dirname, "../../packages/synth-shared/src/index.ts"),
-      // Importer lives outside apps/admin, so resolve zod from this app's install.
+      // Importer lives outside apps/admin, so resolve shared deps from this app's install.
       zod: path.resolve(__dirname, "node_modules/zod"),
+      fflate: path.resolve(__dirname, "node_modules/fflate"),
     },
   },
 });

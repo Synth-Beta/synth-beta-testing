@@ -1,4 +1,5 @@
 import { loadEditionSource } from "../../../../../api/_lib/newsletterSource";
+import { isMusicRelatedStory } from "../../../../../supabase/functions/newsletter-send/news";
 import { composeEdition } from "./compose";
 import { renderEditionHtml } from "./render";
 import { contentHash } from "./gate";
@@ -133,7 +134,8 @@ export const generateDraftsFromSource = async (
       source: row.source ?? null,
       publishedAt: String(row.publishedAt ?? row.created_at),
       summary: row.summary ?? row.seo_description ?? null,
-    }));
+    }))
+    .filter((row) => isMusicRelatedStory(row));
   const reviewsByUser = new Map<string, EditionReview[]>();
   for (const row of source.reviews ?? []) {
     const artistName = row.artistName ?? row.artists?.name ?? row.user_created_artists?.name ?? row.setlist?.artist?.name;
@@ -224,6 +226,7 @@ export const generateDraftsFromSource = async (
       interestedEventIds: Array.isArray(user.interestedEventIds) ? user.interestedEventIds.map(String) : [],
       goingEventIds: Array.isArray(user.goingEventIds) ? user.goingEventIds.map(String) : [],
       recentSourceUrls: Array.isArray(user.recentSourceUrls) ? user.recentSourceUrls.map(String) : [],
+      recentSourceLabels: Array.isArray(user.recentSourceLabels) ? user.recentSourceLabels.map(String) : [],
       recentListenKeys: Array.isArray(user.recentListenKeys) ? user.recentListenKeys.map(String) : [],
       listenedArtists: [...new Set((listensByUser.get(userId) ?? []).map((track) => track.artistName).filter(Boolean))],
     };

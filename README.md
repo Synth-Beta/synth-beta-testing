@@ -263,7 +263,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Roadmap
 
 ### Upcoming Features
-- AI-powered event recommendations
+- Event recommendations
 - Enhanced social features
 - Mobile app development
 - Advanced analytics dashboard

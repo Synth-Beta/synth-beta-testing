@@ -9,9 +9,7 @@ import { SafeImage } from '../../src/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatImageSourceSheet } from '../../src/components/chat/ChatImageSourceSheet';
 import {
-    AiBadge,
     AiGuideMessageBubble,
-    AiSceneGuideRoomNotice,
     isAiSceneGuideMessage,
 } from '../../src/components/chat/AiSceneGuideUi';
 import { SynthText } from '../../src/components/SynthText';
@@ -896,7 +894,6 @@ export default function ChatThreadScreen() {
     const renderSenderHeader = (item: Message) => {
         const name = item.sender_name || 'User';
         const initial = name.trim().charAt(0).toUpperCase() || 'U';
-        const isAi = isAiSceneGuideMessage(item);
         return (
             <View style={styles.senderRow}>
                 {item.sender_avatar ? (
@@ -907,7 +904,6 @@ export default function ChatThreadScreen() {
                     </View>
                 )}
                 <Text style={styles.senderName}>{name}</Text>
-                {isAi ? <AiBadge /> : null}
             </View>
         );
     };
@@ -1233,7 +1229,7 @@ export default function ChatThreadScreen() {
                 renderItem={({ item, index }) => renderMessage({ item, index })}
                 keyExtractor={item => item.id}
                 inverted
-                ListFooterComponent={isGroupChat ? <AiSceneGuideRoomNotice /> : null}
+                ListFooterComponent={null}
                 contentContainerStyle={styles.messageList}
                 keyboardShouldPersistTaps="handled"
                 onContentSizeChange={() => {

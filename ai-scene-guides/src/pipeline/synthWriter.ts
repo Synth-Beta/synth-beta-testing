@@ -45,7 +45,7 @@ export function createSynthMessageWriter(options: {
         contains_setlist_spoiler: input.containsSetlistSpoiler,
         metadata: {
           author_type: 'ai_scene_guide',
-          disclosure_label: 'AI Scene Guide',
+          disclosure_label: 'Scene Guide',
           persona_id: input.personaId,
           plan_id: input.planId,
           cited_fact_ids: input.citedFactIds,

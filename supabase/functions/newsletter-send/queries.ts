@@ -155,8 +155,8 @@ export const enrichReviewArtists = async (db: { from: (table: string) => any }, 
 };
 
 /**
- * A four-week exclusion window prevents the same links/tracks from recurring
- * every Monday. Uses existing newsletter_drafts.sources JSON, no migration.
+ * An eight-week exclusion window prevents the same links/tracks/labels from
+ * recurring every Monday. Uses existing newsletter_drafts.sources JSON, no migration.
  * Generated-but-unsent past drafts count too; regenerated same-date drafts do
  * not count because edition_date must be strictly before this issue.
  */
@@ -165,8 +165,8 @@ export const loadRecentNewsletterSignals = async (
   userIds: string[],
   targetEditionDate: string,
 ) => {
-  const windowStart = new Date(Date.parse(`${targetEditionDate}T12:00:00Z`) - 28 * 86400000).toISOString().slice(0, 10);
-  const result = new Map<string, { recentSourceUrls: string[]; recentListenKeys: string[] }>();
+  const windowStart = new Date(Date.parse(`${targetEditionDate}T12:00:00Z`) - 56 * 86400000).toISOString().slice(0, 10);
+  const result = new Map<string, { recentSourceUrls: string[]; recentSourceLabels: string[]; recentListenKeys: string[] }>();
   for (let index = 0; index < userIds.length; index += 40) {
     const ids = userIds.slice(index, index + 40);
     if (!ids.length) continue;
@@ -179,14 +179,15 @@ export const loadRecentNewsletterSignals = async (
     for (const draft of prior) {
       const userId = String(draft.user_id ?? "");
       if (!userId) continue;
-      const entry = result.get(userId) ?? { recentSourceUrls: [], recentListenKeys: [] };
+      const entry = result.get(userId) ?? { recentSourceUrls: [], recentSourceLabels: [], recentListenKeys: [] };
       const items = Array.isArray(draft.sources) ? draft.sources : [];
       for (const item of items) {
         if (!item || !["news", "listen", "event", "editorial"].includes(String(item.kind))) continue;
         const url = String(item.url ?? "");
         if (url && !entry.recentSourceUrls.includes(url)) entry.recentSourceUrls.push(url);
+        const label = String(item.label ?? "");
+        if (label && !entry.recentSourceLabels.includes(label)) entry.recentSourceLabels.push(label);
         if (item.kind === "listen") {
-          const label = String(item.label ?? "");
           if (label && !entry.recentListenKeys.includes(label)) entry.recentListenKeys.push(label);
         }
       }

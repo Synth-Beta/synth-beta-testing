@@ -62,9 +62,9 @@ export class OnboardingService {
    */
   /**
    * Artist step list from onboarding_suggested_artists: the user's streaming top artists,
-   * then artists playing near them, then nationally, with `preselected` on the first 3.
-   * Falls back to getSuggestedArtists (first 3 pre-selected by the caller) if the RPC
-   * is missing or fails, so the step always has something to offer.
+   * then artists playing near them, then nationally.
+   * Falls back to getSuggestedArtists if the RPC is missing or fails, so the step always
+   * has something to browse. Callers must not auto-follow these — only explicit picks.
    */
   static async getOnboardingSuggestions(limit = 12): Promise<(ArtistOption & { preselected?: boolean })[]> {
     const { data, error } = await supabase.rpc('onboarding_suggested_artists', { p_limit: limit });

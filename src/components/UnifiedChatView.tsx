@@ -51,7 +51,6 @@ import { EventMessageCard } from '@/components/chat/EventMessageCard';
 import { ReviewMessageCard } from '@/components/chat/ReviewMessageCard';
 import { ReportContentModal } from '@/components/moderation/ReportContentModal';
 import {
-  AiBadge,
   AiGuideMessageBubble,
   AiSceneGuideRoomNotice,
 } from '@/components/chat/AiSceneGuideUi';
@@ -2231,7 +2230,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       initial={firstMessage.sender_name.split(' ').map(n => n[0]).join('').substring(0, 1)}
                       imageUrl={firstMessage.sender_avatar || null}
                     />
-                    {isAiSceneGuideMessage(firstMessage) && <AiBadge compact />}
                   </div>
                 )}
 

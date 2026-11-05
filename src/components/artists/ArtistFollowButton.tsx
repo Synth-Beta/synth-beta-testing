@@ -232,7 +232,7 @@ export function ArtistFollowButton({
 
   return (
     <Button
-      variant={isFollowing ? 'secondary' : variant}
+      variant={isFollowing ? 'default' : variant}
       size={size}
       className={cn('gap-2', className)}
       onClick={handleToggleFollow}

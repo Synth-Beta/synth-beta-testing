@@ -78,6 +78,7 @@ import { ACQUISITION_SOURCE_CANONICAL_ORDER } from '@synth/shared';
 import SocialAnalyticsDashboard from '@/components/admin/social-media/SocialAnalyticsDashboard';
 import AdminStyleGuidePanel from '@/components/admin/AdminStyleGuidePanel';
 import NewsletterProofreader from '@/components/admin/newsletter/NewsletterProofreader';
+import NewsletterSections from '@/components/admin/newsletter/NewsletterSections';
 import { EmailAnalyticsDashboard } from '@/components/admin/emails/EmailAnalyticsDashboard';
 import {
   PlatformComparison,
@@ -249,7 +250,7 @@ export default function Admin() {
         'moderation',
         'news',
         'email-analytics',
-        ...(canProofreadNewsletters ? ['newsletter-proof'] : []),
+        ...(canProofreadNewsletters ? ['newsletter-proof', 'newsletter-sections'] : []),
         'style-guide',
       ]),
     [canProofreadNewsletters],
@@ -3578,9 +3579,14 @@ export default function Admin() {
           </TabsContent>
 
           {canProofreadNewsletters ? (
-            <TabsContent value="newsletter-proof" className="space-y-6">
-              <NewsletterProofreader />
-            </TabsContent>
+            <>
+              <TabsContent value="newsletter-proof" className="space-y-6">
+                <NewsletterProofreader />
+              </TabsContent>
+              <TabsContent value="newsletter-sections" className="space-y-6">
+                <NewsletterSections />
+              </TabsContent>
+            </>
           ) : null}
 
           <TabsContent value="style-guide" className="space-y-6">

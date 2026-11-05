@@ -10,23 +10,48 @@ import { loadEditionSource as apiSource } from "../../../api/_lib/newsletterSour
 
 const now = new Date("2026-10-11T23:00:00Z");
 const users = Array.from({ length: 135 }, (_, i) => ({ user_id: `user-${i}`, email: `user${i}@example.com`, name: `Reader ${i}` }));
-const empty = { users, news: [], reviews: [], stats: [], events: [], publicFives: [] };
+const emptyUsers = users.map((user, index) => ({
+  ...user,
+  location_city: "Washington",
+  location_state: "DC",
+  latitude: 38.9072,
+  longitude: -77.0369,
+}));
+const sharedEvents = Array.from({ length: 8 }, (_, index) => ({
+  id: `show-${index}`,
+  artist_name: `Discovery Act ${index}`,
+  artists: { name: `Discovery Act ${index}` },
+  venues: { name: "9:30 Club" },
+  venue_city: "Washington",
+  venue_state: "DC",
+  event_date: `2026-11-${String(10 + index).padStart(2, "0")}T00:00:00.000Z`,
+  ticket_urls: [`https://www.axs.com/events/discovery-${index}`],
+  ticket_available: true,
+  latitude: 38.9072,
+  longitude: -77.0369,
+  genres: ["rock"],
+}));
+const empty = { users: emptyUsers, news: [], reviews: [], stats: [], events: sharedEvents, publicFives: [] };
 const drafts = await generateDraftsFromSource(empty, now, "2026-10-12");
 assert.equal(drafts.drafts.length, 135);
 assert.equal(drafts.held, 0);
 for (const draft of drafts.drafts) {
-  assert.match(draft.html, /The listening detour/);
-  assert.match(draft.html, /On your next listen/);
+  assert.match(draft.html, /The listening detour|On your next listen|Open this show on Synth/);
+  assert.match(draft.html, /join\.getsynth\.app\/share\?event=/);
   assert.doesNotMatch(draft.html, /evergreen|After the encore|Your Synth|newest night/i);
-  assert.match(draft.html, /synth-newsletter-writer-8/);
+  assert.match(draft.html, /synth-newsletter-writer-9/);
   assert.match(draft.html, /upcoming_shows\.png/);
   assert.match(draft.html, /\{\{unsubscribe_url\}\}/);
+  assert.ok(draft.sources.some((source) => source.kind === "event"), "every sent draft includes a show");
   assert.ok(draft.sources.filter((source) => source.kind === "listen").length === 2);
   assert.doesNotMatch(draft.html, /This week in live music|Your latest was|Tickets are listed as available|85 saved shows/);
 }
+const noShowHeld = await generateDraftsFromSource({ users: emptyUsers, news: [], reviews: [], stats: [], events: [], publicFives: [] }, now, "2026-10-12");
+assert.equal(noShowHeld.drafts.length, 0);
+assert.equal(noShowHeld.held, 135, "zero-show inventory holds every draft");
 const eligibility = await generateDraftsFromSource({ ...empty, users: [
-  users[0], { ...users[1], is_bot: true }, { ...users[2], account_status: "inactive" },
-  { user_id: "dup", email: "USER0@example.com" }, { user_id: "bad", email: "no email" },
+  emptyUsers[0], { ...emptyUsers[1], is_bot: true }, { ...emptyUsers[2], account_status: "inactive" },
+  { user_id: "dup", email: "USER0@example.com", location_city: "Washington", location_state: "DC" }, { user_id: "bad", email: "no email", location_city: "Washington", location_state: "DC" },
 ] }, now);
 assert.equal(eligibility.drafts.length, 1);
 
@@ -42,12 +67,26 @@ assert.deepEqual(historyArtists([
   { artistName: "Old favorite", rating: 5, review_text: "A full account of the night that made this artist a favorite." },
 ])[0], "Old favorite");
 
-const reader = { userId: "u", email: "u@example.com", firstName: "Riley", city: null, state: null,
+const reader = { userId: "u", email: "u@example.com", firstName: "Riley", city: "Washington", state: "DC",
+  latitude: 38.9072, longitude: -77.0369,
   lifetimeShowCount: 2, fiveStarCount: 1, topArtists: ["Older favorite", "Latest"], genres: [], otherFiveStarArtists: [],
   reviews: [{ artistName: "Latest", eventDate: "2026-10-01", text: "The LAST_REVIEW phrase belongs only in the recap." },
     { artistName: "Older reviewed", rating: 5, eventDate: "2026-09-01" }],
 };
-const edition = composeEdition({ reader, events: [], listens: [...tracks,
+const localShow = {
+  id: "local-discovery",
+  artistName: "Local Discovery",
+  venueName: "9:30 Club",
+  city: "Washington",
+  state: "DC",
+  eventDate: "2026-11-01T00:00:00.000Z",
+  ticketUrl: "https://www.axs.com/events/local-discovery",
+  ticketAvailable: true,
+  latitude: 38.9072,
+  longitude: -77.0369,
+  genres: ["rock"],
+};
+const edition = composeEdition({ reader, events: [localShow], listens: [...tracks,
   { artistName: "Latest", trackName: "Last show's song", url: "https://example.com/song" },
   { artistName: "Unrelated local act", trackName: "Wrong city", url: "https://example.com/wrong-city" },
 ], news: [
@@ -56,15 +95,15 @@ const edition = composeEdition({ reader, events: [], listens: [...tracks,
   { id: "general", title: "A festival reveals its lineup", url: "https://example.com/general", publishedAt: "2026-10-08T12:00:00Z", summary: "The festival published its lineup and the daily schedule on its own site." },
   { id: "future", title: "Unpublished story", url: "https://example.com/future", publishedAt: "2026-10-12T01:00:00Z", summary: "This story is dated after the edition and should stay out of the newsletter." },
 ], sendAt: editionSendAt("2026-10-12"), editionDate: "2026-10-12", issueNumber: 1, retrievedAt: now.toISOString() })!;
+assert.ok(edition.shows.some((show) => show.title === "Local Discovery"));
+assert.match(edition.shows[0].ctaUrl, /join\.getsynth\.app\/share\?event=local-discovery/);
 assert.ok(edition.updates.some((story) => /Older favorite|Latest/.test(story.title)));
 assert.equal(edition.updates.some((story) => story.title === "Unpublished story"), false);
 assert.equal(edition.updates.some((story) => story.title === "A festival reveals its lineup"), false);
 assert.equal((renderEditionHtml(edition).match(/LAST_REVIEW/g) ?? []).length, 0);
 assert.equal(edition.yourSynth, undefined);
 assert.equal(edition.history, undefined);
-assert.equal(edition.shows.length, 0);
 assert.doesNotMatch(edition.intro, /newest night|2 nights|85 saved/);
-assert.match(edition.headline, /outside your usual rotation|new sounds|rabbit hole/i);
 assert.ok((edition.listens?.length ?? 0) >= 2);
 assert.ok(edition.listens?.every((listen) => listen.eyebrow === "On your next listen"));
 assert.doesNotMatch((edition.listens ?? []).map((listen) => `${listen.title} ${listen.body}`).join(" "), /Last show's song|Wrong city|Older favorite|A real title/);
@@ -120,4 +159,4 @@ assert.ok(source.stats.some((stat) => stat.listens?.[0]?.trackName === "Apple re
 assert.equal(queried.includes("user_streaming_stats_summary"), false);
 assert.ok(queried.includes("newsletter_drafts"), "recent-source rotation loads prior drafts");
 assert.equal((await loadListeningStats(db, [users[0].user_id]))[0].listens[0].trackName, "A real title");
-console.log("PASS: 135 empty-account discovery editions; eligibility; sourced recordings; news relevance; API source rotation; DST and weekly rotation.");
+console.log("PASS: 135 localized discovery editions; zero-show hold; eligibility; sourced recordings; news relevance; API source rotation; DST and weekly rotation.");

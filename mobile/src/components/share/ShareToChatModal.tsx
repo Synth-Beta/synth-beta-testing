@@ -19,6 +19,7 @@ import {
     FlatList,
     Keyboard,
     KeyboardAvoidingView,
+    Linking,
     Modal,
     Platform,
     Pressable,
@@ -30,7 +31,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
-import { Check, Link2, MessageCircle, Search, Send, Share2, Users, X } from 'lucide-react-native';
+import { CalendarPlus, Check, Link2, MessageCircle, Search, Send, Share2, Users, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
@@ -51,6 +52,11 @@ interface ShareToChatModalProps {
     /** Display title shown in the modal header */
     title?: string;
     currentUserId: string;
+    /**
+     * Prefill URL for Google Calendar (event detail only).
+     * When set, shows an "Add to Google Calendar" action in the external row.
+     */
+    googleCalendarUrl?: string | null;
 }
 
 function Avatar({ name, url, size = 36 }: { name: string; url?: string | null; size?: number }) {
@@ -84,6 +90,7 @@ export function ShareToChatModal({
     entityId,
     title,
     currentUserId,
+    googleCalendarUrl,
 }: ShareToChatModalProps) {
     const insets = useSafeAreaInsets();
     const [targets, setTargets] = useState<ShareTarget[]>([]);
@@ -121,6 +128,17 @@ export function ShareToChatModal({
             // ignore user cancel
             if (err?.message && /cancel/i.test(String(err.message))) return;
             console.error('[ShareToChatModal] external share', err);
+        }
+    };
+
+    const handleAddToGoogleCalendar = async () => {
+        const calendarUrl = googleCalendarUrl?.trim();
+        if (!calendarUrl) return;
+        try {
+            const ok = await Linking.canOpenURL(calendarUrl);
+            if (ok) await Linking.openURL(calendarUrl);
+        } catch (err) {
+            console.error('[ShareToChatModal] google calendar', err);
         }
     };
 
@@ -340,6 +358,17 @@ export function ShareToChatModal({
                                     <Link2 size={18} color={SynthTokens.colors.neutral600} />
                                     <Text style={styles.externalText}>Copy link</Text>
                                 </Pressable>
+                                {googleCalendarUrl ? (
+                                    <Pressable
+                                        style={styles.externalBtn}
+                                        onPress={() => void handleAddToGoogleCalendar()}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Add to Google Calendar"
+                                    >
+                                        <CalendarPlus size={18} color={SynthTokens.colors.neutral600} />
+                                        <Text style={styles.externalText}>Google Calendar</Text>
+                                    </Pressable>
+                                ) : null}
                             </View>
                             {targets.length > 0 ? (
                             <>
@@ -531,10 +560,12 @@ const styles = StyleSheet.create({
     },
     externalRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 10,
     },
     externalBtn: {
-        flex: 1,
+        flexGrow: 1,
+        flexBasis: '40%',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -542,11 +573,12 @@ const styles = StyleSheet.create({
         backgroundColor: SynthTokens.colors.neutral100,
         borderRadius: 12,
         paddingVertical: 12,
+        paddingHorizontal: 8,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: SynthTokens.colors.neutral200,
     },
     externalText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '600',
         color: SynthTokens.colors.neutral600,
     },

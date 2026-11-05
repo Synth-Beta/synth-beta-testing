@@ -1,0 +1,485 @@
+[
+  {
+    "persona": "lauren-dc-active",
+    "week": "2026-10-05",
+    "subject": "Lauren, one concert for your radar: Glass Animals",
+    "headline": "Lauren, Glass Animals has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourConcertPlans",
+      "yourNextListen",
+      "thisWeekInMusic",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Glass Animals",
+        "ctaUrl": "https://join.getsynth.app/share?event=lauren-b&ref=lauren"
+      },
+      {
+        "title": "Sylvan Esso",
+        "ctaUrl": "https://join.getsynth.app/share?event=lauren-a&ref=lauren"
+      }
+    ],
+    "features": [
+      "Mt. Joy at 9:30 Club is coming up"
+    ],
+    "listens": [
+      "Talking Heads · “This Must Be the Place (Naive Melody)”",
+      "Arlo Parks · “Hope”"
+    ],
+    "updates": [
+      "Jon Batiste announces a winter concert run"
+    ],
+    "file": "lauren-dc-active-2026-10-05.html"
+  },
+  {
+    "persona": "lauren-dc-active",
+    "week": "2026-10-12",
+    "subject": "Lauren, Local Natives near you + this week's picks",
+    "headline": "Lauren, a live-music detour near Washington.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Local Natives",
+        "ctaUrl": "https://join.getsynth.app/share?event=lauren-c&ref=lauren"
+      },
+      {
+        "title": "Japanese Breakfast",
+        "ctaUrl": "https://join.getsynth.app/share?event=lauren-d&ref=lauren"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Talking Heads · “This Must Be the Place (Naive Melody)”",
+      "Arlo Parks · “Hope”"
+    ],
+    "updates": [],
+    "file": "lauren-dc-active-2026-10-12.html"
+  },
+  {
+    "persona": "lauren-dc-active",
+    "week": "2026-10-19",
+    "subject": "Lauren, a live-music detour near Washington",
+    "headline": "Lauren, Glass Animals has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourConcertPlans",
+      "yourNextListen",
+      "connect",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Glass Animals",
+        "ctaUrl": "https://join.getsynth.app/share?event=lauren-b&ref=lauren"
+      },
+      {
+        "title": "Sylvan Esso",
+        "ctaUrl": "https://join.getsynth.app/share?event=lauren-a&ref=lauren"
+      }
+    ],
+    "features": [
+      "How was Mt. Joy?"
+    ],
+    "listens": [
+      "Arlo Parks · “Hope”",
+      "Talking Heads · “This Must Be the Place (Naive Melody)”"
+    ],
+    "updates": [],
+    "file": "lauren-dc-active-2026-10-19.html"
+  },
+  {
+    "persona": "lauren-dc-active",
+    "week": "2026-10-26",
+    "subject": "Lauren, Glass Animals near you + this week's picks",
+    "headline": "Lauren, Glass Animals has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "connect",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Glass Animals",
+        "ctaUrl": "https://join.getsynth.app/share?event=lauren-b&ref=lauren"
+      },
+      {
+        "title": "Local Natives",
+        "ctaUrl": "https://join.getsynth.app/share?event=lauren-c&ref=lauren"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Arlo Parks · “Hope”",
+      "Talking Heads · “This Must Be the Place (Naive Melody)”"
+    ],
+    "updates": [],
+    "file": "lauren-dc-active-2026-10-26.html"
+  },
+  {
+    "persona": "sam-chicago-wilco",
+    "week": "2026-10-05",
+    "subject": "Sam, one concert for your radar: Wilco",
+    "headline": "Sam, Wilco has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourConcertPlans",
+      "yourNextListen",
+      "thisWeekInMusic",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Wilco",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-a&ref=sam"
+      },
+      {
+        "title": "Horsegirl",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-going&ref=sam"
+      }
+    ],
+    "features": [
+      "Horsegirl at Empty Bottle is coming up"
+    ],
+    "listens": [
+      "Khruangbin · “Time (You and I)”",
+      "Talking Heads · “This Must Be the Place (Naive Melody)”"
+    ],
+    "updates": [
+      "A fall calendar lands for a Chicago room"
+    ],
+    "file": "sam-chicago-wilco-2026-10-05.html"
+  },
+  {
+    "persona": "sam-chicago-wilco",
+    "week": "2026-10-12",
+    "subject": "Sam, Twilight Hotel near you + this week's picks",
+    "headline": "Sam, a live-music detour near Chicago.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Twilight Hotel",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-b&ref=sam"
+      },
+      {
+        "title": "Ratboys",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-c&ref=sam"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Hiss Golden Messenger · “Saturday's Song”",
+      "Alabama Shakes · “Don't Wanna Fight”"
+    ],
+    "updates": [],
+    "file": "sam-chicago-wilco-2026-10-12.html"
+  },
+  {
+    "persona": "sam-chicago-wilco",
+    "week": "2026-10-19",
+    "subject": "Sam, a live-music detour near Chicago",
+    "headline": "Sam, Wilco has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourConcertPlans",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Wilco",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-a&ref=sam"
+      },
+      {
+        "title": "Twilight Hotel",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-b&ref=sam"
+      }
+    ],
+    "features": [
+      "How was Horsegirl?"
+    ],
+    "listens": [
+      "Arlo Parks · “Hope”",
+      "Circles Around the Sun · “Money's No Thing”"
+    ],
+    "updates": [],
+    "file": "sam-chicago-wilco-2026-10-19.html"
+  },
+  {
+    "persona": "sam-chicago-wilco",
+    "week": "2026-10-26",
+    "subject": "Sam, Twilight Hotel near you + this week's picks",
+    "headline": "Sam, Twilight Hotel has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Twilight Hotel",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-b&ref=sam"
+      },
+      {
+        "title": "Ratboys",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-c&ref=sam"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Khruangbin · “Time (You and I)”",
+      "Talking Heads · “This Must Be the Place (Naive Melody)”"
+    ],
+    "updates": [],
+    "file": "sam-chicago-wilco-2026-10-26.html"
+  },
+  {
+    "persona": "alex-sparse-austin",
+    "week": "2026-10-05",
+    "subject": "Alex, one concert for your radar: Local Natives",
+    "headline": "Alex, Local Natives has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Local Natives",
+        "ctaUrl": "https://join.getsynth.app/share?event=alex-a&ref=alex"
+      },
+      {
+        "title": "Black Pumas",
+        "ctaUrl": "https://join.getsynth.app/share?event=alex-b&ref=alex"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Alabama Shakes · “Don't Wanna Fight”",
+      "Arlo Parks · “Hope”"
+    ],
+    "updates": [],
+    "file": "alex-sparse-austin-2026-10-05.html"
+  },
+  {
+    "persona": "alex-sparse-austin",
+    "week": "2026-10-12",
+    "subject": "Alex, Khruangbin near you + this week's picks",
+    "headline": "Alex, a live-music detour near Austin.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Khruangbin",
+        "ctaUrl": "https://join.getsynth.app/share?event=alex-c&ref=alex"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Talking Heads · “This Must Be the Place (Naive Melody)”",
+      "Hiss Golden Messenger · “Saturday's Song”"
+    ],
+    "updates": [],
+    "file": "alex-sparse-austin-2026-10-12.html"
+  },
+  {
+    "persona": "alex-sparse-austin",
+    "week": "2026-10-19",
+    "subject": "Alex, a live-music detour near Austin",
+    "headline": "Alex, Local Natives has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Local Natives",
+        "ctaUrl": "https://join.getsynth.app/share?event=alex-a&ref=alex"
+      },
+      {
+        "title": "Black Pumas",
+        "ctaUrl": "https://join.getsynth.app/share?event=alex-b&ref=alex"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Floating Points · “LesAlpx”",
+      "Circles Around the Sun · “Money's No Thing”"
+    ],
+    "updates": [],
+    "file": "alex-sparse-austin-2026-10-19.html"
+  },
+  {
+    "persona": "alex-sparse-austin",
+    "week": "2026-10-26",
+    "subject": "Alex, Black Pumas near you + this week's picks",
+    "headline": "Alex, Black Pumas has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Black Pumas",
+        "ctaUrl": "https://join.getsynth.app/share?event=alex-b&ref=alex"
+      },
+      {
+        "title": "Khruangbin",
+        "ctaUrl": "https://join.getsynth.app/share?event=alex-c&ref=alex"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Lettuce · “Trapezoid”",
+      "Medeski Martin & Wood · “Chubb Sub”"
+    ],
+    "updates": [],
+    "file": "alex-sparse-austin-2026-10-26.html"
+  },
+  {
+    "persona": "riley-stale-taste",
+    "week": "2026-10-05",
+    "subject": "Riley, one concert for your radar: Japanese Breakfast",
+    "headline": "Riley, Japanese Breakfast has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Japanese Breakfast",
+        "ctaUrl": "https://join.getsynth.app/share?event=riley-a&ref=riley"
+      },
+      {
+        "title": "Wednesday",
+        "ctaUrl": "https://join.getsynth.app/share?event=riley-c&ref=riley"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Hiss Golden Messenger · “Saturday's Song”",
+      "Khruangbin · “Time (You and I)”"
+    ],
+    "updates": [],
+    "file": "riley-stale-taste-2026-10-05.html"
+  },
+  {
+    "persona": "riley-stale-taste",
+    "week": "2026-10-12",
+    "subject": "Riley, MJ Lenderman near you + this week's picks",
+    "headline": "Riley, a live-music detour near Washington.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "thisWeekInMusic",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "MJ Lenderman",
+        "ctaUrl": "https://join.getsynth.app/share?event=riley-d&ref=riley"
+      },
+      {
+        "title": "Big Thief",
+        "ctaUrl": "https://join.getsynth.app/share?event=riley-b&ref=riley"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Wilco · “Heavy Metal Drummer”",
+      "Arlo Parks · “Hope”"
+    ],
+    "updates": [
+      "Japanese Breakfast shares a new single"
+    ],
+    "file": "riley-stale-taste-2026-10-12.html"
+  },
+  {
+    "persona": "riley-stale-taste",
+    "week": "2026-10-19",
+    "subject": "Riley, a live-music detour near Washington",
+    "headline": "Riley, Japanese Breakfast has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Japanese Breakfast",
+        "ctaUrl": "https://join.getsynth.app/share?event=riley-a&ref=riley"
+      },
+      {
+        "title": "Wednesday",
+        "ctaUrl": "https://join.getsynth.app/share?event=riley-c&ref=riley"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Arlo Parks · “Hope”",
+      "Hiss Golden Messenger · “Saturday's Song”"
+    ],
+    "updates": [],
+    "file": "riley-stale-taste-2026-10-19.html"
+  },
+  {
+    "persona": "riley-stale-taste",
+    "week": "2026-10-26",
+    "subject": "Riley, Wednesday near you + this week's picks",
+    "headline": "Riley, Wednesday has a date near you.",
+    "sections": [
+      "introduction",
+      "onYourRadar",
+      "yourNextListen",
+      "appSpotlight"
+    ],
+    "shows": [
+      {
+        "title": "Wednesday",
+        "ctaUrl": "https://join.getsynth.app/share?event=riley-c&ref=riley"
+      },
+      {
+        "title": "MJ Lenderman",
+        "ctaUrl": "https://join.getsynth.app/share?event=riley-d&ref=riley"
+      }
+    ],
+    "features": [],
+    "listens": [
+      "Arlo Parks · “Hope”",
+      "Hiss Golden Messenger · “Saturday's Song”"
+    ],
+    "updates": [],
+    "file": "riley-stale-taste-2026-10-26.html"
+  }
+]

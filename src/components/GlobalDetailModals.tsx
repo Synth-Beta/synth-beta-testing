@@ -145,10 +145,19 @@ export const GlobalDetailModals = ({
               <button
                 type="button"
                 className="w-full rounded-2xl px-4 py-3 font-semibold"
-                style={{
-                  backgroundColor: 'var(--neutral-900)',
-                  color: 'var(--neutral-50)',
-                }}
+                style={
+                  manualArtistDetail.following
+                    ? {
+                        backgroundColor: 'var(--brand-pink-500)',
+                        color: 'var(--neutral-50)',
+                        border: '2px solid var(--brand-pink-500)',
+                      }
+                    : {
+                        backgroundColor: 'var(--neutral-50)',
+                        color: 'var(--brand-pink-500)',
+                        border: '2px solid var(--brand-pink-500)',
+                      }
+                }
                 onClick={toggleManualArtistFollow}
               >
                 {manualArtistDetail.following ? 'Following' : 'Follow'}

@@ -42,6 +42,8 @@ import {
     venueAddressPrimaryLine,
     formatCityState,
 } from '../../src/utils/eventDetailFormat';
+import { buildGoogleCalendarUrl } from '@synth/shared';
+import { getExpoSiteUrl } from '../../src/utils/siteUrl';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.38;
@@ -482,6 +484,20 @@ export default function EventDetailScreen() {
     const priceLine = formatEventDetailPrice(event);
     const doorsShort = formatDoorsTimeShort(event.doors_time);
     const showTimePrimary = formatEventDetailTime(event.event_date);
+    const googleCalendarUrl =
+        buildGoogleCalendarUrl({
+            id: event.id,
+            title: event.title,
+            artistName: event.artist_name,
+            eventDate: event.event_date,
+            venueTimezone: event.venue_timezone,
+            venueName: event.venue_name,
+            venueAddress: event.venue_address,
+            venueCity: event.venue_city,
+            venueState: event.venue_state,
+            description: event.description,
+            siteUrl: getExpoSiteUrl(),
+        })?.url ?? null;
     const handleTabPress = (tab: 'groups' | 'meet') => {
         const isOpening = activeTab !== tab;
         setActiveTab(prev => (prev === tab ? null : tab));
@@ -951,6 +967,7 @@ export default function EventDetailScreen() {
                         `${event.artist_name || 'Show'}${event.venue_name ? ` at ${event.venue_name}` : ''}`
                     }
                     currentUserId={sessionUserId}
+                    googleCalendarUrl={googleCalendarUrl}
                 />
             ) : null}
         </View>
