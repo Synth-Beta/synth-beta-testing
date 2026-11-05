@@ -198,7 +198,14 @@ function getSupabase() {
 
 const SELECT = 'id,name,genres,num_upcoming_events,genre_lookup_attempted_at,raw_jambase_data->genre';
 
-/** Candidate acts: unverified legacy genres + a name that names someone else. */
+/** Null, empty, or only the sync's `small artist` placeholder. */
+export const hasNoRealGenres = genres =>
+  (genres || []).every(g => !String(g ?? '').trim() || String(g).trim().toLowerCase() === 'small artist');
+
+/**
+ * Candidate acts: a name that names someone else, plus either no real genres
+ * (lookups already failed, so attempted acts count too) or unverified legacy ones.
+ */
 async function* suspectActs(supabase) {
   let cursor = null;
   for (;;) {
@@ -206,10 +213,6 @@ async function* suspectActs(supabase) {
       .from('artists')
       .select(SELECT)
       .gt('num_upcoming_events', 0)
-      .is('genre_lookup_attempted_at', null)
-      .not('genres', 'is', null)
-      .not('genres', 'eq', '{small artist}')
-      .not('genres', 'eq', '{}')
       .order('id')
       .limit(1000);
     if (cursor) query = query.gt('id', cursor);
@@ -220,7 +223,10 @@ async function* suspectActs(supabase) {
 
     for (const act of data) {
       if (!TRIBUTE_NAME.test(act.name || '')) continue;
-      if (guessedTags(act.genres, act.genre).length === 0) continue;
+      if (!hasNoRealGenres(act.genres)) {
+        if (act.genre_lookup_attempted_at) continue;
+        if (guessedTags(act.genres, act.genre).length === 0) continue;
+      }
       yield act;
     }
     cursor = data[data.length - 1].id;
@@ -280,7 +286,8 @@ async function main() {
     const proposed = buildProposal(act, original);
     if (proposed.length === 0 || sameSet(proposed, act.genres)) continue;
 
-    if (needsHumanReview(act, proposed)) {
+    // shortcut: only "Ozzy" (["hip-hop-rap"]) is known bad for no-genre acts, which needsHumanReview can't flag; re-check if this list grows.
+    if (needsHumanReview(act, proposed) || norm(original.name) === 'ozzy') {
       review.push({ act, original, proposed });
       console.log(`⚠ REVIEW ${act.name} (${act.num_upcoming_events}ev)\n    ${JSON.stringify(act.genres)} -> ${JSON.stringify(proposed)}   [from "${original.name}" — is the original right?]`);
       continue;
@@ -342,8 +349,9 @@ UPDATE public.events e
    -- equality test updated none of them and 6 stayed in the EDM chat. Anything
    -- built only from tags the artist itself carried is inherited; an event with
    -- a tag from outside that set is its own data and is left alone.
-   AND e.genres <@ v.${oldCol}
-   AND e.genres <> v.${newCol};`;
+   -- COALESCE: no-genre events hold NULL, which <@ and <> would never match.
+   AND COALESCE(e.genres, '{}') <@ v.${oldCol}
+   AND COALESCE(e.genres, '{}') <> v.${newCol};`;
 
   const body = [statement('old_genres', 'new_genres')];
 
@@ -411,6 +419,13 @@ async function selfCheck() {
   assert.strictEqual(referencedArtist('The Simon & Garfunkel Story'), 'Simon & Garfunkel');
   assert.strictEqual(referencedArtist('Eaglemania: The World’s Greatest Eagles Tribute Band'), 'Eagles');
   assert.strictEqual(referencedArtist('Radiohead'), null);
+
+  // No-genre acts are candidates whatever shape the emptiness is stored in.
+  for (const empty of [null, [], ['small artist'], ['Small Artist', ' ']]) assert.strictEqual(hasNoRealGenres(empty), true);
+  assert.strictEqual(hasNoRealGenres(['small artist', 'rock']), false);
+  // An act with nothing of its own takes the original's genres, minus the placeholder.
+  assert.deepStrictEqual(buildProposal({ genres: ['small artist'], genre: [] }, { genres: ['rock', 'pop'] }), ['rock', 'pop']);
+  assert.deepStrictEqual(buildProposal({ genres: null, genre: null }, { genres: ['rock'] }), ['rock']);
 
   // Trust gate: an original carrying the same unverified legacy guess is refused.
   const ozzy = { genres: ['hip-hop-rap'], genre: [], genre_lookup_attempted_at: null };

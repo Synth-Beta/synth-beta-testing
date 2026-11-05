@@ -6,6 +6,7 @@ import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 import type { Session } from '@supabase/supabase-js';
 import {
   useFonts,
@@ -27,6 +28,13 @@ import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryServi
 import { InviteService, inviteCodeFromUrl } from '../src/services/inviteService';
 import { installAppIssueReporter, setAppIssueRoute } from '../src/services/clientIssueReporter';
 import { needsContactEmail, resolveNotificationExpoPath } from '@synth/shared';
+
+Sentry.init({
+  dsn: 'https://9b6672725128580d795a0d6fda5b6adb@o4510262186409984.ingest.us.sentry.io/4512364974243840',
+  enabled: !__DEV__,
+  // Same rate as web (src/instrument.ts).
+  tracesSampleRate: 0.05,
+});
 
 installAppIssueReporter();
 
@@ -74,7 +82,7 @@ async function getStorageItemWithTimeout(key: string): Promise<string | null> {
   }
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': Inter_400Regular,
     'Inter-Medium': Inter_500Medium,
@@ -648,3 +656,5 @@ export default function RootLayout() {
     </ContactEmailContext.Provider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

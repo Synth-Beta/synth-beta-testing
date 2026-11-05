@@ -70,6 +70,19 @@ fi
 
 echo "ci_pre_xcodebuild: wrote .xcode.env.local NODE_BINARY=${NODE_PATH}"
 
+# Sentry uploads (source maps, dSYMs). Not in .xcode.env.local: the upload script sources
+# that file under `set -x`, which would print the token in the build log.
+if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
+  (
+    umask 077
+    printf 'defaults.url=https://sentry.io/\ndefaults.org=synth-vc\ndefaults.project=synth-beta-testing\nauth.token=%s\n' \
+      "${SENTRY_AUTH_TOKEN}" > "${IOS_DIR}/sentry.properties"
+  )
+  echo "ci_pre_xcodebuild: wrote ios/sentry.properties"
+else
+  echo "ci_pre_xcodebuild: WARNING: SENTRY_AUTH_TOKEN not set — Sentry stack traces will be minified. Add it in Xcode Cloud workflow environment (App Store Connect)."
+fi
+
 if [[ ! -d "${MOBILE_DIR}/node_modules/expo" ]]; then
   echo "ci_pre_xcodebuild: mobile/node_modules missing — running npm ci"
   (cd "${MOBILE_DIR}" && npm ci)

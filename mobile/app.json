@@ -81,6 +81,14 @@
         }
       ],
       [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "organization": "synth-vc",
+          "project": "synth-beta-testing"
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
