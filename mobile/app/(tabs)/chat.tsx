@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Menu, Trash2 } from 'lucide-react-native';
 import { bottomSafeContentPadding } from '../../src/components/navigation/SynthTabBar';
 import { GenreChatsSection } from '../../src/components/discover/GenreChatsSection';
+import { genreCommunityMark } from '../../src/services/genreChatService';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -107,6 +108,7 @@ export default function ChatListScreen() {
       item.latest_message && item.latest_message !== 'No messages yet'
         ? item.latest_message
         : 'No messages yet';
+    const genreMark = genreCommunityMark(item.entity_type, item.entity_id);
 
     return (
       <Pressable
@@ -120,6 +122,16 @@ export default function ChatListScreen() {
       >
         {item.image_url ? (
           <Image source={{ uri: item.image_url }} style={styles.avatarImg} contentFit="cover" />
+        ) : genreMark ? (
+          <View
+            style={[
+              styles.avatarImg,
+              styles.genreAvatar,
+              { backgroundColor: genreMark.background, borderColor: genreMark.outline },
+            ]}
+          >
+            <Text style={styles.genreEmoji}>{genreMark.emoji}</Text>
+          </View>
         ) : (
           <View style={[styles.avatarImg, styles.avatarPlaceholder]}>
             <Text style={styles.avatarInitials}>{initials(item.chat_name)}</Text>
@@ -272,6 +284,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: PINK,
+  },
+  genreAvatar: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+  },
+  genreEmoji: {
+    fontSize: 26,
+    lineHeight: 30,
   },
   chatInfo: {
     flex: 1,

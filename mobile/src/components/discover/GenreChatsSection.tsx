@@ -16,7 +16,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { MessageCircle, Users } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
-import { GenreChatService, type GenreChatInfo, type GenreConfig } from '../../services/genreChatService';
+import { GenreChatService, pastelFromHex, type GenreChatInfo } from '../../services/genreChatService';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -39,8 +39,7 @@ function GenreCard({
     const { genre, chatId, memberCount, isJoined } = info;
 
     return (
-        <View style={[styles.card, { borderTopColor: genre.color }]}>
-            {/* Emoji + name */}
+        <View style={[styles.card, { backgroundColor: pastelFromHex(genre.color), borderColor: genre.color }]}>
             <Text style={styles.cardEmoji}>{genre.emoji}</Text>
             <SynthText variant="body" style={styles.cardName} numberOfLines={1}>
                 {genre.name}
@@ -211,7 +210,6 @@ const styles = StyleSheet.create({
         width: CARD_W,
         backgroundColor: SynthTokens.colors.neutral0,
         borderRadius: 18,
-        borderTopWidth: 3,
         padding: 14,
         gap: 6,
         shadowColor: '#0E0E0E',
@@ -219,11 +217,12 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
         elevation: 2,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: SynthTokens.colors.neutral100,
     },
     cardEmoji: {
         fontSize: 28,
+        lineHeight: 32,
         marginBottom: 2,
     },
     cardName: {

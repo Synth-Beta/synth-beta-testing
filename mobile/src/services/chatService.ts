@@ -83,6 +83,8 @@ export interface ChatThread {
     latest_message?: string;
     latest_message_at?: string;
     image_url?: string;
+    entity_type?: string | null;
+    entity_id?: string | null;
     unread_count: number;
 }
 
@@ -119,6 +121,8 @@ export class ChatService {
             latest_message: chat.latest_message ?? 'No messages yet',
             latest_message_at: chat.latest_message_created_at ?? chat.updated_at,
             image_url: chat.peer_avatar_url ?? undefined,
+            entity_type: chat.entity_type,
+            entity_id: chat.entity_id,
             // ponytail: unread is still computed by useUnreadMessageCount, not here.
             unread_count: 0,
         }));

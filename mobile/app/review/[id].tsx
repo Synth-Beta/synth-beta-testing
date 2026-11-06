@@ -38,15 +38,17 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { overlaySheetBottomPadding } from '../../src/components/navigation/SynthTabBar';
 import {
-    buildCommentThreads,
+    buildCommentTree,
+    flattenVisibleComments,
+    visibleCountsForFocus,
+    mergeVisibleReplyCounts,
     DEFAULT_VISIBLE_REPLIES,
     nextVisibleReplyCount,
     parseCommentMentionSegments,
-    visibleReplyCountForFocus,
+    commentTextToPlain,
     buildReplyMentionPrefill,
     materializeReplyMention,
     extractMentionedUserIds,
-    resolveThreadRootId,
 } from '@synth/shared';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
@@ -329,33 +331,35 @@ function CommentsSheet({
     const [posting, setPosting] = useState(false);
     const [replyTo, setReplyTo] = useState<{
         commentId: string;
-        rootParentId: string;
         userId: string;
         username: string;
+        preview: string;
     } | null>(null);
     const [visibleReplies, setVisibleReplies] = useState<Record<string, number>>({});
     const inputRef = React.useRef<TextInput>(null);
     const listRef = React.useRef<FlatList>(null);
+    const pendingScrollId = React.useRef<string | null>(null);
+    const appliedFocusId = React.useRef<string | null>(null);
 
     useEffect(() => {
         if (!visible) return;
         void fetchComments();
     }, [visible, reviewId]);
 
-    const threads = React.useMemo(() => buildCommentThreads(comments), [comments]);
+    const listItems = React.useMemo(
+        () => flattenVisibleComments(buildCommentTree(comments), visibleReplies),
+        [comments, visibleReplies]
+    );
 
     useEffect(() => {
         if (!focusCommentId || comments.length === 0) return;
-        const next: Record<string, number> = {};
-        for (const thread of threads) {
-            if (thread.replies.some((r) => r.id === focusCommentId)) {
-                next[thread.root.id] = visibleReplyCountForFocus(thread.replies, focusCommentId);
-            }
-        }
-        if (Object.keys(next).length) {
-            setVisibleReplies((prev) => ({ ...prev, ...next }));
-        }
-    }, [focusCommentId, comments, threads]);
+        if (appliedFocusId.current === focusCommentId) return;
+        if (!comments.some((c) => c.id === focusCommentId)) return;
+        appliedFocusId.current = focusCommentId;
+        const needed = visibleCountsForFocus(buildCommentTree(comments), focusCommentId);
+        setVisibleReplies((prev) => mergeVisibleReplyCounts(prev, needed));
+        pendingScrollId.current = focusCommentId;
+    }, [focusCommentId, comments]);
 
     const fetchComments = async () => {
         setLoadingComments(true);
@@ -370,7 +374,7 @@ function CommentsSheet({
 
             if (!entityData?.id) {
                 setComments([]);
-                return;
+                return [];
             }
 
             // Do not select mentioned_user_ids: that column is not on production yet,
@@ -382,12 +386,12 @@ function CommentsSheet({
                 .order('created_at', { ascending: true });
             if (commentsDataError) {
                 console.warn('[[id]] commentsData query failed', commentsDataError);
-                return;
+                return undefined;
             }
 
             if (!commentsData?.length) {
                 setComments([]);
-                return;
+                return [];
             }
 
             const userIds = [...new Set(commentsData.map(c => c.user_id))];
@@ -399,7 +403,7 @@ function CommentsSheet({
 
             const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
 
-            setComments(commentsData.map(c => ({
+            const rows = commentsData.map(c => ({
                 id: c.id,
                 user_id: c.user_id,
                 comment_text: c.comment_text,
@@ -409,9 +413,12 @@ function CommentsSheet({
                 author_name: profileMap.get(c.user_id)?.name || 'User',
                 author_username: profileMap.get(c.user_id)?.username || null,
                 author_avatar: profileMap.get(c.user_id)?.avatar_url || null,
-            })));
+            }));
+            setComments(rows);
+            return rows;
         } catch (err) {
             console.error('Error fetching comments:', err);
+            return undefined;
         } finally {
             setLoadingComments(false);
         }
@@ -419,16 +426,19 @@ function CommentsSheet({
 
     const startReply = (item: CommentRow) => {
         if (!sessionUserId) return;
-        const byId = new Map(comments.map((c) => [c.id, c]));
-        const rootParentId = resolveThreadRootId(item, byId);
         const username = mentionHandle(item);
+        const preview = commentTextToPlain(item.comment_text || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 140);
         setReplyTo({
             commentId: item.id,
-            rootParentId,
             userId: item.user_id,
             username,
+            preview,
         });
         setNewComment(buildReplyMentionPrefill(username));
+        pendingScrollId.current = item.id;
         requestAnimationFrame(() => inputRef.current?.focus());
     };
 
@@ -440,10 +450,9 @@ function CommentsSheet({
         if (replyTo?.userId && !mentionedUserIds.includes(replyTo.userId)) {
             mentionedUserIds.unshift(replyTo.userId);
         }
-        const parentCommentId = replyTo?.rootParentId;
-        setNewComment('');
+        const parentCommentId = replyTo?.commentId;
         const replySnapshot = replyTo;
-        setReplyTo(null);
+        const draft = newComment;
         try {
             const { data: entityId, error: entityIdError } = await supabase.rpc('get_or_create_entity', {
                 p_entity_type: 'review',
@@ -462,7 +471,22 @@ function CommentsSheet({
                 insertPayload.mentioned_user_ids = mentionedUserIds;
             }
 
-            await supabase.from('comments').insert(insertPayload);
+            let { error: insertError } = await supabase.from('comments').insert(insertPayload);
+            const missingMentions =
+                !!insertError &&
+                (insertError.code === 'PGRST204' || insertError.code === '42703') &&
+                /mentioned_user_ids/i.test(insertError.message || '');
+            if (missingMentions) {
+                delete insertPayload.mentioned_user_ids;
+                ({ error: insertError } = await supabase.from('comments').insert(insertPayload));
+            }
+            if (insertError) {
+                console.warn('[[id]] comment insert failed', insertError);
+                setNewComment(draft);
+                return;
+            }
+            setNewComment('');
+            setReplyTo(null);
 
             try {
                 await supabase.rpc('increment_review_count', {
@@ -474,34 +498,21 @@ function CommentsSheet({
                 // RPC may not exist — ignore and just refresh
             }
 
-            if (parentCommentId) {
-                setVisibleReplies((prev) => ({
-                    ...prev,
-                    [parentCommentId]: Math.max(
-                        prev[parentCommentId] ?? DEFAULT_VISIBLE_REPLIES,
-                        (prev[parentCommentId] ?? DEFAULT_VISIBLE_REPLIES) + 1
-                    ),
-                }));
-            }
-
             onCommentAdded();
-            await fetchComments();
-            // After refresh, expand the whole thread so the new reply is visible
-            if (replySnapshot?.rootParentId) {
-                setVisibleReplies((prev) => {
-                    const thread = buildCommentThreads(comments).find(
-                        (t) => t.root.id === replySnapshot.rootParentId
-                    );
-                    // +1 for the reply we just added (comments state may lag one tick)
-                    const total = (thread?.replies.length ?? 0) + 1;
-                    return {
-                        ...prev,
-                        [replySnapshot.rootParentId]: Math.max(
-                            prev[replySnapshot.rootParentId] ?? DEFAULT_VISIBLE_REPLIES,
-                            total
-                        ),
-                    };
-                });
+            const rows = await fetchComments();
+            if (replySnapshot?.commentId) {
+                pendingScrollId.current = replySnapshot.commentId;
+                const tree = buildCommentTree(rows ?? comments);
+                const newestChild = [...(rows ?? [])]
+                    .filter((row) => row.parent_comment_id === replySnapshot.commentId)
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    .at(-1);
+                setVisibleReplies((prev) =>
+                    mergeVisibleReplyCounts(
+                        prev,
+                        visibleCountsForFocus(tree, newestChild?.id ?? replySnapshot.commentId)
+                    )
+                );
             }
         } catch (err) {
             console.error('Error posting comment:', err);
@@ -523,10 +534,18 @@ function CommentsSheet({
         return `${diffD}d ago`;
     };
 
-    const renderComment = (item: CommentRow, isReply: boolean) => (
+    const renderComment = (item: CommentRow, depth: number) => (
         <View
             key={item.id}
-            style={[cmtStyles.commentRow, isReply && cmtStyles.replyRow]}
+            style={[
+                cmtStyles.commentRow,
+                depth > 0 && {
+                    marginLeft: depth * 22,
+                    paddingLeft: 8,
+                    borderLeftWidth: 2,
+                    borderLeftColor: SynthTokens.colors.neutral200,
+                },
+            ]}
         >
             {item.author_avatar ? (
                 <Image source={{ uri: item.author_avatar }} style={cmtStyles.cmtAvatar} contentFit="cover" />
@@ -552,35 +571,18 @@ function CommentsSheet({
         </View>
     );
 
-    type ListItem =
-        | { kind: 'root'; threadRootId: string; comment: CommentRow }
-        | { kind: 'reply'; threadRootId: string; comment: CommentRow }
-        | { kind: 'seeMore'; threadRootId: string; total: number; visible: number };
-
-    const listData: ListItem[] = threads.flatMap((thread) => {
-        const total = thread.replies.length;
-        const visible = Math.min(
-            visibleReplies[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
-            total
+    useEffect(() => {
+        const id = pendingScrollId.current;
+        if (!id || !listRef.current) return;
+        const index = listItems.findIndex(
+            (item) => item.kind === 'comment' && item.comment.id === id
         );
-        const items: ListItem[] = [
-            { kind: 'root', threadRootId: thread.root.id, comment: thread.root },
-            ...thread.replies.slice(0, visible).map((r) => ({
-                kind: 'reply' as const,
-                threadRootId: thread.root.id,
-                comment: r,
-            })),
-        ];
-        if (visible < total) {
-            items.push({
-                kind: 'seeMore',
-                threadRootId: thread.root.id,
-                total,
-                visible,
-            });
-        }
-        return items;
-    });
+        if (index < 0) return;
+        pendingScrollId.current = null;
+        requestAnimationFrame(() => {
+            listRef.current?.scrollToIndex({ index, viewPosition: 0, animated: true });
+        });
+    }, [listItems]);
 
     return (
         <Modal
@@ -614,34 +616,42 @@ function CommentsSheet({
                     ) : (
                         <FlatList
                             ref={listRef}
-                            data={listData}
+                            data={listItems}
                             keyExtractor={(item, index) =>
                                 item.kind === 'seeMore'
-                                    ? `more-${item.threadRootId}`
+                                    ? `more-${item.parentId}`
                                     : item.comment.id || String(index)
                             }
                             style={cmtStyles.list}
                             contentContainerStyle={{ padding: 16, gap: 12 }}
+                            onScrollToIndexFailed={({ index }) => {
+                                setTimeout(() => {
+                                    listRef.current?.scrollToIndex({ index, viewPosition: 0, animated: true });
+                                }, 80);
+                            }}
                             renderItem={({ item }) => {
                                 if (item.kind === 'seeMore') {
                                     return (
                                         <Pressable
                                             onPress={() =>
-                                                setVisibleReplies((prev) => ({
-                                                    ...prev,
-                                                    [item.threadRootId]: nextVisibleReplyCount(
-                                                        prev[item.threadRootId] ?? DEFAULT_VISIBLE_REPLIES,
-                                                        item.total
-                                                    ),
-                                                }))
+                                                setVisibleReplies((prev) => {
+                                                    const shown = prev[item.parentId] ?? DEFAULT_VISIBLE_REPLIES;
+                                                    return {
+                                                        ...prev,
+                                                        [item.parentId]: nextVisibleReplyCount(
+                                                            shown,
+                                                            shown + item.hiddenCount
+                                                        ),
+                                                    };
+                                                })
                                             }
-                                            style={cmtStyles.seeMoreWrap}
+                                            style={[cmtStyles.seeMoreWrap, { marginLeft: item.depth * 22 }]}
                                         >
                                             <Text style={cmtStyles.seeMore}>See More</Text>
                                         </Pressable>
                                     );
                                 }
-                                return renderComment(item.comment, item.kind === 'reply');
+                                return renderComment(item.comment, item.depth);
                             }}
                         />
                     )}
@@ -650,8 +660,9 @@ function CommentsSheet({
                         <View>
                             {replyTo ? (
                                 <View style={cmtStyles.replyBanner}>
-                                    <Text style={cmtStyles.replyBannerText}>
+                                    <Text style={cmtStyles.replyBannerText} numberOfLines={2}>
                                         Replying to <Text style={cmtStyles.cmtMention}>@{replyTo.username}</Text>
+                                        {replyTo.preview ? `\n${replyTo.preview}` : ''}
                                     </Text>
                                     <Pressable onPress={() => { setReplyTo(null); setNewComment(''); }}>
                                         <Text style={cmtStyles.replyBannerCancel}>Cancel</Text>

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {
   buildCommentThreads,
+  buildCommentTree,
+  flattenVisibleComments,
+  visibleCountsForFocus,
   resolveThreadRootId,
   visibleReplyCountForFocus,
   nextVisibleReplyCount,
@@ -42,5 +45,37 @@ assert.equal(
 );
 assert.equal(nextVisibleReplyCount(1, 12), 1 + SEE_MORE_REPLY_BATCH);
 assert.equal(nextVisibleReplyCount(11, 12), 12);
+
+const replyToA: C = {
+  id: 'reply-a',
+  parent_comment_id: 'a',
+  created_at: '2026-01-01T05:00:00Z',
+};
+const tree = buildCommentTree([root, a, b, c, replyToA]);
+assert.equal(tree.length, 1);
+assert.equal(tree[0].comment.id, 'r1');
+assert.deepEqual(
+  tree[0].replies.map((n) => n.comment.id),
+  ['a', 'b', 'c']
+);
+assert.deepEqual(
+  tree[0].replies[0].replies.map((n) => n.comment.id),
+  ['reply-a']
+);
+
+// Default window is the newest reply, directly under its parent.
+const collapsed = flattenVisibleComments(tree, {});
+assert.deepEqual(
+  collapsed.map((item) => (item.kind === 'comment' ? item.comment.id : `more:${item.parentId}`)),
+  ['r1', 'c', 'more:r1']
+);
+assert.equal(collapsed[1].kind === 'comment' ? collapsed[1].depth : -1, 1);
+
+// Focusing a nested reply reveals that comment and nests the reply under it.
+const revealed = flattenVisibleComments(tree, visibleCountsForFocus(tree, 'reply-a'));
+assert.deepEqual(
+  revealed.map((item) => (item.kind === 'comment' ? `${item.comment.id}@${item.depth}` : `more:${item.parentId}`)),
+  ['r1@0', 'a@1', 'reply-a@2', 'b@1', 'c@1']
+);
 
 console.log('commentThreads: OK');

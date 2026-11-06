@@ -5,7 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send, ChevronDown } from 'lucide-react';
 import {
-  buildCommentThreads,
+  buildCommentTree,
+  flattenVisibleComments,
+  visibleCountsForFocus,
+  mergeVisibleReplyCounts,
   DEFAULT_VISIBLE_REPLIES,
   nextVisibleReplyCount,
 } from '@synth/shared';
@@ -38,6 +41,7 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const [visibleReplies, setVisibleReplies] = useState<Record<string, number>>({});
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (isOpen && eventId) {
@@ -50,7 +54,21 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, eventId]);
 
-  const threads = useMemo(() => buildCommentThreads(comments), [comments]);
+  const tree = useMemo(() => buildCommentTree(comments), [comments]);
+  const listItems = useMemo(
+    () => flattenVisibleComments(tree, visibleReplies),
+    [tree, visibleReplies]
+  );
+
+  const scrollCommentIntoView = (id: string) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        listRef.current
+          ?.querySelector(`[data-comment-id="${id}"]`)
+          ?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+    });
+  };
 
   const loadComments = async () => {
     if (!eventId) return;
@@ -89,8 +107,9 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
     const target = buildReplyTarget(comment as any, comments as any);
     setReplyTo(target);
     setNewComment(replyInputPrefill(target));
+    scrollCommentIntoView(comment.id);
     requestAnimationFrame(() => {
-      textareaRef.current?.focus();
+      textareaRef.current?.focus({ preventScroll: true });
       const len = textareaRef.current?.value.length ?? 0;
       textareaRef.current?.setSelectionRange(len, len);
     });
@@ -114,19 +133,15 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
         mentioned_user_ids: prepared.mentionedUserIds,
         user: { id: created.user_id, name: 'You', username: null },
       };
-      setComments(prev => [...prev, withUser]);
-      if (prepared.parentCommentId) {
-        setVisibleReplies((prev) => {
-          const thread = buildCommentThreads([...comments, withUser]).find(
-            (t) => t.root.id === prepared.parentCommentId
-          );
-          const total = thread?.replies.length ?? 1;
-          return {
-            ...prev,
-            [prepared.parentCommentId!]: Math.max(prev[prepared.parentCommentId!] ?? DEFAULT_VISIBLE_REPLIES, total),
-          };
-        });
-      }
+      const withReply = [...comments, withUser];
+      setComments(withReply);
+      setVisibleReplies((prev) =>
+        mergeVisibleReplyCounts(
+          prev,
+          visibleCountsForFocus(buildCommentTree(withReply), withUser.id)
+        )
+      );
+      scrollCommentIntoView(prepared.parentCommentId ?? withUser.id);
       setNewComment('');
       setReplyTo(null);
       if (onCommentAdded) onCommentAdded();
@@ -138,11 +153,16 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
     }
   };
 
-  const renderRow = (c: EventCommentWithUser, isReply: boolean) => (
+  const renderRow = (c: EventCommentWithUser, depth: number) => (
     <div
       key={c.id}
-      className={`flex items-start gap-3 ${isReply ? 'ml-6 sm:ml-10 pl-2' : ''}`}
-      style={isReply ? { borderLeft: '2px solid var(--neutral-200)' } : undefined}
+      data-comment-id={c.id}
+      className="flex items-start gap-3"
+      style={{
+        marginLeft: depth * 28,
+        paddingLeft: depth > 0 ? 8 : 0,
+        borderLeft: depth > 0 ? '2px solid var(--neutral-200)' : undefined,
+      }}
     >
       <Avatar className="h-8 w-8">
         <AvatarImage src={c.user.avatar_url || undefined} />
@@ -177,7 +197,8 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
         </DialogHeader>
 
         <div
-          className="space-y-4 max-h-[60vh] overflow-y-auto pr-1"
+          ref={listRef}
+          className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1"
           aria-busy={loading || loadingMore || submitting}
           aria-live="polite"
           aria-relevant="additions text"
@@ -191,37 +212,35 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
           ) : comments.length === 0 ? (
             <div className="text-sm text-muted-foreground py-4">No comments yet. Be the first to comment!</div>
           ) : (
-            threads.map((thread) => {
-              const totalReplies = thread.replies.length;
-              const visible = Math.min(
-                visibleReplies[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
-                totalReplies
-              );
-              const shown = thread.replies.slice(0, visible);
-              return (
-                <div key={thread.root.id} className="space-y-3">
-                  {renderRow(thread.root, false)}
-                  {shown.map((r) => renderRow(r, true))}
-                  {visible < totalReplies ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setVisibleReplies((prev) => ({
+            listItems.map((item) => {
+              if (item.kind === 'seeMore') {
+                return (
+                  <button
+                    key={`more-${item.parentId}`}
+                    type="button"
+                    onClick={() =>
+                      setVisibleReplies((prev) => {
+                        const shown = prev[item.parentId] ?? DEFAULT_VISIBLE_REPLIES;
+                        return {
                           ...prev,
-                          [thread.root.id]: nextVisibleReplyCount(
-                            prev[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
-                            totalReplies
-                          ),
-                        }))
-                      }
-                      className="ml-6 sm:ml-10 text-xs text-muted-foreground"
-                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                    >
-                      See More
-                    </button>
-                  ) : null}
-                </div>
-              );
+                          [item.parentId]: nextVisibleReplyCount(shown, shown + item.hiddenCount),
+                        };
+                      })
+                    }
+                    className="text-xs text-muted-foreground text-left"
+                    style={{
+                      marginLeft: item.depth * 28,
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    See More
+                  </button>
+                );
+              }
+              return renderRow(item.comment, item.depth);
             })
           )}
           {hasMore && !loading && (
@@ -252,8 +271,11 @@ export function EventCommentsModal({ eventId, isOpen, onClose, currentUserId, on
         <div className="pt-2 border-t mt-2">
           {replyTo ? (
             <div className="flex items-center justify-between mb-2 text-xs text-muted-foreground">
-              <span>
+              <span style={{ minWidth: 0 }}>
                 Replying to <span style={{ color: 'var(--brand-pink-500)', fontWeight: 500 }}>@{replyTo.username}</span>
+                {replyTo.preview ? (
+                  <span className="block truncate" style={{ color: 'var(--neutral-700)' }}>{replyTo.preview}</span>
+                ) : null}
               </span>
               <button
                 type="button"
