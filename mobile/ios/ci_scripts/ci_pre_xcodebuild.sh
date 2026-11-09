@@ -75,7 +75,7 @@ echo "ci_pre_xcodebuild: wrote .xcode.env.local NODE_BINARY=${NODE_PATH}"
 if [[ -n "${SENTRY_AUTH_TOKEN:-}" ]]; then
   (
     umask 077
-    printf 'defaults.url=https://sentry.io/\ndefaults.org=synth-vc\ndefaults.project=synth-beta-testing\nauth.token=%s\n' \
+    printf 'defaults.url=https://sentry.io/\ndefaults.org=synth-vc\ndefaults.project=synth-ios\nauth.token=%s\n' \
       "${SENTRY_AUTH_TOKEN}" > "${IOS_DIR}/sentry.properties"
   )
   echo "ci_pre_xcodebuild: wrote ios/sentry.properties"
