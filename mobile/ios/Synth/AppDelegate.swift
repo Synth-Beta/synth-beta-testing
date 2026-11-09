@@ -20,14 +20,7 @@ class AppDelegate: ExpoAppDelegate {
     reactNativeDelegate = delegate
     reactNativeFactory = factory
 
-#if os(iOS) || os(tvOS)
-    window = UIWindow(frame: UIScreen.main.bounds)
-    factory.startReactNative(
-      withModuleName: "main",
-      in: window,
-      launchOptions: launchOptions)
-#endif
-
+    // Window + React Native start in SceneDelegate: iOS 27 kills apps without UIScene lifecycle at launch.
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -48,6 +41,48 @@ class AppDelegate: ExpoAppDelegate {
   ) -> Bool {
     let result = RCTLinkingManager.application(application, continue: userActivity, restorationHandler: restorationHandler)
     return super.application(application, continue: userActivity, restorationHandler: restorationHandler) || result
+  }
+}
+
+// Registered in Info.plist UIApplicationSceneManifest. Forwards URLs/activities to AppDelegate so Expo subscribers + RCTLinkingManager still fire.
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+  var window: UIWindow?
+
+  private var appDelegate: AppDelegate? { UIApplication.shared.delegate as? AppDelegate }
+
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    guard let windowScene = scene as? UIWindowScene, let appDelegate else { return }
+
+    let window = UIWindow(windowScene: windowScene)
+    self.window = window
+    appDelegate.window = window
+
+    // Cold-start deep link: scene apps get it here, not in didFinishLaunching launchOptions.
+    var launchOptions: [UIApplication.LaunchOptionsKey: Any] = [:]
+    if let url = connectionOptions.urlContexts.first?.url {
+      launchOptions[.url] = url
+    }
+    appDelegate.reactNativeFactory?.startReactNative(
+      withModuleName: "main",
+      in: window,
+      launchOptions: launchOptions)
+
+    if let activity = connectionOptions.userActivities.first {
+      self.scene(scene, continue: activity)
+    }
+  }
+
+  func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+    guard let url = URLContexts.first?.url else { return }
+    _ = appDelegate?.application(UIApplication.shared, open: url, options: [:])
+  }
+
+  func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+    _ = appDelegate?.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
   }
 }
 
