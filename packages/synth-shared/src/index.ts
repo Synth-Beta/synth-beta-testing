@@ -100,6 +100,10 @@ export {
 } from './commentMentions';
 export {
   buildCommentThreads,
+  buildCommentTree,
+  flattenVisibleComments,
+  visibleCountsForFocus,
+  mergeVisibleReplyCounts,
   resolveThreadRootId,
   visibleReplyCountForFocus,
   nextVisibleReplyCount,
@@ -107,6 +111,8 @@ export {
   SEE_MORE_REPLY_BATCH,
   type ThreadableComment,
   type CommentThread,
+  type CommentNode,
+  type FlatCommentItem,
 } from './commentThreads';
 export { getOrCreateDirectChat } from './directChat';
 export { getOrCreateGenreChat } from './genreChat';

@@ -3,7 +3,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { MessageCircle, Users } from 'lucide-react';
-import { GenreChatService, type GenreChatInfo } from '@/services/genreChatService';
+import { GenreChatService, pastelFromHex, type GenreChatInfo } from '@/services/genreChatService';
 
 function formatCount(n: number): string {
     if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
@@ -33,9 +33,9 @@ function GenreCard({
     return (
         <div
             style={{
-                background: '#FFFDFA',
+                background: pastelFromHex(genre.color),
                 borderRadius: 16,
-                border: '0.5px solid rgba(60, 60, 67, 0.1)',
+                border: `1.5px solid ${genre.color}`,
                 padding: 14,
                 minWidth: 168,
                 maxWidth: 200,
@@ -45,7 +45,7 @@ function GenreCard({
                 gap: 8,
             }}
         >
-            <span style={{ fontSize: 26, lineHeight: 1 }}>{genre.emoji}</span>
+            <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">{genre.emoji}</span>
             <div style={{ fontWeight: 650, fontSize: 15, color: 'var(--neutral-900)', lineHeight: 1.2 }}>{genre.name}</div>
             <div style={{ fontSize: 12, color: 'var(--neutral-600)', lineHeight: 1.35, flexGrow: 1 }}>{genre.description}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--neutral-600)' }}>

@@ -34,6 +34,27 @@ export const GENRE_CONFIGS: GenreConfig[] = [
     { id: 'latin', name: 'Latin', fullName: 'Latin & Reggaeton', emoji: '💃', color: '#EA580C', description: 'Reggaeton, salsa, cumbia & más' },
 ];
 
+/** Wash a genre accent toward white so an emoji stays visible on top. Rock red becomes a whiteish pink. */
+export function pastelFromHex(hex: string, whiteMix = 0.86): string {
+    const raw = hex.trim().replace('#', '');
+    const full = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw;
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return '#FFF6F8';
+    const n = parseInt(full, 16);
+    const mix = (channel: number) => Math.round(channel * (1 - whiteMix) + 255 * whiteMix);
+    return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`;
+}
+
+/** Emoji mark for a genre-community chat: saturated outline, pastel fill. */
+export function genreCommunityMark(
+    entityType: string | null | undefined,
+    entityId: string | null | undefined
+): { emoji: string; outline: string; background: string } | null {
+    if (entityType !== 'genre' || !entityId) return null;
+    const genre = GENRE_CONFIGS.find((g) => g.id === entityId);
+    if (!genre) return null;
+    return { emoji: genre.emoji, outline: genre.color, background: pastelFromHex(genre.color) };
+}
+
 export interface GenreChatInfo {
     genre: GenreConfig;
     chatId: string | null;     // null if genre chat not created yet

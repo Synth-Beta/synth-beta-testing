@@ -119,9 +119,24 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
 
   // Real upcoming local shows only. A ticket URL is NOT required to discover a
   // show inside Synth — the CTA opens the event. Ticket CTAs still need verified links.
+  const tracked = events.filter((event) =>
+    (reader.interestedEventIds?.includes(event.id) || reader.goingEventIds?.includes(event.id)) &&
+    event.id && event.artistName && event.venueName);
+  const upcomingSaved = tracked.filter((event) => isUpcoming(event.eventDate, sendAt, event.state))
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  const pastSaved = tracked.filter((event) => isRecentPast(event, sendAt) &&
+    !reader.reviews.some((review) => String(review.eventId ?? "") === String(event.id)))
+    .sort((a, b) => b.eventDate.localeCompare(a.eventDate));
+  const soon = upcomingSaved.find((event) => {
+    const t = Date.parse(event.eventDate.slice(0, 10) + "T23:59:59Z");
+    return Number.isFinite(t) && t - sendAt.getTime() <= 21 * DAY_MS;
+  });
   const candidates = events.filter((event) => event.id && event.artistName && event.venueName && event.city &&
     isUpcoming(event.eventDate, sendAt, event.state) && isNear(event) &&
     !bannedUrls.has(event.ticketUrl ?? "") && !bannedUrls.has(eventInApp(event, reader.userId)));
+  // When another local show can fill radar, leave the soon-saved date for concert plans.
+  const planningHasAlternateShow = Boolean(soon && candidates.some((event) =>
+    event.id !== soon.id && key(event.artistName) !== key(soon.artistName)));
   const valueOf = (event: EditionEvent) => affinityScore(reader, event, tasteGenres);
   const recentlyShown = (event: EditionEvent) =>
     pastLabels.has(key(`Show ${event.id}`))
@@ -135,6 +150,7 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   const selectedEvents: EditionEvent[] = [];
   for (const event of pool) {
     if (selectedEvents.some((chosen) => key(chosen.artistName) === key(event.artistName))) continue;
+    if (planningHasAlternateShow && soon && event.id === soon.id) continue;
     // Prefer any unused alternative over repeating a show/artist from the last 56 days.
     if (recentlyShown(event) && pool.some((other) => !recentlyShown(other) && key(other.artistName) !== key(event.artistName))) continue;
     if (!useArtist(event.artistName)) continue;
@@ -144,8 +160,9 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   // Broader local fallback: if affinity filtering left us empty but inventory exists,
   // still pick the soonest nearby show rather than inventing nonlocal dates.
   if (!selectedEvents.length && candidates.length) {
-    const fallback = [...candidates].sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
-    if (fallback && useArtist(fallback.artistName)) selectedEvents.push(fallback);
+    const fallback = [...candidates].sort((a, b) => a.eventDate.localeCompare(b.eventDate))
+      .find((event) => useArtist(event.artistName));
+    if (fallback) selectedEvents.push(fallback);
   }
 
   const shows: ShowCard[] = selectedEvents.map((event) => {
@@ -184,18 +201,12 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   });
 
   // Timely actions from live intent — never imply attendance from Interested alone.
+  // Artists already used in radar are skipped so sections stay distinct.
   const features: StoryCard[] = [];
-  const tracked = events.filter((event) =>
-    (reader.interestedEventIds?.includes(event.id) || reader.goingEventIds?.includes(event.id)) &&
-    event.id && event.artistName && event.venueName);
-  const upcomingSaved = tracked.filter((event) => isUpcoming(event.eventDate, sendAt, event.state))
-    .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
-  const pastSaved = tracked.filter((event) => isRecentPast(event, sendAt) &&
-    !reader.reviews.some((review) => String(review.eventId ?? "") === String(event.id)))
-    .sort((a, b) => b.eventDate.localeCompare(a.eventDate));
   const addActivity = (event: EditionEvent, mode: "planning" | "review") => {
     const marker = `Action ${mode} ${event.id}`;
     if (pastLabels.has(key(marker)) || features.length >= 2) return;
+    if (!useArtist(event.artistName)) return;
     const going = reader.goingEventIds?.includes(event.id);
     const date = formatEventWhen(event.eventDate, event.state);
     const url = eventInApp(event, reader.userId);
@@ -228,11 +239,7 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
     }
     sources.push({ kind: "editorial", url, retrievedAt, label: marker });
   };
-  const soon = upcomingSaved.find((event) => {
-    const t = Date.parse(event.eventDate.slice(0, 10) + "T23:59:59Z");
-    return Number.isFinite(t) && t - sendAt.getTime() <= 21 * DAY_MS;
-  });
-  if (soon) addActivity(soon, "planning");
+  if (soon && planningHasAlternateShow) addActivity(soon, "planning");
   const recentPast = pastSaved.find((event) => !pastLabels.has(key(`Action review ${event.id}`)));
   if (recentPast) addActivity(recentPast, "review");
 
@@ -256,8 +263,16 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   const updates: StoryCard[] = [];
   for (const row of newsMatches) {
     if (updates.length >= 2) break;
-    if (row.artist && usedArtists.has(key(row.artist)) && !row.geography) continue;
-    if (row.artist) useArtist(row.artist);
+    const storyText = `${row.item.title} ${row.item.summary}`;
+    // Never re-mention an artist already used in shows, plans, or another card.
+    if ([...usedArtists].some((artist) => artistMention(storyText, artist))) continue;
+    if (row.artist) {
+      if (!useArtist(row.artist)) continue;
+    } else {
+      for (const name of preferred) {
+        if (artistMention(storyText, name)) useArtist(name);
+      }
+    }
     updates.push({
       eyebrow: row.artist ? `In the news · ${row.artist}` : row.geography ? "Around your music scene" : "A story in your lane",
       title: clean(row.item.title),
@@ -299,8 +314,9 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   for (const pick of picks) {
     if (!useArtist(pick.artistName)) continue;
     const shared = pick.genres.map(key).find((genre) => tasteGenres.includes(genre));
-    const why = bestArtist && shared
-      ? `If ${bestArtist} is your kind of live show, here's another ${naturalGenre(shared)} direction to explore. `
+    const anchor = bestArtist && !usedArtists.has(key(bestArtist)) ? bestArtist : null;
+    const why = anchor && shared
+      ? `If ${anchor} is your kind of live show, here's another ${naturalGenre(shared)} direction to explore. `
       : shared ? `A ${naturalGenre(shared)} pick for your rotation. ` : "A left-field pick worth a listen. ";
     suggested.push({
       eyebrow: "On your next listen",
@@ -316,7 +332,7 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   const sharedArtist = reader.otherFiveStarArtists.find((artist) => !usedArtists.has(key(artist)) &&
     !bannedConnect.has(key(artist)) &&
     reader.reviews.some((review) => key(review.artistName) === key(artist) && (review.rating ?? 0) >= 5));
-  const connect: StoryCard | undefined = sharedArtist && rotation !== 2 ? {
+  const connect: StoryCard | undefined = sharedArtist && rotation !== 2 && useArtist(sharedArtist) ? {
     eyebrow: "Find your people",
     title: `You're not the only ${sharedArtist} fan here.`,
     body: `Other Synth users have given ${sharedArtist} five stars too. Find out what made those nights special to them.`,

@@ -1829,11 +1829,23 @@ export class ReviewService {
         insertPayload.mentioned_user_ids = mentionedUserIds;
       }
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('comments')
         .insert(insertPayload)
         .select()
         .single();
+
+      // Replies always attach mention ids. If that column is not migrated yet,
+      // retry without it so the reply still saves and stays visible.
+      if (
+        error &&
+        insertPayload.mentioned_user_ids &&
+        (error.code === 'PGRST204' || error.code === '42703') &&
+        /mentioned_user_ids/i.test(error.message || '')
+      ) {
+        delete insertPayload.mentioned_user_ids;
+        ({ data, error } = await supabase.from('comments').insert(insertPayload).select().single());
+      }
 
       if (error) throw error;
 

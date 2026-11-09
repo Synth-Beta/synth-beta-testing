@@ -154,11 +154,21 @@ export class EventCommentsService {
       insertPayload.mentioned_user_ids = mentionedUserIds;
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('comments')
       .insert(insertPayload)
       .select()
       .single();
+
+    if (
+      error &&
+      insertPayload.mentioned_user_ids &&
+      (error.code === 'PGRST204' || error.code === '42703') &&
+      /mentioned_user_ids/i.test(error.message || '')
+    ) {
+      delete insertPayload.mentioned_user_ids;
+      ({ data, error } = await supabase.from('comments').insert(insertPayload).select().single());
+    }
     
     if (error) {
       if ((error as any).code === 'PGRST205') {

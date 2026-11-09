@@ -5,10 +5,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Send, X } from 'lucide-react';
 import {
-  buildCommentThreads,
+  buildCommentTree,
+  flattenVisibleComments,
+  visibleCountsForFocus,
+  mergeVisibleReplyCounts,
   DEFAULT_VISIBLE_REPLIES,
   nextVisibleReplyCount,
-  visibleReplyCountForFocus,
 } from '@synth/shared';
 import { ReviewService, CommentWithUser } from '@/services/reviewService';
 import { CommentMentionText } from '@/components/comments/CommentMentionText';
@@ -49,6 +51,10 @@ export function ReviewCommentsModal({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const didFocusScroll = useRef(false);
+  const [scrollTarget, setScrollTarget] = useState<{
+    id: string;
+    block: ScrollLogicalPosition;
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen && reviewId) {
@@ -62,40 +68,28 @@ export function ReviewCommentsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, reviewId]);
 
-  const threads = useMemo(() => buildCommentThreads(comments), [comments]);
+  const tree = useMemo(() => buildCommentTree(comments), [comments]);
+  const listItems = useMemo(
+    () => flattenVisibleComments(tree, visibleReplies),
+    [tree, visibleReplies]
+  );
 
   useEffect(() => {
-    if (!focusCommentId || comments.length === 0) return;
-    const next: Record<string, number> = {};
-    for (const thread of threads) {
-      if (thread.root.id === focusCommentId) {
-        next[thread.root.id] = Math.max(
-          visibleReplies[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
-          DEFAULT_VISIBLE_REPLIES
-        );
-        continue;
-      }
-      const needed = visibleReplyCountForFocus(thread.replies, focusCommentId);
-      if (needed > 0 && thread.replies.some((r) => r.id === focusCommentId)) {
-        next[thread.root.id] = Math.max(visibleReplies[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES, needed);
-      }
-    }
-    if (Object.keys(next).length > 0) {
-      setVisibleReplies((prev) => ({ ...prev, ...next }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusCommentId, comments, threads]);
+    if (!focusCommentId || comments.length === 0 || didFocusScroll.current) return;
+    if (!comments.some((c) => c.id === focusCommentId)) return;
+    didFocusScroll.current = true;
+    const needed = visibleCountsForFocus(tree, focusCommentId);
+    setVisibleReplies((prev) => mergeVisibleReplyCounts(prev, needed));
+    setScrollTarget({ id: focusCommentId, block: 'center' });
+  }, [focusCommentId, comments, tree]);
 
   useEffect(() => {
-    if (!isOpen || !focusCommentId || loading || didFocusScroll.current) return;
-    const el = listRef.current?.querySelector(`[data-comment-id="${focusCommentId}"]`);
-    if (el) {
-      didFocusScroll.current = true;
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    }
-  }, [isOpen, focusCommentId, loading, visibleReplies, comments]);
+    if (!isOpen || !scrollTarget) return;
+    const el = listRef.current?.querySelector(`[data-comment-id="${scrollTarget.id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: scrollTarget.block });
+    setScrollTarget(null);
+  }, [isOpen, scrollTarget, listItems]);
 
   const loadComments = async () => {
     if (!reviewId) {
@@ -128,8 +122,9 @@ export function ReviewCommentsModal({
     const target = buildReplyTarget(comment as any, comments as any);
     setReplyTo(target);
     setNewComment(replyInputPrefill(target));
+    setScrollTarget({ id: comment.id, block: 'start' });
     requestAnimationFrame(() => {
-      textareaRef.current?.focus();
+      textareaRef.current?.focus({ preventScroll: true });
       const len = textareaRef.current?.value.length ?? 0;
       textareaRef.current?.setSelectionRange(len, len);
     });
@@ -166,20 +161,18 @@ export function ReviewCommentsModal({
         },
       };
 
-      setComments((prev) => [...prev, newCommentWithUser]);
-
-      if (prepared.parentCommentId) {
-        setVisibleReplies((prev) => {
-          const thread = buildCommentThreads([...comments, newCommentWithUser]).find(
-            (t) => t.root.id === prepared.parentCommentId
-          );
-          const total = thread?.replies.length ?? 1;
-          return {
-            ...prev,
-            [prepared.parentCommentId!]: Math.max(prev[prepared.parentCommentId!] ?? DEFAULT_VISIBLE_REPLIES, total),
-          };
-        });
-      }
+      const withReply = [...comments, newCommentWithUser];
+      setComments(withReply);
+      setVisibleReplies((prev) =>
+        mergeVisibleReplyCounts(
+          prev,
+          visibleCountsForFocus(buildCommentTree(withReply), newCommentWithUser.id)
+        )
+      );
+      setScrollTarget({
+        id: prepared.parentCommentId ?? newCommentWithUser.id,
+        block: 'start',
+      });
 
       setNewComment('');
       setReplyTo(null);
@@ -200,18 +193,17 @@ export function ReviewCommentsModal({
     }
   };
 
-  const getVisibleCount = (rootId: string, total: number) => {
-    const current = visibleReplies[rootId] ?? DEFAULT_VISIBLE_REPLIES;
-    return Math.min(current, total);
-  };
-
-  const renderCommentBody = (comment: CommentWithUser, isReply: boolean) => {
+  const renderCommentBody = (comment: CommentWithUser, depth: number) => {
     const profileUserId = comment.user_id || comment.user?.id;
     return (
       <div
         data-comment-id={comment.id}
-        className={`flex items-start gap-3 p-3 bg-gray-50 rounded-lg ${isReply ? 'ml-6 sm:ml-10' : ''}`}
-        style={isReply ? { borderLeft: '2px solid var(--neutral-200)' } : undefined}
+        className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
+        style={{
+          marginLeft: depth * 28,
+          borderLeft: depth > 0 ? '2px solid var(--neutral-200)' : undefined,
+          paddingLeft: depth > 0 ? 12 : undefined,
+        }}
       >
         <button
           type="button"
@@ -364,35 +356,42 @@ export function ReviewCommentsModal({
               <p className="text-sm">Be the first to share your thoughts!</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {threads.map((thread) => {
-                const totalReplies = thread.replies.length;
-                const visible = getVisibleCount(thread.root.id, totalReplies);
-                const shown = thread.replies.slice(0, visible);
-                const hasMore = visible < totalReplies;
+            <div className="flex flex-col gap-2">
+              {listItems.map((item) => {
+                if (item.kind === 'seeMore') {
+                      return (
+                        <button
+                          key={`more-${item.parentId}`}
+                          type="button"
+                          onClick={() =>
+                            setVisibleReplies((prev) => {
+                              const shown = prev[item.parentId] ?? DEFAULT_VISIBLE_REPLIES;
+                              return {
+                                ...prev,
+                                [item.parentId]: nextVisibleReplyCount(
+                                  shown,
+                                  shown + item.hiddenCount
+                                ),
+                              };
+                            })
+                          }
+                      className="text-xs text-gray-500 hover:text-gray-700 text-left"
+                      style={{
+                        marginLeft: item.depth * 28,
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      See More
+                    </button>
+                  );
+                }
                 return (
-                  <div key={thread.root.id} className="space-y-2">
-                    {renderCommentBody(thread.root, false)}
-                    {shown.map((reply) => renderCommentBody(reply, true))}
-                    {hasMore ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setVisibleReplies((prev) => ({
-                            ...prev,
-                            [thread.root.id]: nextVisibleReplyCount(
-                              prev[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
-                              totalReplies
-                            ),
-                          }))
-                        }
-                        className="ml-6 sm:ml-10 text-xs text-gray-500 hover:text-gray-700"
-                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                      >
-                        See More
-                      </button>
-                    ) : null}
-                  </div>
+                  <React.Fragment key={item.comment.id}>
+                    {renderCommentBody(item.comment, item.depth)}
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -408,8 +407,13 @@ export function ReviewCommentsModal({
         >
           {replyTo ? (
             <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
-              <span>
+              <span style={{ minWidth: 0 }}>
                 Replying to <span style={{ color: 'var(--brand-pink-500)', fontWeight: 500 }}>@{replyTo.username}</span>
+                {replyTo.preview ? (
+                  <span className="block truncate" style={{ color: 'var(--neutral-700)' }}>
+                    {replyTo.preview}
+                  </span>
+                ) : null}
               </span>
               <button
                 type="button"

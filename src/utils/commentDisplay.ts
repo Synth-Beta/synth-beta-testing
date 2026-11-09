@@ -2,6 +2,7 @@ import {
   buildReplyMentionPrefill,
   materializeReplyMention,
   extractMentionedUserIds,
+  commentTextToPlain,
   resolveThreadRootId,
   type ThreadableComment,
 } from '@synth/shared';
@@ -22,9 +23,12 @@ export type DisplayComment = ThreadableComment & {
 
 export type ReplyTarget = {
   commentId: string;
+  /** Thread root. Kept so older callers can still group a reply. */
   rootParentId: string;
   userId: string;
   username: string;
+  /** Plain-text snippet of the comment being answered, so it stays visible in the composer. */
+  preview: string;
 };
 
 /** Prefer @username; fall back to a handle derived from display name. */
@@ -56,11 +60,16 @@ export function buildReplyTarget(
     name: comment.user?.name,
     user_id: comment.user_id,
   });
+  const preview = commentTextToPlain(comment.comment_text || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 140);
   return {
     commentId: comment.id,
     rootParentId,
     userId: comment.user_id,
     username,
+    preview,
   };
 }
 
@@ -76,7 +85,8 @@ export function prepareReplySubmission(
   }
   return {
     commentText: materialized,
-    parentCommentId: replyTo?.rootParentId,
+    // Direct parent, so the reply renders under the comment that was answered.
+    parentCommentId: replyTo?.commentId,
     mentionedUserIds,
   };
 }

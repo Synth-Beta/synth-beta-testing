@@ -26,7 +26,10 @@ import {
   MapPin,
 } from 'lucide-react';
 import {
-  buildCommentThreads,
+  buildCommentTree,
+  flattenVisibleComments,
+  visibleCountsForFocus,
+  mergeVisibleReplyCounts,
   DEFAULT_VISIBLE_REPLIES,
   nextVisibleReplyCount,
 } from '@synth/shared';
@@ -113,10 +116,26 @@ export function SwiftUIReviewCard({
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const [visibleReplies, setVisibleReplies] = useState<Record<string, number>>({});
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const commentListRef = useRef<HTMLDivElement | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
-  const commentThreads = useMemo(() => buildCommentThreads(comments), [comments]);
+  const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
+  const commentListItems = useMemo(
+    () => flattenVisibleComments(commentTree, visibleReplies),
+    [commentTree, visibleReplies]
+  );
+
+  const scrollCommentIntoView = (id: string) => {
+    // Two frames so the new nested reply is in the DOM before we pin its parent.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        commentListRef.current
+          ?.querySelector(`[data-comment-id="${id}"]`)
+          ?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
+    });
+  };
   
   // Photo viewer state
   const photos: string[] = Array.isArray((review as any)?.photos) ? (review as any).photos : [];
@@ -276,8 +295,9 @@ export function SwiftUIReviewCard({
     const target = buildReplyTarget(comment as any, comments as any);
     setReplyTo(target);
     setNewComment(replyInputPrefill(target));
+    scrollCommentIntoView(comment.id);
     requestAnimationFrame(() => {
-      commentInputRef.current?.focus();
+      commentInputRef.current?.focus({ preventScroll: true });
       const len = commentInputRef.current?.value.length ?? 0;
       commentInputRef.current?.setSelectionRange(len, len);
     });
@@ -306,22 +326,15 @@ export function SwiftUIReviewCard({
           avatar_url: userProfile?.avatar_url
         }
       } as CommentWithUser;
-      setComments(prev => [...prev, withUser]);
-      if (prepared.parentCommentId) {
-        setVisibleReplies((prev) => {
-          const thread = buildCommentThreads([...comments, withUser]).find(
-            (t) => t.root.id === prepared.parentCommentId
-          );
-          const total = thread?.replies.length ?? 1;
-          return {
-            ...prev,
-            [prepared.parentCommentId!]: Math.max(
-              prev[prepared.parentCommentId!] ?? DEFAULT_VISIBLE_REPLIES,
-              total
-            ),
-          };
-        });
-      }
+      const withReply = [...comments, withUser];
+      setComments(withReply);
+      setVisibleReplies((prev) =>
+        mergeVisibleReplyCounts(
+          prev,
+          visibleCountsForFocus(buildCommentTree(withReply), withUser.id)
+        )
+      );
+      scrollCommentIntoView(prepared.parentCommentId ?? withUser.id);
       setNewComment('');
       setReplyTo(null);
       setCommentsCount(prev => prev + 1);
@@ -1177,24 +1190,53 @@ export function SwiftUIReviewCard({
                   No comments yet. Be the first to comment!
                 </p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {commentThreads.map((thread) => {
-                    const totalReplies = thread.replies.length;
-                    const visible = Math.min(
-                      visibleReplies[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
-                      totalReplies
-                    );
-                    const shown = thread.replies.slice(0, visible);
-                    const renderRow = (c: CommentWithUser, isReply: boolean) => (
+                <div ref={commentListRef} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {commentListItems.map((item) => {
+                    if (item.kind === 'seeMore') {
+                      return (
+                        <button
+                          key={`more-${item.parentId}`}
+                          type="button"
+                          onClick={() =>
+                            setVisibleReplies((prev) => {
+                              const shown = prev[item.parentId] ?? DEFAULT_VISIBLE_REPLIES;
+                              return {
+                                ...prev,
+                                [item.parentId]: nextVisibleReplyCount(
+                                  shown,
+                                  shown + item.hiddenCount
+                                ),
+                              };
+                            })
+                          }
+                          style={{
+                            ...textStyles.caption,
+                            marginLeft: item.depth * 28,
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            color: 'var(--neutral-500)',
+                            textAlign: 'left',
+                          }}
+                        >
+                          See More
+                        </button>
+                      );
+                    }
+                    const c = item.comment;
+                    return (
                       <div
                         key={c.id}
+                        data-comment-id={c.id}
                         style={{
                           ...glassCardLight,
                           padding: 12,
                           display: 'flex',
                           gap: 12,
-                          marginLeft: isReply ? 20 : 0,
-                          borderLeft: isReply ? '2px solid var(--neutral-200)' : undefined,
+                          marginLeft: item.depth * 28,
+                          borderLeft: item.depth > 0 ? '2px solid var(--neutral-200)' : undefined,
+                          paddingLeft: item.depth > 0 ? 12 : 12,
                         }}
                       >
                         <Avatar className="w-8 h-8">
@@ -1234,38 +1276,6 @@ export function SwiftUIReviewCard({
                         </div>
                       </div>
                     );
-                    return (
-                      <div key={thread.root.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {renderRow(thread.root, false)}
-                        {shown.map((r) => renderRow(r, true))}
-                        {visible < totalReplies ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setVisibleReplies((prev) => ({
-                                ...prev,
-                                [thread.root.id]: nextVisibleReplyCount(
-                                  prev[thread.root.id] ?? DEFAULT_VISIBLE_REPLIES,
-                                  totalReplies
-                                ),
-                              }))
-                            }
-                            style={{
-                              ...textStyles.caption,
-                              marginLeft: 20,
-                              background: 'none',
-                              border: 'none',
-                              padding: 0,
-                              cursor: 'pointer',
-                              color: 'var(--neutral-500)',
-                              textAlign: 'left',
-                            }}
-                          >
-                            See More
-                          </button>
-                        ) : null}
-                      </div>
-                    );
                   })}
                 </div>
               )}
@@ -1281,9 +1291,12 @@ export function SwiftUIReviewCard({
                     color: 'var(--neutral-500)',
                   }}
                 >
-                  <span>
+                  <span style={{ minWidth: 0 }}>
                     Replying to{' '}
                     <span style={{ color: 'var(--brand-pink-500)', fontWeight: 500 }}>@{replyTo.username}</span>
+                    {replyTo.preview ? (
+                      <span style={{ display: 'block', color: 'var(--neutral-700)' }}>{replyTo.preview}</span>
+                    ) : null}
                   </span>
                   <button
                     type="button"

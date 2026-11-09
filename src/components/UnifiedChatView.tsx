@@ -77,6 +77,7 @@ import { toast } from '@/hooks/use-toast';
 import { buildChatImageStoragePath, resolveChatImageDisplayUrl } from '@/utils/chatImageStorage';
 import PageShell from '@/components/layout/PageShell';
 import { GenreChatsSection } from '@/components/discover/GenreChatsSection';
+import { genreCommunityMark } from '@/services/genreChatService';
 import { ChatMembersPage } from '@/components/chats/ChatMembersPage';
 import '@/components/home/thread/thread.css';
 import { MessageReactions, ReactionPicker } from '@/components/chat/MessageReactions';
@@ -2650,7 +2651,9 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {chats.map((chat) => (
+              {chats.map((chat) => {
+                const genreMark = genreCommunityMark(chat.entity_type, chat.entity_id);
+                return (
                 <div
                   key={chat.id}
                   className="cursor-pointer"
@@ -2696,6 +2699,20 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       <div 
                         className="flex-1 flex items-center gap-4 cursor-pointer min-w-0"
                     >
+                      {genreMark ? (
+                        <div
+                          className="w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center"
+                          style={{
+                            backgroundColor: genreMark.background,
+                            border: `2px solid ${genreMark.outline}`,
+                            fontSize: 24,
+                            lineHeight: 1,
+                          }}
+                          aria-hidden="true"
+                        >
+                          {genreMark.emoji}
+                        </div>
+                      ) : (
                       <Avatar className="w-12 h-12 flex-shrink-0">
                           <AvatarImage 
                             src={getChatAvatar(chat) || undefined} 
@@ -2711,6 +2728,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                             )}
                           </AvatarFallback>
                       </Avatar>
+                      )}
                         <div className="flex-1 min-w-0">
                           <div className="mb-1">
                           <h3 className="font-semibold" style={{ 
@@ -2770,7 +2788,8 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                       </Button>
                     </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
