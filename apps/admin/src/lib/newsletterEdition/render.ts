@@ -66,7 +66,7 @@ ${edition.shows.length ? `${section(edition.showsHeading || "On your radar", edi
 ${edition.locationPrompt ? `<tr><td class="mobile-padding" style="padding:21px 32px 0;">${link(edition.locationPrompt.label, edition.locationPrompt.url)}</td></tr>` : ""}
 ${(edition.listens?.length || edition.listen) ? section("The listening detour", "Two tracks chosen for your taste, not another list of what you already played.") : ""}
 ${(edition.listens || (edition.listen ? [edition.listen] : [])).map((story, index) => storyBlock(story, index === 0)).join("")}
-${edition.updates.length ? `${section("A little music news", "Only stories connected to your artists, interests, or local scene.")}${edition.updates.map((story) => storyBlock(story)).join("")}` : ""}
+${edition.updates.length ? `${section("A little music news", "A few headlines worth catching between sets.")}${edition.updates.map((story) => storyBlock(story)).join("")}` : ""}
 ${edition.features?.length ? section("Your concert plans", "A timely nudge based on shows you saved, not another recap.") : ""}
 ${(edition.features ?? []).map((story) => storyBlock(story)).join("")}
 ${edition.connect ? `${section("Find your people")}${storyBlock(edition.connect)}` : ""}

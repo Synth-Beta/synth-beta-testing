@@ -118,6 +118,8 @@ assert.ok((activeEdition.listens?.length ?? 0) >= 2);
 assert.doesNotMatch(listenTitles(activeEdition), /Arcadia|Time \(You and I\)|Khruangbin|Goose/);
 assert.ok(activeEdition.listens?.every((card) => card.eyebrow === "On your next listen"));
 assert.equal(new Set(artistsOf(activeEdition)).size, artistsOf(activeEdition).length);
+assert.doesNotMatch(activeHtml, /Only stories connected to your artists, interests, or local scene/);
+assert.equal(activeEdition.updates.some((story) => /Goose announces/i.test(story.title)), false, "show artist should not also headline news");
 assert.equal(activeEdition.qualityReport.sections.includes("yourSynth"), false);
 assert.ok(activeEdition.qualityReport.sections.includes("onYourRadar"));
 assert.ok(activeEdition.qualityReport.sections.includes("yourNextListen"));
@@ -185,6 +187,8 @@ const jamSam = compose(baseReader({
 assert.ok(jamSam.updates.length >= 1);
 assert.ok(jamSam.updates.every((story) => /Billy Strings|Widespread Panic|Goose|jam-band/i.test(story.title)));
 assert.equal(jamSam.updates.some((story) => /pop star|chart act/i.test(story.title)), false);
+assert.match(renderEditionHtml(jamSam), /A few headlines worth catching between sets/);
+assert.doesNotMatch(renderEditionHtml(jamSam), /Only stories connected to your artists, interests, or local scene/);
 assert.ok((jamSam.listens?.length ?? 0) >= 2);
 assert.match(listenTitles(jamSam) + listenBodies(jamSam), /jam-band|rock direction|Circles Around the Sun|Lettuce|Medeski|Talking Heads|Alabama Shakes|Hiss Golden|My Morning Jacket|Umphrey|Twiddle|Lotus/i);
 assert.doesNotMatch(listenTitles(jamSam), /Goose|Phish|Arcadia/);

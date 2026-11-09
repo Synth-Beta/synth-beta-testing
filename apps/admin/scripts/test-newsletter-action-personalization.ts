@@ -91,6 +91,8 @@ assert.ok(interested.features?.some((card) => /Make plans on Synth/i.test(card.c
 assert.match(interested.features![0].ctaUrl, /share\?event=plan-1/);
 assert.ok(interested.features![0].links?.some((link) => /Find people to go with/i.test(link.label)));
 assert.ok(interested.features![0].links?.some((link) => /Official tickets/i.test(link.label)));
+assert.equal(interested.shows.some((card) => card.title === "Mt. Joy"), false, "saved planning artist stays in concert plans, not radar");
+assert.ok(interested.shows.some((card) => card.title === "Horsegirl"));
 assert.doesNotMatch(interested.features!.map((card) => card.body).join(" "), /you attended|you went|thanks for going/i);
 
 // 4) Past Interested, no review -> conditional review CTA

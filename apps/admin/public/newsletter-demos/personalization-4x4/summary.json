@@ -145,8 +145,8 @@
         "ctaUrl": "https://join.getsynth.app/share?event=sam-a&ref=sam"
       },
       {
-        "title": "Horsegirl",
-        "ctaUrl": "https://join.getsynth.app/share?event=sam-going&ref=sam"
+        "title": "Twilight Hotel",
+        "ctaUrl": "https://join.getsynth.app/share?event=sam-b&ref=sam"
       }
     ],
     "features": [
@@ -164,7 +164,7 @@
   {
     "persona": "sam-chicago-wilco",
     "week": "2026-10-12",
-    "subject": "Sam, Twilight Hotel near you + this week's picks",
+    "subject": "Sam, Ratboys near you + this week's picks",
     "headline": "Sam, a live-music detour near Chicago.",
     "sections": [
       "introduction",
@@ -173,10 +173,6 @@
       "appSpotlight"
     ],
     "shows": [
-      {
-        "title": "Twilight Hotel",
-        "ctaUrl": "https://join.getsynth.app/share?event=sam-b&ref=sam"
-      },
       {
         "title": "Ratboys",
         "ctaUrl": "https://join.getsynth.app/share?event=sam-c&ref=sam"
