@@ -190,8 +190,19 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [recommendedEvents, setRecommendedEvents] = useState<PersonalizedEvent[]>([]);
   const [friendFeedEvents, setFriendFeedEvents] = useState<NetworkEvent[]>([]); // injected into main events feed
   const [friendFeedEventsLoaded, setFriendFeedEventsLoaded] = useState(false);
+  // Saved from the modal (or feed heart) — keep them out of the home feed list.
+  const [hiddenFeedEventIds, setHiddenFeedEventIds] = useState<Set<string>>(() => new Set());
+  const hideEventFromFeed = useCallback((eventId: string) => {
+    setHiddenFeedEventIds((prev) => {
+      if (prev.has(eventId)) return prev;
+      const next = new Set(prev);
+      next.add(eventId);
+      return next;
+    });
+    setFriendFeedEvents((prev) => prev.filter((e) => e.event_id !== eventId));
+  }, []);
   const friendExtraEvents = useMemo(() => friendFeedEvents
-    .filter((ne) => isEventUpcomingForFeed(ne.event_date))
+    .filter((ne) => isEventUpcomingForFeed(ne.event_date) && !hiddenFeedEventIds.has(ne.event_id))
     .map(ne => ({
     event_id: ne.event_id,
     title: ne.title,
@@ -205,7 +216,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     reason: 'friend_interested' as const,
     interested_count: ne.interested_count,
     user_is_interested: false,
-  })), [friendFeedEvents]);
+  })), [friendFeedEvents, hiddenFeedEventIds]);
   const [firstDegreeEvents, setFirstDegreeEvents] = useState<NetworkEvent[]>([]);
   const [secondDegreeEvents, setSecondDegreeEvents] = useState<NetworkEvent[]>([]);
   const [reviews, setReviews] = useState<NetworkReview[]>([]);
@@ -2084,9 +2095,14 @@ interface FriendEventInterest {
             currentUserId={currentUserId}
             filters={filters}
             onEventClick={handleEventClick}
-            onInterestToggle={async (eventId, interested) => {
-              console.log('Interest toggled:', eventId, interested);
+            onInterestToggle={(eventId, interested) => {
+              // UnifiedEventsFeed removes the card after a short delay; only clear
+              // friend-injected extras here so a rematch can't put it back.
+              if (interested) {
+                setFriendFeedEvents((prev) => prev.filter((e) => e.event_id !== eventId));
+              }
             }}
+            hiddenEventIds={hiddenFeedEventIds}
             insertSectionAfterIndex={0}
             reviewNodes={reviewNodes}
             extraEvents={friendExtraEvents}
@@ -2340,6 +2356,10 @@ interface FriendEventInterest {
             try {
               await UserEventService.setEventInterest(currentUserId, eventId, interested);
               setSelectedEventInterested(interested);
+              if (interested) {
+                hideEventFromFeed(eventId);
+                void supabase.rpc('invalidate_personalized_feed_cache', { p_user_id: currentUserId });
+              }
             } catch (error) {
               console.error('Error toggling interest:', error);
             }

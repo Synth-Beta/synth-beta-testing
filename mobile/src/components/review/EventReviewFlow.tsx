@@ -14,7 +14,6 @@ import {
     Alert,
     Switch,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { CalendarDays, ChevronLeft, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../SynthText';
@@ -30,13 +29,12 @@ import {
 } from '../../hooks/useReviewForm';
 import { SearchService } from '../../services/searchService';
 import { MobileAttendeeSelector } from './MobileAttendeeSelector';
+import { ReviewPhotoField } from './ReviewPhotoField';
 import { ReviewVideoField } from './ReviewVideoField';
 import { MobileImageCropper, type CropResult } from './MobileImageCropper';
 import { PastDatePicker, formatEventDateLabel } from './PastDatePicker';
-import { Image } from 'expo-image';
 import { EventService } from '../../services/eventService';
 import { submitEventReviewFromForm } from '../../review/submitEventReviewFromForm';
-import { uploadReviewPhotoFromUri } from '../../services/reviewPhotoUpload';
 import type { UserReview } from '../../services/eventReviewSubmitService';
 import { EventReviewSubmitService } from '../../services/eventReviewSubmitService';
 
@@ -233,8 +231,10 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
     const [userId, setUserId] = useState<string | null>(null);
     const draftChecked = useRef(false);
     const scrollRef = useRef<ScrollView>(null);
-    // A video still uploading would be dropped if the step changed or the review submitted.
+    // Media still uploading would be dropped if the step changed or the review submitted.
     const [videoUploading, setVideoUploading] = useState(false);
+    const [photoUploading, setPhotoUploading] = useState(false);
+    const mediaUploading = videoUploading || photoUploading;
     const skipDraft = !!(initialEventId || prefill?.artistId || prefill?.venueId || prefill?.eventDate);
     const [previousVenueReview, setPreviousVenueReview] = useState<UserReview | null>(null);
     const [eventQuery, setEventQuery] = useState('');
@@ -244,7 +244,6 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
     const [artistRows, setArtistRows] = useState<ReviewArtist[]>([]);
     const [venueQ, setVenueQ] = useState('');
     const [venueRows, setVenueRows] = useState<ReviewVenue[]>([]);
-    const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [cropperVisible, setCropperVisible] = useState(false);
     const [cropPhotoIndex, setCropPhotoIndex] = useState(0);
     const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -757,78 +756,29 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
         onSubmitted?.(outEvent, res.submittedReview?.id ?? undefined);
     }, [userId, formData, currentFlow, setLoading, onSubmitted, initialEventId]);
 
-    const pickPhotos = async () => {
-        if (!userId) return;
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) {
-            Alert.alert('Photos', 'Photo access is needed to attach images.');
-            return;
-        }
-        const r = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsMultipleSelection: true,
-            selectionLimit: 5 - formData.photos.length,
-            quality: 0.85,
-        });
-        if (r.canceled || !r.assets?.length) return;
-        setUploadingPhoto(true);
-        const next = [...formData.photos];
-        const wasEmpty = next.length === 0;
-        for (const a of r.assets) {
-            if (next.length >= 5) break;
-            if (!a.uri) continue;
-            const url = await uploadReviewPhotoFromUri(userId!, a.uri);
-            if (url) next.push(url);
-        }
-        setUploadingPhoto(false);
-        updateFormData({ photos: next });
-        // Prompt crop for first photo if this is the first upload
-        if (wasEmpty && next.length > 0) {
-            setCropPhotoIndex(0);
-            setCropperVisible(true);
-        }
-    };
-
-    const removePhoto = (index: number) => {
-        const next = formData.photos.filter((_, i) => i !== index);
-        const newThumbnailIndex = formData.thumbnailIndex >= next.length
-            ? Math.max(0, next.length - 1)
-            : formData.thumbnailIndex;
-        updateFormData({ photos: next, thumbnailIndex: newThumbnailIndex });
-    };
-
-    const renderPhotoStrip = () => {
-        if (formData.photos.length === 0) return null;
-        return (
-            <View style={styles.photoStrip}>
-                {formData.photos.map((url, i) => (
-                    <View key={i} style={[styles.photoThumb, i === formData.thumbnailIndex && styles.photoThumbSelected]}>
-                        <Image source={{ uri: url }} style={styles.photoThumbImg} contentFit="cover" />
-                        {i === formData.thumbnailIndex && (
-                            <View style={styles.thumbnailBadge}>
-                                <SynthText variant="meta" style={styles.thumbnailBadgeText}>Cover</SynthText>
-                            </View>
-                        )}
-                        <View style={styles.photoActions}>
-                            <Pressable
-                                style={styles.photoActionBtn}
-                                onPress={() => {
-                                    updateFormData({ thumbnailIndex: i });
-                                    setCropPhotoIndex(i);
-                                    setCropperVisible(true);
-                                }}
-                            >
-                                <SynthText variant="meta" style={styles.photoActionTxt}>Crop</SynthText>
-                            </Pressable>
-                            <Pressable style={[styles.photoActionBtn, styles.photoActionRemove]} onPress={() => removePhoto(i)}>
-                                <SynthText variant="meta" style={styles.photoActionTxt}>✕</SynthText>
-                            </Pressable>
-                        </View>
-                    </View>
-                ))}
-            </View>
-        );
-    };
+    const renderMediaFields = () =>
+        userId ? (
+            <>
+                <ReviewPhotoField
+                    value={formData.photos}
+                    onChange={(photos) => updateFormData({ photos })}
+                    userId={userId}
+                    thumbnailIndex={formData.thumbnailIndex}
+                    onThumbnailIndexChange={(thumbnailIndex) => updateFormData({ thumbnailIndex })}
+                    onRequestCrop={(index) => {
+                        setCropPhotoIndex(index);
+                        setCropperVisible(true);
+                    }}
+                    onUploadingChange={setPhotoUploading}
+                />
+                <ReviewVideoField
+                    value={formData.videos}
+                    onChange={(videos) => updateFormData({ videos })}
+                    userId={userId}
+                    onUploadingChange={setVideoUploading}
+                />
+            </>
+        ) : null;
 
     const renderEventDetailsStep = () => (
         <View style={styles.section}>
@@ -1193,14 +1143,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                                     {errors.reviewText}
                                 </SynthText>
                             ) : null}
-                            {userId ? (
-                                <ReviewVideoField
-                                    value={formData.videos}
-                                    onChange={(videos) => updateFormData({ videos })}
-                                    userId={userId}
-                                    onUploadingChange={setVideoUploading}
-                                />
-                            ) : null}
+                            {renderMediaFields()}
                             {userId ? (
                                 <MobileAttendeeSelector
                                     value={formData.attendees}
@@ -1263,24 +1206,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                                 {errors.reviewText}
                             </SynthText>
                         ) : null}
-                        <Pressable style={styles.primaryBtn} onPress={pickPhotos} disabled={uploadingPhoto || formData.photos.length >= 5}>
-                            {uploadingPhoto ? (
-                                <ActivityIndicator color="#FFFDFA" />
-                            ) : (
-                                <SynthText variant="body" style={styles.primaryBtnText}>
-                                    Add photos ({formData.photos.length}/5)
-                                </SynthText>
-                            )}
-                        </Pressable>
-                        {renderPhotoStrip()}
-                        {userId ? (
-                            <ReviewVideoField
-                                value={formData.videos}
-                                onChange={(videos) => updateFormData({ videos })}
-                                userId={userId}
-                                onUploadingChange={setVideoUploading}
-                            />
-                        ) : null}
+                        {renderMediaFields()}
                         {userId ? (
                             <MobileAttendeeSelector
                                 value={formData.attendees}
@@ -1372,24 +1298,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                                 {errors.reviewText}
                             </SynthText>
                         ) : null}
-                        <Pressable style={styles.primaryBtn} onPress={pickPhotos} disabled={uploadingPhoto || formData.photos.length >= 5}>
-                            {uploadingPhoto ? (
-                                <ActivityIndicator color="#FFFDFA" />
-                            ) : (
-                                <SynthText variant="body" style={styles.primaryBtnText}>
-                                    Add photos ({formData.photos.length}/5)
-                                </SynthText>
-                            )}
-                        </Pressable>
-                        {renderPhotoStrip()}
-                        {userId ? (
-                            <ReviewVideoField
-                                value={formData.videos}
-                                onChange={(videos) => updateFormData({ videos })}
-                                userId={userId}
-                                onUploadingChange={setVideoUploading}
-                            />
-                        ) : null}
+                        {renderMediaFields()}
                         {userId ? (
                             <MobileAttendeeSelector
                                 value={formData.attendees}
@@ -1497,9 +1406,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
             >
                 {showContinue ? (
                     <Pressable
-                        style={[styles.primaryBtn, videoUploading && styles.primaryBtnDisabled]}
+                        style={[styles.primaryBtn, mediaUploading && styles.primaryBtnDisabled]}
                         onPress={() => nextStep()}
-                        disabled={videoUploading}
+                        disabled={mediaUploading}
                     >
                         <SynthText variant="body" style={styles.primaryBtnText}>
                             Continue
@@ -1508,9 +1417,9 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                 ) : null}
                 {showSubmit ? (
                     <Pressable
-                        style={[styles.primaryBtn, (isLoading || videoUploading) && styles.primaryBtnDisabled]}
+                        style={[styles.primaryBtn, (isLoading || mediaUploading) && styles.primaryBtnDisabled]}
                         onPress={() => void handleSubmit()}
-                        disabled={isLoading || videoUploading}
+                        disabled={isLoading || mediaUploading}
                     >
                         {isLoading ? (
                             <ActivityIndicator color="#FFFDFA" />
@@ -1751,62 +1660,6 @@ const styles = StyleSheet.create({
     },
     primaryBtnText: { color: '#FFFDFA', fontWeight: '600' },
     primaryBtnDisabled: { opacity: 0.7 },
-    photoStrip: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginTop: 10,
-    },
-    photoThumb: {
-        width: 80,
-        height: 80,
-        borderRadius: 10,
-        overflow: 'hidden',
-        borderWidth: 2,
-        borderColor: SynthTokens.colors.neutral200,
-    },
-    photoThumbSelected: {
-        borderColor: SynthTokens.colors.brandPink500,
-    },
-    photoThumbImg: {
-        width: '100%',
-        height: '100%',
-    },
-    thumbnailBadge: {
-        position: 'absolute',
-        top: 4,
-        left: 4,
-        backgroundColor: SynthTokens.colors.brandPink500,
-        borderRadius: 6,
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-    },
-    thumbnailBadgeText: {
-        color: '#FFFDFA',
-        fontSize: 9,
-        fontWeight: '700',
-    },
-    photoActions: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-    },
-    photoActionBtn: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.55)',
-        alignItems: 'center',
-        paddingVertical: 3,
-    },
-    photoActionRemove: {
-        backgroundColor: 'rgba(180,0,0,0.6)',
-    },
-    photoActionTxt: {
-        color: '#FFFDFA',
-        fontSize: 10,
-        fontWeight: '600',
-    },
     selectedChip: {
         flexDirection: 'row',
         alignItems: 'center',

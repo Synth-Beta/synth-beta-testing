@@ -113,6 +113,8 @@ interface UnifiedEventsFeedProps {
   extraEvents?: UnifiedEventItem[];
   /** True while the parent is still fetching reviewNodes/extraEvents; the first paint waits for them */
   extrasLoading?: boolean;
+  /** Event IDs to hide (e.g. saved from the event modal outside this component) */
+  hiddenEventIds?: ReadonlySet<string>;
 }
 
 const PAGE_SIZE = 20;
@@ -289,6 +291,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   reviewNodes,
   extraEvents,
   extrasLoading = false,
+  hiddenEventIds,
 }) => {
   const queryClient = useQueryClient();
 
@@ -415,7 +418,9 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       let merged = filterUpcomingFeedItems(cachedFeed.events);
       if (extraEvents && extraEvents.length > 0) {
         const seen = new Set(merged.map((e) => e.event_id));
-        const fresh = filterUpcomingFeedItems(extraEvents).filter((e) => !seen.has(e.event_id));
+        const fresh = filterUpcomingFeedItems(extraEvents).filter(
+          (e) => !seen.has(e.event_id) && !hiddenEventIds?.has(e.event_id)
+        );
         if (fresh.length > 0) {
           const pinnedCount = merged.findIndex((e) => !e.just_announced);
           const head = pinnedCount < 0 ? merged : merged.slice(0, pinnedCount);
@@ -433,6 +438,9 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           merged = interleaved;
         }
       }
+      if (hiddenEventIds && hiddenEventIds.size > 0) {
+        merged = merged.filter((e) => !hiddenEventIds.has(e.event_id));
+      }
       setAllFetchedEvents(merged);
       setDisplayedEvents(merged.slice(0, PAGE_SIZE));
       setHasMoreFromApi(cachedFeed.hasMore);
@@ -446,7 +454,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       }
       setLoading(false);
     }
-  }, [cachedFeed, extraEvents, currentUserId]);
+  }, [cachedFeed, extraEvents, currentUserId, hiddenEventIds]);
 
   useEffect(() => {
     allFetchedEventsRef.current = allFetchedEvents;
@@ -860,7 +868,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         if (!data) return;
         const ids = new Set(data.map(r => r.event_id));
         setInterestedEvents(ids);
-        // Snapshot, not live: a card the user taps "I'm in" on stays put until the next load.
+        // Hide already-saved shows on first paint. Newly saved shows are added in
+        // handleInterestToggle (after a short delay so the tap lands).
         setEngagedAtLoad(new Set(ids));
       });
     const excludedPromise = ArtistExclusionService.list(currentUserId).then(setExcludedArtists);
@@ -1042,6 +1051,22 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       setAllFetchedEvents(prev => prev.map(updateEvent));
       setDisplayedEvents(prev => prev.map(updateEvent));
 
+      // Interested events leave the feed (they live in saved) so more new shows
+      // surface; the short delay lets the user see the tap land.
+      if (newInterestedState) {
+        setTimeout(() => {
+          setEngagedAtLoad(prev => {
+            const next = new Set(prev);
+            next.add(eventId);
+            return next;
+          });
+          setAllFetchedEvents(prev => prev.filter(ev => ev.event_id !== eventId));
+          setDisplayedEvents(prev => prev.filter(ev => ev.event_id !== eventId));
+        }, 900);
+        void queryClient.invalidateQueries({ queryKey: ['feed', 'home', currentUserId] });
+        void supabase.rpc('invalidate_personalized_feed_cache', { p_user_id: currentUserId });
+      }
+
       onInterestToggle?.(eventId, newInterestedState);
     } catch (error) {
       console.error('Error toggling interest:', error);
@@ -1081,7 +1106,9 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
 
   const threadEntries = useMemo<ThreadEntry[]>(() => {
     const isVisible = (e: UnifiedEventItem) =>
-      !engagedAtLoad.has(e.event_id) && !(e.artist_id && excludedArtists.has(e.artist_id));
+      !engagedAtLoad.has(e.event_id) &&
+      !hiddenEventIds?.has(e.event_id) &&
+      !(e.artist_id && excludedArtists.has(e.artist_id));
     const events = displayedEvents.filter(isVisible);
     const insertAt = insertSectionAfterIndex != null && middleSection != null ? insertSectionAfterIndex : -1;
 
@@ -1109,7 +1136,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
     });
     if (insertAt >= events.length) entries.push({ kind: 'section', node: middleSection });
     return entries;
-  }, [displayedEvents, reviewNodes, engagedAtLoad, excludedArtists, insertSectionAfterIndex, middleSection, currentUserId]);
+  }, [displayedEvents, reviewNodes, engagedAtLoad, hiddenEventIds, excludedArtists, insertSectionAfterIndex, middleSection, currentUserId]);
 
   const threadEvents = threadEntries.flatMap((e) => (e.kind === 'event' ? [e.item] : []));
   const reviewHighlights = useReviewHighlights(
