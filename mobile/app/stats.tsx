@@ -107,14 +107,20 @@ export default function StreamingStatsScreen() {
       return;
     }
 
-    const result = await loadStreamingProfile(user.id);
-    setLinkStatus(result.linkStatus);
-    setServiceType(result.serviceType);
-    setProfileData(result.profileData);
-    setLastSynced(result.lastSynced);
-    setNeedsConnection(result.needsConnection);
-    setLoading(false);
-    setRefreshing(false);
+    try {
+      const result = await loadStreamingProfile(user.id);
+      setLinkStatus(result.linkStatus);
+      setServiceType(result.serviceType);
+      setProfileData(result.profileData);
+      setLastSynced(result.lastSynced);
+      setNeedsConnection(result.needsConnection);
+    } catch (err) {
+      // Keep the last good data; the spinner must stop.
+      console.warn('[stats] loadProfile failed', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {

@@ -229,6 +229,11 @@ export default function ChatThreadScreen() {
         flatListRef.current.scrollToOffset({ offset: 0, animated });
     }, [listMessages.length]);
 
+    const loadSeqRef = useRef(0);
+    const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const channelSuffixRef = useRef(Math.random().toString(36).slice(2, 8));
+    const isFocusedRef = useRef(false);
+
     const loadMessages = useCallback(async () => {
         const {
             data: { session },
@@ -237,7 +242,11 @@ export default function ChatThreadScreen() {
         if (!user) return;
         setUserId(user.id);
 
+        // Only the newest request may write: overlapping refetches (every realtime event
+        // triggers one) could otherwise land out of order and show an older list.
+        const requestId = ++loadSeqRef.current;
         const data = await ChatService.getMessages(id, user.id);
+        if (requestId !== loadSeqRef.current || !data) return;
         setMessages(data);
         stickToBottomRef.current = true;
     }, [id]);
@@ -246,8 +255,23 @@ export default function ChatThreadScreen() {
         void loadMessages();
     }, [loadMessages]);
 
+    // Realtime events arrive in bursts (hearts, busy rooms); each used to trigger a full
+    // refetch + decrypt of the thread. Coalesce a burst into a single trailing reload.
+    const scheduleReload = useCallback(() => {
+        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = setTimeout(() => {
+            reloadTimerRef.current = null;
+            void loadMessages();
+        }, 250);
+    }, [loadMessages]);
+
+    useEffect(() => () => {
+        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+    }, []);
+
     useFocusEffect(
         useCallback(() => {
+            isFocusedRef.current = true;
             void loadMessages();
             if (id) {
                 supabase
@@ -275,6 +299,7 @@ export default function ChatThreadScreen() {
                         }
                     });
             }
+            return () => { isFocusedRef.current = false; };
         }, [loadMessages, id])
     );
 
@@ -322,7 +347,10 @@ export default function ChatThreadScreen() {
             const { data: participants, error: participantsError } = await supabase
                 .from('chat_participants')
                 .select('user_id')
-                .eq('chat_id', id);
+                .eq('chat_id', id)
+                // Only the DM's other person is read from this list; a big genre room
+                // doesn't need all its members loaded just to open a thread.
+                .limit(50);
 
             if (participantsError || cancelled) return;
 
@@ -379,13 +407,21 @@ export default function ChatThreadScreen() {
     useEffect(() => {
         if (!userId) return;
         const channel = supabase
-            .channel(`chat-thread-${id}`)
+            // Unique per mount: the same chat can be open twice in the stack, and a shared
+            // name makes the lower screen lose its subscription when the top one closes.
+            .channel(`chat-thread-${id}-${channelSuffixRef.current}`)
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${id}` },
-                () => {
+                (payload: any) => {
                     stickToBottomRef.current = true;
-                    void loadMessages();
+                    scheduleReload();
+                    // Seen while the thread is open, so don't leave it counted as unread.
+                    if (isFocusedRef.current && payload?.new?.sender_id !== userId) {
+                        void supabase.rpc('mark_chat_as_read', { p_chat_id: id }).then(({ error }) => {
+                            if (!error) DeviceEventEmitter.emit(CHAT_READ_EVENT);
+                        });
+                    }
                     setTimeout(() => scrollToLatest(true), 150);
                 }
             )
@@ -396,12 +432,12 @@ export default function ChatThreadScreen() {
                     // Hearts are stored on messages.metadata, so another person's reaction
                     // arrives as an UPDATE. Refetch without touching scroll - reacting to an
                     // older message must not yank the reader to the bottom.
-                    void loadMessages();
+                    scheduleReload();
                 }
             )
             .subscribe();
         return () => { supabase.removeChannel(channel); };
-    }, [id, userId, loadMessages, scrollToLatest]);
+    }, [id, userId, loadMessages, scheduleReload, scrollToLatest]);
 
     useEffect(() => {
         let cancelled = false;
@@ -493,20 +529,38 @@ export default function ChatThreadScreen() {
         return () => clearTimeout(t);
     }, [eventById, reviewById, messages.length, scrollToLatest]);
 
+    // A ref, not state: a fast double tap fires before a state update re-renders.
+    const sendingRef = useRef(false);
+
+    // The home-indicator inset is dead space while the keyboard is up.
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+    useEffect(() => {
+        const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+        const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+        return () => { show.remove(); hide.remove(); };
+    }, []);
+
     const handleSend = async () => {
-        if (!inputText.trim() || !userId) return;
+        if (!inputText.trim() || !userId || sendingRef.current) return;
+        sendingRef.current = true;
 
-        const replyToId = replyTo?.id ?? null;
-        // Stop the other side showing "typing…" the moment the message lands.
-        setTyping(false);
+        try {
+            const replyToId = replyTo?.id ?? null;
+            // Stop the other side showing "typing…" the moment the message lands.
+            setTyping(false);
 
-        const success = await ChatService.sendMessage(id, userId, inputText, replyToId);
-        if (success) {
-            setInputText('');
-            setReplyTo(null);
-            stickToBottomRef.current = true;
-            await loadMessages();
-            setTimeout(() => scrollToLatest(true), 200);
+            const success = await ChatService.sendMessage(id, userId, inputText, replyToId);
+            if (success) {
+                setInputText('');
+                setReplyTo(null);
+                stickToBottomRef.current = true;
+                await loadMessages();
+                setTimeout(() => scrollToLatest(true), 200);
+            } else {
+                Alert.alert('Message not sent', 'Check your connection and try again.');
+            }
+        } finally {
+            sendingRef.current = false;
         }
     };
 
@@ -631,10 +685,12 @@ export default function ChatThreadScreen() {
                 style: 'destructive',
                 onPress: async () => {
                     try {
-                        await supabase.from('user_blocks').insert({
-                            blocker_id: userId,
-                            blocked_id: otherParticipant.user_id,
+                        // Same RPC as web; supabase-js returns errors instead of throwing.
+                        const { error } = await supabase.rpc('block_user', {
+                            p_blocked_user_id: otherParticipant.user_id,
+                            p_block_reason: null,
                         });
+                        if (error) throw error;
                         router.replace('/(tabs)/chat');
                     } catch (err) {
                         console.error('[chat] block user failed:', err);
@@ -1252,7 +1308,7 @@ export default function ChatThreadScreen() {
                 </View>
             ) : null}
 
-            <View style={[styles.inputArea, { paddingBottom: insets.bottom + 8 }]}>
+            <View style={[styles.inputArea, { paddingBottom: keyboardVisible ? 8 : insets.bottom + 8 }]}>
                 <Pressable
                     style={styles.iconButton}
                     onPress={handlePickImage}

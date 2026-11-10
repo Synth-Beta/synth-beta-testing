@@ -66,6 +66,11 @@ export function MobileImageCropper({ visible, imageUri, initial, onDone, onCance
 
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
 
+    // The PanResponder is created once, so it must read the latest getMaxOffset through a
+    // ref; otherwise it keeps the first-render imgSize (1x1) and treats every photo as square.
+    const getMaxOffsetRef = useRef(getMaxOffset);
+    getMaxOffsetRef.current = getMaxOffset;
+
     const panResponder = useRef(
         PanResponder.create({
             onMoveShouldSetPanResponder: () => true,
@@ -73,13 +78,13 @@ export function MobileImageCropper({ visible, imageUri, initial, onDone, onCance
                 pan.stopAnimation();
             },
             onPanResponderMove: (_, g) => {
-                const max = getMaxOffset(zoomRef.current);
+                const max = getMaxOffsetRef.current(zoomRef.current);
                 const nx = clamp(panOffset.current.x + g.dx, -max.x, max.x);
                 const ny = clamp(panOffset.current.y + g.dy, -max.y, max.y);
                 pan.setValue({ x: nx, y: ny });
             },
             onPanResponderRelease: (_, g) => {
-                const max = getMaxOffset(zoomRef.current);
+                const max = getMaxOffsetRef.current(zoomRef.current);
                 const nx = clamp(panOffset.current.x + g.dx, -max.x, max.x);
                 const ny = clamp(panOffset.current.y + g.dy, -max.y, max.y);
                 panOffset.current = { x: nx, y: ny };

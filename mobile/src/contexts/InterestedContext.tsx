@@ -55,6 +55,9 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             .eq('user_id', userId)
             .in('relationship_type', ['interested', 'going', 'maybe']);
 
+        // Account switched while this request was in flight: drop the stale answer.
+        if (userIdRef.current !== userId) return;
+
         if (error) {
             console.warn('[InterestedContext] load failed', error.message);
             setLoading(false);
@@ -79,9 +82,11 @@ export function InterestedProvider({ children }: { children: React.ReactNode }) 
             void load(user.id);
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (cancelled) return;
             const uid = session?.user?.id ?? null;
+            // Hourly token refreshes and profile updates don't change who is signed in.
+            if (uid && uid === userIdRef.current && (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) return;
             userIdRef.current = uid;
             if (uid) {
                 setLoading(true);

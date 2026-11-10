@@ -111,9 +111,10 @@ export class ChatService {
     }
 
     /** All chat threads for a user, newest activity first. */
-    static async getChats(userId: string): Promise<ChatThread[]> {
+    /** null on a failed fetch, so callers keep what they already show instead of blanking it. */
+    static async getChats(userId: string): Promise<ChatThread[] | null> {
         const { data, error } = await chatCore.fetchUserChats(userId);
-        if (error || !data) return [];
+        if (error || !data) return null;
 
         return data.map((chat) => ({
             id: chat.id,
@@ -129,8 +130,10 @@ export class ChatService {
     }
 
     /** Most recent window of messages, chronological order. */
-    static async getMessages(chatId: string, userId: string): Promise<Message[]> {
-        const { data } = await chatCore.fetchChatMessages(chatId, userId);
+    /** null on a failed fetch, so callers keep the thread already on screen. */
+    static async getMessages(chatId: string, userId: string): Promise<Message[] | null> {
+        const { data, error } = await chatCore.fetchChatMessages(chatId, userId);
+        if (error) return null;
         return data.map((msg) => ({ ...msg, is_mine: msg.sender_id === userId }));
     }
 

@@ -1,6 +1,6 @@
 import { createClient, type Session } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 const PLACEHOLDER_URL = 'https://your-project.supabase.co';
 const PLACEHOLDER_KEY = 'your-anon-key';
@@ -19,6 +19,10 @@ const SUPABASE_ANON_KEY =
 
 export const isSupabaseConfigured =
   SUPABASE_URL !== PLACEHOLDER_URL && SUPABASE_ANON_KEY !== PLACEHOLDER_KEY;
+
+/** Set when the sign-in screen sends a magic link; the root layout only accepts token links while it is fresh. */
+export const MAGIC_LINK_PENDING_KEY = 'synth.magicLinkPending';
+export const MAGIC_LINK_MAX_AGE_MS = 60 * 60 * 1000;
 
 const isWebSSR = Platform.OS === 'web' && typeof window === 'undefined';
 
@@ -62,4 +66,13 @@ export async function readStoredSession(): Promise<Session | null> {
     } catch {
         return null;
     }
+}
+
+// supabase-js can't see RN foreground/background; without this the refresh timer keeps
+// running while suspended and resumes with a stale token.
+if (Platform.OS !== 'web') {
+    AppState.addEventListener('change', (state) => {
+        if (state === 'active') void supabase.auth.startAutoRefresh();
+        else void supabase.auth.stopAutoRefresh();
+    });
 }

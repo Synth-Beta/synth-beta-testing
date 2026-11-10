@@ -52,6 +52,8 @@ export default function EmailRequiredScreen() {
             }
             markContactEmailSaved(trimmed);
             router.replace('/(tabs)');
+        } catch {
+            setError('Could not save your email. Check your connection and try again.');
         } finally {
             setSaving(false);
         }
@@ -93,6 +95,9 @@ export default function EmailRequiredScreen() {
                 ) : (
                     <SynthButton title="Save email" onPress={() => void handleSave()} disabled={!canSave} />
                 )}
+                <Pressable onPress={() => { void supabase.auth.signOut(); }} style={{ alignSelf: 'center', paddingTop: 16 }}>
+                    <Text style={styles.privacyLink}>Sign out</Text>
+                </Pressable>
             </View>
         </SafeAreaView>
     );

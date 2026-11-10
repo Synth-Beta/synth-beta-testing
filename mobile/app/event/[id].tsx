@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ShareToChatModal } from '../../src/components/share/ShareToChatModal';
 import { useInterested } from '../../src/contexts/InterestedContext';
-import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { SafeImage } from '../../src/components/SafeImage';
@@ -136,10 +136,11 @@ export default function EventDetailScreen() {
             if (createErr) throw createErr;
             // Join if not already a member
             if (!isInGroupChat) {
-                await supabase.rpc('join_verified_chat', {
+                const { error: joinErr } = await supabase.rpc('join_verified_chat', {
                     p_chat_id: chatId,
                     p_user_id: sessionUserId,
                 });
+                if (joinErr) throw joinErr;
                 setIsInGroupChat(true);
                 setGroupChat(prev => prev
                     ? { ...prev, memberCount: prev.memberCount + 1 }
@@ -148,6 +149,7 @@ export default function EventDetailScreen() {
             router.push(`/chat/${chatId}` as any);
         } catch (err) {
             console.error('[event] join group chat error', err);
+            Alert.alert('Could not join chat', 'Please try again.');
         } finally {
             setJoiningGroupChat(false);
         }
@@ -222,6 +224,9 @@ export default function EventDetailScreen() {
                     .from('reviews')
                     .select(reviewFields)
                     .eq('event_id', eventUuid)
+                    // Same public-only filter as the artist/venue pages: drafts and friends-only
+                    // reviews the viewer can read under RLS don't belong on a public event page.
+                    .eq('is_public', true).eq('is_draft', false)
                     .order('created_at', { ascending: false })
                     .limit(10);
 
@@ -232,6 +237,7 @@ export default function EventDetailScreen() {
                         .from('reviews')
                         .select(reviewFields)
                         .eq('artist_id', eventInfo.artist_id)
+                        .eq('is_public', true).eq('is_draft', false)
                         .order('created_at', { ascending: false })
                         .limit(10);
                     if (artistRows) artistReviewsData.push(...artistRows);
@@ -348,47 +354,54 @@ export default function EventDetailScreen() {
         setInterestedCount(null);
         setActiveTab(null);
 
-        if (!eventRouteId) {
-            setEvent(null);
-            setLoading(false);
-            return;
-        }
-
-        const eventData = await EventService.getEventById(eventRouteId);
-        setEvent(eventData);
-
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
-        const user = session?.user ?? null;
-
-        if (!user) {
-            setSessionUserId(null);
-            if (eventData) {
-                void loadReviewsForEvent(eventData.id, eventData, null);
+        try {
+            if (!eventRouteId) {
+                setEvent(null);
+                setLoading(false);
+                return;
             }
+
+            const eventData = await EventService.getEventById(eventRouteId);
+            setEvent(eventData);
+
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+            const user = session?.user ?? null;
+
+            if (!user) {
+                setSessionUserId(null);
+                if (eventData) {
+                    void loadReviewsForEvent(eventData.id, eventData, null);
+                }
+                setLoading(false);
+                return;
+            }
+
+            setSessionUserId(user.id);
+
+            if (!eventData) {
+                setLoading(false);
+                return;
+            }
+
+            const friendsData = await EventService.getFriendsAttending(eventData.id, user.id);
+            setFriends(friendsData);
+            void loadReviewsForEvent(eventData.id, eventData, user.id);
+
+            // Pre-load interested count for the Meet tab badge
+            const isUpcoming = eventData.event_date ? new Date(eventData.event_date) >= new Date() : false;
+            if (isUpcoming) {
+                void loadMeetUsers(eventData.id, user.id);
+            }
+
             setLoading(false);
-            return;
-        }
-
-        setSessionUserId(user.id);
-
-        if (!eventData) {
+        } catch (err) {
+            // Any throw below used to leave the screen on its loading state forever.
+            console.warn('[event] loadData failed', err);
+        } finally {
             setLoading(false);
-            return;
         }
-
-        const friendsData = await EventService.getFriendsAttending(eventData.id, user.id);
-        setFriends(friendsData);
-        void loadReviewsForEvent(eventData.id, eventData, user.id);
-
-        // Pre-load interested count for the Meet tab badge
-        const isUpcoming = eventData.event_date ? new Date(eventData.event_date) >= new Date() : false;
-        if (isUpcoming) {
-            void loadMeetUsers(eventData.id, user.id);
-        }
-
-        setLoading(false);
     }, [eventRouteId, loadReviewsForEvent, loadMeetUsers]);
 
     useEffect(() => {
@@ -482,8 +495,8 @@ export default function EventDetailScreen() {
     const isInterested = isInterestedCtx(event.id);
     const rsvp = rsvpOf(event.id);
     const priceLine = formatEventDetailPrice(event);
-    const doorsShort = formatDoorsTimeShort(event.doors_time);
-    const showTimePrimary = formatEventDetailTime(event.event_date);
+    const doorsShort = formatDoorsTimeShort(event.doors_time, event.venue_timezone);
+    const showTimePrimary = formatEventDetailTime(event.event_date, event.venue_timezone);
     const googleCalendarUrl =
         buildGoogleCalendarUrl({
             id: event.id,
@@ -599,7 +612,7 @@ export default function EventDetailScreen() {
                         <View style={styles.infoRow}>
                             <View style={styles.infoIconWrap}><Calendar size={22} color={MUTED_ICON} /></View>
                             <SynthText variant="body" color="primary" style={styles.infoRowText}>
-                                {formatEventDetailDate(event.event_date)}
+                                {formatEventDetailDate(event.event_date, event.venue_timezone)}
                             </SynthText>
                         </View>
                         <View style={styles.infoRow}>

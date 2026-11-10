@@ -684,7 +684,7 @@ export class HomeFeedService {
                     user_id,
                     users:user_id ( user_id, name, avatar_url ),
                     events:event_id (
-                        id, title, artist_name, artist_id, venue_name, venue_city, venue_state,
+                        id, title, artist_id, venue_id, venue_city, venue_state,
                         event_date, images, event_media_url, media_urls
                     )
                 `)
@@ -705,6 +705,16 @@ export class HomeFeedService {
                 byEvent.get(eid)!.rows.push(row);
             }
 
+            // events has no artist_name/venue_name columns; resolve them from the id columns.
+            const artistIds = [...new Set([...byEvent.values()].map(({ ev }) => ev.artist_id).filter(Boolean))];
+            const venueIds = [...new Set([...byEvent.values()].map(({ ev }) => ev.venue_id).filter(Boolean))];
+            const [artistRes, venueRes] = await Promise.all([
+                artistIds.length ? supabase.from('artists').select('id, name').in('id', artistIds) : { data: [] },
+                venueIds.length ? supabase.from('venues').select('id, name').in('id', venueIds) : { data: [] },
+            ]);
+            const artistNames = new Map<string, string>((artistRes.data ?? []).map((a: any) => [String(a.id), a.name]));
+            const venueNames = new Map<string, string>((venueRes.data ?? []).map((v: any) => [String(v.id), v.name]));
+
             // Build one NetworkEvent per event, sorted by most-recently-actioned
             const results: NetworkEvent[] = [];
             byEvent.forEach(({ rows: eventRows, ev }) => {
@@ -723,9 +733,9 @@ export class HomeFeedService {
                 results.push({
                     id: ev.id,
                     title: ev.title || 'Event',
-                    artist_name: ev.artist_name || '',
+                    artist_name: artistNames.get(String(ev.artist_id)) || '',
                     artist_id: ev.artist_id != null ? String(ev.artist_id) : undefined,
-                    venue_name: ev.venue_name || '',
+                    venue_name: venueNames.get(String(ev.venue_id)) || '',
                     venue_city: ev.venue_city || undefined,
                     venue_state: ev.venue_state || undefined,
                     event_date: ev.event_date || '',

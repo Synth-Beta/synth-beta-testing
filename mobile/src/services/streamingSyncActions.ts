@@ -265,6 +265,8 @@ export async function requestServerSpotifySync(): Promise<StreamingSyncResult> {
 
 export interface SyncStreamingProfileOptions {
   manual?: boolean;
+  /** Auto-sync of a complete-but-stale profile: still has to call the server. */
+  refresh?: boolean;
 }
 
 /**
@@ -308,7 +310,7 @@ export async function syncStreamingProfile(
   let syncRan = false;
 
   const shouldCallServer =
-    isManual || !complete ? isManual || !(await shouldSkipServerSpotifySync(userId)) : false;
+    isManual || !complete || options?.refresh ? isManual || !(await shouldSkipServerSpotifySync(userId)) : false;
 
   if (shouldCallServer) {
     serverResult = await requestServerSpotifySync();

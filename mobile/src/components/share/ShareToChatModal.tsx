@@ -101,6 +101,9 @@ export function ShareToChatModal({
     const [customMessage, setCustomMessage] = useState('');
     const [sent, setSent] = useState(false);
     const inputRef = useRef<TextInput>(null);
+    // Cleared on unmount so closing during the "sent" pause doesn't call onClose twice.
+    const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (closeTimerRef.current) clearTimeout(closeTimerRef.current); }, []);
 
     const shareUrl = buildShareLandingUrl(getExpoSiteUrl(), type, entityId);
 
@@ -203,7 +206,8 @@ export function ShareToChatModal({
         setSending(false);
         if (successCount > 0) {
             setSent(true);
-            setTimeout(() => {
+            closeTimerRef.current = setTimeout(() => {
+                closeTimerRef.current = null;
                 onClose();
             }, 900);
         } else {

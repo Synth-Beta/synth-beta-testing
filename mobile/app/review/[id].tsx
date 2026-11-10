@@ -76,6 +76,8 @@ const REVIEW_SELECT_WEB_PARITY = `
             rating,
             photos,
             videos,
+            custom_setlist,
+            met_on_synth,
             ticket_price_paid,
             recommend_at_price,
             created_at,
@@ -459,7 +461,12 @@ function CommentsSheet({
                 p_entity_uuid: reviewId,
                 p_entity_text_id: null,
             });
-            if (entityIdError) console.warn('[[id]] entityId query failed', entityIdError);
+            if (entityIdError || !entityId) {
+                console.warn('[[id]] entityId query failed', entityIdError);
+                setNewComment(draft);
+                Alert.alert('Could not post comment', 'Please try again.');
+                return;
+            }
 
             const insertPayload: Record<string, unknown> = {
                 user_id: sessionUserId,
@@ -483,6 +490,7 @@ function CommentsSheet({
             if (insertError) {
                 console.warn('[[id]] comment insert failed', insertError);
                 setNewComment(draft);
+                Alert.alert('Could not post comment', 'Please try again.');
                 return;
             }
             setNewComment('');
@@ -1085,7 +1093,7 @@ export default function ReviewDetailScreen() {
                     comments_count: typeof row.comments_count === 'number' ? row.comments_count : 0,
                     is_liked_by_user: likedSet.has(String(id)),
                     attendees: Array.isArray(row.attendees) ? row.attendees : null,
-                    met_on_synth: null,
+                    met_on_synth: typeof row.met_on_synth === 'boolean' ? row.met_on_synth : null,
                     setlist: row.setlist ?? null,
                     custom_setlist: Array.isArray(row.custom_setlist) ? row.custom_setlist : null,
                 };
@@ -1163,10 +1171,13 @@ export default function ReviewDetailScreen() {
                                     style: 'destructive',
                                     onPress: async () => {
                                         try {
-                                            await supabase.from('reviews').delete().eq('id', review.id);
+                                            // supabase-js returns errors instead of throwing.
+                                            const { error } = await supabase.from('reviews').delete().eq('id', review.id);
+                                            if (error) throw error;
                                             router.back();
                                         } catch (err) {
                                             console.error('Delete failed:', err);
+                                            Alert.alert('Could not delete review', 'Please try again.');
                                         }
                                     },
                                 },
@@ -1196,13 +1207,16 @@ export default function ReviewDetailScreen() {
                                     style: 'destructive',
                                     onPress: async () => {
                                         try {
-                                            await supabase.from('user_blocks').insert({
-                                                blocker_id: sessionUserId,
-                                                blocked_id: review.user_id,
+                                            // Same RPC as web and the chat screen.
+                                            const { error } = await supabase.rpc('block_user', {
+                                                p_blocked_user_id: review.user_id,
+                                                p_block_reason: null,
                                             });
+                                            if (error) throw error;
                                             router.back();
                                         } catch (err) {
                                             console.error('Block failed:', err);
+                                            Alert.alert('Could not block user', 'Please try again.');
                                         }
                                     },
                                 },

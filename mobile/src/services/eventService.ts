@@ -347,16 +347,17 @@ export class EventService {
             if (!canonicalEventId) return [];
 
             // 1. Get friends
+            // Either column can hold me: every other friends query matches both directions.
             const { data: friends } = await supabase
                 .from('user_relationships')
-                .select('related_user_id')
-                .eq('user_id', userId)
+                .select('user_id, related_user_id')
+                .or(`user_id.eq.${userId},related_user_id.eq.${userId}`)
                 .eq('status', 'accepted')
                 .eq('relationship_type', 'friend');
 
             if (!friends || friends.length === 0) return [];
 
-            const friendIds = friends.map(f => f.related_user_id);
+            const friendIds = friends.map(f => (f.user_id === userId ? f.related_user_id : f.user_id));
 
             // 2. Get subset of friends going to this event
             const { data: attending, error } = await supabase
@@ -439,10 +440,16 @@ export class EventService {
             // Same type again = toggle off.
             if (current === type) {
                 const result = await EventService.setRsvp(canonicalEventId, null);
-                // setRsvp returns null both on success and on failure; the RPC logs
-                // its own error, and a failed delete self-corrects on the next load.
-                // Same tolerance the previous implementation had.
-                return result === null ? 'removed' : null;
+                if (result !== null) return null;
+                // setRsvp returns null on success AND on failure, so confirm the row is
+                // gone before telling the heart it was removed.
+                const { data: stillThere } = await supabase
+                    .from('user_event_relationships')
+                    .select('relationship_type')
+                    .eq('user_id', userId)
+                    .eq('event_id', canonicalEventId)
+                    .maybeSingle();
+                return stillThere ? null : 'removed';
             }
 
             // A stronger RSVP already on the row is preserved: hearting an event the

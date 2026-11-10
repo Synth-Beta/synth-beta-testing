@@ -1,3 +1,4 @@
+import { todayLocalYmd } from '../utils/localYmd';
 import { supabase } from '../integrations/supabase/client';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -179,10 +180,10 @@ export class EventReviewSubmitService {
         } else if (typeof reviewData.Event_date === 'string') {
           eventDate = reviewData.Event_date;
         } else {
-          eventDate = new Date().toISOString().split('T')[0];
+          eventDate = todayLocalYmd(); // local day, not the UTC day (US evenings are "tomorrow" in UTC)
         }
       } else {
-        eventDate = new Date().toISOString().split('T')[0];
+        eventDate = todayLocalYmd(); // local day, not the UTC day (US evenings are "tomorrow" in UTC)
       }
       // Helper to ensure a valid INTEGER rating value (1..5) for inserts/updates
       const deriveRating = (data: ReviewData): number => {
@@ -434,10 +435,13 @@ export class EventReviewSubmitService {
           venue_tags: reviewData.venue_tags,
           artist_tags: reviewData.artist_tags,
           photos: reviewData.photos, // Add photos field
+          videos: reviewData.videos,
           // Preserve setlist if not explicitly provided, otherwise use the new value
           // setlist is JSONB - store the object directly (Supabase will handle JSONB conversion)
           setlist: reviewData.setlist !== undefined ? reviewData.setlist : (existingReviewData?.setlist || null),
-          // custom_setlist omitted: column may not exist on all deployments (e.g. reviews without 20260131100000)
+          // Columns added by 20261109120000; if a DB lacks them the 42703 retry below drops them.
+          custom_setlist: reviewData.custom_setlist,
+          met_on_synth: reviewData.met_on_synth,
           attendees: attendeesForDb, // Add attendees field
           was_there: true, // If someone writes a review, they obviously attended
           updated_at: new Date().toISOString()
@@ -507,6 +511,7 @@ export class EventReviewSubmitService {
               location_rating: typeof reviewData.location_rating === 'number' && !isNaN(reviewData.location_rating) ? Number(Math.max(0.5, Math.min(5.0, reviewData.location_rating)).toFixed(1)) : undefined,
               value_rating: typeof reviewData.value_rating === 'number' && !isNaN(reviewData.value_rating) ? Number(Math.max(0.5, Math.min(5.0, reviewData.value_rating)).toFixed(1)) : undefined,
               photos: reviewData.photos,
+              videos: reviewData.videos,
               setlist: reviewData.setlist !== undefined ? reviewData.setlist : (existingReviewData?.setlist ?? null),
               was_there: true,
               updated_at: new Date().toISOString()
@@ -644,7 +649,10 @@ export class EventReviewSubmitService {
         venue_tags: reviewData.venue_tags,
         artist_tags: reviewData.artist_tags,
         photos: reviewData.photos, // Add photos field
+        videos: reviewData.videos,
         setlist: reviewData.setlist || null, // Add setlist field (JSONB - Supabase handles conversion)
+        custom_setlist: reviewData.custom_setlist,
+        met_on_synth: reviewData.met_on_synth,
         attendees: attendeesForDb, // Add attendees field
         was_there: true // If someone writes a review, they obviously attended
       } as any;
@@ -751,6 +759,7 @@ export class EventReviewSubmitService {
           recommend_at_price: reviewData.recommend_at_price,
           show_ticket_price: reviewData.show_ticket_price,
           photos: reviewData.photos,
+          videos: reviewData.videos,
           setlist: reviewData.setlist || null, // JSONB field (Supabase handles conversion)
           attendees: attendeesForDb,
           was_there: true

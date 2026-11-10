@@ -15,7 +15,8 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getAuthRedirectOrigin } from '@synth/shared';
-import { isSupabaseConfigured, supabase } from '../../src/integrations/supabase/client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isSupabaseConfigured, MAGIC_LINK_PENDING_KEY, supabase } from '../../src/integrations/supabase/client';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { getAppleSignInCredential, persistAppleDisplayName } from '../../lib/appleAuth';
 import { AppleLogoGlyph } from '../../src/components/auth/AppleLogoGlyph';
@@ -137,6 +138,9 @@ export default function SignInScreen() {
         options: { emailRedirectTo },
       });
       if (e) throw e;
+      // The root layout only accepts a token link while this marker is fresh, so a
+      // crafted synth://#access_token link can't swap the signed-in account.
+      await AsyncStorage.setItem(MAGIC_LINK_PENDING_KEY, String(Date.now())).catch(() => {});
       setMessage('Magic link sent. Open it on this device to sign in.');
     } catch (err: unknown) {
       setError(formatAuthError(err));

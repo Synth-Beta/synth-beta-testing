@@ -1,3 +1,4 @@
+import { todayLocalYmd } from '../utils/localYmd';
 import { supabase } from '../integrations/supabase/client';
 import {
     EventReviewSubmitService,
@@ -213,9 +214,10 @@ export async function submitEventReviewFromForm(
     let eventDateForReview: Date;
     if (formData.eventDate && formData.eventDate.trim() !== '') {
         const dateObj = new Date(formData.eventDate + 'T00:00:00Z');
-        eventDateForReview = !Number.isNaN(dateObj.getTime()) ? dateObj : new Date();
+        eventDateForReview = !Number.isNaN(dateObj.getTime()) ? dateObj : new Date(`${todayLocalYmd()}T00:00:00Z`);
     } else {
-        eventDateForReview = new Date();
+        // UTC midnight of the user's local day, so the service's toISOString() keeps that day.
+        eventDateForReview = new Date(`${todayLocalYmd()}T00:00:00Z`);
     }
 
     try {

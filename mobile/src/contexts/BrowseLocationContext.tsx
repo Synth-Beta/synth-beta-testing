@@ -45,7 +45,11 @@ const BrowseLocationContext = createContext<BrowseLocationContextValue>({
   resetToCurrentLocation: () => {},
 });
 
-export function BrowseLocationProvider({ children }: { children: React.ReactNode }) {
+/**
+ * `enabled` stays false until the user is signed in and past onboarding, so the iOS
+ * location prompt never fires cold on the sign-in screen.
+ */
+export function BrowseLocationProvider({ children, enabled = true }: { children: React.ReactNode; enabled?: boolean }) {
   const [coords, setCoords] = useState<LatLng | null>(null);
   const [label, setLabel] = useState('Your Location');
   const [radiusMiles, setRadiusMiles] = useState(DEFAULT_RADIUS_MILES);
@@ -71,7 +75,7 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
   }, []);
 
   useEffect(() => {
-    if (initialized.current) return;
+    if (!enabled || initialized.current) return;
     initialized.current = true;
 
     (async () => {
@@ -95,7 +99,7 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
       await fetchGpsLocation();
       setLoading(false);
     })();
-  }, [fetchGpsLocation]);
+  }, [enabled, fetchGpsLocation]);
 
   const setManualLocation = useCallback((newCoords: LatLng, newLabel: string, newRadiusMiles: number) => {
     setCoords(newCoords);

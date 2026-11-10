@@ -217,12 +217,21 @@ export default function ProfileEditScreen() {
         .eq('user_id', userId);
       if (profileError) throw profileError;
 
-      // Save genre preferences: delete old manual signals, then upsert new ones
-      await supabase
+      // Save genre preferences: replace old manual signals. Keep the old rows so a failed
+      // insert can put them back instead of leaving the user with no genres.
+      const { data: oldSignals, error: readError } = await supabase
+        .from('user_preference_signals')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('signal_type', GENRE_SIGNAL_TYPE);
+      if (readError) throw readError;
+
+      const { error: deleteError } = await supabase
         .from('user_preference_signals')
         .delete()
         .eq('user_id', userId)
         .eq('signal_type', GENRE_SIGNAL_TYPE);
+      if (deleteError) throw deleteError;
 
       if (selectedGenres.size > 0) {
         const now = new Date().toISOString();
@@ -237,7 +246,11 @@ export default function ProfileEditScreen() {
           context: { source: 'manual_settings' },
           occurred_at: now,
         }));
-        await supabase.from('user_preference_signals').insert(rows);
+        const { error: insertError } = await supabase.from('user_preference_signals').insert(rows);
+        if (insertError) {
+          if (oldSignals?.length) await supabase.from('user_preference_signals').insert(oldSignals);
+          throw insertError;
+        }
       }
 
       Alert.alert('Saved', 'Profile updated.');

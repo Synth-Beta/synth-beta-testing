@@ -15,6 +15,7 @@ import { ProfileScreenSkeleton } from '../../src/components/skeletons/ProfileScr
 import { MyEventsService, type InterestedEventItem } from '../../src/services/myEventsService';
 import { PassportService, type ProfileTimelineItem, type ProfileStats } from '../../src/services/passportService';
 import { EventService } from '../../src/services/eventService';
+import { NotificationService } from '../../src/services/notificationService';
 import { createFriendRequest } from '@synth/shared';
 
 type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'friends';
@@ -231,14 +232,14 @@ export default function PublicUserProfileScreen() {
     setFriendLoading(true);
     try {
     if (friendStatus === 'pending_received') {
-      // Accept the incoming request (match uses user_id/related_user_id)
-      const { error } = await supabase
-        .from('user_relationships')
-        .update({ status: 'accepted' })
-        .eq('user_id', id)
-        .eq('related_user_id', selfId)
-        .eq('relationship_type', 'friend');
-      if (!error) {
+      // Same RPC as the notifications feed: it also clears the request notification, and a
+      // direct update that RLS blocks would otherwise show "Friends" with nothing changed.
+      const accepted = pendingRequestId
+        ? await NotificationService.acceptFriendRequest(pendingRequestId)
+        : { ok: false };
+      if (!accepted.ok) {
+        Alert.alert('Could not accept request', 'Please try again.');
+      } else {
         setFriendStatus('friends');
         setPendingRequestId(null);
         try {

@@ -82,16 +82,22 @@ export default function CommunityScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [{ data: { session } }, list] = await Promise.all([supabase.auth.getSession(), loadCommunityReviews()]);
-    const viewerId = session?.user?.id ?? null;
-    // Without this every heart rendered empty, so re-tapping a liked review showed a phantom +1.
-    const likedIds = viewerId
-      ? await ReviewEngagementService.getReviewIdsLikedByUser(viewerId, list.map((r) => r.id)).catch(() => new Set<string>())
-      : new Set<string>();
-    setUserId(viewerId);
-    setReviews(list.map((r) => ({ ...r, is_liked_by_user: likedIds.has(r.id) })));
-    setLoading(false);
-    setRefreshing(false);
+    try {
+      const [{ data: { session } }, list] = await Promise.all([supabase.auth.getSession(), loadCommunityReviews()]);
+      const viewerId = session?.user?.id ?? null;
+      // Without this every heart rendered empty, so re-tapping a liked review showed a phantom +1.
+      const likedIds = viewerId
+        ? await ReviewEngagementService.getReviewIdsLikedByUser(viewerId, list.map((r) => r.id)).catch(() => new Set<string>())
+        : new Set<string>();
+      setUserId(viewerId);
+      setReviews(list.map((r) => ({ ...r, is_liked_by_user: likedIds.has(r.id) })));
+    } catch (err) {
+      // Keep what is on screen; the spinner must stop either way.
+      console.warn('[discover] community load failed', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {

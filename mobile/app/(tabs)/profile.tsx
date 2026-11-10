@@ -116,13 +116,17 @@ export default function ProfileScreen() {
       }
       setAuthUserId(authUser.id);
 
+      // Stats failing must not drop the header: it used to throw past setUser.
       const [userResult, statsData] = await Promise.all([
         supabase
           .from('users')
           .select('name, username, avatar_url, instagram_handle, bio')
           .eq('user_id', authUser.id)
           .single(),
-        PassportService.getProfileStats(authUser.id),
+        PassportService.getProfileStats(authUser.id).catch((err) => {
+          console.warn('[profile] stats:', err);
+          return null;
+        }),
       ]);
 
       const { data: userData, error: userRowError } = userResult;

@@ -168,11 +168,13 @@ export class OnboardingService {
 
         let isMinor = false;
         if (data.birthday) {
-            const birthDate = new Date(data.birthday);
+            // Compare Y/M/D numerically: new Date('YYYY-MM-DD') is UTC midnight and flips
+            // is_minor a day early in US time zones.
+            const [by, bm, bd] = data.birthday.slice(0, 10).split('-').map(Number);
             const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+            let age = today.getFullYear() - by;
+            const m = today.getMonth() + 1 - bm;
+            if (m < 0 || (m === 0 && today.getDate() < bd)) age--;
             isMinor = age < 18;
         }
 
@@ -197,13 +199,18 @@ export class OnboardingService {
         // UPDATE, not upsert — same NOT-NULL-on-proposed-tuple trap as completeOnboarding.
         // This one only worked by accident because its payload usually carries name and
         // username; it broke the moment either was left blank.
-        const { error } = await supabase
+        // .select() so a policy-blocked or missing row (0 updated) isn't reported as saved.
+        const { data: saved, error } = await supabase
             .from('users')
             .update(update)
-            .eq('user_id', userId);
+            .eq('user_id', userId)
+            .select('user_id');
 
         if (error) {
             throw error;
+        }
+        if (!saved || saved.length === 0) {
+            throw new Error('profile_save_no_row_updated');
         }
     }
 
@@ -212,12 +219,13 @@ export class OnboardingService {
      * Does not touch any other profile field, unlike saveProfileSetup.
      */
     static async updateContactEmail(userId: string, email: string): Promise<boolean> {
-        const { error } = await supabase
+        const { data: saved, error } = await supabase
             .from('users')
             .update({ contact_email: email, updated_at: new Date().toISOString() })
-            .eq('user_id', userId);
-        if (error) {
-            console.warn('Error updating contact email:', error);
+            .eq('user_id', userId)
+            .select('user_id');
+        if (error || !saved || saved.length === 0) {
+            console.warn('Error updating contact email:', error ?? 'no row updated');
             return false;
         }
         return true;

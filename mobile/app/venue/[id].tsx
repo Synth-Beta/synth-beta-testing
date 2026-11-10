@@ -8,8 +8,7 @@ import {
   Image,
   Share,
   Text,
-  Dimensions,
-} from 'react-native';
+  Dimensions, Alert } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,7 +28,7 @@ import { SynthMap } from '../../src/components/maps/SynthMap';
 import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/utils/eventImages';
 import { SafeImage } from '../../src/components/SafeImage';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
-import { todayLocalYmd } from '../../src/utils/localYmd';
+import { localYmdToStartOfDayIso, todayLocalYmd } from '../../src/utils/localYmd';
 
 const PINK = SynthTokens.colors.brandPink500;
 const INITIAL_UPCOMING_LIMIT = 20;
@@ -95,7 +94,7 @@ function mapEventRow(e: any, venueName: string): EventRow {
 async function fetchUpcomingEventPages(venueIds: string[], offset: number): Promise<any[]> {
   const rows: any[] = [];
   let from = offset;
-  const todayYmd = todayLocalYmd();
+  const todayYmd = localYmdToStartOfDayIso(todayLocalYmd()); // local midnight, not UTC midnight
   while (true) {
     const { data, error } = await supabase
       .from('events')
@@ -229,7 +228,7 @@ export default function VenueDetailScreen() {
         // never pushes future events past the query limit.
         // Use select('*') — explicit column lists fail silently if any column name
         // doesn't match exactly, returning empty data with no error.
-        const todayYmd = todayLocalYmd();
+        const todayYmd = localYmdToStartOfDayIso(todayLocalYmd()); // local midnight, not UTC midnight
         const [upcomingRes, pastRes] = await Promise.all([
           supabase.from('events').select('*')
             .in('venue_id', venueUuidsToSearch)
@@ -326,15 +325,34 @@ export default function VenueDetailScreen() {
         });
         setMediaPhotos(photos);
 
-        // Average rating
-        const ratings = reviewRows
-          .map(r => r.rating)
-          .filter((r): r is number => typeof r === 'number');
-        if (ratings.length > 0) {
-          setAvgRating(ratings.reduce((a, b) => a + b, 0) / ratings.length);
-        } else {
-          setAvgRating(null);
+        // Average over every public rating, not just the 15 cards shown above.
+        // shortcut: first 1000 ratings per query; move to a SQL aggregate for busier pages.
+        const ratingQueries = [
+          supabase.from('reviews').select('id, rating')
+            .in('venue_id', venueUuidsToSearch)
+            .eq('is_public', true).eq('is_draft', false).not('rating', 'is', null).limit(1000),
+        ];
+        if (allEventIds.length > 0) {
+          ratingQueries.push(
+            supabase.from('reviews').select('id, rating')
+              .in('event_id', allEventIds)
+              .eq('is_public', true).eq('is_draft', false).not('rating', 'is', null).limit(1000)
+          );
         }
+        const ratingById = new Map<string, number>();
+        try {
+          for (const res of await Promise.all(ratingQueries)) {
+            for (const r of (res.data ?? []) as Array<{ id: string; rating: number | null }>) {
+              if (typeof r.rating === 'number') ratingById.set(String(r.id), r.rating);
+            }
+          }
+        } catch {
+          // Fall back to the loaded cards below.
+        }
+        const ratings = ratingById.size > 0
+          ? [...ratingById.values()]
+          : reviewRows.map(r => r.rating).filter((r): r is number => typeof r === 'number');
+        setAvgRating(ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null);
 
         // Follower count (only meaningful for canonical venues)
         const followId = resolvedId ?? null;
@@ -352,6 +370,10 @@ export default function VenueDetailScreen() {
         setUpcomingEvents([]);
         setPastEvents([]);
       }
+    } catch (err) {
+      // A network throw used to escape as an unhandled rejection and leave a blank page.
+      console.warn('[venue] load failed', err);
+      Alert.alert('Could not load', 'Check your connection and try again.');
     } finally {
       setLoading(false);
     }

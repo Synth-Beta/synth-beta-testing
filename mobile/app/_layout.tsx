@@ -14,7 +14,7 @@ import {
   Inter_500Medium,
   Inter_700Bold
 } from '@expo-google-fonts/inter';
-import { supabase, readStoredSession } from '../src/integrations/supabase/client';
+import { supabase, readStoredSession, MAGIC_LINK_PENDING_KEY, MAGIC_LINK_MAX_AGE_MS } from '../src/integrations/supabase/client';
 import { OnboardingService } from '../src/services/onboardingService';
 import { ensureExpoPushNotificationHandler } from '../lib/registerPushNotifications';
 import { syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
@@ -225,9 +225,19 @@ function RootLayout() {
       return;
     }
     if (params.access_token && params.refresh_token) {
-      void supabase.auth
-        .setSession({ access_token: params.access_token, refresh_token: params.refresh_token })
-        .then(({ error }) => error && console.warn('[auth] sign-in link setSession failed', error.message));
+      const { access_token, refresh_token } = params;
+      void (async () => {
+        // Only honour a token link the user asked for on this device; otherwise any web page
+        // or app could open synth://#access_token=... and sign them in as someone else.
+        const requestedAt = Number(await AsyncStorage.getItem(MAGIC_LINK_PENDING_KEY).catch(() => null));
+        if (!requestedAt || Date.now() - requestedAt > MAGIC_LINK_MAX_AGE_MS) {
+          console.warn('[auth] ignored token link with no pending magic-link request');
+          return;
+        }
+        await AsyncStorage.removeItem(MAGIC_LINK_PENDING_KEY).catch(() => {});
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+        if (error) console.warn('[auth] sign-in link setSession failed', error.message);
+      })();
     } else if (params.code) {
       void supabase.auth
         .exchangeCodeForSession(params.code)
@@ -364,8 +374,14 @@ function RootLayout() {
   }, [sessionResolved, sessionUserId, storageOnboardingComplete]);
 
   const [contactEmail, setContactEmail] = useState<string | null>(null);
+  // Routing waits for this so a saved contact email isn't mistaken for a missing one on
+  // cold start (which bounced Apple relay users to /email-required and dropped deep links).
+  const [contactEmailLoaded, setContactEmailLoaded] = useState(false);
+  const [contactEmailLookupFailed, setContactEmailLookupFailed] = useState(false);
 
   useEffect(() => {
+    setContactEmailLoaded(false);
+    setContactEmailLookupFailed(false);
     if (!sessionUserId) {
       setContactEmail(null);
       return;
@@ -376,8 +392,12 @@ function RootLayout() {
       .select('contact_email')
       .eq('user_id', sessionUserId)
       .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setContactEmail(data?.contact_email ?? null);
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        // A failed read is "unknown", never "missing": don't strand them on the email screen.
+        if (error) setContactEmailLookupFailed(true);
+        setContactEmail(data?.contact_email ?? null);
+        setContactEmailLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -413,7 +433,8 @@ function RootLayout() {
     fontsReady &&
     session !== undefined &&
     storageOnboardingComplete !== null &&
-    onboardingEffectiveReady;
+    onboardingEffectiveReady &&
+    (!sessionUserId || contactEmailLoaded);
 
   // Deliberately NOT gated on `isOnboardingComplete`. Whether we can reach someone by
   // email has nothing to do with whether they finished the wizard, and coupling the two
@@ -422,7 +443,7 @@ function RootLayout() {
   // anyone whose completion flag was lost. Onboarding still wins on every routing
   // branch below, so an unfinished user is sent to the wizard, never here.
   const needsEmail = Boolean(
-    session?.user && needsContactEmail(session.user, contactEmail)
+    session?.user && !contactEmailLookupFailed && needsContactEmail(session.user, contactEmail)
   );
 
   // SplashScreen is hidden immediately on JS mount (see top of file).
@@ -637,7 +658,7 @@ function RootLayout() {
   return (
     <ContactEmailContext.Provider value={{ markContactEmailSaved }}>
     <InterestedProvider>
-    <BrowseLocationProvider>
+    <BrowseLocationProvider enabled={Boolean(sessionUserId) && isOnboardingComplete === true}>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(onboarding)" options={{ headerShown: false, animation: 'fade' }} />

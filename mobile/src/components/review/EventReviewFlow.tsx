@@ -236,6 +236,14 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
     const [photoUploading, setPhotoUploading] = useState(false);
     const mediaUploading = videoUploading || photoUploading;
     const skipDraft = !!(initialEventId || prefill?.artistId || prefill?.venueId || prefill?.eventDate);
+    // Writing from an event page used to skip drafts entirely, so backing out or an app kill
+    // lost every step. Those get their own per-event draft; artist/venue/date prefills still skip.
+    const draftKey = userId
+        ? initialEventId
+            ? `${mobileReviewDraftStorageKey(userId)}:event:${initialEventId}`
+            : mobileReviewDraftStorageKey(userId)
+        : null;
+    const draftsEnabled = !skipDraft || !!initialEventId;
     const [previousVenueReview, setPreviousVenueReview] = useState<UserReview | null>(null);
     const [eventQuery, setEventQuery] = useState('');
     const [eventRows, setEventRows] = useState<any[]>([]);
@@ -318,11 +326,11 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
     }, [prefill, setFormData]);
 
     useEffect(() => {
-        if (!userId || skipDraft || draftChecked.current) return;
+        if (!draftKey || !draftsEnabled || draftChecked.current) return;
         void (async () => {
             draftChecked.current = true;
             try {
-                const raw = await AsyncStorage.getItem(mobileReviewDraftStorageKey(userId));
+                const raw = await AsyncStorage.getItem(draftKey);
                 if (!raw) return;
                 const parsed = JSON.parse(raw) as { v?: number; currentStep?: number; formData?: Partial<ReviewFormData> };
                 if (parsed.v !== 1 || !parsed.formData) return;
@@ -330,7 +338,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                     {
                         text: 'Start fresh',
                         style: 'destructive',
-                        onPress: () => void AsyncStorage.removeItem(mobileReviewDraftStorageKey(userId)),
+                        onPress: () => void AsyncStorage.removeItem(draftKey),
                     },
                     {
                         text: 'Continue',
@@ -349,10 +357,10 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                 /* ignore corrupt draft */
             }
         })();
-    }, [userId, skipDraft, setFormData, setStep]);
+    }, [draftKey, draftsEnabled, setFormData, setStep]);
 
     useEffect(() => {
-        if (!userId || skipDraft) return;
+        if (!draftKey || !draftsEnabled) return;
         if (currentStep <= 1 && !formData.reviewDuration) return;
         const t = setTimeout(() => {
             const payload = JSON.stringify({
@@ -360,10 +368,10 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                 currentStep,
                 formData,
             });
-            void AsyncStorage.setItem(mobileReviewDraftStorageKey(userId), payload);
+            void AsyncStorage.setItem(draftKey, payload);
         }, 700);
         return () => clearTimeout(t);
-    }, [userId, skipDraft, currentStep, formData]);
+    }, [draftKey, draftsEnabled, currentStep, formData]);
 
     useEffect(() => {
         if (!initialEventId) return;
@@ -418,13 +426,17 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
                 return;
             }
             setEventSearching(true);
-            const rows = await searchPastEventsForReview(supabase, eventQuery, {
-                limit: 12,
-                date: searchDate || undefined,
-            });
-            if (cancelled) return;
-            setEventRows(rows);
-            setEventSearching(false);
+            try {
+                const rows = await searchPastEventsForReview(supabase, eventQuery, {
+                    limit: 12,
+                    date: searchDate || undefined,
+                });
+                if (!cancelled) setEventRows(rows);
+            } catch (err) {
+                console.warn('[EventReviewFlow] past event search failed', err);
+            } finally {
+                if (!cancelled) setEventSearching(false);
+            }
         }, 320);
         return () => {
             cancelled = true;
@@ -432,35 +444,44 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
         };
     }, [eventQuery, searchDate]);
 
+    // `cancelled` drops a slow earlier response so it can't overwrite the newer query's list.
     useEffect(() => {
+        let cancelled = false;
         const t = setTimeout(() => {
-            void SearchService.searchArtists(artistQ, 25).then((rows) => {
-                setArtistRows(
-                    rows.map((r) => ({
-                        id: r.id,
-                        name: r.name,
-                        is_from_database: true,
-                    }))
-                );
-            });
+            void SearchService.searchArtists(artistQ, 25)
+                .then((rows) => {
+                    if (cancelled) return;
+                    setArtistRows(
+                        rows.map((r) => ({
+                            id: r.id,
+                            name: r.name,
+                            is_from_database: true,
+                        }))
+                    );
+                })
+                .catch((err) => console.warn('[EventReviewFlow] artist search failed', err));
         }, 200);
-        return () => clearTimeout(t);
+        return () => { cancelled = true; clearTimeout(t); };
     }, [artistQ]);
 
     useEffect(() => {
+        let cancelled = false;
         const t = setTimeout(() => {
-            void SearchService.searchVenues(venueQ, 25).then((rows) => {
-                setVenueRows(
-                    rows.map((r) => ({
-                        id: r.id,
-                        name: r.name,
-                        is_from_database: true,
-                        address: r.city ? { addressLocality: r.city } : undefined,
-                    }))
-                );
-            });
+            void SearchService.searchVenues(venueQ, 25)
+                .then((rows) => {
+                    if (cancelled) return;
+                    setVenueRows(
+                        rows.map((r) => ({
+                            id: r.id,
+                            name: r.name,
+                            is_from_database: true,
+                            address: r.city ? { addressLocality: r.city } : undefined,
+                        }))
+                    );
+                })
+                .catch((err) => console.warn('[EventReviewFlow] venue search failed', err));
         }, 200);
-        return () => clearTimeout(t);
+        return () => { cancelled = true; clearTimeout(t); };
     }, [venueQ]);
 
     const categoryConfigs = useMemo(() => {
@@ -742,19 +763,28 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
         </View>
     );
 
+    // A ref, not isLoading: a fast double tap lands before the state update re-renders.
+    const submittingRef = useRef(false);
+
     const handleSubmit = useCallback(async () => {
-        if (!userId) return;
+        if (!userId || submittingRef.current) return;
+        submittingRef.current = true;
         setLoading(true);
-        const res = await submitEventReviewFromForm(userId, formData, currentFlow);
-        setLoading(false);
+        let res: Awaited<ReturnType<typeof submitEventReviewFromForm>>;
+        try {
+            res = await submitEventReviewFromForm(userId, formData, currentFlow);
+        } finally {
+            submittingRef.current = false;
+            setLoading(false);
+        }
         if (!res.ok) {
             Alert.alert('Could not save', res.message);
             return;
         }
-        void AsyncStorage.removeItem(mobileReviewDraftStorageKey(userId));
+        if (draftKey) void AsyncStorage.removeItem(draftKey);
         const outEvent = res.eventId ?? initialEventId ?? undefined;
         onSubmitted?.(outEvent, res.submittedReview?.id ?? undefined);
-    }, [userId, formData, currentFlow, setLoading, onSubmitted, initialEventId]);
+    }, [userId, formData, currentFlow, setLoading, onSubmitted, initialEventId, draftKey]);
 
     const renderMediaFields = () =>
         userId ? (

@@ -127,7 +127,7 @@ export default function ProfileSetupScreen() {
             const resolvedUsername = storedUsername || suggestUsername(displayName);
             if (resolvedUsername.length >= 3) {
                 setUsername(resolvedUsername);
-                scheduleUsernameCheck(resolvedUsername);
+                scheduleUsernameCheck(resolvedUsername, user.id);
             }
 
             if (draft?.birthday) setBirthday(draft.birthday);
@@ -157,23 +157,26 @@ export default function ProfileSetupScreen() {
         trackOnboardingStep('profile');
     }, []);
 
-    const checkUsernameAvailability = useCallback(async (uname: string) => {
+    // excludeId lets the mount-time prefill pass the id directly: the effect's closure
+    // still holds userId = null, which made a returning user's own username read "taken".
+    const checkUsernameAvailability = useCallback(async (uname: string, excludeId?: string) => {
         if (!USERNAME_RE.test(uname)) {
             setUsernameStatus('invalid');
             return;
         }
         setUsernameStatus('checking');
+        const selfId = excludeId ?? userId;
         let query = supabase.from('users').select('user_id').eq('username', uname);
-        if (userId) query = query.neq('user_id', userId);
+        if (selfId) query = query.neq('user_id', selfId);
         const { data } = await query.maybeSingle();
         setUsernameStatus(data ? 'taken' : 'available');
     }, [userId]);
 
-    const scheduleUsernameCheck = useCallback((uname: string) => {
+    const scheduleUsernameCheck = useCallback((uname: string, excludeId?: string) => {
         if (usernameCheckTimer.current) clearTimeout(usernameCheckTimer.current);
         if (uname.length < 3) { setUsernameStatus('idle'); return; }
         usernameCheckTimer.current = setTimeout(() => {
-            void checkUsernameAvailability(uname);
+            void checkUsernameAvailability(uname, excludeId);
         }, 600);
     }, [checkUsernameAvailability]);
 
@@ -314,8 +317,14 @@ export default function ProfileSetupScreen() {
         // Redeemed at the end of onboarding (artists step); here we only check it exists.
         const code = normalizeInviteCode(inviteCode);
         if (code) {
-            const invite = await InviteService.preview(code).catch(() => null);
-            if (!invite) {
+            // A thrown error is a network/RPC failure, not a bad code: keep the code and
+            // continue (it is validated again when redeemed) instead of blocking the user.
+            let lookupFailed = false;
+            const invite = await InviteService.preview(code).catch(() => {
+                lookupFailed = true;
+                return null;
+            });
+            if (!invite && !lookupFailed) {
                 setInviteCodeError("That invite code doesn't exist. Check it or leave it blank.");
                 return;
             }

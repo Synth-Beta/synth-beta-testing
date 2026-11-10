@@ -1,40 +1,64 @@
 import type { EventDetail } from '../services/eventService';
 
+/**
+ * Format in the venue's zone when known, so a show reads the same wherever the viewer is.
+ * An unrecognised zone name throws RangeError; fall back to the device zone.
+ */
+function withVenueZone<T>(timeZone: string | null | undefined, format: (zone?: string) => T): T {
+    if (timeZone) {
+        try {
+            return format(timeZone);
+        } catch {
+            // fall through to the device zone
+        }
+    }
+    return format();
+}
+
 /** Match web EventDetailsModal.formatDate */
-export function formatEventDetailDate(dateString: string | null | undefined): string {
+export function formatEventDetailDate(dateString: string | null | undefined, timeZone?: string | null): string {
     if (!dateString) return 'Date TBD';
     const date = new Date(dateString);
     if (!Number.isFinite(date.getTime())) return 'Date TBD';
-    return date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    });
+    return withVenueZone(timeZone, (zone) =>
+        date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            timeZone: zone,
+        })
+    );
 }
 
 /** Match web EventDetailsModal.formatTime */
-export function formatEventDetailTime(dateString: string | null | undefined): string {
+export function formatEventDetailTime(dateString: string | null | undefined, timeZone?: string | null): string {
     if (!dateString) return '';
     const date = new Date(dateString);
     if (!Number.isFinite(date.getTime())) return '';
-    return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-    });
+    return withVenueZone(timeZone, (zone) =>
+        date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: zone,
+        })
+    );
 }
 
 /** Match web EventDetailsModal.formatDoorsTime */
-export function formatDoorsTimeShort(doorsTime: string | null | undefined): string | null {
+export function formatDoorsTimeShort(doorsTime: string | null | undefined, timeZone?: string | null): string | null {
     if (!doorsTime) return null;
     const date = new Date(doorsTime);
     if (!Number.isFinite(date.getTime())) return null;
-    return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-    });
+    return withVenueZone(timeZone, (zone) =>
+        date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: zone,
+        })
+    );
 }
 
 /** City + state code, e.g. "Washington, DC" */

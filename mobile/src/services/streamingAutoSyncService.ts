@@ -80,13 +80,14 @@ export async function runStreamingAutoSync(params: {
     return { ok: false, skipped: 'not-needed' };
   }
 
-  if (decision.reason !== 'migration' && (await wasRecentlyAutoSynced(params.userId))) {
+  // Migration syncs are throttled too: a failing one used to retry on every app open.
+  if (await wasRecentlyAutoSynced(params.userId)) {
     return { ok: false, skipped: 'throttled' };
   }
 
   inFlightAutoSync = (async () => {
     try {
-      const result = await syncStreamingProfile(params.userId, params.serviceType, { manual: false });
+      const result = await syncStreamingProfile(params.userId, params.serviceType, { manual: false, refresh: true });
       if (result.ok) {
         return { ok: true };
       }

@@ -55,7 +55,7 @@ export default function ChatListScreen() {
     }
 
     const data = await ChatService.getChats(user.id);
-    setChats(data);
+    if (data) setChats(data);
     setLoading(false);
     setRefreshing(false);
   }, []);

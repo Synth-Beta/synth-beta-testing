@@ -17,15 +17,27 @@ export function useUnreadMessageCount(userId: string | undefined): number {
       return;
     }
 
+    // Only the newest run may write, so a slow older total can't overwrite a newer one.
+    let latestRun = 0;
+
     const fetchUnread = async () => {
+      const run = ++latestRun;
+      const write = (n: number) => { if (run === latestRun) setCount(n); };
       try {
+        // One grouped query; falls back to per-chat counts if the RPC isn't deployed yet.
+        const { data: counts, error: rpcError } = await supabase.rpc('get_my_chat_unread_counts');
+        if (!rpcError && Array.isArray(counts)) {
+          write(counts.reduce((sum: number, r: { unread_count: number | string }) => sum + Number(r.unread_count || 0), 0));
+          return;
+        }
+
         const { data: participantData } = await supabase
           .from('chat_participants')
           .select('chat_id, last_read_at')
           .eq('user_id', userId);
 
         if (!participantData?.length) {
-          setCount(0);
+          write(0);
           return;
         }
 
@@ -41,9 +53,9 @@ export function useUnreadMessageCount(userId: string | undefined): number {
 
           if (!error && typeof c === 'number') total += c;
         }
-        setCount(total);
+        write(total);
       } catch {
-        setCount(0);
+        // Keep the last known badge rather than flashing to zero on a network blip.
       }
     };
 

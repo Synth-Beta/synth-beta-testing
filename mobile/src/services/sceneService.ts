@@ -272,15 +272,16 @@ export class SceneService {
       const eventIds = events.map(e => e.id);
 
       // Count unique reviewers
-      const { count, error } = await supabase
+      // shortcut: counts distinct users among the first 1000 matching rows; upgrade to an RPC if scenes exceed that.
+      const { data: reviewers, error } = await supabase
         .from('reviews')
-        .select('user_id', { count: 'exact', head: true })
+        .select('user_id')
         .in('event_id', eventIds)
         .eq('is_draft', false)
         .eq('was_there', true);
 
       if (error) throw error;
-      return count || 0;
+      return new Set((reviewers || []).map(r => r.user_id)).size;
     } catch (error) {
       console.error('Error counting active reviewers:', error);
       return 0;
@@ -575,94 +576,41 @@ export class SceneService {
       const eventSet = new Set<string>();
       const allEvents: any[] = [];
 
-      // Query by artists - match by identifier with flexible matching
-      if (participating_artists.length > 0) {
-        const artistQueryPromise = supabase
-          .from('events')
-          .select('*')
-          .gte('event_date', todayLocalYmd())
-          .not('artist_id', 'is', null)
-          .order('event_date', { ascending: true })
-          .limit(200)
-          .then(({ data: artistEvents, error }) => {
-            if (error) throw error;
-            if (!artistEvents) return [];
-            
-            // Filter events where artist_id matches any of our artist identifiers
-            const filtered = artistEvents.filter((event: any) => {
-              if (!event.artist_id) return false;
-              return participating_artists.some(artistId => {
-                // Try exact match
-                if (event.artist_id === artistId) return true;
-                // Try with/without jambase: prefix
-                const eventId = event.artist_id.replace(/^jambase:/, '');
-                const artistIdClean = artistId.replace(/^jambase:/, '');
-                if (eventId === artistIdClean) return true;
-                return false;
-              });
-            });
-            
-            return filtered;
-          });
-        
-        eventQueries.push(artistQueryPromise);
+      // Filter server-side by the participants' UUIDs. This used to pull the 200/500 earliest
+      // upcoming events nationwide and match identifiers client-side, so scene artist and
+      // venue shows almost never made it into the first page.
+      const artistUuids = participants.filter(p => p.participant_type === 'artist' && p.artist_id).map(p => p.artist_id!);
+      if (artistUuids.length > 0) {
+        eventQueries.push(
+          supabase
+            .from('events')
+            .select('*')
+            .gte('event_date', todayLocalYmd())
+            .in('artist_id', artistUuids)
+            .order('event_date', { ascending: true })
+            .limit(50)
+            .then(({ data: artistEvents, error }) => {
+              if (error) throw error;
+              return artistEvents || [];
+            })
+        );
       }
 
-      // Query by venues - match by identifier with flexible matching, fallback to name
-      if (participating_venues.length > 0) {
-        // Get venue names for fallback matching from participants we just built
-        const venueNames = participants
-          .filter(p => p.participant_type === 'venue' && p.venue_name)
-          .map(p => p.venue_name!)
-          .filter(Boolean);
-        
-        // Build a promise that fetches and filters events
-        const venueQueryPromise = supabase
-          .from('events')
-          .select('*')
-          .gte('event_date', todayLocalYmd())
-          .order('event_date', { ascending: true })
-          .limit(500) // Get more events to filter
-          .then(({ data: venueEvents, error }) => {
-            if (error) throw error;
-            if (!venueEvents) return [];
-            
-            // Filter events where venue_id OR venue_name matches
-            const filtered = venueEvents.filter((event: any) => {
-              // Try identifier matching first
-              if (event.venue_id) {
-                const matches = participating_venues.some(venueId => {
-                  // Try exact match
-                  if (event.venue_id === venueId) return true;
-                  // Try with/without jambase: prefix
-                  const eventId = event.venue_id.replace(/^jambase:/, '');
-                  const venueIdClean = venueId.replace(/^jambase:/, '');
-                  if (eventId === venueIdClean) return true;
-                  return false;
-                });
-                if (matches) return true;
-              }
-              
-              // Fallback to name matching
-              if (event.venue_name && venueNames.length > 0) {
-                return venueNames.some(name => {
-                  const eventName = event.venue_name?.toLowerCase().trim();
-                  const venueName = name?.toLowerCase().trim();
-                  if (!eventName || !venueName) return false;
-                  // Exact match or contains
-                  return eventName === venueName || 
-                         eventName.includes(venueName) || 
-                         venueName.includes(eventName);
-                });
-              }
-              
-              return false;
-            });
-            
-            return filtered;
-          });
-        
-        eventQueries.push(venueQueryPromise);
+      const venueUuids = participants.filter(p => p.participant_type === 'venue' && p.venue_id).map(p => p.venue_id!);
+      if (venueUuids.length > 0) {
+        eventQueries.push(
+          supabase
+            .from('events')
+            .select('*')
+            .gte('event_date', todayLocalYmd())
+            .in('venue_id', venueUuids)
+            .order('event_date', { ascending: true })
+            .limit(50)
+            .then(({ data: venueEvents, error }) => {
+              if (error) throw error;
+              return venueEvents || [];
+            })
+        );
       }
 
       // Query by cities
@@ -701,29 +649,27 @@ export class SceneService {
 
       // Execute all queries and combine results
       if (eventQueries.length > 0) {
-        try {
-          const results = await Promise.all(eventQueries);
-          
-          results.forEach((result, idx) => {
-            // Handle both array results (from filtering) and Supabase response objects
-            let events: any[] = [];
-            if (Array.isArray(result)) {
-              events = result;
-            } else if (result && typeof result === 'object' && 'data' in result) {
-              events = result.data || [];
+        // allSettled: one failing query (e.g. genres) must not wipe the others' events.
+        const settled = await Promise.allSettled(eventQueries);
+        settled.forEach((outcome) => {
+          if (outcome.status === 'rejected') {
+            console.error('Error fetching scene events:', outcome.reason);
+            return;
+          }
+          const result = outcome.value;
+          let events: any[] = [];
+          if (Array.isArray(result)) {
+            events = result;
+          } else if (result && typeof result === 'object' && 'data' in result) {
+            events = result.data || [];
+          }
+          events.forEach((event: any) => {
+            if (event && event.id && !eventSet.has(event.id)) {
+              eventSet.add(event.id);
+              allEvents.push(event);
             }
-            
-            events.forEach((event: any) => {
-              if (event && event.id && !eventSet.has(event.id)) {
-                eventSet.add(event.id);
-                allEvents.push(event);
-              }
-            });
           });
-        } catch (error) {
-          console.error('Error fetching scene events:', error);
-          // Continue with empty events array - don't break the scene display
-        }
+        });
       }
 
       // Sort by date and limit

@@ -101,13 +101,14 @@ export default function CalendarScreen() {
       setNearbyByDate({});
     }
     const monthKey = `${calYear}-${calMonth}`;
-    if (loadedMonthsRef.current.has(monthKey)) return;
+    // A previous month's fetch may have been cancelled mid-flight; don't leave its spinner on.
+    if (loadedMonthsRef.current.has(monthKey)) { setLoading(false); return; }
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const monthStart = new Date(calYear, calMonth, 1);
     const monthEnd = new Date(calYear, calMonth + 1, 0, 23, 59, 59, 999);
-    if (monthEnd < todayStart) return;
+    if (monthEnd < todayStart) { setLoading(false); return; }
 
     let cancelled = false;
     setLoading(true);

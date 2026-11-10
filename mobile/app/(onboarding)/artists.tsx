@@ -105,10 +105,15 @@ export default function ArtistsScreen() {
             // sent back through onboarding on any reinstall. Local flag only after it
             // lands, so the two can never disagree.
             await OnboardingService.completeOnboarding(user.id);
-            try {
-                await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
-            } catch {
-                // Server state is already correct; the boot gate reads it as a fallback.
+            // The root layout reads this flag to leave the wizard, so retry once before
+            // falling back to the server state the boot gate reads.
+            for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                    await AsyncStorage.setItem(getOnboardingStorageKey(user.id), 'true');
+                    break;
+                } catch {
+                    // fall through to retry / server fallback
+                }
             }
         } catch (error) {
             // The last gate. Anyone here did EVERYTHING and still has no account - the

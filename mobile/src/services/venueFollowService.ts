@@ -32,7 +32,9 @@ export class VenueFollowService {
         .from('user_venue_relationships')
         .select('user_id, created_at')
         .eq('venue_id', venueId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        // shortcut: newest 500 followers only; add .range() paging if a list needs more.
+        .limit(500);
 
       if (error || !follows?.length) {
         if (error) console.warn('[VenueFollowService] getVenueFollowers', error.message);
@@ -42,14 +44,18 @@ export class VenueFollowService {
       const userIds = [...new Set(follows.map((f) => String(f.user_id)).filter(Boolean))];
       if (userIds.length === 0) return [];
 
-      const { data: profiles, error: profilesError } = await supabase
-        .from('users')
-        .select('user_id, name, username, avatar_url')
-        .in('user_id', userIds);
-
-      if (profilesError) {
-        console.warn('[VenueFollowService] getVenueFollowers profiles', profilesError.message);
-        return [];
+      // Chunked: one .in() with hundreds of UUIDs overflows the request URL.
+      const profiles: Array<{ user_id: string; name: string | null; username: string | null; avatar_url: string | null }> = [];
+      for (let i = 0; i < userIds.length; i += 80) {
+        const { data: chunk, error: profilesError } = await supabase
+          .from('users')
+          .select('user_id, name, username, avatar_url')
+          .in('user_id', userIds.slice(i, i + 80));
+        if (profilesError) {
+          console.warn('[VenueFollowService] follower profiles', profilesError.message);
+          return [];
+        }
+        profiles.push(...(chunk || []));
       }
 
       const profileMap = new Map(

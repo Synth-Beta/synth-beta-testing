@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -46,6 +46,7 @@ export type NotificationsFeedProps = {
 };
 
 export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
+  const channelSuffix = useRef(Math.random().toString(36).slice(2, 8)).current;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,7 +94,9 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
   useEffect(() => {
     if (!currentUserId) return;
     const channel = supabase
-      .channel(`notifications-feed-${currentUserId}`)
+      // Suffix: /notifications and /friend-requests can both be mounted; a shared name
+      // makes closing one tear down the other's subscription.
+      .channel(`notifications-feed-${currentUserId}-${channelSuffix}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${currentUserId}` },

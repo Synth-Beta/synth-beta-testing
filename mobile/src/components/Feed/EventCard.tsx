@@ -156,8 +156,11 @@ export const EventCard: React.FC<EventCardProps> = ({
   const openTickets = useCallback(async () => {
     const u = ticketUrlProp?.trim();
     if (!u) return;
-    const ok = await Linking.canOpenURL(u);
-    if (ok) await Linking.openURL(u);
+    try {
+      if (await Linking.canOpenURL(u)) await Linking.openURL(u);
+    } catch {
+      // A malformed ticket URL shouldn't surface as an unhandled rejection.
+    }
   }, [ticketUrlProp]);
 
   const openEventDetail = useCallback(() => {
@@ -198,7 +201,7 @@ export const EventCard: React.FC<EventCardProps> = ({
       <View style={[styles.cardFace, pick5Band && styles.cardFacePick5]}>
         {pick5Band ? (
           <Pressable
-            onPress={() => void Linking.openURL(pick5BandUrl(pick5Band.slug))}
+            onPress={() => { Linking.openURL(pick5BandUrl(pick5Band.slug)).catch(() => {}); }}
             style={styles.pick5Strip}
             accessibilityRole="link"
             accessibilityLabel={`Predict the ${pick5Band.name} setlist on Pick5`}

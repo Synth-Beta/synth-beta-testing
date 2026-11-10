@@ -35,6 +35,8 @@ export default function SceneDetailScreen() {
     }>
   >([]);
 
+  const [loadFailed, setLoadFailed] = useState(false);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -69,6 +71,11 @@ export default function SceneDetailScreen() {
         };
       });
       setEvents(mapped);
+      setLoadFailed(false);
+    } catch (err) {
+      // Don't show a false empty state when the request itself failed.
+      console.warn('[scene] load failed', err);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -106,8 +113,8 @@ export default function SceneDetailScreen() {
               Related events
             </SynthText>
             {events.length === 0 ? (
-              <SynthText variant="body" color="secondary">
-                No upcoming events linked to this scene.
+              <SynthText variant="body" color="secondary" onPress={loadFailed ? () => void load() : undefined}>
+                {loadFailed ? "Couldn't load. Tap to retry." : "No upcoming events linked to this scene."}
               </SynthText>
             ) : (
               events.map(e => (

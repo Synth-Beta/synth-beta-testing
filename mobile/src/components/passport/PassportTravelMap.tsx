@@ -44,7 +44,10 @@ const DARK_MAP_STYLE = [
 function openDirections(lat: number, lng: number, label: string) {
     const q = encodeURIComponent(`${lat},${lng}(${label})`);
     const url = Platform.OS === 'ios' ? `maps:0,0?q=${q}` : `geo:0,0?q=${lat},${lng}(${encodeURIComponent(label)})`;
-    void Linking.openURL(url);
+    Linking.openURL(url).catch(() => {
+        // No maps handler installed: fall back to the web map.
+        void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`).catch(() => {});
+    });
 }
 
 function formatDate(iso: string): string {
