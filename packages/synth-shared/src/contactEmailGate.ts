@@ -15,7 +15,9 @@ export function needsContactEmail(
 ): boolean {
   if (!user) return false;
   const provider = user.app_metadata?.provider;
-  if (provider !== 'apple' && provider !== 'google') return false;
+  // Apple Guideline 4: Sign in with Apple users must never be asked for an email (the
+  // relay address Apple provides is valid), so only Google is gated.
+  if (provider !== 'google') return false;
   if (contactEmail && contactEmail.trim().length > 0) return false;
   const email = user.email;
   if (!email) return true;

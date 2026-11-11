@@ -216,9 +216,12 @@ export default function ProfileSetupScreen() {
 
     // Same rules as web (@synth/shared onboardingRules): required name, username,
     // birthday (13+), how did you hear; city, gender, bio, photo optional.
-    const rules = validateOnboardingProfile({ name, username, birthday, acquisitionSource: acquisitionSource || null });
+    // Apple Guideline 4: never require a name from Sign in with Apple users; fall back to username.
+    const isApple = authUser?.app_metadata?.provider === 'apple';
+    const effectiveName = name.trim() || (isApple ? username.trim() : '');
+    const rules = validateOnboardingProfile({ name: effectiveName, username, birthday, acquisitionSource: acquisitionSource || null });
     const validateBirthday = (val: string): string =>
-        validateOnboardingProfile({ name, username, birthday: val, acquisitionSource: acquisitionSource || null }).errors.birthday ?? '';
+        validateOnboardingProfile({ name: effectiveName, username, birthday: val, acquisitionSource: acquisitionSource || null }).errors.birthday ?? '';
 
     const handleBirthdayBlur = () => {
         setBirthdayError(validateBirthday(birthday));
@@ -285,7 +288,7 @@ export default function ProfileSetupScreen() {
                 throw new Error('No authenticated user when saving profile setup');
             }
             await OnboardingService.saveProfileSetup(user.id, {
-                name: name.trim() || undefined,
+                name: effectiveName || undefined,
                 username: username.trim() || undefined,
                 birthday: birthday.trim() ? normalizeBirthday(birthday) : undefined,
                 location_city: city.trim() || undefined,
@@ -386,7 +389,7 @@ export default function ProfileSetupScreen() {
 
                     {/* Name */}
                     <View style={styles.fieldBlock}>
-                        <Text style={styles.label}>Display Name</Text>
+                        <Text style={styles.label}>Display Name{isApple ? ' (optional)' : ''}</Text>
                         <TextInput
                             style={styles.input}
                             value={name}

@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -34,6 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { supabase } from '../src/integrations/supabase/client';
+import { OnboardingService } from '../src/services/onboardingService';
 import { UserVisibilityService } from '../src/services/userVisibilityService';
 import {
   getCurrentUserSettingsPreferences,
@@ -60,6 +62,7 @@ export default function SettingsScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
 
@@ -107,7 +110,7 @@ export default function SettingsScreen() {
 
     const { data: row } = await supabase
       .from('users')
-      .select('name, avatar_url, verified')
+      .select('name, avatar_url, verified, contact_email')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -115,6 +118,7 @@ export default function SettingsScreen() {
       setDisplayName(row.name || '');
       setAvatarUrl(row.avatar_url || null);
       setVerified(Boolean(row.verified));
+      setContactEmail(row.contact_email || '');
     }
 
     setLoading(false);
@@ -123,6 +127,34 @@ export default function SettingsScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Optional: lets Apple Hide-My-Email users share a real address (never required).
+  const onEditContactEmail = () => {
+    if (!userId) return;
+    Alert.prompt(
+      'Contact email',
+      'Optional. A real email so we can reach you directly. Leave blank to keep it private.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Save',
+          onPress: async (value?: string) => {
+            const v = (value ?? '').trim();
+            if (!v || !/^[^s@]+@[^s@]+.[^s@]+$/.test(v)) {
+              Alert.alert('Invalid email', 'Please enter a valid email address.');
+              return;
+            }
+            const ok = await OnboardingService.updateContactEmail(userId, v);
+            if (ok) setContactEmail(v);
+            else Alert.alert('Could not save', 'Please try again.');
+          },
+        },
+      ],
+      'plain-text',
+      contactEmail,
+      'email-address'
+    );
+  };
 
   const nameInitial = (displayName || email || 'U').trim().charAt(0).toUpperCase();
 
@@ -419,6 +451,17 @@ export default function SettingsScreen() {
             description="Change password or email address"
             onPress={() => router.push('/settings/security')}
           />
+          {Platform.OS === 'ios' ? (
+            <>
+              <RowDivider />
+              <AccountNavRow
+                icon={Mail}
+                label="Contact email (optional)"
+                description={contactEmail || 'Add a real email for direct updates'}
+                onPress={onEditContactEmail}
+              />
+            </>
+          ) : null}
           <RowDivider />
           <AccountNavRow
             icon={CheckCircle}
