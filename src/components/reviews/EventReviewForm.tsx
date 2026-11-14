@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -624,7 +624,19 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
     }
   };
 
+  const submittingRef = useRef(false);
+  // Guard wraps the whole submit: setLoading(true) only runs after validation awaits, so a
+  // double-click could start two runs (duplicate reviews).
   const handleSubmit = async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      await handleSubmitInner();
+    } finally {
+      submittingRef.current = false;
+    }
+  };
+  const handleSubmitInner = async () => {
     if (!userId) {
       toast({ title: 'Authentication Required', description: 'Please log in to submit a review.', variant: 'destructive' });
       return;
@@ -1109,14 +1121,18 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
       try {
         logger.debug('🗑️ EventReviewForm: Deleting drafts for artist+venue:', { artistId: safeArtistId, venueId: safeVenueId });
         
-        const { error: deleteError, data: deletedData } = await supabase
-          .from('reviews')
-          .delete()
-          .eq('user_id', userId)
-          .eq('artist_id', safeArtistId)
-          .eq('venue_id', safeVenueId)
-          .eq('is_draft', true)
-          .select('id');
+        // Skipped when a date is set: the date-matching cleanup below handles that case, and
+        // this blanket delete wiped drafts for OTHER nights at the same venue.
+        const { error: deleteError, data: deletedData } = formData.eventDate
+          ? { error: null, data: [] as { id: string }[] }
+          : await supabase
+              .from('reviews')
+              .delete()
+              .eq('user_id', userId)
+              .eq('artist_id', safeArtistId)
+              .eq('venue_id', safeVenueId)
+              .eq('is_draft', true)
+              .select('id');
         
         if (deleteError) {
           logger.error('❌ EventReviewForm: Draft deletion failed:', deleteError);

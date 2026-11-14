@@ -1615,7 +1615,24 @@ export class ReviewService {
     try {
       console.log('🗑️ Deleting review:', { userId, reviewId });
 
-      // Best-effort cleanup of derived thumbnail (ignore failures, do not block delete).
+      // Delete the row FIRST: removing the thumbnail first left a broken image on a review
+      // that then failed to delete. RLS can match 0 rows without an error, so check rows.
+      const { data: deleted, error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', reviewId)
+        .eq('user_id', userId)
+        .select('id');
+
+      if (error) {
+        console.error('Error deleting review:', error);
+        throw error;
+      }
+      if (!deleted || deleted.length === 0) {
+        throw new Error('Review was not deleted (not found or not allowed)');
+      }
+
+      // Best-effort cleanup of derived thumbnail (ignore failures).
       try {
         const { error: thumbRemoveError } = await storageService.removeReviewThumbnail(reviewId);
         if (thumbRemoveError) {
@@ -1626,17 +1643,6 @@ export class ReviewService {
         }
       } catch (err: any) {
         console.warn('⚠️ ReviewService: Thumbnail removal threw (non-fatal):', err?.message ?? String(err));
-      }
-
-      const { error } = await supabase
-        .from('reviews')
-        .delete()
-        .eq('id', reviewId)
-        .eq('user_id', userId);
-
-      if (error) {
-        console.error('Error deleting review:', error);
-        throw error;
       }
       console.log('✅ Review deleted successfully');
     } catch (error) {

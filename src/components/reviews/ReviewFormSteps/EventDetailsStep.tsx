@@ -11,6 +11,7 @@ import type { ReviewFormData } from '@/hooks/useReviewForm';
 import { supabase } from '@/integrations/supabase/client';
 import { searchPastEventsForReview } from '@synth/shared';
 import { isEventPast, getEventStatus } from '@/utils/eventStatusUtils';
+import { todayLocalYmd } from '@/utils/localYmd';
 
 interface EventDetailsStepProps {
   formData: ReviewFormData;
@@ -372,7 +373,7 @@ export function EventDetailsStep({ formData, errors, onUpdateFormData, onClose }
             value={formData.eventDate}
             onChange={handleDateChange}
             className="w-full"
-            max={new Date().toISOString().split('T')[0]}
+            max={todayLocalYmd()}
           />
           {errors.eventDate && (
             <p className="text-sm text-red-600">{errors.eventDate}</p>

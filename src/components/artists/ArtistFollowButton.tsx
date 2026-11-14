@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { UserPlus, UserCheck, Loader2 } from 'lucide-react';
 import { ArtistFollowService } from '@/services/artistFollowService';
 import { VerifiedChatService } from '@/services/verifiedChatService';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { trackInteraction } from '@/services/interactionTrackingService';
 
@@ -34,6 +35,15 @@ export function ArtistFollowButton({
   onFollowChange
 }: ArtistFollowButtonProps) {
   const [isFollowing, setIsFollowing] = useState(false);
+  const isFollowingRef = useRef(false);
+  // Single place that changes follow state + count, so the toggle and the realtime event
+  // for the same change can't both add 1.
+  const applyFollowChange = (next: boolean) => {
+    if (isFollowingRef.current === next) return;
+    isFollowingRef.current = next;
+    setIsFollowing(next);
+    setFollowerCount(prev => (next ? prev + 1 : Math.max(0, prev - 1)));
+  };
   const [followerCount, setFollowerCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [artistId, setArtistId] = useState<string | null>(propArtistId || null);
@@ -93,6 +103,7 @@ export function ArtistFollowButton({
           return; // No artist information available
         }
 
+        isFollowingRef.current = stats.is_following;
         setIsFollowing(stats.is_following);
         setFollowerCount(stats.follower_count);
       } catch (error) {
@@ -101,6 +112,7 @@ export function ArtistFollowButton({
         if (artistName) {
           try {
             const stats = await ArtistFollowService.getArtistFollowStatsByName(artistName, userId);
+            isFollowingRef.current = stats.is_following;
             setIsFollowing(stats.is_following);
             setFollowerCount(stats.follower_count);
           } catch (fallbackError) {
@@ -125,14 +137,13 @@ export function ArtistFollowButton({
         
         if (isOurArtist) {
           const newIsFollowing = event === 'INSERT';
-          setIsFollowing(newIsFollowing);
-          setFollowerCount(prev => newIsFollowing ? prev + 1 : Math.max(0, prev - 1));
+          applyFollowChange(newIsFollowing);
         }
       }
     );
 
     return () => {
-      channel.unsubscribe();
+      void supabase.removeChannel(channel);
     };
   }, [userId, resolvedArtistId, artistName]);
 
@@ -169,8 +180,7 @@ export function ArtistFollowButton({
         throw new Error('No artist information available');
       }
 
-      setIsFollowing(newIsFollowing);
-      setFollowerCount(prev => newIsFollowing ? prev + 1 : Math.max(0, prev - 1));
+      applyFollowChange(newIsFollowing);
 
       // Track follow/unfollow interaction
       try {

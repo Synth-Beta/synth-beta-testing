@@ -234,9 +234,9 @@
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/profile.tsx": {
-    "mtime": 1794267359.6703854,
-    "seen": 1794352142.400795,
-    "ast_hash": "eaeb387ef44e723472ba9a5ebe9f2452",
+    "mtime": 1794409519.3291752,
+    "seen": 1794409885.690132,
+    "ast_hash": "cc9b2b10a791b265886810a57f227bdc",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/scene.tsx": {
@@ -408,9 +408,9 @@
     "semantic_hash": ""
   },
   "mobile/app/settings.tsx": {
-    "mtime": 1792509838.3918798,
-    "seen": 1792510187.3543005,
-    "ast_hash": "13bff9235146e05b31279d5839844104",
+    "mtime": 1794409723.1564837,
+    "seen": 1794409885.690132,
+    "ast_hash": "d29984e17a52ae2462449c2f3f6249b9",
     "semantic_hash": ""
   },
   "mobile/app/settings/delete-account.tsx": {
@@ -8844,10 +8844,10 @@
     "semantic_hash": ""
   },
   "packages/synth-shared/src/contactEmailGate.ts": {
-    "mtime": 1791563914.2677202,
-    "seen": 1791513273.7577846,
-    "ast_hash": "b8051cee122e850e9d7f25ffe5844d94",
-    "semantic_hash": "b8051cee122e850e9d7f25ffe5844d94"
+    "mtime": 1794409514.3170185,
+    "seen": 1794409885.690132,
+    "ast_hash": "416f97c3be3977212272e3fd8327fe85",
+    "semantic_hash": ""
   },
   "src/components/onboarding/EmailRequiredModal.tsx": {
     "mtime": 1791563914.5514462,
@@ -12783,6 +12783,12 @@
     "mtime": 1794265548.1785123,
     "seen": 1794265927.8570154,
     "ast_hash": "cbc404ac6fcc083564273a338150ef0d",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261109120000_reviews_custom_setlist_met_on_synth.sql": {
+    "mtime": 1794277888.2500107,
+    "seen": 1794409885.6917398,
+    "ast_hash": "f6c6cf098e3471c8dad76544d76437fb",
     "semantic_hash": ""
   }
 }

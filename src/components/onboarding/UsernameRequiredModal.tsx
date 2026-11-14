@@ -29,6 +29,7 @@ export function UsernameRequiredModal({ currentUsername, onComplete }: UsernameR
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setCheckState('checking');
+    let stale = false; // a slow earlier check must not overwrite the state for a newer value
     debounceRef.current = setTimeout(async () => {
       try {
         const { validateUsernameFormat, sanitizeUsername } = await import('@/utils/usernameUtils');
@@ -41,6 +42,7 @@ export function UsernameRequiredModal({ currentUsername, onComplete }: UsernameR
         }
         const { checkUsernameAvailability } = await import('@/services/usernameService');
         const result = await checkUsernameAvailability(sanitized, user?.id);
+        if (stale) return;
         if (result.available) {
           setCheckState('available');
           setErrorMsg('');
@@ -55,6 +57,7 @@ export function UsernameRequiredModal({ currentUsername, onComplete }: UsernameR
     }, 500);
 
     return () => {
+      stale = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [value, user?.id]);
@@ -74,7 +77,7 @@ export function UsernameRequiredModal({ currentUsername, onComplete }: UsernameR
       const { sanitizeUsername } = await import('@/utils/usernameUtils');
       const { updateUsername } = await import('@/services/usernameService');
       const sanitized = sanitizeUsername(value);
-      const result = await updateUsername(user.id, sanitized);
+      const result = await updateUsername(user.id, sanitized, { skipCooldown: true });
       if (result.success) {
         onComplete(sanitized);
       } else {

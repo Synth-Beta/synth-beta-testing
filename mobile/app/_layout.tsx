@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, type AppStateStatus } from 'react-native';
+import { ForceUpdateScreen, useUpdateRequired } from '../src/components/ForceUpdateGate';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
@@ -373,6 +374,7 @@ function RootLayout() {
     };
   }, [sessionResolved, sessionUserId, storageOnboardingComplete]);
 
+  const updateRequired = useUpdateRequired();
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   // Routing waits for this so a saved contact email isn't mistaken for a missing one on
   // cold start (which bounced Apple relay users to /email-required and dropped deep links).
@@ -650,6 +652,10 @@ function RootLayout() {
       }
     }
   }, [routingReady, isOnboardingComplete, session, segments, router, sessionUserId, refreshOnboardingFromStorage, needsEmail]);
+
+  if (updateRequired) {
+    return <ForceUpdateScreen />;
+  }
 
   if (!routingReady) {
     return <AppLoadingSkeleton />;

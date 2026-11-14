@@ -9,34 +9,47 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
+  const [message, setMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // Check if we have a valid reset token in the URL
-    // Supabase puts the token in the URL hash like: #access_token=...&type=recovery
+    // Valid when the URL still carries the recovery hash, OR a session already exists:
+    // DeepLinkHandler consumes the hash, sets the session and navigates here without it,
+    // so a hash-only check flipped the page to "Invalid Reset Link" right after it loaded.
     const hashParams = new URLSearchParams(location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const type = hashParams.get('type');
-
-    if (accessToken && type === 'recovery') {
+    if (hashParams.get('access_token') && hashParams.get('type') === 'recovery') {
       setIsValidToken(true);
-    } else {
-      setIsValidToken(false);
+      return;
     }
+    let cancelled = false;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      setIsValidToken(prev => (prev === true ? true : Boolean(data.session)));
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') setIsValidToken(true);
+    });
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, [location]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
+      setMessage({ kind: 'error', text: 'Passwords do not match.' });
       return;
     }
 
     if (password.length < 6) {
+      setMessage({ kind: 'error', text: 'Password must be at least 6 characters.' });
       return;
     }
 
+    setMessage(null);
     setLoading(true);
 
     try {
@@ -48,12 +61,15 @@ export default function ResetPassword() {
         throw error;
       }
 
-      // Redirect to login after a short delay
+      setMessage({ kind: 'success', text: 'Password updated. Redirecting to sign in…' });
+      // Sign out so they log in fresh with the new password, then redirect.
+      await supabase.auth.signOut();
       setTimeout(() => {
         navigate('/');
-      }, 2000);
+      }, 1500);
     } catch (error: any) {
       console.error('Error resetting password:', error);
+      setMessage({ kind: 'error', text: error?.message || 'Could not reset password. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -124,6 +140,14 @@ export default function ResetPassword() {
                 className="w-full"
               />
             </div>
+            {message && (
+              <p
+                role={message.kind === 'error' ? 'alert' : 'status'}
+                className={message.kind === 'error' ? 'text-sm text-red-600' : 'text-sm text-green-600'}
+              >
+                {message.text}
+              </p>
+            )}
             <Button
               type="submit"
               disabled={loading}

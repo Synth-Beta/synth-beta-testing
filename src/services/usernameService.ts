@@ -192,14 +192,16 @@ export async function getLastUsernameChangeDate(userId: string): Promise<Date | 
  */
 export async function updateUsername(
   userId: string,
-  newUsername: string
+  newUsername: string,
+  // Forced changes (auto-generated username) must bypass the cooldown or the user is stuck.
+  options?: { skipCooldown?: boolean }
 ): Promise<{ success: boolean; error?: string }> {
   // Check if user can change username
-  const canChange = await canChangeUsername(userId);
+  const canChange = options?.skipCooldown ? { allowed: true } : await canChangeUsername(userId);
   if (!canChange.allowed) {
     return {
       success: false,
-      error: `You can only change your username once every ${USERNAME_CHANGE_COOLDOWN_DAYS} days. You can change it again in ${canChange.daysRemaining} day${canChange.daysRemaining !== 1 ? 's' : ''}.`,
+      error: `You can only change your username once every ${USERNAME_CHANGE_COOLDOWN_DAYS} days. You can change it again in ${(canChange as any).daysRemaining} day${(canChange as any).daysRemaining !== 1 ? 's' : ''}.`,
     };
   }
   
@@ -214,14 +216,15 @@ export async function updateUsername(
   
   try {
     // Update username and last_username_change_at
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from('users')
       .update({
         username: sanitized,
         last_username_change_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .select('user_id');
     
     if (error) {
       // Handle unique constraint violation
@@ -232,16 +235,17 @@ export async function updateUsername(
       // Handle missing column gracefully
       if (error.message?.includes('last_username_change_at') || error.code === '42703') {
         // Column doesn't exist yet, try without it
-        const { error: updateError } = await supabase
+        const { data: fallbackRows, error: updateError } = await supabase
           .from('users')
           .update({
             username: sanitized,
             updated_at: new Date().toISOString(),
           })
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .select('user_id');
         
-        if (updateError) {
-          console.error('Error updating username:', updateError);
+        if (updateError || !fallbackRows?.length) {
+          console.error('Error updating username:', updateError ?? 'no row updated');
           return { success: false, error: 'Failed to update username' };
         }
         
@@ -249,6 +253,11 @@ export async function updateUsername(
       }
       
       console.error('Error updating username:', error);
+      return { success: false, error: 'Failed to update username' };
+    }
+
+    // supabase-js reports 0 matched rows (missing row / RLS) as success.
+    if (!updatedRows?.length) {
       return { success: false, error: 'Failed to update username' };
     }
     

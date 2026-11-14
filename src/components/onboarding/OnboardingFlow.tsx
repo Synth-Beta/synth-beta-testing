@@ -140,6 +140,10 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       return;
     }
 
+    // Claim before the await below: the modal's onDone and onOpenChange(false) can both call
+    // this, and the old ref was only set after the count query, so both ran the finish.
+    finishOnboardingRef.current = true;
+
     if (!bypassArtistMinimum) {
       // Single choke point for the artist minimum. The modal's Done button, its X, and the
       // dialog's own dismiss all funnel through here, so the rule is enforced once rather
@@ -147,6 +151,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       try {
         const follows = await OnboardingService.countArtistFollows(user.id);
         if (follows < OnboardingService.MIN_ARTIST_FOLLOWS) {
+          finishOnboardingRef.current = false;
           setShowFollowArtistsModal(true);
           return;
         }
@@ -157,7 +162,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       }
     }
 
-    finishOnboardingRef.current = true;
     setShowFollowArtistsModal(false);
     setFavoriteArtistOptions([]);
 
@@ -405,7 +409,18 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     };
   }, [session?.user?.id]);
 
+  const completeSetupRunningRef = useRef(false);
+  // setLoading(true) only runs after validation awaits, so a double-click started two runs.
   const handleCompleteSetup = async () => {
+    if (completeSetupRunningRef.current) return;
+    completeSetupRunningRef.current = true;
+    try {
+      await handleCompleteSetupInner();
+    } finally {
+      completeSetupRunningRef.current = false;
+    }
+  };
+  const handleCompleteSetupInner = async () => {
     setCompletionError(null);
 
     // Never call /auth/v1/user or profile/account queries unless we have a session.
@@ -675,17 +690,27 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
             <div className="w-11" />
           </div>
 
-          {loading || prefillLoading || !session ? (
+          {prefillLoading || !session ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center space-y-4">
                 <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
                 <p className="text-muted-foreground">
-                  {loading ? 'Saving your information...' : 'Preparing your account...'}
+                  Preparing your account...
                 </p>
               </div>
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto space-y-10">
+              {/* Overlay (not an unmount) while saving: unmounting the steps wiped the typed
+                  music picks whenever a save failed and the form came back. */}
+              {loading && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80">
+                  <div className="text-center space-y-4">
+                    <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                    <p className="text-muted-foreground">Saving your information...</p>
+                  </div>
+                </div>
+              )}
               <section>
                 <h2 className="text-xl font-semibold mb-4">Your profile</h2>
                 <ProfileSetupStep

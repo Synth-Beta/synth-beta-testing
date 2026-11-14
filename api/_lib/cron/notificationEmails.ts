@@ -80,9 +80,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       users.push(...(u.data ?? []));
       (t.data ?? []).forEach((r) => tokenUsers.add(r.user_id));
     }
-    const { data: unsubs, error: uErr } = await db.from('newsletter_unsubscribes').select('email');
-    if (uErr) throw new Error(uErr.message);
-    const unsubscribed = new Set((unsubs ?? []).map((r) => String(r.email).trim().toLowerCase()));
+    // Paginate: PostgREST caps a plain select at 1000 rows, which would drop the rest of the
+    // suppression list and email people who unsubscribed.
+    const unsubs: { email: string }[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const { data, error: uErr } = await db
+        .from('newsletter_unsubscribes')
+        .select('email')
+        .order('email')
+        .range(offset, offset + 499);
+      if (uErr) throw new Error(uErr.message);
+      unsubs.push(...(data ?? []));
+      if (!data || data.length < 500) break;
+    }
+    const unsubscribed = new Set(unsubs.map((r) => String(r.email).trim().toLowerCase()));
 
     const recipients = groupEmailRecipients(notifs ?? [], users, tokenUsers, unsubscribed);
     let sent = 0;
@@ -116,6 +127,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sent++;
       } catch (e) {
         failed++;
+        // A definite rejection means nothing was sent: release the claim so the next run
+        // retries (uncertain failures stay claimed to keep at-most-once).
+        if (e instanceof DeliveryRejectedError) {
+          await db.from('notifications').update({ email_sent_at: null }).in('id', items.map((n) => n.id));
+        }
         console.warn('[cron/notification-emails] send failed:', e instanceof Error ? e.message : e);
         if (e instanceof DeliveryRejectedError && e.stopBatch) break;
       }

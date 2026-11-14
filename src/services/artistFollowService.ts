@@ -657,7 +657,8 @@ export class ArtistFollowService {
     onFollowChange: (follow: ArtistFollow, event: 'INSERT' | 'DELETE') => void
   ) {
     const channel = supabase
-      .channel('artist-follows')
+      // Unique per call: same-named channels are shared, so one button unmounting killed the rest.
+      .channel(`artist-follows-${userId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {

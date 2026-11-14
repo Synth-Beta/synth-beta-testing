@@ -205,7 +205,11 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
           error.message?.includes('Network request failed')
         );
 
-        if (error.status === 400 || error.message?.includes('Invalid login credentials')) {
+        const unconfirmed =
+          (error as any).code === 'email_not_confirmed' || /email not confirmed/i.test(error.message || '');
+        if (unconfirmed) {
+          userMessage = 'Please confirm your email first. Check your inbox for the confirmation link.';
+        } else if (error.status === 400 || error.message?.includes('Invalid login credentials')) {
           userMessage = 'Invalid email or password. Please check your credentials.';
         } else if (isNetworkError) {
           userMessage = 'Network error. Please check your internet connection.';
