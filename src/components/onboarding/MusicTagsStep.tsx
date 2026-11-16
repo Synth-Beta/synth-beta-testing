@@ -505,27 +505,7 @@ export const MusicTagsStep = ({
           Connect your music (optional)
         </p>
         <div className="flex flex-wrap gap-3">
-          {isAdmin() ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-2 border-green-500 var(--neutral-900) hover:bg-green-50 hover:var(--neutral-900)"
-            onClick={handleConnectSpotify}
-            disabled={spotifyConnecting}
-          >
-            {spotifyConnecting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin var(--neutral-900)" />
-                Connecting…
-              </>
-            ) : (
-              <>
-                <LogIn className="w-4 h-4 var(--neutral-900)" />
-                Connect Spotify (admin)
-              </>
-            )}
-          </Button>
-          ) : null}
+          {/* No Spotify login in onboarding (Spotify Development Mode = allowlisted accounts only). */}
           <Button
             type="button"
             variant="outline"
@@ -546,8 +526,8 @@ export const MusicTagsStep = ({
             )}
           </Button>
         </div>
-        {/* The Spotify export takes days to arrive, so it lives in Settings only. */}
-        <MusicImportOptions showExport={false} onImported={() => undefined} />
+        {/* Last.fm + Spotify data upload (for users who already have Spotify's export email). */}
+        <MusicImportOptions onImported={() => undefined} />
       </div>
       ) : null}
 

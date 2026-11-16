@@ -11,17 +11,14 @@ import { OnboardingProgress } from '../../src/components/OnboardingProgress';
 import { supabase } from '../../src/integrations/supabase/client';
 import { getStreamingLinkStatus } from '../../src/services/streamingConnectionService';
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
-import { authenticateSpotifyInApp } from '../../src/services/spotifyAuthService';
-import { syncStreamingProfile, withSessionHash } from '../../src/services/streamingSyncActions';
-import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
-import { SPOTIFY_EMPTY_SYNC_MESSAGE } from '@synth/shared';
-import { useIsAdmin } from '../../src/hooks/useIsAdmin';
+import { withSessionHash } from '../../src/services/streamingSyncActions';
+import { trackOnboardingStep } from '../../src/services/onboardingTelemetry';
 import { MusicImportOptions } from '../../src/components/streaming/MusicImportOptions';
 
 export default function ConnectScreen() {
     const router = useRouter();
-    // Spotify's Development Mode only serves allowlisted accounts, so only admins see it.
-    const isAdmin = useIsAdmin();
+    // No Spotify login here, even for admins: Spotify's Development Mode only serves
+    // allowlisted accounts. Everyone gets Apple Music, Last.fm, or the Spotify data upload.
     const [isLinked, setIsLinked] = useState(false);
     const [checking, setChecking] = useState(false);
     // Shown when a connection attempt didn't take, so nobody waits on a silent failure.
@@ -54,48 +51,6 @@ export default function ConnectScreen() {
         }
     }, []);
 
-    const handleConnectSpotify = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        setChecking(true);
-        try {
-            const authResult = await authenticateSpotifyInApp();
-            if (!authResult.ok) {
-                // Silently ignore cancellation; show an alert for real errors.
-                if (!authResult.cancelled) {
-                    Alert.alert('Connect failed', authResult.error);
-                }
-                return;
-            }
-
-            // Token persisted — trigger first server sync.
-            const syncResult = await syncStreamingProfile(user.id, 'spotify', { manual: true });
-            const status = await getStreamingLinkStatus(user.id);
-            if (status.linked) {
-                setIsLinked(true);
-                setConnectNote(null);
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } else {
-                // Typically Spotify sent no data (app still in Development Mode).
-                // Show the real reason (timeout, offline, server error) when the sync gave one.
-                trackOnboardingBlock('spotify_no_data_nonfatal');
-                setConnectNote(
-                    !syncResult.ok && syncResult.message
-                        ? /skip/i.test(syncResult.message)
-                            ? syncResult.message
-                            : `${syncResult.message} You can try again or skip for now.`
-                        : SPOTIFY_EMPTY_SYNC_MESSAGE
-                );
-            }
-        } catch {
-            trackOnboardingBlock('spotify_connect_threw_nonfatal');
-            setConnectNote("Couldn't reach Spotify. Check your connection and try again, or skip for now.");
-        } finally {
-            setChecking(false);
-        }
-    }, []);
-
     const checkStatus = useCallback(async () => {
         setChecking(true);
         try {
@@ -109,10 +64,10 @@ export default function ConnectScreen() {
         }
     }, []);
 
-    // Connecting music is optional. Next: density room preference, then artists.
+    // Connecting music is optional. Next: artists (the DC room is joined automatically there).
     const handleContinue = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push('/(onboarding)/scene');
+        router.push('/(onboarding)/artists');
     };
 
     return (
@@ -121,7 +76,7 @@ export default function ConnectScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={5} currentStep={3} />
+                <OnboardingProgress totalSteps={3} currentStep={2} />
                 <Pressable onPress={handleContinue} style={styles.skipButton}>
                     <SynthText variant="meta" color="secondary">Skip</SynthText>
                 </Pressable>
@@ -134,16 +89,6 @@ export default function ConnectScreen() {
                 </SynthText>
 
                 <View style={styles.cardsContainer}>
-                    {isAdmin ? (
-                        <ServiceCard
-                            name="Spotify (admin)"
-                            color="#1DB954"
-                            isConnected={isLinked}
-                            connecting={checking}
-                            onConnect={() => void handleConnectSpotify()}
-                            subtitle={checking ? 'Connecting…' : 'Stay in app · takes 30 seconds'}
-                        />
-                    ) : null}
                     <ServiceCard
                         name="Apple Music"
                         color="#FA243C"
@@ -152,9 +97,10 @@ export default function ConnectScreen() {
                         subtitle="Opens on web · same quick flow"
                     />
                     {isLinked ? null : (
-                        // The Spotify export takes days to arrive, so it lives in Settings only.
+                        // Last.fm + the Spotify data upload. The export email takes days, so it is
+                        // shown for users who already have it; anyone else can skip and upload later.
                         <MusicImportOptions
-                            showExport={false}
+                            showExport
                             onImported={() => {
                                 setIsLinked(true);
                                 setConnectNote(null);

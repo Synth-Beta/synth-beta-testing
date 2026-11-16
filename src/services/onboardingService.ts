@@ -152,9 +152,9 @@ export class OnboardingService {
    * loadProfileDraft() already reads exactly these columns, so a draft written here shows
    * up prefilled there with no mobile change at all.
    *
-   * Deliberately excludes `username` and `name`: username is unique across users, and
-   * persisting a half-typed one would let an abandoned session squat a name nobody ends
-   * up using. Those two stay cheap to retype and are written only on real submit.
+   * `name` and a format-valid `username` are saved too, so a user who leaves right after the
+   * first fields keeps them. A taken username fails the unique constraint; that is retried
+   * without it so the rest of the draft still saves.
    *
    * Never throws and never blocks the form — a failed draft save just means no prefill.
    */
@@ -162,7 +162,7 @@ export class OnboardingService {
     userId: string,
     draft: Pick<
       ProfileSetupData,
-      'location_city' | 'birthday' | 'gender' | 'bio' | 'acquisition_source' | 'other_acquisition_source' | 'contact_email'
+      'name' | 'username' | 'location_city' | 'birthday' | 'gender' | 'bio' | 'acquisition_source' | 'other_acquisition_source' | 'contact_email'
     >
   ): Promise<void> {
     const update: Record<string, unknown> = {};
@@ -176,7 +176,12 @@ export class OnboardingService {
     update.updated_at = new Date().toISOString();
 
     try {
-      const { error } = await supabase.from('users').update(update).eq('user_id', userId);
+      if (typeof update.username === 'string') update.username = update.username.toLowerCase();
+      let { error } = await supabase.from('users').update(update).eq('user_id', userId);
+      if (error && error.code === '23505' && 'username' in update) {
+        const { username: _taken, ...rest } = update;
+        ({ error } = await supabase.from('users').update(rest).eq('user_id', userId));
+      }
       if (error) console.warn('saveProfileDraft: could not persist draft:', error.message);
     } catch (error) {
       console.warn('saveProfileDraft: could not persist draft:', error);

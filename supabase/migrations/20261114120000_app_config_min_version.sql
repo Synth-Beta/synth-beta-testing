@@ -20,5 +20,5 @@ CREATE POLICY "app_config readable by everyone"
   TO anon, authenticated
   USING (true);
 
-INSERT INTO public.app_config (key, value) VALUES ('ios_min_version', '1.4.4')
+INSERT INTO public.app_config (key, value) VALUES ('ios_min_version', '1.5.4')
 ON CONFLICT (key) DO NOTHING;

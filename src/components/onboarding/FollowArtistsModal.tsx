@@ -56,6 +56,9 @@ export const FollowArtistsModal = ({
   const [followedCount, setFollowedCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadFailed, setLoadFailed] = useState(false);
+  // Closing with too few picks used to "commit", fail the minimum and reopen the modal, so
+  // the X looked broken. Now it stays open and says why.
+  const [closeNudge, setCloseNudge] = useState(false);
 
   const getArtistKey = (artist: FollowArtistOption) => {
     if (artist.id) {
@@ -152,6 +155,14 @@ export const FollowArtistsModal = ({
    * so a selection is never lost. If every follow fails, the user still gets through
    * (bypass): a save error must never be the reason someone is stuck in onboarding.
    */
+  const tryClose = () => {
+    if (!canFinish) {
+      setCloseNudge(true);
+      return;
+    }
+    void commit();
+  };
+
   const commit = async () => {
     if (saving) return;
     setSaving(true);
@@ -196,7 +207,7 @@ export const FollowArtistsModal = ({
   const closeOffset = 'var(--spacing-screen-margin-x, 20px)';
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : void commit())}>
+    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : tryClose())}>
       <DialogContent hideCloseButton>
         <div className="relative flex h-full flex-col overflow-hidden">
           <div style={{ paddingTop: closeOffset, paddingLeft: closeOffset, paddingRight: closeOffset }}>
@@ -204,7 +215,7 @@ export const FollowArtistsModal = ({
               <button
                 type="button"
                 aria-label="Close"
-                onClick={() => void commit()}
+                onClick={tryClose}
                 className="flex items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 var(--neutral-900) shadow-sm"
                 style={{
                   width: '44px',
@@ -292,7 +303,12 @@ export const FollowArtistsModal = ({
             </ScrollArea>
           </DialogBody>
 
-          <DialogFooter className="items-center justify-center sm:justify-center">
+          <DialogFooter className="flex-col items-center justify-center gap-2 sm:justify-center">
+            {closeNudge && !canFinish ? (
+              <p role="alert" className="text-sm text-destructive text-center">
+                Follow at least {remainingFollows} more artist{remainingFollows === 1 ? '' : 's'} to finish setting up.
+              </p>
+            ) : null}
             <Button
               onClick={() => void commit()}
               disabled={!canFinish || saving}

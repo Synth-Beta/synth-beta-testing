@@ -125,8 +125,20 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     exitInProgressRef.current = true;
   }, []);
 
+  // Errors render beside their fields; jump to the first one (it can be far above the button).
+  const scrollToFirstFieldError = () => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>('.border-destructive');
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus?.({ preventScroll: true });
+    });
+  };
+
   const handleExit = useCallback(() => {
     if (exitInProgressRef.current) return;
+    // Back signs the user out, so a stray tap must not silently throw away their setup.
+    if (!window.confirm('Leave setup? You will be signed out, and you can sign back in to finish later.')) return;
     beginExit();
     // Sign out so "I accidentally signed up" can actually reach the sign-in
     // form. Staying authenticated would bounce them back into onboarding.
@@ -218,7 +230,10 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   useEffect(() => {
     if (!user?.id) return;
     const timer = setTimeout(() => {
+      const usernameOk = /^[a-z0-9_.]{3,30}$/i.test(profileData.username ?? '');
       void OnboardingService.saveProfileDraft(user.id, {
+        name: profileData.name,
+        username: usernameOk ? profileData.username : undefined,
         location_city: profileData.location_city,
         birthday: profileData.birthday,
         gender: profileData.gender,
@@ -445,11 +460,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       // it is prefilled for them and was until now reported as "already taken" on their
       // own row. If that ever regresses, this shows up in the data instead of in support.
       trackBlock(profileResult?.errors?.username ? 'username' : 'profile_fields');
-      if (profileResult?.errors && Object.keys(profileResult.errors).length > 0) {
-        const firstError = Object.values(profileResult.errors)[0] as string;
-        setCompletionError(firstError);
-        completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
+      scrollToFirstFieldError();
       return;
     }
 
@@ -458,7 +469,7 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     if (acquisitionSource === null) {
       trackBlock('acquisition_source');
       setAcquisitionSourceError('Please select where you heard about Synth');
-      completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      scrollToFirstFieldError();
       return;
     }
 
@@ -482,14 +493,9 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
       }
     }
 
-    const cityForDensity = profileResult.data.location_city;
+    // The DC "vibe" pick is no longer asked: DC users are joined to the DC room automatically
+    // below (the pick only nudged which show was suggested and offered an optional second room).
     setDensityPreferenceError(null);
-    if (isDcCity(cityForDensity) && !densityPreference.preference) {
-      trackBlock('density_preference');
-      setDensityPreferenceError('Pick one preference to land in the right room');
-      completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      return;
-    }
 
     setLoading(true);
     try {
@@ -530,78 +536,53 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
         return;
       }
 
-      // Density membership: auto-join room 1 (DC); optional room 2 only if opted in.
-      // Fail closed for required room 1 so Home never lands without membership.
-      try {
-        const joinResult = await SceneRoomService.applyOnboardingJoins({
-          userId: user.id,
-          locationCity: profileResult.data.location_city,
-          preference: densityPreference.preference,
-          joinOptionalRoom2: densityPreference.joinOptionalRoom2,
-          markFeaturedInterested: densityPreference.markFeaturedInterested,
-        });
-        trackInteraction.formSubmit('form', 'onboarding_density_rooms', true, {
-          is_dc: joinResult.plan.isDc,
-          joined: joinResult.joinedRoomIds,
-          optional_offered: joinResult.plan.offerOptionalRoom2,
-          suggested_show_id: joinResult.suggestedShow?.id ?? null,
-          marked_interested: joinResult.markedInterestedEventId,
-          room_join_count: joinResult.plan.roomJoinCount,
-          required_join_failed: joinResult.requiredJoinFailed,
-        });
-        if (joinResult.requiredJoinFailed) {
-          densityJoinAttemptsRef.current += 1;
-          if (densityJoinAttemptsRef.current < 2) {
-            setCompletionError(
-              'Could not join This week in DC. Check your connection and try again.'
-            );
-            completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            return;
+      // DC room join runs in the background: it must never hold up the next step (the room
+      // can be joined from inside the app). No-op for non-DC users.
+      void (async () => {
+        try {
+          const joinResult = await SceneRoomService.applyOnboardingJoins({
+            userId: user.id,
+            locationCity: profileResult.data.location_city,
+            preference: densityPreference.preference,
+            joinOptionalRoom2: densityPreference.joinOptionalRoom2,
+            markFeaturedInterested: densityPreference.markFeaturedInterested,
+          });
+          trackInteraction.formSubmit('form', 'onboarding_density_rooms', true, {
+            is_dc: joinResult.plan.isDc,
+            joined: joinResult.joinedRoomIds,
+            optional_offered: joinResult.plan.offerOptionalRoom2,
+            suggested_show_id: joinResult.suggestedShow?.id ?? null,
+            marked_interested: joinResult.markedInterestedEventId,
+            room_join_count: joinResult.plan.roomJoinCount,
+            required_join_failed: joinResult.requiredJoinFailed,
+          });
+          if (joinResult.errors.length > 0) {
+            logger.warn('OnboardingFlow: density room join warnings:', joinResult.errors);
           }
-          logger.warn(
-            'OnboardingFlow: room join failed twice; continuing without membership'
-          );
+        } catch (joinErr) {
+          logger.error('OnboardingFlow: density room join failed (continuing):', joinErr);
         }
-        if (joinResult.errors.length > 0) {
-          logger.warn('OnboardingFlow: density room join warnings:', joinResult.errors);
-        }
-      } catch (joinErr) {
-        logger.error('OnboardingFlow: density room join failed:', joinErr);
-        densityJoinAttemptsRef.current += 1;
-        if (densityJoinAttemptsRef.current < 2) {
-          setCompletionError(
-            'Could not join This week in DC. Check your connection and try again.'
-          );
-          completeButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          return;
-        }
-        logger.warn('OnboardingFlow: room join threw twice; continuing without membership');
-      }
+      })();
 
       // Save music preferences (optional; same logic as former handleMusicTags)
-      const artistData: FollowArtistOption[] = [];
-
-      for (const artistName of musicData.artists) {
-        const normalizedArtistName = artistName.trim();
-        if (!normalizedArtistName) {
-          continue;
-        }
-
-        try {
-          const searchResults = await UnifiedArtistSearchService.searchArtistsTrigram(normalizedArtistName, 1);
-
-          if (
-            searchResults.length > 0 &&
-            searchResults[0].name.toLowerCase() === normalizedArtistName.toLowerCase()
-          ) {
-            artistData.push({
-              name: searchResults[0].name,
-              id: searchResults[0].id,
-              image_url: searchResults[0].image_url ?? undefined,
-            });
-          } else {
-            artistData.push({ name: normalizedArtistName });
+      // Resolve typed artists in parallel (was one search at a time, which the user waited on).
+      const artistData: FollowArtistOption[] = (
+        await Promise.all(
+          musicData.artists.map(async (artistName): Promise<FollowArtistOption | null> => {
+            const normalizedArtistName = artistName.trim();
+            if (!normalizedArtistName) return null;
             try {
+              const searchResults = await UnifiedArtistSearchService.searchArtistsTrigram(normalizedArtistName, 1);
+              if (
+                searchResults.length > 0 &&
+                searchResults[0].name.toLowerCase() === normalizedArtistName.toLowerCase()
+              ) {
+                return {
+                  name: searchResults[0].name,
+                  id: searchResults[0].id,
+                  image_url: searchResults[0].image_url ?? undefined,
+                };
+              }
               void import('@/services/missingEntityRequestService')
                 .then(({ MissingEntityRequestService }) =>
                   MissingEntityRequestService.submitRequest({
@@ -612,47 +593,49 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                 .catch((error) => {
                   logger.warn('Error submitting missing artist request:', error);
                 });
+              return { name: normalizedArtistName };
             } catch (error) {
-              logger.warn('Error submitting missing artist request:', error);
+              logger.warn(`Error searching for artist "${normalizedArtistName}":`, error);
+              return { name: normalizedArtistName };
             }
-          }
-        } catch (error) {
-          logger.warn(`Error searching for artist "${normalizedArtistName}":`, error);
-          artistData.push({ name: normalizedArtistName });
-        }
-      }
+          })
+        )
+      ).filter((x): x is FollowArtistOption => x !== null);
 
-      try {
-        await OnboardingService.saveMusicPreferences(user.id, musicData.genres, artistData);
-      } catch (error: any) {
-        // Music taste is OPTIONAL - the section carries no asterisk and nothing downstream
-        // requires it. This used to abort the whole submit on any non-duplicate failure,
-        // so a transient error saving data the user never had to enter locked them out of
-        // an account they had otherwise finished setting up. Log and carry on.
-        logger.error('Error saving music preferences (continuing anyway):', error);
-        trackBlock('music_prefs_failed_nonfatal');
-      }
-
-      const genreTags: MusicTagInput[] = musicData.genres.map((genre) => ({
-        tag_type: 'genre',
-        tag_value: genre,
-      }));
-      const artistTags: MusicTagInput[] = musicData.artists.map((artist) => ({
-        tag_type: 'artist',
-        tag_value: artist,
-      }));
-      const manualMusicTags = [...genreTags, ...artistTags];
-
-      if (manualMusicTags.length > 0) {
+      // Music taste is optional: save it in the background so the follow step opens at once.
+      void (async () => {
         try {
-          const success = await MusicTagsService.bulkUpdateMusicTags(user.id, manualMusicTags);
-          if (!success) {
-            logger.warn('OnboardingFlow: failed to sync manual music tags.');
-          }
-        } catch (error) {
-          logger.error('OnboardingFlow: error syncing manual music tags:', error);
+          await OnboardingService.saveMusicPreferences(user.id, musicData.genres, artistData);
+        } catch (error: any) {
+          // Music taste is OPTIONAL - the section carries no asterisk and nothing downstream
+          // requires it. This used to abort the whole submit on any non-duplicate failure,
+          // so a transient error saving data the user never had to enter locked them out of
+          // an account they had otherwise finished setting up. Log and carry on.
+          logger.error('Error saving music preferences (continuing anyway):', error);
+          trackBlock('music_prefs_failed_nonfatal');
         }
-      }
+
+        const genreTags: MusicTagInput[] = musicData.genres.map((genre) => ({
+          tag_type: 'genre',
+          tag_value: genre,
+        }));
+        const artistTags: MusicTagInput[] = musicData.artists.map((artist) => ({
+          tag_type: 'artist',
+          tag_value: artist,
+        }));
+        const manualMusicTags = [...genreTags, ...artistTags];
+
+        if (manualMusicTags.length > 0) {
+          try {
+            const success = await MusicTagsService.bulkUpdateMusicTags(user.id, manualMusicTags);
+            if (!success) {
+              logger.warn('OnboardingFlow: failed to sync manual music tags.');
+            }
+          } catch (error) {
+            logger.error('OnboardingFlow: error syncing manual music tags:', error);
+          }
+        }
+      })();
       const dedupedArtists = dedupeFavoriteArtists(artistData);
       // Always open the follow step, even when nothing resolved from what they typed: the
       // modal loads suggestions and offers search of its own, and the 3-follow minimum now
@@ -719,14 +702,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                   onChange={handleProfileDraftChange}
                 />
               </section>
-
-              <DensityPreferenceStep
-                locationCity={profileData.location_city}
-                value={densityPreference}
-                onChange={handleDensityPreferenceChange}
-                suggestedShow={suggestedShow}
-                preferenceError={densityPreferenceError}
-              />
 
               <section>
                 <h2 className="text-xl font-semibold mb-4">How did you hear about Synth?</h2>

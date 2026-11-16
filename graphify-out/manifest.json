@@ -198,9 +198,9 @@
     "semantic_hash": "b47c854ebc5bb521d18a5dbcf517232b"
   },
   "mobile/app.json": {
-    "mtime": 1794264845.110777,
-    "seen": 1794265927.8570154,
-    "ast_hash": "67168b9ba189ac29bc15d0b3dc6fb0ad",
+    "mtime": 1794796171.3029723,
+    "seen": 1794796310.9792323,
+    "ast_hash": "9a1f1ff4b81ee3647cf25838adcdfb5a",
     "semantic_hash": ""
   },
   "mobile/app/(auth)/_layout.tsx": {
@@ -12795,6 +12795,12 @@
     "mtime": 1794693163.599151,
     "seen": 1794693988.3383594,
     "ast_hash": "e087499d361c1dd123d113e46e004943",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261114120000_app_config_min_version.sql": {
+    "mtime": 1794779093.6363199,
+    "seen": 1794796310.9792323,
+    "ast_hash": "37d35b07b2430b4431835e51c7f4b687",
     "semantic_hash": ""
   }
 }

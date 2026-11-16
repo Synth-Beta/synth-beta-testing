@@ -25,6 +25,12 @@ import { getCurrentLatLng, reverseGeocode } from '../../src/services/locationSer
 import { ACQUISITION_SOURCE_CANONICAL_ORDER, type AcquisitionSource, needsContactEmail, describeProfileSaveError, validateOnboardingProfile, normalizeBirthday, isPlaceholderName } from '@synth/shared';
 import type { User } from '@supabase/supabase-js';
 import { ContactEmailContext } from '../_layout';
+import { startProfileSave } from '../../src/services/pendingProfileSave';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Local copy of the form, written before the background save and cleared once it lands, so
+// quitting the app mid-save never loses what the user typed.
+const snapshotKey = (userId: string) => `synth.onboardingProfileSnapshot:${userId}`;
 import { trackOnboardingStep, trackOnboardingBlock } from '../../src/services/onboardingTelemetry';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -63,6 +69,68 @@ function suggestUsername(displayName: string): string {
     return base || '';
 }
 
+/** Three short numeric boxes (MM / DD / YYYY) with auto-advance: far easier on a phone than typing YYYY-MM-DD. */
+function BirthdayInput({ value, onChange, hasError }: { value: string; onChange: (v: string) => void; hasError: boolean }) {
+    const [m, setM] = useState('');
+    const [d, setD] = useState('');
+    const [y, setY] = useState('');
+    const dRef = useRef<TextInput>(null);
+    const yRef = useRef<TextInput>(null);
+
+    // Prefill from a stored YYYY-MM-DD value.
+    useEffect(() => {
+        const mt = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+        if (mt && `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}` !== value) {
+            setY(mt[1]);
+            setM(mt[2]);
+            setD(mt[3]);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value]);
+
+    const emit = (nm: string, nd: string, ny: string) =>
+        onChange(nm && nd && ny.length === 4 ? `${ny}-${nm.padStart(2, '0')}-${nd.padStart(2, '0')}` : '');
+    const digits = (t: string, max: number) => t.replace(/\D/g, '').slice(0, max);
+    const boxStyle = [styles.input, hasError ? styles.inputError : null, { textAlign: 'center' as const }];
+
+    return (
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TextInput
+                style={[...boxStyle, { flex: 1 }]}
+                value={m}
+                onChangeText={t => { const v = digits(t, 2); setM(v); emit(v, d, y); if (v.length === 2) dRef.current?.focus(); }}
+                placeholder="MM"
+                placeholderTextColor={SynthTokens.colors.neutral400}
+                keyboardType="number-pad"
+                maxLength={2}
+                accessibilityLabel="Birthday month"
+            />
+            <TextInput
+                ref={dRef}
+                style={[...boxStyle, { flex: 1 }]}
+                value={d}
+                onChangeText={t => { const v = digits(t, 2); setD(v); emit(m, v, y); if (v.length === 2) yRef.current?.focus(); }}
+                placeholder="DD"
+                placeholderTextColor={SynthTokens.colors.neutral400}
+                keyboardType="number-pad"
+                maxLength={2}
+                accessibilityLabel="Birthday day"
+            />
+            <TextInput
+                ref={yRef}
+                style={[...boxStyle, { flex: 2 }]}
+                value={y}
+                onChangeText={t => { const v = digits(t, 4); setY(v); emit(m, d, v); }}
+                placeholder="YYYY"
+                placeholderTextColor={SynthTokens.colors.neutral400}
+                keyboardType="number-pad"
+                maxLength={4}
+                accessibilityLabel="Birthday year"
+            />
+        </View>
+    );
+}
+
 export default function ProfileSetupScreen() {
     const router = useRouter();
     const { markContactEmailSaved } = useContext(ContactEmailContext);
@@ -71,7 +139,12 @@ export default function ProfileSetupScreen() {
     const [userId, setUserId] = useState<string | null>(null);
     const [authUser, setAuthUser] = useState<User | null>(null);
     const [username, setUsername] = useState('');
-    const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+    const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'error'>('idle');
+    const [usernameError, setUsernameError] = useState('');
+    const [nameError, setNameError] = useState('');
+    const scrollRef = useRef<ScrollView>(null);
+    const fieldY = useRef<Record<string, number>>({});
+    const checkSeq = useRef(0);
     const [birthday, setBirthday] = useState('');
     const [birthdayError, setBirthdayError] = useState('');
     const [city, setCity] = useState('');
@@ -143,6 +216,34 @@ export default function ProfileSetupScreen() {
                     setAcquisitionSourceOther(draft.other_acquisition_source);
                 }
             }
+
+            // An unsaved snapshot (app quit before the background save landed) wins over the
+            // server draft: it is newer and is exactly what they typed.
+            try {
+                const raw = await AsyncStorage.getItem(snapshotKey(user.id));
+                if (raw && !cancelled) {
+                    const snap = JSON.parse(raw) as Record<string, string>;
+                    if (snap.name) setName(snap.name);
+                    if (snap.username) {
+                        setUsername(snap.username);
+                        scheduleUsernameCheck(snap.username, user.id);
+                    }
+                    if (snap.birthday) setBirthday(snap.birthday);
+                    if (snap.city) setCity(snap.city);
+                    if (snap.gender) setGender(snap.gender);
+                    if (snap.contactEmail) setContactEmail(snap.contactEmail);
+                    if (snap.inviteCode) setInviteCode(snap.inviteCode);
+                    if (
+                        snap.acquisitionSource &&
+                        (ACQUISITION_SOURCE_CANONICAL_ORDER as readonly string[]).includes(snap.acquisitionSource)
+                    ) {
+                        setAcquisitionSource(snap.acquisitionSource as AcquisitionSource);
+                        if (snap.acquisitionSourceOther) setAcquisitionSourceOther(snap.acquisitionSourceOther);
+                    }
+                }
+            } catch {
+                /* a bad snapshot just means no local prefill */
+            }
         })();
 
         return () => {
@@ -165,10 +266,18 @@ export default function ProfileSetupScreen() {
             return;
         }
         setUsernameStatus('checking');
+        // Latest check wins: a slow earlier response must not overwrite a newer result.
+        const seq = ++checkSeq.current;
         const selfId = excludeId ?? userId;
         let query = supabase.from('users').select('user_id').eq('username', uname);
         if (selfId) query = query.neq('user_id', selfId);
-        const { data } = await query.maybeSingle();
+        const { data, error } = await query.maybeSingle();
+        if (seq !== checkSeq.current) return;
+        // supabase-js returns errors instead of throwing: a failed lookup used to read as "available".
+        if (error) {
+            setUsernameStatus('error');
+            return;
+        }
         setUsernameStatus(data ? 'taken' : 'available');
     }, [userId]);
 
@@ -211,6 +320,7 @@ export default function ProfileSetupScreen() {
     const handleUsernameChange = (text: string) => {
         const sanitized = sanitizeUsername(text);
         setUsername(sanitized);
+        setUsernameError('');
         scheduleUsernameCheck(sanitized);
     };
 
@@ -242,7 +352,36 @@ export default function ProfileSetupScreen() {
         // empty name into a NOT NULL column and hard-stopped them on this screen.
         rules.ok && (usernameStatus === 'available' || usernameStatus === 'idle');
 
+    const scrollToField = (key: string) => {
+        const y = fieldY.current[key];
+        if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+    };
+
     const handleContinue = async () => {
+        // The button stays tappable: show what's wrong and jump to it instead of a dead grey button.
+        const errs = rules.errors;
+        if (errs.name) {
+            setNameError(errs.name);
+            scrollToField('name');
+            return;
+        }
+        if (errs.username || usernameStatus === 'taken' || usernameStatus === 'invalid') {
+            if (errs.username) setUsernameError(errs.username);
+            scrollToField('username');
+            return;
+        }
+        if (errs.birthday) {
+            setBirthdayError(errs.birthday);
+            scrollToField('birthday');
+            return;
+        }
+        if (errs.acquisitionSource) {
+            trackOnboardingBlock('acquisition_source');
+            setAcquisitionSourceError(errs.acquisitionSource);
+            scrollToField('acquisition');
+            return;
+        }
+
         // Final birthday validation
         const bdErr = validateBirthday(birthday);
         if (bdErr) { setBirthdayError(bdErr); return; }
@@ -252,6 +391,11 @@ export default function ProfileSetupScreen() {
             let freshQuery = supabase.from('users').select('user_id').eq('username', username);
             if (userId) freshQuery = freshQuery.neq('user_id', userId);
             const fresh = await freshQuery.maybeSingle();
+            if (fresh.error) {
+                setUsernameError("Couldn't check that username. Check your connection and try again.");
+                scrollToField('username');
+                return;
+            }
             if (fresh.data) {
                 // Mobile already excludes the user's own row here, so this is a genuine
                 // collision - unlike the web bug where it was the user's own username.
@@ -278,8 +422,42 @@ export default function ProfileSetupScreen() {
             return;
         }
 
-        setSaving(true);
-        try {
+        // Check the invite code BEFORE saving: a bad code used to block here after the profile was
+        // already written, leaving the user on a form they believed was submitted.
+        const inviteNorm = normalizeInviteCode(inviteCode);
+        if (inviteNorm) {
+            // A thrown error is a network/RPC failure, not a bad code: keep it and continue
+            // (it is validated again when redeemed).
+            let lookupFailed = false;
+            const invite = await InviteService.preview(inviteNorm).catch(() => {
+                lookupFailed = true;
+                return null;
+            });
+            if (!invite && !lookupFailed) {
+                setInviteCodeError("That invite code doesn't exist. Check it or leave it blank.");
+                scrollToField('invite');
+                return;
+            }
+        }
+
+        if (userId) {
+            try {
+                await AsyncStorage.setItem(
+                    snapshotKey(userId),
+                    JSON.stringify({
+                        name, username, birthday, city, gender, contactEmail, inviteCode,
+                        acquisitionSource, acquisitionSourceOther,
+                    })
+                );
+            } catch {
+                /* local copy is a safety net only */
+            }
+        }
+
+        // Save in the background so the next screen opens instantly. The artists step awaits
+        // this (and retries it) before completing onboarding, so nobody finishes unsaved.
+        startProfileSave(async () => {
+          try {
             const { data: { user } } = await supabase.auth.getUser();
             // A null user (expired token) used to skip the save silently and still advance
             // to the next step, so the profile was never written and the wizard carried on
@@ -305,33 +483,19 @@ export default function ProfileSetupScreen() {
             if (showContactEmailField && trimmedContactEmail) {
                 markContactEmailSaved(trimmedContactEmail);
             }
-        } catch (e) {
-            // Real reason + code instead of a generic retry loop (see describeProfileSaveError).
-            const { code, message } = describeProfileSaveError(e);
+            await AsyncStorage.removeItem(snapshotKey(user.id)).catch(() => {});
+          } catch (e) {
+            // Real reason + code (see describeProfileSaveError); surfaced on the artists step.
+            const { code } = describeProfileSaveError(e);
             trackOnboardingBlock(`profile_save_threw_${code}`);
             console.warn('Profile setup write failed:', e);
-            setSaving(false);
-            Alert.alert('Could not save your profile', message);
-            return;
-        } finally {
-            setSaving(false);
-        }
+            throw e;
+          }
+        });
 
-        // Redeemed at the end of onboarding (artists step); here we only check it exists.
-        const code = normalizeInviteCode(inviteCode);
-        if (code) {
-            // A thrown error is a network/RPC failure, not a bad code: keep the code and
-            // continue (it is validated again when redeemed) instead of blocking the user.
-            let lookupFailed = false;
-            const invite = await InviteService.preview(code).catch(() => {
-                lookupFailed = true;
-                return null;
-            });
-            if (!invite && !lookupFailed) {
-                setInviteCodeError("That invite code doesn't exist. Check it or leave it blank.");
-                return;
-            }
-            await InviteService.savePending(code);
+        // Redeemed at the end of onboarding (artists step); here we only store it.
+        if (inviteNorm) {
+            await InviteService.savePending(inviteNorm);
         } else {
             await InviteService.clearPending();
         }
@@ -361,6 +525,7 @@ export default function ProfileSetupScreen() {
             case 'checking': return { text: 'Checking…', color: SynthTokens.colors.neutral600 };
             case 'available': return { text: '✓ Username available', color: '#16a34a' };
             case 'taken': return { text: 'Username already taken', color: '#dc2626' };
+            case 'error': return { text: "Couldn't check availability. We'll verify when you continue.", color: SynthTokens.colors.neutral600 };
             case 'invalid': return { text: 'Only letters, numbers, _ and . allowed (3–30 chars)', color: '#dc2626' };
             default: return null;
         }
@@ -372,12 +537,13 @@ export default function ProfileSetupScreen() {
                 <Pressable onPress={handleBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Back">
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={5} currentStep={2} />
+                <OnboardingProgress totalSteps={3} currentStep={1} />
                 <View style={styles.skipButton} />
             </View>
 
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <ScrollView
+                    ref={scrollRef}
                     contentContainerStyle={styles.content}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
@@ -388,20 +554,21 @@ export default function ProfileSetupScreen() {
                     </SynthText>
 
                     {/* Name */}
-                    <View style={styles.fieldBlock}>
+                    <View style={styles.fieldBlock} onLayout={e => { fieldY.current.name = e.nativeEvent.layout.y; }}>
                         <Text style={styles.label}>Display Name{isApple ? ' (optional)' : ''}</Text>
                         <TextInput
                             style={styles.input}
                             value={name}
-                            onChangeText={setName}
+                            onChangeText={t => { setName(t); if (nameError) setNameError(''); }}
                             placeholder="Your name"
                             placeholderTextColor={SynthTokens.colors.neutral400}
                             autoCorrect={false}
                         />
+                        {nameError ? <Text style={[styles.hint, { color: '#dc2626' }]}>{nameError}</Text> : null}
                     </View>
 
                     {/* Username */}
-                    <View style={styles.fieldBlock}>
+                    <View style={styles.fieldBlock} onLayout={e => { fieldY.current.username = e.nativeEvent.layout.y; }}>
                         <Text style={styles.label}>Username <Text style={styles.required}>*</Text></Text>
                         <View style={styles.inputRow}>
                             <TextInput
@@ -421,22 +588,16 @@ export default function ProfileSetupScreen() {
                         {usernameHint ? (
                             <Text style={[styles.hint, { color: usernameHint.color }]}>{usernameHint.text}</Text>
                         ) : null}
+                        {usernameError ? <Text style={[styles.hint, { color: '#dc2626' }]}>{usernameError}</Text> : null}
                     </View>
 
                     {/* Birthday */}
-                    <View style={styles.fieldBlock}>
+                    <View style={styles.fieldBlock} onLayout={e => { fieldY.current.birthday = e.nativeEvent.layout.y; }}>
                         <Text style={styles.label}>Birthday <Text style={styles.required}>*</Text></Text>
-                        <TextInput
-                            style={[styles.input, birthdayError ? styles.inputError : null]}
+                        <BirthdayInput
                             value={birthday}
-                            // Live error once a full date is typed: Continue greys out on a bad birthday, so
-                            // waiting for blur (keyboard still up) left a dead button with no reason.
-                            onChangeText={v => { setBirthday(v); setBirthdayError(v.trim().length >= 10 ? validateBirthday(v) : ''); }}
-                            onBlur={handleBirthdayBlur}
-                            placeholder="YYYY-MM-DD"
-                            placeholderTextColor={SynthTokens.colors.neutral400}
-                            keyboardType="numbers-and-punctuation"
-                            maxLength={10}
+                            hasError={!!birthdayError}
+                            onChange={v => { setBirthday(v); setBirthdayError(v.length >= 10 ? validateBirthday(v) : ''); }}
                         />
                         {birthdayError ? (
                             <Text style={[styles.hint, { color: '#dc2626' }]}>{birthdayError}</Text>
@@ -472,7 +633,7 @@ export default function ProfileSetupScreen() {
                     </View>
 
                     {/* Acquisition source */}
-                    <View style={styles.fieldBlock}>
+                    <View style={styles.fieldBlock} onLayout={e => { fieldY.current.acquisition = e.nativeEvent.layout.y; }}>
                         <Text style={styles.label}>How did you hear about Synth? <Text style={styles.required}>*</Text></Text>
                         <View style={styles.optionsRow}>
                             {ACQUISITION_SOURCE_CANONICAL_ORDER.map(source => {
@@ -519,7 +680,7 @@ export default function ProfileSetupScreen() {
                         </View>
                     )}
 
-                    <View style={styles.fieldBlock}>
+                    <View style={styles.fieldBlock} onLayout={e => { fieldY.current.invite = e.nativeEvent.layout.y; }}>
                         <Text style={styles.label}>Invite code (optional)</Text>
                         <TextInput
                             style={[styles.input, inviteCodeError ? styles.inputError : null]}
@@ -587,7 +748,7 @@ export default function ProfileSetupScreen() {
                     <SynthButton
                         title="Continue"
                         onPress={() => void handleContinue()}
-                        disabled={!canContinue}
+                        disabled={false}
                     />
                 )}
             </View>

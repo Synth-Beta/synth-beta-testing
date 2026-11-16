@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Pressable, SafeAreaView, TextInput, FlatList, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,9 @@ import { getNotificationPermissionStatus } from '../../lib/registerPushNotificat
 import { loadPrimerState, primerAllowed, recordPrimerShown } from '../../lib/pushPrimer';
 import { syncExpoPushTokenWithBackend } from '../../lib/pushTokenSync';
 import { InviteService } from '../../src/services/inviteService';
+import { SceneRoomService } from '../../src/services/sceneRoomService';
+import { awaitProfileSave, ProfileSaveError } from '../../src/services/pendingProfileSave';
+import { describeProfileSaveError } from '@synth/shared';
 
 const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
 const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
@@ -37,9 +40,18 @@ export default function ArtistsScreen() {
         loadSuggestedArtists();
     }, []);
 
+    const searchSeq = useRef(0);
+    const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (searchTimer.current) clearTimeout(searchTimer.current); }, []);
+
     const loadSuggestedArtists = async () => {
         setIsLoading(true);
-        const data = await ArtistService.getOnboardingSuggestions();
+        let data: Awaited<ReturnType<typeof ArtistService.getOnboardingSuggestions>> = [];
+        try {
+            data = await ArtistService.getOnboardingSuggestions();
+        } catch {
+            data = [];
+        }
         setArtists(data);
         // Suggestions are for browsing only — never auto-check taste/ranking picks.
         // Follows on Continue are exactly what the user tapped.
@@ -58,14 +70,25 @@ export default function ArtistsScreen() {
         setIsLoading(false);
     };
 
-    const handleSearch = async (text: string) => {
+    // Debounced, and only the latest request may update the list: a slow earlier search used to
+    // overwrite newer results, and a rejected one was an unhandled rejection.
+    const handleSearch = (text: string) => {
         setSearchQuery(text);
+        if (searchTimer.current) clearTimeout(searchTimer.current);
+        const seq = ++searchSeq.current;
         if (text.length > 2) {
-            const results = await ArtistService.searchArtists(text);
-            setArtists(results);
-            if (results.length > 0) setLoadFailed(false);
+            searchTimer.current = setTimeout(async () => {
+                try {
+                    const results = await ArtistService.searchArtists(text);
+                    if (seq !== searchSeq.current) return;
+                    setArtists(results);
+                    if (results.length > 0) setLoadFailed(false);
+                } catch {
+                    // Keep the current list; the user can keep typing or pick from it.
+                }
+            }, 300);
         } else if (text.length === 0) {
-            loadSuggestedArtists();
+            void loadSuggestedArtists();
         }
     };
 
@@ -99,7 +122,30 @@ export default function ArtistsScreen() {
             if (!user) {
                 throw new Error('No authenticated user when finishing onboarding');
             }
+            // The profile screen saved in the background; make sure it landed before finishing.
+            await awaitProfileSave();
             await OnboardingService.followArtists(user.id, selectedArtistIds);
+            // The old scene step asked DC users to pick a "vibe" just to join the DC room. Join it
+            // automatically here instead, in the background: a failure must never block finishing
+            // (the room can still be joined from inside the app). No-op for non-DC users.
+            void (async () => {
+                try {
+                    const { data: row } = await supabase
+                        .from('users')
+                        .select('location_city')
+                        .eq('user_id', user.id)
+                        .maybeSingle();
+                    await SceneRoomService.applyOnboardingJoins({
+                        userId: user.id,
+                        locationCity: row?.location_city ?? null,
+                        preference: null,
+                        joinOptionalRoom2: false,
+                        markFeaturedInterested: false,
+                    });
+                } catch {
+                    /* best-effort */
+                }
+            })();
             // Final onboarding step. Server write first — swallowing this is what left
             // finished users with onboarding_completed = false server-side, so they got
             // sent back through onboarding on any reinstall. Local flag only after it
@@ -116,6 +162,14 @@ export default function ArtistsScreen() {
                 }
             }
         } catch (error) {
+            if (error instanceof ProfileSaveError) {
+                const { message } = describeProfileSaveError(error.cause);
+                Alert.alert('Could not save your profile', message, [
+                    { text: 'Try again', style: 'cancel' },
+                    { text: 'Edit profile', onPress: () => router.replace('/(onboarding)/profile') },
+                ]);
+                return;
+            }
             // The last gate. Anyone here did EVERYTHING and still has no account - the
             // most expensive failure in the funnel, and previously invisible on mobile.
             trackOnboardingBlock('completion_write');
@@ -187,7 +241,7 @@ export default function ArtistsScreen() {
                 <Pressable onPress={() => router.back()} style={styles.backButton}>
                     <ChevronLeft color={SynthTokens.colors.neutral900} size={28} />
                 </Pressable>
-                <OnboardingProgress totalSteps={5} currentStep={5} />
+                <OnboardingProgress totalSteps={3} currentStep={3} />
                 {/* No skip — at least 1 artist is required so the feed has some signal. */}
                 <View style={styles.skipButton} />
             </View>

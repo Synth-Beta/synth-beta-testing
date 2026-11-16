@@ -171,7 +171,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
   const handleUsernameBlur = async () => {
     const username = formData.username.trim();
     if (!username) {
-      setErrors({ ...errors, username: 'Username is required' });
+      setErrors(prev => ({ ...prev, username: 'Username is required' }));
       return;
     }
 
@@ -185,7 +185,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
       const formatCheck = validateUsernameFormat(sanitized);
       
       if (!formatCheck.valid) {
-        setErrors({ ...errors, username: formatCheck.error || 'Invalid username format' });
+        setErrors(prev => ({ ...prev, username: formatCheck.error || 'Invalid username format' }));
       return;
     }
 
@@ -195,14 +195,14 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
     setIsCheckingUsername(false);
 
       if (!availability.available) {
-        setErrors({ ...errors, username: availability.error || 'This username is already taken' });
+        setErrors(prev => ({ ...prev, username: availability.error || 'This username is already taken' }));
     } else {
-      setErrors({ ...errors, username: '' });
+      setErrors(prev => ({ ...prev, username: '' }));
       }
     } catch (error) {
       logger.error('Error validating username:', error);
       setIsCheckingUsername(false);
-      setErrors({ ...errors, username: 'Error validating username' });
+      setErrors(prev => ({ ...prev, username: 'Error validating username' }));
     }
   };
 
@@ -310,7 +310,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
             value={formData.name}
             onChange={(e) => {
               setFormData({ ...formData, name: e.target.value });
-              if (errors.name) setErrors({ ...errors, name: '' });
+              if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
             }}
             autoComplete="name"
             className={`bg-white ${errors.name ? 'border-destructive' : ''}`}
@@ -346,7 +346,7 @@ export const ProfileSetupStep = forwardRef<ProfileSetupStepRef, ProfileSetupStep
                   setFormData({ ...formData, username: value });
                   // Clear error when user starts typing
                   if (errors.username) {
-                    setErrors({ ...errors, username: '' });
+                    setErrors(prev => ({ ...prev, username: '' }));
                   }
                 }}
                 onBlur={handleUsernameBlur}
