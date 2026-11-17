@@ -36,38 +36,18 @@ const RATE_LIMIT_TIERS = {
 const inMemoryStore = new Map();
 
 /**
- * Get client identifier (IP + user ID if available)
+ * Get client identifier (client IP).
+ *
+ * Security: this used to append the first 16 chars of the (unverified) Bearer token, so
+ * any caller could get a fresh bucket per request by sending `Authorization: Bearer <random>`
+ * and bypass every limit. (It also never split real users apart: every Supabase JWT starts
+ * with the same base64 header.) Rate limits now key on IP only. `trust proxy` is set to 1
+ * in server.js, so req.ip is the first hop's view of the client, not a spoofable header.
  * @param {Object} req - Express request object
  * @returns {string} - Client identifier string
  */
 function getClientIdentifier(req) {
-  // Try to get user ID from JWT token (if authenticated)
-  let userId = null;
-  try {
-    // Check for Supabase auth header
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      // Unverified token prefix only splits buckets per credential; does not authenticate the request.
-      // Verifying JWTs here would add crypto cost on every request — acceptable future hardening.
-      const token = authHeader.substring(7);
-      userId = token.substring(0, 16);
-    }
-  } catch (error) {
-    // If token parsing fails, fall back to IP only
-    console.warn('Failed to extract user ID from token:', error.message);
-  }
-
-  // Get IP address (considering proxy headers)
-  const ip = req.ip || 
-             req.connection.remoteAddress || 
-             req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-             'unknown';
-
-  // Combine IP and user ID for accurate tracking
-  if (userId) {
-    return `${ip}:${userId}`;
-  }
-  return ip;
+  return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
 /**

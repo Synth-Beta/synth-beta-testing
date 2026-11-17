@@ -222,27 +222,21 @@
     "semantic_hash": "dab03e708621ed22d52a666c37f3755d"
   },
   "mobile/app/(onboarding)/artists.tsx": {
-    "mtime": 1794267382.2195573,
-    "seen": 1794352142.400795,
-    "ast_hash": "8cb8142f760db32a367a4a32069cf5e7",
+    "mtime": 1794842748.7856023,
+    "seen": 1794843198.5349422,
+    "ast_hash": "31e535f6919ed1efbb2eee28d2d8c20d",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/connect.tsx": {
-    "mtime": 1793114596.8529544,
-    "seen": 1793115424.4984653,
-    "ast_hash": "9436e2d400f0787a8a4ed5fc0bbd9a43",
+    "mtime": 1794842610.2798193,
+    "seen": 1794843198.5349422,
+    "ast_hash": "e143dd95d4c0dee0e96467d57ce91798",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/profile.tsx": {
-    "mtime": 1794409519.3291752,
-    "seen": 1794409885.690132,
-    "ast_hash": "cc9b2b10a791b265886810a57f227bdc",
-    "semantic_hash": ""
-  },
-  "mobile/app/(onboarding)/scene.tsx": {
-    "mtime": 1792594176.0869918,
-    "seen": 1792594816.4302428,
-    "ast_hash": "8a344d6c4c2454e3779ba8c8a5bf39f7",
+    "mtime": 1794843026.8064184,
+    "seen": 1794843198.5349422,
+    "ast_hash": "d9d0ca04d0d0a3a1aae25d4113eba406",
     "semantic_hash": ""
   },
   "mobile/app/(onboarding)/welcome.tsx": {
@@ -2064,21 +2058,21 @@
     "semantic_hash": "ec8671628d9a54367f39d865872eeb29"
   },
   "src/components/onboarding/FollowArtistsModal.tsx": {
-    "mtime": 1793907278.3639438,
-    "seen": 1793907700.2325802,
-    "ast_hash": "2fa62dd05483349bbea4da5387b18140",
+    "mtime": 1794842813.2132833,
+    "seen": 1794843198.6088035,
+    "ast_hash": "74f3b83f1de072761d627a1532244c7d",
     "semantic_hash": ""
   },
   "src/components/onboarding/MusicTagsStep.tsx": {
-    "mtime": 1793114785.1867366,
-    "seen": 1793115424.5972993,
-    "ast_hash": "41a55e9d4fc8f68f0cfe48cae745c815",
+    "mtime": 1794842610.2798193,
+    "seen": 1794843198.6088035,
+    "ast_hash": "dee0ea89076e2dfa0c6c6cb22d7ef386",
     "semantic_hash": ""
   },
   "src/components/onboarding/OnboardingFlow.tsx": {
-    "mtime": 1794688001.5538952,
-    "seen": 1794693988.4333959,
-    "ast_hash": "8a0b386e276f04f913db517b331fe2f4",
+    "mtime": 1794842837.502224,
+    "seen": 1794843198.6088035,
+    "ast_hash": "a73aef3b9b95a7abe71d92750ffe0563",
     "semantic_hash": ""
   },
   "src/components/onboarding/OnboardingReminderBanner.tsx": {
@@ -2094,9 +2088,9 @@
     "semantic_hash": ""
   },
   "src/components/onboarding/ProfileSetupStep.tsx": {
-    "mtime": 1793658286.7834108,
-    "seen": 1793658387.1877406,
-    "ast_hash": "971a78d4de37f2a3674f0c63255263a8",
+    "mtime": 1794842837.502224,
+    "seen": 1794843198.6088035,
+    "ast_hash": "0a8a0b5b4a22d60e3f1f190007c59e5e",
     "semantic_hash": ""
   },
   "src/components/onboarding/UsernameRequiredModal.tsx": {
@@ -3192,9 +3186,9 @@
     "semantic_hash": ""
   },
   "src/services/onboardingService.ts": {
-    "mtime": 1793907278.3799293,
-    "seen": 1793907700.2348492,
-    "ast_hash": "803fcd7e143eb1f098f5d0f5a0bd920e",
+    "mtime": 1794842165.3773746,
+    "seen": 1794843198.6351933,
+    "ast_hash": "3f584cc68da6c498a992cac48dea1ba7",
     "semantic_hash": ""
   },
   "src/services/passportAchievementService.ts": {
@@ -12800,7 +12794,13 @@
   "supabase/migrations/20261114120000_app_config_min_version.sql": {
     "mtime": 1794779093.6363199,
     "seen": 1794796310.9792323,
-    "ast_hash": "37d35b07b2430b4431835e51c7f4b687",
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "mobile/src/services/pendingProfileSave.ts": {
+    "mtime": 1794842746.4931417,
+    "seen": 1794843198.5718246,
+    "ast_hash": "c8b793915b5e33264805c54562b256e6",
     "semantic_hash": ""
   }
 }

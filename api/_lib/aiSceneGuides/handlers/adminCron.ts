@@ -35,10 +35,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     (req.headers['x-cron-secret'] as string) ||
     ((req.headers.authorization as string) || '').replace(/^Bearer\s+/i, '');
 
-  // Allow when CRON_SECRET matches OR when ADMIN_CRON_BYPASS is set for local
+  // Allow when CRON_SECRET or AI_SCENE_GUIDES_ADMIN_CRON_KEY matches. Both checks require a
+  // non-empty configured key and a non-empty header, and both compare in constant time
+  // (previously an env var set to "" matched a request with no header at all).
+  const adminKey = process.env.AI_SCENE_GUIDES_ADMIN_CRON_KEY?.trim();
   const okSecret =
-    (cronSecret && provided && secureEquals(provided, cronSecret)) ||
-    process.env.AI_SCENE_GUIDES_ADMIN_CRON_KEY === provided;
+    !!provided &&
+    ((!!cronSecret && secureEquals(provided, cronSecret)) ||
+      (!!adminKey && secureEquals(provided, adminKey)));
 
   if (!okSecret) {
     return res.status(401).json({ error: 'Unauthorized' });

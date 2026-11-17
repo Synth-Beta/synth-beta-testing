@@ -62,6 +62,16 @@ export function trackPushPrimer(event: 'shown' | 'accepted' | 'declined', reason
   void record('form_submit', 'form', `push_primer_${event}_${reason}`);
 }
 
+/**
+ * What happened after the user said yes to the soft ask: the iOS answer and whether the
+ * token reached register_device_token. Rows: push_result_<result>.
+ */
+export function trackPushResult(
+  result: 'token_saved' | 'token_save_failed' | 'token_failed' | 'permission_denied' | 'permission_undetermined' | 'sync_threw'
+): void {
+  void record('form_submit', 'form', `push_result_${result}`);
+}
+
 export function trackOnboardingBlock(reason: string): void {
   void record('form_submit', 'form', `onboarding_blocked_${reason}`);
 }

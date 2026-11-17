@@ -2,7 +2,8 @@ import * as Application from 'expo-application';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from '../src/integrations/supabase/client';
-import { registerForPushNotificationsAsync } from './registerPushNotifications';
+import { getNotificationPermissionStatus, registerForPushNotificationsAsync } from './registerPushNotifications';
+import { trackPushResult } from '../src/services/onboardingTelemetry';
 import Constants from 'expo-constants';
 
 /**
@@ -31,6 +32,11 @@ export async function syncExpoPushTokenWithBackend(
       // registerForPushNotificationsAsync already logged the specific reason
       // (no device / permission denied / no projectId / Expo token error).
       console.warn('[push] token sync: no Expo push token obtained — user will not receive push');
+      if (prompt) {
+        // Only user-initiated asks are logged; silent launch syncs would flood interactions.
+        const status = await getNotificationPermissionStatus();
+        trackPushResult(status === 'granted' ? 'token_failed' : `permission_${status}`);
+      }
       return;
     }
 
@@ -46,9 +52,11 @@ export async function syncExpoPushTokenWithBackend(
 
     if (error) {
       console.warn('[push] register_device_token RPC failed:', error.message);
+      if (prompt) trackPushResult('token_save_failed');
       return;
     }
 
+    if (prompt) trackPushResult('token_saved');
     console.log('[push] device token registered', {
       platform,
       tokenTail: token.slice(-12),
@@ -56,6 +64,7 @@ export async function syncExpoPushTokenWithBackend(
   } catch (e) {
     // Never let push registration crash app startup.
     console.error('[push] token sync threw:', e instanceof Error ? e.message : e);
+    if (prompt) trackPushResult('sync_threw');
   }
 }
 

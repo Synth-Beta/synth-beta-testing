@@ -97,3 +97,10 @@ supabase/genre-tribute-fix-*/
 # graphify scratch files (temp writes + pending update queue)
 graphify-out/*.tmp
 graphify-out/.pending_changes
+.env.*
+!.env.example
+!.env.*.example
+
+# Exported logs / data dumps — may contain user IDs or other production data
+supabase_logs*.csv
+*.log.csv

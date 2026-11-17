@@ -1,0 +1,19 @@
+name: Security check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Fails the run if a secret-looking value or a .env file is committed.
+      - run: node scripts/security-check.mjs

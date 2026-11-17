@@ -13,9 +13,7 @@ import {
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
-import { spotifyService } from '@/services/spotifyService';
 import { appleMusicService } from '@/services/appleMusicService';
-import { useAccountType } from '@/hooks/useAccountType';
 import { MusicImportOptions } from '@/components/streaming/MusicImportOptions';
 import { streamingSyncService } from '@/services/streamingSyncService';
 import { toast } from '@/hooks/use-toast';
@@ -45,8 +43,6 @@ export const MusicTagsStep = ({
   initialGenres,
   initialArtists,
 }: MusicTagsStepProps) => {
-  // Spotify's Development Mode only serves allowlisted accounts, so only admins see it.
-  const { isAdmin } = useAccountType();
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [customGenre, setCustomGenre] = useState('');
@@ -58,7 +54,6 @@ export const MusicTagsStep = ({
   const [artistSearchOpen, setArtistSearchOpen] = useState(false);
   const artistSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [appleMusicSyncing, setAppleMusicSyncing] = useState(false);
-  const [spotifyConnecting, setSpotifyConnecting] = useState(false);
   const hasPrefilledGenresRef = useRef(false);
   const hasPrefilledArtistsRef = useRef(false);
 
@@ -195,25 +190,6 @@ export const MusicTagsStep = ({
     setErrors({ ...errors, artists: '' });
   };
 
-  const handleConnectSpotify = async () => {
-    try {
-      setSpotifyConnecting(true);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('spotify_connect_source', 'onboarding');
-      }
-      await spotifyService.authenticate();
-      // On success, authenticate redirects to Spotify's OAuth page
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Connection failed';
-      toast({
-        title: 'Connection failed',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setSpotifyConnecting(false);
-    }
-  };
 
   const handleConnectAppleMusic = async () => {
     let syncStarted = false;
