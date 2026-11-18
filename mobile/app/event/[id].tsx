@@ -28,6 +28,7 @@ import {
     Building2 as BuildingComplex,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DirectionalSlide, PressableScale, SmoothHeight, useSlideDirection } from '../../src/motion';
 import { EventDetailsSkeleton } from '../../src/components/skeletons/EventDetailsSkeleton';
 import { NetworkReviewCard } from '../../src/components/Feed/NetworkReviewCard';
 import type { NetworkReview } from '../../src/services/homeFeedService';
@@ -511,6 +512,16 @@ export default function EventDetailScreen() {
             description: event.description,
             siteUrl: getExpoSiteUrl(),
         })?.url ?? null;
+    // Tab content slides in from the side of the tab you moved to; opening from closed just fades.
+    const TAB_ORDER = { groups: 0, meet: 1 } as const;
+    const tabIndex = activeTab ? TAB_ORDER[activeTab] : null;
+    const tabSlideDir = useSlideDirection(tabIndex);
+    const prevTabRef = React.useRef(activeTab);
+    const tabOpenedFromClosed = prevTabRef.current == null;
+    useEffect(() => {
+        prevTabRef.current = activeTab;
+    }, [activeTab]);
+
     const handleTabPress = (tab: 'groups' | 'meet') => {
         const isOpening = activeTab !== tab;
         setActiveTab(prev => (prev === tab ? null : tab));
@@ -759,10 +770,10 @@ export default function EventDetailScreen() {
                     </View>
 
                     {/* Social tabs: Groups + Meet */}
-                    <View style={styles.section}>
+                    <SmoothHeight style={styles.section}>
                         {/* Tab bar */}
                         <View style={styles.tabBar}>
-                            <Pressable
+                            <PressableScale haptic="selection"
                                 style={[styles.tab, activeTab === 'groups' && styles.tabActive]}
                                 onPress={() => handleTabPress('groups')}
                                 accessibilityRole="tab"
@@ -771,9 +782,9 @@ export default function EventDetailScreen() {
                                 <Text style={[styles.tabText, activeTab === 'groups' && styles.tabTextActive]}>
                                     Groups
                                 </Text>
-                            </Pressable>
+                            </PressableScale>
                             {isUpcomingEvent && (
-                                <Pressable
+                                <PressableScale haptic="selection"
                                     style={[styles.tab, activeTab === 'meet' && styles.tabActive]}
                                     onPress={() => handleTabPress('meet')}
                                     accessibilityRole="tab"
@@ -785,13 +796,13 @@ export default function EventDetailScreen() {
                                     <Text style={[styles.tabText, activeTab === 'meet' && styles.tabTextActive]}>
                                         Meet{interestedCount != null ? ` (${interestedCount})` : ''}
                                     </Text>
-                                </Pressable>
+                                </PressableScale>
                             )}
                         </View>
 
                         {/* Groups: Event Group Chat */}
                         {activeTab === 'groups' && (
-                            <View style={styles.tabContent}>
+                            <DirectionalSlide direction={tabSlideDir} fromClosed={tabOpenedFromClosed} style={styles.tabContent}>
                                 {!sessionUserId ? (
                                     <Pressable style={styles.signInBanner} onPress={() => router.push('/(auth)/sign-in')}>
                                         <SynthText variant="meta" style={styles.signInBannerText}>
@@ -826,12 +837,12 @@ export default function EventDetailScreen() {
                                         </Pressable>
                                     </View>
                                 )}
-                            </View>
+                            </DirectionalSlide>
                         )}
 
                         {/* Meet — list of all interested users */}
                         {activeTab === 'meet' && isUpcomingEvent && (
-                            <View style={styles.tabContent}>
+                            <DirectionalSlide direction={tabSlideDir} fromClosed={tabOpenedFromClosed} style={styles.tabContent}>
                                 {!sessionUserId ? (
                                     <Pressable
                                         style={styles.signInBanner}
@@ -882,9 +893,9 @@ export default function EventDetailScreen() {
                                         ))}
                                     </View>
                                 )}
-                            </View>
+                            </DirectionalSlide>
                         )}
-                    </View>
+                    </SmoothHeight>
 
                     {/* Friends going */}
                     {friends.length > 0 && (

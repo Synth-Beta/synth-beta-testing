@@ -104,3 +104,7 @@ graphify-out/.pending_changes
 # Exported logs / data dumps — may contain user IDs or other production data
 supabase_logs*.csv
 *.log.csv
+
+# Playwright output
+test-results/
+playwright-report/

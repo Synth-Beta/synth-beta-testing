@@ -416,6 +416,25 @@ function renderPage(opts: {
 // ─── Handler ────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // /api/geo (rewritten here: Hobby plan is at its 12-function cap). Approximate location from
+  // Vercel's IP headers, the browse-location fallback when GPS is denied and the profile has no
+  // city. Without it the feed runs nationwide, which is slow and not local.
+  if (req.query.geo === '1') {
+    const h = (name: string) => {
+      const v = req.headers[name];
+      return typeof v === 'string' && v ? v : null;
+    };
+    const lat = Number(h('x-vercel-ip-latitude'));
+    const lng = Number(h('x-vercel-ip-longitude'));
+    const city = h('x-vercel-ip-city');
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.status(200).json(
+      Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)
+        ? { lat, lng, city: city ? decodeURIComponent(city) : null }
+        : { lat: null, lng: null, city: null }
+    );
+  }
+
   // /api/og (rewritten here; see api/_lib/ogPoster.ts). Before the crawler
   // redirects below, which would otherwise bounce the image request.
   if (isOgRequest(req.query, req.url)) {

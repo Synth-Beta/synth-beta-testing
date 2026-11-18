@@ -10,6 +10,7 @@ import {
     View,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useDragToDismiss } from '../../motion';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -96,6 +97,11 @@ export function PassportTravelMap({ userId }: { userId: string }) {
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [listExpanded, setListExpanded] = useState(false);
     const cardAnim = useRef(new Animated.Value(0)).current;
+    // Swipe the detail card down to close it; a quick flick closes it too (velocity spring),
+    // and dragging it up rubber-bands.
+    const { translateY: cardDragY, panHandlers: cardPanHandlers } = useDragToDismiss({
+        onDismiss: () => setSelectedKey(null),
+    });
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -282,16 +288,20 @@ export function PassportTravelMap({ userId }: { userId: string }) {
                     {/* Selected show — sliding card pinned to the map's bottom edge */}
                     {selected ? (
                         <Animated.View
+                            {...cardPanHandlers}
                             style={[
                                 styles.detailCard,
                                 {
                                     opacity: cardAnim,
                                     transform: [
                                         {
-                                            translateY: cardAnim.interpolate({
-                                                inputRange: [0, 1],
-                                                outputRange: [24, 0],
-                                            }),
+                                            translateY: Animated.add(
+                                                cardAnim.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: [24, 0],
+                                                }),
+                                                cardDragY,
+                                            ),
                                         },
                                     ],
                                 },

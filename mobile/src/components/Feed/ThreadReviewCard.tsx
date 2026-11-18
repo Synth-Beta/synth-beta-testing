@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View, Pressable, Dimensions, Text } from 'react-native';
+import { StyleSheet, View, Dimensions, Text } from 'react-native';
+import { PressableScale } from '../../motion';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Heart, MessageCircle, Share2, Star } from 'lucide-react-native';
@@ -100,7 +101,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
   return (
     <View style={styles.shadowShell}>
       <View style={styles.cardFace}>
-        <Pressable onPress={open} style={({ pressed }) => [pressed && styles.pressed]}>
+        <PressableScale onPress={open} haptic={false}>
           <View style={styles.imageWrap}>
             <SafeImage uri={imageUri} style={styles.image} contentFit="cover" transition={200} />
             <View style={styles.cornerLabelWrap} pointerEvents="none">
@@ -120,7 +121,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
               {title}
             </SynthText>
             <View style={styles.authorRow}>
-              <Pressable
+              <PressableScale
                 onPress={() => router.push(`/user/${review.author.id}` as any)}
                 style={styles.authorLink}
                 hitSlop={{ top: 9, bottom: 9 }}
@@ -135,7 +136,7 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
                 </View>
               )}
               <Text style={styles.authorName} numberOfLines={1}>{review.author.name}</Text>
-              </Pressable>
+              </PressableScale>
               {rating != null ? (
                 <View style={styles.stars} accessibilityLabel={`${rating} out of 5 stars`}>
                   {[1, 2, 3, 4, 5].map((n) => (
@@ -155,10 +156,10 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
               </SynthText>
             ) : null}
           </View>
-        </Pressable>
+        </PressableScale>
 
         <View style={styles.actions}>
-          <Pressable
+          <PressableScale
             onPress={() => void onLike()}
             disabled={!currentUserId || liking}
             style={[styles.likeBtn, isLiked && styles.likeBtnOn]}
@@ -166,14 +167,14 @@ export const ThreadReviewCard: React.FC<ThreadReviewCardProps> = ({ review, curr
           >
             <Heart size={18} color={PINK} fill={isLiked ? PINK : 'transparent'} />
             <Text style={styles.likeTxt}>{likesCount > 0 ? likesCount : 'Like'}</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push(`/review/${review.id}?comments=1` as any)} style={styles.commentBtn} accessibilityLabel={`Comments (${commentsCount})`}>
+          </PressableScale>
+          <PressableScale onPress={() => router.push(`/review/${review.id}?comments=1` as any)} style={styles.commentBtn} accessibilityLabel={`Comments (${commentsCount})`}>
             <MessageCircle size={18} color={SynthTokens.colors.neutral900} />
             <Text style={styles.commentTxt}>{commentsCount > 0 ? commentsCount : 'Comment'}</Text>
-          </Pressable>
-          <Pressable onPress={onShare} style={styles.iconBtn} accessibilityLabel="Share review">
+          </PressableScale>
+          <PressableScale onPress={onShare} style={styles.iconBtn} accessibilityLabel="Share review">
             <Share2 size={20} color={SynthTokens.colors.neutral900} />
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
       {currentUserId ? (

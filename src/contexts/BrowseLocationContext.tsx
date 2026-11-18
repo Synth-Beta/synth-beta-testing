@@ -120,7 +120,23 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
-  // Live GPS -> cached last-known GPS -> profile location -> null.
+  // Approximate city from the request IP (api/share.ts, Vercel headers). Returns nulls on
+  // localhost. Most users have no profile city, and a nationwide feed is slow and not local.
+  const fetchIpLocation = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/geo');
+      if (!res.ok) return false;
+      const geo = (await res.json()) as { lat: number | null; lng: number | null; city: string | null };
+      if (typeof geo.lat !== 'number' || typeof geo.lng !== 'number') return false;
+      setCoords({ latitude: geo.lat, longitude: geo.lng });
+      setLabel(geo.city || 'Approximate location');
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Live GPS -> cached last-known GPS -> profile location -> IP location -> null.
   const fetchGpsLocation = useCallback(async () => {
     const cached = getLastKnownLocation(CACHE_MAX_AGE_MS);
     const cachedCoords: Coordinates | null = cached
@@ -148,12 +164,12 @@ export function BrowseLocationProvider({ children }: { children: React.ReactNode
       if (geoError?.code !== 1) { // 1 = PERMISSION_DENIED
         console.error('[BrowseLocationContext] Error getting current location:', geoError);
       }
-      if (!seeded && !(await fetchProfileLocation())) {
+      if (!seeded && !(await fetchProfileLocation()) && !(await fetchIpLocation())) {
         setLabel('Not found');
       }
       // Otherwise keep the cache-seeded coords/label already set above.
     }
-  }, [fetchProfileLocation]);
+  }, [fetchProfileLocation, fetchIpLocation]);
 
   // The provider mounts before sign-in, so the profile fallback above can miss
   // the user. Retry it once a session appears if we still have no location.

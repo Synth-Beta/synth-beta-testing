@@ -247,7 +247,13 @@ export class PersonalizationEngineV5 {
 
       // Try the server-side cached wrapper first (10-min cache per user/location in DB).
       // If it doesn't exist (e.g. not yet deployed), fall back to the direct function.
-      const cached = await supabase.rpc('get_or_refresh_feed_v5_cached', rpcPayload);
+      // No location = nationwide feed (~6s). The wrapper adds a cache write on top and always
+      // hit the 8s statement timeout there, so those users waited 8s for nothing before the
+      // direct call. Skip the wrapper when there is no location to key a useful cache on.
+      const hasLocation = hasCoordinates || !!normalizedFilters.city || !!normalizedFilters.state;
+      const cached = hasLocation
+        ? await supabase.rpc('get_or_refresh_feed_v5_cached', rpcPayload)
+        : { data: null, error: { code: '42883', message: 'skipped: no location' } };
       const cacheWrapperMissing =
         cached.error &&
         ((cached.error as any).code === '42883' ||   // function does not exist

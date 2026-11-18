@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     View,
     StyleSheet,
-    Pressable,
     Dimensions,
     Text,
     Platform,
     ActivityIndicator,
     ScrollView,
 } from 'react-native';
+import { PressableScale } from '../../motion';
 import { Image } from 'expo-image';
 import { SafeImage } from '../SafeImage';
 import { resolveFeedImageUri } from '../../utils/eventImages';
@@ -177,7 +177,7 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
     return (
         <View style={styles.shadowShell}>
             <View style={styles.cardFace}>
-                <Pressable onPress={openDetail} style={({ pressed }) => [pressed && styles.pressedMain]}>
+                <PressableScale onPress={openDetail} haptic={false}>
                     <View style={styles.imageWrap}>
                         {displayImageUrl ? (
                             <>
@@ -319,10 +319,10 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                             })()}
                         </View>
                     </View>
-                </Pressable>
+                </PressableScale>
 
                 <View style={styles.actions}>
-                    <Pressable
+                    <PressableScale
                         onPress={() => void onHelpful()}
                         style={[styles.actionBtn, styles.actionBtnFlex]}
                         disabled={!currentUserId || liking}
@@ -340,16 +340,16 @@ export const NetworkReviewCard: React.FC<NetworkReviewCardProps> = ({
                                 <Text style={styles.actionLabel}>Helpful</Text>
                             </>
                         )}
-                    </Pressable>
+                    </PressableScale>
 
-                    <Pressable onPress={() => router.push(`/review/${review.id}?comments=1` as any)} style={styles.actionBtn}>
+                    <PressableScale onPress={() => router.push(`/review/${review.id}?comments=1` as any)} style={styles.actionBtn}>
                         <MessageCircle size={18} color={SynthTokens.colors.neutral600} />
                         <Text style={styles.actionCount}>{commentsCount}</Text>
-                    </Pressable>
+                    </PressableScale>
 
-                    <Pressable onPress={onShare} style={styles.shareBtn} accessibilityLabel="Share review">
+                    <PressableScale onPress={onShare} style={styles.shareBtn} accessibilityLabel="Share review">
                         <Share2 size={20} color={SynthTokens.colors.neutral0} />
-                    </Pressable>
+                    </PressableScale>
                 </View>
             </View>
             {currentUserId ? (

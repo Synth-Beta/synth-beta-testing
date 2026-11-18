@@ -140,7 +140,10 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   // once live geolocation resolves seconds later — that double round-trip to the feed
   // RPC is what made the home feed feel like it "reloads" after first paint.
   const [filters, setFilters] = useState<FilterState>(() => {
-    const cached = getLastKnownLocation(24 * 60 * 60 * 1000);
+    // Fall back to the already-resolved browse location (e.g. IP-based) so returning to Home
+    // doesn't fire one nationwide feed query before the sync effect below catches up.
+    const cached = getLastKnownLocation(24 * 60 * 60 * 1000)
+      ?? (browseLocation.coords ? { lat: browseLocation.coords.latitude, lng: browseLocation.coords.longitude } : null);
     return {
       genres: [],
       selectedCities: [],
@@ -2090,7 +2093,12 @@ interface FriendEventInterest {
           </>
         )}
         {/* Feed content based on selection */}
-        {!isSearchMode && selectedFeedType === 'events' && (
+        {/* Wait for location to resolve unless we already have coords: querying first ran the
+            nationwide feed (slow, often timed out) only to refetch locally moments later. */}
+        {!isSearchMode && selectedFeedType === 'events' && filters.latitude == null && (browseLocation.loading || browseLocation.coords) && (
+          <SynthLoadingInline />
+        )}
+        {!isSearchMode && selectedFeedType === 'events' && (filters.latitude != null || (!browseLocation.loading && !browseLocation.coords)) && (
           <UnifiedEventsFeed
             currentUserId={currentUserId}
             filters={filters}

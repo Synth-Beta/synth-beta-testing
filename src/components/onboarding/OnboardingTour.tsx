@@ -569,8 +569,14 @@ export const OnboardingTour = ({ run, onFinish, onViewChange }: OnboardingTourPr
       setStepIndex(undefined);
     }
 
-    // Pause tour and show loading when leaving step 5 (index 4) to load step 6 (profile)
-    if (type === EVENTS.STEP_AFTER && action === ACTIONS.NEXT && index === 4 && onViewChange) {
+    // Pause tour and show loading when leaving step 5 (index 4) to load step 6 (profile).
+    // The stepIndex juggling above can swallow the NEXT event, so Joyride reaches step 6
+    // while still on chat; it reports TARGET_NOT_FOUND and would skip the passport step.
+    if (
+      onViewChange &&
+      ((type === EVENTS.STEP_AFTER && action === ACTIONS.NEXT && index === 4) ||
+        (type === EVENTS.TARGET_NOT_FOUND && index === 5))
+    ) {
       logger.debug('Step 5 completed: Pausing tour to load profile view');
       
       // Pause the tour

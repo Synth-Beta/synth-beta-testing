@@ -39,6 +39,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/geo",
+      "destination": "/api/share?geo=1"
+    },
+    {
       "source": "/api/brevo-webhook",
       "destination": "/api/push-notification-webhook"
     },

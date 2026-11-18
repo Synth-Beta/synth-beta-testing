@@ -18,7 +18,6 @@ import {
 import { FollowArtistsModal, type FollowArtistOption } from './FollowArtistsModal';
 import { OnboardingService, ProfileSetupData } from '@/services/onboardingService';
 import { SceneRoomService } from '@/services/sceneRoomService';
-import { MusicTagsService, type MusicTagInput } from '@/services/musicTagsService';
 import { UnifiedArtistSearchService } from '@/services/unifiedArtistSearchService';
 import { useAuth } from '@/hooks/useAuth';
 import { useViewTracking } from '@/hooks/useViewTracking';
@@ -83,8 +82,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
   const { user, session } = useAuth();
   const showContactEmailField = needsContactEmail(user, null);
   const exitInProgressRef = useRef(false);
-  const [prefilledMusicData, setPrefilledMusicData] = useState<{ genres: string[]; artists: string[] } | null>(null);
-  const musicPrefillAppliedRef = useRef(false);
 
   const [showFollowArtistsModal, setShowFollowArtistsModal] = useState(false);
   const [favoriteArtistOptions, setFavoriteArtistOptions] = useState<FollowArtistOption[]>([]);
@@ -395,34 +392,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
     };
   }, [session?.user?.id]);
 
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    let cancelled = false;
-
-    const loadMusicPreferences = async () => {
-      try {
-        const tags = await MusicTagsService.getUserMusicTags(session.user.id);
-        if (cancelled) return;
-
-        const genres = tags.filter((tag) => tag.tag_type === 'genre').map((tag) => tag.tag_value);
-        const artists = tags.filter((tag) => tag.tag_type === 'artist').map((tag) => tag.tag_value);
-        const initialData = { genres, artists };
-
-        if (!musicPrefillAppliedRef.current) {
-          setPrefilledMusicData(initialData);
-          setMusicData(initialData);
-          musicPrefillAppliedRef.current = true;
-        }
-      } catch (error) {
-        logger.error('OnboardingFlow: failed to prefill music preferences:', error);
-      }
-    };
-
-    void loadMusicPreferences();
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.user?.id]);
 
   const completeSetupRunningRef = useRef(false);
   // setLoading(true) only runs after validation awaits, so a double-click started two runs.
@@ -615,26 +584,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
           trackBlock('music_prefs_failed_nonfatal');
         }
 
-        const genreTags: MusicTagInput[] = musicData.genres.map((genre) => ({
-          tag_type: 'genre',
-          tag_value: genre,
-        }));
-        const artistTags: MusicTagInput[] = musicData.artists.map((artist) => ({
-          tag_type: 'artist',
-          tag_value: artist,
-        }));
-        const manualMusicTags = [...genreTags, ...artistTags];
-
-        if (manualMusicTags.length > 0) {
-          try {
-            const success = await MusicTagsService.bulkUpdateMusicTags(user.id, manualMusicTags);
-            if (!success) {
-              logger.warn('OnboardingFlow: failed to sync manual music tags.');
-            }
-          } catch (error) {
-            logger.error('OnboardingFlow: error syncing manual music tags:', error);
-          }
-        }
       })();
       const dedupedArtists = dedupeFavoriteArtists(artistData);
       // Always open the follow step, even when nothing resolved from what they typed: the
@@ -813,8 +762,6 @@ export const OnboardingFlow = ({ onComplete, onExit }: OnboardingFlowProps) => {
                 <MusicTagsStep
                   onChange={handleMusicDraftChange}
                   showButtons={false}
-                  initialGenres={prefilledMusicData?.genres}
-                  initialArtists={prefilledMusicData?.artists}
                 />
               </section>
             </div>

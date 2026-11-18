@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, View, Pressable, Dimensions, Text, Linking, Alert, Image } from 'react-native';
+import { PressableScale } from '../../motion';
 import { findPick5Band, pick5BandUrl } from '@synth/shared';
 import { SafeImage } from '../SafeImage';
 import { useRouter } from 'expo-router';
@@ -200,7 +201,7 @@ export const EventCard: React.FC<EventCardProps> = ({
     <View ref={tourCardRef} style={styles.shadowShell}>
       <View style={[styles.cardFace, pick5Band && styles.cardFacePick5]}>
         {pick5Band ? (
-          <Pressable
+          <PressableScale
             onPress={() => { Linking.openURL(pick5BandUrl(pick5Band.slug)).catch(() => {}); }}
             style={styles.pick5Strip}
             accessibilityRole="link"
@@ -213,9 +214,9 @@ export const EventCard: React.FC<EventCardProps> = ({
             </View>
             <Text style={styles.pick5Cta}>Make picks</Text>
             <ArrowUpRight size={14} color={PICK5_PURPLE} />
-          </Pressable>
+          </PressableScale>
         ) : null}
-        <Pressable onPress={handleOpen} style={({ pressed }) => [pressed && styles.pressed]}>
+        <PressableScale onPress={handleOpen} haptic={false}>
           <View style={[styles.imageWrap, pick5Band && styles.imageWrapFlat]}>
             <SafeImage uri={image_url} style={styles.image} contentFit="cover" transition={200} />
             {cornerLabel ? (
@@ -237,9 +238,9 @@ export const EventCard: React.FC<EventCardProps> = ({
               {headline}
             </SynthText>
             {onHideArtist && artist_name ? (
-              <Pressable onPress={confirmHideArtist} hitSlop={10} style={styles.moreBtn} accessibilityLabel="More options">
+              <PressableScale onPress={confirmHideArtist} hitSlop={10} style={styles.moreBtn} accessibilityLabel="More options">
                 <MoreHorizontal size={20} color={SynthTokens.colors.neutral600} />
-              </Pressable>
+              </PressableScale>
             ) : null}
           </View>
 
@@ -305,14 +306,14 @@ export const EventCard: React.FC<EventCardProps> = ({
               </SynthText>
             ) : null}
           </View>
-        </Pressable>
+        </PressableScale>
 
         <View style={styles.actions}>
           {isPast ? (
-            <Pressable onPress={onWriteReview} style={styles.writeReviewBtn}>
+            <PressableScale onPress={onWriteReview} style={styles.writeReviewBtn}>
               <Star size={18} color={SynthTokens.colors.neutral0} fill={SynthTokens.colors.neutral0} />
               <Text style={styles.writeReviewBtnTxt}>Write Review</Text>
-            </Pressable>
+            </PressableScale>
           ) : (
             <Pressable
               ref={tourInterestedRef}
@@ -329,13 +330,13 @@ export const EventCard: React.FC<EventCardProps> = ({
             </Pressable>
           )}
           {ticketUrlProp?.trim() ? (
-            <Pressable onPress={() => void openTickets()} style={styles.ticketBtn} accessibilityLabel="Tickets">
+            <PressableScale onPress={() => void openTickets()} style={styles.ticketBtn} accessibilityLabel="Tickets">
               <Ticket size={20} color={SynthTokens.colors.neutral900} />
-            </Pressable>
+            </PressableScale>
           ) : null}
-          <Pressable onPress={onShare} style={styles.shareBtn} accessibilityLabel="Share event">
+          <PressableScale onPress={onShare} style={styles.shareBtn} accessibilityLabel="Share event">
             <Share2 size={20} color={SynthTokens.colors.neutral900} />
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
       {currentUserId ? (

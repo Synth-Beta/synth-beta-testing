@@ -11,6 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { useShake } from '../../src/motion';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +40,12 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { shake, shakeStyle } = useShake();
+
+  // Wiggle the email/password fields whenever a new error appears (wrong password, taken email…).
+  useEffect(() => {
+    if (error) shake();
+  }, [error, shake]);
 
   const androidGoogleClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim();
   const webGoogleClientId =
@@ -271,6 +279,7 @@ export default function SignInScreen() {
             />
           ) : null}
 
+          <Animated.View style={shakeStyle}>
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -289,6 +298,7 @@ export default function SignInScreen() {
             value={password}
             onChangeText={setPassword}
           />
+          </Animated.View>
 
           {mode === 'signin' ? (
             <View style={styles.forgotRow}>
