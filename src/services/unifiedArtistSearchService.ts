@@ -563,32 +563,10 @@ export class UnifiedArtistSearchService {
         return [];
       }
 
-      const artistsNeedingCount = artists.filter(a => !a.num_upcoming_events);
-      const upcomingCountsMap = new Map<string, number>();
-
-      if (artistsNeedingCount.length > 0) {
-        const now = new Date().toISOString();
-        const { data: upcomingEvents, error: eventsError } = await supabase
-          .from('events')
-          .select('artist_id')
-          .in('artist_id', artistsNeedingCount.map(a => a.id))
-          .gte('event_date', now);
-
-        if (!eventsError && upcomingEvents) {
-          upcomingEvents.forEach((event: any) => {
-            if (event.artist_id) {
-              const currentCount = upcomingCountsMap.get(event.artist_id) || 0;
-              upcomingCountsMap.set(event.artist_id, currentCount + 1);
-            }
-          });
-        }
-      }
-
+      // search_artists_fuzzy returns live upcoming counts for the rows it returns, so the
+      // extra round trip that downloaded every upcoming event row to count them is gone.
       return artists.map(artist => {
-        let numUpcoming = artist.num_upcoming_events || 0;
-        if (numUpcoming === 0 && upcomingCountsMap.has(artist.id)) {
-          numUpcoming = upcomingCountsMap.get(artist.id) || 0;
-        }
+        const numUpcoming = artist.num_upcoming_events || 0;
 
         return {
           id: artist.id,

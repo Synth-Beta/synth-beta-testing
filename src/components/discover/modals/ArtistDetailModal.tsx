@@ -13,6 +13,8 @@ import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import { useModalHeaderTitle } from '@/hooks/useModalHeaderTitle';
 import { useDetailModalLayout, DETAIL_MODAL_Z } from '@/hooks/useDetailModalLayout';
 import { todayLocalYmd } from '@/utils/localYmd';
+import { sortEventsNearestFirst, type LatLng } from '@synth/shared';
+import { getViewerLocationQuiet } from '@/lib/viewerLocation';
 import {
   iosModalBackdrop,
   iosHeader,
@@ -37,6 +39,7 @@ const INITIAL_UPCOMING_COUNT = 5;
 const INITIAL_PAST_COUNT = 3;
 const LOAD_MORE_COUNT = 10;
 const UPCOMING_PAGE_SIZE = 1000;
+const PAST_EVENTS_LIMIT = 200;
 
 async function fetchUpcomingEventPages(artistId: string, offset: number): Promise<any[]> {
   const rows: any[] = [];
@@ -45,7 +48,7 @@ async function fetchUpcomingEventPages(artistId: string, offset: number): Promis
   while (true) {
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select('*, venues:venue_id(latitude, longitude)')
       .eq('artist_id', artistId)
       .gte('event_date', todayYmd)
       .order('event_date', { ascending: true })
@@ -68,6 +71,18 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
 }) => {
   const [artistImage, setArtistImage] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
+  // Viewer location for listing upcoming shows nearest-first (never prompts; null = by date).
+  const [viewerOrigin, setViewerOrigin] = useState<LatLng | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    void getViewerLocationQuiet(currentUserId).then((loc) => {
+      if (!cancelled) setViewerOrigin(loc);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, currentUserId]);
   const [reviews, setReviews] = useState<ReviewWithEngagement[]>([]);
   const [reviewUserProfiles, setReviewUserProfiles] = useState<Record<string, { name: string; avatar_url?: string }>>({});
   const [mediaItems, setMediaItems] = useState<{ url: string; type: 'photo' | 'video' }[]>([]);
@@ -192,8 +207,10 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
       const todayYmd = todayLocalYmd();
       const [artistRes, upcomingRes, pastRes, directReviewsRes] = await Promise.all([
         supabase.from('artists').select('id, name, image_url').eq('id', artistId).maybeSingle(),
-        supabase.from('events').select('*').eq('artist_id', artistId).gte('event_date', todayYmd).order('event_date', { ascending: true }).limit(UPCOMING_PAGE_SIZE),
-        supabase.from('events').select('*').eq('artist_id', artistId).lt('event_date', todayYmd).order('event_date', { ascending: false }),
+        supabase.from('events').select('*, venues:venue_id(latitude, longitude)').eq('artist_id', artistId).gte('event_date', todayYmd).order('event_date', { ascending: true }).limit(UPCOMING_PAGE_SIZE),
+        // Capped: artists with long histories returned thousands of rows here, and every id
+        // then went into the event-linked reviews query below.
+        supabase.from('events').select('*').eq('artist_id', artistId).lt('event_date', todayYmd).order('event_date', { ascending: false }).limit(PAST_EVENTS_LIMIT),
         supabase.from('reviews').select(reviewSelect).eq('artist_id', artistId).eq('is_public', true).eq('is_draft', false).order('created_at', { ascending: false })
       ]);
 
@@ -356,7 +373,11 @@ export const ArtistDetailModal: React.FC<ArtistDetailModalProps> = ({
     return null;
   }
 
-  const upcomingEvents = events.filter(e => new Date(e.event_date) >= new Date());
+  // Nearest to the viewer first, then by date (date order when location is unknown).
+  const upcomingEvents = sortEventsNearestFirst(
+    events.filter(e => new Date(e.event_date) >= new Date()),
+    viewerOrigin,
+  );
   const pastEvents = events.filter(e => new Date(e.event_date) < new Date());
 
   const hasMoreUpcoming = upcomingEvents.length > upcomingShown;

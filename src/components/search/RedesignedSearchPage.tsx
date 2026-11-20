@@ -329,7 +329,11 @@ export const RedesignedSearchPage: React.FC<RedesignedSearchPageProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [debouncedQuery, userId, activeTab, pagination[activeTab]?.page]);
+    // activeTab is deliberately not a dependency: every tab's results are fetched together,
+    // so switching tabs used to re-run all four searches for no new data. A tab whose
+    // page differs (load more) still refetches through the page value below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, userId, pagination[activeTab]?.page]);
 
   useEffect(() => {
     if (showMap) {

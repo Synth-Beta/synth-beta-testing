@@ -68,3 +68,43 @@ export async function resolveApproxUserLocation(): Promise<ApproxLatLng | null> 
 
   return null;
 }
+
+/**
+ * Like resolveApproxUserLocation, but never shows the OS location permission prompt.
+ * Uses the device location only if permission was already granted, otherwise the saved
+ * users.latitude/longitude. For screens that merely *prefer* a location (e.g. sorting an
+ * artist's shows nearest-first) and shouldn't interrupt with a prompt.
+ */
+export async function resolveApproxUserLocationQuiet(): Promise<ApproxLatLng | null> {
+  if (cachedLocation) return cachedLocation;
+  try {
+    const perm = await Location.getForegroundPermissionsAsync();
+    if (perm.status === 'granted') {
+      const last = await Location.getLastKnownPositionAsync({}).catch(() => null);
+      if (last?.coords) {
+        cachedLocation = { latitude: last.coords.latitude, longitude: last.coords.longitude };
+        return cachedLocation;
+      }
+    }
+  } catch {
+    // fall through to the saved location
+  }
+  try {
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id;
+    if (!userId) return null;
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('latitude, longitude')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (userRow?.latitude != null && userRow?.longitude != null) {
+      // Not cached: a saved location is a weaker answer than a live one, and the next
+      // full resolveApproxUserLocation() call should still try the device first.
+      return { latitude: Number(userRow.latitude), longitude: Number(userRow.longitude) };
+    }
+  } catch {
+    // no location
+  }
+  return null;
+}

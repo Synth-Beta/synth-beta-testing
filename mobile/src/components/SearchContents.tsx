@@ -264,8 +264,9 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
     const [loading, setLoading] = useState(false);
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    // cancelled ref so stale fetches don't overwrite newer results
-    const cancelRef = useRef(false);
+    // Id of the newest search. A response is applied only if it belongs to the newest
+    // search, so a slow earlier query can never overwrite the results of a later one.
+    const searchSeqRef = useRef(0);
 
     const dismissSearch = useCallback(() => {
         Keyboard.dismiss();
@@ -293,36 +294,39 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
         }
     }, [initialQuery]);
 
-    const runSearch = useCallback(
-        async (q: string) => {
-            if (q.trim().length < 2) {
-                setResults({ events: [], artists: [], venues: [], users: [] });
-                return;
-            }
-            setLoading(true);
-            cancelRef.current = false;
-            try {
-                // Always fetch all four categories in parallel — same as web's fetchAllResults
-                const [evData, arData, veData, usData] = await Promise.all([
-                    SearchService.searchEvents(q.trim()),
-                    SearchService.searchArtists(q.trim()),
-                    SearchService.searchVenues(q.trim()),
-                    SearchService.searchUsers(q.trim()),
-                ]);
-                if (!cancelRef.current) {
-                    setResults({
-                        events: evData,
-                        artists: arData,
-                        venues: veData,
-                        users: usData,
-                    });
-                }
-            } finally {
-                if (!cancelRef.current) setLoading(false);
-            }
-        },
-        []
-    );
+    const runSearch = useCallback(async (q: string) => {
+        const seq = ++searchSeqRef.current;
+        const term = q.trim();
+        if (term.length < 2) {
+            setResults({ events: [], artists: [], venues: [], users: [] });
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        // Fill in each category as soon as it arrives instead of waiting for the slowest
+        // one (usually events). The previous query's results stay on screen until the
+        // first category of the new query lands (no flash to the skeleton while typing).
+        let first = true;
+        const apply = <K extends keyof AllResults>(key: K) => (rows: AllResults[K]) => {
+            if (seq !== searchSeqRef.current) return;
+            const fresh = first;
+            first = false;
+            setResults(prev => ({
+                ...(fresh ? { events: [], artists: [], venues: [], users: [] } : prev),
+                [key]: rows,
+            }));
+        };
+        try {
+            await Promise.all([
+                SearchService.searchArtists(term).then(apply('artists')),
+                SearchService.searchVenues(term).then(apply('venues')),
+                SearchService.searchUsers(term).then(apply('users')),
+                SearchService.searchEvents(term).then(apply('events')),
+            ]);
+        } finally {
+            if (seq === searchSeqRef.current) setLoading(false);
+        }
+    }, []);
 
     // Debounced search on keyword change (300ms, matching web)
     useEffect(() => {
@@ -331,7 +335,6 @@ export default function SearchScreen({ initialQuery = '' }: SearchScreenProps) {
         }, 300);
         return () => {
             clearTimeout(timer);
-            cancelRef.current = true;
         };
     }, [keyword, runSearch]);
 

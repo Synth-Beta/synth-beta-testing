@@ -29,6 +29,8 @@ import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/util
 import { SafeImage } from '../../src/components/SafeImage';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 import { localYmdToStartOfDayIso, todayLocalYmd } from '../../src/utils/localYmd';
+import { fetchArtistUpcomingEvents, type LatLng } from '@synth/shared';
+import { resolveApproxUserLocationQuiet } from '../../src/hooks/useApproxUserLocation';
 
 const PINK = SynthTokens.colors.brandPink500;
 const INITIAL_UPCOMING_LIMIT = 20;
@@ -112,24 +114,14 @@ async function fillMissingVenueNames(events: any[]): Promise<void> {
   });
 }
 
-async function fetchUpcomingEventPages(artistIds: string[], offset: number): Promise<any[]> {
-  const rows: any[] = [];
-  let from = offset;
-  const todayYmd = localYmdToStartOfDayIso(todayLocalYmd()); // local midnight, not UTC midnight
-  while (true) {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .in('artist_id', artistIds)
-      .gte('event_date', todayYmd)
-      .order('event_date', { ascending: true })
-      .range(from, from + UPCOMING_PAGE_SIZE - 1);
-    if (error || !data?.length) break;
-    rows.push(...data);
-    if (data.length < UPCOMING_PAGE_SIZE) break;
-    from += UPCOMING_PAGE_SIZE;
-  }
-  return rows;
+/** Rest of the upcoming list after the first page, in the same nearest-first order. */
+async function fetchUpcomingEventPages(
+  artistIds: string[],
+  offset: number,
+  origin: LatLng | null,
+): Promise<any[]> {
+  const fromIso = localYmdToStartOfDayIso(todayLocalYmd()); // local midnight, not UTC midnight
+  return fetchArtistUpcomingEvents(supabase, { artistIds, fromIso, origin, limit: UPCOMING_PAGE_SIZE, offset });
 }
 
 
@@ -155,13 +147,16 @@ export default function ArtistDetailScreen() {
   const [loadingAllUpcoming, setLoadingAllUpcoming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
-  const upcomingQueryRef = useRef<{ ids: string[]; name: string } | null>(null);
+  const upcomingQueryRef = useRef<{ ids: string[]; name: string; origin: LatLng | null } | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setHasMoreUpcoming(false);
     upcomingQueryRef.current = null;
+    // Viewer location for nearest-first show order. Started now so it resolves while the
+    // artist row loads; never shows a permission prompt (null -> plain date order).
+    const originPromise = resolveApproxUserLocationQuiet().catch(() => null);
     try {
       const raw = String(id);
       let resolvedId: string | null = null;
@@ -245,19 +240,21 @@ export default function ArtistDetailScreen() {
         // Use select('*') — explicit column lists fail silently if any column name
         // doesn't match exactly, returning empty data with no error.
         const todayYmd = localYmdToStartOfDayIso(todayLocalYmd()); // local midnight, not UTC midnight
-        const [upcomingRes, pastRes] = await Promise.all([
-          supabase.from('events').select('*')
-            .in('artist_id', artistUuidsToSearch)
-            .gte('event_date', todayYmd)
-            .order('event_date', { ascending: true })
-            .limit(INITIAL_UPCOMING_LIMIT),
+        const origin = await originPromise;
+        const [upcomingData, pastRes] = await Promise.all([
+          // Upcoming: nearest to the viewer first, then by date.
+          fetchArtistUpcomingEvents<any>(supabase, {
+            artistIds: artistUuidsToSearch,
+            fromIso: todayYmd,
+            origin,
+            limit: INITIAL_UPCOMING_LIMIT,
+          }),
           supabase.from('events').select('*')
             .in('artist_id', artistUuidsToSearch)
             .lt('event_date', todayYmd)
             .order('event_date', { ascending: false })
             .limit(50),
         ]);
-        const upcomingData = upcomingRes.data || [];
         const pastData = pastRes.data || [];
         const allEventsData = [...upcomingData, ...pastData];
 
@@ -269,7 +266,7 @@ export default function ArtistDetailScreen() {
 
         await fillMissingVenueNames(allEventsData);
 
-        upcomingQueryRef.current = { ids: artistUuidsToSearch, name: artistName };
+        upcomingQueryRef.current = { ids: artistUuidsToSearch, name: artistName, origin };
         setHasMoreUpcoming(upcomingData.length >= INITIAL_UPCOMING_LIMIT);
         setUpcomingEvents(upcomingData.map(e => mapEventRow(e, artistName)));
         setPastEvents(pastData.map(e => mapEventRow(e, artistName)));
@@ -403,7 +400,7 @@ export default function ArtistDetailScreen() {
     if (!query?.ids.length || loadingAllUpcoming) return;
     setLoadingAllUpcoming(true);
     try {
-      const extra = await fetchUpcomingEventPages(query.ids, upcomingEvents.length);
+      const extra = await fetchUpcomingEventPages(query.ids, upcomingEvents.length, query.origin);
       await fillMissingVenueNames(extra);
       if (extra.length > 0) {
         setUpcomingEvents(prev => {

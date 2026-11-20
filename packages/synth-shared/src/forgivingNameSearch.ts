@@ -271,7 +271,7 @@ export type FuzzyEventRow = {
   match_score: number;
 };
 
-export async function searchArtistsFuzzy(
+async function searchArtistsFuzzyUncached(
   client: SynthSupabaseClient,
   query: string,
   limit = 20
@@ -301,7 +301,7 @@ export async function searchArtistsFuzzy(
     .slice(0, capped);
 }
 
-export async function searchVenuesFuzzy(
+async function searchVenuesFuzzyUncached(
   client: SynthSupabaseClient,
   query: string,
   limit = 20
@@ -381,7 +381,7 @@ export async function searchUsersFuzzy(
     .slice(offset, offset + capped);
 }
 
-export async function searchEventsFuzzy(
+async function searchEventsFuzzyUncached(
   client: SynthSupabaseClient,
   query: string,
   opts?: { limit?: number; offset?: number }
@@ -663,4 +663,69 @@ export async function searchPastEventsForReview(
     if (rows.length >= limit) break;
   }
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Short-lived result cache for catalog search (artists / venues / events).
+//
+// Typing "tay" -> "tayl" -> backspace -> "tay" re-asks the same question; so does
+// switching result tabs or reopening search. Results are public catalog data, so a
+// 60-second in-memory cache is safe, and identical in-flight requests share one call.
+// People search (searchUsersFuzzy) is deliberately not cached.
+// ---------------------------------------------------------------------------
+const SEARCH_CACHE_TTL_MS = 60_000;
+const SEARCH_CACHE_MAX = 120;
+const searchCache = new Map<string, { at: number; promise: Promise<unknown[]> }>();
+
+function cachedSearch<T>(key: string, run: () => Promise<T[]>): Promise<T[]> {
+  const now = Date.now();
+  const hit = searchCache.get(key);
+  if (hit && now - hit.at < SEARCH_CACHE_TTL_MS) {
+    // Refresh recency (Map keeps insertion order -> oldest first for eviction).
+    searchCache.delete(key);
+    searchCache.set(key, hit);
+    return hit.promise.then((rows) => rows.slice() as T[]);
+  }
+  const promise = run().then(
+    (rows) => {
+      // Don't keep empty results from a failed/fallback call around for a minute.
+      if (rows.length === 0) searchCache.delete(key);
+      return rows;
+    },
+    (err) => {
+      searchCache.delete(key);
+      throw err;
+    },
+  );
+  searchCache.set(key, { at: now, promise: promise as Promise<unknown[]> });
+  while (searchCache.size > SEARCH_CACHE_MAX) {
+    const oldest = searchCache.keys().next().value;
+    if (oldest === undefined) break;
+    searchCache.delete(oldest);
+  }
+  return promise.then((rows) => rows.slice());
+}
+
+/** Clears cached catalog search results (e.g. after creating an artist or venue). */
+export function clearCatalogSearchCache(): void {
+  searchCache.clear();
+}
+
+export function searchArtistsFuzzy(client: SynthSupabaseClient, query: string, limit = 20): Promise<FuzzyArtistRow[]> {
+  const key = `a|${sanitizeSearchTerm(query).toLowerCase()}|${limit}`;
+  return cachedSearch(key, () => searchArtistsFuzzyUncached(client, query, limit));
+}
+
+export function searchVenuesFuzzy(client: SynthSupabaseClient, query: string, limit = 20): Promise<FuzzyVenueRow[]> {
+  const key = `v|${sanitizeSearchTerm(query).toLowerCase()}|${limit}`;
+  return cachedSearch(key, () => searchVenuesFuzzyUncached(client, query, limit));
+}
+
+export function searchEventsFuzzy(
+  client: SynthSupabaseClient,
+  query: string,
+  opts?: { limit?: number; offset?: number }
+): Promise<FuzzyEventRow[]> {
+  const key = `e|${sanitizeSearchTerm(query).toLowerCase()}|${opts?.limit ?? ''}|${opts?.offset ?? 0}`;
+  return cachedSearch(key, () => searchEventsFuzzyUncached(client, query, opts));
 }

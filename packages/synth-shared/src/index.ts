@@ -287,6 +287,7 @@ export {
   searchUsersFuzzy,
   searchEventsFuzzy,
   searchPastEventsForReview,
+  clearCatalogSearchCache,
   scoreNameMatch,
   forgivingIlikePatterns,
   type FuzzyArtistRow,
@@ -327,3 +328,12 @@ export {
   isSecretAdminMenuAllowed,
   type SecretAdminAccessInput,
 } from './secretAdminAccess';
+export {
+  distanceMiles,
+  eventLatLng,
+  isUsableLatLng,
+  sortEventsNearestFirst,
+  fetchArtistUpcomingEvents,
+  type LatLng,
+  type FetchArtistUpcomingOptions,
+} from './artistEventsNearby';
