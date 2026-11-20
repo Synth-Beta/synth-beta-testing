@@ -27,7 +27,10 @@ execSync('npm run build', { stdio: 'inherit' });
 stampIndexHtml('dist', 'join');
 
 console.log('Building admin portal (getsynth.app)…');
-execSync('npm run admin:build', { stdio: 'inherit' });
+// Asset URLs point straight at /_site/getsynth/assets/, which the CDN serves from disk.
+// Previously they were /assets/ and middleware rewrote every JS/CSS/font request, which
+// ran (and billed CPU for) a function per file on every page load.
+execSync('npm --prefix apps/admin run build -- --base=/_site/getsynth/', { stdio: 'inherit' });
 stampIndexHtml(join('apps', 'admin', 'dist'), 'getsynth-admin');
 
 const adminDist = join('apps', 'admin', 'dist');

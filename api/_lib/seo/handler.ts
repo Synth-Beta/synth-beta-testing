@@ -73,7 +73,9 @@ const DC = { slug: 'washington-dc', name: 'Washington, DC' };
 export const MIN_GENRE_EVENTS = 5;
 const EVENT_SELECT =
   'id,slug,title,event_date,event_status,ticket_urls,external_url,genres,artist:artists(id,name,slug),venue:venues(id,name,slug,city,state)';
-const CACHE_OK = 'public, s-maxage=3600, stale-while-revalidate=86400';
+// 1 day at the CDN, then served stale for up to a week while one request refreshes it.
+// Crawlers walk every page; at 1 hour nearly every bot visit re-ran this function.
+const CACHE_OK = 'public, s-maxage=86400, stale-while-revalidate=604800';
 /** Content pages revalidate when seo_content.updated_at changes (ETag). */
 const CACHE_CONTENT = 'public, max-age=0, s-maxage=86400, must-revalidate';
 const CACHE_MISS = 'public, s-maxage=300';

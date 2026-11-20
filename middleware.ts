@@ -103,6 +103,9 @@ export default function middleware(request: Request) {
   return rewrite(new URL('/_site/getsynth/index.html', request.url));
 }
 
+// /assets/ is skipped: hashed JS/CSS/fonts are served straight from disk on both hosts
+// (getsynth's build uses base /_site/getsynth/, see scripts/build-vercel-production.mjs).
+// Running middleware for every asset of every page load was billed as function CPU.
 export const config = {
-  matcher: ['/((?!api/|_site/|\\.well-known/).*)'],
+  matcher: ['/((?!api/|_site/|assets/|\\.well-known/).*)'],
 };

@@ -10,6 +10,25 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
+# SEO-tool scrapers and AI *training* crawlers: no search or AI-answer benefit, and every
+# page they fetch runs a server function. seo_crawler_hits (2026-11-20): ClaudeBot 73.5k and
+# Meta-ExternalAgent 70.7k were 92% of all crawler hits. AI answer/search bots
+# (Claude-SearchBot, Claude-User, OAI-SearchBot, ChatGPT-User, Perplexity) stay allowed.
+User-agent: ClaudeBot
+User-agent: Meta-ExternalAgent
+User-agent: GPTBot
+User-agent: YandexBot
+User-agent: AhrefsBot
+User-agent: SemrushBot
+User-agent: MJ12bot
+User-agent: DotBot
+User-agent: PetalBot
+User-agent: BLEXBot
+User-agent: DataForSeoBot
+User-agent: Bytespider
+User-agent: CCBot
+Disallow: /
+
 User-agent: *
 Allow: /
 

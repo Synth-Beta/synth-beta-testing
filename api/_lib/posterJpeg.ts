@@ -10,7 +10,8 @@ import jpeg from 'jpeg-js';
 
 export const WHATSAPP_MAX_BYTES = 300 * 1024;
 
-const QUALITIES = [82, 72, 62, 50, 40];
+// Each step is a full pure-JS JPEG encode (CPU billed per poster); 3 steps instead of 5.
+const QUALITIES = [75, 58, 40];
 
 type Raw = { width: number; height: number; data: Buffer | Uint8Array };
 
