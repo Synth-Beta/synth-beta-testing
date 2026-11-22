@@ -5,13 +5,14 @@ const ENDPOINT = 'https://join.getsynth.app/api/ops-alert';
 export type ClientSeverity = 'bug' | 'down' | 'failed_index';
 
 const recent = new Set<string>();
-let reloading = false;
 
 // After vite:preloadError is preventDefault-ed, the failed import() resolves to undefined,
 // so callers crash ("Cannot destructure property 'BadgeService'...") while the page reloads.
-// Those errors are noise: the reload already fixes it.
+// Those errors are noise: the reload already fixes it. Global so src/instrument.ts's Sentry
+// beforeSend can read it without importing this module (which loads Supabase).
+const staleFlag = globalThis as { __synthStaleBuildReload?: boolean };
 export function markStaleBuildReload(): void {
-  reloading = true;
+  staleFlag.__synthStaleBuildReload = true;
 }
 
 function isLocal(): boolean {
@@ -25,7 +26,7 @@ export function reportClientIssue(input: {
   context?: string;
   surface?: 'web' | 'admin';
 }): void {
-  if (isLocal() || reloading) return;
+  if (isLocal() || staleFlag.__synthStaleBuildReload) return;
   const message = input.message?.trim();
   if (!message || message.length < 3) return;
   const key = `${input.severity || 'bug'}:${message.slice(0, 160)}`;

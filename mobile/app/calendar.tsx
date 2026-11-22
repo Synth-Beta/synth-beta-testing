@@ -13,6 +13,7 @@ import { SearchService, type SearchResult } from '../src/services/searchService'
 import { supabase } from '../src/integrations/supabase/client';
 import { useBrowseLocation } from '../src/contexts/BrowseLocationContext';
 import { toLocalYmd } from '../src/utils/localYmd';
+import { EMPTY_CALENDAR_TASTE, loadCalendarTaste, rankCalendarDayEvents, type CalendarTaste } from '@synth/shared';
 
 const PINK = SynthTokens.colors.brandPink500;
 type Scope = 'all' | 'mine';
@@ -92,6 +93,16 @@ export default function CalendarScreen() {
     }, [loadSaved])
   );
 
+  // Followed artists/venues + genre scores, used to put "for you" shows first on a day.
+  const [taste, setTaste] = useState<CalendarTaste>(EMPTY_CALENDAR_TASTE);
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+      loadCalendarTaste(supabase, userId).then(setTaste, (e) => console.warn('[Calendar] taste:', e));
+    });
+  }, []);
+
   // Nearby shows for the month on screen; merged so earlier months stay loaded.
   useEffect(() => {
     const locationKey = `${coords?.latitude ?? 'na'}|${coords?.longitude ?? 'na'}|${radiusMiles}`;
@@ -153,8 +164,8 @@ export default function CalendarScreen() {
     const savedIds = new Set(saved.map((e) => e.id));
     const rest = scope === 'mine' ? [] : (nearbyByDate[ymd] ?? []).filter((e) => !savedIds.has(e.id));
     const byTime = (a: SearchResult, b: SearchResult) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
-    return [...saved.sort(byTime), ...rest.sort(byTime)];
-  }, [selection, savedByDate, nearbyByDate, scope]);
+    return [...saved.sort(byTime), ...rankCalendarDayEvents(rest, taste)];
+  }, [selection, savedByDate, nearbyByDate, scope, taste]);
 
   const nextSaved = useMemo(
     () =>

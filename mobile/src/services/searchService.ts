@@ -25,6 +25,8 @@ export interface SearchResult {
     artist_id?: string;
     venue_id?: string;
     ticket_url?: string;
+    /** Calendar rows only; used to rank a day's shows by taste. */
+    genres?: string[];
 }
 
 /** Hard row cap PostgREST applies to every response on this project. */
@@ -49,6 +51,7 @@ function mapCalendarRpcRowToSearchResult(event: Record<string, unknown>): Search
         artist_id: event.artist_id != null ? String(event.artist_id) : undefined,
         venue_id: event.venue_id != null ? String(event.venue_id) : undefined,
         ticket_url: getCompliantEventLinkFromPayload(event) ?? undefined,
+        genres: Array.isArray(event.genres) ? (event.genres as string[]) : undefined,
     };
 }
 

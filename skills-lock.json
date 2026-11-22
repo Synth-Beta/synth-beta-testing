@@ -1,17 +1,80 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
+    "charles-color-analysis": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/design/charles-color-analysis/SKILL.md",
+      "computedHash": "b8f01dc6dfc4212b047bed2b30ca52fbd7c963464170aa0a84ad039d7cd9c4cc"
+    },
+    "charles-design-laws": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/drops/charles-design-laws/SKILL.md",
+      "computedHash": "19e3d3cb0b6894defe1f526c689b82f884636a49eafca61ce0cc0b4bfab96c27"
+    },
+    "charles-design-tips": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/drops/charles-design-tips/SKILL.md",
+      "computedHash": "3c307c709353791b2e693848806cef6190638606b8c3a668be1ce4cccd3c1b4a"
+    },
+    "charles-eli14": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/qol/charles-eli14/SKILL.md",
+      "computedHash": "3036bbde62eda01d97d4979a8b5bacce76e7d9e182071dc4ab29ac025984fdfc"
+    },
+    "charles-polish": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/design/charles-polish/SKILL.md",
+      "computedHash": "32f6c9556cd0a86de2d26209256b157d43366f11e8b4dd731a8fb442d7f2fc86"
+    },
+    "charles-store-screenshots": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/design/charles-store-screenshots/SKILL.md",
+      "computedHash": "696dd96c1037fc233cced32dec92b8977518673d55ab879f012c836a1931c3f0"
+    },
+    "charles-unreasonable-craft": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/design/charles-unreasonable-craft/SKILL.md",
+      "computedHash": "d5cb30c3df649f3d79e9f0aab7f7742e26a54d2eeb189eabf5808fa0a3cf3da8"
+    },
+    "charles-unslop": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/design/charles-unslop/SKILL.md",
+      "computedHash": "14c99266e4a88a7a30a2e927c410461a2413e57430238fca0fb97eacda68a3c2"
+    },
+    "charles-ux-animation": {
+      "source": "LemonFace0309/charles-skills",
+      "commit": "4fc00ba7b56b7856d602067c1e876aa2389f9561",
+      "sourceType": "github",
+      "skillPath": "skills/drops/charles-ux-animation/SKILL.md",
+      "computedHash": "9e5075a8759ba1c232c7b1b1f46199deb6dd1f70fe10ce96bc1d964478ba33ad"
+    },
     "supabase": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase/SKILL.md",
-      "computedHash": "19fca56d93a6d212c6373ad921dcaeddf2ff13e3558e6bfd6e63acb063255f86"
+      "computedHash": ""
     },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
-      "computedHash": "768f9a7532780a72165f79c91d71a4bf82abd9ed31045238c2acb40322fc1d0a"
+      "computedHash": ""
     }
   }
 }

@@ -6,14 +6,18 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCanonicalSiteUrl } from '@/utils/canonicalSiteUrl';
 
-// Add the elegant-shift animation keyframes
+// Stage light that pans slowly across the top. Transform-only so it stays on the compositor.
 const styles = `
-  @keyframes elegant-shift {
-    0% { background-position: 0% 50%; }
-    25% { background-position: 100% 50%; }
-    50% { background-position: 100% 100%; }
-    75% { background-position: 0% 100%; }
-    100% { background-position: 0% 50%; }
+  @keyframes auth-light-sweep {
+    from { transform: translateX(-18%); }
+    to { transform: translateX(18%); }
+  }
+  .auth-light {
+    animation: auth-light-sweep 9s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .auth-light { animation: none; }
   }
 `;
 
@@ -287,12 +291,16 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{
-      background: 'linear-gradient(45deg, #fdf2f8 0%, var(--neutral-0) 25%, #fce7f3 50%, var(--neutral-0) 75%, #fdf2f8 100%)',
-      backgroundSize: '400% 400%',
-      animation: 'elegant-shift 20s ease infinite'
+    <div className="relative min-h-screen overflow-hidden flex items-center justify-center p-4" style={{
+      background: 'linear-gradient(180deg, #FDF2F7 0%, var(--neutral-0) 70%)',
     }}>
-      <Card className="w-full max-w-md bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl border-0">
+      {/* One stage light from above, panning slowly; the card sits where it lands. */}
+      <div
+        aria-hidden
+        className="auth-light pointer-events-none absolute inset-y-0 -left-1/4 w-[150%]"
+        style={{ background: 'radial-gradient(ellipse 45% 65% at 50% 0%, #FFC2DF 0%, rgba(255,194,223,0.45) 45%, rgba(255,194,223,0) 75%)' }}
+      />
+      <Card className="relative w-full max-w-md bg-[var(--neutral-0)] rounded-3xl border-0 shadow-[0_8px_24px_rgba(123,21,89,0.08)]">
         <CardHeader className="text-center pb-8">
           <div className="flex justify-center mb-6">
             <img
@@ -301,29 +309,29 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
               className="w-20 h-20 rounded-2xl"
             />
           </div>
-          <CardTitle className="text-[35px] font-bold leading-[1.2] text-black mb-2" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+          <CardTitle className="text-[32px] font-semibold leading-[1.2] text-black mb-1" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
             Synth
           </CardTitle>
-          <CardDescription className="text-[#666666] text-[20px] font-medium leading-[1.5]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
+          <CardDescription className="text-[#5D646F] text-[18px] font-normal leading-[1.5]" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}>
             Connect with people at events you love
           </CardDescription>
         </CardHeader>
         <CardContent className="px-10 pb-10">
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'signin' | 'signup')}>
-            <TabsList className="grid w-full grid-cols-2 bg-[#F5F5DC] rounded-xl p-1">
+            <TabsList className="grid w-full grid-cols-2 bg-[#F5F5F5] rounded-xl p-1">
               <TabsTrigger
                 value="signin"
                 className="data-[state=active]:bg-white data-[state=active]:text-black text-[#666666] font-medium rounded-lg transition-all"
                 style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
               >
-                Sign In
+                Sign in
               </TabsTrigger>
               <TabsTrigger
                 value="signup"
                 className="data-[state=active]:bg-white data-[state=active]:text-black text-[#666666] font-medium rounded-lg transition-all"
                 style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
               >
-                Sign Up
+                Sign up
               </TabsTrigger>
             </TabsList>
 
@@ -375,7 +383,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                       type="button"
                       onClick={handleForgotPassword}
                       disabled={isResettingPassword}
-                      className="text-[16px] font-medium leading-[1.5] text-[#FF3399] hover:text-[#E6007A] transition-colors disabled:opacity-50"
+                      className="text-[14px] font-medium leading-[1.5] text-[#5D646F] hover:text-[#0E0E0E] transition-colors disabled:opacity-50"
                       style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                     >
                       {isResettingPassword ? 'Sending...' : 'Forgot password?'}
@@ -403,14 +411,8 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                     className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                   >
-                    {loading ? 'Signing in...' : 'Sign In'}
+                    {loading ? 'Signing in...' : 'Sign in'}
                   </Button>
-                  <p
-                    className="text-[16px] font-medium leading-[1.5] text-[#666666] text-center"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
-                  >
-                    Trouble signing in? Double-check your email and password, or use "Forgot password".
-                  </p>
                 </form>
               </div>
             </TabsContent>
@@ -485,7 +487,7 @@ export default function Auth({ onAuthSuccess }: AuthProps) {
                     className="w-full bg-[#FF3399] hover:bg-[#E6007A] text-white font-semibold py-3 px-6 rounded-lg transition-all"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif' }}
                   >
-                    {loading ? 'Creating account...' : 'Sign Up'}
+                    {loading ? 'Creating account...' : 'Create account'}
                   </Button>
                 </form>
               </div>

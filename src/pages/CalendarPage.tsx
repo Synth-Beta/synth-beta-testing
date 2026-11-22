@@ -11,6 +11,7 @@ import { UserEventService } from '@/services/userEventService';
 import { useBrowseLocation } from '@/contexts/BrowseLocationContext';
 import { LocationFilterButton } from '@/components/search/LocationFilterButton';
 import type { JamBaseEvent } from '@/types/eventTypes';
+import { EMPTY_CALENDAR_TASTE, loadCalendarTaste, rankCalendarDayEvents, type CalendarTaste } from '@synth/shared';
 import { cn } from '@/lib/utils';
 import './CalendarPage.css';
 
@@ -95,6 +96,13 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
     void loadSaved();
   }, [loadSaved]);
 
+  // Followed artists/venues + genre scores, used to put "for you" shows first on a day.
+  const [taste, setTaste] = useState<CalendarTaste>(EMPTY_CALENDAR_TASTE);
+  useEffect(() => {
+    if (!currentUserId) return;
+    loadCalendarTaste(supabase, currentUserId).then(setTaste, (e) => console.warn('[Calendar] taste:', e));
+  }, [currentUserId]);
+
   // Nearby shows for the month on screen (merged so earlier months stay loaded).
   useEffect(() => {
     let cancelled = false;
@@ -143,10 +151,10 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
     const k = dayKey(selectedDate);
     const saved = savedByDay.get(k) ?? [];
     if (scope === 'mine') return [...saved].sort(byTime);
-    // Saved shows first, then everything else that day.
+    // Saved shows first, then everything else that day, best taste match first.
     const rest = (nearbyByDay.get(k) ?? []).filter((e) => !savedIds.has(e.id));
-    return [...[...saved].sort(byTime), ...rest.sort(byTime)];
-  }, [selectedDate, scope, savedByDay, nearbyByDay, savedIds]);
+    return [...[...saved].sort(byTime), ...rankCalendarDayEvents(rest, taste)];
+  }, [selectedDate, scope, savedByDay, nearbyByDay, savedIds, taste]);
 
   const upcomingSaved = useMemo(
     () =>

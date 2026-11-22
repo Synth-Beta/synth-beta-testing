@@ -9,9 +9,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useShake } from '../../src/motion';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
@@ -31,6 +40,33 @@ import {
 const AUTH_PINK = '#FF3399';
 
 WebBrowser.maybeCompleteAuthSession();
+
+/** One stage light from above, panning slowly; matches web `Auth.tsx`. Transform-only, off under Reduce Motion. */
+function StageLight() {
+  const reduceMotion = useReducedMotion();
+  const { width } = useWindowDimensions();
+  const travel = width * 0.18;
+  const x = useSharedValue(-1);
+  useEffect(() => {
+    if (reduceMotion) return;
+    x.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, [reduceMotion, x]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * travel }] }));
+  return (
+    <Animated.View pointerEvents="none" style={[styles.light, style]}>
+      <Svg width="100%" height="100%">
+        <Defs>
+          <RadialGradient id="spot" cx="50%" cy="0%" rx="45%" ry="65%">
+            <Stop offset="0" stopColor="#FFC2DF" stopOpacity={1} />
+            <Stop offset="0.45" stopColor="#FFC2DF" stopOpacity={0.45} />
+            <Stop offset="0.75" stopColor="#FFC2DF" stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#spot)" />
+      </Svg>
+    </Animated.View>
+  );
+}
 
 export default function SignInScreen() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -121,7 +157,7 @@ export default function SignInScreen() {
       if (e) throw e;
       // Supabase answers success with no identities when the email is already registered.
       if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
-        setError('That email already has an account. Switch to Sign In.');
+        setError('That email already has an account. Switch to Sign in.');
         return;
       }
       // Email confirmation is off, so a session comes back and the root layout takes over.
@@ -219,12 +255,13 @@ export default function SignInScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <LinearGradient
-        colors={['#fdf2f8', '#FFFDFA', '#fce7f3', '#FFFDFA', '#fdf2f8']}
-        locations={[0, 0.25, 0.5, 0.75, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        colors={[SynthTokens.colors.brandPink050, SynthTokens.colors.neutral0]}
+        locations={[0, 0.7]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+      <StageLight />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Image source={require('../../assets/images/icon.png')} style={styles.logo} resizeMode="contain" />
@@ -233,10 +270,10 @@ export default function SignInScreen() {
 
           <View style={styles.segmented}>
             <TouchableOpacity style={[styles.segment, mode === 'signin' && styles.segmentActive]} onPress={() => setMode('signin')} disabled={loading}>
-              <Text style={[styles.segmentText, mode === 'signin' && styles.segmentTextActive]}>Sign In</Text>
+              <Text style={[styles.segmentText, mode === 'signin' && styles.segmentTextActive]}>Sign in</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.segment, mode === 'signup' && styles.segmentActive]} onPress={() => setMode('signup')} disabled={loading}>
-              <Text style={[styles.segmentText, mode === 'signup' && styles.segmentTextActive]}>Sign Up</Text>
+              <Text style={[styles.segmentText, mode === 'signup' && styles.segmentTextActive]}>Sign up</Text>
             </TouchableOpacity>
           </View>
 
@@ -261,11 +298,7 @@ export default function SignInScreen() {
               AndroidGoogleSignInPlaceholder renders null, so an Android build without the
               Google client IDs showed an empty slot above a dangling "or". */}
           {Platform.OS === 'ios' || googleAndroidReady ? (
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
+            <Text style={styles.dividerText}>or</Text>
           ) : null}
 
           {mode === 'signup' ? (
@@ -319,15 +352,9 @@ export default function SignInScreen() {
             {loading ? (
               <ActivityIndicator color={SynthTokens.colors.neutral0} />
             ) : (
-              <Text style={styles.primaryText}>{mode === 'signin' ? 'Sign In' : 'Sign Up'}</Text>
+              <Text style={styles.primaryText}>{mode === 'signin' ? 'Sign in' : 'Create account'}</Text>
             )}
           </TouchableOpacity>
-
-          {mode === 'signin' ? (
-            <Text style={styles.troubleText}>
-              Trouble signing in? Double-check your email and password, or use "Forgot password".
-            </Text>
-          ) : null}
 
           {mode === 'signin' ? (
             <TouchableOpacity style={styles.magicLinkWrap} onPress={onMagicLink} disabled={loading}>
@@ -341,35 +368,36 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: SynthTokens.colors.neutral50 },
+  root: { flex: 1, backgroundColor: SynthTokens.colors.neutral50, overflow: 'hidden' },
+  light: { position: 'absolute', top: 0, bottom: 0, left: '-25%', width: '150%' },
   scroll: { minHeight: '100%', padding: 20, paddingTop: 48, paddingBottom: 40, justifyContent: 'center' },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    borderRadius: 30,
+    backgroundColor: SynthTokens.colors.neutral0,
+    borderRadius: 24,
     padding: 24,
-    shadowColor: '#0E0E0E',
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 10,
+    shadowColor: SynthTokens.colors.brandPink700,
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
-  logo: { width: 78, height: 78, borderRadius: 18, alignSelf: 'center', marginBottom: 12 },
+  logo: { width: 72, height: 72, borderRadius: 16, alignSelf: 'center', marginBottom: 12 },
   title: {
-    fontSize: 36,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '600',
     color: SynthTokens.colors.neutral900,
-    marginBottom: 6,
+    marginBottom: 4,
     textAlign: 'center',
   },
-  subtitle: { fontSize: 18, color: SynthTokens.colors.neutral600, marginBottom: 18, textAlign: 'center' },
+  subtitle: { fontSize: 16, lineHeight: 22, color: SynthTokens.colors.neutral600, marginBottom: 24, textAlign: 'center' },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: '#F5F5DC',
+    backgroundColor: SynthTokens.colors.neutral100,
     borderRadius: 12,
     padding: 4,
     marginBottom: 16,
   },
-  segment: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
+  segment: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   segmentActive: { backgroundColor: SynthTokens.colors.neutral0 },
   segmentText: { color: SynthTokens.colors.neutral600, fontWeight: '600' },
   segmentTextActive: { color: SynthTokens.colors.neutral900 },
@@ -401,21 +429,10 @@ const styles = StyleSheet.create({
   },
   appleText: { color: SynthTokens.colors.neutral0, fontWeight: '600', fontSize: 16 },
   forgotRow: { alignItems: 'flex-end', marginBottom: 4, marginTop: -4 },
-  forgotLink: { color: AUTH_PINK, fontSize: 16, fontWeight: '600' },
-  troubleText: {
-    marginTop: 16,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#666666',
-    lineHeight: 22,
-    paddingHorizontal: 4,
-  },
-  magicLinkWrap: { marginTop: 14, alignItems: 'center', paddingVertical: 8 },
+  forgotLink: { color: SynthTokens.colors.neutral600, fontSize: 14, fontWeight: '500', paddingVertical: 4 },
+  magicLinkWrap: { marginTop: 12, alignItems: 'center', paddingVertical: 8 },
   magicLinkText: { color: SynthTokens.colors.neutral600, fontSize: 14, fontWeight: '500', textDecorationLine: 'underline' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: SynthTokens.colors.neutral200 },
-  dividerText: { color: SynthTokens.colors.neutral600, marginHorizontal: 10, fontSize: 16, fontWeight: '500' },
+  dividerText: { color: SynthTokens.colors.neutral400, marginVertical: 12, fontSize: 14, textAlign: 'center' },
   error: { color: '#dc2626', marginTop: 8 },
   message: { color: SynthTokens.colors.neutral600, marginTop: 8 },
 });

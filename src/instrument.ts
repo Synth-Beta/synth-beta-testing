@@ -11,4 +11,7 @@ Sentry.init({
   enabled: import.meta.env.PROD,
   environment: isLocalhost ? 'local' : import.meta.env.MODE,
   tracesSampleRate: 0.05,
+  // vite:preloadError's preventDefault makes pending import()s resolve undefined; drop that noise until the reload lands.
+  // Flag set by markStaleBuildReload in services/clientIssueReporter (not imported: it pulls in Supabase).
+  beforeSend: (event) => ((globalThis as { __synthStaleBuildReload?: boolean }).__synthStaleBuildReload ? null : event),
 });
