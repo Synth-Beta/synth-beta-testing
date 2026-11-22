@@ -895,7 +895,6 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
             context_tags,
             venue_tags,
             artist_tags,
-            reaction_emoji,
             review_text
           `)
         .eq('id', review.id)
@@ -2692,7 +2691,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                     <div className="flex items-center gap-3">
                       {/* Unread indicator - pink dot on far left, vertically centered */}
                     {chat.has_unread ? (
-                      <div className="w-3 h-3 rounded-full flex-shrink-0 animate-pulse" style={{ backgroundColor: 'var(--brand-pink-500)' }} />
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--brand-pink-500)' }} />
                       ) : (
                         <div className="w-3 flex-shrink-0" />
                       )}
@@ -2781,7 +2780,7 @@ const lastAnnouncedMessageIdRef = useRef<string | null>(null);
                           setChatPendingDeletion(chat);
                           setIsDeleteChatModalOpen(true);
                         }}
-                      className="hover:text-red-500 hover:bg-red-50 p-2 flex-shrink-0 rounded-lg transition-all duration-200" 
+                      className="hover:text-red-500 hover:bg-red-50 p-2 flex-shrink-0 rounded-lg transition duration-200" 
                       style={{ color: 'var(--neutral-600)' }}
                       >
                         <Trash2 className="w-4 h-4" />

@@ -620,7 +620,7 @@ export class UserEventService {
           rating,
           review_text,
           created_at,
-          user:users!reviews_user_id_fkey (
+          user:users!user_id (
             user_id,
             name,
             avatar_url
@@ -672,7 +672,7 @@ export class UserEventService {
           rating,
           review_text,
           created_at,
-          user:users!reviews_user_id_fkey (
+          user:users!user_id (
             user_id,
             name,
             avatar_url
@@ -798,8 +798,7 @@ export class UserEventService {
         .from('reviews')
         .select('id, was_there, review_text')
         .eq('user_id', userId)
-        .eq('entity_type', 'event')
-        .eq('entity_id', eventId)
+        .eq('event_id', eventId)
         .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -816,8 +815,7 @@ export class UserEventService {
               updated_at: new Date().toISOString()
             })
             .eq('user_id', userId)
-            .eq('entity_type', 'event')
-            .eq('entity_id', eventId);
+            .eq('event_id', eventId);
 
           if (error) throw error;
         } else {
@@ -877,11 +875,6 @@ export class UserEventService {
           venue_feedback: null,
           location_feedback: null,
           value_feedback: null,
-          artist_performance_recommendation: null,
-          production_recommendation: null,
-          venue_recommendation: null,
-          location_recommendation: null,
-          value_recommendation: null,
           ticket_price_paid: null
         };
         
@@ -1017,7 +1010,7 @@ export class UserEventService {
         .from('reviews')
         .select(`
           user_id,
-          user:users!reviews_user_id_fkey(
+          user:users!user_id(
             user_id,
             name,
             avatar_url

@@ -138,7 +138,7 @@ export function PickFiveConnection() {
               ? "Finish connecting in Pick Five, then come back here. If it didn't open, enter this code in Pick Five within 10 minutes:"
               : 'Enter this code in Pick Five within 10 minutes:'}
           </p>
-          <p className="text-3xl font-extrabold tracking-[0.3em] text-gray-900 select-all" aria-label={`Code ${code.split('').join(' ')}`}>
+          <p className="text-3xl font-bold tracking-[0.3em] text-gray-900 select-all" aria-label={`Code ${code.split('').join(' ')}`}>
             {code}
           </p>
           <div className="flex gap-5">

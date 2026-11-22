@@ -55,7 +55,7 @@ export function WebDesktopRail({ items, onItemClick, onOpenMenu, menuBadgeCount 
                 key={item.id}
                 type="button"
                 onClick={() => onItemClick(item)}
-                className="mx-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 font-semibold shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                className="mx-1 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 font-semibold shadow-md transition-transform duration-150 active:scale-[0.97]"
                 style={{
                   backgroundColor: 'var(--brand-pink-500)',
                   color: 'var(--neutral-50)',

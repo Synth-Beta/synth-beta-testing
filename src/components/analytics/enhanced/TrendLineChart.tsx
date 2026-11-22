@@ -158,7 +158,7 @@ export function TrendLineChart({
                   cy={y}
                   r="4"
                   fill="#8b5cf6"
-                  className="hover:r-6 transition-all duration-200"
+                  className="hover:r-6 transition duration-200"
                 />
               );
             })}

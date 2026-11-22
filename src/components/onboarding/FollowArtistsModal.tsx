@@ -263,7 +263,7 @@ export const FollowArtistsModal = ({
                       className="flex flex-col items-center min-w-[120px] max-w-[120px] rounded-lg"
                     >
                       <div className="relative mb-2 mt-1">
-                        <Avatar className="h-16 w-16 ring-2 ring-synth-pink/20 transition-all">
+                        <Avatar className="h-16 w-16 ring-2 ring-synth-pink/20 transition">
                           <AvatarImage src={artist.image_url || undefined} alt={artist.name} />
                           <AvatarFallback className="bg-synth-pink/10 text-synth-pink">
                             {renderInitials(artist.name)}

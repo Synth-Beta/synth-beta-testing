@@ -94,7 +94,7 @@ export function DensityPreferenceStep({
       {value.preference && suggestedShow && (
         <div className="rounded-xl border border-border bg-white px-4 py-3 space-y-3">
           <div>
-            <div className="text-[13px] uppercase tracking-wide text-muted-foreground">
+            <div className="text-[13px] text-muted-foreground">
               Suggested show
             </div>
             <div className="font-semibold text-[16px] mt-1">

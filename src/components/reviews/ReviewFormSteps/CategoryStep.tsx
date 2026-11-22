@@ -119,14 +119,14 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       <header className="text-center space-y-2">
-        <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Step</p>
+        <p className="text-xs text-pink-500 font-semibold">Step</p>
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 break-words">{config.title}</h2>
         <p className="text-xs sm:text-sm var(--neutral-600) max-w-full mx-auto break-words">{config.subtitle}</p>
       </header>
 
       <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-4 sm:p-6 shadow-sm text-center space-y-4 w-full max-w-full overflow-x-hidden">
         <div className="flex flex-col items-center gap-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-pink-600 font-semibold">Your rating</p>
+          <p className="text-xs text-pink-600 font-semibold">Your rating</p>
           <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
             <div
               className="flex items-center flex-shrink-0"
@@ -169,7 +169,7 @@ export function CategoryStep({ config, formData, errors, onUpdateFormData, child
                 );
               })}
             </div>
-            <span className="text-2xl sm:text-3xl font-extrabold text-gray-900 break-words">{ratingLabel}</span>
+            <span className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">{ratingLabel}</span>
           </div>
           {config.helperText && (
             <p className="text-xs text-pink-500 break-words">{config.helperText}</p>

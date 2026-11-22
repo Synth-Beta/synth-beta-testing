@@ -8,6 +8,7 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 import { EventService } from '../../src/services/eventService';
+import { PressableScale } from '../../src/motion';
 import { InviteService, type InvitePreview } from '../../src/services/inviteService';
 
 const PINK = SynthTokens.colors.brandPink500;
@@ -131,7 +132,8 @@ export default function InviteScreen() {
           </Pressable>
         ) : invite?.event_id ? (
           <>
-            <Pressable
+            <PressableScale
+              haptic="light"
               style={[styles.interest, interested && styles.interestOn]}
               onPress={() => void toggleInterested()}
               disabled={busy}
@@ -142,7 +144,7 @@ export default function InviteScreen() {
               <Text style={[styles.interestTxt, interested && styles.interestTxtOn]}>
                 {interested ? 'Interested' : "I'm interested"}
               </Text>
-            </Pressable>
+            </PressableScale>
             <Pressable style={styles.secondary} onPress={() => router.replace(`/event/${invite.event_id}` as any)}>
               <Text style={styles.secondaryTxt}>See the show</Text>
             </Pressable>
@@ -170,7 +172,7 @@ const styles = StyleSheet.create({
   avatarFallback: { backgroundColor: SynthTokens.colors.neutral100, alignItems: 'center', justifyContent: 'center' },
   avatarLetter: { fontSize: 34, fontWeight: '700', color: SynthTokens.colors.neutral600 },
   title: { fontSize: 22, fontWeight: '700', color: SynthTokens.colors.neutral900, textAlign: 'center' },
-  show: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5, color: SynthTokens.colors.neutral900, textAlign: 'center' },
+  show: { fontSize: 26, fontWeight: '700', letterSpacing: -0.5, color: SynthTokens.colors.neutral900, textAlign: 'center' },
   body: { textAlign: 'center', fontSize: 15, lineHeight: 21 },
   friendsPill: {
     flexDirection: 'row',

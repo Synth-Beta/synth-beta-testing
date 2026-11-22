@@ -106,7 +106,7 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
     }
 
     return (
-      <Card className={cn("border-purple-300 bg-gradient-to-br from-purple-50 to-pink-50", className)}>
+      <Card className={cn("border-purple-300 bg-purple-50", className)}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -261,7 +261,7 @@ export function SetlistDisplay({ setlist, customSetlist, className, compact = fa
       </div>
 
       {/* Purple Container */}
-      <div className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg" style={{
+      <div className="border-purple-200 bg-purple-50 rounded-lg" style={{
         boxShadow: '0 4px 4px rgba(0, 0, 0, 0.25)',
         padding: '24px 20px',
       }}>

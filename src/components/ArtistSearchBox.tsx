@@ -252,7 +252,7 @@ export function ArtistSearchBox({
                 <div
                   key={artist.id}
                   className={cn(
-                    "relative px-4 py-3 cursor-pointer transition-all duration-150",
+                    "relative px-4 py-3 cursor-pointer transition duration-150",
                     "flex items-center gap-3",
                     "hover:bg-gray-50",
                     selectedIndex === index && "bg-blue-50"
@@ -277,7 +277,7 @@ export function ArtistSearchBox({
                         className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-100"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-100 to-purple-100 flex items-center justify-center ring-2 ring-gray-100">
+                      <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center ring-2 ring-gray-100">
                         <Music className="w-6 h-6 text-pink-500" />
                       </div>
                     )}

@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     paddingTop: SynthTokens.spacing.sm,
     paddingBottom: SynthTokens.spacing.sm,
   },
-  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, color: SynthTokens.colors.neutral900 },
+  title: { fontSize: 26, fontWeight: '700', letterSpacing: -0.6, color: SynthTokens.colors.neutral900 },
   iconCircle: {
     width: 44,
     height: 44,

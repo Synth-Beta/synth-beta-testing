@@ -46,7 +46,7 @@ export function NewsCard({ article, className = '' }: NewsCardProps) {
   };
 
   return (
-    <Card className={`overflow-hidden hover:shadow-md transition-all duration-200 cursor-pointer group ${className}`}>
+    <Card className={`overflow-hidden hover:shadow-md transition duration-200 cursor-pointer group ${className}`}>
       {/* Image Section */}
       {article.imageUrl && (
         <div className="h-48 w-full overflow-hidden bg-gray-100">

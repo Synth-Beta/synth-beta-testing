@@ -24,7 +24,7 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
     <div
       className={cn(
         'relative overflow-hidden',
-        'bg-gradient-to-br from-pink-50 to-purple-50/30',
+        'bg-pink-50',
         className
       )}
     >

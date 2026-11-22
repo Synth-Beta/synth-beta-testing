@@ -71,7 +71,7 @@ export function TimeSelectionStep({ reviewDuration, onSelectDuration }: TimeSele
               type="button"
               onClick={() => onSelectDuration(option.value)}
               className={cn(
-                'relative p-6 rounded-2xl border-2 text-left transition-all hover:scale-[1.02]'
+                'relative p-6 rounded-2xl border-2 text-left transition-colors duration-150'
               )}
               style={{
                 borderColor: isSelected ? 'var(--brand-pink-500)' : 'var(--neutral-200)',

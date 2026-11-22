@@ -121,8 +121,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: SynthTokens.colors.neutral600,
         marginBottom: 6,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
+
     },
     input: {
         backgroundColor: SynthTokens.colors.neutral0,

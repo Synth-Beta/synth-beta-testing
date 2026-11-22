@@ -1012,14 +1012,12 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
               venueId = nameId;
             } else {
               // Insert minimal row; handle unique race by selecting on conflict
-              const jambaseVenueId = `user-created-${Date.now()}`;
               const ins = await (supabase as any)
                 .from('venues')
                 .insert({
-                  jambase_venue_id: jambaseVenueId, // Keep for backward compatibility during migration
                   name: formData.selectedVenue.name,
                   identifier: idLooksLikeUuid ? candidateIdentifier : `user-created-${formData.selectedVenue.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-                  address: typeof formData.selectedVenue.address === 'string' ? formData.selectedVenue.address : (formData.selectedVenue.address?.streetAddress || null),
+                  street_address: typeof formData.selectedVenue.address === 'string' ? formData.selectedVenue.address : (formData.selectedVenue.address?.streetAddress || null),
                   city: formData.selectedVenue.address?.addressLocality || null,
                   state: formData.selectedVenue.address?.addressRegion || null,
                   zip: formData.selectedVenue.address?.postalCode || null,
@@ -1845,7 +1843,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                 <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">
+                  <p className="text-xs text-pink-500 font-semibold">
                     Step {currentStep} of {totalSteps || REVIEW_FORM_TOTAL_STEPS}
                   </p>
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900 mt-1 break-words">
@@ -1860,7 +1858,7 @@ export function EventReviewForm({ event, userId, onSubmitted, onDeleted, onClose
                   }}
                 >
                   <div
-                    className="h-full transition-all duration-300"
+                    className="h-full transition duration-300"
                     style={{
                       width: `${progressPercent}%`,
                       backgroundColor: 'var(--brand-pink-500)',

@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   Text,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SynthText } from '../SynthText';
@@ -18,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bell, ChevronLeft, UserPlus, Heart, MessageSquare, Menu, Music2, MapPin, CheckCheck, Award, Stamp, CheckCircle } from 'lucide-react-native';
 import { NotificationsSkeleton } from '../skeletons/NotificationsSkeleton';
+import { showToast } from '../Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -121,7 +121,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
     try {
       const ok = await NotificationService.markAllAsRead(user.id);
       if (!ok) {
-        Alert.alert('Could not update', 'Please try again.');
+        showToast('Please try again.', { title: 'Could not update' });
         return;
       }
       await loadNotifications(false);
@@ -198,7 +198,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
   const handleAcceptFriendRequest = async (item: Notification) => {
     const requestId = friendRequestId(item);
     if (!requestId) {
-      Alert.alert('Friend request', 'This notification is missing request details.');
+      showToast('This notification is missing request details.', { title: 'Friend request' });
       return;
     }
     const {
@@ -211,7 +211,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
     try {
       const res = await NotificationService.acceptFriendRequest(requestId);
       if (!res.ok) {
-        Alert.alert('Could not accept', res.error ?? 'Please try again.');
+        showToast(res.error ?? 'Please try again.', { title: 'Could not accept' });
         return;
       }
       await NotificationService.deleteFriendRequestNotification(user.id, requestId);
@@ -224,7 +224,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
   const handleDeclineFriendRequest = async (item: Notification) => {
     const requestId = friendRequestId(item);
     if (!requestId) {
-      Alert.alert('Friend request', 'This notification is missing request details.');
+      showToast('This notification is missing request details.', { title: 'Friend request' });
       return;
     }
     const {
@@ -237,7 +237,7 @@ export function NotificationsFeed({ friendsOnly }: NotificationsFeedProps) {
     try {
       const res = await NotificationService.declineFriendRequest(requestId);
       if (!res.ok) {
-        Alert.alert('Could not decline', res.error ?? 'Please try again.');
+        showToast(res.error ?? 'Please try again.', { title: 'Could not decline' });
         return;
       }
       await NotificationService.deleteFriendRequestNotification(user.id, requestId);

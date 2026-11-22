@@ -2214,7 +2214,7 @@ interface FriendEventInterest {
                       >
                         {loadingTrending ? (
                           <>
-                          <SynthLoader variant="spinner" size="sm" />
+                          <SynthLoader size="sm" delayMs={0} />
                             Loading...
                           </>
                         ) : (
@@ -2270,7 +2270,7 @@ interface FriendEventInterest {
                       >
                         {loadingNetwork ? (
                           <>
-                          <SynthLoader variant="spinner" size="sm" />
+                          <SynthLoader size="sm" delayMs={0} />
                             Loading...
                           </>
                         ) : (
@@ -2301,7 +2301,7 @@ interface FriendEventInterest {
                   return (
                     <div
                       key={chat.id}
-                      className="flex items-center gap-3 p-4 hover:shadow-md transition-all"
+                      className="flex items-center gap-3 p-4 hover:shadow-md transition"
                       style={{ borderRadius: '12px', backgroundColor: 'var(--neutral-50)', border: '2px solid var(--neutral-200)' }}
                     >
                       <MessageSquare className="shrink-0 w-8 h-8" style={{ color: 'var(--brand-pink-500)' }} />

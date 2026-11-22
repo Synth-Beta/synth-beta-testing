@@ -70,7 +70,7 @@ export async function autoFriendReferrer(
     // 1. Get referrer profile for the welcome toast
     const { data: profile } = await supabase
       .from('users')
-      .select('display_name, username')
+      .select('display_name:name, username')
       .eq('user_id', referrerId)
       .maybeSingle();
 
@@ -105,7 +105,7 @@ export async function autoFriendReferrer(
     // makes people want to share again.
     const { data: newUserProfile } = await supabase
       .from('users')
-      .select('display_name, username')
+      .select('display_name:name, username')
       .eq('user_id', currentUserId)
       .maybeSingle();
     const newUserName =

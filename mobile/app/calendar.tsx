@@ -342,6 +342,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: SynthTokens.colors.neutral200,
   },
-  miniDate: { width: 52, fontSize: 12, fontWeight: '800', color: PINK },
+  miniDate: { width: 52, fontSize: 12, fontWeight: '700', color: PINK },
   miniTitle: { flex: 1, fontSize: 14, color: SynthTokens.colors.neutral900 },
 });

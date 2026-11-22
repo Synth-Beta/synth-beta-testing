@@ -254,7 +254,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
       {/* User Card */}
       <div className="relative">
         <Card
-          className={`transition-all duration-300 cursor-pointer hover:shadow-lg ${
+          className={`transition duration-300 cursor-pointer hover:shadow-lg ${
             swipeDirection === 'left'
               ? 'translate-x-[-100%] opacity-0'
               : swipeDirection === 'right'
@@ -271,7 +271,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
         >
           <CardContent className="p-0">
             {/* Avatar Section */}
-            <div className="relative h-96 bg-gradient-to-br from-purple-100 to-pink-100 rounded-t-lg">
+            <div className="relative h-96 bg-purple-100 rounded-t-lg">
               {currentUser.avatar_url ? (
                 <img
                   src={currentUser.avatar_url}
@@ -377,7 +377,7 @@ const [potentialMatches, setPotentialMatches] = useState<PotentialMatch[]>([]);
             variant="default"
             onClick={() => handleSwipe(true)}
             disabled={swiping}
-            className="w-24 h-24 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 shadow-lg"
+            className="w-24 h-24 rounded-full bg-pink-500 hover:bg-pink-600 shadow-lg"
           >
             <Heart className="h-12 w-12 fill-current" />
           </Button>

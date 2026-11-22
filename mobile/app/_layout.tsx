@@ -29,6 +29,7 @@ import { ensurePublicUserProfile } from '../src/services/publicUserRecoveryServi
 import { InviteService, inviteCodeFromUrl } from '../src/services/inviteService';
 import { installAppIssueReporter, setAppIssueRoute } from '../src/services/clientIssueReporter';
 import { needsContactEmail, resolveNotificationExpoPath } from '@synth/shared';
+import { ToastHost } from '../src/components/Toast';
 
 Sentry.init({
   dsn: 'https://9b6672725128580d795a0d6fda5b6adb@o4510262186409984.ingest.us.sentry.io/4512364974243840',
@@ -678,6 +679,7 @@ function RootLayout() {
       <Stack.Screen name="admin" options={{ headerShown: false, animation: 'slide_from_right' }} />
       <Stack.Screen name="i/[code]" options={{ headerShown: false, gestureEnabled: false }} />
     </Stack>
+    <ToastHost />
     </BrowseLocationProvider>
     </InterestedProvider>
     </ContactEmailContext.Provider>

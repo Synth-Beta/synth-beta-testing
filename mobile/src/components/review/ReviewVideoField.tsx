@@ -7,6 +7,7 @@ import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { uploadReviewVideoFromUri } from '../../services/reviewVideoUpload';
 import { ReviewVideoPlayer } from './ReviewVideoPlayer';
+import { showToast } from '../Toast';
 
 interface Props {
     value: string[];
@@ -27,7 +28,7 @@ export function ReviewVideoField({ value, onChange, userId, onUploadingChange }:
     const pick = async () => {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) {
-            Alert.alert('Photos access needed', 'Allow access to your photos to add a video.');
+            showToast('Allow access to your photos to add a video.', { title: 'Photos access needed' });
             return;
         }
         const r = await ImagePicker.launchImageLibraryAsync({
@@ -44,7 +45,7 @@ export function ReviewVideoField({ value, onChange, userId, onUploadingChange }:
             sizeBytes: a.fileSize ?? null,
         });
         if (problem) {
-            Alert.alert('Video too long', problem);
+            showToast(problem, { title: 'Video too long' });
             return;
         }
         await upload(a.uri, a.mimeType);

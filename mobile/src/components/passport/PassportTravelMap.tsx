@@ -496,7 +496,7 @@ function Header({ count }: { count: number | null }) {
 const styles = StyleSheet.create({
     section: { marginTop: 20 },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    sectionTitle: { fontSize: 18, fontWeight: '800' },
+    sectionTitle: { fontSize: 18, fontWeight: '700' },
     countPill: {
         minWidth: 24,
         paddingHorizontal: 8,
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
         borderColor: PINK,
         alignItems: 'center',
     },
-    countPillTxt: { color: PINK, fontWeight: '800', fontSize: 12 },
+    countPillTxt: { color: PINK, fontWeight: '700', fontSize: 12 },
 
     mapShell: {
         height: MAP_HEIGHT,
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
     },
     markerCoreSelected: { width: 19, height: 19, borderRadius: 10 },
     markerCoreWithCount: { width: 22, height: 22, borderRadius: 11 },
-    markerCoreTxt: { color: '#FFFDFA', fontWeight: '800', fontSize: 10, lineHeight: 12 },
+    markerCoreTxt: { color: '#FFFDFA', fontWeight: '700', fontSize: 10, lineHeight: 12 },
 
     detailCard: {
         position: 'absolute',
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
         elevation: 8,
     },
     detailTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-    detailVenue: { fontWeight: '800', fontSize: 17 },
+    detailVenue: { fontWeight: '700', fontSize: 17 },
     ratingChip: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
         borderRadius: 999,
         backgroundColor: SynthTokens.colors.brandPink050,
     },
-    ratingTxt: { color: PINK, fontWeight: '800', fontSize: 13 },
+    ratingTxt: { color: PINK, fontWeight: '700', fontSize: 13 },
     closeBtn: { padding: 2, marginTop: 2 },
     detailQuote: { marginTop: 8, lineHeight: 20, fontStyle: 'italic' },
     detailActions: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 },
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 999,
     },
-    primaryActionTxt: { color: '#FFFDFA', fontWeight: '800', fontSize: 13.5 },
+    primaryActionTxt: { color: '#FFFDFA', fontWeight: '700', fontSize: 13.5 },
     secondaryAction: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     secondaryActionTxt: { color: PINK, fontWeight: '700', fontSize: 13.5 },
 

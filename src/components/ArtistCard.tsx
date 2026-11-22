@@ -126,7 +126,7 @@ export function ArtistCard({
             }
             onBack();
           }}
-          className="mb-4 flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all"
+          className="mb-4 flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition"
           style={{
             backgroundColor: 'rgba(255, 255, 255, 0.85)',
             backdropFilter: 'blur(20px)',
@@ -319,7 +319,7 @@ export function ArtistCard({
                     }
                     onViewAllEvents?.();
                   }}
-                  className="w-full py-3 rounded-2xl font-semibold transition-all"
+                  className="w-full py-3 rounded-2xl font-semibold transition"
                   style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.85)',
                     backdropFilter: 'blur(20px)',

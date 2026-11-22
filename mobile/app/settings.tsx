@@ -44,6 +44,7 @@ import {
 import { SettingsScreenSkeleton } from '../src/components/skeletons/SettingsScreenSkeleton';
 import { unregisterExpoPushToken, syncExpoPushTokenWithBackend } from '../lib/pushTokenSync';
 import { getNotificationPermissionStatus } from '../lib/registerPushNotifications';
+import { showToast } from '../src/components/Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -110,14 +111,13 @@ export default function SettingsScreen() {
 
     const { data: row } = await supabase
       .from('users')
-      .select('name, avatar_url, verified, contact_email')
+      .select('name, avatar_url, contact_email') // no `verified` column: selecting it failed the whole read
       .eq('user_id', user.id)
       .maybeSingle();
 
     if (row) {
       setDisplayName(row.name || '');
       setAvatarUrl(row.avatar_url || null);
-      setVerified(Boolean(row.verified));
       setContactEmail(row.contact_email || '');
     }
 
@@ -141,12 +141,12 @@ export default function SettingsScreen() {
           onPress: async (value?: string) => {
             const v = (value ?? '').trim();
             if (!v || !/^[^s@]+@[^s@]+.[^s@]+$/.test(v)) {
-              Alert.alert('Invalid email', 'Please enter a valid email address.');
+              showToast('Please enter a valid email address.', { title: 'Invalid email' });
               return;
             }
             const ok = await OnboardingService.updateContactEmail(userId, v);
             if (ok) setContactEmail(v);
-            else Alert.alert('Could not save', 'Please try again.');
+            else showToast('Please try again.', { title: 'Could not save' });
           },
         },
       ],
@@ -167,16 +167,13 @@ export default function SettingsScreen() {
         const hasPic = await UserVisibilityService.hasProfilePicture(userId);
         if (!hasPic) {
           setHasProfilePicture(false);
-          Alert.alert(
-            'Profile photo required',
-            'Add a profile photo before making your profile public.'
-          );
+          showToast('Add a profile photo before making your profile public.', { title: 'Profile photo required' });
           return;
         }
       }
       const ok = await UserVisibilityService.setProfileVisibility(userId, checked);
       if (!ok) {
-        Alert.alert('Could not save', 'We could not update your profile visibility. Please try again.');
+        showToast('We could not update your profile visibility. Please try again.', { title: 'Could not save' });
         return;
       }
       const prefs = await updateCurrentUserSettingsPreferences({ is_public_profile: checked });
@@ -185,10 +182,7 @@ export default function SettingsScreen() {
       } else {
         await UserVisibilityService.setProfileVisibility(userId, previous);
         setIsPublicProfile(previous);
-        Alert.alert(
-          'Could not save',
-          'Your account settings could not be synced. Visibility was reverted — please try again.'
-        );
+        showToast('Your account settings could not be synced. Visibility was reverted — please try again.', { title: 'Could not save' });
       }
     } catch (e) {
       console.error(e);
@@ -198,7 +192,7 @@ export default function SettingsScreen() {
         /* best-effort revert */
       }
       setIsPublicProfile(previous);
-      Alert.alert('Could not save', 'Something went wrong. Please try again.');
+      showToast('Something went wrong. Please try again.', { title: 'Could not save' });
     } finally {
       setLoadingVisibility(false);
     }
@@ -260,12 +254,12 @@ export default function SettingsScreen() {
         }
       } else {
         setEnablePush(previous);
-        Alert.alert('Could not save', 'Push notification preference was not updated. Please try again.');
+        showToast('Push notification preference was not updated. Please try again.', { title: 'Could not save' });
       }
     } catch (e) {
       console.error(e);
       setEnablePush(previous);
-      Alert.alert('Could not save', 'Something went wrong. Please try again.');
+      showToast('Something went wrong. Please try again.', { title: 'Could not save' });
     } finally {
       setLoadingPreferences(false);
     }
@@ -281,12 +275,12 @@ export default function SettingsScreen() {
         setEnableEmails(checked);
       } else {
         setEnableEmails(previous);
-        Alert.alert('Could not save', 'Email preference was not updated. Please try again.');
+        showToast('Email preference was not updated. Please try again.', { title: 'Could not save' });
       }
     } catch (e) {
       console.error(e);
       setEnableEmails(previous);
-      Alert.alert('Could not save', 'Something went wrong. Please try again.');
+      showToast('Something went wrong. Please try again.', { title: 'Could not save' });
     } finally {
       setLoadingPreferences(false);
     }
@@ -667,7 +661,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitial: { fontSize: 22, fontWeight: '800', color: SynthTokens.colors.neutral0 },
+  avatarInitial: { fontSize: 22, fontWeight: '700', color: SynthTokens.colors.neutral0 },
   profileText: { flex: 1, minWidth: 0 },
   profileName: { fontSize: 17, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
@@ -675,8 +669,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 13,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+
     marginTop: 8,
     marginBottom: -4,
   },

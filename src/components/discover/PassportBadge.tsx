@@ -21,7 +21,7 @@ const getRarityStyles = (rarity?: string) => {
     case 'legendary':
       return {
         border: 'border-purple-400',
-        bg: 'bg-gradient-to-br from-purple-50/90 to-pink-50/90',
+        bg: 'bg-purple-50/90',
         badge: 'bg-purple-100 text-purple-800 border-purple-300',
         icon: <Icon name="ribbonAward" size={16} />,
       };
@@ -93,7 +93,7 @@ export const PassportBadge: React.FC<PassportBadgeProps> = ({
   const badgeContent = (
     <Card
       className={cn(
-        'cursor-pointer transition-all hover:shadow-md relative overflow-hidden',
+        'cursor-pointer transition hover:shadow-md relative overflow-hidden',
         isUnlocked
           ? `border-2 ${rarityStyles.border} ${rarityStyles.bg}`
           : 'border-gray-200 bg-gray-50 opacity-75',
@@ -142,7 +142,7 @@ export const PassportBadge: React.FC<PassportBadgeProps> = ({
             </div>
             <div className="w-full bg-gray-200 rounded-full h-1.5">
               <div
-                className="bg-synth-pink h-1.5 rounded-full transition-all"
+                className="bg-synth-pink h-1.5 rounded-full transition"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>

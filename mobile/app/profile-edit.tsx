@@ -20,6 +20,7 @@ import { SynthTokens } from '../src/tokens/SynthTokens';
 import { supabase } from '../src/integrations/supabase/client';
 import { launchChatImagePicker } from '../src/utils/launchChatImagePicker';
 import { uploadProfileAvatarFromUri } from '../src/services/profileAvatarUpload';
+import { showToast } from '../src/components/Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -136,7 +137,7 @@ export default function ProfileEditScreen() {
       setAvatarUrl(url);
     } catch (error) {
       console.warn('[profile-edit] avatar upload failed', error);
-      Alert.alert('Upload failed', 'Could not upload your profile photo. Please try again.');
+      showToast('Could not upload your profile photo. Please try again.', { title: 'Upload failed' });
     } finally {
       setUploadingAvatar(false);
     }
@@ -154,7 +155,7 @@ export default function ProfileEditScreen() {
       setAvatarUrl(null);
     } catch (error) {
       console.warn('[profile-edit] remove avatar failed', error);
-      Alert.alert('Could not remove photo', 'Please try again.');
+      showToast('Please try again.', { title: 'Could not remove photo' });
     } finally {
       setUploadingAvatar(false);
     }
@@ -195,7 +196,7 @@ export default function ProfileEditScreen() {
     if (!userId) return;
     // Username is the unique handle (tags, search); never let an edit blank it.
     if (!username.trim()) {
-      Alert.alert('Username required', 'Pick a username so friends can find and tag you.');
+      showToast('Pick a username so friends can find and tag you.', { title: 'Username required' });
       return;
     }
     setSaving(true);
@@ -253,13 +254,10 @@ export default function ProfileEditScreen() {
         }
       }
 
-      Alert.alert('Saved', 'Profile updated.');
+      showToast('Profile updated.', { title: 'Saved' });
       router.back();
     } catch (e: any) {
-      Alert.alert(
-        'Error',
-        e?.code === '23505' ? 'That username is taken. Try another.' : e?.message || 'Could not save profile'
-      );
+      showToast(e?.code === '23505' ? 'That username is taken. Try another.' : e?.message || 'Could not save profile', { title: 'Error' });
     } finally {
       setSaving(false);
     }

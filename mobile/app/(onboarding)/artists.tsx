@@ -21,6 +21,7 @@ import { InviteService } from '../../src/services/inviteService';
 import { SceneRoomService } from '../../src/services/sceneRoomService';
 import { awaitProfileSave, ProfileSaveError } from '../../src/services/pendingProfileSave';
 import { describeProfileSaveError } from '@synth/shared';
+import { showToast } from '../../src/components/Toast';
 
 const ONBOARDING_STORAGE_KEY_PREFIX = 'HAS_COMPLETED_ONBOARDING:';
 const getOnboardingStorageKey = (userId: string) => `${ONBOARDING_STORAGE_KEY_PREFIX}${userId}`;
@@ -174,10 +175,7 @@ export default function ArtistsScreen() {
             // most expensive failure in the funnel, and previously invisible on mobile.
             trackOnboardingBlock('completion_write');
             console.warn('Artist follow / onboarding-complete write failed:', error);
-            Alert.alert(
-                'Could not finish setting up',
-                'Check your connection and try again.'
-            );
+            showToast('Check your connection and try again.', { title: 'Could not finish setting up' });
             return;
         } finally {
             setSaving(false);

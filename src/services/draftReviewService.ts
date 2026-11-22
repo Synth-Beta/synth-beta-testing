@@ -158,7 +158,7 @@ export class DraftReviewService {
       if (artistProfileId && isValidUuid(artistProfileId)) {
         await supabase
           .from('events')
-          .update({ artist_uuid: artistProfileId })
+          .update({ artist_id: artistProfileId })
           .eq('id', eventId);
         return artistProfileId;
       }

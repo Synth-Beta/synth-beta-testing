@@ -1014,42 +1014,45 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
   };
 
   const handleInterestToggle = async (eventId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     hapticLight();
     const event = findEvent(eventId);
-    if (event) {
-      try {
-        const eventUuid = getEventUuid(event);
-        const { trackInteraction } = await import('@/services/interactionTrackingService');
-        trackInteraction.interest(
-          'event',
-          eventId,
-          !interestedEvents.has(eventId),
-          { ...getEventMetadata(event), source: 'feed' },
-          eventUuid || undefined
-        );
-      } catch (err) {
-        console.error('Error tracking interest toggle:', err);
-      }
-    }
-    e.stopPropagation();
     const isCurrentlyInterested = interestedEvents.has(eventId);
     const newInterestedState = !isCurrentlyInterested;
 
-    try {
-      await UserEventService.setEventInterest(currentUserId, eventId, newInterestedState);
+    // Optimistic: the heart and count change on this frame; rolled back below if the write fails.
+    const applyInterest = (on: boolean) => {
       setInterestedEvents(prev => {
         const next = new Set(prev);
-        if (newInterestedState) next.add(eventId);
+        if (on) next.add(eventId);
         else next.delete(eventId);
         return next;
       });
-
       const updateEvent = (ev: UnifiedEventItem) =>
         ev.event_id === eventId
-          ? { ...ev, user_is_interested: newInterestedState, interested_count: (ev.interested_count || 0) + (newInterestedState ? 1 : -1) }
+          ? { ...ev, user_is_interested: on, interested_count: Math.max(0, (ev.interested_count || 0) + (on ? 1 : -1)) }
           : ev;
       setAllFetchedEvents(prev => prev.map(updateEvent));
       setDisplayedEvents(prev => prev.map(updateEvent));
+    };
+    applyInterest(newInterestedState);
+
+    if (event) {
+      void import('@/services/interactionTrackingService')
+        .then(({ trackInteraction }) =>
+          trackInteraction.interest(
+            'event',
+            eventId,
+            newInterestedState,
+            { ...getEventMetadata(event), source: 'feed' },
+            getEventUuid(event) || undefined
+          )
+        )
+        .catch((err) => console.error('Error tracking interest toggle:', err));
+    }
+
+    try {
+      await UserEventService.setEventInterest(currentUserId, eventId, newInterestedState);
 
       // Interested events leave the feed (they live in saved) so more new shows
       // surface; the short delay lets the user see the tap land.
@@ -1070,6 +1073,8 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
       onInterestToggle?.(eventId, newInterestedState);
     } catch (error) {
       console.error('Error toggling interest:', error);
+      applyInterest(isCurrentlyInterested);
+      toast({ title: "Couldn't save that", description: 'Check your connection and try again.', duration: 4000 });
     }
   };
 
@@ -1246,7 +1251,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
         <div className="flex items-center gap-2 px-4 py-2" style={{ borderRadius: '999px', backgroundColor: 'var(--neutral-50)', border: 'var(--border-default)', boxShadow: 'var(--shadow-default)' }}>
           {isRefreshing ? (
             <>
-              <SynthLoader variant="spinner" size="sm" />
+              <SynthLoader size="sm" delayMs={0} />
               <span className="text-sm font-medium text-neutral-700">Refreshing...</span>
             </>
           ) : pullDistance >= 80 ? (
@@ -1355,14 +1360,14 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
           <Button
             type="button"
             variant="default"
-            className="px-8 py-3 rounded-2xl font-semibold text-sm inline-flex items-center justify-center gap-2 transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
+            className="px-8 py-3 rounded-2xl font-semibold text-sm inline-flex items-center justify-center gap-2 transition-transform duration-150 active:scale-[0.97]"
             disabled={hasMore ? loadingMore : isRefreshing}
             onClick={hasMore ? loadMore : handleRefreshButtonClick}
           >
             {hasMore ? (
               loadingMore ? (
                 <>
-                  <SynthLoader variant="spinner" size="sm" />
+                  <SynthLoader size="sm" delayMs={0} />
                   <span>Loading...</span>
                 </>
               ) : (
@@ -1385,7 +1390,7 @@ export const UnifiedEventsFeed: React.FC<UnifiedEventsFeedProps> = ({
               )
             ) : isRefreshing ? (
               <>
-                <SynthLoader variant="spinner" size="sm" />
+                <SynthLoader size="sm" delayMs={0} />
                 <span>Refreshing...</span>
               </>
             ) : (

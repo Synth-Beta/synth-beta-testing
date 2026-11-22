@@ -206,7 +206,7 @@ export class EventPhotoService {
           event_id,
           created_at,
           review:reviews!event_media_review_id_fkey (
-            user:users!reviews_user_id_fkey (
+            user:users!user_id (
               name,
               avatar_url
             )
@@ -214,7 +214,7 @@ export class EventPhotoService {
           event:events (
             id,
             title,
-            artist_name,
+            ...artists(artist_name:name),
             event_date
           )
         `)

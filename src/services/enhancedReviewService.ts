@@ -38,7 +38,7 @@ export class EnhancedReviewService {
         .from('reviews')
         .select(`
           *,
-          users:users!reviews_user_id_fkey (
+          users:users!user_id (
             user_id,
             name,
             avatar_url,
@@ -47,25 +47,25 @@ export class EnhancedReviewService {
           events:events (
             id,
             title,
-            artist_name,
-            venue_name,
+            ...artists(artist_name:name),
+            ...venues(venue_name:name),
             event_date
           ),
           artists:artists (
             id,
-            normalized_name,
+            normalized_name:name,
             image_url,
             url,
-            jambase_id
+            jambase_id:identifier
           ),
           venues:venues (
             id,
-            normalized_name,
+            normalized_name:name,
             image_url,
-            address,
+            address:street_address,
             city,
             state,
-            jambase_id
+            jambase_id:identifier
           )
         `)
         .eq('event_id', eventId)
@@ -169,7 +169,7 @@ export class EnhancedReviewService {
         .from('reviews')
         .select(`
           *,
-          users:users!reviews_user_id_fkey (
+          users:users!user_id (
             user_id,
             name,
             avatar_url,
@@ -178,25 +178,25 @@ export class EnhancedReviewService {
           events:events (
             id,
             title,
-            artist_name,
-            venue_name,
+            ...artists(artist_name:name),
+            ...venues(venue_name:name),
             event_date
           ),
           artists:artists (
             id,
-            normalized_name,
+            normalized_name:name,
             image_url,
             url,
-            jambase_id
+            jambase_id:identifier
           ),
           venues:venues (
             id,
-            normalized_name,
+            normalized_name:name,
             image_url,
-            address,
+            address:street_address,
             city,
             state,
-            jambase_id
+            jambase_id:identifier
           )
         `, { count: 'exact' })
         .eq('is_public', true)
@@ -283,7 +283,7 @@ export class EnhancedReviewService {
       if (isUUID) {
         const { data: artist } = await supabase
           .from('artists')
-          .select('jambase_artist_id')
+          .select('jambase_artist_id:identifier')
           .eq('id', artistId)
           .single();
         

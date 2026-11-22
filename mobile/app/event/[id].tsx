@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ShareToChatModal } from '../../src/components/share/ShareToChatModal';
 import { useInterested } from '../../src/contexts/InterestedContext';
-import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, ScrollView, Dimensions, Pressable, Linking, Text, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { SafeImage } from '../../src/components/SafeImage';
@@ -45,6 +45,7 @@ import {
 } from '../../src/utils/eventDetailFormat';
 import { buildGoogleCalendarUrl } from '@synth/shared';
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
+import { showToast } from '../../src/components/Toast';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const HERO_HEIGHT = SCREEN_HEIGHT * 0.38;
@@ -150,7 +151,7 @@ export default function EventDetailScreen() {
             router.push(`/chat/${chatId}` as any);
         } catch (err) {
             console.error('[event] join group chat error', err);
-            Alert.alert('Could not join chat', 'Please try again.');
+            showToast('Please try again.', { title: 'Could not join chat' });
         } finally {
             setJoiningGroupChat(false);
         }
@@ -470,6 +471,18 @@ export default function EventDetailScreen() {
         if (ok) await Linking.openURL(url);
     };
 
+    // Tab content slides in from the side of the tab you moved to; opening from closed just fades.
+    // These hooks must stay above the early returns: hooks after them crash the screen
+    // ("Rendered more hooks than during the previous render") once loading finishes.
+    const TAB_ORDER = { groups: 0, meet: 1 } as const;
+    const tabIndex = activeTab ? TAB_ORDER[activeTab] : null;
+    const tabSlideDir = useSlideDirection(tabIndex);
+    const prevTabRef = React.useRef(activeTab);
+    const tabOpenedFromClosed = prevTabRef.current == null;
+    useEffect(() => {
+        prevTabRef.current = activeTab;
+    }, [activeTab]);
+
     if (loading) {
         return <EventDetailsSkeleton />;
     }
@@ -512,15 +525,6 @@ export default function EventDetailScreen() {
             description: event.description,
             siteUrl: getExpoSiteUrl(),
         })?.url ?? null;
-    // Tab content slides in from the side of the tab you moved to; opening from closed just fades.
-    const TAB_ORDER = { groups: 0, meet: 1 } as const;
-    const tabIndex = activeTab ? TAB_ORDER[activeTab] : null;
-    const tabSlideDir = useSlideDirection(tabIndex);
-    const prevTabRef = React.useRef(activeTab);
-    const tabOpenedFromClosed = prevTabRef.current == null;
-    useEffect(() => {
-        prevTabRef.current = activeTab;
-    }, [activeTab]);
 
     const handleTabPress = (tab: 'groups' | 'meet') => {
         const isOpening = activeTab !== tab;
@@ -559,7 +563,8 @@ export default function EventDetailScreen() {
                     {/* Interested / Write Review + Report */}
                     <View style={styles.primaryActionRow}>
                         {isUpcomingEvent ? (
-                            <Pressable
+                            <PressableScale
+                                haptic="light"
                                 onPress={() => void handleToggleInterested()}
                                 style={[styles.outlineAction, styles.outlineActionPrimary, isInterested && styles.outlineActionActive]}
                                 accessibilityRole="button"
@@ -573,7 +578,7 @@ export default function EventDetailScreen() {
                                 <Text style={[styles.outlineActionText, isInterested && styles.outlineActionTextOn]} numberOfLines={1}>
                                     {isInterested ? 'Interested' : "I'm Interested"}
                                 </Text>
-                            </Pressable>
+                            </PressableScale>
                         ) : null}
                         {isUpcomingEvent && sessionUserId ? (
                             <Pressable
@@ -1142,8 +1147,7 @@ const styles = StyleSheet.create({
     entityCardLabel: {
         fontSize: 11,
         fontWeight: '700',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
+
         color: SynthTokens.colors.neutral600,
     },
     entityCardTitle: {

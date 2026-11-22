@@ -17,6 +17,7 @@ import { PassportService, type ProfileTimelineItem, type ProfileStats } from '..
 import { EventService } from '../../src/services/eventService';
 import { NotificationService } from '../../src/services/notificationService';
 import { createFriendRequest } from '@synth/shared';
+import { showToast } from '../../src/components/Toast';
 
 type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'friends';
 
@@ -139,10 +140,7 @@ export default function PublicUserProfileScreen() {
       router.push(`/chat/${chatId}`);
       return;
     }
-    Alert.alert(
-      'Could not open chat',
-      'You may need to be friends first, or try again in a moment.'
-    );
+    showToast('You may need to be friends first, or try again in a moment.', { title: 'Could not open chat' });
   };
 
   const displayName = profile?.name || profile?.username || 'this user';
@@ -238,7 +236,7 @@ export default function PublicUserProfileScreen() {
         ? await NotificationService.acceptFriendRequest(pendingRequestId)
         : { ok: false };
       if (!accepted.ok) {
-        Alert.alert('Could not accept request', 'Please try again.');
+        showToast('Please try again.', { title: 'Could not accept request' });
       } else {
         setFriendStatus('friends');
         setPendingRequestId(null);
@@ -515,7 +513,7 @@ const styles = StyleSheet.create({
   },
   statNum: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: SynthTokens.colors.neutral900,
   },
   statLabel: {

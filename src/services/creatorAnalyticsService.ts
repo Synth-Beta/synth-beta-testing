@@ -135,7 +135,7 @@ export class CreatorAnalyticsService {
         .from('reviews')
         .select(`
           *,
-          event:events!inner(id, artist_name)
+          event:events!inner(id, ...artists(artist_name:name))
         `)
         .in('event_id', eventIds);
       if (reviewsError) console.warn('[creatorAnalyticsService] reviews query failed', reviewsError);

@@ -104,7 +104,7 @@ export function PrivacySubmitStep({
   return (
     <div className="space-y-8">
       <div className="text-center space-y-2">
-        <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Final Step</p>
+        <p className="text-xs text-pink-500 font-semibold">Final step</p>
         <h2 className="text-2xl font-semibold text-gray-900">Review & Share</h2>
         <p className="text-sm var(--neutral-600) max-w-2xl mx-auto">
           Take a final look at your ratings, highlight anything fans should know, and choose who can see your review.
@@ -114,7 +114,7 @@ export function PrivacySubmitStep({
       <section className="rounded-3xl shadow-lg p-8 space-y-4" style={{ background: 'var(--gradient-brand)' }}>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em]" style={{ color: 'var(--neutral-50)' }}>Average rating</p>
+            <p className="text-xs" style={{ color: 'var(--neutral-50)' }}>Average rating</p>
             <div className="flex items-baseline gap-4 mt-2">
               <span className="text-5xl font-bold tracking-tight" style={{ color: 'var(--neutral-50)' }}>{averageDisplay}</span>
               <div className="flex items-center gap-1">
@@ -222,7 +222,7 @@ export function PrivacySubmitStep({
       </Card>
 
       {user && (
-        <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30 overflow-visible relative z-20">
+        <Card className="border-2 border-pink-100 bg-pink-50/50 overflow-visible relative z-20">
           <CardContent className="p-6 sm:p-8 pb-10 sm:pb-12">
             <div className="flex items-center gap-2 mb-6">
               <Users className="w-6 h-6 text-pink-600" />
@@ -268,7 +268,7 @@ export function PrivacySubmitStep({
             <label
               htmlFor="public"
               className={cn(
-                'flex items-center space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all duration-200',
+                'flex items-center space-x-3 p-4 rounded-lg border-2 cursor-pointer transition duration-200',
                 formData.isPublic ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
               )}
             >
@@ -307,7 +307,7 @@ export function PrivacySubmitStep({
             <label
               htmlFor="private"
               className={cn(
-                'flex items-center space-x-3 p-4 rounded-lg border-2 cursor-pointer transition-all duration-200',
+                'flex items-center space-x-3 p-4 rounded-lg border-2 cursor-pointer transition duration-200',
                 !formData.isPublic ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
               )}
             >

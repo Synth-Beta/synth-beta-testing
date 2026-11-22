@@ -149,7 +149,7 @@ export function VerificationStatusCard({
             }}
           >
             <div
-              className="h-full transition-all duration-300"
+              className="h-full transition duration-300"
               style={{ 
                 width: `${progressPercentage}%`,
                 background: 'var(--gradient-brand)',

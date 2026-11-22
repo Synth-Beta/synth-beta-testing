@@ -226,7 +226,7 @@ useEffect(() => {
           {filteredConcerts.map((concert) => {
             const imageSrc = concert.image_url || getFallbackEventImage(`${concert.id}-${concert.title}`);
             return (
-              <Card key={concert.id} className="group hover:shadow-lg transition-all duration-200 overflow-hidden bg-card">
+              <Card key={concert.id} className="group hover:shadow-lg transition duration-200 overflow-hidden bg-card">
               {/* Concert Image */}
               <div className="relative h-48 overflow-hidden">
                 <img 

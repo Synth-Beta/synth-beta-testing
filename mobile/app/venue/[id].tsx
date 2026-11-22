@@ -8,7 +8,7 @@ import {
   Image,
   Share,
   Text,
-  Dimensions, Alert } from 'react-native';
+  Dimensions } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +29,7 @@ import { pickFeedImageUrlFromPayload, resolveFeedImageUri } from '../../src/util
 import { SafeImage } from '../../src/components/SafeImage';
 import { getCompliantEventLinkFromPayload } from '../../src/utils/eventTicketUrl';
 import { localYmdToStartOfDayIso, todayLocalYmd } from '../../src/utils/localYmd';
+import { showToast } from '../../src/components/Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 const INITIAL_UPCOMING_LIMIT = 20;
@@ -373,7 +374,7 @@ export default function VenueDetailScreen() {
     } catch (err) {
       // A network throw used to escape as an unhandled rejection and leave a blank page.
       console.warn('[venue] load failed', err);
-      Alert.alert('Could not load', 'Check your connection and try again.');
+      showToast('Check your connection and try again.', { title: 'Could not load' });
     } finally {
       setLoading(false);
     }
@@ -701,8 +702,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginBottom: 4,
     marginTop: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+
     fontSize: 12,
     fontWeight: '600',
   },

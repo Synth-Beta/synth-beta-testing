@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontSize: 30,
-    fontWeight: '800',
+    fontWeight: '700',
     color: PINK,
     letterSpacing: 3,
   },

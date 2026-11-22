@@ -8,6 +8,7 @@ import { SynthTokens } from '../../tokens/SynthTokens';
 import { BucketListService, type BucketListItem } from '../../services/bucketListService';
 import { SearchService, type ArtistSearchRow } from '../../services/searchService';
 import { EmptyState, SectionError, TabSkeleton } from './PassportPrimitives';
+import { showToast } from '../Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -86,7 +87,7 @@ export function PassportBucketTab({ userId, canEdit }: { userId: string; canEdit
                         setHits([]);
                         await load();
                     } else {
-                        Alert.alert('Could not add', 'Please try again.');
+                        showToast('Please try again.', { title: 'Could not add' });
                     }
                 } finally {
                     setAddingId(null);
@@ -365,7 +366,7 @@ const styles = StyleSheet.create({
         minWidth: 58,
         justifyContent: 'center',
     },
-    addBtnTxt: { color: '#FFFDFA', fontWeight: '800', fontSize: 13 },
+    addBtnTxt: { color: '#FFFDFA', fontWeight: '700', fontSize: 13 },
     noHits: { marginTop: 10, fontSize: 13.5 },
 
     itemRow: {

@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   coverFallbackText: {
     color: SynthTokens.colors.neutral0,
-    fontWeight: '800',
+    fontWeight: '700',
     fontSize: 15,
   },
   info: {
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   },
   rank: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     width: 28,
     textAlign: 'right',
   },

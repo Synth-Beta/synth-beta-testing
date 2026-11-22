@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
   },
-  step: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: PINK },
+  step: { fontSize: 11, fontWeight: '700', letterSpacing: 0.8, color: PINK },
   title: { fontSize: 17, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   body: { fontSize: 14, lineHeight: 20, color: SynthTokens.colors.neutral600 },
   hint: { fontSize: 13, lineHeight: 18, color: SynthTokens.colors.neutral600, fontStyle: 'italic' },

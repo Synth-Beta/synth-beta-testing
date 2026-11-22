@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { SkeletonBox } from '../skeletons';
 import { useRouter } from 'expo-router';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
@@ -38,8 +39,10 @@ export const MobileScenesRail: React.FC<MobileScenesRailProps> = ({ userId }) =>
 
     if (loading) {
         return (
-            <View style={styles.loadingWrap}>
-                <ActivityIndicator color={SynthTokens.colors.brandPink500} />
+            <View style={[styles.rail, styles.loadingWrap]}>
+                {[0, 1].map((i) => (
+                    <SkeletonBox key={i} width={280} height={132} borderRadius={16} />
+                ))}
             </View>
         );
     }
@@ -134,5 +137,5 @@ const styles = StyleSheet.create({
     },
     barFill: { height: '100%', backgroundColor: PINK },
     progressMeta: { marginTop: 6, fontSize: 12 },
-    loadingWrap: { paddingVertical: 24, alignItems: 'center' },
+    loadingWrap: { flexDirection: 'row', overflow: 'hidden' },
 });

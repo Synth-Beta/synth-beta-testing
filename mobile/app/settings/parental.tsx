@@ -6,7 +6,6 @@ import {
   Text,
   ScrollView,
   Switch,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
+import { showToast } from '../../src/components/Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -99,7 +99,7 @@ export default function ParentalControlsScreen() {
       if (error) throw error;
     } catch (e: any) {
       setControls(c => ({ ...c, [field]: prev }));
-      Alert.alert('Could not save', e?.message || 'Please try again.');
+      showToast(e?.message || 'Please try again.', { title: 'Could not save' });
     } finally {
       setSaving(false);
     }

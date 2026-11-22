@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     achCard: { flexDirection: 'row', padding: 14, marginBottom: 10, borderRadius: 12, borderWidth: 1 },
     achCardUnlocked: { backgroundColor: SynthTokens.colors.neutral0, borderColor: SynthTokens.colors.neutral400 },
     achCardLocked: { backgroundColor: 'rgba(201,201,201,0.35)', borderColor: SynthTokens.colors.neutral400 },
-    achTitle: { fontWeight: '800', fontSize: 16 },
+    achTitle: { fontWeight: '700', fontSize: 16 },
     achDesc: { marginTop: 4, lineHeight: 20 },
     unlockedPill: {
         marginTop: 8,

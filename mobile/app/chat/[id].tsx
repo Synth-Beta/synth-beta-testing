@@ -480,12 +480,15 @@ export default function ChatThreadScreen() {
             id,
             review_text,
             rating,
-            events ( title, artist_name, venue_name, venue_city, event_date )
+            events ( title, venue_city, event_date, artists ( name ), venues ( name ) )
           `
                     )
                     .in('id', revIds);
                 (revRows || []).forEach((row: any) => {
-                    const ev = row.events;
+                    // events has no artist_name/venue_name columns; names come from the joins.
+                    const ev = row.events
+                        ? { ...row.events, artist_name: row.events.artists?.name ?? null, venue_name: row.events.venues?.name ?? null }
+                        : null;
                     const headline =
                         (ev?.title as string) ||
                         (ev?.artist_name && ev?.venue_name

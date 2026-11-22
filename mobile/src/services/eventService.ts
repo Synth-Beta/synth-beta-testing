@@ -252,7 +252,7 @@ export class EventService {
                     ? supabase.from('artists').select('name, image_url').eq('id', artistId).maybeSingle()
                     : Promise.resolve({ data: null }),
                 venueId
-                    ? supabase.from('venues').select('name, city, address, state, zip, latitude, longitude').eq('id', venueId).maybeSingle()
+                    ? supabase.from('venues').select('name, city, address:street_address, state, zip, latitude, longitude').eq('id', venueId).maybeSingle()
                     : Promise.resolve({ data: null }),
             ]);
 
@@ -274,7 +274,7 @@ export class EventService {
                 if (r.data) artistRow = r.data as ArtistRow;
             }
             if (!venueRow && venueFallback.data?.entity_uuid) {
-                const r = await supabase.from('venues').select('name, city, address, state, zip, latitude, longitude').eq('id', venueFallback.data.entity_uuid).maybeSingle();
+                const r = await supabase.from('venues').select('name, city, address:street_address, state, zip, latitude, longitude').eq('id', venueFallback.data.entity_uuid).maybeSingle();
                 if (r.data) venueRow = r.data as VenueRow;
             }
 

@@ -40,7 +40,7 @@ export function AchievementCard({
     return (
       <div
         className={cn(
-          'flex items-center gap-3 p-3 rounded-lg border transition-all',
+          'flex items-center gap-3 p-3 rounded-lg border transition',
           unlocked
             ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200'
             : 'bg-gray-50 border-gray-200 opacity-60',
@@ -76,7 +76,7 @@ export function AchievementCard({
   return (
     <Card
       className={cn(
-        'overflow-hidden transition-all hover:shadow-md',
+        'overflow-hidden transition hover:shadow-md',
         unlocked
           ? 'glass-card border-2 border-yellow-300 bg-gradient-to-br from-yellow-50/80 to-amber-50/80'
           : 'bg-white border-gray-200 opacity-75',
@@ -88,7 +88,7 @@ export function AchievementCard({
           <div className="flex items-center gap-3">
             <div className={cn(
               'text-5xl',
-              unlocked ? 'animate-bounce' : 'grayscale'
+              !unlocked && 'grayscale'
             )}>
               {icon}
             </div>

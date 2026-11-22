@@ -1761,7 +1761,7 @@ const styles = StyleSheet.create({
     heroPlaceholder: { height: 0 },
     body: { padding: 16, gap: 12 },
     eventHeadline: { fontSize: 20, fontWeight: '700', color: SynthTokens.colors.neutral900, lineHeight: 26 },
-    title: { fontSize: 22, fontWeight: '800', lineHeight: 28 },
+    title: { fontSize: 22, fontWeight: '700', lineHeight: 28 },
     authorRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1779,7 +1779,7 @@ const styles = StyleSheet.create({
     overallRatingNum: {
         marginLeft: 8,
         fontSize: 22,
-        fontWeight: '800',
+        fontWeight: '700',
         color: '#F5A623',
     },
     metaRow: {

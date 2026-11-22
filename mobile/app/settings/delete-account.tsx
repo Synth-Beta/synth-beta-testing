@@ -59,7 +59,6 @@ export default function DeleteAccountScreen() {
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to delete account.';
       setError(msg);
-      Alert.alert('Could not delete account', msg);
     } finally {
       setBusy(false);
     }
@@ -161,10 +160,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  warnTitle: { fontSize: 17, fontWeight: '800', color: '#991b1b' },
+  warnTitle: { fontSize: 17, fontWeight: '700', color: '#991b1b' },
   warnBody: { lineHeight: 22 },
   hint: { marginTop: 4 },
-  mono: { fontFamily: undefined, fontWeight: '800', color: SynthTokens.colors.neutral900 },
+  mono: { fontFamily: undefined, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   errRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   errTxt: { flex: 1, color: SynthTokens.colors.error },
   input: {

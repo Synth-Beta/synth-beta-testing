@@ -315,8 +315,9 @@ export const EventCard: React.FC<EventCardProps> = ({
               <Text style={styles.writeReviewBtnTxt}>Write Review</Text>
             </PressableScale>
           ) : (
-            <Pressable
+            <PressableScale
               ref={tourInterestedRef}
+              haptic="light"
               onPress={() => void onToggleInterested()}
               style={[styles.interestedBtn, interested && styles.interestedBtnOn]}
             >
@@ -327,7 +328,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                 strokeWidth={2}
               />
               <Text style={styles.interestedBtnTxt}>{interested ? 'Interested' : "I'm interested"}</Text>
-            </Pressable>
+            </PressableScale>
           )}
           {ticketUrlProp?.trim() ? (
             <PressableScale onPress={() => void openTickets()} style={styles.ticketBtn} accessibilityLabel="Tickets">
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: CARD_RADIUS,
   },
   pick5Logo: { width: 26, height: 26, borderRadius: 7 },
-  pick5Title: { fontSize: 13, fontWeight: '800', color: SynthTokens.colors.neutral900 },
+  pick5Title: { fontSize: 13, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   pick5Sub: { fontSize: 12, color: SynthTokens.colors.neutral600 },
   pick5Cta: { fontSize: 13, fontWeight: '700', color: PICK5_PURPLE },
   imageWrapFlat: {
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
   },
   dateBadgeDay: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: SynthTokens.colors.neutral900,
     marginTop: 1,
     marginBottom: 1,
@@ -449,7 +450,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  ratingAvg: { fontSize: 13, fontWeight: '800', color: '#78350f' },
+  ratingAvg: { fontSize: 13, fontWeight: '700', color: '#78350f' },
   ratingName: { flexShrink: 1, fontSize: 13, color: '#92400e' },
   ratingQuote: {
     marginTop: 4,
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
   },
   cornerLabelText: {
     color: SynthTokens.colors.neutral50,
-    fontWeight: '800',
+    fontWeight: '700',
     fontSize: 10,
     letterSpacing: 0.6,
   },

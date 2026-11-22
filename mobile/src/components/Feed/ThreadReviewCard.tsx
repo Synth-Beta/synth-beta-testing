@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   },
   cornerLabelText: {
     color: SynthTokens.colors.neutral50,
-    fontWeight: '800',
+    fontWeight: '700',
     fontSize: 10,
     letterSpacing: 0.6,
   },
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
   },
   dateBadgeSmall: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, color: SynthTokens.colors.neutral600 },
-  dateBadgeDay: { fontSize: 22, fontWeight: '800', color: SynthTokens.colors.neutral900, marginVertical: 1 },
+  dateBadgeDay: { fontSize: 22, fontWeight: '700', color: SynthTokens.colors.neutral900, marginVertical: 1 },
   body: {
     paddingHorizontal: SynthTokens.spacing.md,
     paddingTop: SynthTokens.spacing.md,

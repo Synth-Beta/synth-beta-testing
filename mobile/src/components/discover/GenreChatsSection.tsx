@@ -5,7 +5,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -15,8 +14,10 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MessageCircle, Users } from 'lucide-react-native';
 import { SynthText } from '../SynthText';
+import { SkeletonBox } from '../skeletons';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { GenreChatService, pastelFromHex, type GenreChatInfo } from '../../services/genreChatService';
+import { showToast } from '../Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -125,10 +126,10 @@ export function GenreChatsSection({ currentUserId }: Props) {
                     )
                 );
             } else {
-                Alert.alert('Error', 'Could not join chat. Please try again.');
+                showToast('Could not join chat. Please try again.', { title: 'Error' });
             }
         } catch {
-            Alert.alert('Error', 'Could not join chat. Please try again.');
+            showToast('Could not join chat. Please try again.', { title: 'Error' });
         } finally {
             setJoiningId(null);
         }
@@ -151,8 +152,10 @@ export function GenreChatsSection({ currentUserId }: Props) {
             </View>
 
             {loading ? (
-                <View style={styles.loadingRow}>
-                    <ActivityIndicator color={PINK} />
+                <View style={[styles.loadingRow, styles.scrollContent]}>
+                    {[0, 1, 2].map((i) => (
+                        <SkeletonBox key={i} width={CARD_W} height={160} borderRadius={18} />
+                    ))}
                 </View>
             ) : (
                 <ScrollView
@@ -199,8 +202,8 @@ const styles = StyleSheet.create({
     },
     loadingRow: {
         height: 180,
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: 'row',
+        overflow: 'hidden',
     },
     scrollContent: {
         paddingRight: SynthTokens.spacing.md,

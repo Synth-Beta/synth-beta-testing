@@ -53,7 +53,7 @@ export function TopListCard({
               <div
                 key={`${item.name}-${index}`}
                 className={cn(
-                  'flex items-center justify-between p-3 rounded-lg transition-all',
+                  'flex items-center justify-between p-3 rounded-lg transition',
                   'bg-gradient-to-r from-gray-50 to-white hover:from-synth-pink/5 hover:to-synth-beige/5',
                   item.onClick && 'cursor-pointer hover:shadow-sm'
                 )}

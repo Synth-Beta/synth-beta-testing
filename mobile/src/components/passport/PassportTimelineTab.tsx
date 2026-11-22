@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Pencil, Pin, PinOff, Plus, Sparkles } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import { PassportService, type ProfileTimelineItem } from '../../services/passpo
 import { PassportTimelineService, type TimelineMeta } from '../../services/passportTimelineService';
 import { TimelineMilestoneSheet } from './TimelineMilestoneSheet';
 import { EmptyState, SectionError, TabSkeleton } from './PassportPrimitives';
+import { showToast } from '../Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 const PAGE = 20;
@@ -72,7 +73,7 @@ export function PassportTimelineTab({
                     }
                     await refreshMeta();
                 } catch (e) {
-                    Alert.alert('Pin', e instanceof Error ? e.message : 'Could not update pin.');
+                    showToast(e instanceof Error ? e.message : 'Could not update pin.', { title: 'Pin' });
                 }
             })();
         },
@@ -219,8 +220,8 @@ export function PassportTimelineTab({
 const styles = StyleSheet.create({
     pinnedSection: { marginBottom: 8 },
     pinnedHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-    pinnedHeaderTxt: { color: PINK, fontWeight: '800' },
-    allHeader: { fontWeight: '800', marginBottom: 10, marginTop: 6, color: SynthTokens.colors.neutral900 },
+    pinnedHeaderTxt: { color: PINK, fontWeight: '700' },
+    allHeader: { fontWeight: '700', marginBottom: 10, marginTop: 6, color: SynthTokens.colors.neutral900 },
 
     item: { flexDirection: 'row', marginBottom: 4 },
     rail: { width: 56, alignItems: 'center' },
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
     cardTitle: { fontWeight: '700' },
     cardImage: { width: 88, height: '100%', minHeight: 72 },
     milestoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
-    milestoneTxt: { color: PINK, fontWeight: '800', fontSize: 13, flex: 1 },
+    milestoneTxt: { color: PINK, fontWeight: '700', fontSize: 13, flex: 1 },
     milestoneDesc: { marginTop: 4, fontSize: 13, lineHeight: 18 },
 
     actionsRow: {

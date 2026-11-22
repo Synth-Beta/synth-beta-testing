@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scoreNumber: { fontSize: 24, fontWeight: '800', color: PINK, lineHeight: 28 },
+  scoreNumber: { fontSize: 24, fontWeight: '700', color: PINK, lineHeight: 28 },
   scoreLabel: { fontSize: 11, fontWeight: '600', color: SynthTokens.colors.neutral600 },
   scoreRight: { flex: 1, gap: 4 },
   scoreTitle: { fontSize: 15, fontWeight: '700', color: SynthTokens.colors.neutral900 },

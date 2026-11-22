@@ -308,10 +308,10 @@ export function SetlistModal({ isOpen, onClose, artistName, venueName, eventDate
                 const isExactDateMatch = eventDate && setlistDate && targetDate && setlistDate.toDateString() === targetDate.toDateString();
                 
                 return (
-                  <Card key={setlist.setlistFmId} className={`overflow-hidden transition-all duration-200 ${
+                  <Card key={setlist.setlistFmId} className={`overflow-hidden transition duration-200 ${
                     isSelected ? 'ring-2 ring-blue-500 shadow-lg' : 'hover:shadow-md'
                   }`}>
-                    <CardHeader className={`bg-gradient-to-r from-purple-50 to-pink-50 ${
+                    <CardHeader className={`bg-purple-50 ${
                       isSelected ? 'bg-gradient-to-r from-blue-50 to-indigo-50' : ''
                     }`}>
                       <div className="flex items-start justify-between">

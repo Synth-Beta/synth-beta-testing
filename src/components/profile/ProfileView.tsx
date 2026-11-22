@@ -2929,7 +2929,7 @@ const { user, sessionExpired } = useAuth();
                     .map((ev) => (
                       <div
                         key={ev.id}
-                        className={`aspect-square cursor-pointer rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 relative ${
+                        className={`aspect-square cursor-pointer rounded-xl overflow-hidden hover:shadow-lg transition duration-200 relative ${
                           showPastEvents ? 'opacity-75' : ''
                         }`}
                         style={{ 

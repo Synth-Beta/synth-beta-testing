@@ -174,7 +174,7 @@ export class UnifiedFeedService {
       // First, fetch the user's profile to get their name and avatar
       const { data: profile } = await supabase
         .from('users')
-        .select('name, avatar_url, verified, account_type')
+        .select('name, avatar_url, account_type')
         .eq('user_id', userId)
         .single();
 
@@ -217,7 +217,7 @@ export class UnifiedFeedService {
             id: userId,
             name: profile?.name || 'You',
             avatar_url: profile?.avatar_url,
-            verified: profile?.verified,
+            verified: false, // users has no `verified` column
             account_type: profile?.account_type
           },
           created_at: review.created_at,
@@ -296,7 +296,7 @@ export class UnifiedFeedService {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('user_id, name, avatar_url, verified, account_type')
+        .select('user_id, name, avatar_url, account_type')
         .in('user_id', uniqueIds);
 
       if (error) {
@@ -927,18 +927,17 @@ export class UnifiedFeedService {
       .from('reviews')
       .select(`
         *,
-        user:users!reviews_user_id_fkey (
+        user:users!user_id (
           name,
           avatar_url,
-          verified,
           account_type
         ),
         events (
           id,
           title,
-          venue_name,
+          ...venues(venue_name:name),
           event_date,
-          artist_name,
+          ...artists(artist_name:name),
           artist_id,
           venue_id
         )

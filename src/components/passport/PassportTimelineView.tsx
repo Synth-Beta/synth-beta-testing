@@ -287,7 +287,7 @@ useEffect(() => {
                 {/* Icon circle */}
                 <div
                   className={cn(
-                    "w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 shadow-lg flex items-center justify-center z-10 transition-all duration-300 mx-auto",
+                    "w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 shadow-lg flex items-center justify-center z-10 transition duration-300 mx-auto",
                     entry.is_pinned ? "ring-4 scale-110 shadow-xl" : "ring-2"
                   )}
                   style={{
@@ -308,7 +308,7 @@ useEffect(() => {
               
               {/* Card */}
               <Card
-                className="relative overflow-hidden transition-all duration-300 hover:shadow-xl w-full max-w-full"
+                className="relative overflow-hidden transition duration-300 hover:shadow-xl w-full max-w-full"
                 style={{
                   border: entry.is_pinned ? '2px solid var(--brand-pink-500)' : '1px solid var(--neutral-200)',
                   background: entry.is_pinned ? 'var(--gradient-soft)' : 'var(--neutral-0)',
@@ -405,7 +405,7 @@ useEffect(() => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 rounded-full transition-all"
+                            className="h-8 w-8 p-0 rounded-full transition"
                             style={{ color: entry.is_pinned ? 'var(--brand-pink-500)' : 'var(--neutral-400)' }}
                             onClick={() => handlePinToggle(entry.id, entry.is_pinned)}
                             disabled={!entry.is_pinned && pinnedCount >= 5}

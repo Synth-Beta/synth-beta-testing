@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { createFriendRequest } from '@synth/shared';
 import { supabase } from '@/integrations/supabase/client';
@@ -832,8 +833,16 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   const renderReviewsSection = () => {
     if (reviewsLoading) {
       return (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-synth-pink" />
+        <div className="space-y-3 py-4" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="h-12 w-12 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
@@ -955,7 +964,6 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                         context_tags,
                         venue_tags,
                         artist_tags,
-                        reaction_emoji,
                         review_text
                       `)
                       .eq('id', reviewId)
@@ -1034,8 +1042,16 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
   const renderInterestsSection = () => {
     if (interestsLoading) {
       return (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-5 w-5 animate-spin text-synth-pink" />
+        <div className="space-y-3 py-4" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="h-12 w-12 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
@@ -1628,7 +1644,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     src={selectedReviewDetail.author?.avatar_url || undefined} 
                     alt={selectedReviewDetail.author?.name ? `${selectedReviewDetail.author.name}'s profile picture` : "User profile picture"} 
                   />
-                  <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 text-white">
+                  <AvatarFallback className="bg-pink-500 text-white">
                     {selectedReviewDetail.author?.name?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
@@ -1839,7 +1855,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                     <div className="space-y-3">
                       {reviewDetailData.moodTags && reviewDetailData.moodTags.length > 0 && (
                         <div>
-                          <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Mood</h4>
+                          <h4 className="text-xs font-semibold text-gray-500 mb-2">Mood</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.moodTags.map((tag, idx) => (
                               <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
@@ -1851,7 +1867,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                       )}
                       {reviewDetailData.genreTags && reviewDetailData.genreTags.length > 0 && (
                         <div>
-                          <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Genre</h4>
+                          <h4 className="text-xs font-semibold text-gray-500 mb-2">Genre</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.genreTags.map((tag, idx) => (
                               <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
@@ -1863,7 +1879,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                       )}
                       {reviewDetailData.contextTags && reviewDetailData.contextTags.length > 0 && (
                         <div>
-                          <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Context</h4>
+                          <h4 className="text-xs font-semibold text-gray-500 mb-2">Context</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.contextTags.map((tag, idx) => (
                               <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
@@ -1875,7 +1891,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                       )}
                       {reviewDetailData.venueTags && reviewDetailData.venueTags.length > 0 && (
                         <div>
-                          <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Venue Tags</h4>
+                          <h4 className="text-xs font-semibold text-gray-500 mb-2">Venue tags</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.venueTags.map((tag, idx) => (
                               <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>
@@ -1887,7 +1903,7 @@ export const ConnectView: React.FC<ConnectViewProps> = ({
                       )}
                       {reviewDetailData.artistTags && reviewDetailData.artistTags.length > 0 && (
                         <div>
-                          <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Artist Tags</h4>
+                          <h4 className="text-xs font-semibold text-gray-500 mb-2">Artist tags</h4>
                           <div className="flex flex-wrap gap-2">
                             {reviewDetailData.artistTags.map((tag, idx) => (
                               <span style={{ display: 'inline-flex', alignItems: 'center', height: '25px', padding: '0 var(--spacing-small, 12px)', gap: 'var(--spacing-inline, 6px)', backgroundColor: 'var(--brand-pink-050)', color: 'var(--brand-pink-500)', border: '2px solid var(--brand-pink-500)', borderRadius: '999px', fontSize: 'var(--typography-meta-size, 16px)', fontWeight: 'var(--typography-meta-weight, 500)', lineHeight: 'var(--typography-meta-line-height, 1.5)' }}>

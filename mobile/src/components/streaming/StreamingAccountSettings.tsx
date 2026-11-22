@@ -27,6 +27,7 @@ import { formatRelativeTime } from '../../utils/formatRelativeTime';
 import { STREAMING_PROVIDER_LABELS } from '@synth/shared';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
 import { MusicImportOptions } from './MusicImportOptions';
+import { showToast } from '../Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -102,7 +103,7 @@ export function StreamingAccountSettings({ onNavigateToStats, showImports = true
       const authResult = await authenticateSpotifyInApp();
       if (!authResult.ok) {
         if (!authResult.cancelled) {
-          Alert.alert('Connect failed', authResult.error);
+          showToast(authResult.error, { title: 'Connect failed' });
         }
         return;
       }
@@ -113,17 +114,11 @@ export function StreamingAccountSettings({ onNavigateToStats, showImports = true
 
       if (syncResult.ok) {
         const countLine = formatStreamingSyncCountLine(syncResult.counts);
-        Alert.alert(
-          'Spotify connected!',
-          countLine
+        showToast(countLine
             ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
-            : 'Spotify connected and your stats are importing.'
-        );
+            : 'Spotify connected and your stats are importing.', { title: 'Spotify connected' });
       } else if (syncResult.skipped !== 'no-stored-token') {
-        Alert.alert(
-          'Connected, sync pending',
-          syncResult.message || 'Stats are syncing — pull to refresh in a moment.'
-        );
+        showToast(syncResult.message || 'Stats are syncing — pull to refresh in a moment.', { title: 'Connected, sync pending' });
       }
     } finally {
       setSyncing(false);
@@ -157,7 +152,7 @@ export function StreamingAccountSettings({ onNavigateToStats, showImports = true
       setSyncing(true);
       try {
         const result = await syncStreamingProfile(userId, 'lastfm', { manual: true });
-        Alert.alert(result.ok ? 'Stats updated' : 'Sync failed', result.ok ? 'Pulled your latest Last.fm listening.' : result.message);
+        showToast(result.ok ? 'Pulled your latest Last.fm listening.' : result.message, { title: result.ok ? 'Stats updated' : 'Sync failed' });
         if (result.ok) await refreshStatus();
       } finally {
         setSyncing(false);
@@ -171,12 +166,9 @@ export function StreamingAccountSettings({ onNavigateToStats, showImports = true
       const countLine = formatStreamingSyncCountLine(result.counts);
 
       if (result.ok) {
-        Alert.alert(
-          'Stats updated',
-          countLine
+        showToast(countLine
             ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
-            : 'Your streaming data has been refreshed. Your event feed will reflect your taste.'
-        );
+            : 'Your streaming data has been refreshed. Your event feed will reflect your taste.', { title: 'Stats updated' });
         await refreshStatus();
         return;
       }
@@ -209,12 +201,9 @@ export function StreamingAccountSettings({ onNavigateToStats, showImports = true
         return;
       }
 
-      Alert.alert(
-        'Sync failed',
-        countLine
+      showToast(countLine
           ? `${countLine} ${result.message || 'Could not refresh stats.'}`
-          : result.message || 'Could not refresh stats.'
-      );
+          : result.message || 'Could not refresh stats.', { title: 'Sync failed' });
     } finally {
       setSyncing(false);
     }
@@ -238,10 +227,7 @@ export function StreamingAccountSettings({ onNavigateToStats, showImports = true
               setProvider('unknown');
               setLastSynced(null);
             } catch (error) {
-              Alert.alert(
-                'Error',
-                error instanceof Error ? error.message : 'Could not disconnect streaming account.'
-              );
+              showToast(error instanceof Error ? error.message : 'Could not disconnect streaming account.', { title: 'Error' });
             } finally {
               setDisconnecting(false);
             }
@@ -399,7 +385,7 @@ const styles = StyleSheet.create({
   btnPrimaryText: {
     color: SynthTokens.colors.neutral0,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   btnDisabled: { opacity: 0.6 },
   btnOutline: {
@@ -428,7 +414,7 @@ const styles = StyleSheet.create({
   btnSpotifyText: {
     color: SynthTokens.colors.neutral0,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   btnApple: {
     flexDirection: 'row',
@@ -444,7 +430,7 @@ const styles = StyleSheet.create({
   btnAppleText: {
     color: SynthTokens.colors.neutral900,
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   btnGhost: {
     flexDirection: 'row',

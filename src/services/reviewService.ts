@@ -1138,8 +1138,7 @@ export class ReviewService {
         .from('reviews')
         .select(`
           *,
-          events_with_artist_venue:event_id (id, title, artist_name_normalized, venue_name_normalized, event_date),
-          review_likes!left(id, user_id)
+          events_with_artist_venue:event_id (id, title, ...artists(artist_name_normalized:name), ...venues(venue_name_normalized:name), event_date)
         `)
         .eq('event_id', eventId)
         .eq('is_public', true);
@@ -2014,7 +2013,7 @@ export class ReviewService {
         .from('reviews')
         .select(`
           *,
-          users:users!reviews_user_id_fkey (
+          users:users!user_id (
             user_id,
             name,
             avatar_url,
@@ -2226,8 +2225,7 @@ export class ReviewService {
           id, 
           likes_count, 
           comments_count, 
-          shares_count,
-          review_likes!left(id, user_id)
+          shares_count
         `)
         .in('id', reviewIds);
 
@@ -2387,8 +2385,7 @@ export class ReviewService {
       const { data: reviews, error } = await (supabase as any)
         .from('reviews')
         .select(`
-          *,
-          review_likes!left(id, user_id)
+          *
         `)
         .eq('venue_id', venueId)
         .eq('is_public', true)
@@ -2470,8 +2467,7 @@ export class ReviewService {
       const { data: reviews, error } = await (supabase as any)
         .from('reviews')
         .select(`
-          *,
-          review_likes!left(id, user_id)
+          *
         `)
         .eq('artist_id', artistId)
         .eq('is_public', true)
@@ -2561,7 +2557,7 @@ export class ReviewService {
         // Look up JamBase ID from artists table
         const { data: artist, error: artistError } = await supabase
           .from('artists')
-          .select('jambase_artist_id')
+          .select('jambase_artist_id:identifier')
           .eq('id', artistId)
           .single();
         if (artistError) console.warn('[reviewService] artist query failed', artistError);

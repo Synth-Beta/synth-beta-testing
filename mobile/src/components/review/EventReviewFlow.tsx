@@ -37,6 +37,7 @@ import { EventService } from '../../services/eventService';
 import { submitEventReviewFromForm } from '../../review/submitEventReviewFromForm';
 import type { UserReview } from '../../services/eventReviewSubmitService';
 import { EventReviewSubmitService } from '../../services/eventReviewSubmitService';
+import { showToast } from '../Toast';
 
 type Flow = 'quick' | 'standard' | 'detailed' | null;
 
@@ -778,7 +779,7 @@ export function EventReviewFlow({ initialEventId, prefill, onClose, onSubmitted,
             setLoading(false);
         }
         if (!res.ok) {
-            Alert.alert('Could not save', res.message);
+            showToast(res.message, { title: 'Could not save' });
             return;
         }
         if (draftKey) void AsyncStorage.removeItem(draftKey);
@@ -1584,7 +1585,7 @@ const styles = StyleSheet.create({
     },
     durationBadgeTxt: {
         fontSize: 22,
-        fontWeight: '800',
+        fontWeight: '700',
         color: SynthTokens.colors.brandPink500,
         lineHeight: 26,
     },

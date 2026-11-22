@@ -22,7 +22,7 @@ export const VibeCard: React.FC<VibeCardProps> = ({
   return (
     <Card
       className={cn(
-        'cursor-pointer transition-all hover:shadow-md hover:scale-[1.02]',
+        'cursor-pointer transition-shadow duration-150 hover:shadow-md',
         className
       )}
       onClick={onClick}

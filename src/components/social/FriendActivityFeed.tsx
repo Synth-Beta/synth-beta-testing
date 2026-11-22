@@ -70,10 +70,10 @@ export function FriendActivityFeed({ limit = 10 }: { limit?: number }) {
           events:events!user_event_relationships_event_id_fkey (
             id,
             title,
-            artist_name,
-            venue_name,
+            ...artists(artist_name:name),
+            ...venues(venue_name:name),
             event_date,
-            poster_image_url
+            poster_image_url:event_media_url
           ),
           users:users!user_event_relationships_user_id_fkey (
             user_id,

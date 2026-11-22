@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Music } from 'lucide-react';
 
@@ -8,7 +8,7 @@ export interface SynthLoaderProps {
    */
   size?: 'sm' | 'md' | 'lg' | 'xl';
   /**
-   * Variant: 'spinner' | 'pulse' | 'dots' | 'logo'
+   * Kept for existing callers; every variant now renders the same calm spinner.
    */
   variant?: 'spinner' | 'pulse' | 'dots' | 'logo';
   /**
@@ -31,13 +31,17 @@ export interface SynthLoaderProps {
    * Background color variant
    */
   background?: 'transparent' | 'blur' | 'solid';
+  /**
+   * Wait this long before showing anything, so fast loads never flash a spinner. Default 300ms.
+   */
+  delayMs?: number;
 }
 
 const sizeClasses = {
-  sm: 'w-4 h-4',
-  md: 'w-8 h-8',
-  lg: 'w-12 h-12',
-  xl: 'w-16 h-16',
+  sm: 'w-4 h-4 border-2',
+  md: 'w-8 h-8 border-[3px]',
+  lg: 'w-12 h-12 border-4',
+  xl: 'w-16 h-16 border-4',
 };
 
 const textSizeClasses = {
@@ -49,117 +53,35 @@ const textSizeClasses = {
 
 export const SynthLoader: React.FC<SynthLoaderProps> = ({
   size = 'md',
-  variant = 'spinner',
   text,
   fullPage = false,
   inline = false,
   className,
   background = 'blur',
+  delayMs = 300,
 }) => {
-  const renderLoader = () => {
-    switch (variant) {
-      case 'spinner':
-        return (
-          <div
-            className={cn(
-              'relative',
-              sizeClasses[size],
-              'animate-spin rounded-full border-4 border-synth-pink/20',
-              'border-t-synth-pink border-r-synth-pink'
-            )}
-          >
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-synth-pink/40 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-          </div>
-        );
-
-      case 'pulse':
-        return (
-          <div className="relative">
-            <div
-              className={cn(
-                'rounded-full bg-gradient-to-br from-synth-pink to-synth-pink-light',
-                'animate-pulse',
-                sizeClasses[size]
-              )}
-              style={{
-                boxShadow: '0 0 20px rgba(255, 51, 153, 0.4)',
-              }}
-            />
-            <div
-              className={cn(
-                'absolute inset-0 rounded-full bg-gradient-to-br from-synth-pink to-synth-pink-light',
-                'animate-ping opacity-75',
-                sizeClasses[size]
-              )}
-            />
-          </div>
-        );
-
-      case 'dots':
-        return (
-          <div className="flex items-center gap-2">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className={cn(
-                  'rounded-full bg-synth-pink',
-                  size === 'sm' ? 'w-1.5 h-1.5' : size === 'md' ? 'w-2 h-2' : size === 'lg' ? 'w-3 h-3' : 'w-4 h-4',
-                  'animate-bounce'
-                )}
-                style={{
-                  animationDelay: `${i * 0.15}s`,
-                  animationDuration: '0.6s',
-                }}
-              />
-            ))}
-          </div>
-        );
-
-      case 'logo':
-        return (
-          <div className="relative">
-            <div
-              className={cn(
-                'flex items-center justify-center',
-                'rounded-full bg-gradient-to-br from-synth-pink/20 to-synth-pink-light/20',
-                'backdrop-blur-sm border-2 border-synth-pink/30',
-                sizeClasses[size]
-              )}
-            >
-              <Music
-                className={cn(
-                  'text-synth-pink animate-pulse',
-                  size === 'sm' ? 'w-2 h-2' : size === 'md' ? 'w-4 h-4' : size === 'lg' ? 'w-6 h-6' : 'w-8 h-8'
-                )}
-              />
-            </div>
-            <div
-              className={cn(
-                'absolute inset-0 rounded-full border-2 border-synth-pink/40',
-                'animate-ping',
-                sizeClasses[size]
-              )}
-            />
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
+  const [visible, setVisible] = useState(delayMs <= 0);
+  useEffect(() => {
+    if (delayMs <= 0) return;
+    const t = setTimeout(() => setVisible(true), delayMs);
+    return () => clearTimeout(t);
+  }, [delayMs]);
 
   const content = (
-    <div className={cn('flex flex-col items-center justify-center gap-3', className)}>
-      {renderLoader()}
-      {text && (
-        <p
-          className={cn(
-            'text-muted-foreground font-medium animate-pulse',
-            textSizeClasses[size]
-          )}
-        >
-          {text}
-        </p>
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn('flex flex-col items-center justify-center gap-3', !visible && 'invisible', className)}
+    >
+      {/* One ring at constant speed: it shows work is happening and nothing more. */}
+      <div
+        className={cn('rounded-full animate-spin border-synth-pink/20 border-t-synth-pink', sizeClasses[size])}
+        style={{ animationDuration: '0.9s' }}
+      />
+      {text ? (
+        <p className={cn('text-muted-foreground font-medium', textSizeClasses[size])}>{text}</p>
+      ) : (
+        <span className="sr-only">Loading</span>
       )}
     </div>
   );
@@ -198,22 +120,16 @@ export const SynthLoader: React.FC<SynthLoaderProps> = ({
 export const SynthLoadingScreen: React.FC<{
   text?: string;
   showLogo?: boolean;
-}> = ({ text = 'Loading...', showLogo = false }) => {
+}> = ({ text = 'Loading…', showLogo = false }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-synth-beige/30 to-white">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-6 px-4">
         {showLogo && (
-          <div className="w-32 h-32 mx-auto mb-4">
-            <div className="relative w-full h-full">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-synth-pink/20 to-synth-pink-light/20 animate-pulse" />
-              <div className="absolute inset-2 rounded-full bg-gradient-to-br from-synth-pink to-synth-pink-light flex items-center justify-center">
-                <Music className="w-16 h-16 text-white" />
-              </div>
-              <div className="absolute inset-0 rounded-full border-4 border-synth-pink/40 animate-ping" />
-            </div>
+          <div className="w-20 h-20 mx-auto rounded-2xl bg-synth-pink flex items-center justify-center">
+            <Music className="w-10 h-10 text-white" />
           </div>
         )}
-        <SynthLoader variant="spinner" size="lg" text={text} />
+        <SynthLoader size="lg" text={text} />
       </div>
     </div>
   );
@@ -226,8 +142,8 @@ export const SynthLoadingInline: React.FC<{
   text?: string;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'spinner' | 'pulse' | 'dots';
-}> = ({ text, size = 'md', variant = 'spinner' }) => {
-  return <SynthLoader variant={variant} size={size} text={text} inline />;
+}> = ({ text, size = 'md' }) => {
+  return <SynthLoader size={size} text={text} inline />;
 };
 
 /**
@@ -237,6 +153,5 @@ export const SynthLoadingOverlay: React.FC<{
   text?: string;
   background?: 'transparent' | 'blur' | 'solid';
 }> = ({ text, background = 'blur' }) => {
-  return <SynthLoader variant="spinner" size="lg" text={text} fullPage background={background} />;
+  return <SynthLoader size="lg" text={text} fullPage background={background} />;
 };
-

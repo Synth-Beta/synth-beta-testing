@@ -73,7 +73,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       <header className="text-center space-y-2">
-        <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Quick Review</p>
+        <p className="text-xs text-pink-500 font-semibold">Quick review</p>
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 break-words">Share your experience</h2>
         <p className="text-xs sm:text-sm var(--neutral-600) max-w-full mx-auto break-words">
           Rate the overall experience and share a brief recap.
@@ -83,7 +83,7 @@ export function QuickReviewStep({ formData, errors, onUpdateFormData, onThumbnai
       {/* Overall Rating */}
       <section className="bg-gradient-to-br from-pink-50 via-rose-50 to-fuchsia-50 border border-pink-200/60 rounded-2xl p-4 sm:p-6 shadow-sm text-center space-y-4 w-full max-w-full overflow-x-hidden">
         <div className="flex flex-col items-center gap-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-pink-600 font-semibold">Overall Rating</p>
+          <p className="text-xs text-pink-600 font-semibold">Overall rating</p>
           <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
             <div
               className="flex items-center flex-shrink-0"

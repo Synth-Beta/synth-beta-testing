@@ -8,7 +8,7 @@
  * - message-type-aware list previews ("Photo", "Shared an event")  — was mobile only
  * - `entity_type` / `group_admin_id` / participant ids on chat rows — was web only
  * - opaque-preview guard for undecryptable content                  — was mobile only
- * - `event_shares` fallback when `shared_event_id` is null          — both, duplicated
+ * - (removed) `event_shares` fallback: that table no longer exists
  * - a row limit on message history                                  — was mobile only
  *
  * Supabase and the crypto binding are injected, because each app builds its own.
@@ -590,24 +590,9 @@ export function createChatCore(deps: ChatCoreDeps) {
       if (!rows.length) return { data: [], error: null };
 
       const senderIds: string[] = [...new Set(rows.map((m) => String(m.sender_id)))];
-      const messageIds: string[] = rows.map((m) => String(m.id));
 
-      // Older event shares recorded the event only in `event_shares`, not on the message.
-      const [sharesResult, senderProfiles] = await Promise.all([
-        supabase
-          .from('event_shares')
-          .select('message_id, event_id')
-          .eq('chat_id', chatId)
-          .in('message_id', messageIds),
-        fetchChatSenderProfiles(chatId, senderIds),
-      ]);
-
-      const eventIdByMessage = new Map<string, string>(
-        (sharesResult.data || []).map((s: { message_id: string; event_id: string }) => [
-          s.message_id,
-          s.event_id,
-        ])
-      );
+      // The old `event_shares` fallback table no longer exists; the event id lives on the message.
+      const senderProfiles = await fetchChatSenderProfiles(chatId, senderIds);
 
       const messages = await Promise.all(
         rows.map(async (msg: any) => {
@@ -618,7 +603,6 @@ export function createChatCore(deps: ChatCoreDeps) {
           const eventId =
             nonEmptyString(msg.shared_event_id) ??
             nonEmptyString(metadata?.event_id) ??
-            eventIdByMessage.get(msg.id) ??
             null;
           const reviewId =
             nonEmptyString(msg.shared_review_id) ?? nonEmptyString(metadata?.review_id);

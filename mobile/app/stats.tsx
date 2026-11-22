@@ -59,6 +59,7 @@ import {
 import { StreamingArtistRow } from '../src/components/streaming/StreamingArtistRow';
 import { StreamingSongRow } from '../src/components/streaming/StreamingSongRow';
 import { StreamingGenreRow } from '../src/components/streaming/StreamingGenreRow';
+import { showToast } from '../src/components/Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -162,7 +163,7 @@ export default function StreamingStatsScreen() {
       const authResult = await authenticateSpotifyInApp();
       if (!authResult.ok) {
         if (!authResult.cancelled) {
-          Alert.alert('Connect failed', authResult.error);
+          showToast(authResult.error, { title: 'Connect failed' });
         }
         return;
       }
@@ -173,14 +174,11 @@ export default function StreamingStatsScreen() {
 
       if (syncResult.ok) {
         const countLine = formatStreamingSyncCountLine(syncResult.counts);
-        Alert.alert(
-          'Spotify connected!',
-          countLine
+        showToast(countLine
             ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
-            : 'Spotify connected and your stats are importing.'
-        );
+            : 'Spotify connected and your stats are importing.', { title: 'Spotify connected' });
       } else if (syncResult.skipped !== 'no-stored-token') {
-        Alert.alert('Connected, sync pending', syncResult.message || 'Stats are syncing — pull to refresh in a moment.');
+        showToast(syncResult.message || 'Stats are syncing — pull to refresh in a moment.', { title: 'Connected, sync pending' });
       }
     } finally {
       setResyncing(false);
@@ -213,10 +211,7 @@ export default function StreamingStatsScreen() {
       try {
         const result = await syncStreamingProfile(user.id, linkStatus.provider, { manual: true });
         await loadProfile(false);
-        Alert.alert(
-          result.ok ? 'Stats updated' : linkStatus.provider === 'lastfm' ? 'Sync failed' : 'Upload a new file',
-          result.ok ? 'Pulled your latest Last.fm listening.' : result.message
-        );
+        showToast(result.ok ? 'Pulled your latest Last.fm listening.' : result.message, { title: result.ok ? 'Stats updated' : linkStatus.provider === 'lastfm' ? 'Sync failed' : 'Upload a new file' });
       } finally {
         setResyncing(false);
       }
@@ -230,7 +225,7 @@ export default function StreamingStatsScreen() {
         const result = await syncStreamingProfile(user.id, 'spotify', { manual: true });
         await loadProfile(false);
         if (result.ok) {
-          Alert.alert('Connected!', 'Spotify connected and stats imported.');
+          showToast('Spotify connected and stats imported.', { title: 'Connected' });
           return;
         }
 
@@ -248,11 +243,11 @@ export default function StreamingStatsScreen() {
         }
 
         if (result.skipped === 'error') {
-          Alert.alert('Connect failed', result.message || 'Could not connect Spotify. Please try again.');
+          showToast(result.message || 'Could not connect Spotify. Please try again.', { title: 'Connect failed' });
           return;
         }
 
-        Alert.alert('Connect failed', result.message || 'Could not connect Spotify. Please try again.');
+        showToast(result.message || 'Could not connect Spotify. Please try again.', { title: 'Connect failed' });
       } finally {
         setResyncing(false);
       }
@@ -267,12 +262,9 @@ export default function StreamingStatsScreen() {
       const countLine = formatStreamingSyncCountLine(result.counts);
 
       if (result.ok) {
-        Alert.alert(
-          'Stats updated',
-          countLine
+        showToast(countLine
             ? `Synced from Spotify: ${countLine} Your event feed will reflect your taste.`
-            : 'Your streaming data has been refreshed. Your event feed will reflect your taste.'
-        );
+            : 'Your streaming data has been refreshed. Your event feed will reflect your taste.', { title: 'Stats updated' });
         return;
       }
 
@@ -292,22 +284,16 @@ export default function StreamingStatsScreen() {
       }
 
       if (result.skipped === 'partial-sync') {
-        Alert.alert(
-          'Sync incomplete — songs missing',
-          countLine
+        showToast(countLine
             ? `${countLine} ${result.message || 'Try syncing again. If songs stay empty, reconnect Spotify on the web.'}`
             : result.message ||
-                'Artists synced but songs are missing. Try again or reconnect Spotify on the web.'
-        );
+                'Artists synced but songs are missing. Try again or reconnect Spotify on the web.', { title: 'Sync incomplete — songs missing' });
         return;
       }
 
-      Alert.alert(
-        'Sync failed',
-        countLine
+      showToast(countLine
           ? `${countLine} ${result.message || 'Could not refresh your stats. Try again.'}`
-          : result.message || 'Could not refresh your stats. Try again.'
-      );
+          : result.message || 'Could not refresh your stats. Try again.', { title: 'Sync failed' });
     } finally {
       setResyncing(false);
     }
@@ -733,7 +719,7 @@ const styles = StyleSheet.create({
   titleBlock: { gap: 4 },
   pageTitle: {
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '700',
     color: SynthTokens.colors.neutral900,
   },
   lastSynced: {
@@ -743,7 +729,7 @@ const styles = StyleSheet.create({
   connectSection: { gap: SynthTokens.spacing.md },
   connectHeading: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: SynthTokens.colors.neutral900,
   },
   connectCopy: { lineHeight: 22 },
@@ -765,7 +751,7 @@ const styles = StyleSheet.create({
   },
   connectCardTitle: {
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFDFA',
     marginBottom: 3,
   },
@@ -799,7 +785,7 @@ const styles = StyleSheet.create({
   },
   syncingTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: SynthTokens.colors.neutral900,
     textAlign: 'center',
     marginBottom: 10,
@@ -816,7 +802,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: PINK,
   },
-  refreshBtnText: { color: '#FFFDFA', fontSize: 14, fontWeight: '800' },
+  refreshBtnText: { color: '#FFFDFA', fontSize: 14, fontWeight: '700' },
   openWebBtn: {
     flex: 1,
     alignItems: 'center',

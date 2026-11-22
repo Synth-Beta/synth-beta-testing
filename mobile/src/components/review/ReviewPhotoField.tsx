@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Pressable,
     StyleSheet,
     View,
@@ -11,6 +10,7 @@ import { Image } from 'expo-image';
 import { SynthText } from '../SynthText';
 import { SynthTokens } from '../../tokens/SynthTokens';
 import { uploadReviewPhotoFromUri } from '../../services/reviewPhotoUpload';
+import { showToast } from '../Toast';
 
 const MAX_PHOTOS = 5;
 
@@ -44,7 +44,7 @@ export function ReviewPhotoField({
         if (value.length >= MAX_PHOTOS) return;
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) {
-            Alert.alert('Photos access needed', 'Allow access to your photos to add images.');
+            showToast('Allow access to your photos to add images.', { title: 'Photos access needed' });
             return;
         }
         const r = await ImagePicker.launchImageLibraryAsync({

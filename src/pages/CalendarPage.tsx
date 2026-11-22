@@ -193,7 +193,7 @@ export const CalendarPage: React.FC<CalendarPageProps> = ({
       <div className="calendar-page mx-auto w-full max-w-6xl pb-28 pt-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight">{format(month, 'MMMM yyyy')}</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">{format(month, 'MMMM yyyy')}</h2>
             <p className="text-sm text-muted-foreground">
               {location ? `Shows within ${radiusMiles} miles. Pink days have shows you saved.` : 'Shows on Synth. Pink days have shows you saved.'}
             </p>

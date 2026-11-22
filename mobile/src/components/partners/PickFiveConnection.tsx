@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: SynthTokens.colors.neutral50,
   },
-  code: { fontSize: 30, fontWeight: '800', letterSpacing: 6, color: SynthTokens.colors.neutral900 },
+  code: { fontSize: 30, fontWeight: '700', letterSpacing: 6, color: SynthTokens.colors.neutral900 },
   btnPrimary: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 13,
   },
-  btnPrimaryText: { color: SynthTokens.colors.neutral0, fontSize: 15, fontWeight: '800' },
+  btnPrimaryText: { color: SynthTokens.colors.neutral0, fontSize: 15, fontWeight: '700' },
   btnDisabled: { opacity: 0.6 },
   center: { textAlign: 'center' },
   codeActions: { flexDirection: 'row', gap: 20 },

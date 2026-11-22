@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   pillTxt: { color: SynthTokens.colors.neutral0, fontSize: 15, fontWeight: '700' },
   flex: { flex: 1 },
   sheetBody: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
-  title: { fontSize: 20, fontWeight: '800', color: SynthTokens.colors.neutral900 },
+  title: { fontSize: 20, fontWeight: '700', color: SynthTokens.colors.neutral900 },
   sub: { fontSize: 14, lineHeight: 20 },
   label: { fontSize: 13, fontWeight: '600', color: SynthTokens.colors.neutral600, marginTop: 2 },
   chips: { gap: 8, paddingVertical: 2 },

@@ -299,7 +299,7 @@ export class ContentModerationService {
             .from('reviews')
             .select(`
               *,
-              user:users!reviews_user_id_fkey(name, avatar_url)
+              user:users!user_id(name, avatar_url)
             `)
             .eq('id', contentId)
             .single();
@@ -309,7 +309,7 @@ export class ContentModerationService {
             .from('comments')
             .select(`
               *,
-              user:users!comments_user_id_fkey(name, avatar_url)
+              user:users!user_id(name, avatar_url)
             `)
             .eq('id', contentId)
             .single();

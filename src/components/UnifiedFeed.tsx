@@ -2972,9 +2972,9 @@ export const UnifiedFeed = ({
                               events!inner (
                                 id,
                                 title,
-                                artist_name,
+                                ...artists(artist_name:name),
                                 artist_id,
-                                venue_name,
+                                ...venues(venue_name:name),
                                 venue_id,
                                 venue_city,
                                 venue_state,
@@ -3163,7 +3163,7 @@ export const UnifiedFeed = ({
                                   .select(`
                                     *,
                                     events!inner (
-                                      id, title, artist_name, artist_id, venue_name, venue_id,
+                                      id, title, ...artists(artist_name:name), artist_id, ...venues(venue_name:name), venue_id,
                                       venue_city, venue_state, venue_zip, venue_address,
                                       event_date, doors_time, description, genres,
                                       price_range, ticket_urls, setlist

@@ -29,7 +29,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, onThumbn
   return (
     <div className="space-y-8">
       <header className="text-center space-y-2">
-        <p className="text-xs uppercase tracking-[0.3em] text-pink-500 font-semibold">Almost there</p>
+        <p className="text-xs text-pink-500 font-semibold">Almost there</p>
         <h2 className="text-2xl font-semibold text-gray-900">Share the story</h2>
         <p className="text-sm var(--neutral-600) max-w-xl mx-auto">
           Bring the show to life with a short recap and any photos you snapped.
@@ -107,7 +107,7 @@ export function ReviewContentStep({ formData, errors, onUpdateFormData, onThumbn
       )}
 
       {user && (
-        <Card className="border-2 border-pink-100 bg-gradient-to-br from-pink-50/50 to-purple-50/30 overflow-visible relative z-20">
+        <Card className="border-2 border-pink-100 bg-pink-50/50 overflow-visible relative z-20">
           <CardContent className="p-8 pb-12">
             <div className="flex items-center gap-2 mb-6">
               <Users className="w-6 h-6 text-pink-600" />

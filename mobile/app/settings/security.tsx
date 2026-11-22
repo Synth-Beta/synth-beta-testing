@@ -7,8 +7,7 @@ import {
   Text,
   TextInput,
   ActivityIndicator,
-  Alert,
-} from 'react-native';
+  } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, AtSign, Key, Info } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +15,7 @@ import { SynthText } from '../../src/components/SynthText';
 import { SynthTokens } from '../../src/tokens/SynthTokens';
 import { supabase } from '../../src/integrations/supabase/client';
 import { getExpoSiteUrl } from '../../src/utils/siteUrl';
+import { showToast } from '../../src/components/Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -43,10 +43,10 @@ export default function SettingsSecurityScreen() {
     try {
       const { error } = await supabase.auth.updateUser({ email: trimmed });
       if (error) throw error;
-      Alert.alert('Confirmation sent', `Check ${trimmed} for a confirmation link.`);
+      showToast(`Check ${trimmed} for a confirmation link.`, { title: 'Confirmation sent' });
       setNewEmail('');
     } catch (e: any) {
-      Alert.alert('Could not change email', e?.message || 'Please try again.');
+      showToast(e?.message || 'Please try again.', { title: 'Could not change email' });
     } finally {
       setChangingEmail(false);
     }
@@ -59,9 +59,9 @@ export default function SettingsSecurityScreen() {
       const redirectUrl = `${getExpoSiteUrl()}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
       if (error) throw error;
-      Alert.alert('Email sent', `Password reset link sent to ${email}.`);
+      showToast(`Password reset link sent to ${email}.`, { title: 'Email sent' });
     } catch (e: any) {
-      Alert.alert('Could not send reset email', e?.message || 'Please try again.');
+      showToast(e?.message || 'Please try again.', { title: 'Could not send reset email' });
     } finally {
       setResettingPassword(false);
     }
@@ -253,8 +253,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 11,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+
     marginBottom: -4,
   },
   input: {

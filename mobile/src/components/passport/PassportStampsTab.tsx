@@ -258,7 +258,7 @@ export function PassportStampsTab({ userId }: { userId: string }) {
 }
 
 const styles = StyleSheet.create({
-    sectionLabel: { fontWeight: '800', marginBottom: 8, marginTop: 4, color: SynthTokens.colors.neutral900 },
+    sectionLabel: { fontWeight: '700', marginBottom: 8, marginTop: 4, color: SynthTokens.colors.neutral900 },
     nextSection: { marginBottom: 16 },
     nextCard: {
         padding: 12,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     filterChipTxt: { fontSize: 12, fontWeight: '600', color: SynthTokens.colors.neutral600 },
     filterChipTxtOn: { color: PINK },
     rarityBlock: { marginBottom: 16 },
-    rarityHeader: { fontWeight: '800', marginBottom: 8, fontSize: 14 },
+    rarityHeader: { fontWeight: '700', marginBottom: 8, fontSize: 14 },
     stampCard: {
         flexDirection: 'row',
         alignItems: 'center',

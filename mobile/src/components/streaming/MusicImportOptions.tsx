@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     minWidth: 92,
     alignItems: 'center',
   },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  btnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   btnDisabled: { opacity: 0.5 },
   btnOutline: {
     alignItems: 'center',

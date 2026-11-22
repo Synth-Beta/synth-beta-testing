@@ -90,7 +90,7 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
         <ProgressiveImage
           src={eventImage}
           alt={`${event.title} event image`}
-          className="absolute inset-0 w-full h-full transition-transform duration-500 hover:scale-105"
+          className="absolute inset-0 w-full h-full"
           objectFit="contain"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -175,7 +175,7 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
               <Button
                 variant="outline"
                 size="lg"
-                className="hover-button flex-1 border-2 border-gray-300 hover:border-gray-400 hover:var(--neutral-600) h-14 text-base font-semibold transition-all duration-200"
+                className="hover-button flex-1 border-2 border-gray-300 hover:border-gray-400 hover:var(--neutral-600) h-14 text-base font-semibold transition duration-200"
                 aria-label="View event details and setlist"
               >
                 {hasSetlist ? (
@@ -198,7 +198,7 @@ export const EventCard = ({ event, onSwipe, className = "" }: EventCardProps) =>
                 onClick={() => handleSwipe("pass")}
                 variant="outline"
                 size="lg"
-                className="hover-button flex-1 border-2 border-gray-300 hover:border-red-400 hover:text-red-500 btn-swipe-pass h-14 text-base font-semibold transition-all duration-200"
+                className="hover-button flex-1 border-2 border-gray-300 hover:border-red-400 hover:text-red-500 btn-swipe-pass h-14 text-base font-semibold transition duration-200"
                 disabled={isAnimating}
                 aria-label="Pass on this event"
               >

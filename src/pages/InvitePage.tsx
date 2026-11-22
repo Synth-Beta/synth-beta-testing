@@ -73,7 +73,7 @@ export default function InvitePage() {
             <h1 className="text-xl font-semibold text-neutral-900">
               {show ? `${first} invited you to` : `${first} invited you to Synth`}
             </h1>
-            {show && <p className="text-3xl font-extrabold tracking-tight text-neutral-900">{show}</p>}
+            {show && <p className="text-3xl font-bold tracking-tight text-neutral-900">{show}</p>}
             {date && <p className="text-neutral-600">{date}</p>}
           </>
         )}

@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
         borderColor: PINK,
         marginBottom: 8,
     },
-    fanPillTxt: { color: PINK, fontWeight: '800' },
+    fanPillTxt: { color: PINK, fontWeight: '700' },
     fanDesc: { lineHeight: 21, marginBottom: 10 },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
 });

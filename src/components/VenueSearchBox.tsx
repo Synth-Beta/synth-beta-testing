@@ -241,7 +241,7 @@ export function VenueSearchBox({
                 <div
                   key={venue.id}
                   className={cn(
-                    "relative px-4 py-3 cursor-pointer transition-all duration-150",
+                    "relative px-4 py-3 cursor-pointer transition duration-150",
                     "flex items-center gap-3",
                     "hover:bg-gray-50",
                     selectedIndex === index && "bg-blue-50"

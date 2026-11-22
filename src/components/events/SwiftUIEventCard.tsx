@@ -337,7 +337,7 @@ const [isInterested, setIsInterested] = useState(propIsInterested ?? false);
       onClick={handleClick}
       className={cn(
         'w-full text-left overflow-hidden relative group',
-        'transition-all duration-300 ease-out',
+        'transition duration-300 ease-out',
         onClick && 'cursor-pointer',
         className
       )}

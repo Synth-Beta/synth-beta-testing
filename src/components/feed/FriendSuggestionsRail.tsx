@@ -214,7 +214,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                   "relative flex flex-col items-center min-w-[108px] max-w-[108px] px-2 py-3",
                   // Interaction
                   "group cursor-pointer select-none",
-                  "active:scale-[0.97] transition-all duration-300 ease-out",
+                  "active:scale-[0.97] transition duration-300 ease-out",
                   // Removal animation
                   isRemoving && "opacity-0 scale-95 pointer-events-none"
                 )}
@@ -242,7 +242,7 @@ export const FriendSuggestionsRail: React.FC<FriendSuggestionsRailProps> = ({
                 {/* Avatar */}
                 <div className="relative mb-2 mt-1">
                   <Avatar className={cn(
-                    "h-20 w-20 ring-2 transition-all duration-300 overflow-hidden",
+                    "h-20 w-20 ring-2 transition duration-300 overflow-hidden",
                     isSent
                       ? "ring-green-500/50"
                       : "ring-black/10"

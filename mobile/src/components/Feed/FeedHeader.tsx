@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     wordmark: {
         paddingLeft: 6,
         fontSize: 24,
-        fontWeight: '800',
+        fontWeight: '700',
         letterSpacing: -0.8,
         color: SynthTokens.colors.neutral900,
     },

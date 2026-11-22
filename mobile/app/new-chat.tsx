@@ -5,7 +5,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
     Pressable,
     ScrollView,
@@ -23,6 +22,7 @@ import { SynthText } from '../src/components/SynthText';
 import { SynthTokens } from '../src/tokens/SynthTokens';
 import { getFriendsForProfile, type ProfileFriend } from '../src/services/friendsService';
 import { ChatService } from '../src/services/chatService';
+import { showToast } from '../src/components/Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -81,7 +81,7 @@ export default function NewChatScreen() {
                 if (chatId) {
                     router.replace(`/chat/${chatId}` as any);
                 } else {
-                    Alert.alert('Error', 'Could not create chat. Please try again.');
+                    showToast('Could not create chat. Please try again.', { title: 'Error' });
                 }
             } else {
                 // Group chat
@@ -96,14 +96,14 @@ export default function NewChatScreen() {
 
                 if (error || !chatId) {
                     console.error('[new-chat] create_group_chat:', error);
-                    Alert.alert('Error', error?.message || 'Could not create group chat. Please try again.');
+                    showToast(error?.message || 'Could not create group chat. Please try again.', { title: 'Error' });
                 } else {
                     router.replace(`/chat/${chatId}` as any);
                 }
             }
         } catch (e) {
             console.warn('[new-chat] handleStart:', e);
-            Alert.alert('Error', 'Something went wrong. Please try again.');
+            showToast('Something went wrong. Please try again.', { title: 'Error' });
         } finally {
             setCreating(false);
         }

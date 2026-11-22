@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 2,
     },
-    entityFallbackText: { fontWeight: '800', fontSize: 14, color: SynthTokens.colors.neutral600 },
+    entityFallbackText: { fontWeight: '700', fontSize: 14, color: SynthTokens.colors.neutral600 },
     eventDateText: { fontSize: 10, fontWeight: '700', color: PINK, textAlign: 'center' },
     entityTitle: { fontWeight: '700', marginBottom: 2 },
     categoryPill: {

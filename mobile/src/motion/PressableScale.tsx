@@ -12,7 +12,7 @@
  * Any `transform` in `style` is replaced by the press scale.
  */
 import React, { useCallback } from 'react';
-import { GestureResponderEvent, Pressable, PressableProps, StyleProp, ViewStyle } from 'react-native';
+import { GestureResponderEvent, Pressable, PressableProps, StyleProp, View, ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
@@ -30,6 +30,8 @@ export type PressableScaleProps = Omit<PressableProps, 'style'> & {
     scaleTo?: number;
     /** Haptic on press. Default 'light'. */
     haptic?: PressHaptic;
+    /** React 19 passes ref as a prop; it lands on the Pressable via ...rest (used by tour measurement). */
+    ref?: React.Ref<View>;
 };
 
 export function firePressHaptic(kind: PressHaptic) {

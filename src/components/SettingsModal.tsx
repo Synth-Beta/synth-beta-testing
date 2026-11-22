@@ -314,13 +314,13 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
       // Fetch display name, avatar, verification in one query
       supabase
         .from('users')
-        .select('account_type, verified, name, avatar_url')
+        .select('account_type, name, avatar_url')
         .eq('user_id', user.id)
         .single()
         .then(({ data }) => {
           if (data) {
             setAccountType(data.account_type || 'user');
-            setIsVerified(data.verified || false);
+            setIsVerified(false); // users has no `verified` column
             setUserDisplayName(data.name || '');
             setUserAvatarUrl(data.avatar_url || null);
           }
@@ -560,7 +560,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
               <Button
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="w-full bg-synth-pink hover:bg-pink-600 active:bg-pink-700 text-white font-semibold gap-2 h-11 rounded-xl shadow-sm transition-all active:scale-[0.98]"
+                className="w-full bg-synth-pink hover:bg-pink-600 active:bg-pink-700 text-white font-semibold gap-2 h-11 rounded-xl shadow-sm transition active:scale-[0.98]"
               >
                 <LogOut className="w-4 h-4" />
                 {isSigningOut ? 'Signing out...' : 'Sign Out'}
@@ -692,7 +692,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
                     <p className="text-xs text-muted-foreground">You'll receive a confirmation at the new address</p>
                   </div>
                 </div>
-                <Label htmlFor="new-email" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <Label htmlFor="new-email" className="text-xs font-medium text-muted-foreground">
                   New Email Address
                 </Label>
                 <Input
@@ -762,7 +762,7 @@ export const SettingsModal = ({ isOpen, onClose, onSignOut, userEmail, initialVi
 function SettingsSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-2">
+      <p className="text-xs font-semiboldr text-muted-foreground px-1 mb-2">
         {label}
       </p>
       <div className="rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm">

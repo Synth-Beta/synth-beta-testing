@@ -37,18 +37,17 @@ export class FriendsReviewService {
         .from('reviews')
         .select(`
           *,
-          user:users!reviews_user_id_fkey (
+          user:users!user_id (
             name,
             avatar_url,
-            verified,
             account_type
           ),
           events (
             id,
             title,
-            venue_name,
+            ...venues(venue_name:name),
             event_date,
-            artist_name,
+            ...artists(artist_name:name),
             artist_id
           )
         `)
@@ -165,18 +164,17 @@ export class FriendsReviewService {
         .from('reviews')
         .select(`
           *,
-          user:users!reviews_user_id_fkey (
+          user:users!user_id (
             name,
             avatar_url,
-            verified,
             account_type
           ),
           events (
             id,
             title,
-            venue_name,
+            ...venues(venue_name:name),
             event_date,
-            artist_name,
+            ...artists(artist_name:name),
             artist_id
           )
         `)
@@ -418,15 +416,14 @@ export class FriendsReviewService {
                 user_id,
                 name,
                 avatar_url,
-                verified,
                 account_type
               ),
               events (
                 id,
                 title,
-                venue_name,
+                ...venues(venue_name:name),
                 event_date,
-                artist_name
+                ...artists(artist_name:name)
               )
             `)
             .in('user_id', allConnectionIds)

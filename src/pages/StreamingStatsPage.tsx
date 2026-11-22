@@ -584,7 +584,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
             <button
               onClick={() => void handleConnectSpotify()}
               disabled={connectingSpotify}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#1DB954]/10 hover:bg-[#1DB954]/20 active:scale-[0.98] transition-all text-left disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-[#1DB954]/10 hover:bg-[#1DB954]/20 active:scale-[0.98] transition text-left disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <div className="w-12 h-12 bg-[#1DB954] rounded-full flex items-center justify-center flex-shrink-0">
                 {connectingSpotify ? (
@@ -605,7 +605,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
             <button
               onClick={handleConnectAppleMusic}
               disabled={syncing}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-50 hover:bg-red-100 active:scale-[0.98] transition-all text-left disabled:opacity-60"
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-50 hover:bg-red-100 active:scale-[0.98] transition text-left disabled:opacity-60"
             >
               <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
                 {syncing ? (
@@ -691,7 +691,7 @@ export const StreamingStatsPage = ({ onBack }: StreamingStatsPageProps) => {
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition ${
                   timeRange === range
                     ? 'text-white shadow-sm'
                     : 'bg-white border border-gray-200 text-muted-foreground hover:border-gray-300'

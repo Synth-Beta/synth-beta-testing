@@ -6,7 +6,6 @@ import {
   Pressable,
   Text,
   Linking,
-  Alert,
   FlatList,
   RefreshControl,
 } from 'react-native';
@@ -35,6 +34,7 @@ import {
   type StreamingLinkStatus,
 } from '../../src/services/streamingConnectionService';
 import { filterInterestedRowsForSegment } from '../../src/utils/eventStatusUtils';
+import { showToast } from '../../src/components/Toast';
 
 const PINK = SynthTokens.colors.brandPink500;
 
@@ -173,7 +173,7 @@ export default function ProfileScreen() {
   const openInstagram = useCallback(async () => {
     const raw = user?.instagram_handle?.trim();
     if (!raw) {
-      Alert.alert('Instagram', 'Add your Instagram handle in Edit Profile.');
+      showToast('Add your Instagram handle in Edit Profile.', { title: 'Instagram' });
       return;
     }
     const h = raw.replace(/^@+/, '');
@@ -182,12 +182,12 @@ export default function ProfileScreen() {
     try {
       const can = await Linking.canOpenURL(url);
       if (!can) {
-        Alert.alert('Unable to open Instagram', 'Please try again later.');
+        showToast('Please try again later.', { title: 'Unable to open Instagram' });
         return;
       }
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Unable to open Instagram', 'Please try again later.');
+      showToast('Please try again later.', { title: 'Unable to open Instagram' });
     }
   }, [user?.instagram_handle]);
 
@@ -200,7 +200,7 @@ export default function ProfileScreen() {
       }
       const can = await Linking.canOpenURL(url);
       if (!can) {
-        Alert.alert('Unable to open link', 'Please connect your streaming account again from Streaming Stats.');
+        showToast('Please connect your streaming account again from Streaming Stats.', { title: 'Unable to open link' });
         router.push('/stats');
         return;
       }
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
   },
   statNum: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: SynthTokens.colors.neutral900,
   },
   statLbl: {

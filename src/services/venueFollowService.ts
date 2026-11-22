@@ -552,7 +552,7 @@ export class VenueFollowService {
             try {
               const { data: venue } = await supabase
                 .from('venues')
-                .select('name, address, city, state')
+                .select('name, address:street_address, city, state')
                 .eq('id', payload.new.venue_id)
                 .maybeSingle();
               const follow: VenueFollow = {

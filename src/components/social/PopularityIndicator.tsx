@@ -33,7 +33,7 @@ export function PopularityIndicator({
         tier: 'very',
         label: 'Very Popular',
         icon: Sparkles,
-        className: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white',
+        className: 'bg-purple-500 text-white',
       };
     } else if (totalInterest >= 20) {
       return {

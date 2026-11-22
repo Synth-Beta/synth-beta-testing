@@ -55,7 +55,7 @@ const [isProcessing, setIsProcessing] = useState(false);
               className="w-16 h-16 rounded-lg object-cover"
             />
           ) : (
-            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-lg bg-purple-100 flex items-center justify-center">
               <Users className="h-8 w-8 text-purple-600" />
             </div>
           )}

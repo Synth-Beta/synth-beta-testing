@@ -384,7 +384,16 @@ export class BucketListService {
           p_limit: limit,
         });
 
-      if (error) throw error;
+      if (error) {
+        // search_bucket_list is not deployed; filter the user's list here instead.
+        const q = searchQuery.trim().toLowerCase();
+        const all = await this.getBucketList(userId);
+        return all
+          .filter((it) =>
+            [it.entity_name, it.artist?.name, it.venue?.name].some((n) => n?.toLowerCase().includes(q))
+          )
+          .slice(0, limit);
+      }
 
       // Transform RPC result to BucketListItem format
       return (data || []).map((item: any) => ({

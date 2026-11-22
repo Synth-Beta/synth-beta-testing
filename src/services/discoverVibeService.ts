@@ -97,10 +97,10 @@ export class DiscoverVibeService {
       
       const { data: userArtists } = await supabase
         .from('reviews')
-        .select('events:event_id(artist_name)')
+        .select('events:event_id(...artists(artist_name:name))')
         .eq('user_id', userId)
         .eq('is_draft', false)
-        .not('events.artist_name', 'is', null)
+        .not('events.artist_id', 'is', null)
         .gte('created_at', ninetyDaysAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(50);
@@ -165,7 +165,7 @@ export class DiscoverVibeService {
       // Get last 5 events user attended
       const { data: recentEvents } = await supabase
         .from('reviews')
-        .select('events:event_id(artist_name, genres, venue_name)')
+        .select('events:event_id(...artists(artist_name:name), genres, ...venues(venue_name:name))')
         .eq('user_id', userId)
         .eq('is_draft', false)
         .eq('was_there', true)
@@ -536,9 +536,9 @@ export class DiscoverVibeService {
       
       const { data: artistReviews } = await supabase
         .from('reviews')
-        .select('events:event_id(artist_name)')
+        .select('events:event_id(...artists(artist_name:name))')
         .eq('is_draft', false)
-        .not('events.artist_name', 'is', null)
+        .not('events.artist_id', 'is', null)
         .gte('created_at', oneHundredEightyDaysAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(2000);
@@ -762,7 +762,7 @@ export class DiscoverVibeService {
       
       const { data: venueReviews } = await supabase
         .from('reviews')
-        .select('event_id, venue_rating_new, venue_rating')
+        .select('event_id, venue_rating')
         .eq('is_draft', false)
         .gte('created_at', oneHundredEightyDaysAgo.toISOString())
         .order('created_at', { ascending: false })
