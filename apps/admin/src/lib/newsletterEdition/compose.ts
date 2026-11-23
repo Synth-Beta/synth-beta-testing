@@ -342,10 +342,10 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
   } : undefined;
   if (sharedArtist && connect) sources.push({ kind: "account", url: APP_URL, retrievedAt, label: `Other five-star fans of ${sharedArtist}` });
 
-  // Hard gate: every sent edition needs >=1 real upcoming local show.
+  // Local shows are preferred, but subscribed readers still get an edition
+  // with listens / news / plans when no nearby date clears the matching checks.
   if (!shows.length) {
-    warnings.push(`No verified upcoming local show passed the ${NEARBY_MILES}-mile matching checks. Draft held rather than sending an edition without a show.`);
-    return null;
+    warnings.push(`No verified upcoming local show passed the ${NEARBY_MILES}-mile matching checks. Sending listens and news without a local show.`);
   }
 
   const closest = selectedEvents[0];
@@ -397,7 +397,7 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
 
   const sections = [
     "introduction",
-    "onYourRadar",
+    shows.length ? "onYourRadar" : "",
     features.length ? "yourConcertPlans" : "",
     suggested.length ? "yourNextListen" : "",
     updates.length ? "thisWeekInMusic" : "",
@@ -426,11 +426,17 @@ export const composeEdition = ({ reader, events, news, listens, sendAt, editionD
     ? "Matched to your taste and location. Open it on Synth to plan."
     : "Upcoming concerts matched to your music taste and location.";
 
+  const preheader = leadAction && closest
+    ? `A timely concert nudge, plus ${closest.artistName} nearby.`
+    : leadAction
+    ? `A timely concert nudge, plus new listens picked for you.`
+    : closest
+    ? `A real date in your area: ${closest.artistName}. Plus two new tracks.`
+    : `Two new tracks and a few picks worth your Monday.`;
+
   return {
     subject: conciseSubject,
-    preheader: clean(leadAction
-      ? `A timely concert nudge, plus ${closest.artistName} nearby.`
-      : `A real date in your area: ${closest.artistName}. Plus two new tracks.`),
+    preheader: clean(preheader),
     issueLabel: `${formatIssueDate(editionDate)} · Issue No. ${issueNumber}`,
     headline, intro,
     showsHeading,

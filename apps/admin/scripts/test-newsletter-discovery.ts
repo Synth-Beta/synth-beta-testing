@@ -47,8 +47,12 @@ for (const draft of drafts.drafts) {
   assert.doesNotMatch(draft.html, /This week in live music|Your latest was|Tickets are listed as available|85 saved shows/);
 }
 const noShowHeld = await generateDraftsFromSource({ users: emptyUsers, news: [], reviews: [], stats: [], events: [], publicFives: [] }, now, "2026-10-12");
-assert.equal(noShowHeld.drafts.length, 0);
-assert.equal(noShowHeld.held, 135, "zero-show inventory holds every draft");
+assert.equal(noShowHeld.drafts.length, 135, "zero-show inventory still drafts every subscribed reader");
+assert.equal(noShowHeld.held, 0);
+for (const draft of noShowHeld.drafts) {
+  assert.ok(draft.sources.some((source) => source.kind === "listen"), "no-show editions still include listens");
+  assert.equal(draft.sources.some((source) => source.kind === "event"), false);
+}
 const eligibility = await generateDraftsFromSource({ ...empty, users: [
   emptyUsers[0], { ...emptyUsers[1], is_bot: true }, { ...emptyUsers[2], account_status: "inactive" },
   { user_id: "dup", email: "USER0@example.com", location_city: "Washington", location_state: "DC" }, { user_id: "bad", email: "no email", location_city: "Washington", location_state: "DC" },
@@ -159,4 +163,4 @@ assert.ok(source.stats.some((stat) => stat.listens?.[0]?.trackName === "Apple re
 assert.equal(queried.includes("user_streaming_stats_summary"), false);
 assert.ok(queried.includes("newsletter_drafts"), "recent-source rotation loads prior drafts");
 assert.equal((await loadListeningStats(db, [users[0].user_id]))[0].listens[0].trackName, "A real title");
-console.log("PASS: 135 localized discovery editions; zero-show hold; eligibility; sourced recordings; news relevance; API source rotation; DST and weekly rotation.");
+console.log("PASS: 135 localized discovery editions; zero-show still drafts; eligibility; sourced recordings; news relevance; API source rotation; DST and weekly rotation.");

@@ -163,7 +163,10 @@ const empty = composeRaw(baseReader({
   latitude: null,
   longitude: null,
 }));
-assert.equal(empty, null, "no-location editions are held when no show can be verified");
+assert.ok(empty, "no-location readers still get an edition");
+assert.equal(empty!.shows.length, 0);
+assert.ok(empty!.locationPrompt, "no-location editions prompt the reader to set a city");
+assert.ok((empty!.listens?.length ?? 0) >= 1);
 
 const jamSam = compose(baseReader({
   userId: "sam-jam",
@@ -334,7 +337,9 @@ const noLocationSaved = composeRaw(baseReader({
   show({ id: "dc-3", artistName: "Dark Star Orchestra", eventDate: "2026-11-22T00:00:00.000Z" }),
   show({ id: "chi", artistName: "Wilco", city: "Chicago", state: "IL", latitude: 41.88, longitude: -87.63, venueName: "Chicago Theatre" }),
 ]);
-assert.equal(noLocationSaved, null, "saved interests never invent a city when location is missing; edition is held");
+assert.ok(noLocationSaved, "saved interests without a city still get an edition");
+assert.equal(noLocationSaved!.shows.length, 0, "saved interests never invent a city when location is missing");
+assert.ok(noLocationSaved!.locationPrompt);
 
 const gooseReviews = [
   { artistName: "Goose", venueName: "The Anthem", eventDate: "2026-06-11T00:00:00.000Z", rating: 5, text: "The second set opened with a long jam that the whole floor knew." },

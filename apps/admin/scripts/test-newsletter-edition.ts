@@ -140,12 +140,14 @@ const base = {
 const laurenEdition = composeEdition({ ...base, reader: lauren })!;
 const chicagoEdition = composeEdition({ ...base, reader: chicago })!;
 const sparseEdition = composeEdition({ ...base, reader: sparse })!;
-const noLocationEdition = composeEdition({ ...base, reader: noLocation });
+const noLocationEdition = composeEdition({ ...base, reader: noLocation })!;
 
 assert.ok(laurenEdition);
 assert.ok(chicagoEdition);
 assert.ok(sparseEdition);
-assert.equal(noLocationEdition, null, "editions without a usable city are held rather than sent without a show");
+assert.ok(noLocationEdition, "editions without a usable city still draft");
+assert.equal(noLocationEdition.shows.length, 0, "no-location editions do not invent local shows");
+assert.ok(noLocationEdition.locationPrompt);
 
 assert.equal(laurenEdition.shows.some((show) => show.title === "Jon Batiste"), false, "past shows are not upcoming");
 assert.ok(laurenEdition.shows.some((show) => show.title === "Sylvan Esso" || show.title === "Glass Animals"));
@@ -201,7 +203,7 @@ assert.ok(sparseEdition.shows.some((show) => show.title === "Local Natives"));
 assert.equal(sparseEdition.yourSynth, undefined);
 assert.equal(/inactive|haven't used|no shows yet/i.test(renderEditionHtml(sparseEdition)), false);
 
-assert.equal(noLocationEdition, null, "no far-away city is substituted when location is unknown");
+assert.equal(noLocationEdition.shows.some((show) => /Chicago|New York|Evanston/i.test(show.eyebrow)), false, "no far-away city is substituted when location is unknown");
 
 const jungleReader: EditionReader = {
   ...sparse,
