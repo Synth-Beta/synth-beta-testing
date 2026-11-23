@@ -152,6 +152,14 @@ export const saveNewsletterDrafts = async (
   }>
 ) => invokeNewsletter({ action: "upsert_drafts", editionDate, drafts });
 
+/** Deletes every unsent draft for an edition. Refuses editions with send history. */
+export const deleteNewsletterEdition = async (editionDate: string) =>
+  invokeNewsletter({ action: "delete_edition", editionDate }) as Promise<{
+    ok: true;
+    editionDate: string;
+    deleted: number;
+  }>;
+
 export const setDraftApproval = async (draftId: string, status: "approved" | "needs_approval") =>
   invokeNewsletter({ action: "set_draft_approval", draftId, status });
 
