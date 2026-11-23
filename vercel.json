@@ -164,6 +164,9 @@
     },
     "api/newsletter-source.ts": {
       "maxDuration": 120
+    },
+    "api/newsletter-edition.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [

@@ -153,12 +153,21 @@ export const saveNewsletterDrafts = async (
 ) => invokeNewsletter({ action: "upsert_drafts", editionDate, drafts });
 
 /** Deletes every unsent draft for an edition. Refuses editions with send history. */
-export const deleteNewsletterEdition = async (editionDate: string) =>
-  invokeNewsletter({ action: "delete_edition", editionDate }) as Promise<{
-    ok: true;
-    editionDate: string;
-    deleted: number;
-  }>;
+export const deleteNewsletterEdition = async (editionDate: string) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Sign in again before deleting an edition.");
+  const response = await fetch("/api/newsletter-edition", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "delete_edition", editionDate }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || !body?.ok) {
+    throw new Error(body?.error || "Could not delete this edition.");
+  }
+  return body as { ok: true; editionDate: string; deleted: number };
+};
 
 export const setDraftApproval = async (draftId: string, status: "approved" | "needs_approval") =>
   invokeNewsletter({ action: "set_draft_approval", draftId, status });
