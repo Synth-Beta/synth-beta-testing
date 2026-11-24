@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle, Loader2, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +25,7 @@ import { centralCalendarDate, nextEditionDate } from "@/lib/newsletterEdition/ti
 import { contentKeysForSource } from "@/lib/newsletterEdition/vetoes";
 import {
   approveDrafts,
+  deleteNewsletterEdition,
   listNewsletterDrafts,
   loadNewsletterSource,
   NewsletterDraftRow,
@@ -82,6 +94,7 @@ export default function NewsletterProofreader() {
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [vetoingKey, setVetoingKey] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState("");
@@ -152,6 +165,63 @@ export default function NewsletterProofreader() {
   const approvedCount = drafts.filter((draft) => draft.status === "approved").length;
   const sendableCount = drafts.filter(sendableDraft).length;
   const unconfirmedCount = drafts.filter((draft) => draft.status !== "sent" && !draft.brevo_message_id && (draft.delivery_state === "uncertain" || Boolean(draft.send_claimed_at))).length;
+  const editionLocked = drafts.some((draft) =>
+    draft.status === "sent"
+    || Boolean(draft.sent_at)
+    || Boolean(draft.brevo_message_id)
+    || Boolean(draft.send_claimed_at)
+    || draft.delivery_state === "uncertain"
+  );
+  const busy = regenerating || saving || sending || deleting || listLoading;
+
+  const openNewestEdition = useCallback(async () => {
+    const token = ++viewToken.current;
+    const today = centralCalendarDate(new Date());
+    setListLoading(true);
+    setListError(null);
+    try {
+      const dates = Array.from({ length: EDITION_WINDOW_DAYS }, (_, index) => shiftIso(today, index));
+      const lists = await Promise.all(dates.map(async (date) => ({
+        date,
+        rows: await listNewsletterDrafts(date).catch(() => [] as NewsletterDraftRow[]),
+      })));
+      if (token !== viewToken.current) return;
+      const newest = newestEdition(lists);
+      showDrafts(newest?.date ?? today, newest?.rows ?? []);
+    } catch (error: unknown) {
+      setDrafts([]);
+      setListError(error instanceof Error ? error.message : "Unable to load drafts.");
+    } finally {
+      if (token === viewToken.current) setListLoading(false);
+    }
+  }, [showDrafts]);
+
+  const deleteEdition = async () => {
+    if (!drafts.length || editionLocked) return;
+    const target = editionDate;
+    setDeleting(true);
+    setGenerationError(null);
+    setProgress(`Deleting edition ${target}…`);
+    try {
+      const result = await deleteNewsletterEdition(target);
+      setEligibleCount(null);
+      toast({
+        title: "Edition deleted",
+        description: `Removed ${result.deleted} draft${result.deleted === 1 ? "" : "s"} for ${target}.`,
+      });
+      await openNewestEdition();
+    } catch (error: unknown) {
+      setGenerationError(error instanceof Error ? error.message : "Could not delete this edition.");
+      toast({
+        title: "Could not delete edition",
+        description: error instanceof Error ? error.message : "Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setProgress("");
+    }
+  };
 
   const regenerate = async (selectedEdition = false) => {
     const token = ++viewToken.current;
@@ -360,26 +430,51 @@ export default function NewsletterProofreader() {
         <div>
           <h2 className="text-2xl font-bold">Proofread</h2>
           <p className="text-sm text-muted-foreground">
-            Showing edition {editionDate}. Drafts auto-generate Mondays at 9:00 a.m. Eastern; Create new edition still works anytime and targets the next Monday 10 a.m. Eastern send. Regenerate selected edition refreshes unsent content and removes its approvals. A refresh opens the newest edition.
+            Showing edition {editionDate}. Drafts auto-generate Mondays at 9:00 a.m. Eastern; Create new edition still works anytime and targets the next Monday 10 a.m. Eastern send. Regenerate selected edition refreshes unsent content and removes its approvals. Delete edition removes every unsent draft for this date. Editions with send history stay locked.
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="space-y-1 text-sm">
             <span>Edition date</span>
-            <Input type="date" value={editionDate} disabled={regenerating || saving || sending} onChange={(event) => {
+            <Input type="date" value={editionDate} disabled={busy} onChange={(event) => {
               if (!event.target.value) return;
               setEligibleCount(null);
               setGenerationError(null);
               void load(event.target.value);
             }} />
           </label>
-        <Button type="button" variant="outline" disabled={regenerating || saving || sending || listLoading || !drafts.some((draft) => draft.status !== "sent")} onClick={() => void regenerate(true)}>
+        <Button type="button" variant="outline" disabled={busy || !drafts.some((draft) => draft.status !== "sent")} onClick={() => void regenerate(true)}>
           Regenerate selected edition
         </Button>
-        <Button type="button" variant="outline" disabled={regenerating || saving || sending || listLoading} onClick={() => void regenerate()}>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void regenerate()}>
           {regenerating ? "Creating..." : "Create new edition"}
         </Button>
-        <Button type="button" disabled={regenerating || saving || sending || listLoading || sendableCount === 0} onClick={() => void sendNow()}>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button type="button" variant="destructive" disabled={busy || !drafts.length || editionLocked}>
+              {deleting ? "Deleting..." : "Delete edition"}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete edition {editionDate}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently removes all {drafts.length} unsent draft{drafts.length === 1 ? "" : "s"} for {editionDate}. You can create a new edition afterward. Sent editions cannot be deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleting}
+                onClick={() => void deleteEdition()}
+              >
+                Delete edition
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <Button type="button" disabled={busy || sendableCount === 0} onClick={() => void sendNow()}>
           {sending ? "Sending..." : `Send ${sendableCount} approved now`}
         </Button>
         </div>

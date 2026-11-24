@@ -61,12 +61,16 @@ const compose = (opts: {
   excludedUrls: opts.excludedUrls,
 });
 
-// 1) Zero-show inventory -> held (no email)
-assert.equal(compose({ events: [] }), null, "zero-show -> held");
-assert.equal(compose({
+// 1) Zero-show / no-city inventory -> still draft (listens + location prompt)
+const zeroShow = compose({ events: [] })!;
+assert.equal(zeroShow.shows.length, 0, "zero-show -> no radar cards");
+assert.ok((zeroShow.listens?.length ?? 0) >= 1, "zero-show still includes listens");
+const noCity = compose({
   reader: reader({ city: null, state: null, latitude: null, longitude: null }),
   events: [event({ id: "far", artistName: "Wilco", city: "Chicago", state: "IL", latitude: 41.88, longitude: -87.63 })],
-}), null, "no city -> held");
+})!;
+assert.equal(noCity.shows.length, 0, "no city -> no invented local shows");
+assert.ok(noCity.locationPrompt);
 
 // 2) No-ticket valid show -> displayed with in-app URL
 const noTicket = compose({

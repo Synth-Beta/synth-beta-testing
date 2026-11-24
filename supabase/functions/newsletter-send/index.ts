@@ -24,6 +24,7 @@ type NewsletterSendAction =
   | "set_approval"
   | "list_drafts"
   | "upsert_drafts"
+  | "delete_edition"
   | "set_draft_approval"
   | "approve_all_drafts"
   | "record_content_veto"
@@ -607,6 +608,49 @@ serve(async (req) => {
       });
       if (error) return json(500, { ok: false, error: `Drafts were not saved: ${error.message}` });
       return json(200, { ok: true, ...data });
+    }
+
+    if (action === "delete_edition") {
+      const editionDate = String(body?.editionDate ?? "").trim();
+      if (!editionDate) return json(400, { ok: false, error: "editionDate is required." });
+      const existing = await adminClient
+        .from("newsletter_drafts")
+        .select("id, status, sent_at, brevo_message_id, delivery_state, send_claimed_at")
+        .eq("edition_date", editionDate);
+      if (existing.error) return json(500, { ok: false, error: existing.error.message });
+      const rows = existing.data ?? [];
+      if (!rows.length) return json(404, { ok: false, error: "No drafts found for that edition." });
+      const locked = rows.filter((row) =>
+        row.status === "sent"
+        || Boolean(row.sent_at)
+        || Boolean(row.brevo_message_id)
+        || Boolean(row.send_claimed_at)
+        || row.delivery_state === "uncertain"
+      );
+      if (locked.length) {
+        return json(409, {
+          ok: false,
+          error: `${locked.length} draft${locked.length === 1 ? " was" : "s were"} already sent or claimed. Editions with delivery history cannot be deleted.`,
+        });
+      }
+      const { data: deletedRows, error } = await adminClient
+        .from("newsletter_drafts")
+        .delete()
+        .eq("edition_date", editionDate)
+        .neq("status", "sent")
+        .is("sent_at", null)
+        .is("brevo_message_id", null)
+        .is("send_claimed_at", null)
+        .select("id");
+      if (error) return json(500, { ok: false, error: error.message });
+      const deleted = deletedRows?.length ?? 0;
+      if (deleted !== rows.length) {
+        return json(409, {
+          ok: false,
+          error: `Only deleted ${deleted} of ${rows.length} drafts. Reload and try again if a send started.`,
+        });
+      }
+      return json(200, { ok: true, editionDate, deleted });
     }
 
     if (action === "set_draft_approval") {

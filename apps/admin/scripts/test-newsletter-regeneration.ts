@@ -40,8 +40,10 @@ assert.doesNotMatch(generated.drafts[0].html, /Tickets are listed as available|A
 assert.notEqual(generated.drafts[0].html, generated.drafts[1].html);
 
 const held = await generateDraftsFromSource({ ...empty, events: [] }, now, '2026-10-12');
-assert.equal(held.drafts.length, 0);
-assert.equal(held.held, 135, 'no local show inventory holds the edition');
+assert.equal(held.drafts.length, 135, 'no local show inventory still drafts every subscribed reader');
+assert.equal(held.held, 0);
+assert.ok(held.drafts[0].sources.some((source) => source.kind === 'listen'));
+assert.equal(held.drafts[0].sources.some((source) => source.kind === 'event'), false);
 
 const news = [{ id: 'story', title: 'Festival announces its lineup', url: 'https://example.com/music', created_at: '2026-10-06T12:00:00Z', summary: 'The festival posted its lineup and ticket links on the official site this week.' }];
 const general = await generateDraftsFromSource({ ...empty, news }, now);
@@ -77,4 +79,4 @@ const rows = await readAll(() => ({ range: async (from: number, to: number) => {
 assert.equal(rows.length, 1201);
 assert.equal(pages, 3);
 await assert.rejects(readAll(() => ({ range: async () => ({ data: null, error: { message: 'database unavailable' } }) }), 'Reviews'), /Reviews: database unavailable/);
-console.log('PASS: 135 recipients with show gate; zero-show hold; explicit edition; recommendation-first fallback; custom artists; streaming merge; deduplication; approval reset; pagination; query errors.');
+console.log('PASS: 135 recipients; zero-show still drafts; explicit edition; recommendation-first fallback; custom artists; streaming merge; deduplication; approval reset; pagination; query errors.');
